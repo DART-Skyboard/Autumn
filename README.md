@@ -1,19 +1,19 @@
 
 <p align="center">
-  | Ariel NPU |
+  | Autumn |
 </p>
   <br>
   <br>
   <p align="left">
-  Ariel, a prototyping tool for NPU Hardware and cloud based Circuit Design Applications to simulate software-based AI models with hardware AI circuitry live in the cloud.
+  Autumn AI by Radical Deepscale and LEATR
   </p>
   <br>
   <br>
   <p align="center">
-  <a href="https://radicaldeepscale.com/ariel.html" target="_blank">
+  <a href="https://leatr.xyz/" target="_blank">
     <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/ArielAshTreeLogo.png" alt="ArielFire" width="200" height="200">
   </a>
   <br>
-  <a href="https://radicaldeepscale.com/ariel.html">Ariel NPU</a>
+  <a href="https://leatr.xyz/">Autumn</a>
 </p>
 
