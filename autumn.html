@@ -11,28 +11,28 @@
 <meta property="og:url" content="https://radicaldeepscale.com/autumn.html">
 <meta property="og:title" content="Autumn | Radical Deepscale">
 <meta property="og:description" content="Exploring the intersection of AI, scientific visualization, and 3D animation through the Lead Edge Ash Tree Reflex Neural Network.">
-<meta property="og:image" content="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/ambh.jpeg">
+<meta property="og:image" content="assets/ambh.jpeg">
 
 <meta property="twitter:card" content="summary_large_image">
 <meta property="twitter:url" content="https://radicaldeepscale.com/autumn.html">
 <meta property="twitter:title" content="Autumn | Radical Deepscale">
 <meta property="twitter:description" content="Exploring the intersection of AI, scientific visualization, and 3D animation through the Lead Edge Ash Tree Reflex Neural Network.">
-<meta property="twitter:image" content="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/ambh.jpeg">
+<meta property="twitter:image" content="assets/ambh.jpeg">
 
 <meta name="theme-color" content="#020a14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Autumn">
-<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/autumn.png">
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/autumn.png">
+<link rel="apple-touch-icon" href="assets/autumn.png">
+<link rel="icon" type="image/png" href="assets/autumn.png">
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiQXV0dW1uIC0gTEVBVFIiLCJzaG9ydF9uYW1lIjoiQXV0dW1uIiwiZGVzY3JpcHRpb24iOiJMZWFkIEVkZ2UgQXNoIFRyZWUgUmVmbGV4IE5ldXJhbCBOZXR3b3JrIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwMjBhMTQiLCJ0aGVtZV9jb2xvciI6IiMwMjBhMTQiLCJpY29ucyI6W3sic3JjIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RBUlQtU2t5Ym9hcmQvQXJpZWwvcmVmcy9oZWFkcy9tYWluL3N0YXRpYy9hdXR1bW4ucG5nIiwic2l6ZXMiOiI1MTJ4NTEyIiwidHlwZSI6ImltYWdlL3BuZyJ9XX0K">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link rel="stylesheet" href="css/leaflet.min.css">
+<script src="js/three.min.js"></script>
 <script type="module">
 // Kokoro TTS via @huggingface/transformers — runs fully in-browser, no API key
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3/dist/transformers.min.js';
+import { pipeline, env } from './js/transformers.min.js';
 env.allowLocalModels = false;
 env.backends.onnx.wasm.numThreads = 2;
 window._kokoroLoad = (async () => {
@@ -47,9 +47,9 @@ window._kokoroLoad = (async () => {
   }
 })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pako@2.0.3/dist/pako.min.js"></script>
+<script src="js/jszip.min.js"></script>
+<script src="js/FileSaver.min.js"></script>
+<script src="js/pako.min.js"></script>
 <script>
 
 // ============================================================
@@ -83,10 +83,10 @@ const AUTUMN_IDENTITY = {
 
   // ── Identity asset URLs (hosted in DART-Skyboard/Ariel repo) ──
   assets: {
-    logo:       'https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/autumn_identity_logo.png',
-    modelFront: 'https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/autumn_identity_front.png',
-    modelTop:   'https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/autumn_identity_top.png',
-    avatar:     'https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/autumn.png'
+    logo:       'assets/autumn_identity_logo.png',
+    modelFront: 'assets/autumn_identity_front.png',
+    modelTop:   'assets/autumn_identity_top.png',
+    avatar:     'assets/autumn.png'
   },
 
   // ── Self-awareness triggers ────────────────────────────────
@@ -206,7 +206,7 @@ THREE.OrbitControls=function(camera,domElement){
 };
 })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/leaflet.min.js"></script>
 <style>
 :root{--cyan:#00ffcc;--blue:#0088ff;--red:#ff4466;--bg:#020a14;--bg2:#0a1628;--panel:rgba(6,16,32,0.72);--border:rgba(0,255,204,0.12);--text:#c8e6f0;--dim:#4a7a8a;--bright:#d0e8f0;--font-d:'Orbitron',monospace;--font-b:'Exo 2',sans-serif;--r:14px}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -818,7 +818,7 @@ select.ash-ctrl-input{cursor:pointer}
 
 <!-- ░░ BACKDROP VIDEO ░░ -->
 <video id="backdrop-video"
-  src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/autumn.mp4"
+  src="assets/autumn.mp4"
   autoplay loop muted playsinline
   style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;pointer-events:none"></video>
 <!-- Frosted glass scrim — opacity/blur controlled by JS -->
@@ -833,7 +833,7 @@ select.ash-ctrl-input{cursor:pointer}
 <!-- Consent Modal -->
 <div id="consent-modal" style="display:none">
   <div id="consent-box">
-    <h2><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/autumn.png" alt="Autumn" style="height:32px;vertical-align:middle;margin-right:8px;filter:drop-shadow(0 0 6px rgba(191,0,255,.3))">Welcome to Autumn</h2>
+    <h2><img src="assets/autumn.png" alt="Autumn" style="height:32px;vertical-align:middle;margin-right:8px;filter:drop-shadow(0 0 6px rgba(191,0,255,.3))">Welcome to Autumn</h2>
     <p>Autumn stores conversation history and memory locally on your device using browser storage. This allows her to remember your conversations across sessions. No data is sent to external servers beyond the AI response API.</p>
     <p style="font-size:11px;color:#3a5a6a">If you ever clear your browser storage, you can export your data first as a backup file.</p>
     <div class="consent-btns">
@@ -868,7 +868,7 @@ select.ash-ctrl-input{cursor:pointer}
 
 <header>
   <a href="https://radicaldeepscale.com/" class="logo-wrap" style="text-decoration:none">
-    <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/autumn.png" alt="Autumn" style="height:36px;width:auto;object-fit:contain;filter:drop-shadow(0 0 8px rgba(191,0,255,.3))">
+    <img src="assets/autumn.png" alt="Autumn" style="height:36px;width:auto;object-fit:contain;filter:drop-shadow(0 0 8px rgba(191,0,255,.3))">
     <div class="logo">Autumn</div>
     <div class="logo-sub">LEATR v2.1</div>
   </a>
@@ -972,7 +972,7 @@ select.ash-ctrl-input{cursor:pointer}
 
 <div id="voice-modal">
   <div class="voice-box">
-    <h3><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/autumn.png" alt="" style="height:18px;vertical-align:middle;margin-right:6px"> Voice & Language Settings</h3>
+    <h3><img src="assets/autumn.png" alt="" style="height:18px;vertical-align:middle;margin-right:6px"> Voice & Language Settings</h3>
     <div class="voice-row"><label>VOICE</label><select id="voice-select"></select></div>
     <div class="voice-row">
       <label>LANGUAGE (CHAT TEXT)</label>
@@ -1010,7 +1010,7 @@ select.ash-ctrl-input{cursor:pointer}
 <div id="live-mode">
   <span class="live-close" onclick="closeLiveMode()">✕</span>
   <div class="live-orb" id="live-orb">
-    <div class="live-orb-inner"><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/autumn.png" alt="Autumn" style="height:80px;width:auto;filter:drop-shadow(0 0 12px rgba(191,0,255,.4))"></div>
+    <div class="live-orb-inner"><img src="assets/autumn.png" alt="Autumn" style="height:80px;width:auto;filter:drop-shadow(0 0 12px rgba(191,0,255,.4))"></div>
   </div>
   <div class="live-status" id="live-status">TAP ORB TO START</div>
   <div class="live-transcript" id="live-transcript"></div>
@@ -6324,7 +6324,7 @@ function renderMessages() {
   let html="";
   for(const m of msgs()){
     const cls=m.role==="user"?"user":"autumn";
-    const lbl=m.role==="autumn"?`<div class="msg-lbl"><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/autumn.png" alt="" style="height:14px;width:auto;vertical-align:middle;margin-right:4px;filter:drop-shadow(0 0 4px rgba(191,0,255,.3))">AUTUMN</div>`:"";
+    const lbl=m.role==="autumn"?`<div class="msg-lbl"><img src="assets/autumn.png" alt="" style="height:14px;width:auto;vertical-align:middle;margin-right:4px;filter:drop-shadow(0 0 4px rgba(191,0,255,.3))">AUTUMN</div>`:"";
 
     // Context badge (subtle, not intrusive)
     const ctxBadge = '';
@@ -6390,7 +6390,7 @@ function appendChatBubble(msg) {
   if (!el) return;
   const cls = msg.role === 'user' ? 'user' : 'autumn';
   const lbl = msg.role === 'autumn'
-    ? `<div class="msg-lbl"><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/autumn.png" alt="" style="height:14px;width:auto;vertical-align:middle;margin-right:4px;filter:drop-shadow(0 0 4px rgba(191,0,255,.3))">AUTUMN</div>`
+    ? `<div class="msg-lbl"><img src="assets/autumn.png" alt="" style="height:14px;width:auto;vertical-align:middle;margin-right:4px;filter:drop-shadow(0 0 4px rgba(191,0,255,.3))">AUTUMN</div>`
     : '';
   const ctxBadge = msg.contextType ? `<div class="msg-ctx-badge">${msg.contextType}</div>` : '';
   const meta = msg.meta ? `<div class="msg-meta">${(msg.meta.elapsed||0).toFixed(1)}ms | Q:${(msg.meta.qs||0).toFixed(1)}</div>` : '';
@@ -7549,8 +7549,8 @@ function switchSession(idx){
 const _IDE_PW_HASH = '6e5a2508490e95c53c475321202d036ae288795e9302b78670e80f7ca70fbf0b';
 const _GH_REPO     = 'DART-Skyboard/Ariel';
 const _GH_BRANCH   = 'main';
-const _GH_LOGIC    = 'templates/autumn-logic.js';
-const _GH_RAW      = `https://raw.githubusercontent.com/${_GH_REPO}/${_GH_BRANCH}/${_GH_LOGIC}`;
+const _GH_LOGIC    = 'js/autumn-logic.js';
+const _GH_RAW      = `js/autumn-logic.js`;
 const _GH_API      = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOGIC}`;
 const _CLAUDE_MDL  = 'claude-sonnet-4-6';
 
@@ -8431,7 +8431,7 @@ loadAutumnLogic();
 // ============================================================
 
 // ── Raw GitHub URLs for Ash language definition files ───────────────────
-const _ASH_DEFS_BASE = 'https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/dartide/';
+const _ASH_DEFS_BASE = 'assets/';
 const _ASH_SYNTAX_URL = _ASH_DEFS_BASE + 'syntaxdefinitions.json';
 const _ASH_INSTR_URL  = _ASH_DEFS_BASE + 'instructionset.json';
 const _ASH_OUTPUT_URL = _ASH_DEFS_BASE + 'outputdefinitions.json';
