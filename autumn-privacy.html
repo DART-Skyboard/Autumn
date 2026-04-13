@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AUTUMN // Privacy Policy</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap');
+
+        :root {
+            --bg:        #05080d;
+            --surface:   rgba(8, 14, 22, 0.95);
+            --cyan:      #00f2ff;
+            --cyan-faint:rgba(0, 242, 255, 0.10);
+            --text:      #b0bec5;
+            --text-dim:  #3d5264;
+            --border:    rgba(0, 242, 255, 0.20);
+            --mono:      'Share Tech Mono', monospace;
+            --sans:      'Exo 2', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0,242,255,0.022) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,242,255,0.022) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 640px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            box-shadow:
+                0 0 0 1px rgba(0,242,255,0.04),
+                0 0 40px rgba(0,242,255,0.07),
+                inset 0 1px 0 rgba(0,242,255,0.07);
+            padding: 48px 44px 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .container::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 3px,
+                rgba(0,0,0,0.055) 3px,
+                rgba(0,0,0,0.055) 4px
+            );
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 22px; height: 22px;
+            border-top: 2px solid var(--cyan);
+            border-left: 2px solid var(--cyan);
+            pointer-events: none;
+        }
+        .corner-br {
+            position: absolute;
+            bottom: 0; right: 0;
+            width: 22px; height: 22px;
+            border-bottom: 2px solid var(--cyan);
+            border-right: 2px solid var(--cyan);
+        }
+
+        .header { text-align: center; margin-bottom: 36px; }
+
+        .logo {
+            font-family: var(--sans);
+            font-weight: 700;
+            font-size: 2.8rem;
+            letter-spacing: 0.55rem;
+            color: var(--cyan);
+            text-shadow:
+                0 0 8px var(--cyan),
+                0 0 24px rgba(0,242,255,0.4),
+                0 0 48px rgba(0,242,255,0.15);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            animation: logoFlicker 7s ease-in-out infinite;
+        }
+
+        @keyframes logoFlicker {
+            0%, 89%, 100% { opacity: 1; }
+            90%  { opacity: 0.86; }
+            92%  { opacity: 1; }
+            94%  { opacity: 0.91; }
+        }
+
+        .subtitle {
+            font-family: var(--mono);
+            font-size: 0.62rem;
+            letter-spacing: 0.28rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .status-bar {
+            width: 100%;
+            height: 1px;
+            background: rgba(0,242,255,0.08);
+            margin: 22px 0 0;
+            position: relative;
+        }
+        .status-progress {
+            width: 35%;
+            height: 100%;
+            background: var(--cyan);
+            box-shadow: 0 0 6px var(--cyan), 0 0 14px rgba(0,242,255,0.35);
+            position: relative;
+        }
+        .status-progress::after {
+            content: '';
+            position: absolute;
+            right: 0; top: -2px;
+            width: 4px; height: 4px;
+            background: var(--cyan);
+            box-shadow: 0 0 6px var(--cyan);
+        }
+
+        .sys-label {
+            font-family: var(--mono);
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            letter-spacing: 0.05rem;
+            margin: 28px 0 22px;
+        }
+        .sys-label span { color: rgba(0,242,255,0.32); }
+
+        .section { margin-bottom: 26px; }
+
+        h2 {
+            font-family: var(--sans);
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--cyan);
+            text-transform: uppercase;
+            letter-spacing: 0.14rem;
+            border-left: 2px solid var(--cyan);
+            padding-left: 10px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 6px rgba(0,242,255,0.35);
+        }
+
+        p {
+            font-size: 0.83rem;
+            line-height: 1.68;
+            color: var(--text);
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+        p:last-child { margin-bottom: 0; }
+
+        strong {
+            color: #cdd8e3;
+            font-weight: 600;
+        }
+
+        .entity-tag {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            letter-spacing: 0.04rem;
+            padding: 7px 11px;
+            border: 1px solid rgba(0,242,255,0.10);
+            background: rgba(0,242,255,0.025);
+            display: inline-block;
+        }
+        .entity-tag .hi { color: rgba(0,242,255,0.48); }
+
+        .divider {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0,242,255,0.13), transparent);
+            margin: 6px 0 18px;
+        }
+
+        .download-wrap { margin-top: 10px; }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            letter-spacing: 0.08rem;
+            color: var(--cyan);
+            text-decoration: none;
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            background: var(--cyan-faint);
+            text-shadow: 0 0 6px rgba(0,242,255,0.3);
+            box-shadow: 0 0 10px rgba(0,242,255,0.05);
+            transition: background 0.2s, box-shadow 0.2s;
+            position: relative;
+            z-index: 11;
+        }
+        .download-btn:hover {
+            background: rgba(0,242,255,0.16);
+            box-shadow: 0 0 16px rgba(0,242,255,0.12);
+        }
+        .download-btn svg { flex-shrink: 0; opacity: 0.75; }
+
+        .footer {
+            margin-top: 36px;
+            border-top: 1px solid rgba(0,242,255,0.10);
+            padding-top: 20px;
+            text-align: center;
+        }
+        .footer p {
+            font-family: var(--mono);
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            letter-spacing: 0.06rem;
+            margin-bottom: 6px;
+        }
+        .footer a {
+            color: var(--cyan);
+            text-decoration: none;
+            text-shadow: 0 0 5px rgba(0,242,255,0.25);
+            position: relative;
+            z-index: 11;
+        }
+        .footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="corner-br"></div>
+
+    <div class="header">
+        <div class="logo">AUTUMN</div>
+        <div class="subtitle">Spacepunk Development Environment</div>
+        <div class="status-bar"><div class="status-progress"></div></div>
+    </div>
+
+    <div class="sys-label"><span>SYSTEM://</span>PRIVACY_POLICY_DART_MEADOW</div>
+
+    <div class="section">
+        <h2>Network Residency</h2>
+        <p>While encompassed within our Network, your acceptance will be stored in <strong>localStorage</strong> (like a cookie) so you won't see this again on this device or browser.</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+        <h2>Entity Disclosure</h2>
+        <div class="entity-tag"><span class="hi">EXECUTING:</span> DART Meadow LLC. | Radical Deepscale LLC.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+        <h2>Information Exchange</h2>
+        <p>Information obtained via input provided by the Visitor or prior interactions within our network will be kept mutually respectful and private where applicable.</p>
+        <p>Upon interacting with the network, any visitor agrees to uphold their own ethical duties and accepts liability for their conduct outside our network.</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+        <h2>Asset Licensing</h2>
+        <p>Documentation or assets publicly shared by our Network may be freely copied and distributed, but <strong>not modified without consent</strong>, provided this License Policy remains attached.</p>
+        <p>Commercial distributions are permitted only where this License Policy is attached and distributed as a highlighted reference. <strong>Modification requires explicit consent.</strong></p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+        <h2>Dry Meadow Audio</h2>
+        <p>While encompassed with our audio products or services, policy and open licensing remain identical unless explicitly stated otherwise. Works by Dry Meadow remain negotiable during current and potential project communications.</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+        <h2>Full Policy Document</h2>
+        <p>The complete DART Meadow Privacy Policy is available to download or view in full.</p>
+        <div class="download-wrap">
+            <a class="download-btn"
+               href="https://github.com/DART-Skyboard/Autumn/blob/main/Privacy%20Policy%20.pdf"
+               target="_blank" rel="noopener noreferrer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                PRIVACY_POLICY_.PDF — DART MEADOW NETWORK
+            </a>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>FULL POLICY AVAILABLE AT <a href="https://dartmeadow.com" target="_blank" rel="noopener noreferrer">DARTMEADOW.COM</a></p>
+        <p>© 2026 DART MEADOW NETWORK // ALL RIGHTS RESERVED</p>
+    </div>
+</div>
+</body>
+</html>
