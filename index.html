@@ -4779,7 +4779,7 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},
-      body:JSON.stringify({model:'claude-3-5-sonnet-20241022',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
       signal:AbortSignal.timeout(25000)
     });
     var data = await res.json();
@@ -4908,7 +4908,7 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
   var visionDescription='';
   try{
     var ak=_getAK()||'';
-    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-3-5-sonnet-20241022',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
+    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
     var vData=await vRes.json();
     visionDescription=vData.content?vData.content.map(function(b){return b.text||'';}).join(''):'';
   }catch(e){visionDescription='';}
@@ -5408,7 +5408,7 @@ async function classifyIntent(text, hasPendingImages) {
       method: 'POST',
       headers: {'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 15,
         system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
@@ -5790,7 +5790,7 @@ ACCESS TIERS: All users get the full Autumn LEATR experience — never imply any
         "anthropic-dangerous-direct-browser-access": "true",
         ...(ak ? {"x-api-key": ak} : {})
       },
-      body: JSON.stringify({model:"claude-3-5-sonnet-20241022", max_tokens:2048, system:systemPrompt, messages:trimHistory})
+      body: JSON.stringify({model:"claude-sonnet-4-6", max_tokens:2048, system:systemPrompt, messages:trimHistory})
     });
     clearTimeout(_timeout);
     const data=await res.json();
@@ -7557,7 +7557,7 @@ const _GH_BRANCH   = 'main';
 const _GH_LOGIC    = 'js/autumn-logic.js';
 const _GH_RAW      = `js/autumn-logic.js`;
 const _GH_API      = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOGIC}`;
-const _CLAUDE_MDL  = 'claude-3-5-sonnet-20241022';
+const _CLAUDE_MDL  = 'claude-sonnet-4-6';
 
 let _ideUnlocked     = false;
 let _ideMonaco       = null;
@@ -7596,8 +7596,8 @@ function closeIDEPasswordModal() {
 }
 
 // ── PAT (GitHub token — sessionStorage only, cleared on tab close) ──
-function _getPAT() { try { return sessionStorage.getItem('_aut_ide_pat')||''; } catch(e){ return ''; } }
-function _setPAT(v) { try { sessionStorage.setItem('_aut_ide_pat',v); } catch(e){} }
+function _getPAT() { try { return localStorage.getItem('_aut_ide_pat')||''; } catch(e){ return ''; } }
+function _setPAT(v) { try { localStorage.setItem('_aut_ide_pat',v); } catch(e){} }
 
 function saveIDEPAT() {
   const v = (document.getElementById('ide-pat-input')?.value||'').trim();
@@ -7609,10 +7609,10 @@ function saveIDEPAT() {
   _openIDEDirect();
 }
 function closeIDEPATModal() { document.getElementById('ide-pat-modal').classList.remove('open'); }
-function ideClearPAT() { try{sessionStorage.removeItem('_aut_ide_pat');}catch(e){} ideToast('GitHub token cleared.'); }
+function ideClearPAT() { try{localStorage.removeItem('_aut_ide_pat');}catch(e){} ideToast('GitHub token cleared.'); }
 
 // ── Anthropic API key (sessionStorage, cleared on tab close) ──
-function _getAK() { try { return sessionStorage.getItem('_aut_ide_ak')||''; } catch(e){ return ''; } }
+function _getAK() { try { return localStorage.getItem('_aut_ide_ak')||''; } catch(e){ return ''; } }
 function _updateKeyBtn() {
   var btn = document.getElementById('hdr-key-btn');
   if (!btn) return;
@@ -7622,7 +7622,7 @@ function _updateKeyBtn() {
   btn.title = has ? 'Your API key is active — tap to change' : 'Optional: add your Anthropic key to enhance Autumn with Claude';
 }
 setTimeout(_updateKeyBtn, 600);
-function _setAK(v) { try { sessionStorage.setItem('_aut_ide_ak',v); } catch(e){} }
+function _setAK(v) { try { localStorage.setItem('_aut_ide_ak',v); } catch(e){} }
 // API key: enter via IDE settings panel (⚙ icon) — stored in sessionStorage only
 
 function saveIDEAK() {
@@ -7634,7 +7634,7 @@ function saveIDEAK() {
   ideToast('◈ Anthropic key saved for this session.');
 }
 function closeIDEAKModal() { document.getElementById('ide-ak-modal').classList.remove('open'); }
-function ideClearAK() { try{sessionStorage.removeItem('_aut_ide_ak');}catch(e){} ideToast('Anthropic key cleared.'); }
+function ideClearAK() { try{localStorage.removeItem('_aut_ide_ak');}catch(e){} ideToast('Anthropic key cleared.'); }
 
 // ── Toast ─────────────────────────────────────────────────────
 let _ideToastTimer = null;
@@ -8354,7 +8354,7 @@ loadAutumnLogic();
     <h2>◈ GITHUB TOKEN</h2>
     <p>A GitHub Personal Access Token (PAT) with <strong>repo → contents</strong> write access is required to read and write <code>templates/autumn-logic.js</code>.<br><br>
     Get one at <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a> → Generate new token (classic) → check <strong>repo</strong>.<br><br>
-    Your token is stored in <strong>sessionStorage only</strong> and cleared automatically when you close this tab.</p>
+    Your token is stored in <strong>localStorage</strong> and will persist across sessions.</p>
     <input type="password" id="ide-pat-input" placeholder="ghp_xxxxxxxxxxxxxxxx" autocomplete="new-password" data-lpignore="true" data-form-type="other" onkeydown="if(event.key==='Enter')saveIDEPAT()">
     <div class="ide-pw-btns" style="margin-top:4px">
       <button class="m-btn primary" onclick="saveIDEPAT()">SAVE TOKEN</button>
@@ -8370,7 +8370,7 @@ loadAutumnLogic();
     <p><strong>This is optional.</strong> Autumn runs fully on her own LEATR neural network without any key.<br><br>
     Adding your personal <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic API key</a> enables Claude Sonnet as an additional layer on top of Autumn — deeper responses, more complex reasoning.<br><br>
     <span style="color:rgba(255,179,71,.8);font-size:.75em">⚠ This is your personal key — it only enhances your session. Administrator features (IDE, repository access) require separate admin credentials and are not available through this key.</span><br><br>
-    Your key stays in <strong>sessionStorage only</strong> — cleared when you close this tab. Never stored, never committed anywhere.</p>
+    Your key stays in <strong>localStorage</strong> — never committed anywhere. Clear it anytime with the clear button.</p>
     <input type="password" id="ide-ak-input" placeholder="sk-ant-api03-…" autocomplete="new-password" data-lpignore="true" data-form-type="other" onkeydown="if(event.key==='Enter')saveIDEAK()">
     <div class="ide-pw-btns" style="margin-top:4px">
       <button class="m-btn primary" onclick="saveIDEAK()">ACTIVATE</button>
