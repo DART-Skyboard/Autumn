@@ -1,0 +1,2942 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+      <meta name="description" content="Radical Deepscale | Software and Hardware Engineering Technologies - Lead Edge Ash Tree Reflex Neural Network for Ariel NPU and Autumn AI by Radical Deepscale.">
+<!-- Favicon block: ensures compatibility across all devices -->
+
+<link rel="icon" href="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/favicon.ico" type="image/x-icon">
+<link rel="shortcut icon" href="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/favicon.ico">
+
+<link rel="manifest" href="/manifest.json">
+
+
+<!-- Link to your RSS/Web Feed for Chrome's "Follow" feature -->
+<link rel="alternate" type="application/rss+xml" title="Ariel &amp; Autumn Updates" href="/feed.xml">
+  
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>Radical Deepscale | Software and Hardware Engineering Technologies</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<!-- Three.js retained for atom overlay 3D visualization only -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r132/three.min.js"></script>
+
+<style>
+/* =================================================================
+   THEME DEFINITION & GENERAL STYLES
+   ================================================================= */
+    :root {
+      --theme-primary: #47c4f1;
+      --theme-primary-glow: rgba(71, 196, 241, 0.5);
+      --theme-text: #E0F4FF;
+      --theme-panel-bg: rgba(30, 45, 57, 0.85);
+      --theme-panel-border: #47c4f1;
+      --theme-input-bg: #0e1b22;
+      --theme-input-border: #4d5e6a;
+      --theme-button-text-dark: #1e2d39;
+      --theme-disabled-color: #778c9b;
+      /* Frosted glass tokens */
+      --frost-bg: rgba(180, 220, 255, 0.43);
+      --frost-border: rgba(140, 210, 255, 0.72);
+      --frost-blur: blur(22px) saturate(160%);
+    }
+
+   /* full-screen video behind everything */
+    #bgvid {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: -10;
+      pointer-events: none;
+    }
+
+    html, body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  font-family: 'Segoe UI', sans-serif;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: transparent;
+  color: var(--theme-text);
+}
+
+    body > * {
+      z-index: 1;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+      padding: 20px;
+      border-radius: 10px;
+      color: white;
+      background: transparent !important;
+    }
+
+/* =================================================================
+   PRIVACY MODAL STYLING
+   ================================================================= */
+    #privacyModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+      overflow: auto;
+    }
+
+    .modal-content {
+      max-height: 90vh;
+      max-width: 700px;
+      background: var(--theme-panel-bg);
+      border: 1px solid var(--theme-panel-border);
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px var(--theme-primary-glow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .modal-header {
+      background: transparent;
+      color: var(--theme-text);
+      padding: 16px 24px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      text-align: center;
+      border-bottom: 1px solid var(--theme-panel-border);
+    }
+
+    .modal-body {
+      color: var(--theme-text);
+      padding: 18px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    #policyContent {
+      height: 180px;
+      max-height: 35vh;
+      overflow-y: auto;
+      background: var(--theme-input-bg);
+      border: 1px solid var(--theme-input-border);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+      flex-shrink: 0;
+    }
+    #policyContent a { color: var(--theme-primary); }
+    #policyContent a:hover { color: var(--theme-text); }
+
+    .modal-body em {
+      font-size: 0.85rem;
+      color: var(--theme-disabled-color);
+      text-align: center;
+    }
+
+    .modal-body input[type="text"],
+    .modal-body input[type="email"],
+    .modal-body input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 4px;
+      border: 1px solid var(--theme-input-border);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      background-color: var(--theme-input-bg);
+      color: var(--theme-text);
+      transition: all 0.3s ease;
+    }
+    .modal-body input:disabled { opacity: 0.5; }
+    .modal-body input:focus {
+        border-color: var(--theme-primary);
+        box-shadow: 0 0 8px var(--theme-primary-glow);
+        outline: none;
+    }
+
+    .modal-body label {
+      color: var(--theme-disabled-color);
+      display: block;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      background: transparent;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      border-top: 1px solid var(--theme-panel-border);
+    }
+
+    .modal-footer button {
+      padding: 8px 18px;
+      border: 1px solid var(--theme-disabled-color);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--theme-disabled-color);
+      font-weight: 500;
+      cursor: not-allowed;
+      transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .modal-footer button.enabled {
+      border-color: var(--theme-primary);
+      color: var(--theme-primary);
+      cursor: pointer;
+    }
+    .modal-footer button.enabled:hover {
+      background: var(--theme-primary);
+      color: var(--theme-button-text-dark);
+      box-shadow: 0 0 10px var(--theme-primary-glow);
+    }
+
+/* =================================================================
+   SIDE MENU STYLING
+   ================================================================= */
+    #userMenuDropdown {
+      display: none;
+      position: fixed;
+      top: 85px;
+      left: 10px;
+      width: 60vw;
+      max-width: 215px;
+      max-height: 80vh;
+      background: var(--theme-panel-bg);
+      border: 1px solid var(--theme-panel-border);
+      color: var(--theme-text);
+      padding: 12px;
+      border-radius: 10px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5), 0 0 15px var(--theme-primary-glow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+           /* display: flex; Kept from original to ensure layout */  flex-direction: column;
+      pointer-events: auto;
+      touch-action: manipulation;
+    }
+
+    #userMenuDropdown p { margin: 2px 0; }
+
+    #userMenuDropdown button,
+    .menu-button {
+        background: rgba(0,0,0,0.2);
+        border: 1px solid var(--theme-input-border);
+        color: var(--theme-text);
+        padding: 8px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        width: 100%;
+        margin: 4px 0;
+        text-align: left;
+        transition: all 0.2s ease-in-out;
+    }
+
+    #userMenuDropdown button:hover,
+    .menu-button:hover {
+        background: var(--theme-primary);
+        border-color: var(--theme-primary);
+        color: var(--theme-button-text-dark);
+        transform: translateX(5px);
+    }
+    
+    #userMenuDropdown #accountSettingsBtn { background: rgba(0,0,0,0.2); }
+    #userMenuDropdown button[onclick="logout()"] { border-color: #f1476f; color: #f1476f; }
+    #userMenuDropdown button[onclick="logout()"]:hover { background: #f1476f; border-color: #f1476f; color: #fff; }
+    #userMenuDropdown button[onclick="deleteAccount()"] { margin-top: 12px; }
+
+    #accountSettingsSection {
+      display: none;
+      margin-top: 8px;
+      border-top: 1px solid var(--theme-input-border);
+      padding-top: 8px;
+    }
+    #accountSettingsSection h4 { color: var(--theme-primary); margin: 4px 0; }
+    #accountSettingsSection label { color: var(--theme-disabled-color); }
+    #accountSettingsSection input {
+        width: 100%;
+        padding: 6px;
+        margin-top: 2px;
+        background-color: var(--theme-input-bg);
+        border: 1px solid var(--theme-input-border);
+        border-radius: 4px;
+        color: var(--theme-text);
+    }
+    #accountSettingsSection button {
+        background: #28a745;
+        border: 1px solid #28a745;
+        text-align: center;
+    }
+    #accountSettingsSection button:hover {
+        background: #218838;
+        border-color: #1e7e34;
+        color: #fff;
+    }
+
+/* =================================================================
+   MISC & LEGACY STYLES
+   ================================================================= */
+    h6 { color: white; margin-top: 10px; }
+    h2 { color: white; font-weight: bold; }
+
+    .row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+      --bs-gutter-x: 0;
+    }
+    
+    .buttonContainer,
+    .buttonContainer2 {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    #chatContainer {
+      display: none;
+      flex-direction: column;
+      width: 875px;
+      padding-top: 50px;
+      background: transparent !important;
+    }
+    #chat-header .chat-logo { width: 425px; object-fit: contain; }
+    #messageWindow {
+      height: 300px; border: 1px solid var(--theme-input-border); padding: 8px;
+      overflow-y: auto; background: var(--theme-input-bg); width: 80%; border-radius: 5px;
+    }
+    #messageWindow p, #messageWindow span { color: var(--theme-text) !important; }
+    .buttonContainer.chat { margin-top: 8px; gap: 8px; }
+    .buttonContainer.chat input {
+      width: 400px; padding: 8px; border-radius: 5px;
+      background-color: var(--theme-input-bg); border: 1px solid var(--theme-input-border); color: var(--theme-text);
+    }
+    .buttonContainer.chat button {
+      background-color: transparent; color: var(--theme-primary); border: 1px solid var(--theme-primary);
+      padding: 10px 20px; border-radius: 5px; cursor: pointer; transition: all 0.3s ease;
+    }
+    .buttonContainer.chat button:hover { background-color: var(--theme-primary); color: var(--theme-button-text-dark); }
+
+    label { margin: 8px; }
+
+    #floatingMenuIcon {
+      pointer-events: auto; touch-action: manipulation;
+      position: fixed; top: 0; left: 0; margin: 25px;
+    }
+    #header {
+      position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+      background-color: transparent; display: flex; align-items: center; justify-content: center; z-index: 3;
+    }
+    .avatar-placeholder {
+      width: 150px; height: 150px; margin: 0 auto 10px; border-radius: 50%;
+      overflow: hidden; position: relative; cursor: pointer; border: 2px solid var(--theme-primary);
+    flex-shrink: 0;
+    }
+    .avatar-placeholder img { width: 100%; height: 100%; object-fit: cover; }
+
+    .avatar-selection-popup {
+      display: none; position: absolute; top: 100px; left: 235px;
+      background: var(--theme-panel-bg); padding: 8px; border-radius: 6px;
+      border: 1px solid var(--theme-panel-border);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000;
+      grid-template-columns: repeat(8, 50px); grid-auto-rows: 50px; gap: 8px;
+      width: calc((50px + 8px) * 8 - 8px); height: calc((50px + 8px) * 8 - 8px);
+      overflow: auto;
+    }
+    .avatar-selection-popup.active { display: grid !important; }
+    .avatar-selection-popup img {
+      width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+      cursor: pointer; transition: transform .15s;
+    }
+    .avatar-selection-popup img:hover { transform: scale(1.2); }
+
+    #merchandiseBtn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 10px 0;
+        height: auto;
+    }
+    #merchandiseBtn img {
+        width: 100px;
+        height: 100px;
+        margin-right: 8px;
+        vertical-align: initial;
+    }
+    #merchandiseBtn span {
+        display: block;
+        flex-shrink: 0;
+    }
+
+    .speaker-button {
+      padding-top: 25px; background-color: transparent;
+      border: none; cursor: pointer; outline: none;
+    }
+    .speaker-button img { background-color: transparent; width: 50px; height: 50px; }
+
+/* =================================================================
+   HOMEPAGE SECTION — LARGE APP TILE LAUNCHER
+   ================================================================= */
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Exo+2:ital,wght@0,300;0,400;0,600;1,300&display=swap');
+
+  #homepageSection {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 1100px;
+    padding: 80px 24px 60px;
+    gap: 48px;
+    font-family: 'Exo 2', 'Segoe UI', sans-serif;
+    margin: 0 auto;
+  }
+
+  /* ── Brand Header ── */
+  #hp-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    text-align: center;
+    animation: hp-fadein 0.8s ease both;
+  }
+  #hp-brand img {
+    width: 475px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 18px var(--theme-primary-glow));
+  }
+  #hp-brand h1 { display: none; } /* removed duplicate */
+  #hp-brand-tagline {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--theme-primary);
+    margin: 2px 0 0;
+    opacity: 0.88;
+    text-shadow: 0 0 14px var(--theme-primary-glow);
+  }
+  #hp-brand p {
+    font-size: 0.82rem;
+    color: var(--theme-disabled-color);
+    letter-spacing: 0.1em;
+    margin: 0;
+  }
+  #hp-divider {
+    width: 160px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--theme-primary), transparent);
+    margin-top: 4px;
+  }
+
+  /* ── Section Labels ── */
+  .hp-section-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--theme-disabled-color);
+    align-self: flex-start;
+    padding-left: 10px;
+    border-left: 2px solid var(--theme-primary);
+  }
+
+  /* ── Featured Row (2 large tiles) ── */
+  #hp-featured-row {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 18px;
+    width: 100%;
+    animation: hp-fadein 0.9s 0.15s ease both;
+  }
+
+  /* ── Shared tile base — frosted glass ── */
+  .hp-tile {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(.22,.68,0,1.2), box-shadow 0.3s ease;
+    border: 1px solid var(--frost-border);
+    background: var(--frost-bg);
+    backdrop-filter: var(--frost-blur);
+    -webkit-backdrop-filter: var(--frost-blur);
+  }
+  .hp-tile:hover {
+    transform: translateY(-5px) scale(1.015);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 28px var(--theme-primary-glow);
+    border-color: var(--theme-primary);
+    z-index: 2;
+  }
+  .hp-tile::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(180,230,255,0.1) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* ── PRIMARY tile (Ariel) ── */
+  .hp-tile-primary {
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .hp-tile-primary .hp-tile-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 70% 30%, rgba(71,196,241,0.18) 0%, transparent 65%),
+                linear-gradient(145deg, rgba(160,210,255,0.08), rgba(100,180,240,0.04));
+  }
+  .hp-tile-primary .hp-tile-logo-wrap {
+    position: absolute;
+    top: 22px; right: 22px;
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(71,196,241,0.35);
+    box-shadow: 0 0 24px rgba(71,196,241,0.3);
+    background: rgba(160,220,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .hp-tile-primary .hp-tile-logo-wrap img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .hp-tile-primary .hp-tile-logo-wrap .hp-logo-fallback {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--theme-primary);
+    text-shadow: 0 0 16px var(--theme-primary-glow);
+  }
+  .hp-tile-primary .hp-tile-body {
+    position: relative;
+    padding: 22px 26px;
+  }
+  .hp-tile-primary .hp-tile-badge {
+    display: inline-block;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--theme-primary);
+    border: 1px solid var(--theme-primary);
+    border-radius: 4px;
+    padding: 3px 8px;
+    margin-bottom: 8px;
+    background: rgba(71,196,241,0.08);
+  }
+  .hp-tile-primary h3 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--theme-text);
+    margin: 0 0 6px;
+    text-shadow: 0 0 20px rgba(255,255,255,0.2);
+    letter-spacing: 0.06em;
+  }
+  .hp-tile-primary p {
+    font-size: 0.88rem;
+    color: var(--theme-disabled-color);
+    margin: 0;
+    letter-spacing: 0.04em;
+  }
+  .hp-tile-launch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--theme-primary);
+    border: 1px solid rgba(71,196,241,0.4);
+    border-radius: 6px;
+    padding: 6px 14px;
+    background: rgba(71,196,241,0.07);
+    transition: background 0.2s, color 0.2s;
+  }
+  .hp-tile:hover .hp-tile-launch {
+    background: var(--theme-primary);
+    color: var(--theme-button-text-dark);
+  }
+
+  /* ── SECONDARY tile (ArcLake) ── */
+  .hp-tile-secondary {
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .hp-tile-secondary .hp-tile-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 70%, rgba(71,196,241,0.16) 0%, transparent 60%),
+                linear-gradient(145deg, rgba(140,200,255,0.07), rgba(80,160,230,0.04));
+  }
+  .hp-tile-secondary .hp-tile-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 28px 22px;
+  }
+  .hp-tile-secondary .hp-icon-ring {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 2px solid rgba(71,196,241,0.4);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(160,220,255,0.1);
+    box-shadow: 0 0 20px rgba(71,196,241,0.2), inset 0 0 12px rgba(71,196,241,0.1);
+  }
+  .hp-tile-secondary .hp-icon-ring img {
+    width: 56px; height: 56px; object-fit: contain; border-radius: 50%;
+  }
+  .hp-tile-secondary .hp-icon-ring .hp-logo-fallback {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--theme-primary);
+  }
+  .hp-tile-secondary .hp-tile-badge {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--theme-primary);
+    border: 1px solid rgba(71,196,241,0.35);
+    border-radius: 4px;
+    padding: 3px 8px;
+    background: rgba(71,196,241,0.08);
+  }
+  .hp-tile-secondary h3 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--theme-text);
+    margin: 0;
+    letter-spacing: 0.08em;
+  }
+  .hp-tile-secondary p {
+    font-size: 0.82rem;
+    color: var(--theme-disabled-color);
+    margin: 0;
+  }
+
+  /* ── APP GRID — frosted cards ── */
+  #hp-app-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    margin: 0 auto;
+    animation: hp-fadein 1s 0.3s ease both;
+  }
+
+  .hp-app-card {
+    background: var(--frost-bg);
+    border: 1px solid var(--frost-border);
+    border-radius: 12px;
+    padding: 20px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.25s cubic-bezier(.22,.68,0,1.2), box-shadow 0.25s ease, border-color 0.25s;
+    backdrop-filter: var(--frost-blur);
+    -webkit-backdrop-filter: var(--frost-blur);
+  }
+  .hp-app-card:hover {
+    transform: translateY(-4px) scale(1.04);
+    box-shadow: 0 10px 32px rgba(0,0,0,0.45), 0 0 18px var(--theme-primary-glow);
+    border-color: var(--theme-primary);
+  }
+  .hp-app-icon {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: linear-gradient(145deg, rgba(71,196,241,0.22), rgba(71,196,241,0.08));
+    border: 1px solid rgba(71,196,241,0.3);
+    color: var(--theme-primary);
+    flex-shrink: 0;
+  }
+  .hp-app-icon img {
+    width: 36px; height: 36px; object-fit: contain; border-radius: 6px;
+  }
+  .hp-app-name {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--theme-text);
+    letter-spacing: 0.03em;
+    line-height: 1.3;
+  }
+  .hp-app-tag {
+    font-size: 0.65rem;
+    color: var(--theme-disabled-color);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── Animations ── */
+  @keyframes hp-fadein {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 760px) {
+    #hp-featured-row { grid-template-columns: 1fr; }
+    #hp-brand img { width: 160px; }
+    #hp-brand h1 { font-size: 0.85rem; }
+    #hp-app-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  }
+
+/* =================================================================
+   HOMEPAGE COMPACT PERIODIC TABLE
+   ================================================================= */
+  #hp-table-wrap {
+    width: 100%;
+    animation: hp-fadein 0.9s 0.25s ease both;
+  }
+  #hp-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(71,196,241,0.3) transparent;
+  }
+  #hp-table-scroll::-webkit-scrollbar { height: 4px; }
+  #hp-table-scroll::-webkit-scrollbar-track { background: transparent; }
+  #hp-table-scroll::-webkit-scrollbar-thumb { background: rgba(71,196,241,0.35); border-radius: 2px; }
+  .hp-ptable {
+    display: grid;
+    grid-template-columns: repeat(18, 52px);
+    gap: 3px;
+    min-width: 970px;
+  }
+  .hp-el, .hp-ph {
+    border-radius: 7px;
+    height: 54px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+    padding: 3px 2px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hp-ph { visibility: hidden; background: none; border: none; cursor: default; }
+  .hp-el {
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(71,196,241,0.1);
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(.22,.68,0,1.2),
+                box-shadow 0.2s ease,
+                border-color 0.2s ease;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .hp-el:hover {
+    transform: scale(1.22) translateZ(0);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.55), 0 0 12px var(--theme-primary-glow);
+    border-color: var(--theme-primary);
+    z-index: 5;
+  }
+  .hp-el.hp-gas      { background: rgba(0,210,90,0.43); }
+  .hp-el.hp-liquid   { background: rgba(50,110,255,0.62); }
+  .hp-el.hp-solid    { background: rgba(210,55,55,0.43); }
+  .hp-el.hp-synthetic{ background: rgba(255, 255, 255, 0.43); }
+  .hp-sym {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--theme-text);
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 48px;
+  }
+  .hp-anum {
+    font-size: 0.5rem;
+    color: var(--theme-primary);
+    line-height: 1.2;
+    font-family: 'Orbitron', sans-serif;
+  }
+  .hp-ename {
+    font-size: 0.42rem;
+    color: var(--theme-disabled-color);
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50px;
+  }
+
+/* =================================================================
+   ATOM OVERLAY — Draggable 3D Card
+   ================================================================= */
+  #atom-overlay-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 8900;
+  }
+  #atom-overlay-card {
+    position: fixed;
+    width: 300px;
+    background: rgba(10, 22, 32, 0.88);
+    border: 1px solid rgba(71,196,241,0.38);
+    border-radius: 18px;
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.75), 0 0 32px rgba(71,196,241,0.18);
+    overflow: hidden;
+    z-index: 9001;
+    user-select: none;
+    display: none;
+    flex-direction: column;
+    animation: overlay-pop 0.28s cubic-bezier(.22,.68,0,1.2) both;
+  }
+  #atom-overlay-card.is-open { display: flex; }
+  @keyframes overlay-pop {
+    from { opacity: 0; transform: scale(0.88); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  #atom-drag-bar {
+    padding: 13px 16px 9px;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(71,196,241,0.14);
+    flex-shrink: 0;
+  }
+  #atom-drag-bar:active { cursor: grabbing; }
+  #ao-symbol-block { display: flex; align-items: baseline; gap: 8px; }
+  #ao-sym {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--theme-primary);
+    text-shadow: 0 0 16px var(--theme-primary-glow);
+    line-height: 1;
+  }
+  #ao-anum-badge {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--theme-primary);
+    border: 1px solid rgba(71,196,241,0.4);
+    border-radius: 4px;
+    padding: 2px 5px;
+    background: rgba(71,196,241,0.08);
+  }
+  #ao-name-block { text-align: right; }
+  #ao-name {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--theme-text);
+    display: block;
+  }
+  #ao-state {
+    font-size: 0.64rem;
+    color: var(--theme-disabled-color);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: block;
+  }
+  #ao-close {
+    position: absolute;
+    top: 8px; right: 10px;
+    background: none;
+    border: none;
+    color: var(--theme-disabled-color);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 5px;
+    line-height: 1;
+    transition: color 0.2s, background 0.2s;
+    z-index: 1;
+  }
+  #ao-close:hover { color: var(--theme-primary); background: rgba(71,196,241,0.1); }
+  #ao-canvas-wrap {
+    width: 300px;
+    height: 270px;
+    flex-shrink: 0;
+    background: radial-gradient(ellipse at 50% 45%, rgba(71,196,241,0.07) 0%, transparent 65%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #ao-canvas { display: block; }
+  #ao-stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    padding: 10px 16px 14px;
+    border-top: 1px solid rgba(71,196,241,0.1);
+    flex-shrink: 0;
+  }
+  .ao-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .ao-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--theme-primary);
+  }
+  .ao-lbl {
+    font-size: 0.58rem;
+    color: var(--theme-disabled-color);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+
+/* =================================================================
+   MULTI-SELECT MODE — Toggle, Selection States, Multi-Cards
+   ================================================================= */
+
+  #hp-multi-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 2px;
+    min-height: 44px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  #hp-multi-toggle {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 18px 8px 14px;
+    border: 1.5px solid rgba(71,196,241,0.35);
+    border-radius: 999px;
+    background: rgba(255, 190, 0, 0.26);
+    color: var(--theme-disabled-color);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    user-select: none;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    position: relative;
+    overflow: hidden;
+  }
+  #hp-multi-toggle::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(71,196,241,0.12) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    pointer-events: none;
+  }
+  #hp-multi-toggle:hover { border-color: rgba(71,196,241,0.65); color: var(--theme-text); box-shadow: 0 0 14px rgba(71,196,241,0.18); }
+  #hp-multi-toggle:hover::before { opacity: 1; }
+  #hp-multi-toggle.ms-active {
+    border-color: var(--theme-primary);
+    color: var(--theme-primary);
+    background: rgba(245, 250, 255, 0.46);
+    box-shadow: 0 0 18px rgba(71,196,241,0.28), inset 0 0 8px rgba(71,196,241,0.08);
+  }
+  #hp-multi-toggle.ms-active::before { opacity: 1; }
+  .ms-toggle-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--theme-disabled-color);
+    transition: background 0.22s, box-shadow 0.22s;
+    flex-shrink: 0;
+  }
+  #hp-multi-toggle.ms-active .ms-toggle-dot {
+    background: var(--theme-primary);
+    box-shadow: 0 0 8px var(--theme-primary-glow);
+  }
+
+  #hp-multi-open {
+    display: none;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 20px;
+    border: 1.5px solid var(--theme-primary);
+    border-radius: 999px;
+    background: rgba(255, 190, 0, 0.26);
+    color: var(--theme-primary);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  #hp-multi-open.ms-show { display: flex; animation: ms-btn-pop 0.25s cubic-bezier(.22,.68,0,1.2) both; }
+  #hp-multi-open:hover { background: var(--theme-primary); color: var(--theme-button-text-dark); box-shadow: 0 0 20px rgba(71,196,241,0.45); }
+  #hp-multi-open .ms-count-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(71,196,241,0.22); font-size: 0.62rem; font-weight: 800;
+    transition: background 0.2s;
+  }
+  #hp-multi-open:hover .ms-count-badge { background: rgba(30,45,57,0.4); }
+
+  #hp-multi-clear {
+    display: none; font-family: 'Exo 2', sans-serif; font-size: 0.68rem;
+    color: var(--theme-disabled-color); cursor: pointer; letter-spacing: 0.06em;
+    transition: color 0.18s; padding: 4px 0; text-decoration: none; white-space: nowrap;
+  }
+  #hp-multi-clear.ms-show { display: block; }
+  #hp-multi-clear:hover { color: #f1476f; }
+
+  @keyframes ms-btn-pop {
+    from { opacity: 0; transform: scale(0.82); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* Selected element cell */
+  .hp-el.ms-selected {
+    border-color: var(--theme-primary) !important;
+    box-shadow: 0 0 14px rgba(71,196,241,0.55), inset 0 0 6px rgba(71,196,241,0.15) !important;
+    transform: scale(1.06) translateZ(0) !important;
+    z-index: 4;
+  }
+  .hp-el.ms-selected::after {
+    content: '\2713';
+    position: absolute; top: 2px; right: 3px;
+    font-size: 0.5rem; font-weight: 900;
+    color: var(--theme-primary); line-height: 1;
+    text-shadow: 0 0 6px var(--theme-primary-glow);
+  }
+  .ms-mode-active .hp-el:not(.ms-selected):hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 8px rgba(71,196,241,0.2);
+  }
+
+  /*
+   * STACKING ORDER (critical for mobile):
+   *   backdrop  z-index: 8950  — invisible tap-catcher, pointer-events:none until cards exist
+   *   layer     z-index: 9050  — holds actual cards, pointer-events:none on container
+   *   .ao-mc    pointer-events: auto  — only the cards themselves catch taps
+   */
+  #ao-multi-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    z-index: 8950;
+    pointer-events: none;   /* OFF until fully open */
+    background: transparent;
+  }
+  #ao-multi-backdrop.ms-open {
+    display: block;
+    pointer-events: auto;   /* ON once cards are rendered */
+  }
+  #ao-multi-layer {
+    position: fixed; inset: 0;
+    z-index: 9050;
+    pointer-events: none;   /* container is pass-through */
+  }
+
+  /* Individual multi atom card */
+  .ao-mc {
+    position: fixed; width: 280px;
+    background: rgba(10, 22, 32, 0.92);
+    border: 1px solid rgba(71,196,241,0.38);
+    border-radius: 18px;
+    backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.75), 0 0 32px rgba(71,196,241,0.18);
+    overflow: hidden;
+    pointer-events: auto;   /* cards DO catch taps */
+    display: flex; flex-direction: column;
+    animation: overlay-pop 0.28s cubic-bezier(.22,.68,0,1.2) both;
+  }
+  .ao-mc-drag {
+    padding: 12px 14px 8px; cursor: grab;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(71,196,241,0.14);
+    flex-shrink: 0; position: relative;
+  }
+  .ao-mc-drag:active { cursor: grabbing; }
+  .ao-mc-sym-block { display: flex; align-items: baseline; gap: 7px; }
+  .ao-mc-sym {
+    font-family: 'Orbitron', sans-serif; font-size: 1.4rem; font-weight: 800;
+    color: var(--theme-primary); text-shadow: 0 0 14px var(--theme-primary-glow); line-height: 1;
+  }
+  .ao-mc-anum {
+    font-family: 'Orbitron', sans-serif; font-size: 0.55rem; font-weight: 600;
+    color: var(--theme-primary); border: 1px solid rgba(71,196,241,0.4);
+    border-radius: 4px; padding: 2px 5px; background: rgba(71,196,241,0.08);
+  }
+  .ao-mc-name-block { text-align: right; }
+  .ao-mc-name { font-family: 'Exo 2', sans-serif; font-size: 0.78rem; font-weight: 600; color: var(--theme-text); display: block; }
+  .ao-mc-state { font-size: 0.6rem; color: var(--theme-disabled-color); text-transform: uppercase; letter-spacing: 0.1em; display: block; }
+  .ao-mc-close {
+    position: absolute; top: 7px; right: 9px;
+    background: none; border: none; color: var(--theme-disabled-color);
+    font-size: 1rem; cursor: pointer; padding: 2px 6px; border-radius: 5px;
+    line-height: 1; transition: color 0.2s, background 0.2s; z-index: 1;
+  }
+  .ao-mc-close:hover { color: var(--theme-primary); background: rgba(71,196,241,0.1); }
+  .ao-mc-canvas-wrap {
+    width: 280px; height: 240px; flex-shrink: 0;
+    background: radial-gradient(ellipse at 50% 45%, rgba(71,196,241,0.07) 0%, transparent 65%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ao-mc-canvas { display: block; }
+  .ao-mc-stats {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 5px; padding: 8px 14px 12px;
+    border-top: 1px solid rgba(71,196,241,0.1); flex-shrink: 0;
+  }
+  .ao-mc-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .ao-mc-val { font-family: 'Orbitron', sans-serif; font-size: 0.75rem; font-weight: 700; color: var(--theme-primary); }
+  .ao-mc-lbl { font-size: 0.54rem; color: var(--theme-disabled-color); text-transform: uppercase; letter-spacing: 0.08em; }
+
+</style>
+</head>
+
+<body>
+
+    <!-- full-screen video background -->
+ <video id="bgvid" autoplay muted loop playsinline>
+  <source src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/treefrost.mp4" type="video/mp4">
+</video>
+
+
+  <!-- Privacy & Consent Modal -->
+  <div id="privacyModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        You must agree to DART Meadow's Privacy Policy.
+      </div>
+      <div class="modal-body">
+
+        <!-- Scrollable Privacy Policy -->
+        <div id="policyContent">
+              <!-- 🍪 Cookie/Storage blurb -->
+    <p class="cookie‑blurb">
+      We'll store your acceptance in <strong>localStorage</strong> (like a cookie) so 
+      you won't see this again on this device/browser. Please choose a password independent of external uses while our personal Credential System is in development.
+    </p>
+          <h3>DART Meadow Privacy Policy and License</h3>
+          <p><strong>Where As Such:</strong></p>
+          <p>DART Meadow LLC. | Radical Deepscale LLC. Privacy Policy and Licensing</p>
+          <p><strong>Information obtained:</strong><br>
+            Input provided by the Visitor or prior interactions in our network will be respectfully
+            mutual and private where such is engaged. Upon interacting with the network any visitor
+            agrees to our (yourself, your group or groups as a whole) duty(ies) in ethics for liability
+            outside our network.
+          </p>
+          <p><strong>With as such, Documentation or Assets publicly shared by our Network are
+            welcomed to be copied and distributed but not modified without consent so as long as you
+            provide this attached License Policy with the Documents or Assets.</strong>
+          </p>
+          <p><strong>Commercial distributions are fine only where upon exercising so the License Policy is
+            attached to Documents or Assets then only distributed as highlighted reference. When
+            you exercise modification you must seek consent.</strong>
+          </p>
+          <p><a href="https://github.com/dartsolarpunk/Arc-Meadow/blob/main/Privacy%20Policy%20.pdf" target="_blank">
+            Full policy on dartmeadow.com</a>
+          </p>
+          <!-- sentinel at bottom -->
+          <div id="policyEnd" style="width:100%;height:5px;"></div>
+        </div>
+
+        <p><em>Scroll to the bottom of the policy to enable the buttons</em></p>
+
+        <!-- Create Account Form -->
+        <div id="signupSection">
+          <h5>Create Account</h5>
+          <div class="row">
+            <div class="col">
+              <label>Username
+                <input id="signupUsername" type="text" placeholder="Pick a username" disabled>
+              </label>
+            </div>
+            <div class="col">
+              <label>Name
+                <input id="signupName" type="text" placeholder="Your name" disabled>
+              </label>
+            </div>
+          </div>
+          <div class="row mt-2">
+            <div class="col">
+              <label>Email
+                <input id="signupEmail" type="email" placeholder="you@example.com" disabled>
+              </label>
+            </div>
+            <div class="col">
+              <label>Password - See top of Privacy Policy.
+                <input id="signupPassword" type="password" placeholder="Pick a password" disabled>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginSection" class="mt-4">
+          <h5>Login</h5>
+          <div class="row">
+            <div class="col">
+              <label>Username
+                <input id="loginUsername" type="text" placeholder="Your username" disabled>
+              </label>
+            </div>
+            <div class="col">
+              <label>Password
+                <input id="loginPassword" type="password" placeholder="Your password" disabled>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button id="createBtn" disabled>Create Account</button>
+        <button id="loginBtn" disabled>Login</button>
+        <button id="continueBtn" disabled>Continue as Guest</button>
+      </div>
+    </div>
+  </div>
+
+<div id="header">
+  <!-- avatar-as menu-icon -->
+  <img id="floatingMenuIcon" src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/avatars/default.png"
+  alt="User Avatar"
+  style="width:50px;height:50px;cursor:pointer; border-radius:50%; object-fit:cover;"
+/>
+
+<!-- avatar grid popup -->
+<div id="avatarSelectionPopup" class="avatar-selection-popup"></div>
+
+   
+    <div id="userMenuDropdown">
+      <div class="avatar-placeholder" id="avatarPlaceholder">
+        <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/avatars/default.png"
+        id="userAvatar"
+        alt="User Avatar"
+ >
+      </div>
+
+      <!-- the popup — note it's initially empty -->
+      <div id="avatarSelectionPopup" class="avatar-selection-popup"></div>
+      
+  <p><strong id="menuName"></strong></p>
+
+    <p><strong id="menuName"></strong></p>
+    <p id="menuEmail" style="font-size:0.9em;"></p>
+    
+<!-- LOGIN / CREATE SECTION (hidden until "Log In" clicked) -->
+<button id="userLoginToggle">
+  Credentials
+</button>
+
+<button
+  id="btnariel"
+  onclick="location.href='/ariel.html'"
+>
+  Ariel 
+</button>
+          
+     <button
+  id="btnarclake"
+  onclick="location.href='/arclake.html'"
+>
+  Arc Lake
+      </button>
+
+<button
+  id="btnltrproto"
+  onclick="location.href='/brpn.html'"
+>
+  Ash Tree
+</button>
+
+<button
+  id="btnleatr"
+  onclick="location.href='/leatr.html'"
+>
+  Ash Leaf
+</button>
+          <button
+  id="btnaedge"
+  onclick="location.href='/arcedge.html'"
+>
+  Arc Edge
+          </button>
+          <button
+  id="btnlemac"
+  onclick="location.href='/lemac.html'"
+>
+  Lead Edge
+          </button>
+          <button
+  id="btnbenchmdp"
+  onclick="location.href='/dartpotentials.html'"
+>
+  DART Potentials
+          </button>
+<button
+  id="btnbenchmp"
+  onclick="location.href='/reflexpotentials.html'"
+>
+  Reflex Potentials
+</button>
+<button
+  id="btnbenchm"
+  onclick="location.href='/leatrbenchmark.html'"
+>
+  Reflex Dynamics
+</button>
+          
+<button
+  id="btnarview"
+  onclick="location.href='/ar.html'"
+>
+  DART View
+</button>
+
+<button
+  id="amino"
+  onclick="location.href='/amino.html'"
+>
+  DART BioEdge
+</button>
+
+<button
+  id="easter"
+  onclick="location.href='/easterisland.html'"
+>
+  Research Labs
+</button>
+
+<button
+  id="btnide"
+  onclick="location.href='/ashtreeide.html'"
+>
+  Ash Tree IDE
+</button>
+          <button
+  id="btnawave"
+  onclick="location.href='/articrenwave.html'"
+>
+  Articren Wave 
+          </button>
+
+<button
+  id="btnaeav"
+  onclick="location.href='/brpnaudio.html'"
+>
+  AE Audio Visualizer 
+</button>
+          
+<button
+  id="btnleav"
+  onclick="location.href='/leaudiovisualizer.html'"
+>
+  LE Audio Visualizer 
+</button>
+
+<button
+  id="btnmn"
+  onclick="location.href='/mn.html'"
+>
+  Mantis Navigation
+      </button>
+      
+     <button
+  id="btnalt"
+  onclick="location.href='/altitude.html'"
+>
+  Altitude Calculators
+      </button>
+      
+           <button
+  id="btnalt"
+  onclick="location.href='/hypersonic.html'"
+>
+  DART Hypersonic
+      </button>
+      
+<button
+  id="btnam"
+  onclick="location.href='/arcmeadow.html'"
+>
+  Arc Meadow
+      </button>
+
+          <button
+  id="btndmnu"
+  onclick="location.href='/nu.html'"
+>
+  DART Nutrition 
+          </button>
+<button
+  id="btnfrax"
+  onclick="location.href='/frax.html'"
+>
+  FRAX Studio
+</button>
+                <button
+  id="btnemail"
+  onclick="location.href='mailto:justin@dartmeadow.com'"
+>
+  Email Inquiries
+                </button>
+          <button
+  id="btnemail"
+  onclick="location.href='https://github.com/dartsolarpunk/Arc-Meadow/blob/main/Privacy%20Policy%20.pdf'"
+>
+  Privacy Policy
+          </button>
+
+    <!-- Add inside <div id="userMenuDropdown"> -->
+<button id="accountSettingsBtn">Account Settings</button>
+
+<div id="accountSettingsSection">
+  <!-- Change Email -->
+  <h4>Change Email</h4>
+  <label>Current Password:
+    <input type="password" id="currentEmailPwd" placeholder="Enter current password" />
+  </label>
+  <label>New Email:
+    <input type="email" id="newEmail" placeholder="Enter new email" />
+  </label>
+  
+  <button onclick="changeEmail()">Change Email</button>
+  <hr style="border-color:#555; margin:8px 0;" />
+  <!-- Change Password -->
+  <h4>Change Password</h4>
+  <label>Current Password:
+    <input type="password" id="currentPwd" placeholder="Enter current password" />
+  </label>
+  <label>New Password:
+    <input type="password" id="newPwd" placeholder="Enter new password" />
+  </label>
+  
+  <button onclick="changePassword()">Change Password</button>
+</div>
+<br>
+
+<!-- Just above the 'Log Out' button -->
+
+<button
+  id="merchandiseBtn"
+  class="menu-button"
+  onclick="location.href='https://dart-meadow-shop.fourthwall.com/'"
+>
+  <img src="https://raw.githubusercontent.com/radicaldeepscale/dartmeadow/refs/heads/main/static/shop.png" alt="Merchandise Icon" style="width: 100px; height: 100px; margin-right: 8px;">
+  <span>Skyboard Shop</span>
+</button> 
+<br>
+
+    <button onclick="logout()">Log Out</button>
+    <br>
+    <button onclick="deleteAccount()">Delete Account</button>
+    <br>
+    
+    <button
+  id="linkedin"
+  onclick="location.href='https://linkedin.com/comm/mynetwork/discovery-see-all?usecase=PEOPLE_FOLLOWS&followMember=dartmeadow'"
+>
+  LinkedIn: DM Studio
+</button>
+<br>
+
+ <button
+ id="dartmeadow"
+ onclick="location.href='https://dartmeadow.com/'"
+>
+DART Meadow
+</button>
+
+</div>
+<script>
+  document.getElementById('floatingMenuIcon')
+    .addEventListener('click', ()=>{
+      let dd = document.getElementById('userMenuDropdown');
+      dd.style.display = dd.style.display==='flex' ? 'none':'flex';
+  });
+</script>
+</div>
+  
+
+<div class="DARTSound" style="position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:50;">
+  <!-- preload="none" = browser loads nothing until first tap; no more blocking -->
+  <audio id="backgroundMusic"
+         src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/pixel_potion.mp3"
+         preload="none"
+         loop></audio>
+
+  <button id="mute" class="speaker-button" aria-label="Play music">
+    <img id="speaker-icon"
+         src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/dartpause.png"
+         alt="Play"
+         width="50" height="50">
+  </button>
+
+  <script>
+  (function() {
+    var PLAY_ICON  = "https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/dartpause.png";
+    var PAUSE_ICON = "https://static.wixstatic.com/media/2451db_18a14b6ce43e4412bbe3edb353b6f399~mv2.png";
+
+    var _preImg = new Image(); _preImg.src = PAUSE_ICON;
+
+    var audio = document.getElementById('backgroundMusic');
+    var icon  = document.getElementById('speaker-icon');
+    var btn   = document.getElementById('mute');
+    var _playing = false;
+
+    btn.addEventListener('click', function() {
+      _playing = !_playing;
+      icon.src = _playing ? PAUSE_ICON : PLAY_ICON;
+      icon.alt = _playing ? 'Pause'    : 'Play';
+      btn.setAttribute('aria-label', _playing ? 'Pause music' : 'Play music');
+
+      if (_playing) {
+        audio.play().catch(function() {
+          _playing = false;
+          icon.src = PLAY_ICON;
+          icon.alt = 'Play';
+        });
+      } else {
+        audio.pause();
+      }
+    });
+  })();
+  </script>
+</div>
+
+  <!-- Main Chat (hidden; homepage replaces it) -->
+  <div id="chatContainer">
+
+  </div>
+
+  <!-- =================================================================
+       HOMEPAGE SECTION — Main App Launcher (shown after privacy accept)
+       ================================================================= -->
+  <div id="homepageSection">
+
+    <!-- Brand Header -->
+    <div id="hp-brand">
+      <img
+        src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/rdlogo.png"
+        alt="Radical Deepscale"
+        onerror="this.style.display='none'"
+      />
+      <p id="hp-brand-tagline">Software &amp; Hardware Engineering Technologies</p>
+      <div id="hp-divider"></div>
+    </div>
+
+    <!-- Compact Periodic Table -->
+    <div class="hp-section-label">Periodic Table &mdash; Element Explorer</div>
+    <!-- Multi-Select Control Bar -->
+    <div id="hp-multi-bar">
+      <button id="hp-multi-toggle" title="Toggle multi-selection mode" onclick="toggleMultiSelectMode(event)">
+        <span class="ms-toggle-dot"></span>
+        Multi&#8209;Select
+      </button>
+      <span id="hp-multi-clear" onclick="clearMultiSelection()" title="Clear selections">&times;&nbsp;Clear</span>
+      <button id="hp-multi-open" onclick="openSelectedAtoms(event)">
+        <span class="ms-count-badge" id="hp-ms-count">0</span>
+        View&nbsp;Elements&nbsp;&rsaquo;
+      </button>
+    </div>
+
+    <div id="hp-table-wrap">
+      <div id="hp-table-scroll">
+        <div class="hp-ptable" id="hpPeriodicTable">
+          <div style="color:var(--theme-disabled-color);font-size:0.78rem;padding:12px;grid-column:span 18;text-align:center;">
+            Loading elements&hellip;
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Featured Apps Label -->
+    <div class="hp-section-label">Featured Applications</div>
+
+    <!-- Featured Row: Ariel (primary) + ArcLake (secondary) -->
+    <div id="hp-featured-row">
+      <div class="hp-tile hp-tile-primary" onclick="location.href='https://leatr.xyz/'" title="Launch Autumn AI">
+        <div class="hp-tile-bg"></div>
+        <div class="hp-tile-logo-wrap">
+          <img
+            src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/autumnapp.png"
+            alt="Autumn"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+          />
+          <span class="hp-logo-fallback" style="display:none;">An</span>
+        </div>
+        <div class="hp-tile-body">
+          <div class="hp-tile-badge">AI</div>
+          <h3>Autumn</h3>
+          <p>Artificial Intelligence &mdash; cross-session memory &amp; live web recall</p>
+          <div class="hp-tile-launch">Launch Autumn &nbsp;&rsaquo;</div>
+        </div>
+      </div>
+
+      <!-- Ariel — Primary Feature Tile -->
+      <div class="hp-tile hp-tile-primary" onclick="location.href='/ariel.html'" title="Launch Ariel AI">
+        <div class="hp-tile-bg"></div>
+        <div class="hp-tile-logo-wrap">
+          <img
+            src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/ArielAshTreeLogo.png"
+            alt="Ariel"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+          />
+          <span class="hp-logo-fallback" style="display:none;">Ar</span>
+        </div>
+        <div class="hp-tile-body">
+          <div class="hp-tile-badge">AI &middot; NPU</div>
+          <h3>Ariel</h3>
+          <p>Neural Processing Unit AI Assistant &mdash; cross-session memory &amp; live web recall</p>
+          <div class="hp-tile-launch">Launch Ariel &nbsp;&rsaquo;</div>
+        </div>
+      </div>
+
+      <!-- ArcLake — Secondary Feature Tile -->
+      <div class="hp-tile hp-tile-secondary" onclick="location.href='/arclake.html'" title="Open ArcLake Lab">
+        <div class="hp-tile-bg"></div>
+        <div class="hp-tile-inner">
+          <div class="hp-icon-ring">
+            <img
+              src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/arclake/arclake512.png"
+              alt="ArcLake"
+              onerror="this.src='https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/favicon.ico'; this.onerror=null;"
+            />
+          </div>
+          <div class="hp-tile-badge">Chemistry &middot; 3D Sim</div>
+          <h3>ArcLake</h3>
+          <p>Atomic simulation &amp; periodic table research lab</p>
+          <div class="hp-tile-launch">Open Lab &nbsp;&rsaquo;</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- All Applications Label -->
+    <div class="hp-section-label">All Applications</div>
+
+    <!-- App Grid -->
+    <div id="hp-app-grid">
+      <div class="hp-app-card" onclick="location.href='https://leatr.xyz/'">
+        <div class="hp-app-icon">
+          <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/autumnapp.png" alt="Autumn" onerror="this.outerHTML='An'">
+        </div>
+        <div class="hp-app-name">Autumn</div>
+        <div class="hp-app-tag">AI</div>
+      </div>
+      <div class="hp-app-card" onclick="location.href='/ariel.html'">
+        <div class="hp-app-icon">
+          <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/avatars/arielchat.png" alt="Ariel" onerror="this.outerHTML='Ar'">
+        </div>
+        <div class="hp-app-name">Ariel</div>
+        <div class="hp-app-tag">AI</div>
+      </div>
+   <div class="hp-app-card" onclick="location.href='/mn.html'">
+        <div class="hp-app-icon">
+          <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/mn.png" alt="MN" onerror="this.outerHTML='MN'">
+        </div>
+        <div class="hp-app-name">Mantis Nav</div>
+        <div class="hp-app-tag">Nav</div>
+      </div>
+      <div class="hp-app-card" onclick="location.href='/arclake.html'">
+        <div class="hp-app-icon">
+          <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/arclake/arclake512.png" alt="ArcLake"
+               onerror="this.src='https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/favicon.ico'; this.onerror=null;">
+        </div>
+        <div class="hp-app-name">ArcLake</div>
+        <div class="hp-app-tag">3D Lab</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/brpn.html'">
+        <div class="hp-app-icon">AT</div>
+        <div class="hp-app-name">Ash Tree</div>
+        <div class="hp-app-tag">Neural</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/leatr.html'">
+        <div class="hp-app-icon">AL</div>
+        <div class="hp-app-name">Ash Leaf</div>
+        <div class="hp-app-tag">Reflex</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/arcedge.html'">
+        <div class="hp-app-icon"><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/avatars/ArcEdgeLogoav.png" alt="AE" onerror="this.outerHTML='AE'"></div>
+        <div class="hp-app-name">Arc Edge</div>
+        <div class="hp-app-tag">Physics</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/lemac.html'">
+        <div class="hp-app-icon">
+               <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/avatars/defaultleatr.png" alt="LE" onerror="this.outerHTML='LE'"></div>
+        <div class="hp-app-name">Lead Edge</div>
+        <div class="hp-app-tag">NPU</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/dartpotentials.html'">
+        <div class="hp-app-icon">
+          <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/avatars/dartenergy.png" alt="DP" onerror="this.outerHTML='DP'">
+        </div>
+        <div class="hp-app-name">DART Potentials</div>
+        <div class="hp-app-tag">Bench</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/reflexpotentials.html'">
+        <div class="hp-app-icon">
+          <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/avatars/reflexpotentials.png" alt="RP" onerror="this.outerHTML='RP'">
+        </div>
+        <div class="hp-app-name">Reflex Potentials</div>
+        <div class="hp-app-tag">Bench</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/leatrbenchmark.html'">
+        <div class="hp-app-icon">RD</div>
+        <div class="hp-app-name">Reflex Dynamics</div>
+        <div class="hp-app-tag">Bench</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/ar.html'">
+        <div class="hp-app-icon">          <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/avatars/dtlogo.png" alt="AR" onerror="this.outerHTML='AR'"></div>
+      
+        <div class="hp-app-name">DART View</div>
+        <div class="hp-app-tag">AR</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/amino.html'">
+        <div class="hp-app-icon">BE</div>
+        <div class="hp-app-name">DART BioEdge</div>
+        <div class="hp-app-tag">Bio</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/easterisland.html'">
+        <div class="hp-app-icon">RL</div>
+        <div class="hp-app-name">Research Labs</div>
+        <div class="hp-app-tag">Lab</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/ashtreeide.html'">
+        <div class="hp-app-icon"><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/avatars/aib.png" alt="IDE" onerror="this.outerHTML='IDE'"></div>
+    
+        <div class="hp-app-name">Ash Tree IDE</div>
+        <div class="hp-app-tag">Dev</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/articrenwave.html'">
+        <div class="hp-app-icon">      <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/avatars/awav.png" alt="AW" onerror="this.outerHTML='AW'"></div>
+        <div class="hp-app-name">Articren Wave</div>
+        <div class="hp-app-tag">Audio</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/brpnaudio.html'">
+        <div class="hp-app-icon">AV</div>
+        <div class="hp-app-name">AE Visualizer</div>
+        <div class="hp-app-tag">Audio</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/leaudiovisualizer.html'">
+        <div class="hp-app-icon">LV</div>
+        <div class="hp-app-name">LE Visualizer</div>
+        <div class="hp-app-tag">Audio</div>
+      </div>
+
+   
+
+      <div class="hp-app-card" onclick="location.href='/altitude.html'">
+        <div class="hp-app-icon">AC</div>
+        <div class="hp-app-name">Altitude Calc</div>
+        <div class="hp-app-tag">Aero</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/hypersonic.html'">
+        <div class="hp-app-icon">HS</div>
+        <div class="hp-app-name">DART Hypersonic</div>
+        <div class="hp-app-tag">Aero</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/arcmeadow.html'">
+        <div class="hp-app-icon">AM</div>
+        <div class="hp-app-name">Arc Meadow</div>
+        <div class="hp-app-tag">Env</div>
+      </div>
+      <div class="hp-app-card" onclick="location.href='/octarig.html'">
+                  <div class="hp-app-icon"><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/octarig512.png" alt="OR" onerror="this.outerHTML='OR'"></div>
+     <div class="hp-app-name">OctaRig</div>
+        <div class="hp-app-tag">RIG</div>
+      </div>
+      <div class="hp-app-card" onclick="location.href='/nu.html'">
+        <div class="hp-app-icon">DN</div>
+        <div class="hp-app-name">DART Nutrition</div>
+        <div class="hp-app-tag">Health</div>
+      </div>
+
+      <div class="hp-app-card" onclick="location.href='/frax.html'">
+        <div class="hp-app-icon"><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/fraxlogo.png" alt="FX" onerror="this.outerHTML='FX'"></div>
+        <div class="hp-app-name">FRAX Studio</div>
+        <div class="hp-app-tag">Image</div>
+      </div>
+   <div class="hp-app-card" onclick="location.href='/skinwalker.html'">
+        <div class="hp-app-icon"><img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/skinwalkerranchlogo.png" alt="SR" onerror="this.outerHTML='SR'"></div>
+        <div class="hp-app-name">Skinwalker Ranch</div>
+        <div class="hp-app-tag">Image</div>
+    </div><!-- /hp-app-grid -->
+  </div><!-- /homepageSection -->
+
+
+  <!-- Multi-select: invisible backdrop catches outside taps; layer holds cards -->
+  <div id="ao-multi-backdrop"></div>
+  <div id="ao-multi-layer"></div>
+
+  <!-- Atom Overlay — Draggable 3D card (floats above everything) -->
+  <div id="atom-overlay-backdrop"></div>
+  <div id="atom-overlay-card">
+    <div id="atom-drag-bar">
+      <div id="ao-symbol-block">
+        <span id="ao-sym">H</span>
+        <span id="ao-anum-badge">1</span>
+      </div>
+      <div id="ao-name-block">
+        <span id="ao-name">Hydrogen</span>
+        <span id="ao-state">Gas</span>
+      </div>
+    </div>
+    <button id="ao-close" title="Close">&times;</button>
+    <div id="ao-canvas-wrap">
+      <canvas id="ao-canvas" width="300" height="270"></canvas>
+    </div>
+    <div id="ao-stats-row">
+      <div class="ao-stat">
+        <span class="ao-val" id="ao-protons">1</span>
+        <span class="ao-lbl">Protons</span>
+      </div>
+      <div class="ao-stat">
+        <span class="ao-val" id="ao-neutrons">0</span>
+        <span class="ao-lbl">Neutrons</span>
+      </div>
+      <div class="ao-stat">
+        <span class="ao-val" id="ao-electrons">1</span>
+        <span class="ao-lbl">Electrons</span>
+      </div>
+    </div>
+  </div>
+
+
+<script>
+let GS_URL = ''; // declared early
+
+// Grab the toggle and the modal
+const userLoginToggle = document.getElementById('userLoginToggle');
+const modal           = document.getElementById('privacyModal');
+
+// When they click "Log In / Create Account", we simply bring the modal back
+userLoginToggle.addEventListener('click', () => {
+  modal.style.display = 'flex';
+  startScrollObserver();
+});
+
+let policyObserver; // define observer in a broader scope
+
+function startScrollObserver() {
+    const policy = document.getElementById('policyContent');
+    const sentinel = document.getElementById('policyEnd');
+    const formInputs = document.querySelectorAll('.modal-body input');
+    const buttons = document.querySelectorAll('.modal-footer button');
+
+    if (policyObserver) {
+        policyObserver.disconnect();
+    }
+
+    policyObserver = new IntersectionObserver((entries, obs) => {
+        if (entries[0].isIntersecting) {
+            formInputs.forEach(i => i.disabled = false);
+            buttons.forEach(b => {
+                b.disabled = false;
+                b.classList.add('enabled');
+            });
+            obs.disconnect();
+        }
+    }, {
+        root: policy,
+        threshold: 1.0
+    });
+
+    policyObserver.observe(sentinel);
+}
+
+
+// Self-invoking function for initial setup
+;(function() {
+  const modal = document.getElementById('privacyModal');
+  const chat = document.getElementById('chatContainer');
+  const continueBtn = document.getElementById('continueBtn');
+  const createAccountBtn = document.getElementById('createBtn');
+  const loginBtn = document.getElementById('loginBtn');
+  
+  document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('privacyAccepted') === 'true') {
+      modal.style.display = 'none';
+      chat.style.display  = 'flex';
+      document.getElementById('homepageSection').style.display = 'flex';
+      initUserMenuIfStored();
+    } else {
+      modal.style.display = 'flex';
+      startScrollObserver();
+    }
+  });
+
+  function acceptPrivacy() {
+    localStorage.setItem('privacyAccepted', 'true');
+    modal.style.display = 'none';
+    chat.style.display = 'flex';
+    document.getElementById('homepageSection').style.display = 'flex';
+  }
+
+  continueBtn.addEventListener('click', () => {
+    if (!continueBtn.classList.contains('enabled')) return;
+    acceptPrivacy();
+  });
+  
+  createAccountBtn.addEventListener('click', () => {
+    if (createAccountBtn.classList.contains('enabled')) {
+       // handled inside onUserReady after successful creation
+    }
+  });
+  
+  loginBtn.addEventListener('click', () => {
+     if (loginBtn.classList.contains('enabled')) {
+       // handled inside onUserReady after successful login
+     }
+  });
+  
+})();
+
+function onUserReady(u) {
+  localStorage.setItem('privacyAccepted', 'true');
+  saveUser(u);
+  document.getElementById('privacyModal').style.display = 'none';
+  document.getElementById('chatContainer').style.display = 'flex';
+  document.getElementById('homepageSection').style.display = 'flex';
+  document.getElementById('menuName').innerText = u.name;
+  document.getElementById('menuEmail').innerText = u.email;
+}
+
+
+// REMOVED: startUserInstance()
+// REMOVED: submitUserInput()
+// REMOVED: submitAlgebraicValue()
+// REMOVED: downloadResponse()
+// REMOVED: downloadAlgebraResponse()
+// REMOVED: Original Three.js physics scene (init, createNodes, animate, etc.)
+
+
+// Menu Begin 
+
+// Environment Auto-Detect and GS_URL Setup
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+  console.log('%cRunning in LOCALHOST mode', 'color: orange; font-weight: bold;');
+  GS_URL = 'https://script.google.com/macros/s/AKfycbyky9F5m5qky4a8dLb1lZw3af3R7Z73Sig8-42DHiVKiirF5tcLImRAGdoAJugVsqsfcw/exec';
+} else {
+  console.log('%cRunning in PRODUCTION mode', 'color: deepskyblue; font-weight: bold;');
+  GS_URL = 'https://script.google.com/macros/s/AKfycbyky9F5m5qky4a8dLb1lZw3af3R7Z73Sig8-42DHiVKiirF5tcLImRAGdoAJugVsqsfcw/exec';
+}
+
+// Session Storage Functions
+function saveUser(u) {
+  sessionStorage.setItem('user', JSON.stringify(u));
+}
+function getUser() {
+  return JSON.parse(sessionStorage.getItem('user') || 'null');
+}
+function clearUser() {
+  sessionStorage.removeItem('user');
+}
+
+
+async function createAccount() {
+  const btn = document.getElementById('createBtn');
+  if (!btn.classList.contains('enabled')) {
+    alert('Please scroll to the bottom of the Privacy Policy before proceeding.');
+    return;
+  }
+
+  const form = new URLSearchParams({
+    action: 'create',
+    username: document.getElementById('signupUsername').value,
+    name:     document.getElementById('signupName').value,
+    email:    document.getElementById('signupEmail').value,
+    password: document.getElementById('signupPassword').value
+  });
+
+  try {
+    const res = await fetch(GS_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const j = await res.json();
+
+    if (j.ok) {
+      showBanner(`✅ Account created for ${j.username}`, 'success');
+      setTimeout(() => onUserReady(j), 1200);
+    } else {
+      alert(j.error || 'Account creation failed.');
+    }
+  } catch (err) {
+    console.error('Fetch error:', err);
+    alert('Connection failed. Check console.');
+  }
+}
+
+
+async function login() {
+  const btn = document.getElementById('loginBtn');
+  if (!btn.classList.contains('enabled')) {
+    alert('Please scroll to the bottom of the Privacy Policy before proceeding.');
+    return;
+  }
+
+  const url = `${GS_URL}?action=login&username=${encodeURIComponent(document.getElementById('loginUsername').value)}&password=${encodeURIComponent(document.getElementById('loginPassword').value)}`;
+
+  try {
+    const res = await fetch(url);
+    const j = await res.json();
+
+    if (j.ok) {
+      showBanner(`👋 Welcome back, ${j.name}`, 'info');
+      setTimeout(() => onUserReady(j), 1000);
+    } else {
+      alert(j.error || 'Login failed.');
+    }
+  } catch (err) {
+    console.error('Login error:', err);
+    alert('Login connection failed.');
+  }
+}
+
+
+// Delete Account
+async function deleteAccount() {
+  const u = getUser();
+  if (!u || !u.username) return;
+  const res = await fetch(`${GS_URL}?action=delete&username=${encodeURIComponent(u.username)}`);
+  const j = await res.json();
+  if (j.ok) {
+    clearUser();
+    alert('Account deleted successfully');
+    window.location.reload();
+  } else {
+    alert(j.error || 'Account deletion failed.');
+  }
+}
+
+// Logout
+function logout() {
+  clearUser();
+  alert('Logged out successfully.');
+  window.location.reload();
+}
+
+// Change Email
+async function changeEmail() {
+  const u = getUser();
+  const form = new URLSearchParams({
+    action: 'changeEmail',
+    username: u.username,
+    currentPassword: document.getElementById('currentEmailPwd').value,
+    newEmail: document.getElementById('newEmail').value
+  });
+
+  const res = await fetch(GS_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form
+  });
+
+  const j = await res.json();
+  if (j.ok) {
+    u.email = form.get('newEmail');
+    saveUser(u);
+    document.getElementById('menuEmail').innerText = u.email;
+    alert('Email updated successfully.');
+  } else {
+    alert(j.error || 'Email change failed.');
+  }
+}
+
+// Change Password
+async function changePassword() {
+  const u = getUser();
+  const form = new URLSearchParams({
+    action: 'changePassword',
+    username: u.username,
+    currentPassword: document.getElementById('currentPwd').value,
+    newPassword: document.getElementById('newPwd').value
+  });
+
+  const res = await fetch(GS_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form
+  });
+
+  const j = await res.json();
+  if (j.ok) {
+    alert('Password changed successfully.');
+  } else {
+    alert(j.error || 'Password change failed.');
+  }
+}
+
+// Connect Buttons to Functions
+document.getElementById('createBtn').onclick = createAccount;
+document.getElementById('loginBtn').onclick = login;
+document.getElementById('accountSettingsBtn').addEventListener('click', () => {
+  const sec = document.getElementById('accountSettingsSection');
+  sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+});
+
+// Auto-login if already stored
+function initUserMenuIfStored() {
+    const u = getUser();
+    if (u) {
+        onUserReady(u);
+    }
+}
+window.addEventListener('DOMContentLoaded', initUserMenuIfStored);
+
+window.addEventListener('resize', () => {
+  const menu = document.getElementById('userMenuDropdown');
+  if (menu) {
+    menu.style.maxHeight = `${window.innerHeight * 0.9}px`;
+  }
+});
+
+function showBanner(message, type = 'info') {
+  const banner = document.createElement('div');
+  banner.textContent = message;
+  banner.style.position = 'fixed';
+  banner.style.top = '20px';
+  banner.style.left = '50%';
+  banner.style.transform = 'translateX(-50%)';
+  banner.style.padding = '12px 24px';
+  banner.style.borderRadius = '8px';
+  banner.style.fontWeight = '600';
+  banner.style.zIndex = 99999;
+  banner.style.boxShadow = '0 2px 12px rgba(0,0,0,0.2)';
+  banner.style.color = '#fff';
+
+  if (type === 'success') banner.style.background = 'limegreen';
+  else if (type === 'info') banner.style.background = 'deepskyblue';
+  else banner.style.background = '#555';
+
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 2500);
+}
+
+
+const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+const avatarPopup       = document.getElementById('avatarSelectionPopup');
+
+const userAvatarImg     = document.getElementById('userAvatar');
+const menuIcon          = document.getElementById('floatingMenuIcon');
+
+const AVATAR_FILES = [
+  'default.png',
+  'defaultleatr.png',
+  'defaultdmnight.png',
+  'dtlogo.png',
+  'drymeadow.png',
+  'architect.png',
+  'arielchat.png',
+  'arielsculpt.png',
+  'dart.png',
+  'autumn.jpg',
+  'justin.png',
+  'justinbackdrop.jpg',
+  'darkeagle.png',
+  'dartmeadowtree.png',
+  'pinkpanther.png',
+  'pinkpanthersharp.png',
+  'radicaldeepscalehornet.png',
+  'autumnhornet.png',
+  'lec.png',
+  'timburtonisland.png',
+  'arielfire.png',
+  'ArielEmerald.png',
+  // …
+];
+
+function buildAvatarGrid() {
+  avatarPopup.innerHTML = '';
+  AVATAR_FILES.forEach(fn => {
+    const img = document.createElement('img');
+    img.src = `https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/static/avatars/${fn}`;
+    img.title = fn;
+    img.addEventListener('click', () => {
+      document.getElementById('userAvatar').src        = img.src;
+      document.getElementById('floatingMenuIcon').src  = img.src;
+      sessionStorage.setItem('userAvatar', img.src);
+      avatarPopup.classList.remove('active');
+    });
+    avatarPopup.appendChild(img);
+  });
+}
+
+// Toggle avatar popup on click
+avatarPlaceholder.addEventListener('click', () => {
+    const popupGrid = document.querySelector('.avatar-selection-popup');
+    if (popupGrid.classList.contains('active')) {
+        popupGrid.classList.remove('active');
+    } else {
+        popupGrid.classList.add('active');
+    }
+});
+
+
+window.addEventListener('DOMContentLoaded', () => {
+  buildAvatarGrid();
+  const saved = sessionStorage.getItem('userAvatar');
+  if (saved) {
+    document.getElementById('userAvatar').src       = saved;
+    document.getElementById('floatingMenuIcon').src = saved;
+  }
+});
+
+
+/* =================================================================
+   ELEMENT STATE CLASSIFIER
+   ================================================================= */
+function getStateClass(electrons) {
+    if (electrons <= 10) return 'gas';
+    if (electrons <= 20) return 'liquid';
+    if (electrons <= 40) return 'solid';
+    return 'synthetic';
+}
+
+
+/* =================================================================
+   HOMEPAGE COMPACT PERIODIC TABLE + 3D ATOM OVERLAY
+   ================================================================= */
+
+// Derive a display symbol from element name
+function getHpSymbol(name) {
+    if (!name) return '?';
+    const MAP = {
+        'Hydrogen':'H','Helium':'He','Lithium':'Li','Beryllium':'Be','Boron':'B',
+        'Carbon':'C','Nitrogen':'N','Oxygen':'O','Fluorine':'F','Neon':'Ne',
+        'Sodium':'Na','Magnesium':'Mg','Aluminum':'Al','Aluminium':'Al','Silicon':'Si',
+        'Phosphorus':'P','Sulfur':'S','Sulphur':'S','Chlorine':'Cl','Argon':'Ar',
+        'Potassium':'K','Calcium':'Ca','Scandium':'Sc','Titanium':'Ti','Vanadium':'V',
+        'Chromium':'Cr','Manganese':'Mn','Iron':'Fe','Cobalt':'Co','Nickel':'Ni',
+        'Copper':'Cu','Zinc':'Zn','Gallium':'Ga','Germanium':'Ge','Arsenic':'As',
+        'Selenium':'Se','Bromine':'Br','Krypton':'Kr','Rubidium':'Rb','Strontium':'Sr',
+        'Yttrium':'Y','Zirconium':'Zr','Niobium':'Nb','Molybdenum':'Mo','Technetium':'Tc',
+        'Ruthenium':'Ru','Rhodium':'Rh','Palladium':'Pd','Silver':'Ag','Cadmium':'Cd',
+        'Indium':'In','Tin':'Sn','Antimony':'Sb','Tellurium':'Te','Iodine':'I',
+        'Xenon':'Xe','Cesium':'Cs','Barium':'Ba','Lanthanum':'La','Cerium':'Ce',
+        'Praseodymium':'Pr','Neodymium':'Nd','Promethium':'Pm','Samarium':'Sm',
+        'Europium':'Eu','Gadolinium':'Gd','Terbium':'Tb','Dysprosium':'Dy',
+        'Holmium':'Ho','Erbium':'Er','Thulium':'Tm','Ytterbium':'Yb','Lutetium':'Lu',
+        'Hafnium':'Hf','Tantalum':'Ta','Tungsten':'W','Rhenium':'Re','Osmium':'Os',
+        'Iridium':'Ir','Platinum':'Pt','Gold':'Au','Mercury':'Hg','Thallium':'Tl',
+        'Lead':'Pb','Bismuth':'Bi','Polonium':'Po','Astatine':'At','Radon':'Rn',
+        'Francium':'Fr','Radium':'Ra','Actinium':'Ac','Thorium':'Th','Protactinium':'Pa',
+        'Uranium':'U','Neptunium':'Np','Plutonium':'Pu','Americium':'Am','Curium':'Cm',
+        'Berkelium':'Bk','Californium':'Cf','Einsteinium':'Es','Fermium':'Fm',
+        'Mendelevium':'Md','Nobelium':'No','Lawrencium':'Lr','Rutherfordium':'Rf',
+        'Dubnium':'Db','Seaborgium':'Sg','Bohrium':'Bh','Hassium':'Hs','Meitnerium':'Mt',
+        'Darmstadtium':'Ds','Roentgenium':'Rg','Copernicium':'Cn','Nihonium':'Nh',
+        'Flerovium':'Fl','Moscovium':'Mc','Livermorium':'Lv','Tennessine':'Ts',
+        'Oganesson':'Og'
+    };
+    return MAP[name] || (name.length <= 2 ? name : name.slice(0, 2));
+}
+
+// Build the compact homepage periodic table
+function buildHpPeriodicTable(elements) {
+    const container = document.getElementById('hpPeriodicTable');
+    if (!container) return;
+    container.innerHTML = '';
+
+    elements.forEach((element, index) => {
+        const elDiv = document.createElement('div');
+        elDiv.className = 'hp-el hp-' + getStateClass(parseInt(element.electrons));
+
+        const sym = getHpSymbol(element.elementName);
+        const atomicNum = parseInt(element.protons) || (index + 1);
+
+        elDiv.innerHTML =
+            '<span class="hp-sym">' + sym + '</span>' +
+            '<span class="hp-anum">' + atomicNum + '</span>' +
+            '<span class="hp-ename">' + (element.elementName || '') + '</span>';
+
+        elDiv.title = element.elementName + ' — click to explore';
+        elDiv.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (window._msMode) {
+                toggleElementSelection(element, elDiv);
+            } else {
+                openAtomOverlay(element);
+            }
+        });
+
+        container.appendChild(elDiv);
+
+        // Insert placeholder gaps to match standard periodic table layout
+        if (index === 0) {
+            for (let i = 0; i < 16; i++) {
+                const ph = document.createElement('div');
+                ph.className = 'hp-ph';
+                container.appendChild(ph);
+            }
+        }
+        if (index === 3 || index === 11) {
+            for (let i = 0; i < 10; i++) {
+                const ph = document.createElement('div');
+                ph.className = 'hp-ph';
+                container.appendChild(ph);
+            }
+        }
+    });
+}
+
+// Fetch elements.json and build the top periodic table
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('elements.json')
+        .then(r => { if (!r.ok) throw new Error('elements.json not found'); return r.json(); })
+        .then(data => {
+            const elements = data && data.length > 1 ? data.slice(1) : data;
+            buildHpPeriodicTable(elements);
+        })
+        .catch(err => {
+            console.warn('Could not load elements.json for periodic table:', err);
+            const container = document.getElementById('hpPeriodicTable');
+            if (container) container.innerHTML =
+                '<div style="color:var(--theme-disabled-color);font-size:0.78rem;padding:12px;grid-column:span 18;text-align:center;">Element data unavailable</div>';
+        });
+});
+
+
+
+/* =================================================================
+   MULTI-SELECT — State & Logic
+   ================================================================= */
+
+window._msMode  = false;   // global flag read by element click handler
+var _msSelected = [];      // [{element, elDiv}, ...]
+var _msCards    = [];      // [{animId, renderer, scene, card}, ...]
+
+function toggleMultiSelectMode(e) {
+    if (e) { e.stopPropagation(); e.preventDefault(); }
+    window._msMode = !window._msMode;
+    var btn    = document.getElementById('hp-multi-toggle');
+    var ptable = document.getElementById('hpPeriodicTable');
+    if (window._msMode) {
+        btn.classList.add('ms-active');
+        if (ptable) ptable.classList.add('ms-mode-active');
+        closeAtomOverlay();
+    } else {
+        btn.classList.remove('ms-active');
+        if (ptable) ptable.classList.remove('ms-mode-active');
+        clearMultiSelection();
+    }
+    updateMultiUI();
+}
+
+function toggleElementSelection(element, elDiv) {
+    var idx = -1;
+    for (var i = 0; i < _msSelected.length; i++) {
+        if (_msSelected[i].element === element) { idx = i; break; }
+    }
+    if (idx === -1) {
+        _msSelected.push({ element: element, elDiv: elDiv });
+        elDiv.classList.add('ms-selected');
+    } else {
+        _msSelected.splice(idx, 1);
+        elDiv.classList.remove('ms-selected');
+    }
+    updateMultiUI();
+}
+
+function clearMultiSelection() {
+    for (var i = 0; i < _msSelected.length; i++) {
+        _msSelected[i].elDiv.classList.remove('ms-selected');
+    }
+    _msSelected = [];
+    updateMultiUI();
+}
+
+function updateMultiUI() {
+    var n       = _msSelected.length;
+    var openBtn = document.getElementById('hp-multi-open');
+    var clrBtn  = document.getElementById('hp-multi-clear');
+    var cntEl   = document.getElementById('hp-ms-count');
+    if (n > 0 && window._msMode) {
+        if (openBtn) openBtn.classList.add('ms-show');
+        if (clrBtn)  clrBtn.classList.add('ms-show');
+        if (cntEl)   cntEl.textContent = String(n);
+    } else {
+        if (openBtn) openBtn.classList.remove('ms-show');
+        if (clrBtn)  clrBtn.classList.remove('ms-show');
+        if (cntEl)   cntEl.textContent = '0';
+    }
+}
+
+function openSelectedAtoms(e) {
+    // CRITICAL: stop the tap/click that fired this button from
+    // propagating to the backdrop which would instantly close everything
+    if (e) { e.stopPropagation(); e.preventDefault(); }
+    if (_msSelected.length === 0) return;
+
+    closeAllMultiCards();   // tear down any existing cards first
+
+    var layer    = document.getElementById('ao-multi-layer');
+    var total    = _msSelected.length;
+    var cardW    = 290;
+    var cardH    = 370;
+    var viewW    = window.innerWidth;
+    var viewH    = window.innerHeight;
+    var cols     = Math.min(total, Math.max(1, Math.floor((viewW - 40) / (cardW + 14))));
+    var startX   = Math.max(20, (viewW - cols * (cardW + 14)) / 2);
+    var startY   = Math.max(70, (viewH - cardH) / 2 - 20);
+
+    // Build all cards synchronously
+    var snap = _msSelected.slice(); // snapshot before clearMultiSelection wipes it
+    snap.forEach(function(sel, i) {
+        var col = i % cols;
+        var row = Math.floor(i / cols);
+        _buildMultiCard(
+            sel.element,
+            startX + col * (cardW + 14),
+            startY + row * (cardH + 14),
+            layer
+        );
+    });
+
+    clearMultiSelection();
+
+    // Enable backdrop AFTER the tap event chain has fully resolved (~200ms)
+    // so it cannot receive the same touch/click that opened the cards.
+    var backdrop = document.getElementById('ao-multi-backdrop');
+    setTimeout(function() {
+        if (backdrop && _msCards.length > 0) {
+            backdrop.classList.add('ms-open');
+        }
+    }, 200);
+}
+
+function _buildMultiCard(element, x, y, layer) {
+    var sym      = getHpSymbol(element.elementName);
+    var atomicN  = element.protons || '?';
+    var state    = getStateClass(parseInt(element.electrons));
+    var stateStr = state.charAt(0).toUpperCase() + state.slice(1);
+
+    var card = document.createElement('div');
+    card.className = 'ao-mc';
+    card.style.left = x + 'px';
+    card.style.top  = y + 'px';
+
+    card.innerHTML =
+        '<div class="ao-mc-drag">' +
+          '<div class="ao-mc-sym-block">' +
+            '<span class="ao-mc-sym">' + sym + '</span>' +
+            '<span class="ao-mc-anum">' + atomicN + '</span>' +
+          '</div>' +
+          '<div class="ao-mc-name-block">' +
+            '<span class="ao-mc-name">' + (element.elementName || '') + '</span>' +
+            '<span class="ao-mc-state">' + stateStr + '</span>' +
+          '</div>' +
+          '<button class="ao-mc-close" title="Close">×</button>' +
+        '</div>' +
+        '<div class="ao-mc-canvas-wrap">' +
+          '<canvas class="ao-mc-canvas" width="280" height="240"></canvas>' +
+        '</div>' +
+        '<div class="ao-mc-stats">' +
+          '<div class="ao-mc-stat"><span class="ao-mc-val">' + (element.protons   || 0) + '</span><span class="ao-mc-lbl">Protons</span></div>' +
+          '<div class="ao-mc-stat"><span class="ao-mc-val">' + (element.neutrons  || 0) + '</span><span class="ao-mc-lbl">Neutrons</span></div>' +
+          '<div class="ao-mc-stat"><span class="ao-mc-val">' + (element.electrons || 0) + '</span><span class="ao-mc-lbl">Electrons</span></div>' +
+        '</div>';
+
+    layer.appendChild(card);
+
+    card.querySelector('.ao-mc-close').addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        _destroyMultiCard(card);
+        if (layer.children.length === 0) {
+            var bd = document.getElementById('ao-multi-backdrop');
+            if (bd) bd.classList.remove('ms-open');
+        }
+    });
+
+    _attachMultiCardDrag(card, card.querySelector('.ao-mc-drag'));
+
+    var inst = _buildMultiAtomScene(element, card.querySelector('.ao-mc-canvas'));
+    inst.card = card;
+    _msCards.push(inst);
+}
+
+function _destroyMultiCard(card) {
+    var idx = -1;
+    for (var i = 0; i < _msCards.length; i++) {
+        if (_msCards[i].card === card) { idx = i; break; }
+    }
+    if (idx !== -1) {
+        var inst = _msCards[idx];
+        if (inst.animId) { cancelAnimationFrame(inst.animId); inst.animId = null; }
+        if (inst.scene) {
+            while (inst.scene.children.length > 0) {
+                var c = inst.scene.children[0];
+                inst.scene.remove(c);
+                if (c.geometry) c.geometry.dispose();
+                if (c.material) {
+                    if (Array.isArray(c.material)) { c.material.forEach(function(m){ m.dispose(); }); }
+                    else { c.material.dispose(); }
+                }
+            }
+            inst.scene = null;
+        }
+        if (inst.renderer) { inst.renderer.dispose(); inst.renderer = null; }
+        _msCards.splice(idx, 1);
+    }
+    if (card.parentNode) card.parentNode.removeChild(card);
+}
+
+function closeAllMultiCards() {
+    var toClose = _msCards.slice(); // copy — splice inside _destroyMultiCard mutates _msCards
+    toClose.forEach(function(inst) { _destroyMultiCard(inst.card); });
+    _msCards = [];
+    var bd = document.getElementById('ao-multi-backdrop');
+    if (bd) bd.classList.remove('ms-open');
+}
+
+function _attachMultiCardDrag(card, bar) {
+    var dragging = false, ox = 0, oy = 0;
+    function onStart(cx, cy) {
+        dragging = true;
+        var r = card.getBoundingClientRect();
+        card.style.transform = 'none';
+        card.style.left = r.left + 'px';
+        card.style.top  = r.top  + 'px';
+        ox = cx - r.left; oy = cy - r.top;
+        document.body.style.userSelect = 'none';
+    }
+    function onMove(cx, cy) {
+        if (!dragging) return;
+        card.style.left = Math.max(0, Math.min(window.innerWidth  - card.offsetWidth,  cx - ox)) + 'px';
+        card.style.top  = Math.max(0, Math.min(window.innerHeight - card.offsetHeight, cy - oy)) + 'px';
+    }
+    function onEnd() { dragging = false; document.body.style.userSelect = ''; }
+    bar.addEventListener('mousedown',  function(e){ onStart(e.clientX, e.clientY); });
+    bar.addEventListener('touchstart', function(e){ onStart(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    document.addEventListener('mousemove', function(e){ onMove(e.clientX, e.clientY); });
+    document.addEventListener('mouseup',   onEnd);
+    document.addEventListener('touchmove', function(e){ if(dragging) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    document.addEventListener('touchend',  onEnd);
+}
+
+function _buildMultiAtomScene(element, canvas) {
+    var W = 280, H = 240;
+    canvas.width = W; canvas.height = H;
+
+    var scene    = new THREE.Scene();
+    var camera   = new THREE.PerspectiveCamera(55, W / H, 0.1, 1000);
+    camera.position.z = 14;
+
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    renderer.setSize(W, H);
+    renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    var pt1 = new THREE.PointLight(0x47c4f1, 2.2, 60); pt1.position.set(10, 8, 12);
+    var pt2 = new THREE.PointLight(0xffffff, 1.2, 60); pt2.position.set(-8, -6, -10);
+    scene.add(pt1, pt2);
+
+    var protons   = Math.max(1, parseInt(element.protons)   || 1);
+    var neutrons  = Math.max(0, parseInt(element.neutrons)  || 0);
+    var electrons = Math.max(1, parseInt(element.electrons) || 1);
+    var orbits    = element.electronOrbits || [electrons];
+
+    var atomGroup    = new THREE.Group();
+    var nucleonCount = protons + neutrons;
+    var nucleusR     = Math.max(0.55, Math.cbrt(nucleonCount) * 0.52);
+    var nucGeo       = new THREE.SphereGeometry(0.28, 12, 10);
+    var pMat = new THREE.MeshPhongMaterial({ color: 0xe85230, emissive: 0x4a1800, shininess: 80 });
+    var nMat = new THREE.MeshPhongMaterial({ color: 0x7aafc4, emissive: 0x0a2030, shininess: 80 });
+
+    for (var i = 0; i < nucleonCount; i++) {
+        var phi   = Math.acos(-1 + (2 * i) / Math.max(1, nucleonCount - 1));
+        var theta = Math.sqrt(nucleonCount * Math.PI) * phi;
+        var m = new THREE.Mesh(nucGeo, i < protons ? pMat : nMat);
+        m.position.set(nucleusR * Math.sin(phi) * Math.cos(theta),
+                       nucleusR * Math.sin(phi) * Math.sin(theta),
+                       nucleusR * Math.cos(phi));
+        atomGroup.add(m);
+    }
+    atomGroup.add(new THREE.Mesh(
+        new THREE.SphereGeometry(nucleusR + 0.35, 16, 14),
+        new THREE.MeshBasicMaterial({ color: 0xe85230, transparent: true, opacity: 0.12 })
+    ));
+
+    var shellColors = [0x47c4f1, 0x6ee0ff, 0xa0eaff, 0x30a8d8, 0x2285b0, 0x7bd4ee, 0xc0f0ff, 0x47c4f1];
+    var eGeo = new THREE.SphereGeometry(0.14, 8, 8);
+    var orbitLineR = nucleusR + 1.0;
+
+    orbits.forEach(function(eCount, shellIdx) {
+        var shellR     = orbitLineR + shellIdx * 1.5;
+        var shellColor = shellColors[shellIdx % shellColors.length];
+        var ring = new THREE.Mesh(
+            new THREE.TorusGeometry(shellR, 0.03, 8, 80),
+            new THREE.MeshBasicMaterial({ color: shellColor, transparent: true, opacity: 0.25 })
+        );
+        ring.rotation.x = (shellIdx * 0.52) + Math.PI / 5;
+        ring.rotation.y = shellIdx * 0.4;
+        atomGroup.add(ring);
+        var count = Math.min(eCount, 32);
+        for (var ei = 0; ei < count; ei++) {
+            var eMesh = new THREE.Mesh(eGeo,
+                new THREE.MeshPhongMaterial({ color: shellColor, emissive: 0x103040, shininess: 100 }));
+            var ang = (2 * Math.PI * ei) / count;
+            eMesh.position.set(shellR * Math.cos(ang),
+                               shellR * Math.sin(ang) * Math.sin(ring.rotation.x) * 0.3,
+                               shellR * Math.sin(ang));
+            eMesh.userData.shellR   = shellR;
+            eMesh.userData.angle0   = ang;
+            eMesh.userData.shellIdx = shellIdx;
+            eMesh.userData.ringRotX = ring.rotation.x;
+            atomGroup.add(eMesh);
+        }
+    });
+    scene.add(atomGroup);
+
+    var inst = { renderer: renderer, scene: scene, camera: camera, animId: null, card: null };
+    var t = 0;
+    (function loop() {
+        inst.animId = requestAnimationFrame(loop);
+        t += 0.012;
+        atomGroup.rotation.y += 0.009;
+        atomGroup.rotation.x  = Math.sin(t * 0.22) * 0.18;
+        atomGroup.children.forEach(function(child) {
+            if (child.userData && child.userData.shellR !== undefined) {
+                var sp = 0.6 + child.userData.shellIdx * 0.18;
+                var a  = child.userData.angle0 + t * sp;
+                var rx = child.userData.ringRotX;
+                child.position.set(
+                    child.userData.shellR * Math.cos(a),
+                    child.userData.shellR * Math.sin(a) * Math.sin(rx) * 0.55,
+                    child.userData.shellR * Math.sin(a) * Math.cos(rx) * 0.9
+                );
+            }
+        });
+        renderer.render(scene, camera);
+    }());
+    return inst;
+}
+
+// Backdrop click → close all cards (only fires when pointer-events:auto after 200ms delay)
+document.getElementById('ao-multi-backdrop').addEventListener('click', function(e) {
+    e.stopPropagation();
+    closeAllMultiCards();
+});
+
+/* ── Atom Overlay — Three.js turntable ── */
+let _aoRenderer = null;
+let _aoAnimId   = null;
+let _aoScene    = null;
+let _aoCamera   = null;
+let _aoAtomGroup = null;
+
+function destroyAtomOverlay3D() {
+    if (_aoAnimId) { cancelAnimationFrame(_aoAnimId); _aoAnimId = null; }
+    if (_aoScene) {
+        while (_aoScene.children.length > 0) {
+            const child = _aoScene.children[0];
+            _aoScene.remove(child);
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                else child.material.dispose();
+            }
+        }
+        _aoScene = null;
+    }
+    if (_aoRenderer) {
+        _aoRenderer.dispose();
+        _aoRenderer = null;
+    }
+    _aoCamera    = null;
+    _aoAtomGroup = null;
+}
+
+function buildAtomScene(element) {
+    const canvas = document.getElementById('ao-canvas');
+    const W = 300, H = 270;
+    canvas.width  = W;
+    canvas.height = H;
+
+    _aoScene    = new THREE.Scene();
+    _aoCamera   = new THREE.PerspectiveCamera(55, W / H, 0.1, 1000);
+    _aoCamera.position.z = 14;
+
+    _aoRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    _aoRenderer.setSize(W, H);
+    _aoRenderer.setClearColor(0x000000, 0);
+    _aoRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // Lighting
+    const amb  = new THREE.AmbientLight(0xffffff, 0.55);
+    const pt1  = new THREE.PointLight(0x47c4f1, 2.2, 60);
+    const pt2  = new THREE.PointLight(0xffffff, 1.2, 60);
+    pt1.position.set(10, 8, 12);
+    pt2.position.set(-8, -6, -10);
+    _aoScene.add(amb, pt1, pt2);
+
+    const protons   = Math.max(1, parseInt(element.protons)   || 1);
+    const neutrons  = Math.max(0, parseInt(element.neutrons)  || 0);
+    const electrons = Math.max(1, parseInt(element.electrons) || 1);
+    const orbits    = element.electronOrbits || [electrons];
+
+    _aoAtomGroup = new THREE.Group();
+
+    // ── Nucleus: protons (red-orange) + neutrons (cool grey)
+    const nucleonCount = protons + neutrons;
+    const nucleusR     = Math.max(0.55, Math.cbrt(nucleonCount) * 0.52);
+
+    const protonMat  = new THREE.MeshPhongMaterial({ color: 0xe85230, emissive: 0x4a1800, shininess: 80 });
+    const neutronMat = new THREE.MeshPhongMaterial({ color: 0x7aafc4, emissive: 0x0a2030, shininess: 80 });
+    const nucGeo     = new THREE.SphereGeometry(0.28, 12, 10);
+
+    for (let i = 0; i < nucleonCount; i++) {
+        const mesh = new THREE.Mesh(nucGeo, i < protons ? protonMat : neutronMat);
+        const phi   = Math.acos(-1 + (2 * i) / Math.max(1, nucleonCount - 1));
+        const theta = Math.sqrt(nucleonCount * Math.PI) * phi;
+        const r     = nucleusR;
+        mesh.position.set(
+            r * Math.sin(phi) * Math.cos(theta),
+            r * Math.sin(phi) * Math.sin(theta),
+            r * Math.cos(phi)
+        );
+        _aoAtomGroup.add(mesh);
+    }
+
+    // ── Nucleus glow sphere
+    const glowMat = new THREE.MeshBasicMaterial({
+        color: 0xe85230, transparent: true, opacity: 0.12
+    });
+    const glowMesh = new THREE.Mesh(new THREE.SphereGeometry(nucleusR + 0.35, 16, 14), glowMat);
+    _aoAtomGroup.add(glowMesh);
+
+    // ── Electron shells
+    const shellColors = [0x47c4f1, 0x6ee0ff, 0xa0eaff, 0x30a8d8, 0x2285b0, 0x7bd4ee, 0xc0f0ff, 0x47c4f1];
+    const shellMat    = new THREE.MeshPhongMaterial({ color: 0x47c4f1, emissive: 0x0a2535, shininess: 120 });
+    const eGeo        = new THREE.SphereGeometry(0.14, 8, 8);
+    const orbitLineR  = nucleusR + 1.0;
+
+    orbits.forEach((eCount, shellIdx) => {
+        const shellR     = orbitLineR + shellIdx * 1.5;
+        const shellColor = shellColors[shellIdx % shellColors.length];
+
+        // Orbit ring
+        const ringGeo = new THREE.TorusGeometry(shellR, 0.03, 8, 80);
+        const ringMat = new THREE.MeshBasicMaterial({ color: shellColor, transparent: true, opacity: 0.25 });
+        const ring    = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = (shellIdx * 0.52) + Math.PI / 5;
+        ring.rotation.y = shellIdx * 0.4;
+        _aoAtomGroup.add(ring);
+
+        // Electrons on this shell
+        const count = Math.min(eCount, 32);
+        for (let i = 0; i < count; i++) {
+            const eMesh = new THREE.Mesh(eGeo,
+                new THREE.MeshPhongMaterial({ color: shellColor, emissive: 0x103040, shininess: 100 }));
+            const angle = (2 * Math.PI * i) / count;
+            eMesh.position.set(
+                shellR * Math.cos(angle),
+                shellR * Math.sin(angle) * Math.sin(ring.rotation.x) * 0.3,
+                shellR * Math.sin(angle)
+            );
+            eMesh.userData.shellR = shellR;
+            eMesh.userData.angle0 = angle;
+            eMesh.userData.shellIdx = shellIdx;
+            eMesh.userData.ringRotX = ring.rotation.x;
+            eMesh.userData.ringRotY = ring.rotation.y;
+            _aoAtomGroup.add(eMesh);
+        }
+    });
+
+    _aoScene.add(_aoAtomGroup);
+
+    // ── Animation loop
+    let t = 0;
+    function aoAnimate() {
+        _aoAnimId = requestAnimationFrame(aoAnimate);
+        t += 0.012;
+
+        _aoAtomGroup.rotation.y += 0.009;
+        _aoAtomGroup.rotation.x  = Math.sin(t * 0.22) * 0.18;
+
+        _aoAtomGroup.children.forEach(child => {
+            if (child.userData && child.userData.shellR !== undefined) {
+                const speed  = 0.6 + child.userData.shellIdx * 0.18;
+                const angle  = child.userData.angle0 + t * speed;
+                const rx     = child.userData.ringRotX;
+                child.position.set(
+                    child.userData.shellR * Math.cos(angle),
+                    child.userData.shellR * Math.sin(angle) * Math.sin(rx) * 0.55,
+                    child.userData.shellR * Math.sin(angle) * Math.cos(rx) * 0.9
+                );
+            }
+        });
+
+        _aoRenderer.render(_aoScene, _aoCamera);
+    }
+    aoAnimate();
+}
+
+function openAtomOverlay(element) {
+    destroyAtomOverlay3D();
+
+    const card      = document.getElementById('atom-overlay-card');
+    const backdrop  = document.getElementById('atom-overlay-backdrop');
+    const sym       = getHpSymbol(element.elementName);
+    const atomicNum = element.protons || '?';
+    const state     = getStateClass(parseInt(element.electrons));
+
+    document.getElementById('ao-sym').textContent       = sym;
+    document.getElementById('ao-anum-badge').textContent = atomicNum;
+    document.getElementById('ao-name').textContent       = element.elementName || '';
+    document.getElementById('ao-state').textContent      = state.charAt(0).toUpperCase() + state.slice(1);
+    document.getElementById('ao-protons').textContent    = element.protons   || 0;
+    document.getElementById('ao-neutrons').textContent   = element.neutrons  || 0;
+    document.getElementById('ao-electrons').textContent  = element.electrons || 0;
+
+    card.style.left      = '50%';
+    card.style.top       = '50%';
+    card.style.transform = 'translate(-50%, -50%)';
+
+    backdrop.style.display = 'block';
+    card.classList.add('is-open');
+
+    requestAnimationFrame(() => buildAtomScene(element));
+}
+
+function closeAtomOverlay() {
+    destroyAtomOverlay3D();
+    document.getElementById('atom-overlay-card').classList.remove('is-open');
+    document.getElementById('atom-overlay-backdrop').style.display = 'none';
+}
+
+// Close button
+document.getElementById('ao-close').addEventListener('click', closeAtomOverlay);
+
+// Click backdrop to close
+document.getElementById('atom-overlay-backdrop').addEventListener('click', closeAtomOverlay);
+
+// ── Drag logic ──
+(function() {
+    const card  = document.getElementById('atom-overlay-card');
+    const bar   = document.getElementById('atom-drag-bar');
+    let dragging = false, ox = 0, oy = 0, cx = 0, cy = 0;
+
+    function startDrag(clientX, clientY) {
+        dragging = true;
+        const rect = card.getBoundingClientRect();
+        card.style.transform = 'none';
+        card.style.left = rect.left + 'px';
+        card.style.top  = rect.top  + 'px';
+        ox = clientX - rect.left;
+        oy = clientY - rect.top;
+        document.body.style.userSelect = 'none';
+    }
+    function moveDrag(clientX, clientY) {
+        if (!dragging) return;
+        cx = clientX - ox;
+        cy = clientY - oy;
+        cx = Math.max(0, Math.min(window.innerWidth  - card.offsetWidth,  cx));
+        cy = Math.max(0, Math.min(window.innerHeight - card.offsetHeight, cy));
+        card.style.left = cx + 'px';
+        card.style.top  = cy + 'px';
+    }
+    function endDrag() {
+        dragging = false;
+        document.body.style.userSelect = '';
+    }
+
+    bar.addEventListener('mousedown',  e => { startDrag(e.clientX, e.clientY); });
+    document.addEventListener('mousemove', e => { moveDrag(e.clientX, e.clientY); });
+    document.addEventListener('mouseup',   endDrag);
+
+    bar.addEventListener('touchstart',  e => { startDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    document.addEventListener('touchmove',  e => { if (dragging) moveDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    document.addEventListener('touchend',   endDrag);
+})();
+
+
+</script>
+</body>
+</html>
