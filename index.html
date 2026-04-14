@@ -33,8 +33,8 @@
   
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/leaflet.min.css">
-<script src="js/three.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script type="module">
 // Kokoro TTS via @huggingface/transformers — runs fully in-browser, no API key
 import { pipeline, env } from './js/transformers.min.js';
@@ -52,9 +52,9 @@ window._kokoroLoad = (async () => {
   }
 })();
 </script>
-<script src="js/jszip.min.js"></script>
-<script src="js/FileSaver.min.js"></script>
-<script src="js/pako.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <script>
 
 // ============================================================
@@ -211,7 +211,7 @@ THREE.OrbitControls=function(camera,domElement){
 };
 })();
 </script>
-<script src="js/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{--cyan:#00ffcc;--blue:#0088ff;--red:#ff4466;--bg:#020a14;--bg2:#0a1628;--panel:rgba(6,16,32,0.72);--border:rgba(0,255,204,0.12);--text:#c8e6f0;--dim:#4a7a8a;--bright:#d0e8f0;--font-d:'Orbitron',monospace;--font-b:'Exo 2',sans-serif;--r:14px}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -477,6 +477,17 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #img-preview-strip.show{display:flex}
 #img-thumb-row{display:flex;align-items:center;gap:8px;flex:1;overflow-x:auto;padding:3px 0;scrollbar-width:thin;scrollbar-color:rgba(167,139,250,.3) transparent;-webkit-overflow-scrolling:touch}
 .img-preview-thumb{width:48px;height:48px;border-radius:5px;object-fit:cover;border:1px solid rgba(167,139,250,.3);flex-shrink:0}
+/* Video thumbnail canvas */
+.vid-preview-thumb{width:48px;height:48px;border-radius:5px;object-fit:cover;border:1px solid rgba(255,179,71,.35);flex-shrink:0;display:block}
+/* Document/file thumbnail placeholder */
+.doc-preview-thumb{width:48px;height:48px;border-radius:5px;border:1px solid rgba(0,255,204,.25);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(0,255,204,.05);font-size:20px}
+/* Attach type badge */
+.attach-type-badge{position:absolute;bottom:-2px;left:0;right:0;text-align:center;font-size:6.5px;font-family:var(--font-d);letter-spacing:.5px;padding:1px 0;border-radius:0 0 4px 4px;text-transform:uppercase}
+.attach-type-badge.vid{color:#ffb347;background:rgba(0,0,0,.55)}
+.attach-type-badge.doc{color:var(--cyan);background:rgba(0,0,0,.55)}
+.attach-type-badge.frax{color:#a78bfa;background:rgba(0,0,0,.55)}
+/* Video play overlay on thumb */
+.vid-play-overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:rgba(255,179,71,.7);display:flex;align-items:center;justify-content:center;font-size:9px;color:#000;pointer-events:none}
 .img-preview-remove{background:transparent;border:1px solid rgba(255,68,102,.3);color:#ff4466;width:22px;height:22px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;transition:all .15s;margin-left:8px}
 .img-gen-card{background:linear-gradient(135deg,rgba(10,22,40,.97),rgba(6,16,32,.98));border:1px solid rgba(167,139,250,.25);border-radius:10px;overflow:hidden;margin:6px 0;position:relative}
 .img-gen-wrap{position:relative;min-height:180px;background:#030d1a;display:flex;align-items:center;justify-content:center}
@@ -867,6 +878,15 @@ select.ash-ctrl-input{cursor:pointer}
   <div class="modal-box">
     <h3 id="modal-title">Export Data</h3>
     <p id="modal-desc">Download your conversation history, journal, and memory.</p>
+    <div id="modal-import-file-row" style="display:none;margin-bottom:10px">
+      <label style="font-size:11px;color:rgba(0,255,204,.5);font-family:var(--font-d);letter-spacing:1px;display:block;margin-bottom:6px">UPLOAD JSON FILE</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="file" id="import-json-file" accept=".json,application/json" style="display:none" onchange="handleImportFileSelect(this)">
+        <button class="m-btn" onclick="document.getElementById('import-json-file').click()" style="font-size:10px;flex-shrink:0">📂 Browse File</button>
+        <span id="import-file-name" style="font-size:10px;color:var(--dim);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      </div>
+      <div style="text-align:center;margin:8px 0;font-size:10px;color:rgba(0,255,204,.25);font-family:var(--font-d);letter-spacing:2px">— OR PASTE BELOW —</div>
+    </div>
     <textarea id="modal-data" readonly></textarea>
     <div class="modal-btns">
       <button class="m-btn" onclick="closeModal()">Close</button>
@@ -936,8 +956,8 @@ select.ash-ctrl-input{cursor:pointer}
     <div id="input-bar">
       <button class="mic-btn" id="mic-btn" onclick="toggleVoiceMode()" title="Voice mode">🎤</button>
       <button class="listen-btn" id="listen-btn" onclick="toggleMusicListen()" title="Listen to identify music">♫</button>
-      <button class="upload-btn" id="upload-btn" onclick="triggerImageUpload()" title="Attach image(s) or .frax file">📎</button>
-      <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.frax" multiple style="display:none" onchange="handleImageFilesSelect(this.files)">
+      <button class="upload-btn" id="upload-btn" onclick="triggerImageUpload()" title="Attach images, video, or documents">📎</button>
+      <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.frax,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.pdf,.txt,.md,.html,.htm,.js,.ts,.json,.csv,.svg,.py,.css,.xml,.yaml,.yml,.sh,.rb,.java,.c,.cpp,.h,.rs" multiple style="display:none" onchange="handleImageFilesSelect(this.files)">
       <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
       <button class="send-btn" id="send-btn">▸ Send</button>
     </div>
@@ -1245,11 +1265,18 @@ function exportData() {
 }
 function importData() {
   document.getElementById("modal-title").textContent = "Import Data";
-  document.getElementById("modal-desc").textContent = "Paste your previously exported Autumn data JSON below:";
+  document.getElementById("modal-desc").textContent = "Upload a JSON file or paste your exported Autumn data below — then tap Import.";
   var ta = document.getElementById("modal-data");
   ta.value = "";
   ta.removeAttribute("readonly");
   ta.placeholder = "Paste JSON here…";
+  // Show the file upload row
+  var fileRow = document.getElementById("modal-import-file-row");
+  if (fileRow) fileRow.style.display = "block";
+  var fileNameEl = document.getElementById("import-file-name");
+  if (fileNameEl) fileNameEl.textContent = "";
+  var fileInput = document.getElementById("import-json-file");
+  if (fileInput) fileInput.value = "";
   document.getElementById("modal-action").textContent = "Import";
   document.getElementById("modal-action").onclick = () => {
     try {
@@ -1263,7 +1290,24 @@ function importData() {
   };
   document.getElementById("data-modal").classList.add("show");
 }
-function closeModal() { document.getElementById("data-modal").classList.remove("show"); }
+function handleImportFileSelect(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var nameEl = document.getElementById("import-file-name");
+  if (nameEl) nameEl.textContent = file.name;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var ta = document.getElementById("modal-data");
+    if (ta) ta.value = e.target.result;
+  };
+  reader.readAsText(file);
+}
+function closeModal() {
+  document.getElementById("data-modal").classList.remove("show");
+  // Hide import file row when closing
+  var fileRow = document.getElementById("modal-import-file-row");
+  if (fileRow) fileRow.style.display = "none";
+}
 
 // --- VIEWPORT MODE TOGGLE ---
 const VP_META = document.querySelector('meta[name="viewport"]');
@@ -4101,12 +4145,200 @@ function fraxChannelAnalysis(imageData) {
 }
 
 // ── Image state: S.pendingImages[] ───────────────────────────
-// Each entry: {base64, mimeType, fileName, width, height, analysis, fraxMeta, thumbnail, isFrax}
+// Each entry: {base64, mimeType, fileName, width, height, analysis, fraxMeta, thumbnail, isFrax, isVideo, isDoc, docText, videoFrames}
 function triggerImageUpload() {
   var inp=document.getElementById('img-file-input');
   if(inp){inp.value='';inp.click();}
 }
+
+// ── Classify file type ────────────────────────────────────────
+function classifyAttachment(file) {
+  var ext = (file.name.split('.').pop() || '').toLowerCase();
+  var mime = (file.type || '').toLowerCase();
+  if (ext === 'frax') return 'frax';
+  if (mime.startsWith('video/') || ['mp4','webm','mov','avi','mkv','m4v','ogv','3gp'].includes(ext)) return 'video';
+  if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) return 'image';
+  // Documents
+  return 'doc';
+}
+
+// ── Video thumbnail + frame extraction ───────────────────────
+// Extracts thumbnail and up to N evenly-spaced frames as base64 JPEG
+function extractVideoFrames(file, maxFrames) {
+  maxFrames = maxFrames || 8;
+  return new Promise(function(resolve, reject) {
+    var url = URL.createObjectURL(file);
+    var video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    video.src = url;
+
+    video.addEventListener('loadedmetadata', function() {
+      var duration = video.duration;
+      if (!isFinite(duration) || duration <= 0) duration = 0;
+      var SIZE = 48; // thumbnail square
+      var FRAME_W = 512; // frame for Claude vision
+      var FRAME_H = 288;
+
+      // Build thumbnail canvas (square cover crop)
+      var thumbCv = document.createElement('canvas');
+      thumbCv.width = SIZE; thumbCv.height = SIZE;
+      var thumbCtx = thumbCv.getContext('2d');
+
+      // Build frame canvas
+      var frameCv = document.createElement('canvas');
+      frameCv.width = FRAME_W; frameCv.height = FRAME_H;
+      var frameCtx = frameCv.getContext('2d');
+
+      var frames = [];
+      var timestamps = [];
+      if (duration > 0) {
+        // Spread N evenly-spaced timestamps; always include t=0
+        var actualFrames = Math.min(maxFrames, Math.max(1, Math.floor(duration)));
+        for (var i = 0; i < actualFrames; i++) {
+          timestamps.push((i / Math.max(1, actualFrames - 1)) * duration * 0.95);
+        }
+        if (timestamps.length === 0) timestamps = [0];
+      } else {
+        timestamps = [0];
+      }
+
+      var seekIdx = 0;
+      var thumbnail = '';
+
+      function seekNext() {
+        if (seekIdx >= timestamps.length) {
+          URL.revokeObjectURL(url);
+          resolve({ thumbnail: thumbnail, frames: frames, duration: duration,
+            width: video.videoWidth, height: video.videoHeight });
+          return;
+        }
+        video.currentTime = timestamps[seekIdx];
+      }
+
+      video.addEventListener('seeked', function() {
+        try {
+          var vw = video.videoWidth || FRAME_W;
+          var vh = video.videoHeight || FRAME_H;
+
+          // Thumbnail: square cover crop
+          if (seekIdx === 0) {
+            var ts = Math.max(SIZE / vw, SIZE / vh);
+            var tw = vw * ts, th = vh * ts;
+            thumbCtx.drawImage(video, (SIZE - tw) / 2, (SIZE - th) / 2, tw, th);
+            thumbnail = thumbCv.toDataURL('image/jpeg', 0.82);
+          }
+
+          // Frame: letterbox into FRAME_W x FRAME_H
+          frameCtx.fillStyle = '#000';
+          frameCtx.fillRect(0, 0, FRAME_W, FRAME_H);
+          var scale = Math.min(FRAME_W / vw, FRAME_H / vh);
+          var fw = vw * scale, fh = vh * scale;
+          frameCtx.drawImage(video, (FRAME_W - fw) / 2, (FRAME_H - fh) / 2, fw, fh);
+          frames.push({
+            base64: frameCv.toDataURL('image/jpeg', 0.80).split(',')[1],
+            ts: timestamps[seekIdx].toFixed(2),
+            idx: seekIdx
+          });
+        } catch(e) {}
+        seekIdx++;
+        seekNext();
+      });
+
+      // Start seeking
+      video.addEventListener('error', function() {
+        URL.revokeObjectURL(url);
+        resolve({ thumbnail: thumbnail || '', frames: frames, duration: 0, width: 0, height: 0 });
+      });
+
+      seekNext();
+    });
+
+    video.addEventListener('error', function() {
+      URL.revokeObjectURL(url);
+      reject(new Error('Video load failed'));
+    });
+
+    // Trigger load
+    video.load();
+  });
+}
+
+// ── Read document file as text ────────────────────────────────
+var DOC_TEXT_EXTS = new Set(['txt','md','html','htm','js','ts','json','csv','svg','py','css','xml','yaml','yml','sh','rb','java','c','cpp','h','rs','log','ini','conf','toml']);
+function getDocIcon(ext) {
+  var icons = {
+    pdf:'📄', json:'{ }', csv:'📊', html:'🌐', htm:'🌐',
+    py:'🐍', js:'⚡', ts:'⚡', svg:'🖼', md:'📝',
+    txt:'📝', xml:'🗂', yaml:'⚙', yml:'⚙', sh:'💻',
+    rb:'💎', java:'☕', c:'🔧', cpp:'🔧', h:'🔧', rs:'🦀', css:'🎨'
+  };
+  return icons[ext] || '📄';
+}
+async function loadDocumentFile(file) {
+  var ext = (file.name.split('.').pop() || '').toLowerCase();
+  var icon = getDocIcon(ext);
+  var docText = '';
+  var thumbnail = ''; // will be rendered as doc-preview-thumb div in renderThumbRow
+  var MAX_CHARS = 120000; // safe limit for context window
+  if (DOC_TEXT_EXTS.has(ext)) {
+    try {
+      docText = await new Promise(function(res,rej){
+        var r=new FileReader(); r.onload=function(e){res(e.target.result);}; r.onerror=rej; r.readAsText(file);
+      });
+      if (docText.length > MAX_CHARS) docText = docText.slice(0, MAX_CHARS) + '\n…[truncated at ' + MAX_CHARS + ' chars]';
+    } catch(e) { docText = '[Could not read file: ' + e.message + ']'; }
+  } else if (ext === 'pdf') {
+    // For PDFs we can't read text directly — we'll flag it and let Claude know
+    docText = '[PDF file — binary content, cannot extract text directly in browser. Please describe what you need from this PDF.]';
+  } else {
+    docText = '[Binary file — ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)]';
+  }
+  return {
+    isDoc: true, isImage: false, isVideo: false, isFrax: false,
+    fileName: file.name, fileSize: file.size,
+    docText: docText, docIcon: icon, docExt: ext,
+    mimeType: file.type || 'text/plain',
+    thumbnail: '', base64: '', width: 0, height: 0, analysis: null, fraxMeta: null,
+    videoFrames: null
+  };
+}
+
 async function loadSingleImageFile(file) {
+  var kind = classifyAttachment(file);
+
+  // ── VIDEO ─────────────────────────────────────────────────
+  if (kind === 'video') {
+    var MAX_VIDEO_MB = 35;
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      alert('Video "' + file.name + '" is larger than ' + MAX_VIDEO_MB + ' MB — please use a smaller clip.');
+      return null;
+    }
+    try {
+      var vd = await extractVideoFrames(file, 8);
+      return {
+        isVideo: true, isDoc: false, isImage: false, isFrax: false,
+        fileName: file.name, fileSize: file.size,
+        mimeType: file.type || 'video/mp4',
+        thumbnail: vd.thumbnail,
+        videoFrames: vd.frames,   // [{base64, ts, idx}]
+        duration: vd.duration,
+        width: vd.width, height: vd.height,
+        base64: '', analysis: null, fraxMeta: null, docText: null
+      };
+    } catch(e) {
+      console.warn('[Autumn Video]', file.name, e);
+      return null;
+    }
+  }
+
+  // ── DOCUMENT ──────────────────────────────────────────────
+  if (kind === 'doc') {
+    return await loadDocumentFile(file);
+  }
+
+  // ── IMAGE / FRAX (original logic) ─────────────────────────
   var ext=file.name.split('.').pop().toLowerCase();
   var isFrax=ext==='frax';
   var base64='',mimeType='image/png',width=0,height=0,analysis=null,fraxMeta=null,thumbnail='';
@@ -4132,28 +4364,77 @@ async function loadSingleImageFile(file) {
     var tc=document.createElement('canvas');tc.width=56;tc.height=56;
     var _tctx2=tc.getContext('2d');var _ts2=Math.max(56/width,56/height);var _tw2=width*_ts2;var _th2=height*_ts2;_tctx2.drawImage(img,(56-_tw2)/2,(56-_th2)/2,_tw2,_th2);thumbnail=tc.toDataURL('image/png');
   }
-  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,isFrax:isFrax,fileSize:file.size};
+  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,isFrax:isFrax,isImage:true,isVideo:false,isDoc:false,fileSize:file.size};
 }
+
 function renderThumbRow() {
   var row=document.getElementById('img-thumb-row');if(!row)return;
   row.innerHTML='';
   var imgs=S.pendingImages||[];
-  imgs.forEach(function(img,idx){
-    var wrap=document.createElement('div');wrap.style.cssText='position:relative;flex-shrink:0;';
-    var thumb=document.createElement('img');thumb.src=img.thumbnail;thumb.className='img-preview-thumb';thumb.title=img.fileName;
+  imgs.forEach(function(item,idx){
+    var wrap=document.createElement('div');
+    wrap.style.cssText='position:relative;flex-shrink:0;';
+
+    if (item.isVideo) {
+      // Video: canvas thumbnail with play overlay
+      var canvas = document.createElement('canvas');
+      canvas.width=48;canvas.height=48;
+      canvas.className='vid-preview-thumb';
+      canvas.title=item.fileName;
+      if (item.thumbnail) {
+        var img=new Image();
+        img.onload=function(){
+          var ctx2=canvas.getContext('2d');
+          ctx2.drawImage(img,0,0,48,48);
+        };
+        img.src=item.thumbnail;
+      } else {
+        var ctx2=canvas.getContext('2d');
+        ctx2.fillStyle='#0a1628';ctx2.fillRect(0,0,48,48);
+        ctx2.fillStyle='#ffb347';ctx2.font='20px sans-serif';ctx2.textAlign='center';ctx2.textBaseline='middle';
+        ctx2.fillText('▶',24,24);
+      }
+      var play=document.createElement('div');play.className='vid-play-overlay';play.textContent='▶';
+      var badge=document.createElement('span');badge.className='attach-type-badge vid';
+      badge.textContent='VIDEO';
+      wrap.appendChild(canvas);wrap.appendChild(play);wrap.appendChild(badge);
+    } else if (item.isDoc) {
+      // Document: icon placeholder
+      var docDiv=document.createElement('div');docDiv.className='doc-preview-thumb';
+      docDiv.title=item.fileName;
+      docDiv.textContent=item.docIcon||'📄';
+      var badge=document.createElement('span');badge.className='attach-type-badge doc';
+      badge.textContent=(item.docExt||'DOC').toUpperCase().slice(0,4);
+      wrap.appendChild(docDiv);wrap.appendChild(badge);
+    } else {
+      // Image / FRAX
+      var thumb=document.createElement('img');thumb.src=item.thumbnail;thumb.className='img-preview-thumb';thumb.title=item.fileName;
+      wrap.appendChild(thumb);
+      if(item.isFrax){var badge=document.createElement('span');badge.className='attach-type-badge frax';badge.textContent='FRAX';wrap.appendChild(badge);}
+    }
+
+    // Remove button
     var rm=document.createElement('button');rm.textContent='✕';
-    rm.style.cssText='position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:rgba(255,68,102,.8);border:none;color:#fff;font-size:9px;cursor:pointer;padding:0;line-height:1;';
+    rm.style.cssText='position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:rgba(255,68,102,.8);border:none;color:#fff;font-size:9px;cursor:pointer;padding:0;line-height:1;z-index:2;';
     rm.onclick=function(){S.pendingImages.splice(idx,1);renderThumbRow();if(!S.pendingImages.length)clearPendingImage();};
-    if(img.isFrax){var badge=document.createElement('span');badge.style.cssText='position:absolute;bottom:-2px;left:0;right:0;text-align:center;font-size:7px;font-family:var(--font-d);color:#a78bfa;';badge.textContent='FRAX';wrap.appendChild(badge);}
-    wrap.appendChild(thumb);wrap.appendChild(rm);row.appendChild(wrap);
+    wrap.appendChild(rm);
+    row.appendChild(wrap);
   });
-  if(imgs.length>1){var lbl=document.createElement('div');lbl.style.cssText='font-size:9px;font-family:var(--font-d);color:#a78bfa;letter-spacing:1px;white-space:nowrap;align-self:center;padding:0 4px;';lbl.textContent=imgs.length+' FILES';row.appendChild(lbl);}
+  if(imgs.length>1){
+    var lbl=document.createElement('div');
+    lbl.style.cssText='font-size:9px;font-family:var(--font-d);color:#a78bfa;letter-spacing:1px;white-space:nowrap;align-self:center;padding:0 4px;';
+    lbl.textContent=imgs.length+' FILES';
+    row.appendChild(lbl);
+  }
 }
 async function handleImageFilesSelect(files) {
   if(!files||!files.length)return;
   if(!S.pendingImages)S.pendingImages=[];
   for(var fi=0;fi<files.length;fi++){
-    try{var imgData=await loadSingleImageFile(files[fi]);S.pendingImages.push(imgData);}catch(e){console.warn('[Autumn Image]',files[fi].name,e);}
+    try{
+      var item=await loadSingleImageFile(files[fi]);
+      if(item) S.pendingImages.push(item);
+    }catch(e){console.warn('[Autumn Attach]',files[fi].name,e);}
   }
   if(S.pendingImages.length){
     document.getElementById('img-preview-strip').classList.add('show');
@@ -5622,6 +5903,29 @@ async function handleSend() {
   S.lastAnalysis=analysis;
   S.contextHistory=[...S.contextHistory,text].slice(-5);
 
+  // ── Video/doc attached → always route through generateReply (never image-gen) ──
+  const _hasVideo = _pendingImgs.some(function(f){ return f.isVideo; });
+  const _hasDoc   = _pendingImgs.some(function(f){ return f.isDoc; });
+  if (_hasVideo || _hasDoc) {
+    S.pendingImages = _pendingImgs;
+    const _rvd = await autumnReflex(text,'default').catch(function(){ return {}; });
+    S.journal.push(createJournalEntry(text, analysis, _rvd));
+    updateHUD(analysis);
+    S.isProcessing = false;
+    if (typeof setOrbThinking === 'function') setOrbThinking(false);
+    const _replyVD = await generateReply(text, analysis, _rvd).catch(function(){ return {text:'',grammarMeta:'',brpnMeta:''}; });
+    const _vdFullReply = (_replyVD && _replyVD.text) ? _replyVD.text : (_hasVideo ? 'Video received — I\'ve analyzed the sampled frames. Let me know what you need.' : 'Document received and read. What would you like to know about it?');
+    msgs().push({
+      role:'autumn', text:_vdFullReply, ts:new Date().toISOString(),
+      grammarMeta:_replyVD.grammarMeta||(_hasVideo ? 'Video Analysis · ' + _pendingImgs.filter(f=>f.isVideo).map(f=>f.fileName).join(', ') : 'Document · ' + _pendingImgs.filter(f=>f.isDoc).map(f=>f.fileName).join(', ')),
+      brpnMeta:_replyVD.brpnMeta||'', contextType:'VISION_ANALYSIS',
+      media:{videos:[],images:[],links:[],sources:[]}
+    });
+    S.pendingImages=[]; S.pendingImage=null;
+    saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+    return;
+  }
+
   // ── Image-to-image: reference images attached + generation/iteration intent ──
   if (_pendingImgs.length && (_intentLabel === 'IMAGE_GEN' || detectImageIterationIntent(text))) {
     S.pendingImages = _pendingImgs;
@@ -5882,18 +6186,39 @@ ACCESS TIERS: All users get the full Autumn LEATR experience — never imply any
     // Cap at 10
     const trimHistory = history.slice(-10);
 
-    // Vision: if images pending, upgrade last user message to content array
+    // Vision/attachment: upgrade last user message to content array for images, video frames, docs
     const _vImgs = (S.pendingImages && S.pendingImages.length) ? S.pendingImages : (S.pendingImage ? [S.pendingImage] : []);
     if(_vImgs.length > 0 && trimHistory.length > 0) {
       const _li = trimHistory.length-1;
       if(trimHistory[_li].role === 'user') {
-        const _tc = typeof trimHistory[_li].content==='string' ? trimHistory[_li].content : 'Analyze this image.';
+        const _tc = typeof trimHistory[_li].content==='string' ? trimHistory[_li].content : 'Analyze this attachment.';
         const _cb = [];
-        _vImgs.slice(0,5).forEach(function(img){_cb.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}});});
-        const _fi = _vImgs[0];
-        const _an = _fi.analysis ? ' ['+_fi.width+'x'+_fi.height+' brightness='+_fi.analysis.brightness+']' : '';
-        _cb.push({type:'text',text:(_tc||'Analyze this image.')+_an});
-        trimHistory[_li]={role:'user',content:_cb};
+        let _contextNote = '';
+
+        _vImgs.slice(0,8).forEach(function(item) {
+          if (item.isVideo && item.videoFrames && item.videoFrames.length) {
+            // Send video as labeled frames — up to 8 frames
+            const frameCount = item.videoFrames.length;
+            const dur = item.duration ? item.duration.toFixed(1) + 's' : 'unknown duration';
+            _contextNote += '\n[VIDEO FILE: ' + item.fileName + ' — ' + dur + ', ' + item.width + 'x' + item.height +
+              ', ' + frameCount + ' frames sampled below]';
+            item.videoFrames.forEach(function(f) {
+              _cb.push({type:'image', source:{type:'base64', media_type:'image/jpeg', data:f.base64}});
+            });
+          } else if (item.isDoc) {
+            // Document: inject as text block
+            const preview = item.docText ? item.docText.slice(0, 80000) : '[empty]';
+            _contextNote += '\n[DOCUMENT: ' + item.fileName + ' (' + (item.fileSize/1024).toFixed(1) + ' KB)]';
+            _cb.push({type:'text', text:'[File attached: ' + item.fileName + ']\n' + preview});
+          } else if (item.base64 && item.mimeType) {
+            // Regular image or FRAX
+            _cb.push({type:'image', source:{type:'base64', media_type:item.mimeType, data:item.base64}});
+            if (item.analysis) _contextNote += ' [' + item.width + 'x' + item.height + ' brightness=' + item.analysis.brightness + ']';
+          }
+        });
+
+        _cb.push({type:'text', text:(_tc||'Analyze this attachment.') + _contextNote});
+        trimHistory[_li]={role:'user', content:_cb};
       }
     }
 
@@ -8418,7 +8743,7 @@ updateFooter();
 if(S.lastAnalysis) updateHUD(S.lastAnalysis);
 
 requestAnimationFrame(()=>{
-  initBRPN();
+  if(typeof THREE !== 'undefined') { initBRPN(); } else { console.warn('[BRPN] THREE.js not loaded — skipping 3D orb init'); }
   // Scroll position buttons — show/hide based on scroll position
   var _cs = document.getElementById('chat-scroll');
   var _btnTop = document.getElementById('scroll-to-top');
