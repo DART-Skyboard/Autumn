@@ -7632,9 +7632,12 @@ function saveIDEAK() {
   document.getElementById('ide-ak-input').value = '';
   closeIDEAKModal();
   ideToast('◈ Anthropic key saved for this session.');
+  _updateKeyBtn();
 }
 function closeIDEAKModal() { document.getElementById('ide-ak-modal').classList.remove('open'); }
-function ideClearAK() { try{localStorage.removeItem('_aut_ide_ak');}catch(e){} ideToast('Anthropic key cleared.'); }
+function ideClearAK() { try{localStorage.removeItem('_aut_ide_ak');}catch(e){} ideToast('Anthropic key cleared.');
+_updateKeyBtn();
+}
 
 // ── Toast ─────────────────────────────────────────────────────
 let _ideToastTimer = null;
