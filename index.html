@@ -4774,7 +4774,7 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
+      body:JSON.stringify({model:'claude-3-5-sonnet-20241022',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
       signal:AbortSignal.timeout(25000)
     });
     var data = await res.json();
@@ -4903,7 +4903,7 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
   var visionDescription='';
   try{
     var ak=_getAK()||'';
-    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
+    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-3-5-sonnet-20241022',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
     var vData=await vRes.json();
     visionDescription=vData.content?vData.content.map(function(b){return b.text||'';}).join(''):'';
   }catch(e){visionDescription='';}
@@ -5403,7 +5403,7 @@ async function classifyIntent(text, hasPendingImages) {
       method: 'POST',
       headers: {'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-3-5-haiku-20241022',
         max_tokens: 15,
         system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
@@ -5785,7 +5785,7 @@ ACCESS TIERS: All users get the full Autumn LEATR experience — never imply any
         "anthropic-dangerous-direct-browser-access": "true",
         ...(ak ? {"x-api-key": ak} : {})
       },
-      body: JSON.stringify({model:"claude-sonnet-4-6", max_tokens:2048, system:systemPrompt, messages:trimHistory})
+      body: JSON.stringify({model:"claude-3-5-sonnet-20241022", max_tokens:2048, system:systemPrompt, messages:trimHistory})
     });
     clearTimeout(_timeout);
     const data=await res.json();
@@ -7552,7 +7552,7 @@ const _GH_BRANCH   = 'main';
 const _GH_LOGIC    = 'js/autumn-logic.js';
 const _GH_RAW      = `js/autumn-logic.js`;
 const _GH_API      = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOGIC}`;
-const _CLAUDE_MDL  = 'claude-sonnet-4-6';
+const _CLAUDE_MDL  = 'claude-3-5-sonnet-20241022';
 
 let _ideUnlocked     = false;
 let _ideMonaco       = null;
