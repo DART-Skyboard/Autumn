@@ -3800,6 +3800,9 @@ function autumnSaveImage(genId) {
 
 // ── Delegated event handler for generated image cards ───────────
 document.addEventListener('DOMContentLoaded', function() {
+  // Reflect saved API key state in key button immediately on load
+  if (typeof _updateKeyBtn === 'function') _updateKeyBtn();
+
   document.addEventListener('click', function(e) {
     var dbgBtn = e.target.closest('.dbg-toggle');
     if(dbgBtn && dbgBtn.dataset.dbgid) {
@@ -4786,9 +4789,21 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var reply = data.content ? data.content.map(function(b){return b.text||'';}).join('') : 'Could not analyze image.';
 
     var idx = msgs().findIndex(function(m){return m.id===cardId;});
+
+    // If user asked for news/search/media alongside the image, run a web query on what was identified
+    var _visionMediaRequest = /\b(news|search|latest|recent|articles|find|look up|images|photos|videos|youtube|who is|what.s happening|media)\b/i.test(text);
+    var visionLiveData = {videos:[],images:[],links:[],sources:[]};
+    if(_visionMediaRequest && reply && reply.length > 10) {
+      // Extract likely subject name from first sentence of vision reply for the web query
+      var _vSubject = reply.split(/[.\n]/)[0].replace(/^(i (can )?see|this is|that.s|it.s|this appears to be)\s*/i,'').trim().slice(0,80);
+      try {
+        visionLiveData = await liveQuery(_vSubject || text, reflexData).catch(function(){return {videos:[],images:[],links:[],sources:[]};});
+      } catch(e) {}
+    }
+
     if(idx>=0) msgs()[idx] = {role:'autumn',text:reply,ts:new Date().toISOString(),id:cardId,
       grammarMeta:'Vision · '+imgs.length+' image'+(imgs.length>1?'s':''),brpnMeta:'',contextType:'VISION',
-      media:{videos:[],images:[],links:[],sources:[]}};
+      media:{ videos:visionLiveData.videos||[], images:visionLiveData.images||[], links:visionLiveData.links||[], sources:visionLiveData.sources||[] }};
   } catch(e) {
     var idx2 = msgs().findIndex(function(m){return m.id===cardId;});
     if(idx2>=0) msgs()[idx2] = {role:'autumn',text:'Vision analysis failed.',ts:new Date().toISOString(),id:cardId,grammarMeta:'',brpnMeta:'',contextType:'VISION',media:{videos:[],images:[],links:[],sources:[]}};
@@ -5657,9 +5672,10 @@ async function handleSend() {
   let fullReply = (reply && typeof reply === 'object') ? (reply.text||'') : (reply||'');
   let grammarMeta = (reply && typeof reply === 'object') ? reply.grammarMeta : '';
   let brpnMeta = (reply && typeof reply === 'object') ? reply.brpnMeta : '';
-  // Only append web data for non-personal queries
+  // Only append web data when user explicitly requests search/news/media — suppress for normal conversation
   var _liveIntent = detectIntent(text);
-  // Web data suppressed — only append if user explicitly requests a web search
+  var _explicitMediaRequest = /\b(search|look up|find|news|latest|recent|video|videos|youtube|images|photos|pictures|articles|headlines|what.s happening|current|today)\b/i.test(text);
+  if(liveData.liveText && _liveIntent !== 'personal' && _explicitMediaRequest) fullReply += liveData.liveText;
   var _placeMapHtml = liveData.placeMapHtml || '';
   // If we still have nothing, it means the API call failed — skip pushing an empty bubble
   if(!fullReply && !liveData.videos.length && !liveData.images.length) {
@@ -5691,7 +5707,9 @@ async function handleSend() {
     mazeWid: reflexData.activeMazeWid||null,
     weatherHtml: reflexData.weatherHtml||'',
     mapHtml: (reflexData.mapHtml||'') + (_placeMapHtml||''),
-    media:{ videos:[], images:[], links:[], sources:[] }
+    media:_explicitMediaRequest
+      ? { videos:liveData.videos, images:liveData.images, links:liveData.links, sources:liveData.sources }
+      : { videos:[], images:[], links:[], sources:[] }
   });
 
   S.isProcessing=false;
