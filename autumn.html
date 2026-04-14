@@ -8,28 +8,41 @@
 <meta name="description" content="Exploring the intersection of AI, scientific visualization, and 3D animation through the Lead Edge Ash Tree Reflex Neural Network.">
 
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://radicaldeepscale.com/autumn.html">
-<meta property="og:title" content="Autumn | Radical Deepscale">
+<meta property="og:url" content="https://leatr.xyz/">
+<meta property="og:title" content="Autumn | LEATR">
 <meta property="og:description" content="Exploring the intersection of AI, scientific visualization, and 3D animation through the Lead Edge Ash Tree Reflex Neural Network.">
-<meta property="og:image" content="assets/ambh.jpeg">
+<meta property="og:image" content="https://leatr.xyz/assets/ambh.jpeg">
 
 <meta property="twitter:card" content="summary_large_image">
-<meta property="twitter:url" content="https://radicaldeepscale.com/autumn.html">
-<meta property="twitter:title" content="Autumn | Radical Deepscale">
+<meta property="twitter:url" content="https://leatr.xyz/">
+<meta property="twitter:title" content="Autumn | LEATR">
 <meta property="twitter:description" content="Exploring the intersection of AI, scientific visualization, and 3D animation through the Lead Edge Ash Tree Reflex Neural Network.">
-<meta property="twitter:image" content="assets/ambh.jpeg">
+<meta property="twitter:image" content="https://leatr.xyz/assets/ambh.jpeg">
 
 <meta name="theme-color" content="#020a14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Autumn">
-<link rel="apple-touch-icon" href="assets/autumn.png">
-<link rel="icon" type="image/png" href="assets/autumn.png">
-<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiQXV0dW1uIC0gTEVBVFIiLCJzaG9ydF9uYW1lIjoiQXV0dW1uIiwiZGVzY3JpcHRpb24iOiJMZWFkIEVkZ2UgQXNoIFRyZWUgUmVmbGV4IE5ldXJhbCBOZXR3b3JrIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwMjBhMTQiLCJ0aGVtZV9jb2xvciI6IiMwMjBhMTQiLCJpY29ucyI6W3sic3JjIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RBUlQtU2t5Ym9hcmQvQXJpZWwvcmVmcy9oZWFkcy9tYWluL3N0YXRpYy9hdXR1bW4ucG5nIiwic2l6ZXMiOiI1MTJ4NTEyIiwidHlwZSI6ImltYWdlL3BuZyJ9XX0K">
+
+<link rel="icon" type="image/x-icon" href="https://leatr.xyz/assets/favicon.ico">
+<link rel="shortcut icon" href="https://leatr.xyz/assets/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="https://leatr.xyz/assets/autumn512.png">
+<link rel="apple-touch-icon" sizes="512x512" href="https://leatr.xyz/assets/autumn512.png">
+
+<link rel="manifest" href="/manifest.json">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/leaflet.min.css">
-<script src="js/three.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/ColladaLoader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script type="module">
 // Kokoro TTS via @huggingface/transformers — runs fully in-browser, no API key
 import { pipeline, env } from './js/transformers.min.js';
@@ -47,9 +60,9 @@ window._kokoroLoad = (async () => {
   }
 })();
 </script>
-<script src="js/jszip.min.js"></script>
-<script src="js/FileSaver.min.js"></script>
-<script src="js/pako.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <script>
 
 // ============================================================
@@ -206,7 +219,7 @@ THREE.OrbitControls=function(camera,domElement){
 };
 })();
 </script>
-<script src="js/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{--cyan:#00ffcc;--blue:#0088ff;--red:#ff4466;--bg:#020a14;--bg2:#0a1628;--panel:rgba(6,16,32,0.72);--border:rgba(0,255,204,0.12);--text:#c8e6f0;--dim:#4a7a8a;--bright:#d0e8f0;--font-d:'Orbitron',monospace;--font-b:'Exo 2',sans-serif;--r:14px}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -430,13 +443,17 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .vc-ch{font-size:.55rem;color:rgba(255,80,80,.55);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vc-yt{display:inline-flex;font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;color:rgba(255,68,68,.45);text-decoration:none;border:1px solid rgba(255,68,68,.18);border-radius:2px;padding:2px 5px;margin-top:4px;transition:all .15s}
 .vc-yt:hover{color:#ff4444;border-color:rgba(255,68,68,.5)}
-.img-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
-.ic{position:relative;aspect-ratio:4/3;overflow:hidden;border-radius:4px;border:1px solid rgba(0,255,204,.12);background:rgba(0,255,204,.03);cursor:pointer;transition:all .2s}
-.ic:hover{border-color:rgba(0,255,204,.4);transform:scale(1.03);z-index:2;box-shadow:0 4px 18px rgba(0,0,0,.5)}
-.ic img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .3s}
+.img-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.ic{position:relative;aspect-ratio:4/3;overflow:hidden;border-radius:4px;border:1px solid rgba(192,132,252,.18);background:rgba(192,132,252,.04);cursor:pointer;transition:all .25s;animation:fadeIn .35s ease forwards}
+.ic:hover{border-color:rgba(192,132,252,.6);transform:scale(1.03);z-index:5;box-shadow:0 8px 28px rgba(0,0,0,.65)}
+.ic img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .35s}
 .ic img.ok{opacity:1}
-.ic .img-ov{position:absolute;bottom:0;left:0;right:0;padding:3px 5px;background:linear-gradient(transparent,rgba(0,0,0,.8));font-size:.48rem;color:#ccc;opacity:0;transition:opacity .2s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ic .img-ov{position:absolute;bottom:0;left:0;right:0;padding:5px 7px;background:linear-gradient(transparent,rgba(0,0,0,.88));font-family:var(--font-d);font-size:.48rem;color:#ccc;letter-spacing:.5px;opacity:0;transition:opacity .2s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ic:hover .img-ov{opacity:1}
+.ic .img-src-badge{position:absolute;top:4px;right:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;padding:2px 5px;background:rgba(0,0,0,.72);border:1px solid rgba(192,132,252,.4);border-radius:2px;color:rgba(192,132,252,.9);text-transform:uppercase;pointer-events:none}
+.ic.shim::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(192,132,252,.04) 25%,rgba(192,132,252,.1) 50%,rgba(192,132,252,.04) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;z-index:1}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.img-src-note{font-family:var(--font-d);font-size:.5rem;color:var(--dim);text-align:center;margin-top:6px;letter-spacing:1px}
 .link-cards{display:flex;flex-direction:column;gap:4px}
 .link-card{display:flex;align-items:flex-start;gap:7px;padding:6px 9px;border:1px solid var(--border);border-radius:4px;background:rgba(0,255,204,.02);text-decoration:none;transition:all .15s}
 .link-card:hover{background:rgba(0,255,204,.06);border-color:rgba(0,255,204,.3)}
@@ -468,6 +485,17 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #img-preview-strip.show{display:flex}
 #img-thumb-row{display:flex;align-items:center;gap:8px;flex:1;overflow-x:auto;padding:3px 0;scrollbar-width:thin;scrollbar-color:rgba(167,139,250,.3) transparent;-webkit-overflow-scrolling:touch}
 .img-preview-thumb{width:48px;height:48px;border-radius:5px;object-fit:cover;border:1px solid rgba(167,139,250,.3);flex-shrink:0}
+/* Video thumbnail canvas */
+.vid-preview-thumb{width:48px;height:48px;border-radius:5px;object-fit:cover;border:1px solid rgba(255,179,71,.35);flex-shrink:0;display:block}
+/* Document/file thumbnail placeholder */
+.doc-preview-thumb{width:48px;height:48px;border-radius:5px;border:1px solid rgba(0,255,204,.25);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(0,255,204,.05);font-size:20px}
+/* Attach type badge */
+.attach-type-badge{position:absolute;bottom:-2px;left:0;right:0;text-align:center;font-size:6.5px;font-family:var(--font-d);letter-spacing:.5px;padding:1px 0;border-radius:0 0 4px 4px;text-transform:uppercase}
+.attach-type-badge.vid{color:#ffb347;background:rgba(0,0,0,.55)}
+.attach-type-badge.doc{color:var(--cyan);background:rgba(0,0,0,.55)}
+.attach-type-badge.frax{color:#a78bfa;background:rgba(0,0,0,.55)}
+/* Video play overlay on thumb */
+.vid-play-overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:rgba(255,179,71,.7);display:flex;align-items:center;justify-content:center;font-size:9px;color:#000;pointer-events:none}
 .img-preview-remove{background:transparent;border:1px solid rgba(255,68,102,.3);color:#ff4466;width:22px;height:22px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;transition:all .15s;margin-left:8px}
 .img-gen-card{background:linear-gradient(135deg,rgba(10,22,40,.97),rgba(6,16,32,.98));border:1px solid rgba(167,139,250,.25);border-radius:10px;overflow:hidden;margin:6px 0;position:relative}
 .img-gen-wrap{position:relative;min-height:180px;background:#030d1a;display:flex;align-items:center;justify-content:center}
@@ -858,6 +886,15 @@ select.ash-ctrl-input{cursor:pointer}
   <div class="modal-box">
     <h3 id="modal-title">Export Data</h3>
     <p id="modal-desc">Download your conversation history, journal, and memory.</p>
+    <div id="modal-import-file-row" style="display:none;margin-bottom:10px">
+      <label style="font-size:11px;color:rgba(0,255,204,.5);font-family:var(--font-d);letter-spacing:1px;display:block;margin-bottom:6px">UPLOAD JSON FILE</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="file" id="import-json-file" accept=".json,application/json" style="display:none" onchange="handleImportFileSelect(this)">
+        <button class="m-btn" onclick="document.getElementById('import-json-file').click()" style="font-size:10px;flex-shrink:0">📂 Browse File</button>
+        <span id="import-file-name" style="font-size:10px;color:var(--dim);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      </div>
+      <div style="text-align:center;margin:8px 0;font-size:10px;color:rgba(0,255,204,.25);font-family:var(--font-d);letter-spacing:2px">— OR PASTE BELOW —</div>
+    </div>
     <textarea id="modal-data" readonly></textarea>
     <div class="modal-btns">
       <button class="m-btn" onclick="closeModal()">Close</button>
@@ -927,8 +964,8 @@ select.ash-ctrl-input{cursor:pointer}
     <div id="input-bar">
       <button class="mic-btn" id="mic-btn" onclick="toggleVoiceMode()" title="Voice mode">🎤</button>
       <button class="listen-btn" id="listen-btn" onclick="toggleMusicListen()" title="Listen to identify music">♫</button>
-      <button class="upload-btn" id="upload-btn" onclick="triggerImageUpload()" title="Attach image(s) or .frax file">📎</button>
-      <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.frax" multiple style="display:none" onchange="handleImageFilesSelect(this.files)">
+      <button class="upload-btn" id="upload-btn" onclick="triggerImageUpload()" title="Attach images, video, or documents">📎</button>
+      <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.frax,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.pdf,.txt,.md,.html,.htm,.js,.ts,.json,.csv,.svg,.py,.css,.xml,.yaml,.yml,.sh,.rb,.java,.c,.cpp,.h,.rs,.glb,.gltf,.obj,.stl,.fbx,.dae,.docx,.rtf" multiple style="display:none" onchange="handleImageFilesSelect(this.files)">
       <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
       <button class="send-btn" id="send-btn">▸ Send</button>
     </div>
@@ -1236,11 +1273,18 @@ function exportData() {
 }
 function importData() {
   document.getElementById("modal-title").textContent = "Import Data";
-  document.getElementById("modal-desc").textContent = "Paste your previously exported Autumn data JSON below:";
+  document.getElementById("modal-desc").textContent = "Upload a JSON file or paste your exported Autumn data below — then tap Import.";
   var ta = document.getElementById("modal-data");
   ta.value = "";
   ta.removeAttribute("readonly");
   ta.placeholder = "Paste JSON here…";
+  // Show the file upload row
+  var fileRow = document.getElementById("modal-import-file-row");
+  if (fileRow) fileRow.style.display = "block";
+  var fileNameEl = document.getElementById("import-file-name");
+  if (fileNameEl) fileNameEl.textContent = "";
+  var fileInput = document.getElementById("import-json-file");
+  if (fileInput) fileInput.value = "";
   document.getElementById("modal-action").textContent = "Import";
   document.getElementById("modal-action").onclick = () => {
     try {
@@ -1254,7 +1298,24 @@ function importData() {
   };
   document.getElementById("data-modal").classList.add("show");
 }
-function closeModal() { document.getElementById("data-modal").classList.remove("show"); }
+function handleImportFileSelect(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var nameEl = document.getElementById("import-file-name");
+  if (nameEl) nameEl.textContent = file.name;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var ta = document.getElementById("modal-data");
+    if (ta) ta.value = e.target.result;
+  };
+  reader.readAsText(file);
+}
+function closeModal() {
+  document.getElementById("data-modal").classList.remove("show");
+  // Hide import file row when closing
+  var fileRow = document.getElementById("modal-import-file-row");
+  if (fileRow) fileRow.style.display = "none";
+}
 
 // --- VIEWPORT MODE TOGGLE ---
 const VP_META = document.querySelector('meta[name="viewport"]');
@@ -3280,11 +3341,66 @@ async function fetchYT(q,max=6){
   ytCacheSet(q,vids);return vids.filter(safeVideo).slice(0,max);
 }
 
-async function fetchImages(q,max=6){
-  const imgs=[];const qw=q.toLowerCase().split(/\s+/).filter(w=>w.length>2);
-  try{const enc=encodeURIComponent('"'+q+'"');const r=await ft(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${enc}&prop=pageimages&format=json&origin=*&pithumbsize=500&gsrlimit=10&pilimit=10`,8000);const d=await r.json();Object.values(d.query?.pages||{}).forEach(p=>{if(!p.thumbnail)return;const tl=(p.title||'').toLowerCase();if(!qw.some(w=>tl.includes(w)))return;imgs.push({thumb:p.thumbnail.source,full:p.thumbnail.source.replace(/\/\d+px-/,'/800px-'),title:p.title,link:`https://en.wikipedia.org/wiki/${encodeURIComponent((p.title||'').replace(/ /g,'_'))}`,src:'WIKIPEDIA'})})}catch(e){}
-  if(imgs.length<3){try{const sr=await ft(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(q)}&format=json&origin=*&srlimit=10&srprop=`,7000);const sd=await sr.json();const ft2=(sd.query?.search||[]).map(s=>s.title).slice(0,8);if(ft2.length){const tp=ft2.map(t=>encodeURIComponent(t)).join('%7C');const ir=await ft(`https://commons.wikimedia.org/w/api.php?action=query&titles=${tp}&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`,7000);const id2=await ir.json();Object.values(id2.query?.pages||{}).forEach(p=>{const ii=p.imageinfo?.[0];if(ii?.thumburl||ii?.url)imgs.push({thumb:ii.thumburl||ii.url,full:ii.url||ii.thumburl,title:(p.title||'').replace(/^File:/,''),link:`https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title||'')}`,src:'WIKIMEDIA'})})}}catch(e){}}
-  const seen=new Set();return imgs.filter(i=>{if(seen.has(i.thumb))return false;seen.add(i.thumb);return safeImg(i)}).slice(0,max);
+async function fetchImages(q,max=8){
+  const imgs=[];
+  const qExact='"'+q+'"';
+  const qOpen=q;
+  const qWords=q.toLowerCase().split(/\s+/).filter(w=>w.length>2);
+
+  // Stage A: Wikipedia EXACT PHRASE — highest relevance
+  try{
+    const r=await ft(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(qExact)}&prop=pageimages&format=json&origin=*&pithumbsize=500&gsrlimit=10&pilimit=10`,8000);
+    const d=await r.json();
+    Object.values(d.query?.pages||{}).forEach(p=>{
+      if(!p.thumbnail)return;
+      imgs.push({thumb:p.thumbnail.source,full:p.thumbnail.source.replace(/\/\d+px-/,'/800px-'),title:p.title,link:`https://en.wikipedia.org/wiki/${encodeURIComponent((p.title||'').replace(/ /g,'_'))}`,src:'WIKIPEDIA',relevance:10});
+    });
+  }catch(e){}
+
+  // Stage B: Wikipedia OPEN SEARCH — filtered by query words
+  if(imgs.length<4){
+    try{
+      const r=await ft(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(qOpen)}&prop=pageimages&format=json&origin=*&pithumbsize=500&gsrlimit=20&pilimit=20`,8000);
+      const d=await r.json();
+      Object.values(d.query?.pages||{}).forEach(p=>{
+        if(!p.thumbnail)return;
+        const tl=(p.title||'').toLowerCase();
+        if(!qWords.some(w=>tl.includes(w)))return;
+        imgs.push({thumb:p.thumbnail.source,full:p.thumbnail.source.replace(/\/\d+px-/,'/800px-'),title:p.title,link:`https://en.wikipedia.org/wiki/${encodeURIComponent((p.title||'').replace(/ /g,'_'))}`,src:'WIKIPEDIA',relevance:5});
+      });
+    }catch(e){}
+  }
+
+  // Stage C: Wikimedia Commons — exact phrase first, fall back to filtered open search
+  try{
+    let fileTitles=[];
+    const sr=await ft(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(qExact)}&format=json&origin=*&srlimit=16&srprop=`,8000);
+    const sd=await sr.json();
+    fileTitles=(sd.query?.search||[]).map(s=>s.title);
+    if(!fileTitles.length){
+      const sr2=await ft(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(qOpen)}&format=json&origin=*&srlimit=16&srprop=`,8000);
+      const sd2=await sr2.json();
+      fileTitles=(sd2.query?.search||[]).filter(s=>qWords.some(w=>s.title.toLowerCase().includes(w))).map(s=>s.title);
+    }
+    if(fileTitles.length){
+      const tp=fileTitles.slice(0,16).map(t=>encodeURIComponent(t)).join('%7C');
+      const ir=await ft(`https://commons.wikimedia.org/w/api.php?action=query&titles=${tp}&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`,8000);
+      const id2=await ir.json();
+      Object.values(id2.query?.pages||{}).forEach(p=>{
+        const ii=p.imageinfo?.[0];
+        if(ii?.thumburl||ii?.url){
+          imgs.push({thumb:ii.thumburl||ii.url,full:ii.url||ii.thumburl,title:(p.title||'').replace(/^File:/,''),link:`https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title||'')}`,src:'WIKIMEDIA',relevance:4});
+        }
+      });
+    }
+  }catch(e){}
+
+  // Deduplicate, sort by relevance, safety filter
+  const seen=new Set();
+  return imgs
+    .filter(i=>{if(seen.has(i.thumb))return false;seen.add(i.thumb);return safeImg(i);})
+    .sort((a,b)=>(b.relevance||0)-(a.relevance||0))
+    .slice(0,max);
 }
 
 async function fetchWiki(q){
@@ -3376,7 +3492,12 @@ function renderVideoCards(vids,mid){
 }
 function renderImageCards(imgs,mid){
   if(!imgs?.length)return'';_lbSets[mid]=imgs;
-  return`<div class="media-section"><div class="media-label">◈ IMAGE RESULTS</div><div class="img-grid">${imgs.map((img,i)=>`<div class="ic" onclick="openLB('${mid}',${i})" title="${esc(img.title)}"><img data-src="${esc(img.thumb)}" alt="${esc(img.title)}"><div class="img-ov">${esc(img.title)}</div></div>`).join('')}</div></div>`;
+  var sources=[...new Set(imgs.map(i=>i.src).filter(Boolean))];
+  var cards=imgs.map(function(img,i){
+    return`<div class="ic shim" onclick="openLB('${mid}',${i})" title="${esc(img.title)}" style="animation-delay:${i*60}ms"><img data-src="${esc(img.thumb)}" alt="${esc(img.title)}"><div class="img-ov">${esc(img.title)}</div><div class="img-src-badge">${esc(img.src||'WEB')}</div></div>`;
+  }).join('');
+  var srcNote=sources.length?`<div class="img-src-note">◈ ${esc(sources.join(' · '))}</div>`:'';
+  return`<div class="media-section"><div class="media-label">◈ IMAGE RESULTS</div><div class="img-grid">${cards}</div>${srcNote}</div>`;
 }
 function renderLinkCards(lnks){
   if(!lnks?.length)return'';
@@ -3386,7 +3507,7 @@ function renderSourcePills(srcs){if(!srcs?.length)return'';return`<div class="sr
 
 function wireMediaCards(el){
   el.querySelectorAll('.vc-thumb img[data-src],.ic img[data-src]').forEach(img=>{
-    const obs=new IntersectionObserver(entries=>{if(entries[0].isIntersecting){img.src=img.dataset.src;img.onload=()=>img.classList.add('ok');img.onerror=()=>{img.src='';img.classList.add('ok')};obs.disconnect()}},{rootMargin:'60px'});obs.observe(img);
+    const obs=new IntersectionObserver(entries=>{if(entries[0].isIntersecting){img.src=img.dataset.src;img.onload=()=>{img.classList.add('ok');img.closest('.ic')?.classList.remove('shim');};img.onerror=()=>{img.closest('.ic')?.remove();};obs.disconnect()}},{rootMargin:'120px'});obs.observe(img);
   });
   el.querySelectorAll('.vc').forEach(card=>{
     card.querySelector('.vc-thumb')?.addEventListener('click',e=>{e.preventDefault();openYTOverlay(card.dataset.vid,card.dataset.title,card.dataset.ch,card.dataset.url);});
@@ -3795,6 +3916,7 @@ function autumnSaveImage(genId) {
 
 // ── Delegated event handler for generated image cards ───────────
 document.addEventListener('DOMContentLoaded', function() {
+  if (typeof _updateKeyBtn === 'function') _updateKeyBtn();
   document.addEventListener('click', function(e) {
     var dbgBtn = e.target.closest('.dbg-toggle');
     if(dbgBtn && dbgBtn.dataset.dbgid) {
@@ -4031,12 +4153,237 @@ function fraxChannelAnalysis(imageData) {
 }
 
 // ── Image state: S.pendingImages[] ───────────────────────────
-// Each entry: {base64, mimeType, fileName, width, height, analysis, fraxMeta, thumbnail, isFrax}
+// Each entry: {base64, mimeType, fileName, width, height, analysis, fraxMeta, thumbnail, isFrax, isVideo, isDoc, docText, videoFrames}
 function triggerImageUpload() {
   var inp=document.getElementById('img-file-input');
   if(inp){inp.value='';inp.click();}
 }
+
+// ── Classify file type ────────────────────────────────────────
+function classifyAttachment(file) {
+  var ext = (file.name.split('.').pop() || '').toLowerCase();
+  var mime = (file.type || '').toLowerCase();
+  if (ext === 'frax') return 'frax';
+  if (['glb','gltf','obj','stl','fbx','dae'].includes(ext)) return '3d';
+  if (mime.startsWith('video/') || ['mp4','webm','mov','avi','mkv','m4v','ogv','3gp'].includes(ext)) return 'video';
+  if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) return 'image';
+  // Documents
+  return 'doc';
+}
+
+// ── Video thumbnail + frame extraction ───────────────────────
+// Extracts thumbnail and up to N evenly-spaced frames as base64 JPEG
+function extractVideoFrames(file, maxFrames) {
+  maxFrames = maxFrames || 8;
+  return new Promise(function(resolve, reject) {
+    var url = URL.createObjectURL(file);
+    var video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    video.src = url;
+
+    video.addEventListener('loadedmetadata', function() {
+      var duration = video.duration;
+      if (!isFinite(duration) || duration <= 0) duration = 0;
+      var SIZE = 48; // thumbnail square
+      var FRAME_W = 512; // frame for Claude vision
+      var FRAME_H = 288;
+
+      // Build thumbnail canvas (square cover crop)
+      var thumbCv = document.createElement('canvas');
+      thumbCv.width = SIZE; thumbCv.height = SIZE;
+      var thumbCtx = thumbCv.getContext('2d');
+
+      // Build frame canvas
+      var frameCv = document.createElement('canvas');
+      frameCv.width = FRAME_W; frameCv.height = FRAME_H;
+      var frameCtx = frameCv.getContext('2d');
+
+      var frames = [];
+      var timestamps = [];
+      if (duration > 0) {
+        // Spread N evenly-spaced timestamps; always include t=0
+        var actualFrames = Math.min(maxFrames, Math.max(1, Math.floor(duration)));
+        for (var i = 0; i < actualFrames; i++) {
+          timestamps.push((i / Math.max(1, actualFrames - 1)) * duration * 0.95);
+        }
+        if (timestamps.length === 0) timestamps = [0];
+      } else {
+        timestamps = [0];
+      }
+
+      var seekIdx = 0;
+      var thumbnail = '';
+
+      function seekNext() {
+        if (seekIdx >= timestamps.length) {
+          URL.revokeObjectURL(url);
+          resolve({ thumbnail: thumbnail, frames: frames, duration: duration,
+            width: video.videoWidth, height: video.videoHeight });
+          return;
+        }
+        video.currentTime = timestamps[seekIdx];
+      }
+
+      video.addEventListener('seeked', function() {
+        try {
+          var vw = video.videoWidth || FRAME_W;
+          var vh = video.videoHeight || FRAME_H;
+
+          // Thumbnail: square cover crop
+          if (seekIdx === 0) {
+            var ts = Math.max(SIZE / vw, SIZE / vh);
+            var tw = vw * ts, th = vh * ts;
+            thumbCtx.drawImage(video, (SIZE - tw) / 2, (SIZE - th) / 2, tw, th);
+            thumbnail = thumbCv.toDataURL('image/jpeg', 0.82);
+          }
+
+          // Frame: letterbox into FRAME_W x FRAME_H
+          frameCtx.fillStyle = '#000';
+          frameCtx.fillRect(0, 0, FRAME_W, FRAME_H);
+          var scale = Math.min(FRAME_W / vw, FRAME_H / vh);
+          var fw = vw * scale, fh = vh * scale;
+          frameCtx.drawImage(video, (FRAME_W - fw) / 2, (FRAME_H - fh) / 2, fw, fh);
+          frames.push({
+            base64: frameCv.toDataURL('image/jpeg', 0.80).split(',')[1],
+            ts: timestamps[seekIdx].toFixed(2),
+            idx: seekIdx
+          });
+        } catch(e) {}
+        seekIdx++;
+        seekNext();
+      });
+
+      // Start seeking
+      video.addEventListener('error', function() {
+        URL.revokeObjectURL(url);
+        resolve({ thumbnail: thumbnail || '', frames: frames, duration: 0, width: 0, height: 0 });
+      });
+
+      seekNext();
+    });
+
+    video.addEventListener('error', function() {
+      URL.revokeObjectURL(url);
+      reject(new Error('Video load failed'));
+    });
+
+    // Trigger load
+    video.load();
+  });
+}
+
+// ── Read document file as text ────────────────────────────────
+var DOC_TEXT_EXTS = new Set(['txt','md','html','htm','js','ts','json','csv','svg','py','css','xml','yaml','yml','sh','rb','java','c','cpp','h','rs','log','ini','conf','toml','rtf']);
+function getDocIcon(ext) {
+  var icons = {
+    pdf:'📄', json:'{ }', csv:'📊', html:'🌐', htm:'🌐',
+    py:'🐍', js:'⚡', ts:'⚡', svg:'🖼', md:'📝',
+    txt:'📝', xml:'🗂', yaml:'⚙', yml:'⚙', sh:'💻',
+    rb:'💎', java:'☕', c:'🔧', cpp:'🔧', h:'🔧', rs:'🦀', css:'🎨',
+    docx:'📄', rtf:'📝'
+  };
+  return icons[ext] || '📄';
+}
+async function loadDocumentFile(file) {
+  var ext = (file.name.split('.').pop() || '').toLowerCase();
+  var icon = getDocIcon(ext);
+  var docText = '';
+  var thumbnail = ''; // will be rendered as doc-preview-thumb div in renderThumbRow
+  var MAX_CHARS = 120000; // safe limit for context window
+  if (DOC_TEXT_EXTS.has(ext)) {
+    try {
+      docText = await new Promise(function(res,rej){
+        var r=new FileReader(); r.onload=function(e){res(e.target.result);}; r.onerror=rej; r.readAsText(file);
+      });
+      if (docText.length > MAX_CHARS) docText = docText.slice(0, MAX_CHARS) + '\n…[truncated at ' + MAX_CHARS + ' chars]';
+    } catch(e) { docText = '[Could not read file: ' + e.message + ']'; }
+  } else if (ext === 'pdf') {
+    try {
+      var arrBuffer = await file.arrayBuffer();
+      var pdf = await pdfjsLib.getDocument({data: arrBuffer}).promise;
+      var fullText = '';
+      for (var i = 1; i <= pdf.numPages; i++) {
+        var page = await pdf.getPage(i);
+        var textContent = await page.getTextContent();
+        var pageText = textContent.items.map(function(item){return item.str}).join(' ');
+        fullText += pageText + '\n';
+        if (fullText.length > MAX_CHARS) break;
+      }
+      docText = fullText.length > MAX_CHARS ? fullText.slice(0, MAX_CHARS) + '\n…[truncated]' : fullText;
+    } catch(e) {
+      docText = '[PDF parsing error: ' + e.message + ']';
+    }
+  } else if (ext === 'docx') {
+    try {
+      var arrBuffer = await file.arrayBuffer();
+      var result = await mammoth.extractRawText({arrayBuffer: arrBuffer});
+      docText = result.value;
+      if (docText.length > MAX_CHARS) docText = docText.slice(0, MAX_CHARS) + '\n…[truncated]';
+    } catch(e) {
+      docText = '[DOCX parsing error: ' + e.message + ']';
+    }
+  } else {
+    docText = '[Binary file — ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)]';
+  }
+  return {
+    isDoc: true, isImage: false, isVideo: false, isFrax: false,
+    fileName: file.name, fileSize: file.size,
+    docText: docText, docIcon: icon, docExt: ext,
+    mimeType: file.type || 'text/plain',
+    thumbnail: '', base64: '', width: 0, height: 0, analysis: null, fraxMeta: null,
+    videoFrames: null
+  };
+}
+
 async function loadSingleImageFile(file) {
+  var kind = classifyAttachment(file);
+
+  // ── 3D MODEL ──────────────────────────────────────────────
+  if (kind === '3d') {
+    var fileURL = URL.createObjectURL(file);
+    return {
+      is3D: true, isDoc: false, isImage: false, isVideo: false, isFrax: false,
+      fileName: file.name, fileSize: file.size,
+      mimeType: file.type || 'model/' + file.name.split('.').pop().toLowerCase(),
+      fileURL: fileURL, ext: file.name.split('.').pop().toLowerCase(),
+      thumbnail: '', base64: '', width: 0, height: 0, analysis: null, fraxMeta: null,
+      videoFrames: null
+    };
+  }
+
+  // ── VIDEO ─────────────────────────────────────────────────
+  if (kind === 'video') {
+    var MAX_VIDEO_MB = 35;
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      alert('Video "' + file.name + '" is larger than ' + MAX_VIDEO_MB + ' MB — please use a smaller clip.');
+      return null;
+    }
+    try {
+      var vd = await extractVideoFrames(file, 8);
+      return {
+        isVideo: true, isDoc: false, isImage: false, isFrax: false,
+        fileName: file.name, fileSize: file.size,
+        mimeType: file.type || 'video/mp4',
+        thumbnail: vd.thumbnail,
+        videoFrames: vd.frames,   // [{base64, ts, idx}]
+        duration: vd.duration,
+        width: vd.width, height: vd.height,
+        base64: '', analysis: null, fraxMeta: null, docText: null
+      };
+    } catch(e) {
+      console.warn('[Autumn Video]', file.name, e);
+      return null;
+    }
+  }
+
+  // ── DOCUMENT ──────────────────────────────────────────────
+  if (kind === 'doc') {
+    return await loadDocumentFile(file);
+  }
+
+  // ── IMAGE / FRAX (original logic) ─────────────────────────
   var ext=file.name.split('.').pop().toLowerCase();
   var isFrax=ext==='frax';
   var base64='',mimeType='image/png',width=0,height=0,analysis=null,fraxMeta=null,thumbnail='';
@@ -4062,28 +4409,84 @@ async function loadSingleImageFile(file) {
     var tc=document.createElement('canvas');tc.width=56;tc.height=56;
     var _tctx2=tc.getContext('2d');var _ts2=Math.max(56/width,56/height);var _tw2=width*_ts2;var _th2=height*_ts2;_tctx2.drawImage(img,(56-_tw2)/2,(56-_th2)/2,_tw2,_th2);thumbnail=tc.toDataURL('image/png');
   }
-  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,isFrax:isFrax,fileSize:file.size};
+  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,isFrax:isFrax,isImage:true,isVideo:false,isDoc:false,fileSize:file.size};
 }
+
 function renderThumbRow() {
   var row=document.getElementById('img-thumb-row');if(!row)return;
   row.innerHTML='';
   var imgs=S.pendingImages||[];
-  imgs.forEach(function(img,idx){
-    var wrap=document.createElement('div');wrap.style.cssText='position:relative;flex-shrink:0;';
-    var thumb=document.createElement('img');thumb.src=img.thumbnail;thumb.className='img-preview-thumb';thumb.title=img.fileName;
+  imgs.forEach(function(item,idx){
+    var wrap=document.createElement('div');
+    wrap.style.cssText='position:relative;flex-shrink:0;';
+
+    if (item.is3D) {
+      var d = document.createElement('div');
+      d.className = 'doc-preview-thumb';
+      d.style.cssText = 'width:48px;height:48px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;flex-shrink:0;cursor:default';
+      d.textContent = '🧊';
+      d.title = item.fileName;
+      wrap.appendChild(d);
+    } else if (item.isVideo) {
+      // Video: canvas thumbnail with play overlay
+      var canvas = document.createElement('canvas');
+      canvas.width=48;canvas.height=48;
+      canvas.className='vid-preview-thumb';
+      canvas.title=item.fileName;
+      if (item.thumbnail) {
+        var img=new Image();
+        img.onload=function(){
+          var ctx2=canvas.getContext('2d');
+          ctx2.drawImage(img,0,0,48,48);
+        };
+        img.src=item.thumbnail;
+      } else {
+        var ctx2=canvas.getContext('2d');
+        ctx2.fillStyle='#0a1628';ctx2.fillRect(0,0,48,48);
+        ctx2.fillStyle='#ffb347';ctx2.font='20px sans-serif';ctx2.textAlign='center';ctx2.textBaseline='middle';
+        ctx2.fillText('▶',24,24);
+      }
+      var play=document.createElement('div');play.className='vid-play-overlay';play.textContent='▶';
+      var badge=document.createElement('span');badge.className='attach-type-badge vid';
+      badge.textContent='VIDEO';
+      wrap.appendChild(canvas);wrap.appendChild(play);wrap.appendChild(badge);
+    } else if (item.isDoc) {
+      // Document: icon placeholder
+      var docDiv=document.createElement('div');docDiv.className='doc-preview-thumb';
+      docDiv.title=item.fileName;
+      docDiv.textContent=item.docIcon||'📄';
+      var badge=document.createElement('span');badge.className='attach-type-badge doc';
+      badge.textContent=(item.docExt||'DOC').toUpperCase().slice(0,4);
+      wrap.appendChild(docDiv);wrap.appendChild(badge);
+    } else {
+      // Image / FRAX
+      var thumb=document.createElement('img');thumb.src=item.thumbnail;thumb.className='img-preview-thumb';thumb.title=item.fileName;
+      wrap.appendChild(thumb);
+      if(item.isFrax){var badge=document.createElement('span');badge.className='attach-type-badge frax';badge.textContent='FRAX';wrap.appendChild(badge);}
+    }
+
+    // Remove button
     var rm=document.createElement('button');rm.textContent='✕';
-    rm.style.cssText='position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:rgba(255,68,102,.8);border:none;color:#fff;font-size:9px;cursor:pointer;padding:0;line-height:1;';
+    rm.style.cssText='position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:rgba(255,68,102,.8);border:none;color:#fff;font-size:9px;cursor:pointer;padding:0;line-height:1;z-index:2;';
     rm.onclick=function(){S.pendingImages.splice(idx,1);renderThumbRow();if(!S.pendingImages.length)clearPendingImage();};
-    if(img.isFrax){var badge=document.createElement('span');badge.style.cssText='position:absolute;bottom:-2px;left:0;right:0;text-align:center;font-size:7px;font-family:var(--font-d);color:#a78bfa;';badge.textContent='FRAX';wrap.appendChild(badge);}
-    wrap.appendChild(thumb);wrap.appendChild(rm);row.appendChild(wrap);
+    wrap.appendChild(rm);
+    row.appendChild(wrap);
   });
-  if(imgs.length>1){var lbl=document.createElement('div');lbl.style.cssText='font-size:9px;font-family:var(--font-d);color:#a78bfa;letter-spacing:1px;white-space:nowrap;align-self:center;padding:0 4px;';lbl.textContent=imgs.length+' FILES';row.appendChild(lbl);}
+  if(imgs.length>1){
+    var lbl=document.createElement('div');
+    lbl.style.cssText='font-size:9px;font-family:var(--font-d);color:#a78bfa;letter-spacing:1px;white-space:nowrap;align-self:center;padding:0 4px;';
+    lbl.textContent=imgs.length+' FILES';
+    row.appendChild(lbl);
+  }
 }
 async function handleImageFilesSelect(files) {
   if(!files||!files.length)return;
   if(!S.pendingImages)S.pendingImages=[];
   for(var fi=0;fi<files.length;fi++){
-    try{var imgData=await loadSingleImageFile(files[fi]);S.pendingImages.push(imgData);}catch(e){console.warn('[Autumn Image]',files[fi].name,e);}
+    try{
+      var item=await loadSingleImageFile(files[fi]);
+      if(item) S.pendingImages.push(item);
+    }catch(e){console.warn('[Autumn Attach]',files[fi].name,e);}
   }
   if(S.pendingImages.length){
     document.getElementById('img-preview-strip').classList.add('show');
@@ -4774,16 +5177,24 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},
-      body:JSON.stringify({model:'claude-3-5-sonnet-20241022',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
       signal:AbortSignal.timeout(25000)
     });
     var data = await res.json();
     var reply = data.content ? data.content.map(function(b){return b.text||'';}).join('') : 'Could not analyze image.';
 
     var idx = msgs().findIndex(function(m){return m.id===cardId;});
+    // If user asked for news/media alongside the image, run web query on identified subject
+    var _visionMediaRequest = /\b(news|search|latest|recent|articles|find|look up|images|photos|videos|youtube|who is|media)\b/i.test(text);
+    var visionLiveData = {videos:[],images:[],links:[],sources:[]};
+    if(_visionMediaRequest && reply && reply.length > 10) {
+      var _vSubject = reply.split(/[.\n]/)[0].replace(/^(i (can )?see|this is|that.s|it.s|this appears to be)\s*/i,'').trim().slice(0,80);
+      try { visionLiveData = await liveQuery(_vSubject || text, {}).catch(function(){return {videos:[],images:[],links:[],sources:[]};});
+      } catch(e) {}
+    }
     if(idx>=0) msgs()[idx] = {role:'autumn',text:reply,ts:new Date().toISOString(),id:cardId,
       grammarMeta:'Vision · '+imgs.length+' image'+(imgs.length>1?'s':''),brpnMeta:'',contextType:'VISION',
-      media:{videos:[],images:[],links:[],sources:[]}};
+      media:{videos:visionLiveData.videos||[],images:visionLiveData.images||[],links:visionLiveData.links||[],sources:visionLiveData.sources||[]}};
   } catch(e) {
     var idx2 = msgs().findIndex(function(m){return m.id===cardId;});
     if(idx2>=0) msgs()[idx2] = {role:'autumn',text:'Vision analysis failed.',ts:new Date().toISOString(),id:cardId,grammarMeta:'',brpnMeta:'',contextType:'VISION',media:{videos:[],images:[],links:[],sources:[]}};
@@ -4877,6 +5288,9 @@ async function runImageGeneration(text, analysis, reflexData) {
     + '<div class="img-gen-card-actions">'
     + '<button class="img-gen-btn" data-genid="'+_genId+'" data-action="expand">⤢ EXPAND</button>'
     + '<button class="img-gen-btn download" data-genid="'+_genId+'" data-action="save" title="Download image">⬇ SAVE</button>'
+    + '<button class="img-gen-btn" data-genid="'+_genId+'" data-action="upscale">✨ UPSCALE</button>'
+    + '<button class="img-gen-btn" data-genid="'+_genId+'" data-action="tofrax">🔮 TO FRAX</button>'
+    + '<button class="img-gen-btn" data-genid="'+_genId+'" data-action="topng">📋 TO PNG</button>'
     + '</div></div>';
   var idx=msgs().findIndex(function(m){return m.id===cardId;});
   if(idx>=0){msgs()[idx]=Object.assign({},msgs()[idx],{imageGenCard:finalCard,media:{videos:[],images:[],links:refLinks,sources:refs.length?['OPENVERSE']:[]},grammarMeta:'Generated · style:'+styleInfo.key+' model:'+genResult.model+' seed:'+genResult.seed});renderMessages();}
@@ -4903,7 +5317,7 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
   var visionDescription='';
   try{
     var ak=_getAK()||'';
-    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-3-5-sonnet-20241022',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
+    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
     var vData=await vRes.json();
     visionDescription=vData.content?vData.content.map(function(b){return b.text||'';}).join(''):'';
   }catch(e){visionDescription='';}
@@ -4932,6 +5346,9 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
     +'<div class="img-gen-card-actions">'
     +'<button class="img-gen-btn" data-genid="'+_refGenId+'" data-action="expand">⧂ EXPAND</button>'
     +'<button class="img-gen-btn download" data-genid="'+_refGenId+'" data-action="save" title="Download image">⬇ SAVE</button>'
+    +'<button class="img-gen-btn" data-genid="'+_refGenId+'" data-action="upscale">✨ UPSCALE</button>'
+    +'<button class="img-gen-btn" data-genid="'+_refGenId+'" data-action="tofrax">🔮 TO FRAX</button>'
+    +'<button class="img-gen-btn" data-genid="'+_refGenId+'" data-action="topng">📋 TO PNG</button>'
     +'</div></div>';
   var idx2=msgs().findIndex(function(m){return m.id===cardId;});
   if(idx2>=0){msgs()[idx2]=Object.assign({},msgs()[idx2],{imageGenCard:finalCard,media:{videos:[],images:[],links:refLinks,sources:refs.length?['OPENVERSE']:[]},grammarMeta:'Ref→Gen · style:'+styleInfo.key+' model:'+genResult.model,brpnMeta:'Vision desc: '+visionDescription.length+' chars → prompt: '+cleanPrompt.length+' chars'});renderMessages();}
@@ -5378,8 +5795,13 @@ function classifyIntentLocal(text, hasPendingImages) {
   if (/\b(show|restore|unhide|reveal)\b.*\b(messages|history|hidden)\b/.test(lc)) return 'SHOW_HIDDEN';
   // Vision when image attached
   if (hasPendingImages && /\b(identify|who|what|describe|analyze|examine|look at|find|read|tell me about|what is|who is)\b/.test(lc)) return 'VISION_ANALYSIS';
-  // Image generation
-  var imgKeywords = ['generate','create','make','draw','paint','render','show','depict','visualize','imagine','illustrate','produce'];
+  // Web image fetch — "show me photos/pictures of X" about real people/topics → web fetch NOT generator
+  var _webImgFetch = /\b(show me|find|search|get|pull up|look up)\b.{0,30}\b(photos?|pictures?|images?|pics?)\b/i.test(text) ||
+    /\b(photos?|pictures?|images?|pics?)\b.{0,20}\b(of|for)\b/i.test(text);
+  var _genWords = /\b(generate|create|make|draw|paint|render|design|produce|illustrate|imagine|depict)\b/i.test(text);
+  if (_webImgFetch && !_genWords) return 'WEB_IMAGE_FETCH';
+  // Image generation — only when user explicitly wants something *created/generated*
+  var imgKeywords = ['generate','create','make','draw','paint','render','depict','visualize','imagine','illustrate','produce'];
   var imgNouns = ['image','picture','photo','portrait','scene','art','visual','depiction','illustration','concept','rendering'];
   var styleWords = ['realistic','ultrarealistic','life-like','lifelike','anime','cartoon','cyberpunk','space punk','spacepunk','noir','sketch','vintage','3d','rendered'];
   var hasAction = imgKeywords.some(function(w){ return lc.indexOf(w) !== -1; });
@@ -5403,16 +5825,16 @@ async function classifyIntent(text, hasPendingImages) {
       method: 'POST',
       headers: {'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 15,
-        system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION',
+        system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images of a person, place, or thing from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
       }),
       signal: AbortSignal.timeout(2500)
     });
     var d = await res.json();
     var label = ((d.content && d.content[0] && d.content[0].text) || 'CONVERSATION').trim().replace(/[^A-Z_]/g,'').toUpperCase();
-    var valid = ['IMAGE_GEN','VISION_ANALYSIS','CLEAR_CHAT','DELETE_CHAT','NEW_CHAT','ARCHIVE','SHOW_HIDDEN','CONVERSATION'];
+    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','CLEAR_CHAT','DELETE_CHAT','NEW_CHAT','ARCHIVE','SHOW_HIDDEN','CONVERSATION'];
     return valid.indexOf(label) !== -1 ? label : 'CONVERSATION';
   } catch(e) { return localLabel; }
 }
@@ -5444,16 +5866,60 @@ async function handleSend() {
 
   // Push user message and show typing indicator right away
   msgs().push({ role:'user', text, ts:new Date().toISOString(),
-    uploadedImageThumbs: _earlyPendingImgs.map(function(i){ return i.thumbnail; }) });
+    uploadedImageThumbs: _earlyPendingImgs.map(function(i){ return i.is3D ? i : i.thumbnail; }) });
   renderMessages();
   const _earlyTyping = document.createElement('div');
   _earlyTyping.className = 'typing'; _earlyTyping.id = 'early-typing';
   _earlyTyping.innerHTML = '<div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">thinking…</span>';
   document.getElementById('chat-scroll')?.appendChild(_earlyTyping);
 
+  // ── URL EXTRACTION & SCANNING ──────────────────────────────────────────
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const extractedUrls = text.match(urlRegex);
+  let augmentedText = text;
+
+  if (extractedUrls && extractedUrls.length > 0) {
+    const _urlScanTyping = document.createElement('div');
+    _urlScanTyping.className = 'typing'; _urlScanTyping.id = 'url-scan-typing';
+    _urlScanTyping.innerHTML = '<div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">scanning link...</span>';
+    document.getElementById('chat-scroll')?.appendChild(_urlScanTyping);
+
+    // Fetch up to the first 3 links
+    let urlContexts = [];
+    for (let i = 0; i < Math.min(3, extractedUrls.length); i++) {
+      const url = extractedUrls[i];
+      try {
+        const _CORS_PROXY = "https://api.allorigins.win/get?url=";
+        const res = await fetch(_CORS_PROXY + encodeURIComponent(url));
+        if (res.ok) {
+          const data = await res.json();
+          let content = data.contents || "";
+
+          // Simple heuristic text extraction (strip JS, CSS, tags)
+          let plainText = content
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+            .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          if (plainText.length > 3000) plainText = plainText.substring(0, 3000) + '...';
+          urlContexts.push(`[Content from ${url}]:\n${plainText}`);
+        }
+      } catch(e) {
+        console.warn("URL Fetch Error", e);
+      }
+    }
+    document.getElementById('url-scan-typing')?.remove();
+
+    if (urlContexts.length > 0) {
+      augmentedText = text + "\n\n[CONTEXT FROM SCANNED LINKS]\n" + urlContexts.join("\n\n");
+    }
+  }
+
   // ── SEMANTIC INTENT ROUTING — classifier understands meaning, not keywords ────────────
   const _hasPendingEarly = _earlyPendingImgs.length > 0;
-  const _intentLabel = await classifyIntent(text, _hasPendingEarly);
+  const _intentLabel = await classifyIntent(augmentedText, _hasPendingEarly);
   document.getElementById('early-typing')?.remove();
 
   const _doSessionReply = function(txt) {
@@ -5487,21 +5953,21 @@ async function handleSend() {
   }
 
   // ── ATTENTIVE INTERCEPT ── runs BEFORE full pipeline ─────────────────
-  const _attentiveIntent = checkAttentiveIntent(text);
+  const _attentiveIntent = checkAttentiveIntent(augmentedText);
   if (_attentiveIntent) {
     // user msg + isProcessing already set at top of handleSend
     pulseShells(1.4);
     pushOrbContextMode('thinking');
 
     let _attReply = await dispatchAttentiveAction(_attentiveIntent);
-    const _attAnalysis = processLEATR(text);
+    const _attAnalysis = processLEATR(augmentedText);
     S.lastAnalysis = _attAnalysis;
 
     // Text contexts routed through API with continuation instruction
     if (typeof _attReply === 'string' && _attReply === '__ATTENTIVE_CONTINUE__') {
       const _hint = buildAttentiveContinuationPrompt(_attentiveIntent.action);
       const _cr = await generateReply(
-        text + ' [ATTENTIVE: ' + _hint + ']',
+        augmentedText + ' [ATTENTIVE: ' + _hint + ']',
         _attAnalysis, S.lastReflex
       ).catch(()=>({text:'Unable to continue.',grammarMeta:'',brpnMeta:''}));
       _attReply = typeof _cr==='object' ? _cr.text : _cr;
@@ -5535,31 +6001,54 @@ async function handleSend() {
   // user message + isProcessing already set at top of handleSend
   renderMessages();
 
-  const analysis=processLEATR(text);
+  const analysis=processLEATR(augmentedText);
   S.lastAnalysis=analysis;
-  S.contextHistory=[...S.contextHistory,text].slice(-5);
+  S.contextHistory=[...S.contextHistory,augmentedText].slice(-5);
 
-  // ── Image-to-image: reference images attached + generation/iteration intent ──
-  if (_pendingImgs.length && (_intentLabel === 'IMAGE_GEN' || detectImageIterationIntent(text))) {
+  // ── Video/doc attached → always route through generateReply (never image-gen) ──
+  const _hasVideo = _pendingImgs.some(function(f){ return f.isVideo; });
+  const _hasDoc   = _pendingImgs.some(function(f){ return f.isDoc; });
+  if (_hasVideo || _hasDoc) {
     S.pendingImages = _pendingImgs;
-    const _r0 = await autumnReflex(text,'default').catch(function(){ return {}; });
-    S.journal.push(createJournalEntry(text, analysis, _r0));
+    const _rvd = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
+    S.journal.push(createJournalEntry(augmentedText, analysis, _rvd));
     updateHUD(analysis);
     S.isProcessing = false;
     if (typeof setOrbThinking === 'function') setOrbThinking(false);
-    await runImageFromReference(text, analysis, _r0, _pendingImgs);
+    const _replyVD = await generateReply(augmentedText, analysis, _rvd).catch(function(){ return {text:'',grammarMeta:'',brpnMeta:''}; });
+    const _vdFullReply = (_replyVD && _replyVD.text) ? _replyVD.text : (_hasVideo ? 'Video received — I\'ve analyzed the sampled frames. Let me know what you need.' : 'Document received and read. What would you like to know about it?');
+    msgs().push({
+      role:'autumn', text:_vdFullReply, ts:new Date().toISOString(),
+      grammarMeta:_replyVD.grammarMeta||(_hasVideo ? 'Video Analysis · ' + _pendingImgs.filter(f=>f.isVideo).map(f=>f.fileName).join(', ') : 'Document · ' + _pendingImgs.filter(f=>f.isDoc).map(f=>f.fileName).join(', ')),
+      brpnMeta:_replyVD.brpnMeta||'', contextType:'VISION_ANALYSIS',
+      media:{videos:[],images:[],links:[],sources:[]}
+    });
+    S.pendingImages=[]; S.pendingImage=null;
+    saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+    return;
+  }
+
+  // ── Image-to-image: reference images attached + generation/iteration intent ──
+  if (_pendingImgs.length && (_intentLabel === 'IMAGE_GEN' || detectImageIterationIntent(augmentedText))) {
+    S.pendingImages = _pendingImgs;
+    const _r0 = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
+    S.journal.push(createJournalEntry(augmentedText, analysis, _r0));
+    updateHUD(analysis);
+    S.isProcessing = false;
+    if (typeof setOrbThinking === 'function') setOrbThinking(false);
+    await runImageFromReference(augmentedText, analysis, _r0, _pendingImgs);
     updateFooter();
     return;
   }
 
   // ── Maze widget: check before IMAGE_GEN so "generate a cubic maze" routes correctly ──
-  if (!_pendingImgs.length && detectMazeRequest(text)) {
-    const _rm = await autumnReflex(text,'default').catch(function(){ return {}; });
+  if (!_pendingImgs.length && detectMazeRequest(augmentedText)) {
+    const _rm = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
     S.lastReflex = _rm;
-    try { S.journal.push(createJournalEntry(text, analysis, _rm)); } catch(e) {}
+    try { S.journal.push(createJournalEntry(augmentedText, analysis, _rm)); } catch(e) {}
     try { updateHUD(analysis); } catch(e) {}
     const _ak = typeof _getAK === 'function' ? _getAK() : '';
-    const _mazeReply = _ak ? await generateReply(text, analysis, _rm).catch(function(){ return {text:'',grammarMeta:'',brpnMeta:''}; }) : {text:'',grammarMeta:'',brpnMeta:''};
+    const _mazeReply = _ak ? await generateReply(augmentedText, analysis, _rm).catch(function(){ return {text:'',grammarMeta:'',brpnMeta:''}; }) : {text:'',grammarMeta:'',brpnMeta:''};
     const msgId = 'msg-' + Date.now();
     msgs().push({
       role:'autumn', text:_mazeReply.text||'', ts:new Date().toISOString(), id:msgId,
@@ -5575,46 +6064,85 @@ async function handleSend() {
     return;
   }
 
+  // ── Web image fetch: user wants real photos from the web, not AI-generated ──
+  if (_intentLabel === 'WEB_IMAGE_FETCH') {
+    const _rwReflex = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
+    S.journal.push(createJournalEntry(augmentedText, analysis, _rwReflex));
+    updateHUD(analysis);
+    var _imgQuery = text
+      .replace(/^(show me|find|search for|get|pull up|look up)\s+(some\s+)?(photos?|pictures?|images?|pics?)\s+(of|for)\s*/i,'')
+      .replace(/\s+(and\s+.+)?here in the chat.*$/i,'')
+      .replace(/\s+(like\s+a\s+preview|as\s+a\s+preview|preview).*$/i,'')
+      .trim() || text; // Still use original text for image queries, not augmented
+    var _rwMsgId = 'webimg-' + Date.now();
+    msgs().push({role:'autumn', text:'', ts:new Date().toISOString(), id:_rwMsgId,
+      grammarMeta:'', brpnMeta:'', contextType:'WEB_IMAGE',
+      imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>FETCHING WEB IMAGES…</div></div>'
+    });
+    renderMessages();
+    var _rwLive = await liveQuery(_imgQuery, {contextType:'IMAGE', context:{emotional:'neutral',physics:'moderate'}}).catch(function(){ return {liveText:'',videos:[],images:[],links:[],sources:[]}; });
+    var _rwExtraImgs = await fetchImages(_imgQuery, 8).catch(function(){ return []; });
+    var _allImgs = (_rwLive.images||[]).concat(_rwExtraImgs).filter(safeImg);
+    var _seenThumbs = new Set();
+    _allImgs = _allImgs.filter(function(i){ if(_seenThumbs.has(i.thumb)) return false; _seenThumbs.add(i.thumb); return true; }).slice(0,8);
+    var _rwIdx = msgs().findIndex(function(m){ return m.id === _rwMsgId; });
+    if(_rwIdx >= 0) msgs()[_rwIdx] = {
+      role:'autumn',
+      text: _allImgs.length
+        ? 'Here\'s what I found for **' + _imgQuery + '**:'
+        : 'Couldn\'t find web images for that — try a more specific name or search term.',
+      ts: new Date().toISOString(), id: _rwMsgId,
+      grammarMeta:'Web Images · ' + _allImgs.length + ' found', brpnMeta:'', contextType:'WEB_IMAGE',
+      imageGenCard: null,
+      media:{ videos:_rwLive.videos||[], images:_allImgs, links:_rwLive.links||[], sources:_rwLive.sources||[] }
+    };
+    S.isProcessing = false;
+    if(typeof setOrbThinking === 'function') setOrbThinking(false);
+    S.pendingImages = []; S.pendingImage = null;
+    saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+    return;
+  }
+
   // ── Text-to-image: no image attached, generation intent detected ──
   if (!_pendingImgs.length && _intentLabel === 'IMAGE_GEN') {
-    const _r1 = await autumnReflex(text,'default').catch(function(){ return {}; });
-    S.journal.push(createJournalEntry(text, analysis, _r1));
+    const _r1 = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
+    S.journal.push(createJournalEntry(augmentedText, analysis, _r1));
     updateHUD(analysis);
     S.isProcessing = false;
     if (typeof setOrbThinking === 'function') setOrbThinking(false);
-    await runImageGeneration(text, analysis, _r1);
+    await runImageGeneration(augmentedText, analysis, _r1);
     updateFooter();
     return;
   }
 
   // ── Image attached + vision/analysis intent → run vision analysis ──
   if (_pendingImgs.length && _intentLabel === 'VISION_ANALYSIS') {
-    const _rv = await autumnReflex(text,'default').catch(function(){ return {}; });
-    S.journal.push(createJournalEntry(text, analysis, _rv));
+    const _rv = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
+    S.journal.push(createJournalEntry(augmentedText, analysis, _rv));
     updateHUD(analysis);
     S.isProcessing = false;
     if (typeof setOrbThinking === 'function') setOrbThinking(false);
-    await runVisionAnalysis(text, analysis, _rv, _pendingImgs);
+    await runVisionAnalysis(augmentedText, analysis, _rv, _pendingImgs);
     updateFooter();
     return;
   }
 
   // ── Image attached but no specific intent → default to vision analysis ──
   if (_pendingImgs.length) {
-    const _rv2 = await autumnReflex(text,'default').catch(function(){ return {}; });
-    S.journal.push(createJournalEntry(text, analysis, _rv2));
+    const _rv2 = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
+    S.journal.push(createJournalEntry(augmentedText, analysis, _rv2));
     updateHUD(analysis);
     S.isProcessing = false;
     if (typeof setOrbThinking === 'function') setOrbThinking(false);
-    await runVisionAnalysis(text, analysis, _rv2, _pendingImgs);
+    await runVisionAnalysis(augmentedText, analysis, _rv2, _pendingImgs);
     updateFooter();
     return;
   }
 
   // ── Direct map fast-path — bypass reflex for map/location queries ──
-  var _isDirectMapQuery = /\b(show me where|show where .+ is|where is .+ (located|on a map)|map of |navigate to |directions to |where am i|my location|show my location|real.?time.*(gps|map|location)|gps (data|location|map)|locate me|show .+ on (a |the )?map)\b/i.test(text.toLowerCase());
+  var _isDirectMapQuery = /\b(show me where|show where .+ is|where is .+ (located|on a map)|map of |navigate to |directions to |where am i|my location|show my location|real.?time.*(gps|map|location)|gps (data|location|map)|locate me|show .+ on (a |the )?map)\b/i.test(augmentedText.toLowerCase());
   if (_isDirectMapQuery) {
-    var _lqDirect = await liveQuery(text, {contextType:'LOCATION_POI',config:{requiresLocation:false},context:{emotional:'neutral',physics:'moderate'}}).catch(function(){return{liveText:'',placeMapHtml:'',videos:[],images:[],links:[],sources:[]};});
+    var _lqDirect = await liveQuery(augmentedText, {contextType:'LOCATION_POI',config:{requiresLocation:false},context:{emotional:'neutral',physics:'moderate'}}).catch(function(){return{liveText:'',placeMapHtml:'',videos:[],images:[],links:[],sources:[]};});
     var _mapHtmlDirect = _lqDirect.placeMapHtml||'';
     // Friendly one-liner based on query type
     var _mapIntro = /where am i|my location|gps|real.?time|locate me/i.test(text)
@@ -5628,7 +6156,7 @@ async function handleSend() {
         mapHtml:_mapHtmlDirect,
         media:{videos:[],images:[],links:[],sources:_lqDirect.sources||[]}
       });
-      S.journal.push(createJournalEntry(text,processLEATR(text),{contextType:'LOCATION_POI'}));
+      S.journal.push(createJournalEntry(augmentedText,processLEATR(augmentedText),{contextType:'LOCATION_POI'}));
       S.isProcessing=false;
       if(typeof setOrbThinking==='function') setOrbThinking(false);
       renderMessages();updateFooter();saveState();
@@ -5637,25 +6165,26 @@ async function handleSend() {
   }
 
   // Run full reflex pipeline
-  const reflexData = await autumnReflex(text,"default").catch(function(){ return {contextType:'CONVERSATION',context:{emotional:'neutral',physics:'moderate'},shells:{geo:{value:0},mar:{value:0},aero:{value:0}}}; });
+  const reflexData = await autumnReflex(augmentedText,"default").catch(function(){ return {contextType:'CONVERSATION',context:{emotional:'neutral',physics:'moderate'},shells:{geo:{value:0},mar:{value:0},aero:{value:0}}}; });
   S.lastReflex = reflexData;
 
-  try { S.journal.push(createJournalEntry(text,analysis,reflexData)); } catch(e) {}
+  try { S.journal.push(createJournalEntry(augmentedText,analysis,reflexData)); } catch(e) {}
   try { updateHUD(analysis); } catch(e) {}
 
   // Run live web query and generate reply in parallel
   const [liveData,reply] = await Promise.all([
-    liveQuery(text, reflexData).catch(()=>({liveText:'',videos:[],images:[],links:[],sources:[]})),
-    generateReply(text, analysis, reflexData).catch(function(e){ return { text: 'Error: ' + e.message, grammarMeta:'', brpnMeta:'' }; })
+    liveQuery(augmentedText, reflexData).catch(()=>({liveText:'',videos:[],images:[],links:[],sources:[]})),
+    generateReply(augmentedText, analysis, reflexData).catch(function(e){ return { text: 'Error: ' + e.message, grammarMeta:'', brpnMeta:'' }; })
   ]);
 
   let fullReply = (reply && typeof reply === 'object') ? (reply.text||'') : (reply||'');
   let grammarMeta = (reply && typeof reply === 'object') ? reply.grammarMeta : '';
   let brpnMeta = (reply && typeof reply === 'object') ? reply.brpnMeta : '';
-  // Only append web data for non-personal queries
+  // Only append web data when user explicitly requests search/news/media — suppress for normal conversation
   var _liveIntent = detectIntent(text);
-  if(liveData.liveText && _liveIntent !== 'personal') fullReply += liveData.liveText;
-  var _placeMapHtml = (liveData.placeMapHtml && _liveIntent !== 'personal') ? liveData.placeMapHtml : '';
+  var _explicitMediaRequest = /\b(search|look up|find|news|latest|recent|video|videos|youtube|images|photos|pictures|articles|headlines|what.s happening|current|today)\b/i.test(text);
+  if(liveData.liveText && _liveIntent !== 'personal' && _explicitMediaRequest) fullReply += liveData.liveText;
+  var _placeMapHtml = liveData.placeMapHtml || '';
   // If we still have nothing, it means the API call failed — skip pushing an empty bubble
   if(!fullReply && !liveData.videos.length && !liveData.images.length) {
     // No API reply and no live data — fall through to native engine silently
@@ -5686,7 +6215,9 @@ async function handleSend() {
     mazeWid: reflexData.activeMazeWid||null,
     weatherHtml: reflexData.weatherHtml||'',
     mapHtml: (reflexData.mapHtml||'') + (_placeMapHtml||''),
-    media:{ videos:liveData.videos, images:liveData.images, links:liveData.links, sources:liveData.sources }
+    media: _explicitMediaRequest
+      ? { videos:liveData.videos, images:liveData.images, links:liveData.links, sources:liveData.sources }
+      : { videos:[], images:[], links:[], sources:[] }
   });
 
   S.isProcessing=false;
@@ -5757,18 +6288,39 @@ ACCESS TIERS: All users get the full Autumn LEATR experience — never imply any
     // Cap at 10
     const trimHistory = history.slice(-10);
 
-    // Vision: if images pending, upgrade last user message to content array
+    // Vision/attachment: upgrade last user message to content array for images, video frames, docs
     const _vImgs = (S.pendingImages && S.pendingImages.length) ? S.pendingImages : (S.pendingImage ? [S.pendingImage] : []);
     if(_vImgs.length > 0 && trimHistory.length > 0) {
       const _li = trimHistory.length-1;
       if(trimHistory[_li].role === 'user') {
-        const _tc = typeof trimHistory[_li].content==='string' ? trimHistory[_li].content : 'Analyze this image.';
+        const _tc = typeof trimHistory[_li].content==='string' ? trimHistory[_li].content : 'Analyze this attachment.';
         const _cb = [];
-        _vImgs.slice(0,5).forEach(function(img){_cb.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}});});
-        const _fi = _vImgs[0];
-        const _an = _fi.analysis ? ' ['+_fi.width+'x'+_fi.height+' brightness='+_fi.analysis.brightness+']' : '';
-        _cb.push({type:'text',text:(_tc||'Analyze this image.')+_an});
-        trimHistory[_li]={role:'user',content:_cb};
+        let _contextNote = '';
+
+        _vImgs.slice(0,8).forEach(function(item) {
+          if (item.isVideo && item.videoFrames && item.videoFrames.length) {
+            // Send video as labeled frames — up to 8 frames
+            const frameCount = item.videoFrames.length;
+            const dur = item.duration ? item.duration.toFixed(1) + 's' : 'unknown duration';
+            _contextNote += '\n[VIDEO FILE: ' + item.fileName + ' — ' + dur + ', ' + item.width + 'x' + item.height +
+              ', ' + frameCount + ' frames sampled below]';
+            item.videoFrames.forEach(function(f) {
+              _cb.push({type:'image', source:{type:'base64', media_type:'image/jpeg', data:f.base64}});
+            });
+          } else if (item.isDoc) {
+            // Document: inject as text block
+            const preview = item.docText ? item.docText.slice(0, 80000) : '[empty]';
+            _contextNote += '\n[DOCUMENT: ' + item.fileName + ' (' + (item.fileSize/1024).toFixed(1) + ' KB)]';
+            _cb.push({type:'text', text:'[File attached: ' + item.fileName + ']\n' + preview});
+          } else if (item.base64 && item.mimeType) {
+            // Regular image or FRAX
+            _cb.push({type:'image', source:{type:'base64', media_type:item.mimeType, data:item.base64}});
+            if (item.analysis) _contextNote += ' [' + item.width + 'x' + item.height + ' brightness=' + item.analysis.brightness + ']';
+          }
+        });
+
+        _cb.push({type:'text', text:(_tc||'Analyze this attachment.') + _contextNote});
+        trimHistory[_li]={role:'user', content:_cb};
       }
     }
 
@@ -5785,7 +6337,7 @@ ACCESS TIERS: All users get the full Autumn LEATR experience — never imply any
         "anthropic-dangerous-direct-browser-access": "true",
         ...(ak ? {"x-api-key": ak} : {})
       },
-      body: JSON.stringify({model:"claude-3-5-sonnet-20241022", max_tokens:2048, system:systemPrompt, messages:trimHistory})
+      body: JSON.stringify({model:"claude-sonnet-4-6", max_tokens:2048, system:systemPrompt, messages:trimHistory})
     });
     clearTimeout(_timeout);
     const data=await res.json();
@@ -6362,7 +6914,7 @@ function renderMessages() {
     }
     const imageGenCardHtml = m.imageGenCard||'';
     const uploadThumbsHtml = (m.uploadedImageThumbs&&m.uploadedImageThumbs.length) ? m.uploadedImageThumbs.map(function(t){return '<img src="'+t+'" alt="attached" style="display:inline-block;max-width:72px;max-height:72px;border-radius:5px;margin:0 3px 4px 0;object-fit:cover">';}).join('') : '';
-    html+=`<div class="msg ${cls}"><div class="bubble">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div style="white-space:pre-wrap">${esc(m.text)}</div>${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}</div></div>`;
+    html+=`<div class="msg ${cls}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" style="white-space:pre-wrap">${esc(m.text)}</div>${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${m.role==="user"?'<button class="edit-btn" onclick="editUserMessage(this)" style="position:absolute; right:-25px; bottom:2px; background:none; border:none; cursor:pointer; font-size:14px; opacity:0.5; transition:opacity 0.2s;" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.5\'">✏️</button>':""}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
@@ -6392,17 +6944,33 @@ function appendChatBubble(msg) {
   const lbl = msg.role === 'autumn'
     ? `<div class="msg-lbl"><img src="assets/autumn.png" alt="" style="height:14px;width:auto;vertical-align:middle;margin-right:4px;filter:drop-shadow(0 0 4px rgba(191,0,255,.3))">AUTUMN</div>`
     : '';
+
+  // Create Pencil/Edit button for user bubbles
+  const editBtn = msg.role === 'user' ? `<button class="edit-btn" onclick="editUserMessage(this)" style="position:absolute; right:-25px; bottom:2px; background:none; border:none; cursor:pointer; font-size:14px; opacity:0.5; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">✏️</button>` : '';
+
   const ctxBadge = msg.contextType ? `<div class="msg-ctx-badge">${msg.contextType}</div>` : '';
   const meta = msg.meta ? `<div class="msg-meta">${(msg.meta.elapsed||0).toFixed(1)}ms | Q:${(msg.meta.qs||0).toFixed(1)}</div>` : '';
   const div = document.createElement('div');
   div.className = `msg ${cls}`;
   div.style.animation = 'fadeIn .3s ease';
-  div.innerHTML = `<div class="bubble">${lbl}${ctxBadge}<div style="white-space:pre-wrap">${esc(msg.text||'')}</div>${meta}</div>`;
+  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" style="white-space:pre-wrap">${esc(msg.text||'')}</div>${meta}${editBtn}</div>`;
   // Remove any typing indicator
   el.querySelector('.typing')?.remove();
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
 }
+
+window.editUserMessage = function(btn) {
+  const bubble = btn.closest('.bubble');
+  const txtContent = bubble.querySelector('.msg-text-content');
+  if(!txtContent) return;
+  const currentText = txtContent.innerText || txtContent.textContent;
+  const input = document.getElementById('chat-input');
+  if(input) {
+    input.value = currentText;
+    input.focus();
+  }
+};
 
 function esc(s){if(typeof s!=='string')return '';return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 function updateFooter(){
@@ -7552,7 +8120,7 @@ const _GH_BRANCH   = 'main';
 const _GH_LOGIC    = 'js/autumn-logic.js';
 const _GH_RAW      = `js/autumn-logic.js`;
 const _GH_API      = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOGIC}`;
-const _CLAUDE_MDL  = 'claude-3-5-sonnet-20241022';
+const _CLAUDE_MDL  = 'claude-sonnet-4-6';
 
 let _ideUnlocked     = false;
 let _ideMonaco       = null;
@@ -7591,8 +8159,8 @@ function closeIDEPasswordModal() {
 }
 
 // ── PAT (GitHub token — sessionStorage only, cleared on tab close) ──
-function _getPAT() { try { return sessionStorage.getItem('_aut_ide_pat')||''; } catch(e){ return ''; } }
-function _setPAT(v) { try { sessionStorage.setItem('_aut_ide_pat',v); } catch(e){} }
+function _getPAT() { try { return localStorage.getItem('_aut_ide_pat')||''; } catch(e){ return ''; } }
+function _setPAT(v) { try { localStorage.setItem('_aut_ide_pat',v); } catch(e){} }
 
 function saveIDEPAT() {
   const v = (document.getElementById('ide-pat-input')?.value||'').trim();
@@ -7604,10 +8172,10 @@ function saveIDEPAT() {
   _openIDEDirect();
 }
 function closeIDEPATModal() { document.getElementById('ide-pat-modal').classList.remove('open'); }
-function ideClearPAT() { try{sessionStorage.removeItem('_aut_ide_pat');}catch(e){} ideToast('GitHub token cleared.'); }
+function ideClearPAT() { try{localStorage.removeItem('_aut_ide_pat');}catch(e){} ideToast('GitHub token cleared.'); }
 
 // ── Anthropic API key (sessionStorage, cleared on tab close) ──
-function _getAK() { try { return sessionStorage.getItem('_aut_ide_ak')||''; } catch(e){ return ''; } }
+function _getAK() { try { return localStorage.getItem('_aut_ide_ak')||''; } catch(e){ return ''; } }
 function _updateKeyBtn() {
   var btn = document.getElementById('hdr-key-btn');
   if (!btn) return;
@@ -7617,7 +8185,7 @@ function _updateKeyBtn() {
   btn.title = has ? 'Your API key is active — tap to change' : 'Optional: add your Anthropic key to enhance Autumn with Claude';
 }
 setTimeout(_updateKeyBtn, 600);
-function _setAK(v) { try { sessionStorage.setItem('_aut_ide_ak',v); } catch(e){} }
+function _setAK(v) { try { localStorage.setItem('_aut_ide_ak',v); } catch(e){} }
 // API key: enter via IDE settings panel (⚙ icon) — stored in sessionStorage only
 
 function saveIDEAK() {
@@ -7627,9 +8195,12 @@ function saveIDEAK() {
   document.getElementById('ide-ak-input').value = '';
   closeIDEAKModal();
   ideToast('◈ Anthropic key saved for this session.');
+  _updateKeyBtn();
 }
 function closeIDEAKModal() { document.getElementById('ide-ak-modal').classList.remove('open'); }
-function ideClearAK() { try{sessionStorage.removeItem('_aut_ide_ak');}catch(e){} ideToast('Anthropic key cleared.'); }
+function ideClearAK() { try{localStorage.removeItem('_aut_ide_ak');}catch(e){} ideToast('Anthropic key cleared.');
+_updateKeyBtn();
+}
 
 // ── Toast ─────────────────────────────────────────────────────
 let _ideToastTimer = null;
@@ -8290,7 +8861,7 @@ updateFooter();
 if(S.lastAnalysis) updateHUD(S.lastAnalysis);
 
 requestAnimationFrame(()=>{
-  initBRPN();
+  if(typeof THREE !== 'undefined') { initBRPN(); } else { console.warn('[BRPN] THREE.js not loaded — skipping 3D orb init'); }
   // Scroll position buttons — show/hide based on scroll position
   var _cs = document.getElementById('chat-scroll');
   var _btnTop = document.getElementById('scroll-to-top');
@@ -8349,7 +8920,7 @@ loadAutumnLogic();
     <h2>◈ GITHUB TOKEN</h2>
     <p>A GitHub Personal Access Token (PAT) with <strong>repo → contents</strong> write access is required to read and write <code>templates/autumn-logic.js</code>.<br><br>
     Get one at <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a> → Generate new token (classic) → check <strong>repo</strong>.<br><br>
-    Your token is stored in <strong>sessionStorage only</strong> and cleared automatically when you close this tab.</p>
+    Your token is stored in <strong>localStorage</strong> and will persist across sessions.</p>
     <input type="password" id="ide-pat-input" placeholder="ghp_xxxxxxxxxxxxxxxx" autocomplete="new-password" data-lpignore="true" data-form-type="other" onkeydown="if(event.key==='Enter')saveIDEPAT()">
     <div class="ide-pw-btns" style="margin-top:4px">
       <button class="m-btn primary" onclick="saveIDEPAT()">SAVE TOKEN</button>
@@ -8365,7 +8936,7 @@ loadAutumnLogic();
     <p><strong>This is optional.</strong> Autumn runs fully on her own LEATR neural network without any key.<br><br>
     Adding your personal <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic API key</a> enables Claude Sonnet as an additional layer on top of Autumn — deeper responses, more complex reasoning.<br><br>
     <span style="color:rgba(255,179,71,.8);font-size:.75em">⚠ This is your personal key — it only enhances your session. Administrator features (IDE, repository access) require separate admin credentials and are not available through this key.</span><br><br>
-    Your key stays in <strong>sessionStorage only</strong> — cleared when you close this tab. Never stored, never committed anywhere.</p>
+    Your key stays in <strong>localStorage</strong> — never committed anywhere. Clear it anytime with the clear button.</p>
     <input type="password" id="ide-ak-input" placeholder="sk-ant-api03-…" autocomplete="new-password" data-lpignore="true" data-form-type="other" onkeydown="if(event.key==='Enter')saveIDEAK()">
     <div class="ide-pw-btns" style="margin-top:4px">
       <button class="m-btn primary" onclick="saveIDEAK()">ACTIVATE</button>
