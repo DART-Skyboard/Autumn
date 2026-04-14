@@ -435,13 +435,17 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .vc-ch{font-size:.55rem;color:rgba(255,80,80,.55);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vc-yt{display:inline-flex;font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;color:rgba(255,68,68,.45);text-decoration:none;border:1px solid rgba(255,68,68,.18);border-radius:2px;padding:2px 5px;margin-top:4px;transition:all .15s}
 .vc-yt:hover{color:#ff4444;border-color:rgba(255,68,68,.5)}
-.img-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
-.ic{position:relative;aspect-ratio:4/3;overflow:hidden;border-radius:4px;border:1px solid rgba(0,255,204,.12);background:rgba(0,255,204,.03);cursor:pointer;transition:all .2s}
-.ic:hover{border-color:rgba(0,255,204,.4);transform:scale(1.03);z-index:2;box-shadow:0 4px 18px rgba(0,0,0,.5)}
-.ic img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .3s}
+.img-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.ic{position:relative;aspect-ratio:4/3;overflow:hidden;border-radius:4px;border:1px solid rgba(192,132,252,.18);background:rgba(192,132,252,.04);cursor:pointer;transition:all .25s;animation:fadeIn .35s ease forwards}
+.ic:hover{border-color:rgba(192,132,252,.6);transform:scale(1.03);z-index:5;box-shadow:0 8px 28px rgba(0,0,0,.65)}
+.ic img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .35s}
 .ic img.ok{opacity:1}
-.ic .img-ov{position:absolute;bottom:0;left:0;right:0;padding:3px 5px;background:linear-gradient(transparent,rgba(0,0,0,.8));font-size:.48rem;color:#ccc;opacity:0;transition:opacity .2s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ic .img-ov{position:absolute;bottom:0;left:0;right:0;padding:5px 7px;background:linear-gradient(transparent,rgba(0,0,0,.88));font-family:var(--font-d);font-size:.48rem;color:#ccc;letter-spacing:.5px;opacity:0;transition:opacity .2s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ic:hover .img-ov{opacity:1}
+.ic .img-src-badge{position:absolute;top:4px;right:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;padding:2px 5px;background:rgba(0,0,0,.72);border:1px solid rgba(192,132,252,.4);border-radius:2px;color:rgba(192,132,252,.9);text-transform:uppercase;pointer-events:none}
+.ic.shim::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(192,132,252,.04) 25%,rgba(192,132,252,.1) 50%,rgba(192,132,252,.04) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;z-index:1}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.img-src-note{font-family:var(--font-d);font-size:.5rem;color:var(--dim);text-align:center;margin-top:6px;letter-spacing:1px}
 .link-cards{display:flex;flex-direction:column;gap:4px}
 .link-card{display:flex;align-items:flex-start;gap:7px;padding:6px 9px;border:1px solid var(--border);border-radius:4px;background:rgba(0,255,204,.02);text-decoration:none;transition:all .15s}
 .link-card:hover{background:rgba(0,255,204,.06);border-color:rgba(0,255,204,.3)}
@@ -3285,11 +3289,66 @@ async function fetchYT(q,max=6){
   ytCacheSet(q,vids);return vids.filter(safeVideo).slice(0,max);
 }
 
-async function fetchImages(q,max=6){
-  const imgs=[];const qw=q.toLowerCase().split(/\s+/).filter(w=>w.length>2);
-  try{const enc=encodeURIComponent('"'+q+'"');const r=await ft(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${enc}&prop=pageimages&format=json&origin=*&pithumbsize=500&gsrlimit=10&pilimit=10`,8000);const d=await r.json();Object.values(d.query?.pages||{}).forEach(p=>{if(!p.thumbnail)return;const tl=(p.title||'').toLowerCase();if(!qw.some(w=>tl.includes(w)))return;imgs.push({thumb:p.thumbnail.source,full:p.thumbnail.source.replace(/\/\d+px-/,'/800px-'),title:p.title,link:`https://en.wikipedia.org/wiki/${encodeURIComponent((p.title||'').replace(/ /g,'_'))}`,src:'WIKIPEDIA'})})}catch(e){}
-  if(imgs.length<3){try{const sr=await ft(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(q)}&format=json&origin=*&srlimit=10&srprop=`,7000);const sd=await sr.json();const ft2=(sd.query?.search||[]).map(s=>s.title).slice(0,8);if(ft2.length){const tp=ft2.map(t=>encodeURIComponent(t)).join('%7C');const ir=await ft(`https://commons.wikimedia.org/w/api.php?action=query&titles=${tp}&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`,7000);const id2=await ir.json();Object.values(id2.query?.pages||{}).forEach(p=>{const ii=p.imageinfo?.[0];if(ii?.thumburl||ii?.url)imgs.push({thumb:ii.thumburl||ii.url,full:ii.url||ii.thumburl,title:(p.title||'').replace(/^File:/,''),link:`https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title||'')}`,src:'WIKIMEDIA'})})}}catch(e){}}
-  const seen=new Set();return imgs.filter(i=>{if(seen.has(i.thumb))return false;seen.add(i.thumb);return safeImg(i)}).slice(0,max);
+async function fetchImages(q,max=8){
+  const imgs=[];
+  const qExact='"'+q+'"';
+  const qOpen=q;
+  const qWords=q.toLowerCase().split(/\s+/).filter(w=>w.length>2);
+
+  // Stage A: Wikipedia EXACT PHRASE — highest relevance
+  try{
+    const r=await ft(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(qExact)}&prop=pageimages&format=json&origin=*&pithumbsize=500&gsrlimit=10&pilimit=10`,8000);
+    const d=await r.json();
+    Object.values(d.query?.pages||{}).forEach(p=>{
+      if(!p.thumbnail)return;
+      imgs.push({thumb:p.thumbnail.source,full:p.thumbnail.source.replace(/\/\d+px-/,'/800px-'),title:p.title,link:`https://en.wikipedia.org/wiki/${encodeURIComponent((p.title||'').replace(/ /g,'_'))}`,src:'WIKIPEDIA',relevance:10});
+    });
+  }catch(e){}
+
+  // Stage B: Wikipedia OPEN SEARCH — filtered by query words
+  if(imgs.length<4){
+    try{
+      const r=await ft(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(qOpen)}&prop=pageimages&format=json&origin=*&pithumbsize=500&gsrlimit=20&pilimit=20`,8000);
+      const d=await r.json();
+      Object.values(d.query?.pages||{}).forEach(p=>{
+        if(!p.thumbnail)return;
+        const tl=(p.title||'').toLowerCase();
+        if(!qWords.some(w=>tl.includes(w)))return;
+        imgs.push({thumb:p.thumbnail.source,full:p.thumbnail.source.replace(/\/\d+px-/,'/800px-'),title:p.title,link:`https://en.wikipedia.org/wiki/${encodeURIComponent((p.title||'').replace(/ /g,'_'))}`,src:'WIKIPEDIA',relevance:5});
+      });
+    }catch(e){}
+  }
+
+  // Stage C: Wikimedia Commons — exact phrase first, fall back to filtered open search
+  try{
+    let fileTitles=[];
+    const sr=await ft(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(qExact)}&format=json&origin=*&srlimit=16&srprop=`,8000);
+    const sd=await sr.json();
+    fileTitles=(sd.query?.search||[]).map(s=>s.title);
+    if(!fileTitles.length){
+      const sr2=await ft(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(qOpen)}&format=json&origin=*&srlimit=16&srprop=`,8000);
+      const sd2=await sr2.json();
+      fileTitles=(sd2.query?.search||[]).filter(s=>qWords.some(w=>s.title.toLowerCase().includes(w))).map(s=>s.title);
+    }
+    if(fileTitles.length){
+      const tp=fileTitles.slice(0,16).map(t=>encodeURIComponent(t)).join('%7C');
+      const ir=await ft(`https://commons.wikimedia.org/w/api.php?action=query&titles=${tp}&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`,8000);
+      const id2=await ir.json();
+      Object.values(id2.query?.pages||{}).forEach(p=>{
+        const ii=p.imageinfo?.[0];
+        if(ii?.thumburl||ii?.url){
+          imgs.push({thumb:ii.thumburl||ii.url,full:ii.url||ii.thumburl,title:(p.title||'').replace(/^File:/,''),link:`https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title||'')}`,src:'WIKIMEDIA',relevance:4});
+        }
+      });
+    }
+  }catch(e){}
+
+  // Deduplicate, sort by relevance, safety filter
+  const seen=new Set();
+  return imgs
+    .filter(i=>{if(seen.has(i.thumb))return false;seen.add(i.thumb);return safeImg(i);})
+    .sort((a,b)=>(b.relevance||0)-(a.relevance||0))
+    .slice(0,max);
 }
 
 async function fetchWiki(q){
@@ -3381,7 +3440,12 @@ function renderVideoCards(vids,mid){
 }
 function renderImageCards(imgs,mid){
   if(!imgs?.length)return'';_lbSets[mid]=imgs;
-  return`<div class="media-section"><div class="media-label">◈ IMAGE RESULTS</div><div class="img-grid">${imgs.map((img,i)=>`<div class="ic" onclick="openLB('${mid}',${i})" title="${esc(img.title)}"><img data-src="${esc(img.thumb)}" alt="${esc(img.title)}"><div class="img-ov">${esc(img.title)}</div></div>`).join('')}</div></div>`;
+  var sources=[...new Set(imgs.map(i=>i.src).filter(Boolean))];
+  var cards=imgs.map(function(img,i){
+    return`<div class="ic shim" onclick="openLB('${mid}',${i})" title="${esc(img.title)}" style="animation-delay:${i*60}ms"><img data-src="${esc(img.thumb)}" alt="${esc(img.title)}"><div class="img-ov">${esc(img.title)}</div><div class="img-src-badge">${esc(img.src||'WEB')}</div></div>`;
+  }).join('');
+  var srcNote=sources.length?`<div class="img-src-note">◈ ${esc(sources.join(' · '))}</div>`:'';
+  return`<div class="media-section"><div class="media-label">◈ IMAGE RESULTS</div><div class="img-grid">${cards}</div>${srcNote}</div>`;
 }
 function renderLinkCards(lnks){
   if(!lnks?.length)return'';
@@ -3391,7 +3455,7 @@ function renderSourcePills(srcs){if(!srcs?.length)return'';return`<div class="sr
 
 function wireMediaCards(el){
   el.querySelectorAll('.vc-thumb img[data-src],.ic img[data-src]').forEach(img=>{
-    const obs=new IntersectionObserver(entries=>{if(entries[0].isIntersecting){img.src=img.dataset.src;img.onload=()=>img.classList.add('ok');img.onerror=()=>{img.src='';img.classList.add('ok')};obs.disconnect()}},{rootMargin:'60px'});obs.observe(img);
+    const obs=new IntersectionObserver(entries=>{if(entries[0].isIntersecting){img.src=img.dataset.src;img.onload=()=>{img.classList.add('ok');img.closest('.ic')?.classList.remove('shim');};img.onerror=()=>{img.closest('.ic')?.remove();};obs.disconnect()}},{rootMargin:'120px'});obs.observe(img);
   });
   el.querySelectorAll('.vc').forEach(card=>{
     card.querySelector('.vc-thumb')?.addEventListener('click',e=>{e.preventDefault();openYTOverlay(card.dataset.vid,card.dataset.title,card.dataset.ch,card.dataset.url);});
@@ -3800,9 +3864,7 @@ function autumnSaveImage(genId) {
 
 // ── Delegated event handler for generated image cards ───────────
 document.addEventListener('DOMContentLoaded', function() {
-  // Reflect saved API key state in key button immediately on load
   if (typeof _updateKeyBtn === 'function') _updateKeyBtn();
-
   document.addEventListener('click', function(e) {
     var dbgBtn = e.target.closest('.dbg-toggle');
     if(dbgBtn && dbgBtn.dataset.dbgid) {
@@ -4789,19 +4851,17 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var reply = data.content ? data.content.map(function(b){return b.text||'';}).join('') : 'Could not analyze image.';
 
     var idx = msgs().findIndex(function(m){return m.id===cardId;});
-
-    // If user asked for news/search/media alongside the image, run a web query on identified subject
-    var _visionMediaRequest = /\b(news|search|latest|recent|articles|find|look up|images|photos|videos|youtube|who is|what.s happening|media)\b/i.test(text);
+    // If user asked for news/media alongside the image, run web query on identified subject
+    var _visionMediaRequest = /\b(news|search|latest|recent|articles|find|look up|images|photos|videos|youtube|who is|media)\b/i.test(text);
     var visionLiveData = {videos:[],images:[],links:[],sources:[]};
     if(_visionMediaRequest && reply && reply.length > 10) {
       var _vSubject = reply.split(/[.\n]/)[0].replace(/^(i (can )?see|this is|that.s|it.s|this appears to be)\s*/i,'').trim().slice(0,80);
-      try { visionLiveData = await liveQuery(_vSubject || text, reflexData).catch(function(){return {videos:[],images:[],links:[],sources:[]};});
+      try { visionLiveData = await liveQuery(_vSubject || text, {}).catch(function(){return {videos:[],images:[],links:[],sources:[]};});
       } catch(e) {}
     }
-
     if(idx>=0) msgs()[idx] = {role:'autumn',text:reply,ts:new Date().toISOString(),id:cardId,
       grammarMeta:'Vision · '+imgs.length+' image'+(imgs.length>1?'s':''),brpnMeta:'',contextType:'VISION',
-      media:{ videos:visionLiveData.videos||[], images:visionLiveData.images||[], links:visionLiveData.links||[], sources:visionLiveData.sources||[] }};
+      media:{videos:visionLiveData.videos||[],images:visionLiveData.images||[],links:visionLiveData.links||[],sources:visionLiveData.sources||[]}};
   } catch(e) {
     var idx2 = msgs().findIndex(function(m){return m.id===cardId;});
     if(idx2>=0) msgs()[idx2] = {role:'autumn',text:'Vision analysis failed.',ts:new Date().toISOString(),id:cardId,grammarMeta:'',brpnMeta:'',contextType:'VISION',media:{videos:[],images:[],links:[],sources:[]}};
@@ -5396,7 +5456,7 @@ function classifyIntentLocal(text, hasPendingImages) {
   if (/\b(show|restore|unhide|reveal)\b.*\b(messages|history|hidden)\b/.test(lc)) return 'SHOW_HIDDEN';
   // Vision when image attached
   if (hasPendingImages && /\b(identify|who|what|describe|analyze|examine|look at|find|read|tell me about|what is|who is)\b/.test(lc)) return 'VISION_ANALYSIS';
-  // Web image fetch — "show me photos/pictures of X" about real people/topics → web fetch, NOT generator
+  // Web image fetch — "show me photos/pictures of X" about real people/topics → web fetch NOT generator
   var _webImgFetch = /\b(show me|find|search|get|pull up|look up)\b.{0,30}\b(photos?|pictures?|images?|pics?)\b/i.test(text) ||
     /\b(photos?|pictures?|images?|pics?)\b.{0,20}\b(of|for)\b/i.test(text);
   var _genWords = /\b(generate|create|make|draw|paint|render|design|produce|illustrate|imagine|depict)\b/i.test(text);
@@ -5428,7 +5488,7 @@ async function classifyIntent(text, hasPendingImages) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 15,
-        system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images of a person, place or thing from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.',
+        system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images of a person, place, or thing from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
       }),
       signal: AbortSignal.timeout(2500)
@@ -5603,8 +5663,11 @@ async function handleSend() {
     const _rwReflex = await autumnReflex(text,'default').catch(function(){ return {}; });
     S.journal.push(createJournalEntry(text, analysis, _rwReflex));
     updateHUD(analysis);
-    // Extract subject query — strip leading "show me photos of" type preamble
-    var _imgQuery = text.replace(/^(show me|find|search for|get|pull up|look up)\s+(some\s+)?(photos?|pictures?|images?|pics?)\s+(of|for)\s*/i,'').replace(/\s+(and .+)?here in the chat.*$/i,'').trim() || text;
+    var _imgQuery = text
+      .replace(/^(show me|find|search for|get|pull up|look up)\s+(some\s+)?(photos?|pictures?|images?|pics?)\s+(of|for)\s*/i,'')
+      .replace(/\s+(and\s+.+)?here in the chat.*$/i,'')
+      .replace(/\s+(like\s+a\s+preview|as\s+a\s+preview|preview).*$/i,'')
+      .trim() || text;
     var _rwMsgId = 'webimg-' + Date.now();
     msgs().push({role:'autumn', text:'', ts:new Date().toISOString(), id:_rwMsgId,
       grammarMeta:'', brpnMeta:'', contextType:'WEB_IMAGE',
@@ -5612,16 +5675,16 @@ async function handleSend() {
     });
     renderMessages();
     var _rwLive = await liveQuery(_imgQuery, {contextType:'IMAGE', context:{emotional:'neutral',physics:'moderate'}}).catch(function(){ return {liveText:'',videos:[],images:[],links:[],sources:[]}; });
-    // Also fetch extra images directly
-    var _rwExtraImgs = await fetchImages(_imgQuery, 6).catch(function(){ return []; });
+    var _rwExtraImgs = await fetchImages(_imgQuery, 8).catch(function(){ return []; });
     var _allImgs = (_rwLive.images||[]).concat(_rwExtraImgs).filter(safeImg);
-    // Deduplicate by thumb URL
     var _seenThumbs = new Set();
     _allImgs = _allImgs.filter(function(i){ if(_seenThumbs.has(i.thumb)) return false; _seenThumbs.add(i.thumb); return true; }).slice(0,8);
     var _rwIdx = msgs().findIndex(function(m){ return m.id === _rwMsgId; });
     if(_rwIdx >= 0) msgs()[_rwIdx] = {
       role:'autumn',
-      text: _allImgs.length ? 'Here\'s what I found for **' + _imgQuery + '**:' : 'I couldn\'t find web images for that — try a more specific name or search term.',
+      text: _allImgs.length
+        ? 'Here\'s what I found for **' + _imgQuery + '**:'
+        : 'Couldn\'t find web images for that — try a more specific name or search term.',
       ts: new Date().toISOString(), id: _rwMsgId,
       grammarMeta:'Web Images · ' + _allImgs.length + ' found', brpnMeta:'', contextType:'WEB_IMAGE',
       imageGenCard: null,
@@ -5711,7 +5774,7 @@ async function handleSend() {
   let fullReply = (reply && typeof reply === 'object') ? (reply.text||'') : (reply||'');
   let grammarMeta = (reply && typeof reply === 'object') ? reply.grammarMeta : '';
   let brpnMeta = (reply && typeof reply === 'object') ? reply.brpnMeta : '';
-  // Only append web text when user explicitly requests search/news/media — suppress for normal conversation
+  // Only append web data when user explicitly requests search/news/media — suppress for normal conversation
   var _liveIntent = detectIntent(text);
   var _explicitMediaRequest = /\b(search|look up|find|news|latest|recent|video|videos|youtube|images|photos|pictures|articles|headlines|what.s happening|current|today)\b/i.test(text);
   if(liveData.liveText && _liveIntent !== 'personal' && _explicitMediaRequest) fullReply += liveData.liveText;
