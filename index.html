@@ -74,11 +74,19 @@ const _ASH_BOT = ['ghp_','IsnQDc0x','H4YrdCrP','JWLX4oP','REu9aEB0','FGyyB'].joi
 
 const LEATR_ASH_REPO = 'DART-Skyboard/leatr-ash';
 
-// Anonymous per-device UID -- no personal data
+// Anonymous per-device UID -- no personal data (shared across tabs, stable)
 let _aut_uid = localStorage.getItem('_aut_uid');
 if (!_aut_uid) {
   _aut_uid = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2,6);
   localStorage.setItem('_aut_uid', _aut_uid);
+}
+
+// Per-tab session instance ID -- unique per browser tab (sessionStorage is NOT shared across tabs)
+// This ensures each open tab registers as its own distinct node in the BRPN scene
+let _aut_sid = sessionStorage.getItem('_aut_sid');
+if (!_aut_sid) {
+  _aut_sid = _aut_uid + '_t' + Date.now().toString(36) + Math.random().toString(36).substr(2,4);
+  sessionStorage.setItem('_aut_sid', _aut_sid);
 }
 
 // User personal PAT -- IDE/admin only, falls back to bot token
@@ -138,25 +146,33 @@ function writeLeatrAshMemory(path, dataObj) {
 }
 
 window.addEventListener('beforeunload', function() {
+  // Mark this tab's session as closed so it fades from the scene quickly
+  try {
+    var closePayload = JSON.stringify({uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'close'});
+    var url = 'https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions/'+_aut_sid+'.json';
+    // Use sendBeacon for reliable delivery on tab close
+    navigator.sendBeacon && navigator.sendBeacon(url, closePayload);
+  } catch(e) {}
   Object.keys(_ashQ).forEach(function(p){ clearTimeout(_ashQ[p].timer); _ashFlushNow(p); });
 });
 
 function initLeatrAshSync() {
-  writeLeatrAshMemory('ashtree/sessions/' + _aut_uid + '.json', {
-    uid:_aut_uid, ts:Date.now(), type:'init',
+  // Use per-tab _aut_sid as the session key so each browser tab = distinct node
+  writeLeatrAshMemory('ashtree/sessions/' + _aut_sid + '.json', {
+    uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'init',
     ref: document.referrer ? document.referrer.slice(0,60) : 'direct'
   });
 }
 
 function syncToolPattern(toolName, parameters) {
   if (!localStorage.getItem('_aut_data_consent')) return;
-  writeLeatrAshMemory('ashbranches/'+toolName+'/'+_aut_uid+'.json', { ts:Date.now(), params:parameters });
-  writeLeatrAshMemory('ashleaves/'+_aut_uid+'.json', { tool:toolName, ts:Date.now(), params:parameters });
+  writeLeatrAshMemory('ashbranches/'+toolName+'/'+_aut_sid+'.json', { ts:Date.now(), params:parameters });
+  writeLeatrAshMemory('ashleaves/'+_aut_sid+'.json', { tool:toolName, ts:Date.now(), params:parameters });
 }
 
-// Heartbeat every 3 minutes to keep session node alive
+// Heartbeat every 3 minutes to keep this tab's session node alive
 setInterval(function() {
-  writeLeatrAshMemory('ashtree/sessions/'+_aut_uid+'.json', { uid:_aut_uid, ts:Date.now(), type:'heartbeat' });
+  writeLeatrAshMemory('ashtree/sessions/'+_aut_sid+'.json', { uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'heartbeat' });
 }, 3 * 60 * 1000);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -8304,7 +8320,8 @@ function _uidHash(uid) {
 
 function _initAshNodeLayer() {
   if(!scene || typeof THREE==='undefined') return;
-  _ashNodes._localUid = (typeof _aut_uid!=='undefined') ? _aut_uid : 'local';
+  // Use per-tab _aut_sid so each tab is treated as a distinct session node
+  _ashNodes._localUid = (typeof _aut_sid!=='undefined') ? _aut_sid : (typeof _aut_uid!=='undefined') ? _aut_uid : 'local';
 
   // InstancedMesh for performance — up to 1200 nodes
   var nodeGeo = new THREE.SphereGeometry(0.022, 5, 5);
@@ -8331,10 +8348,10 @@ function _initAshNodeLayer() {
 async function _pollAshNodes() {
   var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
 
-  // Write/refresh this user's own session file
+  // Write/refresh this tab's own session file (keyed by _aut_sid, not _aut_uid)
   if(pat) {
     writeLeatrAshMemory('ashtree/sessions/' + _ashNodes._localUid + '.json', {
-      uid: _ashNodes._localUid, ts: Date.now(), type: 'presence'
+      uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence'
     });
   }
 
@@ -8356,7 +8373,7 @@ async function _pollAshNodes() {
       var files = await r.json();
       if(Array.isArray(files)) {
         // Each file is one user session — fetch up to 40 in parallel for speed
-        var STALE_MS = 12 * 60 * 1000; // 12 minutes = stale
+        var STALE_MS = 6 * 60 * 1000; // 6 minutes = stale (tabs heartbeat every 3min)
         var recentFiles = files
           .filter(function(f){ return f.name.endsWith('.json') && f.name !== _ashNodes._localUid+'.json'; })
           .slice(0, 60); // cap fetch to 60 files
@@ -8369,10 +8386,12 @@ async function _pollAshNodes() {
 
         var results = await Promise.allSettled(fetches);
         results.forEach(function(res) {
-          if(res.status==='fulfilled' && res.value && res.value.uid) {
+          if(res.status==='fulfilled' && res.value && (res.value.sid || res.value.uid)) {
             var age = Date.now() - (res.value.ts||0);
             if(age < STALE_MS) { // only show sessions active in last 12 min
-              nodes.push({ uid: res.value.uid, ts: res.value.ts||Date.now(), isLocal: false });
+              // Use sid as the unique key — ensures multiple tabs from same device each get their own node
+              var nodeId = res.value.sid || res.value.uid;
+              nodes.push({ uid: nodeId, deviceUid: res.value.uid||nodeId, ts: res.value.ts||Date.now(), isLocal: false });
             }
           }
         });
