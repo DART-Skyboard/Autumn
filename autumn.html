@@ -10063,8 +10063,8 @@ loadAutumnLogic();
 
       <!-- GITHUB PAT -- developer/admin only, collapsed -->
       <div style="margin-top:4px">
-        <button onclick="var nx=this.nextElementSibling;nx.style.display=nx.style.display==='none'?'block':'none';this.innerHTML=nx.style.display==='none'?'&#9658; Developer / Admin':'&#9660; Developer / Admin'" style="background:none;border:none;color:rgba(255,255,255,.18);font-family:Orbitron,sans-serif;font-size:.34rem;letter-spacing:1.5px;cursor:pointer;padding:6px 0;width:100%;text-align:left">&#9658; Developer / Admin</button>
-        <div id="dev-admin-section" style="display:none">
+        <button onclick="var nx=this.nextElementSibling;nx.style.display=nx.style.display==='none'?'block':'none';this.innerHTML=nx.style.display==='none'?'&#9658; Developer / Admin':'&#9660; Developer / Admin'" style="background:none;border:none;color:rgba(255,255,255,.18);font-family:Orbitron,sans-serif;font-size:.34rem;letter-spacing:1.5px;cursor:pointer;padding:6px 0;width:100%;text-align:left">&#9660; Developer / Admin</button>
+        <div id="dev-admin-section" style="display:block">
           <div class="keys-section" id="pat-section" style="margin-top:8px">
             <div class="keys-section-header">
               <div class="keys-dot inactive" id="pat-dot"></div>
@@ -10087,28 +10087,7 @@ loadAutumnLogic();
           </div>
         </div>
       </div>
-        <p class="keys-desc">
-          <strong>Optional — for developers and repository owners.</strong><br>
-          Connects Autumn to a GitHub repository for the leatr-ash neural memory network, IDE commits, and session pattern sync. Your session will appear as a live node in the BRPN buoyancy visualization.<br><br>
-          Get one at <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a> → Generate new token (classic) → check <strong>repo</strong>.<br><br>
-          <span style="color:rgba(255,179,71,.75);font-size:.9em">Stored on this device only — never shared or committed anywhere.</span>
-        </p>
-        <div class="keys-input-row">
-          <input type="password" class="keys-input pat-style" id="keys-pat-input" placeholder="ghp_xxxxxxxxxxxxxxxx" autocomplete="new-password" data-lpignore="true" onkeydown="if(event.key==='Enter')saveKeysPAT()">
-          <button class="keys-btn-save pat" onclick="saveKeysPAT()">CONNECT</button>
-          <button class="keys-btn-clear" onclick="clearKeysPAT()" title="Remove token">✕</button>
-        </div>
-        <label class="keys-remember">
-          <input type="checkbox" id="pat-remember" checked> Remember on this device
-        </label>
-        <div class="keys-perms">
-          <span class="keys-perm-pill pat">◈ leatr-ash memory</span>
-          <span class="keys-perm-pill pat">◈ session node visible</span>
-          <span class="keys-perm-pill pat">◈ IDE commits</span>
-          <span class="keys-perm-pill pat">◈ memory analysis</span>
-          <span class="keys-perm-pill pat">◈ tool pattern sync</span>
-        </div>
-      </div>
+
 
     </div>
   </div>
