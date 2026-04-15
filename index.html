@@ -394,6 +394,40 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .hdr-btns::-webkit-scrollbar{display:none}
 .hdr-btn{background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 10px;border-radius:4px;cursor:pointer;font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;transition:all .2s;flex-shrink:0;white-space:nowrap}
 .hdr-btn:hover{color:var(--cyan);border-color:var(--cyan)}
+
+/* ── Draft & Drip lounge button ─────────────────────── */
+.draft-drip-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  text-decoration:none;
+  background:linear-gradient(135deg,rgba(139,92,246,.18),rgba(251,146,60,.12));
+  border:1px solid rgba(251,146,60,.35)!important;
+  color:rgba(251,191,100,.92)!important;
+  position:relative;
+  overflow:hidden;
+  transition:all .25s;
+  padding:5px 11px;
+}
+.draft-drip-btn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(120deg,transparent 30%,rgba(251,191,100,.07) 50%,transparent 70%);
+  transform:translateX(-100%);
+  transition:transform .5s;
+}
+.draft-drip-btn:hover{
+  color:rgba(255,210,120,1)!important;
+  border-color:rgba(251,191,100,.7)!important;
+  background:linear-gradient(135deg,rgba(139,92,246,.28),rgba(251,146,60,.22))!important;
+  box-shadow:0 0 14px rgba(251,146,60,.22),0 0 4px rgba(139,92,246,.2);
+  transform:translateY(-1px);
+}
+.draft-drip-btn:hover::before{transform:translateX(100%);}
+.dd-cup{font-size:.75rem;line-height:1;animation:ddSteam 3s ease-in-out infinite;}
+.dd-label{font-family:var(--font-d);font-size:.46rem;letter-spacing:1.2px;font-weight:700;}
+@keyframes ddSteam{
+  0%,100%{transform:translateY(0) rotate(-4deg);}
+  40%{transform:translateY(-2px) rotate(2deg);}
+  70%{transform:translateY(-1px) rotate(-1deg);}
+}
 /* ── Backdrop opacity toggle pill ── */
 #scrim-toggle{
   display:flex;align-items:center;gap:6px;
@@ -1121,6 +1155,9 @@ select.ash-ctrl-input{cursor:pointer}
     <button class="hdr-btn" id="view-toggle-btn" onclick="toggleViewMode()" title="Toggle mobile/desktop view">📱</button>
     <button class="hdr-btn" id="hdr-key-btn" onclick="openKeysModal()" title="API Keys &amp; Memory — click to configure" style="color:rgba(255,179,71,.9);border-color:rgba(255,179,71,.3)">🔑 KEYS</button>
     <button class="hdr-btn" onclick="openIDE()" title="Autumn Logic IDE" style="color:rgba(0,255,204,.75);border-color:rgba(0,255,204,.28)">◈ IDE</button>
+    <a class="hdr-btn draft-drip-btn" href="https://leatr.xyz/amp.html" target="_blank" rel="noopener" title="Draft &amp; Drip — design lounge &amp; industry reads">
+      <span class="dd-cup">☕</span><span class="dd-label">DRAFT &amp; DRIP</span>
+    </a>
   </div>
 </header>
 
