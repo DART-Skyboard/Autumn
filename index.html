@@ -6519,45 +6519,33 @@ async function handleSend() {
     var _connReply = '';
 
     if(_ckActive && _cpActive) {
-      _connReply = '✅ Both connections are active.
+      _connReply = `✅ Both connections are active.
 
-'
-        + '◈ **Claude / Anthropic API** — connected' + (_ckHint?' (key '+_ckHint+')':'')+'
-'
-        + '◈ **GitHub / leatr-ash** — connected' + (_cpHint?' (token '+_cpHint+')':'')+'
+◈ **Claude / Anthropic API** — connected` + (_ckHint?' (key '+_ckHint+')':'') + `
+◈ **GitHub / leatr-ash** — connected` + (_cpHint?' (token '+_cpHint+')':'') + `
 
-'
-        + 'My full capability set is online — Claude Sonnet enhanced responses, vision analysis, image generation, FRAX Studio, memory sync, IDE commits, and your session node is live in the BRPN visualization.';
+My full capability set is online — Claude Sonnet enhanced responses, vision analysis, image generation, FRAX Studio, memory sync, IDE commits, and your session node is live in the BRPN visualization.`;
     } else if(_ckActive && !_cpActive) {
-      _connReply = '⚡ Partially connected.
+      _connReply = `⚡ Partially connected.
 
-'
-        + '◈ **Claude / Anthropic API** — ✅ connected' + (_ckHint?' (key '+_ckHint+')':'')+'
-'
-        + '◈ **GitHub / leatr-ash** — ✗ not connected
+◈ **Claude / Anthropic API** — ✅ connected` + (_ckHint?' (key '+_ckHint+')':'') + `
+◈ **GitHub / leatr-ash** — ✗ not connected
 
-'
-        + 'Claude-enhanced responses, vision, and image generation are all active. To enable memory sync, session nodes, and IDE commits, tap 🔑 KEYS and add your GitHub PAT.';
+Claude-enhanced responses, vision, and image generation are all active. To enable memory sync, session nodes, and IDE commits, tap 🔑 KEYS and add your GitHub PAT.`;
     } else if(!_ckActive && _cpActive) {
-      _connReply = '⚡ Partially connected.
+      _connReply = `⚡ Partially connected.
 
-'
-        + '◈ **Claude / Anthropic API** — ✗ not connected
-'
-        + '◈ **GitHub / leatr-ash** — ✅ connected' + (_cpHint?' (token '+_cpHint+')':'')+'
+◈ **Claude / Anthropic API** — ✗ not connected
+◈ **GitHub / leatr-ash** — ✅ connected` + (_cpHint?' (token '+_cpHint+')':'') + `
 
-'
-        + 'I'm running on my native LEATR neural engine right now — no Claude API key loaded. Your session is syncing to leatr-ash and your node is visible in the BRPN scene. Tap 🔑 KEYS to add your Anthropic key for full Claude-enhanced mode.';
+I’m running on my native LEATR neural engine right now — no Claude API key loaded. Your session is syncing to leatr-ash and your node is visible in the BRPN scene. Tap 🔑 KEYS to add your Anthropic key for full Claude-enhanced mode.`;
     } else {
-      _connReply = 'ℹ Not connected to any external services right now.
+      _connReply = `ℹ Not connected to any external services right now.
 
-'
-        + '◈ **Claude / Anthropic API** — ✗ not connected
-'
-        + '◈ **GitHub / leatr-ash** — ✗ not connected
+◈ **Claude / Anthropic API** — ✗ not connected
+◈ **GitHub / leatr-ash** — ✗ not connected
 
-'
-        + 'I'm running fully on my own LEATR v2 neural network — everything works natively. To unlock Claude-enhanced responses and memory sync, tap 🔑 KEYS in the header to add your keys. Both are optional and stay on your device only.';
+I’m running fully on my own LEATR v2 neural network — everything works natively. To unlock Claude-enhanced responses and memory sync, tap 🔑 KEYS in the header to add your keys. Both are optional and stay on your device only.`;
     }
 
     msgs().push({role:'autumn', text:_connReply, ts:new Date().toISOString(),
