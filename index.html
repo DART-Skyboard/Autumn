@@ -34,11 +34,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
 function acceptDataPolicy() {
   localStorage.setItem('_aut_data_consent', 'true');
   document.getElementById('data-policy-modal').style.display = 'none';
-  initLeatrAshSync();
+  initLeatrAshSync(); initLeatrNetwork();
 }
 
 function checkDataPolicyConsent() {
@@ -46,7 +47,7 @@ function checkDataPolicyConsent() {
     document.getElementById('data-policy-modal').style.display = 'flex';
     return false;
   }
-  initLeatrAshSync();
+  initLeatrAshSync(); initLeatrNetwork();
   return true;
 }
 
@@ -56,6 +57,130 @@ window.addEventListener('load', function() {
 
 function showDataPolicy() {
   document.getElementById('data-policy-modal').style.display = 'flex';
+}
+
+
+// ── Multi-user 3D Network Visualization ────────────────────────
+let leatrNetworkScene, leatrNetworkCamera, leatrNetworkRenderer;
+const THREE = window.THREE;
+let buoyancyNodes = [];
+let networkInitialized = false;
+
+function initLeatrNetwork() {
+  if (networkInitialized) return;
+  const container = document.getElementById('leatr-network-container');
+  if (!container) return;
+
+  leatrNetworkScene = new THREE.Scene();
+  leatrNetworkCamera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+  leatrNetworkRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  leatrNetworkRenderer.setSize(container.clientWidth, container.clientHeight);
+  container.appendChild(leatrNetworkRenderer.domElement);
+
+  // Add lights
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+  leatrNetworkScene.add(ambientLight);
+  const pointLight = new THREE.PointLight(0x00e5ff, 1);
+  pointLight.position.set(10, 10, 10);
+  leatrNetworkScene.add(pointLight);
+
+  // Initial nodes
+  spawnNetworkNodes(50); // Start with a few
+
+  leatrNetworkCamera.position.z = 50;
+
+  window.addEventListener('resize', () => {
+    if (container && leatrNetworkCamera && leatrNetworkRenderer) {
+      leatrNetworkCamera.aspect = container.clientWidth / container.clientHeight;
+      leatrNetworkCamera.updateProjectionMatrix();
+      leatrNetworkRenderer.setSize(container.clientWidth, container.clientHeight);
+    }
+  });
+
+  networkInitialized = true;
+  animateLeatrNetwork();
+  pollNetworkActivity();
+}
+
+function spawnNetworkNodes(count) {
+  const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+  const material = new THREE.MeshPhongMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.8 });
+
+  for (let i = 0; i < count; i++) {
+    const sphere = new THREE.Mesh(geometry, material);
+    sphere.position.x = (Math.random() - 0.5) * 80;
+    sphere.position.y = (Math.random() - 0.5) * 80;
+    sphere.position.z = (Math.random() - 0.5) * 40;
+
+    // Add custom properties for buoyancy
+    sphere.userData = {
+      velocity: new THREE.Vector3(0, Math.random() * 0.05 + 0.01, 0),
+      wobbleSpeed: Math.random() * 0.05,
+      wobbleAmount: Math.random() * 0.5,
+      seed: Math.random() * Math.PI * 2
+    };
+
+    leatrNetworkScene.add(sphere);
+    buoyancyNodes.push(sphere);
+  }
+}
+
+function updateNetworkFromSync(activityLevel) {
+  // activityLevel could be number of recent events
+  if (!networkInitialized) return;
+  const targetNodes = Math.min(1200, 50 + activityLevel * 10);
+
+  if (buoyancyNodes.length < targetNodes) {
+    spawnNetworkNodes(Math.min(50, targetNodes - buoyancyNodes.length)); // spawn in batches
+  }
+}
+
+function animateLeatrNetwork() {
+  requestAnimationFrame(animateLeatrNetwork);
+
+  const time = Date.now() * 0.001;
+
+  buoyancyNodes.forEach(node => {
+    // Upward buoyancy
+    node.position.add(node.userData.velocity);
+
+    // Wobble (horizontal drift)
+    node.position.x += Math.sin(time * node.userData.wobbleSpeed + node.userData.seed) * 0.02;
+    node.position.z += Math.cos(time * node.userData.wobbleSpeed + node.userData.seed) * 0.02;
+
+    // Loop back to bottom when reaching top
+    if (node.position.y > 40) {
+      node.position.y = -40;
+      node.position.x = (Math.random() - 0.5) * 80;
+      node.position.z = (Math.random() - 0.5) * 40;
+    }
+  });
+
+  if (leatrNetworkScene && leatrNetworkCamera) {
+    // Gentle rotation of the whole scene
+    leatrNetworkScene.rotation.y = time * 0.05;
+    leatrNetworkRenderer.render(leatrNetworkScene, leatrNetworkCamera);
+  }
+}
+
+function pollNetworkActivity() {
+  setInterval(async () => {
+    try {
+      if (!localStorage.getItem('_aut_data_consent')) return;
+      const getUrl = `https://api.github.com/repos/${LEATR_ASH_REPO}/commits?path=ashleaves`;
+      const pat = sessionStorage.getItem('_aut_ide_pat') || '';
+      const headers = { 'Accept': 'application/vnd.github.v3+json' };
+      if (pat) headers['Authorization'] = 'token ' + pat;
+
+      const res = await fetch(getUrl, { headers });
+      if (res.ok) {
+        const commits = await res.json();
+        updateNetworkFromSync(commits.length);
+      }
+    } catch (e) {
+      console.warn("Error polling activity:", e);
+    }
+  }, 10000); // Poll every 10 seconds
 }
 
 // Memory Logging to leatr-ash
@@ -128,7 +253,7 @@ function syncToolPattern(toolName, parameters) {
   // Write to leaf (independent user history)
   writeLeatrAshMemory('ashleaves/' + _aut_uid + '.json', { tool: toolName, ts: Date.now(), params: parameters });
 }
-\n</script>
+</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
@@ -934,9 +1059,33 @@ select.ash-ctrl-input{cursor:pointer}
 .dbg-panel{margin-top:3px;padding:5px 8px;background:rgba(0,0,0,.25);border-left:2px solid rgba(0,229,255,.1);border-radius:0 3px 3px 0}
 .dbg-line{font-size:7.5px;color:rgba(0,229,255,.22);font-family:monospace;line-height:1.7;word-break:break-all}
 .dbg-brpn{color:rgba(0,136,255,.3)!important}
+
+body.autumn-night {
+  --cyan: #a78bfa;
+  --blue: #4c1d95;
+  --bg2: #020205;
+  --border: rgba(167, 139, 250, 0.15);
+  --text: #e2e8f0;
+  --dim: #64748b;
+  --bright: #f8fafc;
+}
+body.autumn-night .ov-grid {
+  background-image: linear-gradient(rgba(167,139,250,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(167,139,250,.1) 1px,transparent 1px);
+}
+body.autumn-night header {
+  background: linear-gradient(180deg, rgba(167,139,250,0.04) 0%, transparent 100%);
+}
+body.autumn-night .logo {
+  background: linear-gradient(135deg, #a78bfa, #c4b5fd, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 </style>
 </head>
 <body>
+<div id="leatr-network-container" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;"></div>
 
 <!-- ░░ BACKDROP VIDEO ░░ -->
 <video id="backdrop-video"
@@ -1009,6 +1158,7 @@ select.ash-ctrl-input{cursor:pointer}
       <div id="st-dot">80%</div>
       <span id="st-label">FROST</span>
     </button>
+    <button id="theme-toggle-btn" class="hdr-btn" onclick="window.toggleTheme()" title="Toggle Theme">🌙 NIGHT</button>
     <button class="hdr-btn" onclick="openVoiceSettings()" title="Voice settings">VOICE</button>
     <button class="hdr-btn" onclick="openLiveMode()" title="Live conversation">LIVE</button>
     <button class="hdr-btn" onclick="exportData()" title="Export data">EXPORT</button>
@@ -3407,7 +3557,7 @@ function buildResponse(input, analysis) {
 // ============================================================
 //  LIVE DATA LAYER — Web Search, YouTube, Images
 // ============================================================
-const YT_KEY='AIzaSyBrhOod_Q6QoX6XQFyuaipq_ncFvx5lEac';
+const YT_KEY='AIzaSyBU7a7inhINlyjY-Ex0_ppdiLAXHILi64w';
 const YT_URL='https://www.googleapis.com/youtube/v3/search';
 const INVIDIOUS=['https://inv.nadeko.net','https://invidious.privacydev.net','https://invidious.nerdvpn.de','https://invidious.io.lol'];
 const R_BLOCK=[/\bporn(o|ography|hub|star)?\b/i,/\bxxx\b/i,/\bhentai\b/i,/\bnsfw\b/i,/\berotic(a)?\b/i,/\bonlyfans\b/i];
@@ -3419,7 +3569,7 @@ function ytCacheSet(q,v){try{sessionStorage.setItem('ayc_'+q.toLowerCase(),JSON.
 function ytQuotaHit(){return sessionStorage.getItem('aytq')==='1'}
 function ytMarkQuota(){sessionStorage.setItem('aytq','1')}
 
-async function fetchYT(q,max=6){
+window.fetchYT = async function fetchYT(q,max=6){
   const cached=ytCacheGet(q);if(cached?.length)return cached.filter(safeVideo).slice(0,max);
   let vids=[];
   if(!ytQuotaHit()){try{
@@ -3563,12 +3713,12 @@ async function liveQuery(userText, reflexData){
   const keys=Object.keys(jobs);const vals=await Promise.all(keys.map(k=>jobs[k].catch(()=>null)));
   const data={};keys.forEach((k,i)=>{data[k]=vals[i]||null});
   let liveText='';const sources=[];const links=[];
-  if(data.ddg?.answer) liveText+=`\n\n◈ Quick Answer: ${data.ddg.answer}`;
-  if(data.wiki?.extract){const sents=data.wiki.extract.replace(/\n+/g,' ').replace(/\s{2,}/g,' ').trim().match(/[^.!?]+[.!?]+(?:\s|$)/g)||[];const summary=sents.filter(s=>s.trim().length>30&&s.trim().length<400).slice(0,3).join(' ').trim();if(summary){liveText+=`\n\n◈ From the Web: ${summary}`;sources.push('WIKIPEDIA');links.push({title:data.wiki.title+' — Wikipedia',url:data.wiki.url,desc:'Read the full Wikipedia article'})}}
-  else if(data.ddg?.abstract){liveText+=`\n\n◈ From the Web: ${data.ddg.abstract}`;if(data.ddg.heading)sources.push('DDG');if(data.ddg.abstractUrl)links.push({title:data.ddg.heading||cleanQ,url:data.ddg.abstractUrl})}
+  if(data.ddg?.answer) liveText+=`◈ Quick Answer: ${data.ddg.answer}`;
+  if(data.wiki?.extract){const sents=data.wiki.extract.replace(/\+/g,' ').replace(/\s{2,}/g,' ').trim().match(/[^.!?]+[.!?]+(?:\s|$)/g)||[];const summary=sents.filter(s=>s.trim().length>30&&s.trim().length<400).slice(0,3).join(' ').trim();if(summary){liveText+=`◈ From the Web: ${summary}`;sources.push('WIKIPEDIA');links.push({title:data.wiki.title+' — Wikipedia',url:data.wiki.url,desc:'Read the full Wikipedia article'})}}
+  else if(data.ddg?.abstract){liveText+=`◈ From the Web: ${data.ddg.abstract}`;if(data.ddg.heading)sources.push('DDG');if(data.ddg.abstractUrl)links.push({title:data.ddg.heading||cleanQ,url:data.ddg.abstractUrl})}
   if(data.reddit?.length){links.push(...data.reddit.slice(0,2).map(r=>({title:r.title,url:r.url,desc:r.desc})));sources.push('REDDIT')}
   if(data.news?.length){data.news.forEach(i=>links.push({title:i.title,url:i.url,desc:i.desc}));sources.push('GDELT','HN')}
-  if(data.videos?.length){liveText+=`\n\n◈ Found ${data.videos.length} video${data.videos.length>1?'s':''} for you:`;sources.push('YOUTUBE')}
+  if(data.videos?.length){liveText+=`◈ Found ${data.videos.length} video${data.videos.length>1?'s':''} for you:`;sources.push('YOUTUBE')}
   var placeMapHtml='';
   if(data.geoplace&&data.geoplace.lat){
     const gpId='osm-'+Date.now(),gpInfoId='osmi-'+gpId;
@@ -4437,7 +4587,7 @@ async function loadDocumentFile(file) {
       docText = await new Promise(function(res,rej){
         var r=new FileReader(); r.onload=function(e){res(e.target.result);}; r.onerror=rej; r.readAsText(file);
       });
-      if (docText.length > MAX_CHARS) docText = docText.slice(0, MAX_CHARS) + '\n…[truncated at ' + MAX_CHARS + ' chars]';
+      if (docText.length > MAX_CHARS) docText = docText.slice(0, MAX_CHARS) + '…[truncated at ' + MAX_CHARS + ' chars]';
     } catch(e) { docText = '[Could not read file: ' + e.message + ']'; }
   } else if (ext === 'pdf') {
     try {
@@ -4448,10 +4598,10 @@ async function loadDocumentFile(file) {
         var page = await pdf.getPage(i);
         var textContent = await page.getTextContent();
         var pageText = textContent.items.map(function(item){return item.str}).join(' ');
-        fullText += pageText + '\n';
+        fullText += pageText + '';
         if (fullText.length > MAX_CHARS) break;
       }
-      docText = fullText.length > MAX_CHARS ? fullText.slice(0, MAX_CHARS) + '\n…[truncated]' : fullText;
+      docText = fullText.length > MAX_CHARS ? fullText.slice(0, MAX_CHARS) + '…[truncated]' : fullText;
     } catch(e) {
       docText = '[PDF parsing error: ' + e.message + ']';
     }
@@ -4460,7 +4610,7 @@ async function loadDocumentFile(file) {
       var arrBuffer = await file.arrayBuffer();
       var result = await mammoth.extractRawText({arrayBuffer: arrBuffer});
       docText = result.value;
-      if (docText.length > MAX_CHARS) docText = docText.slice(0, MAX_CHARS) + '\n…[truncated]';
+      if (docText.length > MAX_CHARS) docText = docText.slice(0, MAX_CHARS) + '…[truncated]';
     } catch(e) {
       docText = '[DOCX parsing error: ' + e.message + ']';
     }
@@ -5394,7 +5544,7 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var _visionMediaRequest = /\b(news|search|latest|recent|articles|find|look up|images|photos|videos|youtube|who is|media)\b/i.test(text);
     var visionLiveData = {videos:[],images:[],links:[],sources:[]};
     if(_visionMediaRequest && reply && reply.length > 10) {
-      var _vSubject = reply.split(/[.\n]/)[0].replace(/^(i (can )?see|this is|that.s|it.s|this appears to be)\s*/i,'').trim().slice(0,80);
+      var _vSubject = reply.split(/[.]/)[0].replace(/^(i (can )?see|this is|that.s|it.s|this appears to be)\s*/i,'').trim().slice(0,80);
       try { visionLiveData = await liveQuery(_vSubject || text, {}).catch(function(){return {videos:[],images:[],links:[],sources:[]};});
       } catch(e) {}
     }
@@ -5695,7 +5845,7 @@ async function startMusicCapture() {
   } catch (err) {
     cleanupMusicCapture();
     const errMsg = {
-      role: 'autumn', text: `◈ I couldn't access your microphone to listen. Check browser permissions and try again.\n\n(${err.message})`,
+      role: 'autumn', text: `◈ I couldn't access your microphone to listen. Check browser permissions and try again.(${err.message})`,
       ts: new Date().toISOString(), id: 'msg-music-err-' + Date.now(),
       grammarMeta: '', brpnMeta: '', contextType: 'MUSIC_ID'
     };
@@ -5809,7 +5959,7 @@ function buildAutumnMusicReflection(track, leatrData, research, genreTool, brpn)
   // Wiki extract summary
   let artistSummary = '';
   if (research.artistWiki?.extract) {
-    const sents = research.artistWiki.extract.replace(/\n+/g,' ').match(/[^.!?]+[.!?]+/g) || [];
+    const sents = research.artistWiki.extract.replace(/\+/g,' ').match(/[^.!?]+[.!?]+/g) || [];
     artistSummary = sents.slice(0,2).join(' ').trim();
   }
 
@@ -5839,7 +5989,7 @@ function buildAutumnMusicReflection(track, leatrData, research, genreTool, brpn)
     newsNote ? `◈ ${newsNote}` : '',
     ``,
     `My read: this is a track where the structure ${parseFloat(titleEnc.signature) > 500 ? 'carries high mass — the sonic architecture is dense, likely layered or emotionally weighted' : 'runs lean — probably direct, economical, precision-built'}. LEATR signature ${titleEnc.signature} encodes into the ${genreTool.tool} reflex pattern — ${genreTool.reason}.`
-  ].filter(s => s !== undefined).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  ].filter(s => s !== undefined).join('').replace(/ {3,}/g, '').trim();
 }
 
 // Assemble and render the full music card + response
@@ -5952,7 +6102,7 @@ async function processMusicCapture(blob) {
 </div>`;
 
   // Full response text
-  const fullText = [apiText, autumnReflection].filter(Boolean).join('\n\n---\n\n');
+  const fullText = [apiText, autumnReflection].filter(Boolean).join('---');
 
   const grammarMeta = grammarDeepSignature(analysis.grammar, deepGrammar);
   const brpnMeta = `BRPN Music: geo.f=${brpn.f} r=${brpn.r} p=${brpn.p} buoy=${brpn.buoyancy} | Title:${titleEnc.signature} Artist:${artistEnc.signature} | Tool:${genreTool.tool}`;
@@ -6033,7 +6183,7 @@ async function classifyIntent(text, hasPendingImages) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 15,
-        system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images of a person, place, or thing from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.',
+        system: 'Classify the user intent. Reply with ONLY one label:IMAGE_GENWEB_IMAGE_FETCHVISION_ANALYSISCLEAR_CHATDELETE_CHATNEW_CHATARCHIVESHOW_HIDDENCONVERSATIONWEB_IMAGE_FETCH = user wants to SEE existing real photos/images of a person, place, or thing from the web.IMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
       }),
       signal: AbortSignal.timeout(2500)
@@ -6110,7 +6260,7 @@ async function handleSend() {
             .trim();
 
           if (plainText.length > 3000) plainText = plainText.substring(0, 3000) + '...';
-          urlContexts.push(`[Content from ${url}]:\n${plainText}`);
+          urlContexts.push(`[Content from ${url}]:${plainText}`);
         }
       } catch(e) {
         console.warn("URL Fetch Error", e);
@@ -6119,7 +6269,7 @@ async function handleSend() {
     document.getElementById('url-scan-typing')?.remove();
 
     if (urlContexts.length > 0) {
-      augmentedText = text + "\n\n[CONTEXT FROM SCANNED LINKS]\n" + urlContexts.join("\n\n");
+      augmentedText = text + "[CONTEXT FROM SCANNED LINKS]" + urlContexts.join("");
     }
   }
 
@@ -6485,7 +6635,7 @@ ${city ? `User's city: ${city}` : ''}
 VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
 IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
-ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_arcCtx ? '\n\n' + _arcCtx : ''}` ;
+ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_arcCtx ? '' + _arcCtx : ''}` ;
 
     // Build clean history — skip messages with empty/null text, enforce user/assistant alternation
     const rawMsgs = msgs().slice(-20);
@@ -6517,7 +6667,7 @@ ACCESS TIERS: All users get the full Autumn LEATR experience — never imply any
             // Send video as labeled frames — up to 8 frames
             const frameCount = item.videoFrames.length;
             const dur = item.duration ? item.duration.toFixed(1) + 's' : 'unknown duration';
-            _contextNote += '\n[VIDEO FILE: ' + item.fileName + ' — ' + dur + ', ' + item.width + 'x' + item.height +
+            _contextNote += '[VIDEO FILE: ' + item.fileName + ' — ' + dur + ', ' + item.width + 'x' + item.height +
               ', ' + frameCount + ' frames sampled below]';
             item.videoFrames.forEach(function(f) {
               _cb.push({type:'image', source:{type:'base64', media_type:'image/jpeg', data:f.base64}});
@@ -6525,15 +6675,15 @@ ACCESS TIERS: All users get the full Autumn LEATR experience — never imply any
           } else if (item.isDoc) {
             // Document: inject as text block
             const preview = item.docText ? item.docText.slice(0, 80000) : '[empty]';
-            _contextNote += '\n[DOCUMENT: ' + item.fileName + ' (' + (item.fileSize/1024).toFixed(1) + ' KB)]';
-            _cb.push({type:'text', text:'[File attached: ' + item.fileName + ']\n' + preview});
+            _contextNote += '[DOCUMENT: ' + item.fileName + ' (' + (item.fileSize/1024).toFixed(1) + ' KB)]';
+            _cb.push({type:'text', text:'[File attached: ' + item.fileName + ']' + preview});
           } else if (item.is3D) {
             // 3D Model context
-            var fileCtx = '3D Model Metadata: \n' +
-              'Filename: ' + item.fileName + '\n' +
-              'Format: ' + item.ext.toUpperCase() + '\n' +
+            var fileCtx = '3D Model Metadata: ' +
+              'Filename: ' + item.fileName + '' +
+              'Format: ' + item.ext.toUpperCase() + '' +
               'File Size: ' + (item.fileSize ? Math.round(item.fileSize/1024) + ' KB' : 'Unknown');
-            _cb.push({type:'text', text:'[3D File attached: ' + item.fileName + ']\n' + fileCtx});
+            _cb.push({type:'text', text:'[3D File attached: ' + item.fileName + ']' + fileCtx});
             _contextNote += ' [3D Model attached: ' + item.fileName + ']';
           } else if (item.base64 && item.mimeType) {
             // Regular image or FRAX
@@ -7886,7 +8036,7 @@ async function _speakKokoro(text, onEnd) {
     Voice.speaking = true; Voice.cancelled = false;
     var _mb = document.getElementById('mic-btn');
     if (_mb && Voice.active) _mb.style.boxShadow = '0 0 14px rgba(0,229,255,.6)';
-    var clean = text.replace(/<[^>]+>/g,'').replace(/\n{2,}/g,'. ').substring(0, 2000);
+    var clean = text.replace(/<[^>]+>/g,'').replace(/ {2,}/g,'. ').substring(0, 2000);
     // Generate audio — pipeline returns {audio: Float32Array, sampling_rate: number}
     var result = await pipe(clean, { speaker_id: 0, speed: Voice.speed || 1.0 });
     if (Voice.cancelled) { Voice.speaking = false; if(onEnd) onEnd(); return; }
@@ -7942,7 +8092,7 @@ function _speakWebSpeech(text, onEnd) {
   Voice.synth.cancel(); Voice.speaking = true; Voice.cancelled = false;
   var _mb = document.getElementById('mic-btn');
   if (_mb && Voice.active) _mb.style.boxShadow = '0 0 14px rgba(0,229,255,.6)';
-  const clean = text.replace(/<[^>]+>/g,'').replace(/\n{2,}/g,'. ').substring(0,2000);
+  const clean = text.replace(/<[^>]+>/g,'').replace(/ {2,}/g,'. ').substring(0,2000);
   const sentences = clean.match(/[^.!?]+[.!?]+/g)||[clean]; let i=0;
   function speakNext(){
     if(Voice.cancelled||i>=sentences.length){Voice.speaking=false;if(onEnd)onEnd();return;}
@@ -8578,7 +8728,7 @@ async function ideCommit() {
     _ideFileSHA=d.content.sha;
     ideSetStatus('saved','Committed · '+new Date().toLocaleTimeString());
     ideToast('◈ Committed to GitHub → templates/autumn-logic.js');
-    ideLog('commit', {message: msg, lines: code.split('\n').length});
+    ideLog('commit', {message: msg, lines: code.split('').length});
     if(document.getElementById('ide-commit-msg'))
       document.getElementById('ide-commit-msg').value='Update autumn-logic.js via IDE';
   } catch(e) {
@@ -8811,7 +8961,7 @@ ${currentLogic}
       newCode  = parsed.code   || '';
     } catch(e) {
       // Fallback: if Claude returned plain JS without JSON wrapper
-      newCode  = raw.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
+      newCode  = raw.replace(/^```[a-z]*?/,'').replace(/\n?```$/,'').trim();
       message  = 'Code updated. Review the editor and commit when ready.';
     }
 
@@ -8819,7 +8969,7 @@ ${currentLogic}
 
     // Load into editor
     if (_ideMonaco) { _ideMonaco.setValue(newCode); }
-    ideLog('claude_response', {message: message.substring(0,500), codeLines: newCode.split('\n').length});
+    ideLog('claude_response', {message: message.substring(0,500), codeLines: newCode.split('').length});
 
     // Auto-commit to GitHub immediately — no manual step needed
     ideSetStatus('working','Auto-committing to GitHub…');
@@ -8834,12 +8984,12 @@ ${currentLogic}
       const _ad=await _ar.json();_ideFileSHA=_ad.content?.sha;
       try{(new Function(newCode))();}catch(e){console.warn('[Autumn IDE hot-reload]',e);}
       ideSetStatus('saved','Committed & live · '+new Date().toLocaleTimeString());
-      ideLog('commit',{message:_ab.message,lines:newCode.split('\n').length});
-      ideChatAppend('claude', message+'\n\n◈ Committed to GitHub and hot-reloaded. Changes are active now.');
+      ideLog('commit',{message:_ab.message,lines:newCode.split('').length});
+      ideChatAppend('claude', message+'◈ Committed to GitHub and hot-reloaded. Changes are active now.');
       ideToast('◈ Committed & live');
     } catch(_ce) {
       ideSetStatus('dirty','Generated — auto-commit failed: '+_ce.message);
-      ideChatAppend('claude', message+'\n\n⚠ Generated but auto-commit failed: '+_ce.message+'. Use ▲ COMMIT manually.');
+      ideChatAppend('claude', message+'⚠ Generated but auto-commit failed: '+_ce.message+'. Use ▲ COMMIT manually.');
       ideToast('Auto-commit failed: '+_ce.message, true);
     }
 
@@ -8970,7 +9120,7 @@ Return the complete updated autumn-logic.js file only.`;
     const data=await r.json();
     let newCode=data.content?.[0]?.text||'';
     if(!newCode) throw new Error('Empty Claude response');
-    newCode=newCode.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
+    newCode=newCode.replace(/^```[a-z]*?/,'').replace(/\n?```$/,'').trim();
 
     // Commit to GitHub
     const body={message:`Autumn IDE: ${userRequest.substring(0,70)}`,content:btoa(unescape(encodeURIComponent(newCode)))};
@@ -9233,7 +9383,7 @@ const _ASH_OUTPUT_URL = _ASH_DEFS_BASE + 'outputdefinitions.json';
 // ── Ash IDE State ───────────────────────────────────────────────────────
 const _ashState = {
   tab: 'language',          // 'language' | 'maze' | 'crypto'
-  ashCode: `// Ash language — DART Meadow / Radical Deepscale LLC\n// Keywords: with, var, irin, irout, thenplace\n\n(CoreParameterNode):-:{\n    with\n        var (ti) //Tool (Sets)\n    {\n        irin ("Initial Data Set")\n        thenplace\n        irout ("Result: placeto (s)")\n    }\n}|';'|\n\n// Maze command example:\n// maze_generate(width: 8, height: 8)\n`,
+  ashCode: `// Ash language — DART Meadow / Radical Deepscale LLC// Keywords: with, var, irin, irout, thenplace(CoreParameterNode):-:{    with        var (ti) //Tool (Sets)    {        irin ("Initial Data Set")        thenplace        irout ("Result: placeto (s)")    }}|';'|// Maze command example:// maze_generate(width: 8, height: 8)`,
   mazeMode: 'cubic',
   mazeW: 10, mazeH: 10, mazeD: 10,
   mazeCs: 8,
@@ -10118,7 +10268,7 @@ window.ashMazeExportPNG = function() {
 window.ashSendToChat = function() {
   const code = document.getElementById('ash-editor')?.value || _ashState.ashCode;
   const inp = document.getElementById('chat-input');
-  if (inp) { inp.value = '▸ash run: ' + code.split('\n')[0].slice(0,60); }
+  if (inp) { inp.value = '▸ash run: ' + code.split('')[0].slice(0,60); }
   document.getElementById('tools-overlay')?.classList.remove('open');
 };
 
@@ -10369,6 +10519,36 @@ ashLoadDefs();
     <button onclick="acceptDataPolicy()" style="background:#00e5ff;color:#000;border:none;padding:10px 20px;margin-top:15px;cursor:pointer;border-radius:6px;font-weight:bold;">I CONSENT & AGREE</button>
   </div>
 </div>
-\n</body>
+
+<script>
+window.toggleTheme = function() {
+  const isNight = document.body.classList.toggle('autumn-night');
+  localStorage.setItem('_aut_theme', isNight ? 'night' : 'day');
+  const vid = document.getElementById('backdrop-video');
+  const btn = document.getElementById('theme-toggle-btn');
+  if (isNight) {
+    if (vid) { vid.src = 'assets/autumnnight.mp4'; vid.play(); }
+    if (btn) btn.textContent = '☀️ DAY';
+  } else {
+    if (vid) { vid.src = 'assets/autumn.mp4'; vid.play(); }
+    if (btn) btn.textContent = '🌙 NIGHT';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const isNight = localStorage.getItem('_aut_theme') === 'night';
+  const vid = document.getElementById('backdrop-video');
+  const btn = document.getElementById('theme-toggle-btn');
+  if (isNight) {
+    document.body.classList.add('autumn-night');
+    if (vid) vid.src = 'assets/autumnnight.mp4';
+    if (btn) btn.textContent = '☀️ DAY';
+  } else {
+    if (btn) btn.textContent = '🌙 NIGHT';
+  }
+});
+</script>
+
+</body>
 </html>
 
