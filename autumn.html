@@ -9004,8 +9004,8 @@ function openKeysModal() {
   modal.classList.add('open');
   _refreshKeysDots();
   // Pre-fill masked placeholder if keys already set
-  var ak = _getAK();
-  var pat = getLeatrAshPAT();
+  var ak = _keysReadAK();
+  var pat = _keysReadPAT();
   var akIn = document.getElementById('keys-ak-input');
   var patIn = document.getElementById('keys-pat-input');
   if (akIn) { akIn.value = ''; akIn.placeholder = ak ? '••••••••••••  (active — enter new to replace)' : 'sk-ant-api03-…'; }
@@ -9023,40 +9023,68 @@ function closeKeysModal() {
   if (modal) modal.classList.remove('open');
 }
 
-function _refreshKeysDots() {
-  var hasAK = !!_getAK();
-  var hasPAT = !!getLeatrAshPAT();
+// ── Direct storage helpers (bypass any function chain issues) ──
+function _keysReadAK()  { try { return window._sessionAK || sessionStorage.getItem('_aut_ide_ak_session') || localStorage.getItem('_aut_ide_ak') || ''; } catch(e){ return ''; } }
+function _keysReadPAT() { try { return sessionStorage.getItem('_aut_ide_pat') || localStorage.getItem('_aut_pat_persist') || ''; } catch(e){ return ''; } }
 
-  var akDot = document.getElementById('ak-dot');
+function _refreshKeysDots() {
+  var hasAK  = !!_keysReadAK();
+  var hasPAT = !!_keysReadPAT();
+
+  // Dot elements
+  var akDot  = document.getElementById('ak-dot');
   var patDot = document.getElementById('pat-dot');
-  var akTxt = document.getElementById('ak-status-txt');
+  var akTxt  = document.getElementById('ak-status-txt');
   var patTxt = document.getElementById('pat-status-txt');
 
-  if (akDot) { akDot.className = 'keys-dot ' + (hasAK ? 'active' : 'inactive'); }
-  if (patDot) { patDot.className = 'keys-dot ' + (hasPAT ? 'active' : 'inactive'); patDot.style.background = hasPAT ? 'rgba(255,179,71,1)' : ''; patDot.style.boxShadow = hasPAT ? '0 0 8px rgba(255,179,71,.9)' : ''; }
-  if (akTxt) { akTxt.textContent = hasAK ? '● ACTIVE' : 'NOT SET'; akTxt.className = 'keys-status-txt ' + (hasAK ? 'on' : 'off'); }
-  if (patTxt) { patTxt.textContent = hasPAT ? '● ACTIVE' : 'NOT SET'; patTxt.className = 'keys-status-txt ' + (hasPAT ? 'on' : 'off'); patTxt.style.color = hasPAT ? 'rgba(255,179,71,.8)' : ''; }
+  // AK dot — cyan when active
+  if (akDot)  { akDot.style.cssText  = hasAK  ? 'background:#00ffcc;box-shadow:0 0 10px #00ffcc;width:10px;height:10px;border-radius:50%;flex-shrink:0' : 'background:#334;width:8px;height:8px;border-radius:50%;flex-shrink:0'; }
+  // PAT dot — amber when active
+  if (patDot) { patDot.style.cssText = hasPAT ? 'background:rgba(255,179,71,1);box-shadow:0 0 10px rgba(255,179,71,.9);width:10px;height:10px;border-radius:50%;flex-shrink:0' : 'background:#334;width:8px;height:8px;border-radius:50%;flex-shrink:0'; }
 
-  // Also update header key button
+  if (akTxt) {
+    akTxt.style.cssText = hasAK ? 'color:#00ffcc;font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto' : 'color:rgba(255,255,255,.2);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto';
+    akTxt.textContent = hasAK ? '● ACTIVE' : 'NOT SET';
+  }
+  if (patTxt) {
+    patTxt.style.cssText = hasPAT ? 'color:rgba(255,179,71,.9);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto' : 'color:rgba(255,255,255,.2);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto';
+    patTxt.textContent = hasPAT ? '● ACTIVE' : 'NOT SET';
+  }
+
+  // Section border glow when active
+  var akSection  = akDot  && akDot.closest  ? akDot.closest('.keys-section')  : null;
+  var patSection = patDot && patDot.closest ? patDot.closest('.keys-section') : null;
+  if (akSection)  akSection.style.borderColor  = hasAK  ? 'rgba(0,255,204,.35)'     : 'rgba(255,255,255,.06)';
+  if (patSection) patSection.style.borderColor = hasPAT ? 'rgba(255,179,71,.35)'    : 'rgba(255,255,255,.06)';
+
+  // Header key button
   _updateKeyBtn();
 }
 
+function _keysFlash(sectionId, color) {
+  // Brief flash animation on the section to confirm save
+  var sec = document.getElementById(sectionId);
+  if (!sec) return;
+  sec.style.transition = 'background .15s';
+  sec.style.background = color;
+  setTimeout(function(){ sec.style.background = 'rgba(0,0,0,.25)'; }, 600);
+}
+
 function saveKeysAK() {
-  var v = (document.getElementById('keys-ak-input')?.value || '').trim();
+  var v = (document.getElementById('keys-ak-input') ? document.getElementById('keys-ak-input').value : '').trim();
   if (!v) { ideToast('Enter your Anthropic API key first.', true); return; }
-  var remember = document.getElementById('ak-remember')?.checked !== false;
-  if (remember) {
-    _setAK(v); // already uses localStorage
-  } else {
-    // Session only — store in sessionStorage, remove from localStorage
-    try { sessionStorage.setItem('_aut_ide_ak_session', v); localStorage.removeItem('_aut_ide_ak'); } catch(e) {}
-    // Override _getAK for this session
-    window._sessionAK = v;
-  }
+  var rememberEl = document.getElementById('ak-remember');
+  var remember = rememberEl ? rememberEl.checked : true;
+  try {
+    localStorage.setItem('_aut_ide_ak', v);  // always localStorage for AK
+    if (!remember) { localStorage.removeItem('_aut_ide_ak'); sessionStorage.setItem('_aut_ide_ak_session', v); window._sessionAK = v; }
+    else { window._sessionAK = v; }  // also cache in memory for instant reads
+  } catch(e) { window._sessionAK = v; }
   document.getElementById('keys-ak-input').value = '';
+  document.getElementById('keys-ak-input').placeholder = '••••••••  (active — enter new to replace)';
   _refreshKeysDots();
-  ideToast('◈ Anthropic key activated' + (remember ? ' — remembered on this device.' : ' for this session.'));
-  // Trigger initLeatrAshSync now that we may have a key
+  _keysFlash('ak-section', 'rgba(0,255,204,.12)');
+  ideToast('◈ Anthropic key active' + (remember ? ' — saved to device.' : ' this session only.'));
   if (typeof initLeatrAshSync === 'function') initLeatrAshSync();
 }
 
@@ -9069,24 +9097,27 @@ function clearKeysAK() {
 }
 
 function saveKeysPAT() {
-  var v = (document.getElementById('keys-pat-input')?.value || '').trim();
+  var v = (document.getElementById('keys-pat-input') ? document.getElementById('keys-pat-input').value : '').trim();
   if (!v) { ideToast('Enter your GitHub PAT first.', true); return; }
-  var remember = document.getElementById('pat-remember')?.checked !== false;
-  if (remember) {
-    _setPATPersist(v);
-  } else {
-    _setPATSession(v);
-  }
+  var rememberEl = document.getElementById('pat-remember');
+  var remember = rememberEl ? rememberEl.checked : true;
+  try {
+    // Always write to sessionStorage immediately so getLeatrAshPAT() returns it right away
+    sessionStorage.setItem('_aut_ide_pat', v);
+    if (remember) localStorage.setItem('_aut_pat_persist', v);
+    else localStorage.removeItem('_aut_pat_persist');
+  } catch(e) {}
   document.getElementById('keys-pat-input').value = '';
+  document.getElementById('keys-pat-input').placeholder = '••••••••  (active — enter new to replace)';
   _refreshKeysDots();
-  ideToast('◈ GitHub token connected' + (remember ? ' — remembered on this device.' : ' for this session.'));
-  // Trigger leatr-ash sync immediately
+  _keysFlash('pat-section', 'rgba(255,179,71,.1)');
+  ideToast('◈ GitHub token connected' + (remember ? ' — saved to device.' : ' this session only.'));
   if (typeof initLeatrAshSync === 'function') initLeatrAshSync();
-  if (typeof _initAshNodeLayer === 'function') setTimeout(_initAshNodeLayer, 500);
+  if (typeof _initAshNodeLayer === 'function') setTimeout(_initAshNodeLayer, 600);
 }
 
 function clearKeysPAT() {
-  _clearPAT();
+  try { sessionStorage.removeItem('_aut_ide_pat'); localStorage.removeItem('_aut_pat_persist'); } catch(e) {}
   document.getElementById('keys-pat-input').value = '';
   document.getElementById('keys-pat-input').placeholder = 'ghp_xxxxxxxxxxxxxxxx';
   _refreshKeysDots();
@@ -9098,15 +9129,6 @@ document.addEventListener('click', function(e) {
   var modal = document.getElementById('keys-modal');
   if (modal && modal.classList.contains('open') && e.target === modal) closeKeysModal();
 });
-
-// Override _getAK to also check sessionStorage fallback for session-only mode
-var _origGetAK = null;
-(function(){
-  var _base = window._getAK || function(){ try{ return localStorage.getItem('_aut_ide_ak')||''; }catch(e){ return ''; } };
-  window._getAK = function() {
-    return window._sessionAK || (typeof _base==='function' ? _base() : '');
-  };
-})();
 
 // ── _updateKeyBtn: show combined status ──────────────────────
 // (redefine to reflect both keys)
@@ -9152,7 +9174,7 @@ function closeIDEPATModal() { document.getElementById('ide-pat-modal').classList
 function ideClearPAT() { _clearPAT(); ideToast('GitHub token cleared.'); _updateKeyBtn(); }
 
 // ── Anthropic API key (sessionStorage, cleared on tab close) ──
-function _getAK() { try { return localStorage.getItem('_aut_ide_ak')||''; } catch(e){ return ''; } }
+function _getAK() { try { return window._sessionAK || sessionStorage.getItem('_aut_ide_ak_session') || localStorage.getItem('_aut_ide_ak') || ''; } catch(e){ return ''; } }
 function _updateKeyBtn() {
   var btn = document.getElementById('hdr-key-btn');
   if (!btn) return;
@@ -9901,7 +9923,7 @@ loadAutumnLogic();
     <div id="keys-body">
 
       <!-- ANTHROPIC API KEY -->
-      <div class="keys-section">
+      <div class="keys-section" id="ak-section">
         <div class="keys-section-header">
           <div class="keys-dot inactive" id="ak-dot"></div>
           <span class="keys-label">ANTHROPIC API KEY</span>
@@ -9933,7 +9955,7 @@ loadAutumnLogic();
       </div>
 
       <!-- GITHUB PAT -->
-      <div class="keys-section">
+      <div class="keys-section" id="pat-section">
         <div class="keys-section-header">
           <div class="keys-dot inactive" id="pat-dot"></div>
           <span class="keys-label" style="color:rgba(255,179,71,.9)">GITHUB PERSONAL ACCESS TOKEN</span>
