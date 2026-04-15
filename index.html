@@ -6295,6 +6295,8 @@ function classifyIntentLocal(text, hasPendingImages) {
   if (/\b(show|restore|unhide|reveal)\b.*\b(messages|history|hidden)\b/.test(lc)) return 'SHOW_HIDDEN';
   // Vision when image attached
   if (hasPendingImages && /\b(identify|who|what|describe|analyze|examine|look at|find|read|tell me about|what is|who is)\b/.test(lc)) return 'VISION_ANALYSIS';
+  // If image is attached and no explicit generate intent → always analyze it, never web-fetch
+  if (hasPendingImages) return 'VISION_ANALYSIS';
   // Web image fetch — "show me photos/pictures of X" about real people/topics → web fetch NOT generator
   var _webImgFetch = /\b(show me|find|search|get|pull up|look up)\b.{0,30}\b(photos?|pictures?|images?|pics?)\b/i.test(text) ||
     /\b(photos?|pictures?|images?|pics?)\b.{0,20}\b(of|for)\b/i.test(text);
@@ -6573,6 +6575,25 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
+  // ── Active session count query ───────────────────────────────────────────
+  const _sessionCountTrigger = /\b(how many|count|number of|active)\b.{0,30}\b(users?|sessions?|people|visitors?|connections?)\b/i.test(augmentedText) ||
+    /\b(who|anyone|someone|others?)\b.{0,25}\b(online|connected|here|active|on|using)\b/i.test(augmentedText) ||
+    /\b(active\s+users?|active\s+sessions?|current\s+users?|live\s+users?)\b/i.test(augmentedText);
+  if(_sessionCountTrigger && !_pendingImgs.length) {
+    var _sCount = (typeof window._getActiveSessionCount==='function') ? window._getActiveSessionCount() : 1;
+    var _remoteCount = Math.max(0, _sCount - 1);
+    var _scReply = _remoteCount === 0
+      ? 'Right now it\'s just your session — ' + _sCount + ' node active in the BRPN scene. No other users connected at this moment.'
+      : 'There are **' + _sCount + ' active sessions** in the LEATR neural network right now — your node plus ' + _remoteCount + ' other' + (_remoteCount>1?'s':'') + ' connected from elsewhere. Each is rendering as a wireframe geodesic cluster in the 3JS scene.';
+    msgs().push({role:'autumn', text:_scReply, ts:new Date().toISOString(),
+      grammarMeta:'Session Count · '+_sCount+' active', brpnMeta:'', contextType:'SESSION_COUNT',
+      media:{videos:[],images:[],links:[],sources:[]}});
+    S.isProcessing=false;
+    if(typeof setOrbThinking==='function') setOrbThinking(false);
+    saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+    return;
+  }
+
   // ── Memory Analysis → Claude API bridge ─────────────────────────────────
   const _memTrigger = (typeof MEMORY_ANALYSIS_TRIGGERS!=='undefined') &&
     MEMORY_ANALYSIS_TRIGGERS.some(function(t){ return augmentedText.toLowerCase().includes(t); });
@@ -6631,9 +6652,35 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
       }catch(e){_urlSummary='';}
     }
     var _urlReply = _urlSummary || (_scanResult.ok ? 'Page content retrieved ('+_scanContext.length+' chars). No API key set — add one to get a full summary.\n\nPreview:\n'+_scanContext.slice(0,600)+'…' : _scanContext);
+
+    // Extract og:image and title from HTML for visual preview card
+    var _ogImage = '', _ogTitle = '', _ogDesc = '';
+    if(_scanResult.ok && _scanResult.text) {
+      var _htm = _scanResult.text;
+      var _ogImgM = _htm.match(/property=["\']og:image["\'][^>]*content=["\']([^"\']+)["\']|content=["\']([^"\']+)["\'][^>]*property=["\']og:image["\']/i);
+      if(_ogImgM) _ogImage = (_ogImgM[1]||_ogImgM[2]||'').trim();
+      var _ogTitleM = _htm.match(/property=["\']og:title["\'][^>]*content=["\']([^"\']+)["\']|content=["\']([^"\']+)["\'][^>]*property=["\']og:title["\']/i);
+      if(!_ogTitleM) _ogTitleM = _htm.match(/<title[^>]*>([^<]{1,120})<\/title>/i);
+      if(_ogTitleM) _ogTitle = (_ogTitleM[1]||_ogTitleM[2]||'').trim();
+      var _ogDescM = _htm.match(/property=["\']og:description["\'][^>]*content=["\']([^"\']+)["\']|content=["\']([^"\']+)["\'][^>]*property=["\']og:description["\']/i);
+      if(!_ogDescM) _ogDescM = _htm.match(/name=["\']description["\'][^>]*content=["\']([^"\']+)["\']|content=["\']([^"\']+)["\'][^>]*name=["\']description["\']/i);
+      if(_ogDescM) _ogDesc = (_ogDescM[1]||_ogDescM[2]||'').trim().slice(0,200);
+    }
+    // Build visual preview card HTML
+    var _domain = _scanUrl.replace(/https?:\/\//,'').split('/')[0];
+    var _thumbUrl = _ogImage || ('https://image.thum.io/get/width/600/crop/350/noanimate/' + encodeURIComponent(_scanUrl));
+    var _previewHtml = '<div style="background:rgba(0,10,20,.7);border:1px solid rgba(0,229,255,.2);border-radius:8px;overflow:hidden;max-width:480px;margin:6px 0">'
+      + '<img src="'+_thumbUrl+'" style="width:100%;max-height:220px;object-fit:cover;display:block" onerror="this.style.display=\'none\'" loading="lazy">'
+      + '<div style="padding:10px 12px">'
+      + (_ogTitle ? '<div style="font-family:\'Orbitron\',sans-serif;font-size:.65rem;color:#00e5ff;margin-bottom:4px;letter-spacing:.5px">'+_ogTitle.replace(/</g,'&lt;').slice(0,80)+'</div>' : '')
+      + (_ogDesc  ? '<div style="font-size:.7rem;color:rgba(255,255,255,.65);line-height:1.5;margin-bottom:4px">'+_ogDesc.replace(/</g,'&lt;')+'</div>' : '')
+      + '<div style="font-size:.6rem;color:rgba(0,229,255,.45);font-family:\'Orbitron\',sans-serif">'+_domain+'</div>'
+      + '</div></div>';
+
     var _urlIdx=msgs().findIndex(function(m){return m.id===_scanMsgId;});
     if(_urlIdx>=0) msgs()[_urlIdx]={role:'autumn',text:_urlReply,ts:new Date().toISOString(),id:_scanMsgId,
-      grammarMeta:'URL · '+_scanUrl.slice(0,60),brpnMeta:'',contextType:'URL_SCAN',imageGenCard:null};
+      grammarMeta:'URL · '+_scanUrl.slice(0,60),brpnMeta:'',contextType:'URL_SCAN',
+      imageGenCard:_previewHtml};
     saveState();renderMessages();updateFooter();autoReadLastResponse();
     return;
   }
@@ -8292,55 +8339,91 @@ function setOrbThinking(active){
 }
 
 // ============================================================
-//  LEATR-ASH MULTI-USER NODE LAYER
-//  Reads active UIDs from ashtree/master_memory.json
-//  Renders up to 1200 buoyancy nodes in the BRPN scene
-//  Each node = one active user session
-//  Animated signal spines connect related patterns
+//  LEATR-ASH MULTI-USER NODE LAYER  v2
+//  Each remote session renders as a full wireframe geodesic
+//  shell cluster (3 concentric icosahedrons, matching the
+//  local BRPN shells) — scaled to 0.28× and positioned in
+//  a sphere surrounding the local user's shells.
+//  Local session = the existing central BRPN shells (no dupe).
 // ============================================================
 var _ashNodes = {
-  meshes: [],        // {mesh, uid, pos, vel, color, lastSeen}
-  lineMeshes: [],    // active connection lines
-  MAX_NODES: 1200,
-  POLL_INTERVAL: 15000,
-  _polling: false,
-  _instancedMesh: null,
+  _sessionGroups: {},   // sid → { group, shells, node, basePos }
   _lineGroup: null,
   _localUid: null,
   _uids: [],
-  _lastPoll: 0
+  POLL_INTERVAL: 15000,
+  MAX_REMOTE: 80
 };
 
+// Expose active session count globally so Autumn can answer "how many users?"
+window._getActiveSessionCount = function() { return _ashNodes._uids ? _ashNodes._uids.length : 1; };
+
 function _uidHash(uid) {
-  // Deterministic float[0,1] from uid string
   var h = 0;
   for(var i=0;i<uid.length;i++) h = (h*31 + uid.charCodeAt(i)) & 0x7fffffff;
   return h / 0x7fffffff;
 }
 
+// Derive HSL-based shell colors from uid hash so each user has a unique tint
+function _uidShellColors(uid) {
+  var h = _uidHash(uid);
+  var hue = Math.floor(h * 360);
+  // Three shells: primary hue, +120°, +240°
+  return [
+    new THREE.Color().setHSL(hue/360, 0.9, 0.65),
+    new THREE.Color().setHSL(((hue+120)%360)/360, 0.85, 0.6),
+    new THREE.Color().setHSL(((hue+240)%360)/360, 0.8, 0.55)
+  ];
+}
+
+function _nodeBasePos(uid) {
+  var h  = _uidHash(uid);
+  var h2 = _uidHash(uid+'y');
+  var h3 = _uidHash(uid+'z');
+  var theta = h  * Math.PI * 2;
+  var phi   = Math.acos(2*h2 - 1);
+  var r     = 3.2 + h3 * 1.6;   // orbit outside local shells (radii 1.9/1.4/0.9)
+  return {
+    x: r * Math.sin(phi) * Math.cos(theta),
+    y: r * Math.sin(phi) * Math.sin(theta),
+    z: r * Math.cos(phi),
+    r: r, theta: theta, phi: phi, h: h, h3: h3
+  };
+}
+
+function _makeSessionGroup(node) {
+  var group = new THREE.Group();
+  var colors = _uidShellColors(node.uid);
+  // Three concentric wireframe icosahedron shells (scale = 0.28× local)
+  var radii  = [1.9 * 0.28, 1.4 * 0.28, 0.9 * 0.28];
+  var shells = [];
+  radii.forEach(function(r, i) {
+    var geo  = new THREE.IcosahedronGeometry(r, 1);
+    var mat  = new THREE.MeshBasicMaterial({
+      color: colors[i], wireframe: true, transparent: true,
+      opacity: 0.22 + i * 0.06
+    });
+    var mesh = new THREE.Mesh(geo, mat);
+    group.add(mesh);
+    shells.push(mesh);
+  });
+  // Tiny glowing core sphere
+  var cg = new THREE.SphereGeometry(0.032, 6, 6);
+  var cm = new THREE.MeshBasicMaterial({ color: colors[0], transparent: true, opacity: 0.55, wireframe: true });
+  var core = new THREE.Mesh(cg, cm);
+  group.add(core);
+  shells.push(core);
+  return { group: group, shells: shells };
+}
+
 function _initAshNodeLayer() {
   if(!scene || typeof THREE==='undefined') return;
-  // Use per-tab _aut_sid so each tab is treated as a distinct session node
   _ashNodes._localUid = (typeof _aut_sid!=='undefined') ? _aut_sid : (typeof _aut_uid!=='undefined') ? _aut_uid : 'local';
 
-  // InstancedMesh for performance — up to 1200 nodes
-  var nodeGeo = new THREE.SphereGeometry(0.022, 5, 5);
-  var nodeMat = new THREE.MeshBasicMaterial({color:0x00ffcc, transparent:true, opacity:0.75});
-  _ashNodes._instancedMesh = new THREE.InstancedMesh(nodeGeo, nodeMat, _ashNodes.MAX_NODES);
-  _ashNodes._instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  // Hide all instances initially
-  var _dummy = new THREE.Object3D();
-  _dummy.scale.set(0,0,0);
-  _dummy.updateMatrix();
-  for(var i=0;i<_ashNodes.MAX_NODES;i++) _ashNodes._instancedMesh.setMatrixAt(i, _dummy.matrix);
-  _ashNodes._instancedMesh.instanceMatrix.needsUpdate=true;
-  scene.add(_ashNodes._instancedMesh);
-
-  // Line group for connections
+  // Line group for inter-session connections
   _ashNodes._lineGroup = new THREE.Group();
   scene.add(_ashNodes._lineGroup);
 
-  // Start polling
   _pollAshNodes();
   setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
 }
@@ -8348,172 +8431,167 @@ function _initAshNodeLayer() {
 async function _pollAshNodes() {
   var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
 
-  // Write/refresh this tab's own session file (keyed by _aut_sid, not _aut_uid)
+  // Heartbeat: write/refresh this tab's own session file
+  writeLeatrAshMemory('ashtree/sessions/' + _ashNodes._localUid + '.json', {
+    uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence'
+  });
+
+  var nodes = [{uid: _ashNodes._localUid, ts: Date.now(), isLocal: true}];
+
   if(pat) {
-    writeLeatrAshMemory('ashtree/sessions/' + _ashNodes._localUid + '.json', {
-      uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence'
-    });
-  }
-
-  if(!pat) {
-    _renderAshNodes([{uid: _ashNodes._localUid, ts: Date.now(), isLocal:true}]);
-    return;
-  }
-
-  try {
-    // List ashtree/sessions/ directory — one file per user, no race conditions
-    var r = await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
-      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
-      signal: AbortSignal.timeout(8000)
-    });
-
-    var nodes = [{uid: _ashNodes._localUid, ts: Date.now(), isLocal: true}];
-
-    if(r.ok) {
-      var files = await r.json();
-      if(Array.isArray(files)) {
-        // Each file is one user session — fetch up to 40 in parallel for speed
-        var STALE_MS = 6 * 60 * 1000; // 6 minutes = stale (tabs heartbeat every 3min)
-        var recentFiles = files
-          .filter(function(f){ return f.name.endsWith('.json') && f.name !== _ashNodes._localUid+'.json'; })
-          .slice(0, 60); // cap fetch to 60 files
-
-        var fetches = recentFiles.map(function(f) {
-          return fetch(f.download_url, {signal: AbortSignal.timeout(4000)})
-            .then(function(res){ return res.ok ? res.json() : null; })
-            .catch(function(){ return null; });
-        });
-
-        var results = await Promise.allSettled(fetches);
-        results.forEach(function(res) {
-          if(res.status==='fulfilled' && res.value && (res.value.sid || res.value.uid)) {
-            var age = Date.now() - (res.value.ts||0);
-            if(age < STALE_MS) { // only show sessions active in last 12 min
-              // Use sid as the unique key — ensures multiple tabs from same device each get their own node
-              var nodeId = res.value.sid || res.value.uid;
-              nodes.push({ uid: nodeId, deviceUid: res.value.uid||nodeId, ts: res.value.ts||Date.now(), isLocal: false });
+    try {
+      var r = await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
+        headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+        signal: AbortSignal.timeout(8000)
+      });
+      if(r.ok) {
+        var files = await r.json();
+        if(Array.isArray(files)) {
+          var STALE_MS = 6 * 60 * 1000;
+          var recentFiles = files
+            .filter(function(f){ return f.name.endsWith('.json') && f.name !== _ashNodes._localUid+'.json'; })
+            .slice(0, _ashNodes.MAX_REMOTE);
+          var fetches = recentFiles.map(function(f) {
+            return fetch(f.download_url, {signal: AbortSignal.timeout(4000)})
+              .then(function(res){ return res.ok ? res.json() : null; })
+              .catch(function(){ return null; });
+          });
+          var results = await Promise.allSettled(fetches);
+          results.forEach(function(res) {
+            if(res.status==='fulfilled' && res.value && (res.value.sid || res.value.uid)) {
+              var age = Date.now() - (res.value.ts||0);
+              if(age < STALE_MS) {
+                var nodeId = res.value.sid || res.value.uid;
+                nodes.push({ uid: nodeId, deviceUid: res.value.uid||nodeId, ts: res.value.ts||Date.now(), isLocal: false });
+              }
             }
-          }
-        });
+          });
+        }
       }
-    }
-
-    // Update multi-user bar
-    var bar = document.getElementById('multi-user-bar');
-    var lbl = document.getElementById('multi-user-label');
-    if(bar) {
-      if(nodes.length > 1) {
-        bar.classList.add('show');
-        if(lbl) lbl.textContent = nodes.length + ' ACTIVE SESSION' + (nodes.length>1?'S':'') + ' · LEATR NEURAL NETWORK';
-      } else {
-        bar.classList.remove('show');
-      }
-    }
-
-    _renderAshNodes(nodes.slice(0, _ashNodes.MAX_NODES));
-
-  } catch(e) {
-    _renderAshNodes([{uid:_ashNodes._localUid,ts:Date.now(),isLocal:true}]);
+    } catch(e) { /* keep local node only */ }
   }
+
+  // Update multi-user bar — always visible
+  var bar = document.getElementById('multi-user-bar');
+  var lbl = document.getElementById('multi-user-label');
+  if(bar) {
+    bar.classList.add('show');
+    var remoteCount = nodes.filter(function(n){return !n.isLocal;}).length;
+    if(lbl) {
+      if(remoteCount === 0) {
+        lbl.textContent = '1 ACTIVE SESSION · LEATR NEURAL NETWORK';
+      } else {
+        lbl.textContent = nodes.length + ' ACTIVE SESSIONS · LEATR NEURAL NETWORK';
+      }
+    }
+  }
+
+  _renderAshNodes(nodes);
 }
 
 function _renderAshNodes(nodes) {
-  if(!_ashNodes._instancedMesh || typeof THREE==='undefined') return;
-  var dummy = new THREE.Object3D();
-  var color = new THREE.Color();
-  var now = Date.now();
+  if(typeof THREE==='undefined' || !scene) return;
 
-  // Hide all first
-  dummy.scale.set(0,0,0); dummy.updateMatrix();
-  for(var i=0;i<_ashNodes.MAX_NODES;i++) _ashNodes._instancedMesh.setMatrixAt(i, dummy.matrix);
+  var activeUids = {};
+  nodes.forEach(function(n){ activeUids[n.uid] = n; });
 
-  // Render active nodes
-  nodes.forEach(function(node, i) {
-    if(i >= _ashNodes.MAX_NODES) return;
-    var h = _uidHash(node.uid);
-    var h2 = _uidHash(node.uid + 'y');
-    var h3 = _uidHash(node.uid + 'z');
-    // Spread nodes in a sphere of radius ~2.5 (outside the BRPN shells)
-    var theta = h * Math.PI * 2;
-    var phi = Math.acos(2*h2 - 1);
-    var r = 2.2 + h3 * 1.4;
-    var x = r * Math.sin(phi) * Math.cos(theta);
-    var y = r * Math.sin(phi) * Math.sin(theta);
-    var z = r * Math.cos(phi);
-    // Local user at center-ish
-    if(node.isLocal) { x=0; y=0; z=0; r=0; }
-    dummy.position.set(x, y, z);
-    // Pulse size based on recency
-    var age = (now - (node.ts||now)) / 60000; // minutes old
-    var s = node.isLocal ? 0.06 : Math.max(0.02, 0.045 * Math.exp(-age * 0.1));
-    dummy.scale.set(s, s, s);
-    dummy.updateMatrix();
-    _ashNodes._instancedMesh.setMatrixAt(i, dummy.matrix);
-    // Color: local=cyan, recent=violet, old=dim blue
-    if(node.isLocal) color.setHex(0x00ffcc);
-    else if(age < 5) color.setHex(0xa78bfa);
-    else color.setHex(0x334466);
-    _ashNodes._instancedMesh.setColorAt(i, color);
+  // Remove groups for sessions that have left
+  Object.keys(_ashNodes._sessionGroups).forEach(function(uid) {
+    if(!activeUids[uid]) {
+      scene.remove(_ashNodes._sessionGroups[uid].group);
+      // Dispose geometries/materials
+      _ashNodes._sessionGroups[uid].shells.forEach(function(m) {
+        if(m.geometry) m.geometry.dispose();
+        if(m.material) m.material.dispose();
+      });
+      delete _ashNodes._sessionGroups[uid];
+    }
   });
-  _ashNodes._instancedMesh.instanceMatrix.needsUpdate = true;
-  if(_ashNodes._instancedMesh.instanceColor) _ashNodes._instancedMesh.instanceColor.needsUpdate = true;
 
-  // Draw connection lines between nearby nodes (up to 60 lines)
-  _ashNodes._lineGroup.clear();
+  // Add or update groups for active remote sessions
+  nodes.forEach(function(node) {
+    if(node.isLocal) return; // local user = existing central BRPN shells
+
+    if(!_ashNodes._sessionGroups[node.uid]) {
+      // Create new wireframe shell cluster
+      var built = _makeSessionGroup(node);
+      var bp = _nodeBasePos(node.uid);
+      built.group.position.set(bp.x, bp.y, bp.z);
+      built.basePos = bp;
+      built.node = node;
+      scene.add(built.group);
+      _ashNodes._sessionGroups[node.uid] = built;
+    } else {
+      // Update timestamp reference
+      _ashNodes._sessionGroups[node.uid].node = node;
+    }
+  });
+
+  // Connection lines between session clusters (up to 40 lines)
+  if(_ashNodes._lineGroup) _ashNodes._lineGroup.clear();
+  var uids = Object.keys(_ashNodes._sessionGroups);
   var lineCount = 0;
-  for(var a=0; a<Math.min(nodes.length,50) && lineCount<60; a++) {
-    var ha = _uidHash(nodes[a].uid); var ha2 = _uidHash(nodes[a].uid+'y'); var ha3 = _uidHash(nodes[a].uid+'z');
-    var phiA = Math.acos(2*ha2-1); var thetaA = ha*Math.PI*2; var rA = 2.2+ha3*1.4;
-    var ax = nodes[a].isLocal?0:rA*Math.sin(phiA)*Math.cos(thetaA);
-    var ay = nodes[a].isLocal?0:rA*Math.sin(phiA)*Math.sin(thetaA);
-    var az = nodes[a].isLocal?0:rA*Math.cos(phiA);
-    for(var b=a+1; b<Math.min(nodes.length,50) && lineCount<60; b++) {
-      var hb = _uidHash(nodes[b].uid); var hb2 = _uidHash(nodes[b].uid+'y'); var hb3 = _uidHash(nodes[b].uid+'z');
-      var phiB = Math.acos(2*hb2-1); var thetaB = hb*Math.PI*2; var rB = 2.2+hb3*1.4;
-      var bx = nodes[b].isLocal?0:rB*Math.sin(phiB)*Math.cos(thetaB);
-      var by = nodes[b].isLocal?0:rB*Math.sin(phiB)*Math.sin(thetaB);
-      var bz = nodes[b].isLocal?0:rB*Math.cos(phiB);
-      var dist = Math.sqrt((ax-bx)**2+(ay-by)**2+(az-bz)**2);
-      if(dist < 1.4) {
-        var pts = [new THREE.Vector3(ax,ay,az), new THREE.Vector3(bx,by,bz)];
+  for(var a=0; a<uids.length && lineCount<40; a++) {
+    var ga = _ashNodes._sessionGroups[uids[a]];
+    for(var b=a+1; b<uids.length && lineCount<40; b++) {
+      var gb = _ashNodes._sessionGroups[uids[b]];
+      var pa = ga.group.position, pb = gb.group.position;
+      var dist = pa.distanceTo(pb);
+      if(dist < 3.0) {
+        var pts = [pa.clone(), pb.clone()];
         var geo = new THREE.BufferGeometry().setFromPoints(pts);
-        var alpha = Math.max(0.05, 0.3 * (1 - dist/1.4));
+        var alpha = Math.max(0.04, 0.25 * (1 - dist/3.0));
         var lmat = new THREE.LineBasicMaterial({color:0xa78bfa, transparent:true, opacity:alpha});
-        _ashNodes._lineGroup.add(new THREE.Line(geo,lmat));
+        _ashNodes._lineGroup.add(new THREE.Line(geo, lmat));
         lineCount++;
       }
     }
   }
+  // Also draw lines from center (local) to each remote cluster if within range
+  var origin = new THREE.Vector3(0,0,0);
+  uids.forEach(function(uid) {
+    if(lineCount >= 40) return;
+    var g = _ashNodes._sessionGroups[uid];
+    var dist = origin.distanceTo(g.group.position);
+    if(dist < 5.0) {
+      var pts = [origin.clone(), g.group.position.clone()];
+      var geo = new THREE.BufferGeometry().setFromPoints(pts);
+      var alpha = Math.max(0.03, 0.15 * (1 - dist/5.0));
+      var lmat = new THREE.LineBasicMaterial({color:0x00ffcc, transparent:true, opacity:alpha});
+      _ashNodes._lineGroup.add(new THREE.Line(geo, lmat));
+      lineCount++;
+    }
+  });
 
-  // Store for animation (gentle drift)
   _ashNodes._uids = nodes;
 }
 
-// Animate node drift — called from BRPN animate loop
+// Animate session clusters — gentle orbital drift + shell rotation
+// Called from BRPN animate loop
 function _tickAshNodes(frame) {
-  if(!_ashNodes._instancedMesh || !_ashNodes._uids || !_ashNodes._uids.length) return;
-  var dummy = new THREE.Object3D();
-  var t = frame * 0.006;
-  _ashNodes._uids.forEach(function(node, i) {
-    if(i >= _ashNodes.MAX_NODES || node.isLocal) return;
-    var h = _uidHash(node.uid);
-    var h2 = _uidHash(node.uid+'y');
-    var h3 = _uidHash(node.uid+'z');
-    var phi = Math.acos(2*h2-1); var theta = h*Math.PI*2; var r = 2.2+h3*1.4;
-    // Gentle orbital drift
-    var dTheta = theta + t * (0.2 + h * 0.3);
-    var x = r * Math.sin(phi) * Math.cos(dTheta);
-    var y = r * Math.sin(phi) * Math.sin(dTheta) + Math.sin(t*0.5+h*10)*0.08;
-    var z = r * Math.cos(phi);
-    var now = Date.now();
-    var age = (now - (node.ts||now)) / 60000;
-    var s = Math.max(0.02, 0.045 * Math.exp(-age * 0.1));
-    dummy.position.set(x,y,z);
-    dummy.scale.set(s,s,s);
-    dummy.updateMatrix();
-    _ashNodes._instancedMesh.setMatrixAt(i, dummy.matrix);
+  if(typeof THREE==='undefined') return;
+  var t = frame * 0.005;
+  Object.keys(_ashNodes._sessionGroups).forEach(function(uid) {
+    var entry = _ashNodes._sessionGroups[uid];
+    var bp = entry.basePos;
+    // Gentle drift: orbit around base position
+    var dTheta = bp.theta + t * (0.15 + bp.h * 0.25);
+    var wobble  = Math.sin(t * 0.4 + bp.h * 8) * 0.12;
+    var r = bp.r + bp.h3 * 0.4;
+    entry.group.position.set(
+      r * Math.sin(bp.phi) * Math.cos(dTheta),
+      r * Math.sin(bp.phi) * Math.sin(dTheta) + wobble,
+      r * Math.cos(bp.phi)
+    );
+    // Slow shell rotation — each shell on a slightly different axis
+    var age = (Date.now() - (entry.node.ts||Date.now())) / 60000;
+    var fadeFactor = Math.max(0.1, Math.exp(-age * 0.08));
+    entry.shells.forEach(function(m, i) {
+      if(m.material) m.material.opacity = (0.22 + i * 0.06) * fadeFactor;
+      m.rotation.y = t * (0.3 + i * 0.15);
+      m.rotation.x = t * (0.1 + i * 0.08);
+    });
   });
-  _ashNodes._instancedMesh.instanceMatrix.needsUpdate = true;
 }
 
 // ============================================================
