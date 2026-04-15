@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANTI MEADOW — Autumn Security Print</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --deep-navy: #0a0d1a;
+    --cobalt: #1a2a6c;
+    --electric-blue: #00c6ff;
+    --cyan-glow: #0ff4f4;
+    --violet: #6b0f8c;
+    --magenta: #c0006e;
+    --crimson: #c0392b;
+    --orange-fire: #e84d0e;
+    --amber: #f5a623;
+    --deep-purple: #2d1b69;
+    --mid-purple: #7b2d8b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  body {
+    background: var(--deep-navy);
+    font-family: 'Space Mono', monospace;
+    overflow-x: hidden;
+    max-width: 100%;
+    min-height: 100vh;
+  }
+
+  /* ── SECURITY BACKGROUND PATTERN ── */
+  .security-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .security-bg::before {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 18px,
+        rgba(0,198,255,0.04) 18px,
+        rgba(0,198,255,0.04) 19px
+      ),
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 18px,
+        rgba(192,0,110,0.03) 18px,
+        rgba(192,0,110,0.03) 19px
+      );
+    animation: bgShift 40s linear infinite;
+  }
+
+  .security-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 30%, rgba(107,15,140,0.35) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 60% at 80% 70%, rgba(232,77,14,0.25) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 50% 10%, rgba(0,198,255,0.15) 0%, transparent 60%);
+  }
+
+  @keyframes bgShift {
+    0% { transform: translate(0,0) rotate(0deg); }
+    100% { transform: translate(40px,40px) rotate(2deg); }
+  }
+
+  /* ── MICRO-PATTERN TILE ── */
+  .micro-pattern {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    opacity: 0.12;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cpath d='M10 10h10v10H10zm30 0h10v10H40zM10 40h10v10H10zm30 0h10v10H40zM25 25h10v10H25z' stroke='%2300c6ff' stroke-width='0.5'/%3E%3Cpath d='M0 30h60M30 0v60' stroke='%23c0006e' stroke-width='0.3' stroke-dasharray='2,4'/%3E%3Ccircle cx='30' cy='30' r='3' stroke='%23f5a623' stroke-width='0.5'/%3E%3Cpath d='M15 5l3 5-3 5M45 45l3 5-3 5' stroke='%2300c6ff' stroke-width='0.5'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 60px 60px;
+  }
+
+  /* ── MAIN CONTAINER ── */
+  .container {
+    position: relative;
+    z-index: 10;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+  }
+
+  /* ── HEADER BAND ── */
+  .header-band {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1.5px solid var(--electric-blue);
+    border-bottom: 1.5px solid var(--electric-blue);
+    padding: 8px 0;
+    margin-bottom: 32px;
+    gap: 12px;
+    flex-wrap: wrap;
+    overflow: hidden;
+  }
+
+  .header-band .micro-text {
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: var(--electric-blue);
+    opacity: 0.7;
+    text-transform: uppercase;
+  }
+
+  .header-band .serial {
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    color: var(--amber);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── TITLE BLOCK ── */
+  .title-block {
+    margin-bottom: 36px;
+  }
+
+  .title-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .title-text-col {
+    text-align: center;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .ant-col {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ant-svg {
+    width: clamp(110px, 28vw, 180px);
+    height: auto;
+    filter: drop-shadow(0 0 18px rgba(0,198,255,0.3)) drop-shadow(0 0 40px rgba(192,0,110,0.2));
+  }
+
+  .title-block .overline {
+    font-size: 10px;
+    letter-spacing: 0.5em;
+    color: var(--electric-blue);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    opacity: 0.8;
+  }
+
+  .title-block h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(64px, 12vw, 120px);
+    letter-spacing: 0.06em;
+    line-height: 0.9;
+    background: linear-gradient(135deg, var(--electric-blue) 0%, var(--cyan-glow) 30%, var(--magenta) 60%, var(--amber) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    filter: drop-shadow(0 0 30px rgba(0,198,255,0.4));
+    animation: titlePulse 6s ease-in-out infinite;
+  }
+
+  @keyframes titlePulse {
+    0%, 100% { filter: drop-shadow(0 0 30px rgba(0,198,255,0.4)); }
+    50% { filter: drop-shadow(0 0 50px rgba(192,0,110,0.5)) drop-shadow(0 0 80px rgba(0,198,255,0.2)); }
+  }
+
+  .title-block .subtitle {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: clamp(16px, 3vw, 26px);
+    color: var(--amber);
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+    opacity: 0.9;
+  }
+
+  /* ── MAIN ARTWORK FRAME ── */
+  .artwork-frame {
+    position: relative;
+    border: 1px solid rgba(0,198,255,0.3);
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+
+  .artwork-frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,198,255,0.05) 0%, transparent 40%, transparent 60%, rgba(192,0,110,0.05) 100%);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* Corner decorations */
+  .corner {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    z-index: 5;
+  }
+  .corner-tl { top: 6px; left: 6px; border-top: 2px solid var(--electric-blue); border-left: 2px solid var(--electric-blue); }
+  .corner-tr { top: 6px; right: 6px; border-top: 2px solid var(--amber); border-right: 2px solid var(--amber); }
+  .corner-bl { bottom: 6px; left: 6px; border-bottom: 2px solid var(--magenta); border-left: 2px solid var(--magenta); }
+  .corner-br { bottom: 6px; right: 6px; border-bottom: 2px solid var(--electric-blue); border-right: 2px solid var(--electric-blue); }
+
+  /* ── SVG SCENE ── */
+  .scene-svg {
+    width: 100%;
+    display: block;
+    aspect-ratio: 1/1;
+    background: var(--deep-navy);
+  }
+
+  /* ── INFO GRID ── */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: rgba(0,198,255,0.15);
+    border: 1px solid rgba(0,198,255,0.2);
+    margin-bottom: 32px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+  }
+
+  .info-cell {
+    background: var(--deep-navy);
+    padding: 12px 14px;
+  }
+
+  .info-cell .label {
+    color: var(--electric-blue);
+    opacity: 0.6;
+    margin-bottom: 4px;
+    font-size: 8px;
+  }
+
+  .info-cell .value {
+    color: #e0e0e0;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .info-cell .value.highlight {
+    color: var(--amber);
+  }
+
+  /* ── SECURITY STRIP ── */
+  .security-strip {
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+    height: 28px;
+    margin-bottom: 28px;
+    border: 1px solid rgba(0,198,255,0.15);
+    max-width: 100%;
+  }
+
+  .strip-segment {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    letter-spacing: 0.15em;
+    font-family: 'Space Mono', monospace;
+    color: rgba(255,255,255,0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    animation: stripScroll 20s linear infinite;
+  }
+
+  .strip-segment:nth-child(odd) { background: rgba(0,198,255,0.06); color: var(--electric-blue); opacity: 0.7; }
+  .strip-segment:nth-child(even) { background: rgba(192,0,110,0.06); color: var(--magenta); opacity: 0.7; }
+
+  @keyframes stripScroll {
+    0% { opacity: 0.4; }
+    50% { opacity: 0.9; }
+    100% { opacity: 0.4; }
+  }
+
+  /* ── PATTERN REPEAT ── */
+  .pattern-repeat {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    margin-bottom: 28px;
+  }
+
+  .pattern-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border: 1px solid rgba(255,255,255,0.04);
+    background: rgba(255,255,255,0.02);
+    transition: all 0.3s;
+    cursor: default;
+  }
+
+  .pattern-cell:hover {
+    background: rgba(0,198,255,0.1);
+    border-color: rgba(0,198,255,0.3);
+    transform: scale(1.1);
+  }
+
+  /* ── BARCODE BAND ── */
+  .barcode-band {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 14px 0;
+    border-top: 1px solid rgba(0,198,255,0.15);
+    border-bottom: 1px solid rgba(0,198,255,0.15);
+    margin-bottom: 28px;
+    overflow: hidden;
+    max-width: 100%;
+  }
+
+  .barcode {
+    display: flex;
+    gap: 1.5px;
+    align-items: stretch;
+    height: 36px;
+    flex-shrink: 0;
+  }
+
+  .bar {
+    background: var(--electric-blue);
+    width: 1.5px;
+    opacity: 0.7;
+    animation: barFlicker 4s ease-in-out infinite;
+    animation-delay: var(--d);
+  }
+
+  @keyframes barFlicker {
+    0%, 90%, 100% { opacity: 0.7; }
+    95% { opacity: 0.2; }
+  }
+
+  .barcode-text {
+    flex: 1;
+  }
+
+  .barcode-text .serial-main {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--electric-blue);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .barcode-text .serial-sub {
+    font-size: 8px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.15em;
+  }
+
+  /* ── FOOTER ── */
+  .footer-band {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 16px;
+    overflow: hidden;
+  }
+
+  .footer-band .brand {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    background: linear-gradient(90deg, var(--electric-blue), var(--magenta));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── HOLOGRAPHIC SHEEN ── */
+  .holo-band {
+    height: 6px;
+    background: linear-gradient(90deg,
+      var(--violet), var(--electric-blue), var(--cyan-glow),
+      var(--orange-fire), var(--amber), var(--magenta),
+      var(--cobalt), var(--electric-blue));
+    background-size: 300% 100%;
+    animation: holoShift 5s linear infinite;
+    margin-bottom: 32px;
+    opacity: 0.8;
+  }
+
+  @keyframes holoShift {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 300% 0%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="security-bg"></div>
+<div class="micro-pattern"></div>
+
+<div class="container">
+
+  <!-- Header Band -->
+  <div class="header-band">
+    <span class="micro-text">Anti Meadow™ Authenticated Issue</span>
+    <span class="serial">SN·AX-2026-AU-0047</span>
+    <span class="micro-text">Autumn Collection · Limited</span>
+  </div>
+
+  <!-- Title -->
+  <div class="title-block">
+    <div class="title-inner">
+      <div class="title-text-col">
+        <div class="overline">Anti · Meadow</div>
+        <h1>ANTI<br>MEADOW</h1>
+        <div class="subtitle">Autumn Wanderer — Security Edition</div>
+      </div>
+      <div class="ant-col">
+        <!-- Ultra-realistic ant SVG with meadow expression -->
+        <svg viewBox="0 0 220 340" xmlns="http://www.w3.org/2000/svg" class="ant-svg">
+          <defs>
+            <radialGradient id="antBodyGrad" cx="50%" cy="40%" r="60%">
+              <stop offset="0%" stop-color="#3a1a5c"/>
+              <stop offset="40%" stop-color="#1a0a2e"/>
+              <stop offset="100%" stop-color="#0a0510"/>
+            </radialGradient>
+            <radialGradient id="antShineGrad" cx="35%" cy="30%" r="50%">
+              <stop offset="0%" stop-color="rgba(180,100,255,0.55)"/>
+              <stop offset="60%" stop-color="rgba(100,50,180,0.15)"/>
+              <stop offset="100%" stop-color="transparent"/>
+            </radialGradient>
+            <radialGradient id="antHeadGrad" cx="45%" cy="35%" r="60%">
+              <stop offset="0%" stop-color="#4a2070"/>
+              <stop offset="50%" stop-color="#1e0840"/>
+              <stop offset="100%" stop-color="#080318"/>
+            </radialGradient>
+            <radialGradient id="meadowExprGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#00ffe0"/>
+              <stop offset="35%" stop-color="#00c6ff"/>
+              <stop offset="70%" stop-color="#c0006e"/>
+              <stop offset="100%" stop-color="#f5a623"/>
+            </radialGradient>
+            <radialGradient id="eyeGlowL" cx="50%" cy="45%" r="55%">
+              <stop offset="0%" stop-color="#00ffe0"/>
+              <stop offset="50%" stop-color="#00c6ff" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="#0a0510" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="eyeGlowR" cx="50%" cy="45%" r="55%">
+              <stop offset="0%" stop-color="#00ffe0"/>
+              <stop offset="50%" stop-color="#00c6ff" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="#0a0510" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="thoraxGrad" cx="45%" cy="35%" r="60%">
+              <stop offset="0%" stop-color="#3d1a60"/>
+              <stop offset="55%" stop-color="#180830"/>
+              <stop offset="100%" stop-color="#060210"/>
+            </radialGradient>
+            <radialGradient id="abdomenGrad" cx="45%" cy="30%" r="65%">
+              <stop offset="0%" stop-color="#2e1050"/>
+              <stop offset="45%" stop-color="#120628"/>
+              <stop offset="100%" stop-color="#040110"/>
+            </radialGradient>
+            <radialGradient id="wingSheen" cx="40%" cy="30%" r="60%">
+              <stop offset="0%" stop-color="rgba(0,198,255,0.18)"/>
+              <stop offset="100%" stop-color="rgba(0,198,255,0.02)"/>
+            </radialGradient>
+            <filter id="antGlow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="3.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="softAntGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="2" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="meadowGlow" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="subtleGlow" x="-15%" y="-15%" width="130%" height="130%">
+              <feGaussianBlur stdDeviation="1.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- ── SHADOW BENEATH ANT ── -->
+          <ellipse cx="110" cy="330" rx="52" ry="8" fill="#000" opacity="0.45"/>
+
+          <!-- ── LEGS (back pair) ── -->
+          <g stroke="#1a0830" stroke-linecap="round" fill="none" opacity="0.85">
+            <!-- back left -->
+            <path d="M 88 210 Q 58 230 30 260" stroke-width="3.5" stroke="#2a1045"/>
+            <path d="M 30 260 Q 18 272 10 285" stroke-width="2.5" stroke="#1a0830"/>
+            <path d="M 10 285 Q 6 295 14 300" stroke-width="2" stroke="#150625"/>
+            <!-- back right -->
+            <path d="M 132 210 Q 162 230 190 260" stroke-width="3.5" stroke="#2a1045"/>
+            <path d="M 190 260 Q 202 272 210 285" stroke-width="2.5" stroke="#1a0830"/>
+            <path d="M 210 285 Q 214 295 206 300" stroke-width="2" stroke="#150625"/>
+          </g>
+
+          <!-- ── LEGS (mid pair) ── -->
+          <g stroke="#1a0830" stroke-linecap="round" fill="none" opacity="0.9">
+            <!-- mid left -->
+            <path d="M 84 185 Q 50 195 22 208" stroke-width="3.8" stroke="#2e1250"/>
+            <path d="M 22 208 Q 8 215 4 228" stroke-width="2.8" stroke="#1e0838"/>
+            <path d="M 4 228 Q 2 238 10 242" stroke-width="2.2" stroke="#160628"/>
+            <!-- mid right -->
+            <path d="M 136 185 Q 170 195 198 208" stroke-width="3.8" stroke="#2e1250"/>
+            <path d="M 198 208 Q 212 215 216 228" stroke-width="2.8" stroke="#1e0838"/>
+            <path d="M 216 228 Q 218 238 210 242" stroke-width="2.2" stroke="#160628"/>
+          </g>
+
+          <!-- ── LEGS (front pair) ── -->
+          <g stroke="#1a0830" stroke-linecap="round" fill="none">
+            <!-- front left -->
+            <path d="M 85 155 Q 55 148 32 132" stroke-width="3.5" stroke="#341560"/>
+            <path d="M 32 132 Q 16 122 8 108" stroke-width="2.5" stroke="#220a40"/>
+            <path d="M 8 108 Q 4 98 12 94" stroke-width="2" stroke="#180730"/>
+            <!-- front right -->
+            <path d="M 135 155 Q 165 148 188 132" stroke-width="3.5" stroke="#341560"/>
+            <path d="M 188 132 Q 204 122 212 108" stroke-width="2.5" stroke="#220a40"/>
+            <path d="M 212 108 Q 216 98 208 94" stroke-width="2" stroke="#180730"/>
+          </g>
+
+          <!-- ── ABDOMEN (large rear segment) ── -->
+          <ellipse cx="110" cy="248" rx="46" ry="58" fill="url(#abdomenGrad)" filter="url(#softAntGlow)"/>
+          <!-- abdomen specular highlight -->
+          <ellipse cx="96" cy="222" rx="18" ry="14" fill="url(#antShineGrad)" opacity="0.7"/>
+          <!-- abdomen edge catch-light -->
+          <path d="M 68 240 Q 72 200 110 192 Q 148 200 152 240" fill="none" stroke="rgba(140,60,220,0.2)" stroke-width="1.5"/>
+          <!-- abdomen segment line -->
+          <path d="M 72 248 Q 110 238 148 248" fill="none" stroke="rgba(80,30,120,0.4)" stroke-width="1"/>
+          <!-- amber glow accent on abdomen -->
+          <ellipse cx="110" cy="270" rx="28" ry="20" fill="rgba(245,166,35,0.06)"/>
+
+          <!-- ── PETIOLE (waist node) ── -->
+          <ellipse cx="110" cy="182" rx="14" ry="18" fill="url(#thoraxGrad)" filter="url(#subtleGlow)"/>
+          <ellipse cx="106" cy="176" rx="6" ry="5" fill="rgba(180,100,255,0.2)"/>
+
+          <!-- ── THORAX (middle segment) ── -->
+          <ellipse cx="110" cy="158" rx="30" ry="28" fill="url(#thoraxGrad)" filter="url(#softAntGlow)"/>
+          <!-- thorax highlight -->
+          <ellipse cx="100" cy="146" rx="12" ry="9" fill="rgba(160,80,255,0.25)"/>
+          <!-- thorax rim light -->
+          <path d="M 82 158 Q 86 132 110 130 Q 134 132 138 158" fill="none" stroke="rgba(100,50,200,0.3)" stroke-width="1.2"/>
+
+          <!-- ── WING HINTS (gossamer, semi-transparent) ── -->
+          <ellipse cx="78" cy="145" rx="28" ry="14" fill="url(#wingSheen)" opacity="0.5" transform="rotate(-30 78 145)"/>
+          <ellipse cx="142" cy="145" rx="28" ry="14" fill="url(#wingSheen)" opacity="0.5" transform="rotate(30 142 145)"/>
+          <ellipse cx="72" cy="152" rx="20" ry="10" fill="rgba(0,198,255,0.06)" transform="rotate(-20 72 152)"/>
+          <ellipse cx="148" cy="152" rx="20" ry="10" fill="rgba(0,198,255,0.06)" transform="rotate(20 148 152)"/>
+
+          <!-- ── HEAD ── -->
+          <ellipse cx="110" cy="100" rx="40" ry="36" fill="url(#antHeadGrad)" filter="url(#softAntGlow)"/>
+          <!-- head specular -->
+          <ellipse cx="97" cy="86" rx="16" ry="11" fill="rgba(200,120,255,0.22)"/>
+          <!-- head rim -->
+          <path d="M 72 100 Q 76 66 110 64 Q 144 66 148 100" fill="none" stroke="rgba(120,60,220,0.25)" stroke-width="1.5"/>
+
+          <!-- ── MANDIBLES ── -->
+          <path d="M 82 118 Q 66 128 58 140 Q 60 148 68 144 Q 76 132 88 124 Z" fill="#1a0838" stroke="rgba(80,30,130,0.6)" stroke-width="1"/>
+          <path d="M 138 118 Q 154 128 162 140 Q 160 148 152 144 Q 144 132 132 124 Z" fill="#1a0838" stroke="rgba(80,30,130,0.6)" stroke-width="1"/>
+          <!-- mandible tips glint -->
+          <ellipse cx="60" cy="143" rx="4" ry="3" fill="rgba(0,198,255,0.35)" transform="rotate(-20 60 143)"/>
+          <ellipse cx="160" cy="143" rx="4" ry="3" fill="rgba(0,198,255,0.35)" transform="rotate(20 160 143)"/>
+
+          <!-- ── ANTENNAE ── -->
+          <!-- left antenna -->
+          <path d="M 90 68 Q 72 42 52 22" fill="none" stroke="#2a1050" stroke-width="2.8" stroke-linecap="round"/>
+          <path d="M 90 68 Q 72 42 52 22" fill="none" stroke="rgba(160,80,255,0.3)" stroke-width="1.2" stroke-linecap="round"/>
+          <circle cx="52" cy="22" r="5.5" fill="#2a1050" stroke="rgba(200,100,255,0.5)" stroke-width="1.2"/>
+          <circle cx="52" cy="22" r="2.5" fill="rgba(0,198,255,0.7)"/>
+          <!-- right antenna -->
+          <path d="M 130 68 Q 148 42 168 22" fill="none" stroke="#2a1050" stroke-width="2.8" stroke-linecap="round"/>
+          <path d="M 130 68 Q 148 42 168 22" fill="none" stroke="rgba(160,80,255,0.3)" stroke-width="1.2" stroke-linecap="round"/>
+          <circle cx="168" cy="22" r="5.5" fill="#2a1050" stroke="rgba(200,100,255,0.5)" stroke-width="1.2"/>
+          <circle cx="168" cy="22" r="2.5" fill="rgba(0,198,255,0.7)"/>
+
+          <!-- ── COMPOUND EYES ── -->
+          <!-- left eye -->
+          <ellipse cx="82" cy="94" rx="11" ry="13" fill="#060210"/>
+          <ellipse cx="82" cy="94" rx="11" ry="13" fill="url(#eyeGlowL)" opacity="0.9"/>
+          <ellipse cx="82" cy="94" rx="8" ry="9.5" fill="rgba(0,30,50,0.9)"/>
+          <!-- eye facet pattern left -->
+          <line x1="76" y1="89" x2="88" y2="89" stroke="rgba(0,198,255,0.12)" stroke-width="0.6"/>
+          <line x1="76" y1="94" x2="88" y2="94" stroke="rgba(0,198,255,0.12)" stroke-width="0.6"/>
+          <line x1="76" y1="99" x2="88" y2="99" stroke="rgba(0,198,255,0.12)" stroke-width="0.6"/>
+          <line x1="80" y1="86" x2="80" y2="102" stroke="rgba(0,198,255,0.1)" stroke-width="0.6"/>
+          <line x1="84" y1="86" x2="84" y2="102" stroke="rgba(0,198,255,0.1)" stroke-width="0.6"/>
+          <ellipse cx="79" cy="90" rx="3" ry="3.5" fill="rgba(0,255,220,0.55)" filter="url(#antGlow)"/>
+
+          <!-- right eye -->
+          <ellipse cx="138" cy="94" rx="11" ry="13" fill="#060210"/>
+          <ellipse cx="138" cy="94" rx="11" ry="13" fill="url(#eyeGlowR)" opacity="0.9"/>
+          <ellipse cx="138" cy="94" rx="8" ry="9.5" fill="rgba(0,30,50,0.9)"/>
+          <line x1="132" y1="89" x2="144" y2="89" stroke="rgba(0,198,255,0.12)" stroke-width="0.6"/>
+          <line x1="132" y1="94" x2="144" y2="94" stroke="rgba(0,198,255,0.12)" stroke-width="0.6"/>
+          <line x1="132" y1="99" x2="144" y2="99" stroke="rgba(0,198,255,0.12)" stroke-width="0.6"/>
+          <line x1="136" y1="86" x2="136" y2="102" stroke="rgba(0,198,255,0.1)" stroke-width="0.6"/>
+          <line x1="140" y1="86" x2="140" y2="102" stroke="rgba(0,198,255,0.1)" stroke-width="0.6"/>
+          <ellipse cx="135" cy="90" rx="3" ry="3.5" fill="rgba(0,255,220,0.55)" filter="url(#antGlow)"/>
+
+          <!-- ── MEADOW EXPRESSION — forehead glyph ── -->
+          <!-- outer glow halo -->
+          <ellipse cx="110" cy="82" rx="22" ry="16" fill="rgba(0,198,255,0.08)" filter="url(#meadowGlow)"/>
+          <!-- meadow symbol: stylised "M" leaf-horns shape in gradient -->
+          <path d="M 90 90 Q 92 70 100 76 Q 107 82 110 74 Q 113 82 120 76 Q 128 70 130 90"
+                fill="none" stroke="url(#meadowExprGrad)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"
+                filter="url(#meadowGlow)" opacity="0.95"/>
+          <!-- inner fill shimmer -->
+          <path d="M 93 88 Q 95 73 101 78 Q 107 83 110 76 Q 113 83 119 78 Q 125 73 127 88"
+                fill="rgba(0,198,255,0.08)" stroke="rgba(0,255,220,0.4)" stroke-width="1" stroke-linecap="round"/>
+          <!-- center jewel dot -->
+          <circle cx="110" cy="80" r="3.5" fill="rgba(0,255,220,0.9)" filter="url(#meadowGlow)"/>
+          <circle cx="110" cy="80" r="1.8" fill="#fff" opacity="0.9"/>
+
+          <!-- ── BODY SURFACE TEXTURE — chitin micro-lines ── -->
+          <g opacity="0.18" stroke="rgba(180,100,255,0.6)" stroke-width="0.6" fill="none">
+            <path d="M 78 240 Q 110 228 142 240"/>
+            <path d="M 74 256 Q 110 244 146 256"/>
+            <path d="M 76 272 Q 110 262 144 272"/>
+            <path d="M 86 155 Q 110 148 134 155"/>
+            <path d="M 84 163 Q 110 157 136 163"/>
+          </g>
+
+          <!-- ── AMBER AUTUMN GLOW — warm underlighting ── -->
+          <ellipse cx="110" cy="290" rx="40" ry="25" fill="rgba(232,77,14,0.08)"/>
+          <ellipse cx="110" cy="160" rx="32" ry="20" fill="rgba(245,166,35,0.04)"/>
+
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Holographic strip -->
+  <div class="holo-band"></div>
+
+  <!-- Main SVG Artwork Frame -->
+  <div class="artwork-frame">
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <svg class="scene-svg" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Gradient sky base -->
+        <radialGradient id="skyGrad" cx="50%" cy="40%" r="70%">
+          <stop offset="0%" stop-color="#0d1b4b"/>
+          <stop offset="60%" stop-color="#0a0d2a"/>
+          <stop offset="100%" stop-color="#060810"/>
+        </radialGradient>
+
+        <!-- Glow filter -->
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="6" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="strongGlow">
+          <feGaussianBlur stdDeviation="12" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+
+        <!-- Path glow gradient -->
+        <linearGradient id="pathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00c6ff" stop-opacity="0.9"/>
+          <stop offset="50%" stop-color="#0ff4f4" stop-opacity="0.7"/>
+          <stop offset="100%" stop-color="#00c6ff" stop-opacity="0.5"/>
+        </linearGradient>
+
+        <!-- Maze/path clip -->
+        <clipPath id="sceneClip">
+          <rect width="800" height="800"/>
+        </clipPath>
+
+        <!-- Leaf pattern -->
+        <pattern id="leafPattern" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+          <ellipse cx="20" cy="20" rx="8" ry="5" fill="#c0392b" opacity="0.3" transform="rotate(-30 20 20)"/>
+          <ellipse cx="60" cy="50" rx="7" ry="4" fill="#e84d0e" opacity="0.25" transform="rotate(20 60 50)"/>
+          <ellipse cx="40" cy="70" rx="6" ry="3.5" fill="#f5a623" opacity="0.2" transform="rotate(-10 40 70)"/>
+        </pattern>
+
+        <!-- Security microprint overlay -->
+        <pattern id="secPattern" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+          <path d="M0 15 Q7 0 15 15 Q22 30 30 15" fill="none" stroke="rgba(0,198,255,0.06)" stroke-width="0.5"/>
+          <circle cx="15" cy="15" r="1" fill="rgba(192,0,110,0.08)"/>
+        </pattern>
+      </defs>
+
+      <g clip-path="url(#sceneClip)">
+
+      <!-- Sky/bg -->
+      <rect width="800" height="800" fill="url(#skyGrad)"/>
+      <rect width="800" height="800" fill="url(#leafPattern)"/>
+      <rect width="800" height="800" fill="url(#secPattern)"/>
+
+      <!-- Atmospheric glow blobs -->
+      <ellipse cx="160" cy="200" rx="200" ry="180" fill="#6b0f8c" opacity="0.25" filter="url(#strongGlow)"/>
+      <ellipse cx="650" cy="150" rx="170" ry="140" fill="#e84d0e" opacity="0.2" filter="url(#strongGlow)"/>
+      <ellipse cx="680" cy="620" rx="180" ry="150" fill="#c0392b" opacity="0.22" filter="url(#strongGlow)"/>
+      <ellipse cx="120" cy="650" rx="150" ry="120" fill="#7b2d8b" opacity="0.28" filter="url(#strongGlow)"/>
+      <ellipse cx="400" cy="400" rx="120" ry="100" fill="#1a2a6c" opacity="0.3" filter="url(#strongGlow)"/>
+
+      <!-- ===== MAZE PATHS (stone-blue labyrinth) ===== -->
+      <!-- These simulate the winding labyrinth path in the image -->
+
+      <!-- Maze stone blocks - top area winding -->
+      <rect x="240" y="40" width="320" height="22" rx="4" fill="#1a3a7a" opacity="0.85" filter="url(#softGlow)"/>
+      <rect x="240" y="40" width="320" height="22" rx="4" fill="url(#pathGrad)" opacity="0.15"/>
+
+      <rect x="440" y="60" width="22" height="120" rx="4" fill="#1a3a7a" opacity="0.85" filter="url(#softGlow)"/>
+      <rect x="440" y="60" width="22" height="120" rx="4" fill="url(#pathGrad)" opacity="0.15"/>
+
+      <rect x="180" y="60" width="280" height="20" rx="4" fill="#163270" opacity="0.8" filter="url(#softGlow)"/>
+
+      <rect x="180" y="78" width="20" height="100" rx="4" fill="#1a3a7a" opacity="0.85" filter="url(#softGlow)"/>
+
+      <rect x="180" y="170" width="200" height="20" rx="4" fill="#163270" opacity="0.8" filter="url(#softGlow)"/>
+      <rect x="360" y="170" width="20" height="80" rx="4" fill="#1a3a7a" opacity="0.8" filter="url(#softGlow)"/>
+
+      <rect x="250" y="240" width="130" height="20" rx="4" fill="#163270" opacity="0.8" filter="url(#softGlow)"/>
+      <rect x="250" y="240" width="20" height="100" rx="4" fill="#1a3a7a" opacity="0.8" filter="url(#softGlow)"/>
+
+      <!-- Middle section paths -->
+      <rect x="250" y="320" width="180" height="22" rx="4" fill="#1a3a7a" opacity="0.88" filter="url(#softGlow)"/>
+      <rect x="250" y="320" width="180" height="22" rx="4" fill="url(#pathGrad)" opacity="0.2"/>
+
+      <rect x="408" y="280" width="22" height="80" rx="4" fill="#1a3a7a" opacity="0.88" filter="url(#softGlow)"/>
+
+      <rect x="300" y="340" width="22" height="120" rx="4" fill="#1a3a7a" opacity="0.85" filter="url(#softGlow)"/>
+      <rect x="300" y="340" width="22" height="120" rx="4" fill="url(#pathGrad)" opacity="0.25"/>
+
+      <rect x="300" y="440" width="150" height="22" rx="4" fill="#1a3a7a" opacity="0.85" filter="url(#softGlow)"/>
+
+      <rect x="430" y="360" width="22" height="120" rx="4" fill="#163270" opacity="0.8" filter="url(#softGlow)"/>
+      <rect x="430" y="460" width="120" height="20" rx="4" fill="#163270" opacity="0.8" filter="url(#softGlow)"/>
+
+      <!-- Lower labyrinth -->
+      <rect x="160" y="400" width="160" height="20" rx="4" fill="#1a3a7a" opacity="0.8" filter="url(#softGlow)"/>
+      <rect x="160" y="400" width="20" height="120" rx="4" fill="#163270" opacity="0.8" filter="url(#softGlow)"/>
+      <rect x="160" y="500" width="180" height="20" rx="4" fill="#163270" opacity="0.78" filter="url(#softGlow)"/>
+
+      <rect x="320" y="500" width="22" height="100" rx="4" fill="#1a3a7a" opacity="0.82" filter="url(#softGlow)"/>
+      <rect x="260" y="580" width="200" height="20" rx="4" fill="#163270" opacity="0.78" filter="url(#softGlow)"/>
+
+      <rect x="460" y="520" width="20" height="120" rx="4" fill="#163270" opacity="0.75" filter="url(#softGlow)"/>
+      <rect x="460" y="620" width="160" height="20" rx="4" fill="#1a3a7a" opacity="0.78" filter="url(#softGlow)"/>
+
+      <rect x="220" y="620" width="20" height="120" rx="4" fill="#163270" opacity="0.75" filter="url(#softGlow)"/>
+      <rect x="220" y="720" width="240" height="20" rx="4" fill="#163270" opacity="0.7" filter="url(#softGlow)"/>
+
+      <rect x="600" y="560" width="20" height="160" rx="4" fill="#163270" opacity="0.75" filter="url(#softGlow)"/>
+      <rect x="440" y="700" width="180" height="20" rx="4" fill="#163270" opacity="0.72" filter="url(#softGlow)"/>
+
+      <!-- Path highlight glow lines (the lit path) -->
+      <path d="M 400 60 L 400 180 L 310 180 L 310 350 L 440 350 L 440 480 L 350 480 L 350 590 L 470 590 L 470 650 L 560 650" 
+            stroke="url(#pathGrad)" stroke-width="4" fill="none" opacity="0.6" filter="url(#glow)"/>
+
+      <!-- ===== TREES ===== -->
+      <!-- Purple trees left -->
+      <g filter="url(#softGlow)">
+        <!-- Tree 1 (bottom-left, purple) -->
+        <ellipse cx="100" cy="680" rx="80" ry="70" fill="#7b2d8b" opacity="0.85"/>
+        <ellipse cx="100" cy="650" rx="60" ry="50" fill="#9b3dab" opacity="0.7"/>
+        <line x1="100" y1="730" x2="100" y2="780" stroke="#2a1a40" stroke-width="6"/>
+
+        <!-- Tree 2 (left-mid, deep purple) -->
+        <ellipse cx="50" cy="450" rx="65" ry="60" fill="#6b0f8c" opacity="0.8"/>
+        <ellipse cx="70" cy="420" rx="50" ry="45" fill="#7b2d8b" opacity="0.65"/>
+        <line x1="60" y1="500" x2="55" y2="560" stroke="#1a0a28" stroke-width="5"/>
+
+        <!-- Purple bottom-center -->
+        <ellipse cx="140" cy="740" rx="55" ry="50" fill="#5c0f75" opacity="0.75"/>
+        <ellipse cx="160" cy="720" rx="40" ry="38" fill="#7b2d8b" opacity="0.6"/>
+      </g>
+
+      <!-- Orange/red trees right -->
+      <g filter="url(#softGlow)">
+        <!-- Top-right orange -->
+        <ellipse cx="700" cy="120" rx="85" ry="75" fill="#e84d0e" opacity="0.85"/>
+        <ellipse cx="720" cy="90" rx="65" ry="55" fill="#f5a623" opacity="0.75"/>
+        <ellipse cx="680" cy="95" rx="50" ry="45" fill="#c0392b" opacity="0.7"/>
+        <line x1="700" y1="170" x2="700" y2="220" stroke="#3a1005" stroke-width="7"/>
+
+        <!-- Right-mid crimson -->
+        <ellipse cx="730" cy="400" rx="75" ry="68" fill="#c0392b" opacity="0.82"/>
+        <ellipse cx="750" cy="375" rx="58" ry="50" fill="#e84d0e" opacity="0.7"/>
+        <line x1="735" y1="450" x2="738" y2="510" stroke="#2a0a05" stroke-width="6"/>
+
+        <!-- Bottom-right orange -->
+        <ellipse cx="690" cy="680" rx="80" ry="70" fill="#e84d0e" opacity="0.8"/>
+        <ellipse cx="710" cy="650" rx="60" ry="55" fill="#c0392b" opacity="0.7"/>
+        <ellipse cx="665" cy="665" rx="45" ry="42" fill="#7b2d8b" opacity="0.5"/>
+        <line x1="695" y1="730" x2="692" y2="780" stroke="#2a0a05" stroke-width="5"/>
+
+        <!-- Top-right additional magenta -->
+        <ellipse cx="580" cy="70" rx="65" ry="58" fill="#c0006e" opacity="0.6"/>
+        <ellipse cx="555" cy="85" rx="50" ry="45" fill="#7b2d8b" opacity="0.55"/>
+      </g>
+
+      <!-- Additional scattered trees -->
+      <g filter="url(#softGlow)" opacity="0.7">
+        <ellipse cx="200" cy="130" rx="60" ry="55" fill="#7b2d8b"/>
+        <ellipse cx="220" cy="110" rx="45" ry="40" fill="#9b3dab"/>
+        <ellipse cx="320" cy="750" rx="65" ry="55" fill="#c0006e" opacity="0.6"/>
+        <ellipse cx="560" cy="730" rx="70" ry="60" fill="#7b2d8b" opacity="0.65"/>
+      </g>
+
+      <!-- Bare branch tree (left, dark) -->
+      <g stroke="#2a1a3a" stroke-linecap="round" fill="none" opacity="0.6">
+        <line x1="30" y1="350" x2="30" y2="200" stroke-width="5"/>
+        <line x1="30" y1="280" x2="-10" y2="220" stroke-width="3"/>
+        <line x1="30" y1="250" x2="60" y2="200" stroke-width="3"/>
+        <line x1="30" y1="230" x2="10" y2="180" stroke-width="2"/>
+        <line x1="30" y1="210" x2="50" y2="175" stroke-width="2"/>
+      </g>
+
+      <!-- Ground foliage puffs -->
+      <g filter="url(#softGlow)" opacity="0.7">
+        <ellipse cx="390" cy="520" rx="35" ry="20" fill="#c0006e" opacity="0.6"/>
+        <ellipse cx="290" cy="420" rx="28" ry="16" fill="#7b2d8b" opacity="0.5"/>
+        <ellipse cx="480" cy="390" rx="30" ry="18" fill="#e84d0e" opacity="0.45"/>
+        <ellipse cx="220" cy="580" rx="32" ry="18" fill="#9b3dab" opacity="0.5"/>
+        <ellipse cx="530" cy="610" rx="38" ry="22" fill="#c0392b" opacity="0.45"/>
+      </g>
+
+      <!-- Falling autumn leaves (scattered) -->
+      <g opacity="0.7">
+        <ellipse cx="350" cy="200" rx="7" ry="4" fill="#f5a623" opacity="0.8" transform="rotate(-25 350 200)"/>
+        <ellipse cx="500" cy="320" rx="6" ry="3.5" fill="#c0392b" opacity="0.7" transform="rotate(15 500 320)"/>
+        <ellipse cx="200" cy="480" rx="8" ry="4.5" fill="#e84d0e" opacity="0.75" transform="rotate(-40 200 480)"/>
+        <ellipse cx="620" cy="450" rx="7" ry="4" fill="#f5a623" opacity="0.7" transform="rotate(30 620 450)"/>
+        <ellipse cx="160" cy="340" rx="6" ry="3" fill="#7b2d8b" opacity="0.65" transform="rotate(-10 160 340)"/>
+        <ellipse cx="560" cy="280" rx="8" ry="4" fill="#c0006e" opacity="0.65" transform="rotate(45 560 280)"/>
+        <ellipse cx="430" cy="600" rx="6" ry="3.5" fill="#e84d0e" opacity="0.7" transform="rotate(-20 430 600)"/>
+        <ellipse cx="280" cy="660" rx="7" ry="4" fill="#f5a623" opacity="0.6" transform="rotate(25 280 660)"/>
+      </g>
+
+      <!-- ===== FIGURE (wanderer) ===== -->
+      <g filter="url(#softGlow)">
+        <!-- Shadow -->
+        <ellipse cx="432" cy="510" rx="22" ry="8" fill="#000" opacity="0.4"/>
+
+        <!-- Legs -->
+        <rect x="418" y="470" width="10" height="40" rx="5" fill="#1a1a3a"/>
+        <rect x="432" y="470" width="10" height="36" rx="5" fill="#1a1a3a"/>
+
+        <!-- Body -->
+        <rect x="412" y="400" width="30" height="75" rx="10" fill="#1e1e50"/>
+
+        <!-- Arms -->
+        <rect x="398" y="410" width="16" height="8" rx="4" fill="#1e1e50"/>
+        <rect x="440" y="410" width="16" height="8" rx="4" fill="#1e1e50"/>
+
+        <!-- Neck -->
+        <rect x="422" y="392" width="12" height="12" rx="5" fill="#c8a080"/>
+
+        <!-- Head / Helmet -->
+        <circle cx="428" cy="380" r="20" fill="#1e1e50"/>
+        <circle cx="428" cy="378" r="16" fill="#2a2a6a"/>
+
+        <!-- Helmet visor glow -->
+        <ellipse cx="428" cy="378" rx="10" ry="7" fill="#00c6ff" opacity="0.6" filter="url(#glow)"/>
+        <ellipse cx="428" cy="378" rx="7" ry="5" fill="#0ff4f4" opacity="0.4"/>
+      </g>
+
+      <!-- Security overlay (microtext grid) -->
+      <rect width="800" height="800" fill="url(#secPattern)" opacity="0.5"/>
+
+      <!-- Vignette -->
+      <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+        <stop offset="0%" stop-color="transparent"/>
+        <stop offset="100%" stop-color="rgba(6,8,16,0.65)"/>
+      </radialGradient>
+      <rect width="800" height="800" fill="url(#vignette)"/>
+
+      <!-- Corner security marks -->
+      <g stroke="rgba(0,198,255,0.5)" stroke-width="1" fill="none">
+        <path d="M 20 20 L 50 20 L 50 50" opacity="0.8"/>
+        <path d="M 780 20 L 750 20 L 750 50" opacity="0.8"/>
+        <path d="M 20 780 L 50 780 L 50 750" opacity="0.8"/>
+        <path d="M 780 780 L 750 780 L 750 750" opacity="0.8"/>
+      </g>
+
+      <!-- Crosshair center mark -->
+      <g stroke="rgba(0,198,255,0.2)" stroke-width="0.5">
+        <line x1="400" y1="385" x2="400" y2="395"/>
+        <line x1="395" y1="390" x2="405" y2="390"/>
+        <circle cx="400" cy="390" r="8" fill="none" opacity="0.3"/>
+      </g>
+
+      </g>
+    </svg>
+  </div>
+
+  <!-- Info Grid -->
+  <div class="info-grid">
+    <div class="info-cell">
+      <div class="label">Collection</div>
+      <div class="value highlight">Autumn 2026</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Series</div>
+      <div class="value">Wanderer / The Maze</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Edition</div>
+      <div class="value highlight">047 / 500</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Palette</div>
+      <div class="value">Cobalt · Magenta · Amber</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Issue Date</div>
+      <div class="value">XV · X · MMXXVI</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Security Grade</div>
+      <div class="value highlight">AA — Ultraviolet</div>
+    </div>
+  </div>
+
+  <!-- Security Strip (scrolling microprint) -->
+  <div class="security-strip">
+    <div class="strip-segment">ANTI·MEADOW·AUTHENTICATED</div>
+    <div class="strip-segment">AX2026·AU·0047</div>
+    <div class="strip-segment">AUTUMN·WANDERER</div>
+    <div class="strip-segment">VERIFIED·GENUINE</div>
+    <div class="strip-segment">©ANTI·2026</div>
+    <div class="strip-segment">ANTI·MEADOW·AUTHENTICATED</div>
+    <div class="strip-segment">LABYRINTH·SERIES</div>
+    <div class="strip-segment">SECURITY·PRINT</div>
+  </div>
+
+  <!-- Pattern Repeat (emoji autumn icons) -->
+  <div class="pattern-repeat">
+    <div class="pattern-cell">🍂</div>
+    <div class="pattern-cell">🍁</div>
+    <div class="pattern-cell">🌀</div>
+    <div class="pattern-cell">🍂</div>
+    <div class="pattern-cell">🍁</div>
+    <div class="pattern-cell">🌿</div>
+    <div class="pattern-cell">🍂</div>
+    <div class="pattern-cell">🌀</div>
+    <div class="pattern-cell">🌿</div>
+    <div class="pattern-cell">🍂</div>
+    <div class="pattern-cell">🌀</div>
+    <div class="pattern-cell">🍁</div>
+    <div class="pattern-cell">🌿</div>
+    <div class="pattern-cell">🍂</div>
+    <div class="pattern-cell">🍁</div>
+    <div class="pattern-cell">🌀</div>
+    <div class="pattern-cell">🍁</div>
+    <div class="pattern-cell">🌀</div>
+    <div class="pattern-cell">🍂</div>
+    <div class="pattern-cell">🌿</div>
+    <div class="pattern-cell">🌀</div>
+    <div class="pattern-cell">🍁</div>
+    <div class="pattern-cell">🍂</div>
+    <div class="pattern-cell">🌿</div>
+  </div>
+
+  <!-- Barcode Band -->
+  <div class="barcode-band">
+    <div class="barcode" id="barcode"></div>
+    <div class="barcode-text">
+      <div class="serial-main">ANTI·MEADOW·AX·2026·AU·0047·AUTUMN</div>
+      <div class="serial-sub">Authenticated Security Print · Do Not Reproduce · UV-Reactive Ink</div>
+    </div>
+    <div class="barcode" id="barcode2"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer-band">
+    <span class="brand">ANTI MEADOW</span>
+    <span>Security Print Technology</span>
+    <span>SN: AX-2026-AU-0047</span>
+    <span>©2026 Anti Meadow™</span>
+  </div>
+
+</div>
+
+<script>
+  // Generate barcodes
+  function makeBarcode(id) {
+    const bc = document.getElementById(id);
+    const widths = [1.5,2.5,1,3,1.5,2,1,1.5,3,1,2,1.5,1,2.5,1,1.5,2,1,3,1.5,2,1,2.5,1,1.5,3,1,2,1.5,1];
+    widths.forEach((w, i) => {
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.style.width = w + 'px';
+      bar.style.setProperty('--d', (i * 0.1) + 's');
+      if (i % 3 === 0) bar.style.background = '#00c6ff';
+      else if (i % 3 === 1) bar.style.background = '#c0006e';
+      else bar.style.background = '#f5a623';
+      bc.appendChild(bar);
+    });
+  }
+  makeBarcode('barcode');
+  makeBarcode('barcode2');
+</script>
+</body>
+</html>
