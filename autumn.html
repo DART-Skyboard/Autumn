@@ -6488,6 +6488,77 @@ async function handleSend() {
   S.lastAnalysis=analysis;
   S.contextHistory=[...S.contextHistory,augmentedText].slice(-5);
 
+  // ── Connection Status — Autumn knows her live connection state ──────────────
+  const _connTriggers = [
+    'are you connected','are you online','is claude connected','is claude active',
+    'do you have a key','is your api key','is the api key','check connection',
+    'connection status','are you linked','connected to claude','connected to anthropic',
+    'connected to github','connected to the repo','connected to leatr','connected to ash',
+    'is the repository','is the repo connected','check your connection','status check',
+    'are your keys','are the keys','key status','pat active','github token',
+    'memory connected','leatr-ash connected','are we connected','what keys','which keys'
+  ];
+  const _connTrigger = _connTriggers.some(function(t){ return augmentedText.toLowerCase().includes(t); });
+  if(_connTrigger && !_pendingImgs.length) {
+    var _ck  = typeof _keysReadAK  === 'function' ? _keysReadAK()  : (typeof _getAK==='function'?_getAK():'');
+    var _cp  = typeof _keysReadPAT === 'function' ? _keysReadPAT() : (typeof getLeatrAshPAT==='function'?getLeatrAshPAT():'');
+    var _ckActive  = !!_ck;
+    var _cpActive  = !!_cp;
+    var _ckHint    = _ck  ? ('…'+_ck.slice(-4))  : null;
+    var _cpHint    = _cp  ? ('…'+_cp.slice(-4))  : null;
+    var _connReply = '';
+
+    if(_ckActive && _cpActive) {
+      _connReply = '✅ Both connections are active.
+
+'
+        + '◈ **Claude / Anthropic API** — connected' + (_ckHint?' (key '+_ckHint+')':'')+'
+'
+        + '◈ **GitHub / leatr-ash** — connected' + (_cpHint?' (token '+_cpHint+')':'')+'
+
+'
+        + 'My full capability set is online — Claude Sonnet enhanced responses, vision analysis, image generation, FRAX Studio, memory sync, IDE commits, and your session node is live in the BRPN visualization.';
+    } else if(_ckActive && !_cpActive) {
+      _connReply = '⚡ Partially connected.
+
+'
+        + '◈ **Claude / Anthropic API** — ✅ connected' + (_ckHint?' (key '+_ckHint+')':'')+'
+'
+        + '◈ **GitHub / leatr-ash** — ✗ not connected
+
+'
+        + 'Claude-enhanced responses, vision, and image generation are all active. To enable memory sync, session nodes, and IDE commits, tap 🔑 KEYS and add your GitHub PAT.';
+    } else if(!_ckActive && _cpActive) {
+      _connReply = '⚡ Partially connected.
+
+'
+        + '◈ **Claude / Anthropic API** — ✗ not connected
+'
+        + '◈ **GitHub / leatr-ash** — ✅ connected' + (_cpHint?' (token '+_cpHint+')':'')+'
+
+'
+        + 'I'm running on my native LEATR neural engine right now — no Claude API key loaded. Your session is syncing to leatr-ash and your node is visible in the BRPN scene. Tap 🔑 KEYS to add your Anthropic key for full Claude-enhanced mode.';
+    } else {
+      _connReply = 'ℹ Not connected to any external services right now.
+
+'
+        + '◈ **Claude / Anthropic API** — ✗ not connected
+'
+        + '◈ **GitHub / leatr-ash** — ✗ not connected
+
+'
+        + 'I'm running fully on my own LEATR v2 neural network — everything works natively. To unlock Claude-enhanced responses and memory sync, tap 🔑 KEYS in the header to add your keys. Both are optional and stay on your device only.';
+    }
+
+    msgs().push({role:'autumn', text:_connReply, ts:new Date().toISOString(),
+      grammarMeta:'Connection Status · Claude:'+ (_ckActive?'✅':'✗') +' · GitHub:'+(_cpActive?'✅':'✗'),
+      brpnMeta:'', contextType:'CONNECTION_STATUS'});
+    S.isProcessing=false;
+    if(typeof setOrbThinking==='function') setOrbThinking(false);
+    saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+    return;
+  }
+
   // ── Memory Analysis → Claude API bridge ─────────────────────────────────
   const _memTrigger = (typeof MEMORY_ANALYSIS_TRIGGERS!=='undefined') &&
     MEMORY_ANALYSIS_TRIGGERS.some(function(t){ return augmentedText.toLowerCase().includes(t); });
