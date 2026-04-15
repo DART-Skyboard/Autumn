@@ -9002,20 +9002,42 @@ function openKeysModal() {
   var modal = document.getElementById('keys-modal');
   if (!modal) return;
   modal.classList.add('open');
-  _refreshKeysDots();
-  // Pre-fill masked placeholder if keys already set
-  var ak = _keysReadAK();
+
+  var ak  = _keysReadAK();
   var pat = _keysReadPAT();
-  var akIn = document.getElementById('keys-ak-input');
+
+  // ── Input placeholders ─────────────────────────────────────
+  var akIn  = document.getElementById('keys-ak-input');
   var patIn = document.getElementById('keys-pat-input');
-  if (akIn) { akIn.value = ''; akIn.placeholder = ak ? '••••••••••••  (active — enter new to replace)' : 'sk-ant-api03-…'; }
-  if (patIn) { patIn.value = ''; patIn.placeholder = pat ? '••••••••••••  (active — enter new to replace)' : 'ghp_xxxxxxxxxxxxxxxx'; }
-  // Set remember checkboxes based on what's currently persisted
-  var akRemember = document.getElementById('ak-remember');
-  var patRemember = document.getElementById('pat-remember');
-  if (akRemember) akRemember.checked = !!localStorage.getItem('_aut_ide_ak');
-  if (patRemember) patRemember.checked = !!localStorage.getItem('_aut_pat_persist');
-  setTimeout(function(){ var i=document.getElementById('keys-ak-input'); if(i&&!_getAK()) i.focus(); }, 120);
+  if (akIn)  { akIn.value  = ''; akIn.placeholder  = ak  ? '••••••••  active — enter new key to replace' : 'sk-ant-api03-…'; }
+  if (patIn) { patIn.value = ''; patIn.placeholder = pat ? '••••••••  active — enter new token to replace' : 'ghp_xxxxxxxxxxxxxxxx'; }
+
+  // ── Remember checkboxes ────────────────────────────────────
+  var akR  = document.getElementById('ak-remember');
+  var patR = document.getElementById('pat-remember');
+  if (akR)  akR.checked  = !!localStorage.getItem('_aut_ide_ak');
+  if (patR) patR.checked = !!localStorage.getItem('_aut_pat_persist');
+
+  // ── Active key preview (last 4 chars) ─────────────────────
+  var akHint  = document.getElementById('ak-active-hint');
+  var patHint = document.getElementById('pat-active-hint');
+  if (akHint) {
+    if (ak)  { akHint.textContent  = 'ends …' + ak.slice(-4);  akHint.style.display = 'inline'; }
+    else     { akHint.style.display = 'none'; }
+  }
+  if (patHint) {
+    if (pat) { patHint.textContent = 'ends …' + pat.slice(-4); patHint.style.display = 'inline'; }
+    else     { patHint.style.display = 'none'; }
+  }
+
+  // ── Status dots + borders ──────────────────────────────────
+  _refreshKeysDots();
+
+  // Focus first empty field
+  setTimeout(function(){
+    if (!ak  && akIn)  akIn.focus();
+    else if (!pat && patIn) patIn.focus();
+  }, 140);
 }
 
 function closeKeysModal() {
@@ -9031,35 +9053,45 @@ function _refreshKeysDots() {
   var hasAK  = !!_keysReadAK();
   var hasPAT = !!_keysReadPAT();
 
-  // Dot elements
+  // ── Dots ───────────────────────────────────────────────────
   var akDot  = document.getElementById('ak-dot');
   var patDot = document.getElementById('pat-dot');
+  if (akDot)  akDot.style.cssText  = hasAK  ? 'background:#00ffcc;box-shadow:0 0 10px #00ffcc;width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:all .3s'   : 'background:#334;width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:all .3s';
+  if (patDot) patDot.style.cssText = hasPAT ? 'background:rgba(255,179,71,1);box-shadow:0 0 10px rgba(255,179,71,.9);width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:all .3s' : 'background:#334;width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:all .3s';
+
+  // ── Status text ────────────────────────────────────────────
   var akTxt  = document.getElementById('ak-status-txt');
   var patTxt = document.getElementById('pat-status-txt');
+  if (akTxt)  { akTxt.textContent = hasAK  ? '● ACTIVE' : 'NOT SET'; akTxt.style.cssText  = hasAK  ? 'color:#00ffcc;font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto;transition:color .3s'                  : 'color:rgba(255,255,255,.2);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto;transition:color .3s'; }
+  if (patTxt) { patTxt.textContent = hasPAT ? '● ACTIVE' : 'NOT SET'; patTxt.style.cssText = hasPAT ? 'color:rgba(255,179,71,.9);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto;transition:color .3s' : 'color:rgba(255,255,255,.2);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto;transition:color .3s'; }
 
-  // AK dot — cyan when active
-  if (akDot)  { akDot.style.cssText  = hasAK  ? 'background:#00ffcc;box-shadow:0 0 10px #00ffcc;width:10px;height:10px;border-radius:50%;flex-shrink:0' : 'background:#334;width:8px;height:8px;border-radius:50%;flex-shrink:0'; }
-  // PAT dot — amber when active
-  if (patDot) { patDot.style.cssText = hasPAT ? 'background:rgba(255,179,71,1);box-shadow:0 0 10px rgba(255,179,71,.9);width:10px;height:10px;border-radius:50%;flex-shrink:0' : 'background:#334;width:8px;height:8px;border-radius:50%;flex-shrink:0'; }
+  // ── Section border glow ────────────────────────────────────
+  var akSec  = document.getElementById('ak-section');
+  var patSec = document.getElementById('pat-section');
+  if (akSec)  akSec.style.borderColor  = hasAK  ? 'rgba(0,255,204,.35)'  : 'rgba(255,255,255,.06)';
+  if (patSec) patSec.style.borderColor = hasPAT ? 'rgba(255,179,71,.35)' : 'rgba(255,255,255,.06)';
 
-  if (akTxt) {
-    akTxt.style.cssText = hasAK ? 'color:#00ffcc;font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto' : 'color:rgba(255,255,255,.2);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto';
-    akTxt.textContent = hasAK ? '● ACTIVE' : 'NOT SET';
-  }
-  if (patTxt) {
-    patTxt.style.cssText = hasPAT ? 'color:rgba(255,179,71,.9);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto' : 'color:rgba(255,255,255,.2);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1px;margin-left:auto';
-    patTxt.textContent = hasPAT ? '● ACTIVE' : 'NOT SET';
-  }
+  // ── Top status bar ─────────────────────────────────────────
+  var bar     = document.getElementById('keys-status-bar');
+  var ksbAK   = document.getElementById('ksb-ak');
+  var ksbPAT  = document.getElementById('ksb-pat');
+  var ksbNone = document.getElementById('ksb-none');
+  if (bar) bar.style.display = 'flex';
+  if (ksbAK)   ksbAK.style.display   = hasAK  ? 'inline' : 'none';
+  if (ksbPAT)  ksbPAT.style.display  = hasPAT ? 'inline' : 'none';
+  if (ksbNone) ksbNone.style.display = (!hasAK && !hasPAT) ? 'inline' : 'none';
 
-  // Section border glow when active
-  var akSection  = akDot  && akDot.closest  ? akDot.closest('.keys-section')  : null;
-  var patSection = patDot && patDot.closest ? patDot.closest('.keys-section') : null;
-  if (akSection)  akSection.style.borderColor  = hasAK  ? 'rgba(0,255,204,.35)'     : 'rgba(255,255,255,.06)';
-  if (patSection) patSection.style.borderColor = hasPAT ? 'rgba(255,179,71,.35)'    : 'rgba(255,255,255,.06)';
-
-  // Header key button
+  // ── Header key button ──────────────────────────────────────
   _updateKeyBtn();
 }
+
+// Run on page load so header button is always correct
+setTimeout(_refreshKeysDots, 500);
+// Poll every 2s while modal is open to catch any external changes
+setInterval(function(){
+  var modal = document.getElementById('keys-modal');
+  if (modal && modal.classList.contains('open')) _refreshKeysDots();
+}, 2000);
 
 function _keysFlash(sectionId, color) {
   // Brief flash animation on the section to confirm save
@@ -9916,6 +9948,11 @@ loadAutumnLogic();
 <!-- UNIFIED KEYS MODAL -->
 <div id="keys-modal">
   <div id="keys-box">
+    <div id="keys-status-bar" style="display:none;padding:6px 18px;background:rgba(0,255,204,.07);border-bottom:1px solid rgba(0,255,204,.12);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1.5px;color:rgba(0,255,204,.7);display:flex;gap:14px;align-items:center">
+      <span id="ksb-ak"  style="display:none">◈ CLAUDE ACTIVE</span>
+      <span id="ksb-pat" style="display:none;color:rgba(255,179,71,.8)">◈ GITHUB ACTIVE</span>
+      <span id="ksb-none" style="color:rgba(255,255,255,.2)">No keys configured yet</span>
+    </div>
     <div id="keys-header">
       <span id="keys-title">🔑 API KEYS &amp; MEMORY</span>
       <button id="keys-close" onclick="closeKeysModal()">✕ CLOSE</button>
@@ -9928,6 +9965,7 @@ loadAutumnLogic();
           <div class="keys-dot inactive" id="ak-dot"></div>
           <span class="keys-label">ANTHROPIC API KEY</span>
           <span class="keys-status-txt off" id="ak-status-txt">NOT SET</span>
+          <span id="ak-active-hint" style="display:none;font-family:monospace;font-size:10px;color:rgba(0,255,204,.45);margin-left:6px;letter-spacing:1px"></span>
         </div>
         <p class="keys-desc">
           <strong>This is optional.</strong> Autumn runs fully on her own LEATR neural network without any key.<br>
@@ -9960,6 +9998,7 @@ loadAutumnLogic();
           <div class="keys-dot inactive" id="pat-dot"></div>
           <span class="keys-label" style="color:rgba(255,179,71,.9)">GITHUB PERSONAL ACCESS TOKEN</span>
           <span class="keys-status-txt off" id="pat-status-txt">NOT SET</span>
+          <span id="pat-active-hint" style="display:none;font-family:monospace;font-size:10px;color:rgba(255,179,71,.45);margin-left:6px;letter-spacing:1px"></span>
         </div>
         <p class="keys-desc">
           <strong>Optional — for developers and repository owners.</strong><br>
