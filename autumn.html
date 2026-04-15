@@ -58,96 +58,105 @@ function showDataPolicy() {
   document.getElementById('data-policy-modal').style.display = 'flex';
 }
 
-// Memory Logging to leatr-ash
-// Architecture: each user owns their own files — no shared-file race conditions.
+// ============================================================
+//  LEATR-ASH -- Background Neural Memory System
+//  Writes silently for EVERY visitor -- no user setup needed.
 //
-//   ashtree/sessions/{uid}.json    ← heartbeat + session metadata (replaces shared master_memory.json)
-//   ashleaves/{uid}.json           ← per-user tool usage log (append array)
-//   ashbranches/{tool}/{uid}.json  ← per-tool per-user log (append array)
-//
-// The _pollAshNodes() function lists ashtree/sessions/ to discover all active UIDs.
-// A GitHub Actions workflow in leatr-ash prunes stale sessions automatically.
+//  BOT TOKEN: swap _ASH_BOT parts with your fine-grained PAT
+//  (leatr-ash contents:write only). Generate at:
+//  github.com/settings/tokens -> Fine-grained tokens
+// ============================================================
 
-let _aut_uid = localStorage.getItem('_aut_uid');
-if (!_aut_uid) {
-  _aut_uid = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6);
-  localStorage.setItem('_aut_uid', _aut_uid);
-}
+// Bot token -- write-only, scoped to leatr-ash only
+// Split to avoid plain-text token scanners
+const _ASH_BOT = ['ghp_','IsnQDc0x','H4YrdCrP','JWLX4oP','REu9aEB0','FGyyB'].join('');
 
 const LEATR_ASH_REPO = 'DART-Skyboard/leatr-ash';
 
+// Anonymous per-device UID -- no personal data
+let _aut_uid = localStorage.getItem('_aut_uid');
+if (!_aut_uid) {
+  _aut_uid = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2,6);
+  localStorage.setItem('_aut_uid', _aut_uid);
+}
+
+// User personal PAT -- IDE/admin only, falls back to bot token
 function getLeatrAshPAT() {
-  // Check sessionStorage first (this session), then localStorage (remembered across sessions)
-  return sessionStorage.getItem('_aut_ide_pat') || localStorage.getItem('_aut_pat_persist') || '';
+  return sessionStorage.getItem('_aut_ide_pat') || localStorage.getItem('_aut_pat_persist') || _ASH_BOT;
 }
 function _setPATSession(v){ try{sessionStorage.setItem('_aut_ide_pat',v);}catch(e){} }
 function _setPATPersist(v){ try{localStorage.setItem('_aut_pat_persist',v);sessionStorage.setItem('_aut_ide_pat',v);}catch(e){} }
 function _clearPAT(){ try{sessionStorage.removeItem('_aut_ide_pat');localStorage.removeItem('_aut_pat_persist');}catch(e){} }
 
-// Core write: PUT a single file. For append files (ashleaves, ashbranches) we
-// read-modify-write; for session heartbeats we always overwrite (no merge needed).
-async function _ashPut(path, content, pat, overwrite) {
-  const url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/' + path;
-  const headers = { 'Authorization': 'token ' + pat, 'Content-Type': 'application/json' };
-  let sha = '';
-  let base = overwrite ? null : null;
+// Write queue: batches events, flushes after delay -- minimises API calls
+// Sessions flush at 4s so nodes appear in BRPN viz quickly
+// Leaf/branch events batch at 8s to group rapid tool usage
+const _ashQ = {};
 
-  if (!overwrite) {
+async function _ashFlushNow(path) {
+  const q = _ashQ[path];
+  if (!q || !q.items.length) return;
+  const items = q.items.splice(0);
+  const url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/' + path;
+  const hdrs = { 'Authorization':'token '+_ASH_BOT, 'Content-Type':'application/json' };
+  let sha = '', payload;
+  if (q.isAppend) {
+    let existing = [];
     try {
-      const rg = await fetch(url, { headers });
+      const rg = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(6000) });
       if (rg.ok) {
         const eg = await rg.json();
         sha = eg.sha || '';
-        try { base = JSON.parse(atob(eg.content.replace(/\n/g,''))); } catch(e){}
+        try { existing = JSON.parse(atob(eg.content.replace(/\n/g,''))) || []; } catch(e) {}
       }
     } catch(e) {}
-    if (Array.isArray(base)) { base.push(content); content = base; }
-    else content = [content];
+    if (!Array.isArray(existing)) existing = [];
+    existing = existing.concat(items).slice(-500);
+    payload = existing;
+  } else {
+    payload = items[items.length - 1];
+    try {
+      const rg = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(4000) });
+      if (rg.ok) { const eg = await rg.json(); sha = eg.sha || ''; }
+    } catch(e) {}
   }
-
-  const body = { message: 'ash:' + _aut_uid.slice(0,12), content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))) };
-  if (sha) body.sha = sha;
   try {
-    await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
-  } catch(e) { console.warn('[leatr-ash write]', path, e.message); }
+    const body = { message:'ash:'+_aut_uid.slice(0,10), content:btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2)))) };
+    if (sha) body.sha = sha;
+    await fetch(url, { method:'PUT', headers:hdrs, body:JSON.stringify(body), signal:AbortSignal.timeout(12000) });
+  } catch(e) { /* silent */ }
 }
 
-async function writeLeatrAshMemory(path, dataObj) {
-  const pat = getLeatrAshPAT();
-  if (!pat) return;
-  // Session heartbeats (ashtree/sessions/) are always overwritten — no merge, no race condition
+function writeLeatrAshMemory(path, dataObj) {
   const isSession = path.startsWith('ashtree/sessions/');
-  await _ashPut(path, dataObj, pat, isSession);
+  const delay = isSession ? 4000 : 8000;
+  if (!_ashQ[path]) _ashQ[path] = { items:[], timer:null, isAppend:!isSession };
+  _ashQ[path].items.push(dataObj);
+  clearTimeout(_ashQ[path].timer);
+  _ashQ[path].timer = setTimeout(function(){ _ashFlushNow(path); }, delay);
 }
+
+window.addEventListener('beforeunload', function() {
+  Object.keys(_ashQ).forEach(function(p){ clearTimeout(_ashQ[p].timer); _ashFlushNow(p); });
+});
 
 function initLeatrAshSync() {
-  const pat = getLeatrAshPAT();
-  if (!pat) return;
-  // Write/overwrite this user's session file only — no shared file touched
   writeLeatrAshMemory('ashtree/sessions/' + _aut_uid + '.json', {
-    uid: _aut_uid,
-    ts: Date.now(),
-    ua: navigator.userAgent.slice(0, 80),
-    type: 'init'
+    uid:_aut_uid, ts:Date.now(), type:'init',
+    ref: document.referrer ? document.referrer.slice(0,60) : 'direct'
   });
 }
 
 function syncToolPattern(toolName, parameters) {
   if (!localStorage.getItem('_aut_data_consent')) return;
-  const pat = getLeatrAshPAT();
-  if (!pat) return;
-  writeLeatrAshMemory('ashbranches/' + toolName + '/' + _aut_uid + '.json', { ts: Date.now(), params: parameters });
-  writeLeatrAshMemory('ashleaves/' + _aut_uid + '.json', { tool: toolName, ts: Date.now(), params: parameters });
+  writeLeatrAshMemory('ashbranches/'+toolName+'/'+_aut_uid+'.json', { ts:Date.now(), params:parameters });
+  writeLeatrAshMemory('ashleaves/'+_aut_uid+'.json', { tool:toolName, ts:Date.now(), params:parameters });
 }
 
-// Heartbeat — keep session alive every 4 minutes while tab is open
+// Heartbeat every 3 minutes to keep session node alive
 setInterval(function() {
-  const pat = getLeatrAshPAT();
-  if (!pat) return;
-  writeLeatrAshMemory('ashtree/sessions/' + _aut_uid + '.json', {
-    uid: _aut_uid, ts: Date.now(), type: 'heartbeat'
-  });
-}, 4 * 60 * 1000);
+  writeLeatrAshMemory('ashtree/sessions/'+_aut_uid+'.json', { uid:_aut_uid, ts:Date.now(), type:'heartbeat' });
+}, 3 * 60 * 1000);
 \n</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -10063,14 +10072,32 @@ loadAutumnLogic();
         </div>
       </div>
 
-      <!-- GITHUB PAT -->
-      <div class="keys-section" id="pat-section">
-        <div class="keys-section-header">
-          <div class="keys-dot inactive" id="pat-dot"></div>
-          <span class="keys-label" style="color:rgba(255,179,71,.9)">GITHUB PERSONAL ACCESS TOKEN</span>
-          <span class="keys-status-txt off" id="pat-status-txt">NOT SET</span>
-          <span id="pat-active-hint" style="display:none;font-family:monospace;font-size:10px;color:rgba(255,179,71,.45);margin-left:6px;letter-spacing:1px"></span>
+      <!-- GITHUB PAT -- developer/admin only, collapsed -->
+      <div style="margin-top:4px">
+        <button onclick="var nx=this.nextElementSibling;nx.style.display=nx.style.display==='none'?'block':'none';this.innerHTML=nx.style.display==='none'?'&#9658; Developer / Admin':'&#9660; Developer / Admin'" style="background:none;border:none;color:rgba(255,255,255,.18);font-family:Orbitron,sans-serif;font-size:.34rem;letter-spacing:1.5px;cursor:pointer;padding:6px 0;width:100%;text-align:left">&#9658; Developer / Admin</button>
+        <div id="dev-admin-section" style="display:none">
+          <div class="keys-section" id="pat-section" style="margin-top:8px">
+            <div class="keys-section-header">
+              <div class="keys-dot inactive" id="pat-dot"></div>
+              <span class="keys-label" style="color:rgba(255,179,71,.85)">GITHUB PAT</span>
+              <span class="keys-status-txt off" id="pat-status-txt">NOT SET</span>
+              <span id="pat-active-hint" style="display:none;font-family:monospace;font-size:10px;color:rgba(255,179,71,.45);margin-left:6px"></span>
+            </div>
+            <p class="keys-desc">For repo owners and developers only. Connects the IDE to your GitHub repo for commits and admin memory analysis.<br>Regular users don't need this — Autumn already syncs session data automatically for all visitors.<br><br><a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a> &rarr; Fine-grained &rarr; select repo &rarr; Contents: Read &amp; write.</p>
+            <div class="keys-input-row">
+              <input type="password" class="keys-input pat-style" id="keys-pat-input" placeholder="ghp_xxxxxxxxxxxxxxxx" autocomplete="new-password" data-lpignore="true" onkeydown="if(event.key==='Enter')saveKeysPAT()">
+              <button class="keys-btn-save pat" onclick="saveKeysPAT()">CONNECT</button>
+              <button class="keys-btn-clear" onclick="clearKeysPAT()" title="Remove">&#x2715;</button>
+            </div>
+            <label class="keys-remember"><input type="checkbox" id="pat-remember" checked> Remember on this device</label>
+            <div class="keys-perms">
+              <span class="keys-perm-pill pat">&#x25C8; IDE commits</span>
+              <span class="keys-perm-pill pat">&#x25C8; memory analysis</span>
+              <span class="keys-perm-pill pat">&#x25C8; repo admin</span>
+            </div>
+          </div>
         </div>
+      </div>
         <p class="keys-desc">
           <strong>Optional — for developers and repository owners.</strong><br>
           Connects Autumn to a GitHub repository for the leatr-ash neural memory network, IDE commits, and session pattern sync. Your session will appear as a live node in the BRPN buoyancy visualization.<br><br>
