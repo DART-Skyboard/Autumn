@@ -34,7 +34,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
 function acceptDataPolicy() {
   localStorage.setItem('_aut_data_consent', 'true');
   document.getElementById('data-policy-modal').style.display = 'none';
@@ -157,7 +158,7 @@ function syncToolPattern(toolName, parameters) {
 setInterval(function() {
   writeLeatrAshMemory('ashtree/sessions/'+_aut_uid+'.json', { uid:_aut_uid, ts:Date.now(), type:'heartbeat' });
 }, 3 * 60 * 1000);
-\n</script>
+</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
@@ -11685,6 +11686,6 @@ function init3DViewersInMessages() {
 window.init3DViewersInMessages = init3DViewersInMessages;
 </script>
 
-\n</body>
+</body>
 </html>
 
