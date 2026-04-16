@@ -1042,5 +1042,517 @@
   makeBarcode('barcode');
   makeBarcode('barcode2');
 </script>
+
+<!-- ═══════════════════════════════════════════════════════
+     DRAFT & DRIP — Graphic Design News Overlay
+     newsdata.io API · graphic design category only
+═══════════════════════════════════════════════════════ -->
+<style>
+  /* ── Fonts (same as Autumn) ── */
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap');
+
+  /* ── Toggle FAB ── */
+  #dd-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(8,4,18,.88);
+    border: 1px solid rgba(251,191,100,.45);
+    border-radius: 28px;
+    padding: 9px 16px 9px 10px;
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 0 20px rgba(251,146,60,.18), 0 0 6px rgba(139,92,246,.15);
+    transition: box-shadow .25s, border-color .25s, transform .2s;
+    font-family: 'Orbitron', monospace;
+    user-select: none;
+  }
+  #dd-fab:hover {
+    border-color: rgba(251,191,100,.8);
+    box-shadow: 0 0 28px rgba(251,146,60,.35), 0 0 10px rgba(139,92,246,.25);
+    transform: translateY(-2px);
+  }
+  #dd-fab-cup {
+    font-size: 1.15rem;
+    animation: ddFabSteam 3.2s ease-in-out infinite;
+    line-height: 1;
+  }
+  @keyframes ddFabSteam {
+    0%,100%{transform:translateY(0) rotate(-3deg);}
+    40%{transform:translateY(-3px) rotate(2deg);}
+    70%{transform:translateY(-1px) rotate(-1deg);}
+  }
+  #dd-fab-txt {
+    font-size: .46rem;
+    letter-spacing: 1.4px;
+    font-weight: 700;
+    color: rgba(251,191,100,.9);
+    line-height: 1;
+  }
+  #dd-fab-arrow {
+    font-size: .65rem;
+    color: rgba(251,191,100,.6);
+    margin-left: 2px;
+    transition: transform .3s;
+    line-height: 1;
+  }
+  #dd-fab.collapsed #dd-fab-arrow { transform: rotate(180deg); }
+
+  /* ── Return-to-Autumn button (top-left fixed) ── */
+  #dd-return {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 9100;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(2,10,20,.82);
+    border: 1px solid rgba(0,229,255,.3);
+    border-radius: 22px;
+    padding: 7px 14px 7px 10px;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    text-decoration: none;
+    font-family: 'Orbitron', monospace;
+    font-size: .44rem;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: rgba(0,229,255,.85);
+    box-shadow: 0 0 14px rgba(0,229,255,.12);
+    transition: all .22s;
+  }
+  #dd-return:hover {
+    border-color: rgba(0,229,255,.7);
+    color: #00e5ff;
+    box-shadow: 0 0 22px rgba(0,229,255,.25);
+    transform: translateY(-1px);
+  }
+  #dd-return-icon {
+    font-size: .8rem;
+    line-height: 1;
+  }
+
+  /* ── Overlay panel ── */
+  #dd-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 8500;
+    display: flex;
+    flex-direction: column;
+    background: rgba(5,2,14,.92);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    transition: opacity .35s ease, transform .35s ease;
+    overflow: hidden;
+  }
+  #dd-panel.collapsed {
+    opacity: 0;
+    transform: translateY(24px);
+    pointer-events: none;
+  }
+
+  /* ── Panel header bar ── */
+  #dd-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px 13px;
+    border-bottom: 1px solid rgba(251,146,60,.2);
+    background: rgba(10,4,24,.7);
+  }
+  #dd-header-cup { font-size: 1.4rem; animation: ddFabSteam 3s ease-in-out infinite; }
+  #dd-header-title {
+    font-family: 'Orbitron', monospace;
+    font-size: .75rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: rgba(251,191,100,.95);
+  }
+  #dd-header-sub {
+    font-family: 'Exo 2', sans-serif;
+    font-size: .65rem;
+    color: rgba(180,139,255,.6);
+    margin-left: auto;
+    letter-spacing: .5px;
+  }
+  #dd-header-filter {
+    display: flex;
+    gap: 6px;
+    margin-left: 16px;
+  }
+  .dd-filter-chip {
+    font-family: 'Orbitron', monospace;
+    font-size: .38rem;
+    letter-spacing: 1px;
+    padding: 4px 9px;
+    border-radius: 12px;
+    border: 1px solid rgba(251,146,60,.3);
+    background: rgba(251,146,60,.08);
+    color: rgba(251,191,100,.75);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .dd-filter-chip.active, .dd-filter-chip:hover {
+    background: rgba(251,146,60,.2);
+    border-color: rgba(251,191,100,.6);
+    color: rgba(251,191,100,1);
+  }
+  #dd-status {
+    font-family: 'Orbitron', monospace;
+    font-size: .36rem;
+    color: rgba(0,229,255,.4);
+    letter-spacing: 1px;
+    margin-left: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── Scroll area ── */
+  #dd-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(251,146,60,.2) transparent;
+  }
+  #dd-scroll::-webkit-scrollbar { width: 3px; }
+  #dd-scroll::-webkit-scrollbar-thumb { background: rgba(251,146,60,.25); border-radius: 2px; }
+
+  /* ── Article grid ── */
+  #dd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  /* ── Article card ── */
+  .dd-card {
+    background: rgba(14,8,30,.75);
+    border: 1px solid rgba(251,146,60,.14);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color .22s, box-shadow .22s, transform .22s;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .dd-card:hover {
+    border-color: rgba(251,191,100,.45);
+    box-shadow: 0 4px 24px rgba(251,146,60,.12), 0 0 8px rgba(139,92,246,.1);
+    transform: translateY(-3px);
+  }
+  .dd-card-img {
+    width: 100%;
+    height: 170px;
+    object-fit: cover;
+    display: block;
+    background: linear-gradient(135deg, rgba(20,8,40,.9), rgba(8,4,18,.95));
+  }
+  .dd-card-img-placeholder {
+    width: 100%;
+    height: 170px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(30,10,55,.8), rgba(15,5,30,.95));
+    font-size: 2.4rem;
+    color: rgba(251,146,60,.2);
+    border-bottom: 1px solid rgba(251,146,60,.08);
+  }
+  .dd-card-body { padding: 14px 14px 10px; flex: 1; display: flex; flex-direction: column; }
+  .dd-card-source {
+    font-family: 'Orbitron', monospace;
+    font-size: .35rem;
+    letter-spacing: 1.4px;
+    color: rgba(251,191,100,.55);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dd-card-source-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(251,146,60,.5);
+    flex-shrink: 0;
+  }
+  .dd-card-title {
+    font-family: 'Exo 2', sans-serif;
+    font-size: .8rem;
+    font-weight: 600;
+    color: rgba(224,210,255,.92);
+    line-height: 1.4;
+    margin-bottom: 8px;
+    flex: 1;
+  }
+  .dd-card-desc {
+    font-family: 'Exo 2', sans-serif;
+    font-size: .68rem;
+    color: rgba(160,150,200,.6);
+    line-height: 1.5;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .dd-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(251,146,60,.08);
+    padding-top: 9px;
+    margin-top: auto;
+  }
+  .dd-card-date {
+    font-family: 'Orbitron', monospace;
+    font-size: .32rem;
+    letter-spacing: .8px;
+    color: rgba(139,92,246,.5);
+  }
+  .dd-card-read {
+    font-family: 'Orbitron', monospace;
+    font-size: .33rem;
+    letter-spacing: 1px;
+    color: rgba(251,191,100,.6);
+    border: 1px solid rgba(251,146,60,.25);
+    padding: 3px 8px;
+    border-radius: 8px;
+    transition: all .18s;
+  }
+  .dd-card:hover .dd-card-read {
+    background: rgba(251,146,60,.15);
+    color: rgba(251,191,100,.9);
+    border-color: rgba(251,191,100,.5);
+  }
+
+  /* ── Loading / empty states ── */
+  #dd-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 220px;
+    gap: 16px;
+  }
+  .dd-spinner {
+    width: 36px; height: 36px;
+    border: 2px solid rgba(251,146,60,.15);
+    border-top-color: rgba(251,191,100,.7);
+    border-radius: 50%;
+    animation: ddSpin .9s linear infinite;
+  }
+  @keyframes ddSpin { to { transform: rotate(360deg); } }
+  .dd-loading-txt {
+    font-family: 'Orbitron', monospace;
+    font-size: .42rem;
+    letter-spacing: 2px;
+    color: rgba(251,191,100,.5);
+    animation: ddPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes ddPulse { 0%,100%{opacity:.4;} 50%{opacity:.9;} }
+
+  /* ── Load more ── */
+  #dd-load-more {
+    display: block;
+    margin: 22px auto 0;
+    background: transparent;
+    border: 1px solid rgba(251,146,60,.3);
+    border-radius: 20px;
+    padding: 9px 28px;
+    font-family: 'Orbitron', monospace;
+    font-size: .42rem;
+    letter-spacing: 1.5px;
+    color: rgba(251,191,100,.75);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  #dd-load-more:hover {
+    background: rgba(251,146,60,.12);
+    border-color: rgba(251,191,100,.6);
+    color: rgba(251,191,100,1);
+  }
+
+  /* ── Mobile tweaks ── */
+  @media (max-width: 500px) {
+    #dd-grid { grid-template-columns: 1fr; }
+    #dd-header { flex-wrap: wrap; gap: 8px; }
+    #dd-header-sub { display: none; }
+  }
+</style>
+
+<!-- Return-to-Autumn button -->
+<a id="dd-return" href="https://leatr.xyz/" title="Return to Autumn">
+  <span id="dd-return-icon">←</span>
+  <span>RETURN TO AUTUMN</span>
+</a>
+
+<!-- Draft & Drip panel -->
+<div id="dd-panel">
+  <div id="dd-header">
+    <span id="dd-header-cup">☕</span>
+    <span id="dd-header-title">DRAFT &amp; DRIP</span>
+    <div id="dd-header-filter">
+      <span class="dd-filter-chip active" data-q="graphic design">ALL</span>
+      <span class="dd-filter-chip" data-q="graphic design typography">TYPE</span>
+      <span class="dd-filter-chip" data-q="graphic design branding">BRAND</span>
+      <span class="dd-filter-chip" data-q="graphic design technology">TECH</span>
+      <span class="dd-filter-chip" data-q="graphic design trends">TRENDS</span>
+    </div>
+    <span id="dd-header-sub">GRAPHIC DESIGN LOUNGE</span>
+    <span id="dd-status">LOADING…</span>
+  </div>
+  <div id="dd-scroll">
+    <div id="dd-loading">
+      <div class="dd-spinner"></div>
+      <div class="dd-loading-txt">FETCHING LATEST ARTICLES…</div>
+    </div>
+    <div id="dd-grid" style="display:none"></div>
+    <button id="dd-load-more" style="display:none" onclick="ddLoadMore()">↓ LOAD MORE</button>
+  </div>
+</div>
+
+<!-- FAB toggle -->
+<div id="dd-fab" onclick="ddToggle()">
+  <span id="dd-fab-cup">☕</span>
+  <span id="dd-fab-txt">DRAFT &amp; DRIP</span>
+  <span id="dd-fab-arrow">▲</span>
+</div>
+
+<script>
+(function(){
+  const API_KEY = 'pub_efe075f8a95941dc811fdf037b6ef756';
+  const BASE    = 'https://newsdata.io/api/1/news';
+
+  // State
+  let _expanded  = true;   // start expanded
+  let _page      = null;   // nextPage cursor from API
+  let _loading   = false;
+  let _articles  = [];
+  let _activeQ   = 'graphic design';
+
+  // ── Toggle panel ────────────────────────────────────────
+  window.ddToggle = function() {
+    _expanded = !_expanded;
+    document.getElementById('dd-panel').classList.toggle('collapsed', !_expanded);
+    document.getElementById('dd-fab').classList.toggle('collapsed', !_expanded);
+  };
+
+  // ── Build article card HTML ──────────────────────────────
+  function buildCard(a) {
+    const img   = a.image_url || '';
+    const title = (a.title  || 'Untitled').replace(/</g,'&lt;');
+    const desc  = (a.description || '').replace(/</g,'&lt;').slice(0,180);
+    const src   = (a.source_id  || '').replace(/</g,'&lt;').toUpperCase();
+    const link  = a.link  || '#';
+    const date  = a.pubDate ? new Date(a.pubDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+
+    const imgHtml = img
+      ? `<img class="dd-card-img" src="${img}" alt="" loading="lazy" onerror="this.outerHTML='<div class=dd-card-img-placeholder>✏</div>'">`
+      : `<div class="dd-card-img-placeholder">✏</div>`;
+
+    return `<a class="dd-card" href="${link}" target="_blank" rel="noopener">
+      ${imgHtml}
+      <div class="dd-card-body">
+        <div class="dd-card-source"><div class="dd-card-source-dot"></div>${src}</div>
+        <div class="dd-card-title">${title}</div>
+        ${desc ? `<div class="dd-card-desc">${desc}</div>` : ''}
+        <div class="dd-card-footer">
+          <span class="dd-card-date">${date}</span>
+          <span class="dd-card-read">READ ↗</span>
+        </div>
+      </div>
+    </a>`;
+  }
+
+  // ── Fetch articles ───────────────────────────────────────
+  async function fetchArticles(query, page) {
+    const params = new URLSearchParams({
+      apikey:   API_KEY,
+      q:        query,
+      language: 'en',
+      size:     10,
+    });
+    if (page) params.set('page', page);
+
+    const r = await fetch(`${BASE}?${params}`, { signal: AbortSignal.timeout(12000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  // ── Render cards into grid ───────────────────────────────
+  function renderCards(articles, append) {
+    const grid = document.getElementById('dd-grid');
+    if (!append) grid.innerHTML = '';
+    grid.style.display = 'grid';
+    articles.forEach(function(a) { grid.insertAdjacentHTML('beforeend', buildCard(a)); });
+  }
+
+  // ── Initial load ─────────────────────────────────────────
+  async function loadFeed(query, reset) {
+    if (_loading) return;
+    _loading = true;
+    const status   = document.getElementById('dd-status');
+    const loading  = document.getElementById('dd-loading');
+    const loadMore = document.getElementById('dd-load-more');
+
+    if (reset) {
+      _page = null;
+      _articles = [];
+      document.getElementById('dd-grid').style.display = 'none';
+      document.getElementById('dd-grid').innerHTML = '';
+      loading.style.display = 'flex';
+      loadMore.style.display = 'none';
+    }
+    status.textContent = 'FETCHING…';
+
+    try {
+      const data = await fetchArticles(query, _page);
+      const articles = (data.results || []);
+      _page = data.nextPage || null;
+      _articles = _articles.concat(articles);
+
+      loading.style.display = 'none';
+      renderCards(articles, !reset);
+      loadMore.style.display = _page ? 'block' : 'none';
+      status.textContent = _articles.length + ' ARTICLES · GRAPHIC DESIGN';
+    } catch(e) {
+      loading.style.display = 'none';
+      document.getElementById('dd-grid').style.display = 'grid';
+      document.getElementById('dd-grid').innerHTML =
+        '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:Orbitron,monospace;font-size:.45rem;color:rgba(251,146,60,.4);letter-spacing:2px">COULD NOT FETCH ARTICLES — CHECK CONNECTION<br><br><span style="font-size:.35rem;color:rgba(255,68,102,.4)">' + e.message + '</span></div>';
+      status.textContent = 'ERROR';
+    }
+    _loading = false;
+  }
+
+  // ── Load more ────────────────────────────────────────────
+  window.ddLoadMore = function() { loadFeed(_activeQ, false); };
+
+  // ── Filter chips ─────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.dd-filter-chip').forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        document.querySelectorAll('.dd-filter-chip').forEach(function(c){ c.classList.remove('active'); });
+        chip.classList.add('active');
+        _activeQ = chip.dataset.q;
+        loadFeed(_activeQ, true);
+      });
+    });
+
+    // Start loading
+    loadFeed(_activeQ, true);
+  });
+
+})();
+</script>
 </body>
 </html>
