@@ -574,7 +574,23 @@ var _viewer        = null;   // Three.js viewer instance
 var _autoRotate    = false;
 var _generating    = false;
 
-// ── Mode switching ──────────────────────────────────────
+// ── Auto-fill prompt from URL param (when opened from Autumn) ─────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var prePrompt = params.get('prompt');
+    if(prePrompt && prePrompt.trim().length > 3) {
+      // Switch to generate mode and fill the prompt
+      setMode('generate');
+      var ta = document.getElementById('text-prompt');
+      if(ta) {
+        ta.value = decodeURIComponent(prePrompt);
+        updateGenBtn();
+      }
+      setStatus('PROMPT LOADED FROM AUTUMN — READY TO GENERATE', 'var(--violet)');
+    }
+  } catch(e) {}
+});
 function setMode(m) {
   _mode = m;
   document.querySelectorAll('.mode-tab').forEach(function(t){

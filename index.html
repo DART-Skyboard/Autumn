@@ -6757,6 +6757,56 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   // ── Memory Analysis → Claude API bridge ─────────────────────────────────
   const _memTrigger = (typeof MEMORY_ANALYSIS_TRIGGERS!=='undefined') &&
     MEMORY_ANALYSIS_TRIGGERS.some(function(t){ return augmentedText.toLowerCase().includes(t); });
+
+  // ── World Studio intent detection ────────────────────────────────────────
+  // Catches: explicit "world studio" mentions, 3D environment descriptions,
+  // and scene prompts that look like generation inputs (no image attached)
+  var _wsExplicit = /\bworld\s*studio\b/i.test(augmentedText) ||
+    /\b(open|launch|go to|take me to|use)\b.{0,20}\b(world\s*studio|3d\s*world|hunyuan)\b/i.test(augmentedText);
+
+  var _wsScenePrompt = !_pendingImgs.length && (
+    // Multi-keyword environment description — at least 3 of these clusters present
+    (function(){
+      var lc = augmentedText.toLowerCase();
+      var envWords = [
+        /\b(interior|exterior|environment|scene|landscape|facility|lab|station|world|arena|dungeon|city|terrain|biome|plaza|campus|compound|hangar|bay)\b/,
+        /\b(cylindrical|industrial|sci.?fi|futuristic|fantasy|medieval|alien|orbital|underground|underwater|arctic|tropical|desert|urban)\b/,
+        /\b(lighting|lit|glow|illuminat|ambient|atmospheric|cinematic|aesthetic|style|realistic|stylized|low.poly|pbr|high.detail)\b/,
+        /\b(game.engine|unity|unreal|vr|ar|blender|ready|export|mesh|geometry|3d|glb|gltf|model)\b/,
+        /\b(materials?|textures?|surfaces?|metallic|roughness|normal.map|pbr|hard.surface)\b/,
+        /\b(pipes?|tanks?|vessels?|panels?|chambers?|platforms?|structures?|towers?|consoles?|terminals?)\b/
+      ];
+      var hits = envWords.filter(function(r){ return r.test(lc); }).length;
+      return hits >= 3 && augmentedText.length > 60;
+    })()
+  );
+
+  if((_wsExplicit || _wsScenePrompt) && !_pendingImgs.length) {
+    var _wsPromptEnc = encodeURIComponent(augmentedText.trim().slice(0,800));
+    var _wsUrl = 'https://leatr.xyz/worldstudio.html?prompt='+_wsPromptEnc;
+    var _wsCard = '<div style="background:rgba(10,5,30,.85);border:1px solid rgba(139,92,246,.3);border-radius:10px;overflow:hidden;max-width:460px;margin:6px 0">'
+      + '<div style="padding:12px 14px 14px">'
+      + '<div style="font-family:\'Orbitron\',monospace;font-size:.55rem;color:#c4b5fd;letter-spacing:1.5px;margin-bottom:8px">⬡ WORLD STUDIO</div>'
+      + '<div style="font-size:.72rem;color:rgba(200,180,255,.75);line-height:1.5;margin-bottom:12px">'
+      + 'That reads like a 3D environment generation prompt. World Studio can use HunyuanWorld to build this as a navigable GLB scene.'
+      + '</div>'
+      + '<div style="background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.15);border-radius:6px;padding:8px 10px;font-size:.65rem;color:rgba(200,180,255,.55);line-height:1.5;margin-bottom:12px;font-style:italic">'
+      + '"' + augmentedText.trim().slice(0,160).replace(/"/g,'&quot;') + (augmentedText.length>160?'…':'') + '"'
+      + '</div>'
+      + '<a href="'+_wsUrl+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(0,229,255,.1));border:1px solid rgba(139,92,246,.45);border-radius:7px;padding:8px 16px;text-decoration:none;font-family:\'Orbitron\',monospace;font-size:.42rem;letter-spacing:1.2px;color:#c4b5fd;transition:all .2s">'
+      + '<span>⬡</span><span>OPEN IN WORLD STUDIO</span>'
+      + '</a>'
+      + '</div></div>';
+
+    msgs().push({role:'autumn', text:'', ts:new Date().toISOString(),
+      grammarMeta:'World Studio · scene prompt detected', brpnMeta:'',
+      contextType:'WORLD_STUDIO', imageGenCard:_wsCard,
+      media:{videos:[],images:[],links:[],sources:[]}});
+    S.isProcessing=false;
+    if(typeof setOrbThinking==='function') setOrbThinking(false);
+    saveState(); renderMessages(); updateFooter();
+    return;
+  }
   if(_memTrigger && !_pendingImgs.length) {
     const _memScope = augmentedText.toLowerCase().includes('master')?'master':
                       augmentedText.toLowerCase().includes('branch')?'branches':'session';
