@@ -1247,25 +1247,28 @@ select.ash-ctrl-input{cursor:pointer}
       <div id="tt-dot">☀</div>
       <span id="tt-label">DAY</span>
     </button>
-    <button class="hdr-btn" onclick="openVoiceSettings()" title="Voice settings">VOICE</button>
+    <!-- Priority buttons: LIVE → TOOLS → KEYS -->
     <button class="hdr-btn" onclick="openLiveMode()" title="Live conversation">LIVE</button>
+    <button class="hdr-btn" onclick="openTools()" title="LEATR Tools &amp; Info" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">TOOLS</button>
+    <button class="hdr-btn" id="hdr-key-btn" onclick="openKeysModal()" title="API Keys &amp; Memory — click to configure" style="color:rgba(255,179,71,.9);border-color:rgba(255,179,71,.3)">🔑 KEYS</button>
+    <!-- Secondary buttons -->
+    <button class="hdr-btn" onclick="openVoiceSettings()" title="Voice settings">VOICE</button>
     <button class="hdr-btn" onclick="exportData()" title="Export data">EXPORT</button>
     <button class="hdr-btn" onclick="importData()" title="Import data">IMPORT</button>
     <button class="hdr-btn" onclick="newChat()" title="New chat session">NEW CHAT</button>
     <button class="hdr-btn" onclick="clearCurrentChat()" title="Clear current chat" style="color:rgba(255,68,102,.5);border-color:rgba(255,68,102,.15)">CLEAR</button>
-    <button class="hdr-btn" onclick="openTools()" title="LEATR Tools & Info" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">TOOLS</button>
     <button class="hdr-btn" onclick="window.open('autumn-privacy.html', '_blank')" title="Data Policy" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">POLICY</button>
     <button class="hdr-btn" id="view-toggle-btn" onclick="toggleViewMode()" title="Toggle mobile/desktop view">📱</button>
-    <button class="hdr-btn" id="hdr-key-btn" onclick="openKeysModal()" title="API Keys &amp; Memory — click to configure" style="color:rgba(255,179,71,.9);border-color:rgba(255,179,71,.3)">🔑 KEYS</button>
     <button class="hdr-btn" onclick="openIDE()" title="Autumn Logic IDE" style="color:rgba(0,255,204,.75);border-color:rgba(0,255,204,.28)">◈ IDE</button>
     <a class="hdr-btn draft-drip-btn" href="https://leatr.xyz/amp.html" target="_blank" rel="noopener" title="Draft &amp; Drip — design lounge &amp; industry reads">
       <span class="dd-cup">☕</span><span class="dd-label">DRAFT &amp; DRIP</span>
     </a>
-    <a class="hdr-btn help-btn" href="https://leatr.xyz/autumn-help.pdf" target="_blank" rel="noopener" title="Autumn User Guide — commands, setup, API keys, full reference">
-      <span class="help-icon">?</span><span class="help-label">HELP</span>
-    </a>
     <a class="hdr-btn world-studio-btn" href="https://leatr.xyz/worldstudio.html" target="_blank" rel="noopener" title="World Studio — HunyuanWorld 3D generation">
       <span class="ws-icon">⬡</span><span class="ws-label">WORLD STUDIO</span>
+    </a>
+    <!-- HELP always last -->
+    <a class="hdr-btn help-btn" href="https://leatr.xyz/autumn-help.pdf" target="_blank" rel="noopener" title="Autumn User Guide — commands, setup, API keys, full reference">
+      <span class="help-icon">?</span><span class="help-label">HELP</span>
     </a>
   </div>
 </header>
@@ -6764,25 +6767,26 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     MEMORY_ANALYSIS_TRIGGERS.some(function(t){ return augmentedText.toLowerCase().includes(t); });
 
   // ── World Studio intent detection ────────────────────────────────────────
-  // Catches: explicit "world studio" mentions, 3D environment descriptions,
-  // and scene prompts that look like generation inputs (no image attached)
+  // Catches: explicit mentions, generate/create/build + 3D scene nouns,
+  // and pure scene descriptions (2+ keyword clusters, ≥50 chars, no image)
   var _wsExplicit = /\bworld\s*studio\b/i.test(augmentedText) ||
-    /\b(open|launch|go to|take me to|use)\b.{0,20}\b(world\s*studio|3d\s*world|hunyuan)\b/i.test(augmentedText);
+    /\b(open|launch|go to|take me to|use)\b.{0,20}\b(world\s*studio|3d\s*world|hunyuan)\b/i.test(augmentedText) ||
+    /\b(generate|create|build|make|design)\b.{0,30}\b(3d\s*(world|scene|environment|model|space|room|lab|facility|level)|world\b)/i.test(augmentedText);
 
   var _wsScenePrompt = !_pendingImgs.length && (
-    // Multi-keyword environment description — at least 3 of these clusters present
     (function(){
       var lc = augmentedText.toLowerCase();
-      var envWords = [
-        /\b(interior|exterior|environment|scene|landscape|facility|lab|station|world|arena|dungeon|city|terrain|biome|plaza|campus|compound|hangar|bay)\b/,
-        /\b(cylindrical|industrial|sci.?fi|futuristic|fantasy|medieval|alien|orbital|underground|underwater|arctic|tropical|desert|urban)\b/,
-        /\b(lighting|lit|glow|illuminat|ambient|atmospheric|cinematic|aesthetic|style|realistic|stylized|low.poly|pbr|high.detail)\b/,
-        /\b(game.engine|unity|unreal|vr|ar|blender|ready|export|mesh|geometry|3d|glb|gltf|model)\b/,
-        /\b(materials?|textures?|surfaces?|metallic|roughness|normal.map|pbr|hard.surface)\b/,
-        /\b(pipes?|tanks?|vessels?|panels?|chambers?|platforms?|structures?|towers?|consoles?|terminals?)\b/
+      var clusters = [
+        /\b(interior|exterior|environment|scene|landscape|facility|lab|station|world|arena|dungeon|city|terrain|biome|plaza|campus|compound|hangar|bay|room|corridor|chamber|structure)\b/,
+        /\b(cylindrical|industrial|sci.?fi|futuristic|fantasy|medieval|alien|orbital|underground|underwater|arctic|tropical|desert|urban|gothic|brutalist|minimalist)\b/,
+        /\b(lighting|lit|glow|illuminat|ambient|atmospheric|cinematic|aesthetic|style|realistic|stylized|low.poly|pbr|high.detail|photorealistic|dark|neon|foggy|misty)\b/,
+        /\b(game.engine|unity|unreal|vr|ar|blender|ready|export|mesh|geometry|3d|glb|gltf|model|navigable|walkable)\b/,
+        /\b(materials?|textures?|surfaces?|metallic|roughness|hard.surface|chrome|glass|concrete|steel|wood|stone)\b/,
+        /\b(pipes?|tanks?|vessels?|panels?|chambers?|platforms?|structures?|towers?|consoles?|terminals?|gauges?|vats?|reactors?)\b/
       ];
-      var hits = envWords.filter(function(r){ return r.test(lc); }).length;
-      return hits >= 3 && augmentedText.length > 60;
+      var hits = clusters.filter(function(r){ return r.test(lc); }).length;
+      // 2 clusters + length ≥50, or 3 clusters any length
+      return (hits >= 2 && augmentedText.length >= 50) || hits >= 3;
     })()
   );
 
@@ -12422,25 +12426,38 @@ window.runWorldStudioInline = async function(msgId, prompt) {
     }
     if(!window._GradioClient) throw new Error('Gradio client not available. Try the Open World Studio link instead.');
 
-    setWsCard(wsLoadingCard('CONNECTING TO HUNYUAN3D-2.1…', 20));
+    setWsCard(wsLoadingCard('CONNECTING TO HUNYUAN3D…', 20));
 
     var app;
-    try {
-      app = await window._GradioClient.connect('tencent/Hunyuan3D-2.1');
-    } catch(e) {
-      throw new Error('Could not connect to Hunyuan3D-2.1 Space — it may be sleeping. Try again in 30 seconds. (' + e.message + ')');
+    var spacesToTry = ['tencent/Hunyuan3D-2.1', 'tencent/Hunyuan3D-2'];
+    var lastErr = '';
+    for(var si = 0; si < spacesToTry.length; si++) {
+      try {
+        app = await window._GradioClient.connect(spacesToTry[si]);
+        break;
+      } catch(e) { lastErr = e.message; app = null; }
     }
+    if(!app) throw new Error('Both Hunyuan3D spaces unavailable right now. They may be sleeping — try again in 30s. (' + lastErr + ')');
 
     setWsCard(wsLoadingCard('SUBMITTING GENERATION JOB…', 35));
 
-    var job = app.submit('/generate', [
-      prompt,    // text prompt
-      null,      // reference image
-      30,        // steps
-      7.5,       // guidance
-      -1,        // seed (random)
-      true,      // export glb
-      true       // export ply
+    // Real Hunyuan3D-2.1 Gradio endpoint: shape_generation
+    // Returns: [gr.File(path), html_string, stats_dict, seed_int]
+    // The first output (index 0) is the .glb file path
+    var job = app.submit('/shape_generation', [
+      prompt,    // caption (text prompt)
+      null,      // image
+      null,      // mv_image_front
+      null,      // mv_image_back
+      null,      // mv_image_left
+      null,      // mv_image_right
+      30,        // num_steps
+      7.5,       // cfg_scale (guidance)
+      -1,        // seed
+      256,       // octree_resolution
+      false,     // check_box_rembg
+      200000,    // num_chunks
+      true       // randomize_seed
     ]);
 
     var result = null;
@@ -12458,26 +12475,31 @@ window.runWorldStudioInline = async function(msgId, prompt) {
       }
     }
 
-    if(!result) throw new Error('No result returned from Hunyuan3D-2.1.');
+    if(!result) throw new Error('No result returned from Hunyuan3D-2.1. Space may be sleeping — try again in 30s.');
 
     setWsCard(wsLoadingCard('LOADING 3D MODEL…', 92));
 
-    // Extract GLB URL from result array
-    var glbUrl = null, plyUrl = null;
-    if(Array.isArray(result)) {
-      result.forEach(function(item) {
-        if(!item) return;
-        var url = (typeof item === 'object' && item.url) ? item.url : (typeof item === 'string' ? item : null);
-        if(!url) return;
-        if(url.endsWith('.glb') || url.includes('/glb') || url.includes('glb')) { if(!glbUrl) glbUrl = url; }
-        else if(url.endsWith('.ply') || url.includes('/ply')) { if(!plyUrl) plyUrl = url; }
-        else if(!glbUrl) glbUrl = url;
-      });
-    } else if(result && result.url) {
-      glbUrl = result.url;
-    }
+    // shape_generation returns: [gr.File obj, html_string, stats_dict, seed_int]
+    // The file obj has {url, orig_name, tmp_path} or similar Gradio file structure
+    var glbUrl = null;
+    try {
+      var fileOut = Array.isArray(result) ? result[0] : result;
+      if(fileOut && typeof fileOut === 'object') {
+        glbUrl = fileOut.url || fileOut.value || fileOut.path || fileOut.tmp_path || null;
+      } else if(typeof fileOut === 'string' && fileOut.length > 4) {
+        glbUrl = fileOut;
+      }
+      // Gradio 4.x sometimes returns {data: [{url:...}]} wrapper
+      if(!glbUrl && fileOut && Array.isArray(fileOut.data)) {
+        glbUrl = fileOut.data[0] && fileOut.data[0].url;
+      }
+    } catch(e) {}
 
-    if(!glbUrl) throw new Error('API returned no GLB file. Try the Open World Studio link for full diagnostics.');
+    if(!glbUrl) {
+      // Log what we got so we can debug
+      console.warn('[WorldStudio] result:', JSON.stringify(result).slice(0,400));
+      throw new Error('Got a response but no downloadable file URL. Check console for raw result. Try Open World Studio link.');
+    }
 
     // Build the final result card with inline Three.js viewer
     var viewerId = 'ws-viewer-'+Date.now();

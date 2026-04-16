@@ -749,7 +749,8 @@ function setBtnLoading(loading) {
 function openSpaceIframe() {
   var wrap   = document.getElementById('space-iframe-wrap');
   var iframe = document.getElementById('space-iframe');
-  var url    = 'https://huggingface.co/spaces/tencent/HunyuanWorld-Mirror';
+  // Route to the space that's most likely awake — Hunyuan3D-2 (original, lighter)
+  var url = 'https://huggingface.co/spaces/tencent/Hunyuan3D-2';
   iframe.src = url;
   wrap.classList.add('show');
   document.getElementById('viewer-placeholder').style.display = 'none';
@@ -828,29 +829,15 @@ async function runReconstruct() {
   var resMap = {low: 512, medium: 768, high: 1024};
   var resVal = resMap[resolution] || 768;
 
-  // Submit job and listen to queue
-  var job = app.submit('/reconstruct', [
-    fileHandles,       // images
-    resVal,            // resolution
-    true,              // export_glb
-    true               // export_ply
-  ]);
-
-  var result = null;
-  for await (var msg of job) {
-    if(msg.type === 'status') {
-      var pos = msg.queue_position;
-      if(pos !== undefined && pos !== null) {
-        var eta = msg.eta ? Math.round(msg.eta)+'s ETA' : '';
-        setQueue(50 + Math.min(30, (20-pos)*1.5), 'QUEUE POSITION '+pos+' · '+eta);
-        setStatus('IN QUEUE — POSITION '+pos, '#ffb347');
-      }
-    } else if(msg.type === 'data') {
-      result = msg.data;
-    }
-  }
-
-  handleResult(result);
+  // Submit using gradio_demo function (HunyuanWorld-Mirror's main entry)
+  // This space requires a complex stateful setup — use LIVE DEMO iframe instead
+  // For now route to the iframe embed since the API requires prior state
+  setStatus('HunyuanWorld-Mirror requires session state — opening Live Demo…', '#ffb347');
+  clearQueue();
+  setMode('space');
+  setBtnLoading(false);
+  updateGenBtn();
+  return;
 }
 
 // ── Generate 3D: Hunyuan3D-2.1 ───────────────────────────
@@ -869,28 +856,51 @@ async function runGenerate3D() {
   var steps  = parseInt(document.getElementById('steps-range').value)  || 30;
   var guidance = parseFloat(document.getElementById('guidance-range').value) || 7.5;
 
-  setStatus('CONNECTING TO tencent/Hunyuan3D-2.1…', '#ffb347');
+  setStatus('CONNECTING TO HUNYUAN3D…', '#ffb347');
   setQueue(15, 'CONNECTING…');
 
   var opts = {};
   if(token) opts.hf_token = token;
 
   var app;
-  try {
-    app = await Client.connect('tencent/Hunyuan3D-2.1', opts);
-  } catch(e) {
-    throw new Error('Could not connect to Hunyuan3D-2.1 Space: '+e.message);
+  // Try 2.1 first, fall back to 2.0 if sleeping (503)
+  var spacesToTry = ['tencent/Hunyuan3D-2.1', 'tencent/Hunyuan3D-2'];
+  var lastErr = '';
+  for(var si = 0; si < spacesToTry.length; si++) {
+    try {
+      app = await Client.connect(spacesToTry[si], opts);
+      document.getElementById('status-model-badge').textContent = spacesToTry[si];
+      break;
+    } catch(e) {
+      lastErr = e.message;
+      app = null;
+    }
   }
+  if(!app) throw new Error('Both Hunyuan3D spaces are unavailable. Try LIVE DEMO mode. Last error: '+lastErr);
 
   setStatus('SUBMITTING GENERATION JOB…', '#ffb347');
   setQueue(30, 'SUBMITTING JOB…');
 
-  var inputs = [prompt, null, steps, guidance, seed, true, true];
+  var inputs = [
+    prompt,      // caption
+    null,        // image
+    null,        // mv_front
+    null,        // mv_back
+    null,        // mv_left
+    null,        // mv_right
+    steps,       // num_steps
+    guidance,    // cfg_scale
+    seed,        // seed
+    256,         // octree_resolution
+    false,       // check_box_rembg
+    200000,      // num_chunks
+    seed === -1  // randomize_seed
+  ];
   if(_refFile && window._GradioHandle) {
     inputs[1] = window._GradioHandle(_refFile);
   }
 
-  var job = app.submit('/generate', inputs);
+  var job = app.submit('/shape_generation', inputs);
 
   var result = null;
   for await (var msg of job) {
@@ -918,24 +928,27 @@ function handleResult(result) {
   setQueue(95, 'LOADING 3D MODEL…');
   setStatus('PROCESSING RESULT…', '#00e5ff');
 
-  // Result is typically an array: [glb_path, ply_path, ...]
-  var glbData = null, plyData = null;
+  // shape_generation returns: [gr.File({url,orig_name}), html_str, stats_dict, seed_int]
+  // We want result[0] — the file object
+  var glbData = null;
 
-  if(Array.isArray(result)) {
-    result.forEach(function(item) {
-      if(!item) return;
-      var url = (typeof item === 'object' && item.url) ? item.url : (typeof item === 'string' ? item : null);
-      if(!url) return;
-      if(url.endsWith('.glb') || url.includes('glb')) glbData = url;
-      else if(url.endsWith('.ply') || url.includes('ply')) plyData = url;
-      else if(!glbData) glbData = url; // take first file as GLB
-    });
-  } else if(typeof result === 'object' && result.url) {
-    glbData = result.url;
-  }
+  try {
+    var fileOut = Array.isArray(result) ? result[0] : result;
+    if(fileOut && typeof fileOut === 'object') {
+      // Gradio 4.x file objects: {url, orig_name, size, ...} or {value, ...}
+      glbData = fileOut.url || fileOut.value || fileOut.path || fileOut.tmp_path || null;
+      // Sometimes nested under data
+      if(!glbData && fileOut.data && typeof fileOut.data === 'string') glbData = fileOut.data;
+    } else if(typeof fileOut === 'string' && fileOut.length > 5) {
+      glbData = fileOut;
+    }
+  } catch(e) { console.warn('[WorldStudio] result parse err', e); }
+
+  // Log raw result for debugging
+  console.log('[WorldStudio] raw result:', JSON.stringify(result).slice(0, 300));
 
   _glbUrl = glbData;
-  _plyUrl = plyData;
+  _plyUrl = null;
 
   clearQueue();
 
@@ -945,12 +958,12 @@ function handleResult(result) {
       setStatus('WORLD READY — '+info, '#00ff88');
       document.getElementById('result-toolbar').classList.add('show');
       document.getElementById('dl-glb-btn').style.display = '';
-      document.getElementById('dl-ply-btn').style.display = plyData ? '' : 'none';
+      document.getElementById('dl-ply-btn').style.display = 'none';
       document.getElementById('result-meta').textContent = info;
       document.getElementById('viewer-hint').style.display = 'block';
     });
   } else {
-    throw new Error('API returned no GLB file. Result: '+JSON.stringify(result).slice(0,200));
+    throw new Error('Got a response but could not find GLB URL. Check console for raw result. Use LIVE DEMO mode for full output.');
   }
 }
 
