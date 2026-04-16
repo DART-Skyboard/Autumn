@@ -8850,6 +8850,104 @@ function populateVoiceSelect(){
   }catch(e){}
 }
 
+// ── TTS text cleaner — strips all visual/markdown formatting ────────
+// Removes markdown, code fences, dividers, symbols, decorative chars
+// so only natural spoken language reaches the synthesizer.
+function cleanForTTS(raw) {
+  if(!raw) return '';
+  var t = raw;
+
+  // 1. Strip HTML tags
+  t = t.replace(/<[^>]+>/g, ' ');
+
+  // 2. Code fences (``` ... ```) → skip entire block, just say "code block"
+  t = t.replace(/```[\s\S]*?```/g, ' code block ');
+  t = t.replace(/~~~[\s\S]*?~~~/g, ' code block ');
+
+  // 3. Inline code (`word`) → just the word
+  t = t.replace(/`([^`]+)`/g, '$1');
+  t = t.replace(/`/g, '');
+
+  // 4. Markdown headings (### Heading) → just the heading text
+  t = t.replace(/^#{1,6}\s+/gm, '');
+
+  // 5. Bold/italic (**text**, *text*, __text__, _text_) → just the text
+  t = t.replace(/\*\*\*([^*]+)\*\*\*/g, '$1');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '$1');
+  t = t.replace(/\*([^*\n]+)\*/g, '$1');
+  t = t.replace(/___([^_]+)___/g, '$1');
+  t = t.replace(/__([^_]+)__/g, '$1');
+  t = t.replace(/_([^_\n]+)_/g, '$1');
+
+  // 6. Horizontal rules and decorative dividers (---, ***, ===, ───)
+  t = t.replace(/^[-*_=─]{2,}\s*$/gm, ' ');
+
+  // 7. Markdown links [text](url) → just the text
+  t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+
+  // 8. Blockquotes (> quote) → just the content
+  t = t.replace(/^>\s*/gm, '');
+
+  // 9. Bullet/list markers at line start (-, *, +, 1., •, ·)
+  t = t.replace(/^[\s]*[-*+•·]\s+/gm, ' ');
+  t = t.replace(/^[\s]*\d+[.)]\s+/gm, ' ');
+
+  // 10. Table pipes and separators
+  t = t.replace(/\|/g, ' ');
+  t = t.replace(/^[\s|:-]+$/gm, ' ');
+
+  // 11. Arrow symbols → spoken equivalents or silence
+  t = t.replace(/→/g, ' ');
+  t = t.replace(/←/g, ' ');
+  t = t.replace(/↑/g, ' ');
+  t = t.replace(/↓/g, ' ');
+  t = t.replace(/↗/g, ' ');
+  t = t.replace(/↙/g, ' ');
+  t = t.replace(/⟶/g, ' ');
+  t = t.replace(/➔/g, ' ');
+
+  // 12. Bracket-wrapped metadata/labels [INTERNAL:...], [STATUS], etc.
+  t = t.replace(/\[[A-Z_:]+\]/g, ' ');
+  t = t.replace(/\[INTERNAL:[^\]]*\]/gi, ' ');
+
+  // 13. Decorative unicode symbols used as bullets or separators
+  //     ◈ ◉ ◇ ◆ ⬡ ✕ ✓ ✗ ✦ ✧ ⚡ ▸ ▾ ▲ ► ◄ ≡ ∎ ⊕
+  t = t.replace(/[◈◉◇◆⬡✕✓✗✦✧⚡▸▾▲▼►◄≡∎⊕☕◼▶⌕]/g, ' ');
+
+  // 14. Repeated special chars used as aesthetic separators
+  //     ═══, ───, ···, ···, •••, ///
+  t = t.replace(/[═─·\/]{2,}/g, ' ');
+
+  // 15. Dot-separated label lines (KEY: value — keep the value, drop label if ALL_CAPS)
+  //     e.g. "STATUS: FAILED" → "Failed", "FILE: path/to/file" → drop
+  t = t.replace(/^[A-Z_]{2,}:\s+/gm, '');
+
+  // 16. GitHub/code path separators (ashtree/sessions/... etc)
+  //     Replace path-like strings with just the filename
+  t = t.replace(/(?:ashtree|ashleaves|ashbranches|DART-Skyboard)\/[^\s,]+/g, 'memory file');
+
+  // 17. Percentage / version noise (80%, v2.1, 0x00ffcc)
+  t = t.replace(/0x[0-9a-fA-F]+/g, '');
+
+  // 18. JSON-like syntax artifacts ({ } [ ])  in non-code contexts
+  t = t.replace(/^\s*[{}[\]]\s*$/gm, ' ');
+
+  // 19. Scientific notation numbers that don't read naturally
+  //     e.g. 1.53e+24 → just say "a very large number"
+  t = t.replace(/\d+\.\d+e[+-]\d+/gi, 'a very large number');
+
+  // 20. Collapse multiple blank lines → single pause (period)
+  t = t.replace(/\n{2,}/g, '. ');
+  t = t.replace(/\n/g, ' ');
+
+  // 21. Collapse multiple spaces/punctuation artifacts
+  t = t.replace(/\.{2,}/g, '.');
+  t = t.replace(/\s{2,}/g, ' ');
+
+  // 22. Trim and cap length
+  return t.trim().substring(0, 2400);
+}
+
 // Kokoro voice model — af_bella = warm natural female, af_heart = softer
 var _KOKORO_VOICE = 'af_bella';
 
@@ -8860,7 +8958,7 @@ async function _speakKokoro(text, onEnd) {
     Voice.speaking = true; Voice.cancelled = false;
     var _mb = document.getElementById('mic-btn');
     if (_mb && Voice.active) _mb.style.boxShadow = '0 0 14px rgba(0,229,255,.6)';
-    var clean = text.replace(/<[^>]+>/g,'').replace(/\n{2,}/g,'. ').substring(0, 2000);
+    var clean = cleanForTTS(text);
     // Generate audio — pipeline returns {audio: Float32Array, sampling_rate: number}
     var result = await pipe(clean, { speaker_id: 0, speed: Voice.speed || 1.0 });
     if (Voice.cancelled) { Voice.speaking = false; if(onEnd) onEnd(); return; }
@@ -8916,8 +9014,8 @@ function _speakWebSpeech(text, onEnd) {
   Voice.synth.cancel(); Voice.speaking = true; Voice.cancelled = false;
   var _mb = document.getElementById('mic-btn');
   if (_mb && Voice.active) _mb.style.boxShadow = '0 0 14px rgba(0,229,255,.6)';
-  const clean = text.replace(/<[^>]+>/g,'').replace(/\n{2,}/g,'. ').substring(0,2000);
-  const sentences = clean.match(/[^.!?]+[.!?]+/g)||[clean]; let i=0;
+  const clean = cleanForTTS(text);
+  const sentences = clean.match(/[^.!?]+[.!?]*/g)||[clean]; let i=0;
   function speakNext(){
     if(Voice.cancelled||i>=sentences.length){Voice.speaking=false;if(onEnd)onEnd();return;}
     const u=new SpeechSynthesisUtterance(sentences[i].trim());
