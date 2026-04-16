@@ -380,6 +380,37 @@ THREE.OrbitControls=function(camera,domElement){
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{--cyan:#00ffcc;--blue:#0088ff;--red:#ff4466;--bg:#020a14;--bg2:#0a1628;--panel:rgba(6,16,32,0.72);--border:rgba(0,255,204,0.12);--text:#c8e6f0;--dim:#4a7a8a;--bright:#d0e8f0;--font-d:'Orbitron',monospace;--font-b:'Exo 2',sans-serif;--r:14px}
+
+/* ── Night theme overrides ── */
+body.theme-night{
+  --cyan:#b48bff;--blue:#7b4fff;--red:#ff2d78;
+  --bg:#06040f;--bg2:#0d0820;
+  --border:rgba(180,139,255,0.14);
+  --text:#d4c8f0;--dim:#5a4a8a;--bright:#e0d8f8;
+}
+body.theme-night header{
+  background:linear-gradient(180deg,rgba(90,40,160,.08) 0%,transparent 100%);
+  border-bottom-color:rgba(180,139,255,0.15);
+}
+body.theme-night #vid-scrim{
+  background:rgba(4,2,12,0.28)!important;
+  backdrop-filter:blur(7px) saturate(1.2) hue-rotate(20deg)!important;
+  -webkit-backdrop-filter:blur(7px) saturate(1.2) hue-rotate(20deg)!important;
+}
+body.theme-night .ov-grid{
+  background-image:linear-gradient(rgba(180,139,255,.2) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(180,139,255,.2) 1px,transparent 1px);
+}
+body.theme-night .logo{
+  background:linear-gradient(135deg,#b48bff,#7b4fff,#ff2d78);
+  -webkit-background-clip:text;background-clip:text;
+}
+body.theme-night #brpn-region{border-bottom-color:rgba(180,139,255,0.15)}
+body.theme-night #multi-user-bar{border-top-color:rgba(180,139,255,0.15)}
+body.theme-night .glass,body.theme-night .msg-autumn{
+  background:rgba(20,10,40,0.72);border-color:rgba(180,139,255,0.14);
+}
+body.theme-night ::-webkit-scrollbar-thumb{background:rgba(180,139,255,.25)}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden}
 body{background:transparent;font-family:var(--font-b);color:var(--text);display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
@@ -387,7 +418,7 @@ body{background:transparent;font-family:var(--font-b);color:var(--text);display:
 .ov{position:fixed;inset:0;pointer-events:none;z-index:0}
 .ov-grid{opacity:.03;background-image:linear-gradient(rgba(0,255,204,.3) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,204,.3) 1px,transparent 1px);background-size:44px 44px}
 header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,rgba(0,255,204,.04) 0%,transparent 100%);z-index:100}
-.logo-wrap{display:flex;align-items:baseline;gap:8px}
+.logo-wrap{display:flex;align-items:baseline;gap:8px;margin-right:28px;flex-shrink:0}
 .logo{font-family:var(--font-d);font-weight:900;font-size:1.2rem;background:linear-gradient(135deg,var(--cyan),var(--blue),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .logo-sub{font-size:.55rem;letter-spacing:3px;color:rgba(0,255,204,.35);font-family:var(--font-d)}
 .hdr-btns{display:flex;gap:6px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-shrink:1;min-width:0}
@@ -395,7 +426,27 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .hdr-btn{background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 10px;border-radius:4px;cursor:pointer;font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;transition:all .2s;flex-shrink:0;white-space:nowrap}
 .hdr-btn:hover{color:var(--cyan);border-color:var(--cyan)}
 
-/* ── Draft & Drip lounge button ─────────────────────── */
+/* ── Theme toggle pill ─────────────────────────────── */
+#theme-toggle{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(2,10,20,.55);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;padding:3px 10px 3px 4px;
+  cursor:pointer;flex-shrink:0;
+  font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:border-color .3s,box-shadow .3s;white-space:nowrap;
+}
+#theme-toggle:hover{box-shadow:0 0 12px var(--tt-color,#00ffcc)44}
+#tt-dot{
+  width:22px;height:22px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.62rem;line-height:1;
+  background:var(--tt-color,#00ffcc);
+  box-shadow:0 0 8px var(--tt-color,#00ffcc),0 0 18px var(--tt-color,#00ffcc);
+  color:#000;font-weight:900;transition:background .35s,box-shadow .35s;
+}
+#tt-label{color:var(--tt-color,#00ffcc);transition:color .35s;line-height:1;font-weight:700;}
 .draft-drip-btn{
   display:inline-flex;align-items:center;gap:5px;
   text-decoration:none;
@@ -1167,6 +1218,11 @@ select.ash-ctrl-input{cursor:pointer}
     <button id="scrim-toggle" onclick="cycleScrim()" title="Cycle backdrop opacity">
       <div id="st-dot">80%</div>
       <span id="st-label">FROST</span>
+    </button>
+    <!-- Theme toggle: DAY / NIGHT / SYSTEM -->
+    <button id="theme-toggle" onclick="cycleTheme()" title="Toggle colour theme">
+      <div id="tt-dot">☀</div>
+      <span id="tt-label">DAY</span>
     </button>
     <button class="hdr-btn" onclick="openVoiceSettings()" title="Voice settings">VOICE</button>
     <button class="hdr-btn" onclick="openLiveMode()" title="Live conversation">LIVE</button>
@@ -11548,6 +11604,108 @@ ashLoadDefs();
   // Init on DOM ready
   document.addEventListener('DOMContentLoaded', function(){
     applyLevel(LEVELS[0]);
+  });
+})();
+
+// ── Theme engine — DAY / NIGHT / SYSTEM ───────────────────────────
+(function(){
+  const THEMES = [
+    {
+      key:   'day',
+      label: 'DAY',
+      dot:   '☀',
+      color: '#7ecfff',      // frosted white-blue
+      video: 'assets/autumn.mp4',
+      bodyClass: ''
+    },
+    {
+      key:   'night',
+      label: 'NIGHT',
+      dot:   '🌙',
+      color: '#b48bff',      // obsidian neon violet
+      video: 'assets/autumnnight.mp4',
+      bodyClass: 'theme-night'
+    },
+    {
+      key:   'system',
+      label: 'AUTO',
+      dot:   '◈',
+      color: '#ffb347',      // glowing amber
+      video: null,           // resolved at runtime from prefers-color-scheme
+      bodyClass: ''
+    },
+  ];
+
+  let idx = 0;
+
+  function resolveSystemTheme() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? THEMES[1] : THEMES[0];
+  }
+
+  function applyTheme(t) {
+    const effective = (t.key === 'system') ? resolveSystemTheme() : t;
+    const body  = document.body;
+    const vid   = document.getElementById('backdrop-video');
+    const dot   = document.getElementById('tt-dot');
+    const lbl   = document.getElementById('tt-label');
+    const btn   = document.getElementById('theme-toggle');
+
+    // Swap body class
+    body.classList.remove('theme-night');
+    if (effective.bodyClass) body.classList.add(effective.bodyClass);
+
+    // Swap video with crossfade
+    if (vid && effective.video && vid.getAttribute('src') !== effective.video) {
+      vid.style.transition = 'opacity .6s ease';
+      vid.style.opacity = '0';
+      setTimeout(function() {
+        vid.src = effective.video;
+        vid.load();
+        vid.play().catch(function(){});
+        vid.style.opacity = '1';
+      }, 400);
+    }
+
+    // Update toggle pill appearance
+    if (dot) {
+      dot.textContent = t.dot;            // always show the *selected* theme icon
+      dot.style.background   = t.color;
+      dot.style.boxShadow    = `0 0 8px ${t.color},0 0 18px ${t.color}`;
+    }
+    if (lbl) { lbl.textContent = t.label; lbl.style.color = t.color; }
+    if (btn) {
+      btn.style.setProperty('--tt-color', t.color);
+      btn.style.borderColor = t.color + '44';
+      btn.style.boxShadow   = `0 0 8px ${t.color}22`;
+    }
+
+    // Cookie persistence
+    try { document.cookie = 'aut_theme=' + t.key + ';path=/;max-age=31536000'; } catch(e){}
+  }
+
+  window.cycleTheme = function() {
+    idx = (idx + 1) % THEMES.length;
+    applyTheme(THEMES[idx]);
+  };
+
+  // Read saved cookie on load
+  document.addEventListener('DOMContentLoaded', function() {
+    try {
+      var m = document.cookie.match(/aut_theme=([a-z]+)/);
+      if (m) {
+        var saved = THEMES.findIndex(function(t){ return t.key === m[1]; });
+        if (saved >= 0) idx = saved;
+      }
+    } catch(e) {}
+    applyTheme(THEMES[idx]);
+
+    // System theme: watch for OS preference changes
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+        if (THEMES[idx].key === 'system') applyTheme(THEMES[idx]);
+      });
+    }
   });
 })();
 
