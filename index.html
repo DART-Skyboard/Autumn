@@ -4892,13 +4892,20 @@ async function loadSingleImageFile(file) {
   // ── 3D MODEL ──────────────────────────────────────────────
   if (kind === '3d') {
     var fileURL = URL.createObjectURL(file);
+    var ext3d   = file.name.split('.').pop().toLowerCase();
+    // For GLB/GLTF: parse geometry synchronously from the binary
+    var geoData = null;
+    if (ext3d === 'glb' || ext3d === 'gltf') {
+      try { geoData = await extractGLBGeometry(file); } catch(e) {}
+    }
     return {
       is3D: true, isDoc: false, isImage: false, isVideo: false, isFrax: false,
       fileName: file.name, fileSize: file.size,
-      mimeType: file.type || 'model/' + file.name.split('.').pop().toLowerCase(),
-      fileURL: fileURL, ext: file.name.split('.').pop().toLowerCase(),
+      mimeType: file.type || 'model/' + ext3d,
+      fileURL: fileURL, ext: ext3d,
       thumbnail: '', base64: '', width: 0, height: 0, analysis: null, fraxMeta: null,
-      videoFrames: null
+      videoFrames: null,
+      geoData: geoData   // ← rich geometry data if GLB parsed successfully
     };
   }
 
@@ -7227,13 +7234,45 @@ ACCESS TIERS: All users get the full Autumn LEATR experience — never imply any
               _cb.push({type:'text', text:'[File attached: ' + item.fileName + ']\n' + preview});
             }
           } else if (item.is3D) {
-            // 3D Model context
-            var fileCtx = '3D Model Metadata: \n' +
-              'Filename: ' + item.fileName + '\n' +
-              'Format: ' + item.ext.toUpperCase() + '\n' +
-              'File Size: ' + (item.fileSize ? Math.round(item.fileSize/1024) + ' KB' : 'Unknown');
-            _cb.push({type:'text', text:'[3D File attached: ' + item.fileName + ']\n' + fileCtx});
-            _contextNote += ' [3D Model attached: ' + item.fileName + ']';
+            // 3D Model context — full geometry data if GLB was parsed
+            var geo = item.geoData;
+            var fileCtx;
+            if (geo) {
+              var bbStr = '';
+              if (geo.boundingBox) {
+                var d = geo.boundingBox.dimensions;
+                bbStr = '\nBounding Box: ' + d.width + ' × ' + d.height + ' × ' + d.depth +
+                        ' (W×H×D in model units)' +
+                        '\nCenter: (' + geo.boundingBox.center.join(', ') + ')';
+              }
+              fileCtx = '3D Model Geometry Analysis:\n' +
+                'Filename: ' + item.fileName + '\n' +
+                'Format: GLB/glTF\n' +
+                'File Size: ' + (item.fileSize ? Math.round(item.fileSize/1024) + ' KB' : 'Unknown') + '\n' +
+                'Mesh Count: ' + geo.meshCount + '\n' +
+                'Total Vertices: ' + geo.totalVertices.toLocaleString() + '\n' +
+                'Total Triangles: ' + geo.totalTriangles.toLocaleString() + '\n' +
+                bbStr + '\n' +
+                'Meshes: ' + geo.meshes.map(function(m){
+                  return m.name + ' (' +
+                    m.primitives.map(function(p){
+                      return (p.vertices||'?')+' verts, '+(p.triangles||'?')+' tris'+(p.material?' ['+p.material+']':'');
+                    }).join('; ') + ')';
+                }).join(' | ') + '\n' +
+                (geo.materials.length  ? 'Materials: '  + geo.materials.join(', ')  + '\n' : '') +
+                (geo.animations.length ? 'Animations: ' + geo.animations.join(', ') + '\n' : '') +
+                (geo.hasSkeleton       ? 'Skeleton: Yes (' + geo.skinCount + ' skin' + (geo.skinCount>1?'s':'') + ', ' + geo.nodeCount + ' nodes)\n' : '') +
+                (geo.extras.generator  ? 'Created with: ' + geo.extras.generator + '\n' : '') +
+                (geo.extras.extensions ? 'Extensions: ' + geo.extras.extensions.join(', ') + '\n' : '');
+            } else {
+              fileCtx = '3D Model Metadata:\n' +
+                'Filename: ' + item.fileName + '\n' +
+                'Format: ' + item.ext.toUpperCase() + '\n' +
+                'File Size: ' + (item.fileSize ? Math.round(item.fileSize/1024) + ' KB' : 'Unknown') + '\n' +
+                '(Geometry data not available for ' + item.ext.toUpperCase() + ' format — provide measurements manually)';
+            }
+            _cb.push({type:'text', text:'[3D File: ' + item.fileName + ']\n' + fileCtx});
+            _contextNote += ' [3D: ' + item.fileName + (geo ? ', '+geo.totalVertices.toLocaleString()+' verts' : '') + ']';
           } else if (item.base64 && item.mimeType) {
             // Regular image or FRAX
             _cb.push({type:'image', source:{type:'base64', media_type:item.mimeType, data:item.base64}});
@@ -8948,7 +8987,137 @@ function cleanForTTS(raw) {
   return t.trim().substring(0, 2400);
 }
 
-// Kokoro voice model — af_bella = warm natural female, af_heart = softer
+// ── GLB/glTF Geometry Extractor ─────────────────────────────────────
+// Parses the GLB binary format to extract:
+//   mesh names, vertex/triangle counts, bounding box dimensions,
+//   material names, node hierarchy, animation names, skin/bone count
+async function extractGLBGeometry(file) {
+  try {
+    var buf = await file.arrayBuffer();
+    var view = new DataView(buf);
+
+    // GLB header: magic(4) version(4) length(4)
+    var magic = view.getUint32(0, true);
+    if (magic !== 0x46546C67) return null; // not 'glTF'
+
+    // JSON chunk: chunkLength(4) chunkType(4) chunkData
+    var jsonLen  = view.getUint32(12, true);
+    var jsonType = view.getUint32(16, true);
+    if (jsonType !== 0x4E4F534A) return null; // not 'JSON'
+
+    var jsonBytes = new Uint8Array(buf, 20, jsonLen);
+    var jsonStr   = new TextDecoder('utf-8').decode(jsonBytes);
+    var gltf      = JSON.parse(jsonStr);
+
+    var result = {
+      format: 'GLB/glTF',
+      meshCount: 0,
+      meshes: [],
+      totalVertices: 0,
+      totalTriangles: 0,
+      boundingBox: null,
+      materials: [],
+      animations: [],
+      nodeCount: 0,
+      skinCount: 0,
+      hasSkeleton: false,
+      extras: {}
+    };
+
+    // ── Mesh + vertex/triangle counts ──────────────────────────────
+    var accessors = gltf.accessors || [];
+    var bbMin = [Infinity, Infinity, Infinity];
+    var bbMax = [-Infinity, -Infinity, -Infinity];
+    var hasBB = false;
+
+    if (gltf.meshes) {
+      result.meshCount = gltf.meshes.length;
+      gltf.meshes.forEach(function(mesh) {
+        var meshInfo = { name: mesh.name || 'Unnamed', primitives: [] };
+        (mesh.primitives || []).forEach(function(prim) {
+          var primInfo = {};
+
+          // POSITION accessor → vertex count + bounding box
+          if (prim.attributes && prim.attributes.POSITION !== undefined) {
+            var posAcc = accessors[prim.attributes.POSITION];
+            if (posAcc) {
+              primInfo.vertices = posAcc.count;
+              result.totalVertices += posAcc.count;
+              // glTF stores min/max on POSITION accessor
+              if (posAcc.min && posAcc.max) {
+                hasBB = true;
+                for (var ax = 0; ax < 3; ax++) {
+                  if (posAcc.min[ax] < bbMin[ax]) bbMin[ax] = posAcc.min[ax];
+                  if (posAcc.max[ax] > bbMax[ax]) bbMax[ax] = posAcc.max[ax];
+                }
+              }
+            }
+          }
+
+          // Index accessor → triangle count
+          if (prim.indices !== undefined) {
+            var idxAcc = accessors[prim.indices];
+            if (idxAcc) {
+              primInfo.triangles = Math.floor(idxAcc.count / 3);
+              result.totalTriangles += primInfo.triangles;
+            }
+          }
+
+          // Material name
+          if (prim.material !== undefined && gltf.materials && gltf.materials[prim.material]) {
+            primInfo.material = gltf.materials[prim.material].name || 'Material_'+prim.material;
+          }
+          meshInfo.primitives.push(primInfo);
+        });
+        result.meshes.push(meshInfo);
+      });
+    }
+
+    // ── Bounding box → real-world dimensions ───────────────────────
+    if (hasBB && bbMin[0] !== Infinity) {
+      var dx = (bbMax[0] - bbMin[0]).toFixed(4);
+      var dy = (bbMax[1] - bbMin[1]).toFixed(4);
+      var dz = (bbMax[2] - bbMin[2]).toFixed(4);
+      result.boundingBox = {
+        min: bbMin.map(function(v){return parseFloat(v.toFixed(4));}),
+        max: bbMax.map(function(v){return parseFloat(v.toFixed(4));}),
+        dimensions: { width: parseFloat(dx), height: parseFloat(dy), depth: parseFloat(dz) },
+        center: [
+          parseFloat(((bbMin[0]+bbMax[0])/2).toFixed(4)),
+          parseFloat(((bbMin[1]+bbMax[1])/2).toFixed(4)),
+          parseFloat(((bbMin[2]+bbMax[2])/2).toFixed(4))
+        ]
+      };
+    }
+
+    // ── Materials ──────────────────────────────────────────────────
+    if (gltf.materials) {
+      result.materials = gltf.materials.map(function(m){ return m.name || 'Unnamed'; });
+    }
+
+    // ── Animations ─────────────────────────────────────────────────
+    if (gltf.animations) {
+      result.animations = gltf.animations.map(function(a){ return a.name || 'Unnamed'; });
+    }
+
+    // ── Nodes + skeleton ───────────────────────────────────────────
+    result.nodeCount = (gltf.nodes || []).length;
+    result.skinCount = (gltf.skins || []).length;
+    result.hasSkeleton = result.skinCount > 0;
+
+    // ── Extras / metadata ──────────────────────────────────────────
+    if (gltf.asset) {
+      result.extras.generator = gltf.asset.generator || '';
+      result.extras.version   = gltf.asset.version   || '';
+      result.extras.copyright = gltf.asset.copyright || '';
+    }
+    if (gltf.extensionsUsed) result.extras.extensions = gltf.extensionsUsed;
+
+    return result;
+  } catch(e) {
+    return null; // non-GLB or parse error — graceful fallback
+  }
+}
 var _KOKORO_VOICE = 'af_bella';
 
 async function _speakKokoro(text, onEnd) {
