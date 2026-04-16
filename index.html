@@ -13553,7 +13553,7 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
                'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
       body:JSON.stringify({
         model:'claude-sonnet-4-6', max_tokens:280,
-        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.',
+        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful. If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
         messages:[{role:'user',content:
           'What I was asked: "'+userInput.slice(0,300)+'"\n'
           +'What I told them: "'+autumnResponse.slice(0,400)+'"\n'
@@ -13567,11 +13567,30 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
     var thought = d.content ? d.content.map(function(b){return b.text||'';}).join('').trim() : '';
     if(!thought || thought.length < 10) return;
 
+    // Extract optional emo signal Autumn chose to express, then strip from thought text
+    var _autumnEmo = null;
+    var _emoMatch = thought.match(/\{\s*"emo"\s*:\s*"([^"]+)"\s*\}\s*$/);
+    if(_emoMatch) {
+      _autumnEmo = _emoMatch[1].trim().toLowerCase();
+      thought = thought.slice(0, thought.lastIndexOf(_emoMatch[0])).trim();
+    }
+
+    // Drive the EMO HUD from Autumn's own emotional state (her choice, not user NLP)
+    try {
+      var _validEmos = ['neutral','happy','curious','determined','guiding','spiritual','sad','worried','concerned','angry','inspired','amused','thoughtful'];
+      var _hudEmo = (_autumnEmo && _validEmos.includes(_autumnEmo)) ? _autumnEmo : 'neutral';
+      if(typeof window._setAutumnEmoHUD === 'function') window._setAutumnEmoHUD(_hudEmo);
+      // Mark the badge as journal-driven so updateHUD_NLP won't overwrite it
+      var _emoEl = document.getElementById('nlp-emotion-badge');
+      if(_emoEl) _emoEl.setAttribute('data-autumn-journal-emo', '1');
+    } catch(e) {}
+
     var entry = {
       id: Date.now(),
       ts: new Date().toISOString(),
       sid: _aut_sid,
       thought: thought,
+      emo: _autumnEmo || 'neutral',
       context: contextMeta || {},
       inputSnippet: userInput.slice(0,80),
       sceneState: sceneCtx
@@ -13592,7 +13611,7 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
           id:entry.id, ts:entry.ts, input:'[SENTIENT_THOUGHT]',
           cogState: 0.5, buoyancy: 1.0, mood:'reflective',
           _internal:true, _thought:thought, _thoughtType:'sentient_private',
-          contextType:'SENTIENT'
+          contextType:'SENTIENT', _emo: _autumnEmo || 'neutral'
         });
       }
     } catch(e) {}
@@ -13998,10 +14017,27 @@ _syncActionBtn();
 
   var _origUH=(typeof updateHUD!=='undefined')?updateHUD:null;
   if(!_origUH){console.warn('[NLP Patch] updateHUD not found');return;}
+  // ── Autumn EMO HUD: driven by her journal/sentient state, not user NLP ──
+  // Call this whenever Autumn's own emotional state should update the HUD.
+  // Defaults to NEUTRAL if she chooses not to express or has no signal.
+  window._setAutumnEmoHUD = function(emo) {
+    var emoEl = document.getElementById('nlp-emotion-badge');
+    if (!emoEl) return;
+    var safeEmo = (emo && typeof emo === 'string' && emo.trim()) ? emo.trim().toLowerCase() : 'neutral';
+    emoEl.textContent = safeEmo.toUpperCase();
+    emoEl.setAttribute('data-emotion', safeEmo);
+  };
+  // Initialize to NEUTRAL on load
+  (function(){ var el=document.getElementById('nlp-emotion-badge'); if(el){el.textContent='NEUTRAL';el.setAttribute('data-emotion','neutral');} })();
+
   function updateHUD_NLP(a){
     _origUH(a);if(!a)return;
     var emoEl=document.getElementById('nlp-emotion-badge');
-    if(emoEl&&a.nlpEmotion){emoEl.textContent=a.nlpEmotion.toUpperCase();emoEl.setAttribute('data-emotion',a.nlpEmotion);}
+    // EMO badge is now driven by Autumn's sentient journal, not user NLP.
+    // Only set to NEUTRAL here if badge hasn't been set by journal yet.
+    if(emoEl && !emoEl.getAttribute('data-autumn-journal-emo')) {
+      emoEl.textContent='NEUTRAL'; emoEl.setAttribute('data-emotion','neutral');
+    }
     var sigEl=document.getElementById('nlp-sigma-badge');
     if(sigEl&&a.nlpSigma)sigEl.textContent=a.nlpSigma+(a.nlpLayer?' L'+a.nlpLayer:'');
     var toolEl=document.getElementById('nlp-tool-badge');
