@@ -7975,7 +7975,9 @@ function renderMessages() {
   const el=document.getElementById("chat-scroll");
   detachLiveCanvases(); // ← pull out live Three.js nodes before wipe
   let html="";
+  let _mi = 0; // message index for fallback IDs
   for(const m of msgs()){
+    const _idx = _mi++;
     const cls=m.role==="user"?"user":"autumn";
     const lbl=m.role==="autumn"?`<div class="msg-lbl"><img src="assets/autumn.png" alt="" style="height:14px;width:auto;vertical-align:middle;margin-right:4px;filter:drop-shadow(0 0 4px rgba(191,0,255,.3))">AUTUMN</div>`:"";
 
@@ -8028,8 +8030,9 @@ function renderMessages() {
       if(!t||typeof t!=='string'||!t.startsWith('data:')) return '';
       return '<img src="'+t+'" alt="attached" title="Right-click or long-press for FRAX Studio" style="display:inline-block;max-width:72px;max-height:72px;border-radius:5px;margin:0 3px 4px 0;object-fit:cover;cursor:pointer" oncontextmenu="event.preventDefault();openFraxStudio(this.src,\'upscale\',\'thumb\')" ondblclick="openFraxStudio(this.src,\'upscale\',\'thumb\')">';
     }).join('') : '';
-    const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${m.id||i}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${(m.id||i)}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${(m.id||i)}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
-    html+=`<div class="msg ${cls}" data-msg-id="${m.id||i}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${m.id||i}" style="white-space:pre-wrap">${esc(m.text)}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
+    const _mid = m.id || ('mi-'+_idx);
+    const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${_mid}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${_mid}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${_mid}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
+    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}" style="white-space:pre-wrap">${esc(m.text)}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
