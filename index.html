@@ -8960,12 +8960,71 @@ function _initAshNodeLayer() {
   if(!scene || typeof THREE==='undefined') return;
   _ashNodes._localUid = (typeof _aut_sid!=='undefined') ? _aut_sid : (typeof _aut_uid!=='undefined') ? _aut_uid : 'local';
 
-  // Line group for inter-session connections
-  _ashNodes._lineGroup = new THREE.Group();
-  scene.add(_ashNodes._lineGroup);
+  // ── Plasma spline system ────────────────────────────────────────
+  // Each connection = CatmullRom curve with wave displacement + traveling pulse particle
+  _ashNodes._splines = {};     // key → { line, pulseMesh, mat, pulseMat, curve, phase, speed, color, active }
+  _ashNodes._splineGroup = new THREE.Group();
+  scene.add(_ashNodes._splineGroup);
 
   _pollAshNodes();
   setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
+}
+
+// ── Pattern similarity score between two session UIDs ────────────
+// Uses local BRPN shell values + journal activity to determine how
+// "resonant" two sessions are — drives spline color + pulse rate
+function _sessionPatternScore(uidA, uidB) {
+  var geoA = parseFloat(document.getElementById('hud-geo')?.textContent||'0')||0;
+  var marA = parseFloat(document.getElementById('hud-mar')?.textContent||'0')||0;
+  // Remote sessions: estimate from uid hash so different pairs get different scores
+  var hA = _uidHash(uidA), hB = _uidHash(uidB);
+  var hDiff = Math.abs(hA - hB);
+  // Score 0–1: lower hash diff = more similar "pattern"
+  var resonance = Math.max(0, 1 - hDiff * 2.5);
+  // Boost if local is active (has journal entries)
+  var localActive = (typeof S !== 'undefined' && S.journal && S.journal.length > 10) ? 0.25 : 0;
+  return Math.min(1, resonance + localActive);
+}
+
+// ── Build one plasma spline between two 3D positions ─────────────
+function _makePlasmaSpline(posA, posB, colorHex, resonance) {
+  var mid = posA.clone().add(posB).multiplyScalar(0.5);
+  // Control point offset — perpendicular bulge scaled by resonance
+  var axis  = posB.clone().sub(posA);
+  var perp  = new THREE.Vector3(-axis.z, axis.x, axis.y).normalize();
+  var bulge = (0.6 + resonance * 1.2) * axis.length() * 0.22;
+  var cp1   = mid.clone().add(perp.clone().multiplyScalar(bulge * (0.5 + Math.random()*0.5)));
+  var cp2   = mid.clone().sub(perp.clone().multiplyScalar(bulge * (0.3 + Math.random()*0.4)));
+
+  var curve = new THREE.CatmullRomCurve3([posA.clone(), cp1, cp2, posB.clone()], false, 'catmullrom', 0.5);
+  var pts   = curve.getPoints(48);
+  var geo   = new THREE.BufferGeometry().setFromPoints(pts);
+  var col   = new THREE.Color(colorHex);
+  var baseOpacity = 0.12 + resonance * 0.35;
+  var mat   = new THREE.LineBasicMaterial({
+    color: col, transparent: true, opacity: baseOpacity, linewidth: 1
+  });
+  var line  = new THREE.Line(geo, mat);
+
+  // Traveling pulse — small glowing sphere that rides along the spline
+  var pGeo  = new THREE.SphereGeometry(0.025 + resonance * 0.018, 5, 5);
+  var pMat  = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85 });
+  var pulse = new THREE.Mesh(pGeo, pMat);
+
+  return {
+    line:     line,
+    pulse:    pulse,
+    mat:      mat,
+    pMat:     pMat,
+    curve:    curve,
+    pts:      pts,
+    phase:    Math.random(),               // pulse travel position 0–1
+    speed:    0.004 + resonance * 0.012,   // faster for more resonant pairs
+    resonance:resonance,
+    baseOpacity: baseOpacity,
+    color:    col,
+    wavePhase: Math.random() * Math.PI * 2 // for plasma wave animation
+  };
 }
 
 async function _pollAshNodes() {
@@ -9039,7 +9098,6 @@ function _renderAshNodes(nodes) {
   Object.keys(_ashNodes._sessionGroups).forEach(function(uid) {
     if(!activeUids[uid]) {
       scene.remove(_ashNodes._sessionGroups[uid].group);
-      // Dispose geometries/materials
       _ashNodes._sessionGroups[uid].shells.forEach(function(m) {
         if(m.geometry) m.geometry.dispose();
         if(m.material) m.material.dispose();
@@ -9050,10 +9108,8 @@ function _renderAshNodes(nodes) {
 
   // Add or update groups for active remote sessions
   nodes.forEach(function(node) {
-    if(node.isLocal) return; // local user = existing central BRPN shells
-
+    if(node.isLocal) return;
     if(!_ashNodes._sessionGroups[node.uid]) {
-      // Create new wireframe shell cluster
       var built = _makeSessionGroup(node);
       var bp = _nodeBasePos(node.uid);
       built.group.position.set(bp.x, bp.y, bp.z);
@@ -9062,59 +9118,73 @@ function _renderAshNodes(nodes) {
       scene.add(built.group);
       _ashNodes._sessionGroups[node.uid] = built;
     } else {
-      // Update timestamp reference
       _ashNodes._sessionGroups[node.uid].node = node;
     }
   });
 
-  // Connection lines between session clusters (up to 40 lines)
-  if(_ashNodes._lineGroup) _ashNodes._lineGroup.clear();
-  var uids = Object.keys(_ashNodes._sessionGroups);
-  var lineCount = 0;
-  for(var a=0; a<uids.length && lineCount<40; a++) {
+  // ── Rebuild plasma splines ──────────────────────────────────────
+  // Clear old splines
+  if(_ashNodes._splineGroup) {
+    _ashNodes._splineGroup.clear();
+  }
+  _ashNodes._splines = {};
+
+  var uids   = Object.keys(_ashNodes._sessionGroups);
+  var origin = new THREE.Vector3(0,0,0);
+  var splineCount = 0;
+
+  // Splines between remote clusters (max 30)
+  for(var a=0; a<uids.length && splineCount<30; a++) {
     var ga = _ashNodes._sessionGroups[uids[a]];
-    for(var b=a+1; b<uids.length && lineCount<40; b++) {
-      var gb = _ashNodes._sessionGroups[uids[b]];
-      var pa = ga.group.position, pb = gb.group.position;
+    var pa = ga.group.position;
+
+    for(var b=a+1; b<uids.length && splineCount<30; b++) {
+      var gb  = _ashNodes._sessionGroups[uids[b]];
+      var pb  = gb.group.position;
       var dist = pa.distanceTo(pb);
-      if(dist < 3.0) {
-        var pts = [pa.clone(), pb.clone()];
-        var geo = new THREE.BufferGeometry().setFromPoints(pts);
-        var alpha = Math.max(0.04, 0.25 * (1 - dist/3.0));
-        var lmat = new THREE.LineBasicMaterial({color:0xa78bfa, transparent:true, opacity:alpha});
-        _ashNodes._lineGroup.add(new THREE.Line(geo, lmat));
-        lineCount++;
+      if(dist > 5.5) continue;
+
+      var resonance = _sessionPatternScore(uids[a], uids[b]);
+      // Color: high resonance = cyan, mid = violet, low = blue
+      var colorHex = resonance > 0.6 ? 0x00e5ff : resonance > 0.3 ? 0xa78bfa : 0x4488ff;
+      var sp = _makePlasmaSpline(pa, pb, colorHex, resonance);
+      var key = uids[a]+':'+uids[b];
+      _ashNodes._splines[key] = sp;
+      _ashNodes._splineGroup.add(sp.line);
+      _ashNodes._splineGroup.add(sp.pulse);
+      splineCount++;
+    }
+
+    // Splines from center (local) to each remote
+    if(splineCount < 30) {
+      var distToCenter = origin.distanceTo(pa);
+      if(distToCenter < 6.0) {
+        var res = _sessionPatternScore(_ashNodes._localUid, uids[a]);
+        // Local→remote: always cyan-tinted
+        var c2 = res > 0.5 ? 0x00ffcc : 0x0088ff;
+        var sp2 = _makePlasmaSpline(origin, pa, c2, res);
+        var key2 = 'local:'+uids[a];
+        _ashNodes._splines[key2] = sp2;
+        _ashNodes._splineGroup.add(sp2.line);
+        _ashNodes._splineGroup.add(sp2.pulse);
+        splineCount++;
       }
     }
   }
-  // Also draw lines from center (local) to each remote cluster if within range
-  var origin = new THREE.Vector3(0,0,0);
-  uids.forEach(function(uid) {
-    if(lineCount >= 40) return;
-    var g = _ashNodes._sessionGroups[uid];
-    var dist = origin.distanceTo(g.group.position);
-    if(dist < 5.0) {
-      var pts = [origin.clone(), g.group.position.clone()];
-      var geo = new THREE.BufferGeometry().setFromPoints(pts);
-      var alpha = Math.max(0.03, 0.15 * (1 - dist/5.0));
-      var lmat = new THREE.LineBasicMaterial({color:0x00ffcc, transparent:true, opacity:alpha});
-      _ashNodes._lineGroup.add(new THREE.Line(geo, lmat));
-      lineCount++;
-    }
-  });
 
   _ashNodes._uids = nodes;
 }
 
-// Animate session clusters — gentle orbital drift + shell rotation
-// Called from BRPN animate loop
+// Animate session clusters — orbital drift, shell rotation, plasma spline waves
 function _tickAshNodes(frame) {
   if(typeof THREE==='undefined') return;
   var t = frame * 0.005;
+  var tMs = frame; // raw frame count for wave phase
+
+  // ── Animate session node clusters ─────────────────────────────
   Object.keys(_ashNodes._sessionGroups).forEach(function(uid) {
     var entry = _ashNodes._sessionGroups[uid];
     var bp = entry.basePos;
-    // Gentle drift: orbit around base position
     var dTheta = bp.theta + t * (0.15 + bp.h * 0.25);
     var wobble  = Math.sin(t * 0.4 + bp.h * 8) * 0.12;
     var r = bp.r + bp.h3 * 0.4;
@@ -9123,7 +9193,6 @@ function _tickAshNodes(frame) {
       r * Math.sin(bp.phi) * Math.sin(dTheta) + wobble,
       r * Math.cos(bp.phi)
     );
-    // Slow shell rotation — each shell on a slightly different axis
     var age = (Date.now() - (entry.node.ts||Date.now())) / 60000;
     var fadeFactor = Math.max(0.1, Math.exp(-age * 0.08));
     entry.shells.forEach(function(m, i) {
@@ -9131,6 +9200,94 @@ function _tickAshNodes(frame) {
       m.rotation.y = t * (0.3 + i * 0.15);
       m.rotation.x = t * (0.1 + i * 0.08);
     });
+  });
+
+  // ── Animate plasma splines ─────────────────────────────────────
+  if(!_ashNodes._splines) return;
+
+  // Get local BRPN activity level to drive spline intensity
+  var geoVal  = parseFloat(document.getElementById('hud-geo')?.textContent||'0')||0;
+  var marVal  = parseFloat(document.getElementById('hud-mar')?.textContent||'0')||0;
+  var aeroVal = parseFloat(document.getElementById('hud-aero')?.textContent||'0')||0;
+  var activityNorm = Math.min(1, (geoVal + marVal*0.001 + aeroVal*0.0000001) * 0.003);
+
+  Object.keys(_ashNodes._splines).forEach(function(key) {
+    var sp = _ashNodes._splines[key];
+    if(!sp || !sp.curve) return;
+
+    // ── 1. Plasma wave — displace spline control geometry ────────
+    // Rebuild curve points with sinusoidal plasma displacement
+    var rawPts = sp.curve.getPoints(48);
+    var wavePts = rawPts.map(function(p, i) {
+      var frac  = i / 48;
+      // Envelope: zero at endpoints, max at midpoint (smooth spline anchoring)
+      var env   = Math.sin(frac * Math.PI);
+      // Two overlapping sine waves (plasma texture)
+      var w1 = Math.sin(frac * 6 + t * 3.5 + sp.wavePhase) * 0.045 * env;
+      var w2 = Math.sin(frac * 11 - t * 5.0 + sp.wavePhase * 1.7) * 0.022 * env;
+      // Activity boost — AERO shell = strongest plasma
+      var boost = 1 + activityNorm * 2.5;
+      return new THREE.Vector3(
+        p.x + w1 * boost,
+        p.y + w2 * boost,
+        p.z + (w1*0.5 + w2*0.5) * boost
+      );
+    });
+
+    // Update line geometry in-place
+    var positions = sp.line.geometry.attributes.position;
+    if(!positions || positions.count !== wavePts.length) {
+      sp.line.geometry.setFromPoints(wavePts);
+    } else {
+      for(var pi=0; pi<wavePts.length; pi++) {
+        positions.setXYZ(pi, wavePts[pi].x, wavePts[pi].y, wavePts[pi].z);
+      }
+      positions.needsUpdate = true;
+    }
+
+    // ── 2. Pulse animation — sphere rides along the spline ───────
+    sp.phase = (sp.phase + sp.speed) % 1.0;
+    // Brief discharge burst when LEATR is processing
+    if(typeof S!=='undefined' && S.isProcessing) {
+      sp.phase = (sp.phase + sp.speed * 3) % 1.0;
+    }
+    var pPos = sp.curve.getPoint(sp.phase);
+    // Apply the same wave displacement at this phase position
+    var env2 = Math.sin(sp.phase * Math.PI);
+    var pw1  = Math.sin(sp.phase * 6 + t * 3.5 + sp.wavePhase) * 0.045 * env2;
+    var pw2  = Math.sin(sp.phase * 11 - t * 5.0 + sp.wavePhase * 1.7) * 0.022 * env2;
+    var boost2 = 1 + activityNorm * 2.5;
+    sp.pulse.position.set(
+      pPos.x + pw1 * boost2,
+      pPos.y + pw2 * boost2,
+      pPos.z + (pw1*0.5 + pw2*0.5) * boost2
+    );
+
+    // ── 3. Pulsing opacity — plasma breathing + activity flicker ─
+    var breathe = 0.5 + 0.5 * Math.sin(t * 2.2 + sp.wavePhase);
+    var activeBoost = activityNorm * 0.4;
+    var lineOp  = sp.baseOpacity * (0.55 + 0.45 * breathe) + activeBoost;
+    var pulseOp = 0.5 + 0.45 * breathe + activeBoost;
+    if(sp.mat)  sp.mat.opacity  = Math.min(0.85, lineOp);
+    if(sp.pMat) sp.pMat.opacity = Math.min(0.95, pulseOp);
+
+    // ── 4. Pulse scale throb ──────────────────────────────────────
+    var throb = 0.9 + 0.25 * Math.sin(t * 8 + sp.wavePhase * 3);
+    var sizeBoost = 1 + activityNorm * 1.5;
+    sp.pulse.scale.setScalar(throb * sizeBoost);
+
+    // ── 5. Color shift on activity — discharge flash ──────────────
+    if(typeof S!=='undefined' && S.isProcessing) {
+      // During processing: spline flickers toward white-hot
+      var flash = 0.7 + 0.3 * Math.sin(t * 18 + sp.wavePhase);
+      sp.mat.color.setRGB(
+        sp.color.r * flash + (1-flash),
+        sp.color.g * flash + (1-flash) * 0.85,
+        sp.color.b * flash + (1-flash) * 0.7
+      );
+    } else {
+      sp.mat.color.copy(sp.color);
+    }
   });
 }
 
