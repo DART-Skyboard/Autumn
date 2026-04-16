@@ -11885,7 +11885,7 @@ window.openAshIDE = function() {
       </select>
       <div class="ash-ctrl-lbl">W</div><input type="number" class="ash-ctrl-input" id="ashMazeWIDE" value="10" min="3" max="30" onchange="_ashState.mazeW=+this.value">
       <div class="ash-ctrl-lbl">H</div><input type="number" class="ash-ctrl-input" id="ashMazeHIDE" value="10" min="3" max="30" onchange="_ashState.mazeH=+this.value">
-      <div class="ash-ctrl-lbl">D</div><input type="number" class="ash-ctrl-input" id="ashMazeDIDE" value="4" min="1" max="20" onchange="_ashState.mazeD=+this.value">
+      <div class="ash-ctrl-lbl">D</div><input type="number" class="ash-ctrl-input" id="ashMazeDIDE" value="10" min="1" max="20" onchange="_ashState.mazeD=+this.value">
       <button class="ash-btn" onclick="ASH_MAZE_generate()">▸ Generate</button>
       <button class="ash-btn" onclick="ASH_MAZE_solvePath()">⬡ Solve</button>
       <button class="ash-btn" onclick="ashMazeFrame()">◉ Frame</button>
@@ -12461,21 +12461,29 @@ window.runWorldStudioInline = async function(msgId, prompt) {
     ]);
 
     var result = null;
+    var lastActivity = Date.now();
+    var HANG_TIMEOUT = 4 * 60 * 1000; // 4 min stall = hung
+
     for await (var msg of job) {
+      lastActivity = Date.now();
       if(msg.type === 'status') {
         var pos = msg.queue_position;
         if(pos !== undefined && pos !== null) {
           var pct = Math.max(35, Math.min(70, 70 - pos * 4));
-          setWsCard(wsLoadingCard('QUEUE POSITION ' + pos, pct));
+          setWsCard(wsLoadingCard('QUEUE POSITION ' + pos + ' — WAITING FOR GPU…', pct));
         } else {
-          setWsCard(wsLoadingCard('GENERATING 3D WORLD…', 78));
+          setWsCard(wsLoadingCard('GENERATING 3D WORLD — MAY TAKE 2–5 MIN…', 78));
+        }
+        // Check for stall
+        if(Date.now() - lastActivity > HANG_TIMEOUT) {
+          throw new Error('Generation stalled at this step for over 4 minutes. The HF Space GPU may be overloaded. Try again or use the Open World Studio link.');
         }
       } else if(msg.type === 'data') {
         result = msg.data;
       }
     }
 
-    if(!result) throw new Error('No result returned from Hunyuan3D-2.1. Space may be sleeping — try again in 30s.');
+    if(!result) throw new Error('No result returned — the Space may have timed out or is sleeping. Wait 30s and try again.');
 
     setWsCard(wsLoadingCard('LOADING 3D MODEL…', 92));
 
@@ -12631,10 +12639,16 @@ window.runWorldStudioInline = async function(msgId, prompt) {
     var errCard = '<div style="background:rgba(30,5,15,.9);border:1px solid rgba(255,68,102,.25);border-radius:10px;padding:14px 16px;max-width:480px;margin:6px 0">'
       + '<div style="font-family:\'Orbitron\',monospace;font-size:.45rem;color:#ff4466;letter-spacing:1.5px;margin-bottom:8px">⚠ WORLD STUDIO ERROR</div>'
       + '<div style="font-size:.68rem;color:rgba(255,150,160,.7);line-height:1.6;margin-bottom:12px">' + (err.message||String(err)).replace(/</g,'&lt;') + '</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button onclick="runWorldStudioInline(\''+msgId+'\',\''+prompt.replace(/'/g,'\\\'').replace(/\n/g,' ').slice(0,600)+'\')" '
+      + 'style="display:inline-flex;align-items:center;gap:5px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);border-radius:6px;padding:7px 14px;font-family:\'Orbitron\',monospace;font-size:.38rem;letter-spacing:1px;color:rgba(167,139,250,.8);cursor:pointer">'
+      + '<span>↺</span><span>RETRY</span>'
+      + '</button>'
       + '<a href="https://leatr.xyz/worldstudio.html?prompt='+encodeURIComponent(prompt.slice(0,600))+'" target="_blank" rel="noopener" '
       + 'style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);border-radius:6px;padding:7px 14px;font-family:\'Orbitron\',monospace;font-size:.38rem;letter-spacing:1px;color:rgba(0,229,255,.7);text-decoration:none">'
-      + '<span>↗</span><span>TRY IN WORLD STUDIO</span>'
+      + '<span>↗</span><span>OPEN WORLD STUDIO</span>'
       + '</a>'
+      + '</div>'
       + '</div>';
     setWsCard(errCard);
   }
