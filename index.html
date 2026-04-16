@@ -8085,135 +8085,167 @@ function appendChatBubble(msg) {
 //  USER MESSAGE ACTIONS — Copy / Edit-in-place / Resubmit
 // ══════════════════════════════════════════════════════════════════
 
-// COPY — copies message text to clipboard, briefly shows confirmation
+// ── Real session accessors (msgs() alias works too, but these mutate correctly)
+function _getSessionMsgs() {
+  return S.sessions && S.sessions[S.currentSession]
+    ? S.sessions[S.currentSession].messages
+    : msgs();
+}
+function _setSessionMsgs(arr) {
+  if(S.sessions && S.sessions[S.currentSession]) {
+    S.sessions[S.currentSession].messages = arr;
+  }
+}
+
+// ── COPY ─────────────────────────────────────────────────────────
 window.copyUserMsg = function(btn) {
-  var msgEl   = btn.closest('[data-msg-id]');
-  var msgId   = msgEl ? msgEl.dataset.msgId : null;
-  var m       = msgId ? msgs().find(function(x){ return (x.id||'') === msgId; }) : null;
-  var text    = m ? m.text : (msgEl ? (msgEl.querySelector('.msg-text-content')||{}).innerText||'' : '');
+  var msgEl = btn.closest('[data-msg-id]');
+  var mid   = msgEl ? msgEl.dataset.msgId : null;
+  var m     = mid ? _getSessionMsgs().find(function(x){ return (x.id||'') === mid; }) : null;
+  var text  = m ? m.text : (msgEl ? (msgEl.querySelector('.msg-text-content')||{}).innerText||'' : '');
   if(!text) return;
   navigator.clipboard.writeText(text).catch(function(){
-    var ta = document.createElement('textarea');
-    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    var ta=document.createElement('textarea');
+    ta.value=text; ta.style.cssText='position:fixed;opacity:0;top:0;left:0';
     document.body.appendChild(ta); ta.select();
-    try{ document.execCommand('copy'); }catch(e){}
+    try{document.execCommand('copy');}catch(e){}
     document.body.removeChild(ta);
   });
-  var orig = btn.innerHTML;
-  btn.innerHTML = '✓ COPIED'; btn.classList.add('copied');
-  setTimeout(function(){ btn.innerHTML = orig; btn.classList.remove('copied'); }, 1400);
+  var orig=btn.innerHTML;
+  btn.innerHTML='✓ COPIED'; btn.classList.add('copied');
+  setTimeout(function(){ btn.innerHTML=orig; btn.classList.remove('copied'); },1400);
 };
 
-// EDIT — swaps the text display for an inline textarea with Send/Cancel
-window.editUserMsg = function(msgId) {
-  var msgEl = document.querySelector('[data-msg-id="'+msgId+'"]');
-  if(!msgEl) return;
-  var txtEl  = msgEl.querySelector('.msg-text-content');
-  var actEl  = msgEl.querySelector('.msg-actions');
-  var m      = msgs().find(function(x){ return (x.id||'') === msgId; });
+// ── EDIT — makes text contenteditable in-place; action bar swaps to CANCEL/SUBMIT
+window.editUserMsg = function(mid) {
+  var msgEl = document.querySelector('[data-msg-id="'+mid+'"]');
+  if(!msgEl || msgEl.dataset.editing==='1') return;
+
+  var txtEl = msgEl.querySelector('.msg-text-content');
+  var actEl = msgEl.querySelector('.msg-actions');
+  var m     = _getSessionMsgs().find(function(x){ return (x.id||'') === mid; });
   if(!txtEl || !m) return;
 
-  // Already editing
-  if(msgEl.querySelector('.msg-edit-area')) return;
-
   var original = m.text;
-  txtEl.style.display = 'none';
-  if(actEl) actEl.classList.add('editing');
+  msgEl.dataset.editing = '1';
+  msgEl.dataset.origText = original;
 
-  var wrap = document.createElement('div');
-  wrap.innerHTML = `
-    <textarea class="msg-edit-area" id="edit-ta-${msgId}">${original.replace(/</g,'&lt;')}</textarea>
-    <div class="msg-edit-btns">
-      <button class="msg-edit-cancel" onclick="cancelEditMsg('${msgId}')">CANCEL</button>
-      <button class="msg-edit-send" onclick="submitEditMsg('${msgId}')">↺ REGENERATE</button>
-    </div>`;
-  txtEl.parentNode.insertBefore(wrap, txtEl.nextSibling);
+  // Make the existing text node editable directly
+  txtEl.contentEditable = 'true';
+  txtEl.style.outline     = 'none';
+  txtEl.style.borderBottom= '1px solid rgba(0,136,255,.5)';
+  txtEl.style.paddingBottom= '2px';
+  txtEl.style.minHeight   = '1.2em';
+  txtEl.style.whiteSpace  = 'pre-wrap';
+  txtEl.focus();
+  // Cursor to end
+  try {
+    var rng=document.createRange(), sel=window.getSelection();
+    rng.selectNodeContents(txtEl); rng.collapse(false);
+    sel.removeAllRanges(); sel.addRange(rng);
+  } catch(e){}
 
-  var ta = document.getElementById('edit-ta-'+msgId);
-  if(ta) {
-    ta.focus();
-    ta.selectionStart = ta.selectionEnd = ta.value.length;
-    // Ctrl+Enter submits
-    ta.addEventListener('keydown', function(e){
-      if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) { e.preventDefault(); window.submitEditMsg(msgId); }
-      if(e.key==='Escape') window.cancelEditMsg(msgId);
-    });
+  // Swap action bar to CANCEL + SUBMIT
+  if(actEl) {
+    actEl.classList.add('editing');
+    actEl.innerHTML =
+      '<button class="msg-act-btn" style="color:rgba(255,100,100,.7);border-color:rgba(255,68,102,.2)" '
+      + 'onclick="window.cancelEditMsg(\''+mid+'\')" title="Cancel">✕ CANCEL</button>'
+      + '<button class="msg-act-btn" style="color:rgba(0,229,255,.9);border-color:rgba(0,229,255,.4)" '
+      + 'onclick="window.submitEditMsg(\''+mid+'\')" title="Submit edit and regenerate">↺ SUBMIT</button>';
+  }
+
+  // Keyboard shortcuts
+  var kh = function(e){
+    if((e.key==='Enter')&&(e.ctrlKey||e.metaKey)){ e.preventDefault(); window.submitEditMsg(mid); }
+    if(e.key==='Escape'){ window.cancelEditMsg(mid); }
+  };
+  txtEl.addEventListener('keydown', kh);
+  txtEl._editKH = kh;
+};
+
+window.cancelEditMsg = function(mid) {
+  var msgEl = document.querySelector('[data-msg-id="'+mid+'"]');
+  if(!msgEl) return;
+  var txtEl = msgEl.querySelector('.msg-text-content');
+  var actEl = msgEl.querySelector('.msg-actions');
+
+  // Restore original text
+  if(txtEl) {
+    var orig = msgEl.dataset.origText || '';
+    txtEl.textContent = orig;
+    txtEl.contentEditable = 'false';
+    txtEl.style.borderBottom = '';
+    txtEl.style.paddingBottom = '';
+    if(txtEl._editKH) { txtEl.removeEventListener('keydown', txtEl._editKH); delete txtEl._editKH; }
+  }
+  delete msgEl.dataset.editing;
+  delete msgEl.dataset.origText;
+
+  // Restore original action bar
+  if(actEl) {
+    actEl.classList.remove('editing');
+    actEl.innerHTML =
+      '<button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button>'
+    + '<button class="msg-act-btn" onclick="editUserMsg(\''+mid+'\')" title="Edit">✎ EDIT</button>'
+    + '<button class="msg-act-btn" onclick="resubmitUserMsg(\''+mid+'\')" title="Resend">↺ RESEND</button>';
   }
 };
 
-window.cancelEditMsg = function(msgId) {
-  var msgEl = document.querySelector('[data-msg-id="'+msgId+'"]');
+window.submitEditMsg = function(mid) {
+  var msgEl  = document.querySelector('[data-msg-id="'+mid+'"]');
   if(!msgEl) return;
   var txtEl  = msgEl.querySelector('.msg-text-content');
-  var actEl  = msgEl.querySelector('.msg-actions');
-  var editWrap = msgEl.querySelector('.msg-edit-area');
-  if(editWrap) editWrap.parentNode.remove();
-  if(txtEl) txtEl.style.display = '';
-  if(actEl) actEl.classList.remove('editing');
-};
+  var newText = txtEl ? (txtEl.innerText||txtEl.textContent||'').trim() : '';
+  if(!newText) { window.cancelEditMsg(mid); return; }
 
-window.submitEditMsg = function(msgId) {
-  var msgEl = document.querySelector('[data-msg-id="'+msgId+'"]');
-  if(!msgEl) return;
-  var ta    = document.getElementById('edit-ta-'+msgId);
-  var newText = ta ? ta.value.trim() : '';
-  if(!newText) return;
+  // Update in the real session store and drop everything after
+  var allMsgs = _getSessionMsgs();
+  var idx     = allMsgs.findIndex(function(x){ return (x.id||'') === mid; });
+  if(idx < 0) { window.cancelEditMsg(mid); return; }
 
-  var allMsgs  = msgs();
-  var idx      = allMsgs.findIndex(function(x){ return (x.id||'') === msgId; });
-  if(idx < 0) return;
-
-  // Update the user message text
   allMsgs[idx] = Object.assign({}, allMsgs[idx], { text: newText });
+  _setSessionMsgs(allMsgs.slice(0, idx + 1));
 
-  // Remove everything after this user message (the old responses)
-  // Keep messages before idx, plus the updated user message; drop everything after
-  S[S.activeSession] = allMsgs.slice(0, idx + 1);
+  delete msgEl.dataset.editing;
+  delete msgEl.dataset.origText;
 
-  // Re-render to show updated message, then trigger a new response
   saveState();
   renderMessages();
 
-  // Feed the edited text into the input and send
-  var input = document.getElementById('chat-input');
-  if(input) {
-    input.value = newText;
-    // Small delay to let render settle, then send
-    setTimeout(function(){
-      if(typeof handleSend === 'function') handleSend();
-      else if(typeof window.handleSend === 'function') window.handleSend();
-    }, 80);
+  var inp = document.getElementById('chat-input');
+  if(inp) {
+    inp.value = newText;
+    setTimeout(function(){ if(typeof window.handleSend==='function') window.handleSend(); }, 60);
   }
 };
 
-// RESEND — resubmits the existing message unchanged, drops responses after it
-window.resubmitUserMsg = function(msgId) {
-  var allMsgs = msgs();
-  var idx     = allMsgs.findIndex(function(x){ return (x.id||'') === msgId; });
+// ── RESEND — exact text, drop old response, fire fresh one ────────
+window.resubmitUserMsg = function(mid) {
+  var allMsgs = _getSessionMsgs();
+  var idx     = allMsgs.findIndex(function(x){ return (x.id||'') === mid; });
   if(idx < 0) return;
-  var text    = allMsgs[idx].text;
+  var text = allMsgs[idx].text;
   if(!text) return;
 
-  // Drop everything after this message
-  S[S.activeSession] = allMsgs.slice(0, idx + 1);
+  _setSessionMsgs(allMsgs.slice(0, idx + 1));
   saveState();
   renderMessages();
 
-  var input = document.getElementById('chat-input');
-  if(input) {
-    input.value = text;
-    setTimeout(function(){
-      if(typeof handleSend === 'function') handleSend();
-      else if(typeof window.handleSend === 'function') window.handleSend();
-    }, 80);
+  var inp = document.getElementById('chat-input');
+  if(inp) {
+    inp.value = text;
+    setTimeout(function(){ if(typeof window.handleSend==='function') window.handleSend(); }, 60);
   }
 };
 
-// Keep legacy shim in case any old saved HTML references the old button
+// Legacy shim
 window.editUserMessage = function(btn) {
   var msgEl = btn ? btn.closest('[data-msg-id]') : null;
   if(msgEl) window.editUserMsg(msgEl.dataset.msgId);
 };
+
+
 
 function esc(s){if(typeof s!=='string')return '';return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 function updateFooter(){
