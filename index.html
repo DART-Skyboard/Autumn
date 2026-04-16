@@ -10623,9 +10623,11 @@ function _updateKeyBtn() {
   var btn = document.getElementById('hdr-key-btn');
   if (!btn) return;
   var has = !!_getAK();
-  btn.style.color = has ? 'rgba(0,255,204,.35)' : 'rgba(255,179,71,.9)';
-  btn.style.borderColor = has ? 'rgba(0,255,204,.1)' : 'rgba(255,179,71,.3)';
-  btn.title = has ? 'Your API key is active — tap to change' : 'Optional: add your Anthropic key to enhance Autumn with Claude';
+  // Gold + glow when key IS active; dim/gray when no key
+  btn.style.color      = has ? 'rgba(255,179,71,.95)' : 'rgba(255,255,255,.22)';
+  btn.style.borderColor= has ? 'rgba(255,179,71,.45)' : 'rgba(255,255,255,.08)';
+  btn.style.textShadow = has ? '0 0 8px rgba(255,179,71,.5)' : '';
+  btn.title = has ? 'Anthropic key active — tap to manage' : 'Add your Anthropic API key to enhance Autumn — tap to configure';
 }
 setTimeout(_updateKeyBtn, 600);
 function _setAK(v) { try { localStorage.setItem('_aut_ide_ak',v); } catch(e){} }
