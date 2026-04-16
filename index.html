@@ -428,6 +428,30 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
   40%{transform:translateY(-2px) rotate(2deg);}
   70%{transform:translateY(-1px) rotate(-1deg);}
 }
+
+/* ── Help / User Guide button ───────────────────────── */
+.help-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  text-decoration:none;
+  background:linear-gradient(135deg,rgba(0,229,255,.1),rgba(0,136,255,.08));
+  border:1px solid rgba(0,229,255,.3)!important;
+  color:rgba(0,229,255,.85)!important;
+  position:relative;overflow:hidden;transition:all .22s;padding:5px 10px;
+}
+.help-btn:hover{
+  color:#00e5ff!important;
+  border-color:rgba(0,229,255,.7)!important;
+  background:linear-gradient(135deg,rgba(0,229,255,.18),rgba(0,136,255,.14))!important;
+  box-shadow:0 0 12px rgba(0,229,255,.2);transform:translateY(-1px);
+}
+.help-icon{
+  width:13px;height:13px;border-radius:50%;
+  border:1.5px solid rgba(0,229,255,.7);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:Georgia,serif;font-size:.55rem;font-weight:bold;
+  color:rgba(0,229,255,.9);line-height:1;flex-shrink:0;
+}
+.help-label{font-family:var(--font-d);font-size:.46rem;letter-spacing:1.2px;font-weight:700;}
 /* ── Backdrop opacity toggle pill ── */
 #scrim-toggle{
   display:flex;align-items:center;gap:6px;
@@ -1157,6 +1181,9 @@ select.ash-ctrl-input{cursor:pointer}
     <button class="hdr-btn" onclick="openIDE()" title="Autumn Logic IDE" style="color:rgba(0,255,204,.75);border-color:rgba(0,255,204,.28)">◈ IDE</button>
     <a class="hdr-btn draft-drip-btn" href="https://leatr.xyz/amp.html" target="_blank" rel="noopener" title="Draft &amp; Drip — design lounge &amp; industry reads">
       <span class="dd-cup">☕</span><span class="dd-label">DRAFT &amp; DRIP</span>
+    </a>
+    <a class="hdr-btn help-btn" href="https://leatr.xyz/autumn-help.pdf" target="_blank" rel="noopener" title="Autumn User Guide — commands, setup, API keys, full reference">
+      <span class="help-icon">?</span><span class="help-label">HELP</span>
     </a>
   </div>
 </header>
