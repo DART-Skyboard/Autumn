@@ -1,0 +1,153 @@
+{
+  "_meta": {
+    "system": "Autumn NLP External Data Schema",
+    "version": "1.0.0",
+    "description": "Universal schema template for all external data ingested into the Autumn NLP reference database. Every document type — article, journal, book, blog, technical doc — conforms to this schema after normalization by the scrape scripts.",
+    "updated": "2025-04-16"
+  },
+
+  "id_scheme": {
+    "description": "Document ID prefix by type. Format: PREFIX-YYYYMMDD-NNNN",
+    "prefixes": {
+      "ART": "Article (news, magazine, online)",
+      "JNL": "Journal (academic, research, scientific)",
+      "BK":  "Book (full text or excerpt)",
+      "BLG": "Blog post",
+      "TDC": "Technical documentation",
+      "EDU": "Educational / textbook",
+      "SCR": "Script / transcript",
+      "POD": "Podcast transcript",
+      "SRV": "Survey / report",
+      "INT": "Interview",
+      "USR": "User-uploaded custom document"
+    },
+    "example": "JNL-20250416-0042"
+  },
+
+  "document_schema": {
+    "_template_version": "1.0.0",
+    "id":           { "type": "string",   "required": true,  "description": "Unique document ID per id_scheme above" },
+    "doc_type":     { "type": "string",   "required": true,  "description": "One of: article, journal, book, blog, technical, educational, script, podcast, survey, interview, user_upload" },
+    "genre":        { "type": "string",   "required": true,  "description": "Subject/genre tag: aerospace, science, philosophy, finance, health, social, political, technical, spiritual, creative, etc." },
+    "subgenre":     { "type": "string",   "required": false, "description": "More specific topic within genre, e.g. 'quantum computing' under 'science'" },
+    "title":        { "type": "string",   "required": true,  "description": "Full document title" },
+    "source":       { "type": "string",   "required": true,  "description": "Publication, author, URL, or origin identifier" },
+    "date_added":   { "type": "ISO8601",  "required": true,  "description": "Date document was ingested into the database" },
+    "date_authored":{ "type": "ISO8601",  "required": false, "description": "Original publication or authorship date" },
+    "language":     { "type": "string",   "required": true,  "description": "ISO 639-1 language code: en, es, fr, de, pt, ja, zh, ar" },
+    "word_count":   { "type": "integer",  "required": false, "description": "Approximate word count of original document" },
+
+    "linguistic_profile": {
+      "description": "NLP-extracted linguistic characteristics",
+      "vowel_frequency":      { "type": "object", "description": "Normalized frequency per vowel: {a:0.08, e:0.12, i:0.07, o:0.09, u:0.05}" },
+      "consonant_class_freq": { "type": "object", "description": "Normalized frequency per consonant class: {stops:0.18, fricatives:0.14, ...}" },
+      "punctuation_density":  { "type": "number", "description": "Punctuation marks per 100 characters" },
+      "punctuation_map":      { "type": "object", "description": "Count of each punctuation type used: {P_PERIOD:42, P_QUESTION:8, ...}" },
+      "avg_sentence_length":  { "type": "number", "description": "Average words per sentence" },
+      "tense_distribution":   { "type": "object", "description": "Proportion of each tense identified: {present_simple:0.4, past_simple:0.3, ...}" },
+      "sentence_structure_dist":{ "type": "object","description": "Proportion of structure types: {SIG_D:0.5, SIG_Q:0.2, ...}" },
+      "dominant_sig":         { "type": "string", "description": "Most frequent sigma signature detected" },
+      "dominant_sequence":    { "type": "string", "description": "Most frequent sequence pattern detected (SEQ_A through SEQ_J)" }
+    },
+
+    "brpn_profile": {
+      "description": "BRPN shell and tool analysis for this document",
+      "inferred_shell":       { "type": "string", "description": "GEOLOGICAL | MARITIME | AEROSPACE" },
+      "shell_confidence":     { "type": "number", "description": "0.0 to 1.0 — confidence of shell assignment" },
+      "dominant_tool":        { "type": "string", "description": "Primary natural tool detected across document" },
+      "tool_distribution":    { "type": "object", "description": "Proportion of each tool triggered: {MAZE:0.2, PUZZLE:0.15, ...}" },
+      "buoyancy_state":       { "type": "string", "description": "FOUNDATION | REFLEXIVE | PERFORMANCE" },
+      "expression_layer":     { "type": "integer","description": "Primary expression layer (1-4) of document" }
+    },
+
+    "emotion_profile": {
+      "description": "Emotion classification from routing table analysis",
+      "primary_emotion":      { "type": "string", "description": "Top emotion identified from EMO vocabulary" },
+      "emotion_category":     { "type": "string", "description": "EMO_POS | EMO_NEG | EMO_NEU" },
+      "emotion_distribution": { "type": "object", "description": "Weighted presence of each emotion across document" },
+      "expression_context":   { "type": "string", "description": "contextual_statement | question | expression | sigmatic_sequence" }
+    },
+
+    "content_summary": {
+      "description": "Compact content representation for NLP reference",
+      "summary":      { "type": "string", "description": "3-5 sentence plain-language summary of document content" },
+      "key_concepts": { "type": "array",  "description": "Top 10 concept nouns or named entities extracted from document" },
+      "key_verbs":    { "type": "array",  "description": "Top 10 action verbs — defines the motion/intent signature" },
+      "key_sequences":{ "type": "array",  "description": "Notable grammatical sequences extracted as labeled patterns" }
+    },
+
+    "nlp_tags": {
+      "description": "Flat tag array for fast lookup and cross-referencing",
+      "genres":    { "type": "array",  "description": "Genre and subgenre tags" },
+      "emotions":  { "type": "array",  "description": "All detected emotion IDs from EMO vocabulary" },
+      "tools":     { "type": "array",  "description": "All triggered natural tool names" },
+      "shells":    { "type": "array",  "description": "All active BRPN shell IDs" },
+      "sequences": { "type": "array",  "description": "All matched sequence pattern IDs (SEQ_A through SEQ_J)" },
+      "sigs":      { "type": "array",  "description": "All sigma signatures detected in document" }
+    },
+
+    "raw_chunks": {
+      "description": "Optional: tokenized content chunks for direct NLP reference use. Only include when document is short enough to store inline.",
+      "max_chunks": 50,
+      "chunk_schema": {
+        "chunk_id":   "string — doc_id + _CK + index, e.g. ART-20250416-0001_CK001",
+        "text":       "string — raw text of this chunk (max 500 chars)",
+        "sig":        "string — sigma signature of this chunk",
+        "tool":       "string — dominant tool for this chunk",
+        "emotion":    "string — primary emotion detected in this chunk"
+      }
+    }
+  },
+
+  "example_record": {
+    "id": "JNL-20250416-0001",
+    "doc_type": "journal",
+    "genre": "aerospace",
+    "subgenre": "propulsion systems",
+    "title": "Hypersonic Aerospike Nozzle Thermal Management Survey",
+    "source": "AIAA Journal Vol 62, 2024",
+    "date_added": "2025-04-16T00:00:00Z",
+    "date_authored": "2024-01-15T00:00:00Z",
+    "language": "en",
+    "word_count": 8400,
+    "linguistic_profile": {
+      "vowel_frequency":       { "a": 0.09, "e": 0.11, "i": 0.08, "o": 0.07, "u": 0.04 },
+      "consonant_class_freq":  { "stops": 0.17, "fricatives": 0.13, "nasals": 0.08, "liquids": 0.09, "affricates": 0.03, "approximants": 0.05 },
+      "punctuation_density":   3.8,
+      "punctuation_map":       { "P_PERIOD": 210, "P_COMMA": 180, "P_COLON": 28, "P_SEMI": 14 },
+      "avg_sentence_length":   22.4,
+      "tense_distribution":    { "present_simple": 0.45, "past_simple": 0.25, "future_simple": 0.15, "conditional": 0.10, "other": 0.05 },
+      "sentence_structure_dist":{ "SIG_D": 0.55, "SIG_Q": 0.08, "SIG_C": 0.25, "SIG_X": 0.12 },
+      "dominant_sig": "SIG_D",
+      "dominant_sequence": "SEQ_E"
+    },
+    "brpn_profile": {
+      "inferred_shell":    "AEROSPACE",
+      "shell_confidence":  0.87,
+      "dominant_tool":     "KNIFE",
+      "tool_distribution": { "MAZE": 0.12, "PUZZLE": 0.18, "ENVELOPE": 0.10, "HAMMER": 0.14, "STICK": 0.12, "KNIFE": 0.22, "SCISSORS": 0.12 },
+      "buoyancy_state":    "PERFORMANCE",
+      "expression_layer":  2
+    },
+    "emotion_profile": {
+      "primary_emotion":    "determined",
+      "emotion_category":   "EMO_POS",
+      "emotion_distribution": { "determined": 0.35, "lucrative": 0.20, "neutral": 0.25, "concerned": 0.20 },
+      "expression_context": "contextual_statement"
+    },
+    "content_summary": {
+      "summary": "A survey of thermal management strategies for hypersonic aerospike nozzle configurations, analyzing material properties, cooling channel geometries, and heat flux mitigation under Mach 6-12 flight conditions.",
+      "key_concepts": ["aerospike","thermal barrier","heat flux","Mach number","ceramic matrix composite","ablative cooling","regenerative cooling","stagnation pressure","boundary layer","nozzle contour"],
+      "key_verbs": ["analyze","evaluate","measure","optimize","compare","reduce","apply","simulate","derive","validate"],
+      "key_sequences": ["SEQ_E","SEQ_A"]
+    },
+    "nlp_tags": {
+      "genres":    ["aerospace","propulsion","thermal engineering"],
+      "emotions":  ["EMO_DETERMINED","EMO_LUCRATIVE","EMO_NEUTRAL"],
+      "tools":     ["KNIFE","PUZZLE","HAMMER"],
+      "shells":    ["SHELL_AER"],
+      "sequences": ["SEQ_E","SEQ_A"],
+      "sigs":      ["SIG_D","SIG_C","SIG_X"]
+    }
+  }
+}
