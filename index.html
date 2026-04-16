@@ -6823,14 +6823,17 @@ async function processMusicCapture(blob) {
 // Keyword-based intent classifier — works without any API key
 function classifyIntentLocal(text, hasPendingImages) {
   var lc = text.toLowerCase().trim();
-  // Session management first
-  if (/\b(clear|wipe|hide|clean|blank|reset|refresh)\b.*\b(chat|window|messages|screen)\b/.test(lc) ||
-      /\b(chat|window|messages|screen)\b.*\b(clear|wipe|hide|clean)\b/.test(lc)) return 'CLEAR_CHAT';
-  if (/\b(delete|erase|destroy|remove)\b.*\b(history|all|everything|messages)\b/.test(lc)) return 'DELETE_CHAT';
-  if (/\b(new|open|start|fresh)\b.*\b(chat|session|conversation)\b/.test(lc) ||
-      /\b(new chat|start fresh|fresh start)\b/.test(lc)) return 'NEW_CHAT';
-  if (/\b(archive|save)\b.*\b(chat|session|this|conversation)\b/.test(lc)) return 'ARCHIVE';
-  if (/\b(show|restore|unhide|reveal)\b.*\b(messages|history|hidden)\b/.test(lc)) return 'SHOW_HIDDEN';
+  // Session management — ONLY explicit short direct commands, never from conversational text.
+  // These are destructive actions: require message to be a clear literal command (under 80 chars).
+  var isShortCmd = lc.length < 80;
+  if (isShortCmd) {
+    if (/^(clear|wipe|hide|blank)\s+(the\s+)?(chat|messages|screen|window)$/.test(lc)) return 'CLEAR_CHAT';
+    if (/^(delete|erase|destroy)\s+(the\s+)?(chat|messages|history|everything)$/.test(lc)) return 'DELETE_CHAT';
+    if (/^(new chat|start new chat|start fresh|fresh start|open new chat)$/.test(lc)) return 'NEW_CHAT';
+    if (/^(archive|save)\s+(this\s+)?(chat|session|conversation)$/.test(lc)) return 'ARCHIVE';
+    if (/^(show|restore|unhide|reveal)\s+(the\s+)?(messages|history|hidden|chat)$/.test(lc) ||
+        /^show\s+hidden\s+messages$/.test(lc)) return 'SHOW_HIDDEN';
+  }
   // Vision when image attached
   if (hasPendingImages && /\b(identify|who|what|describe|analyze|examine|look at|find|read|tell me about|what is|who is)\b/.test(lc)) return 'VISION_ANALYSIS';
   // If message contains a URL → always route to CONVERSATION so the pre-fetched
@@ -6871,14 +6874,15 @@ async function classifyIntent(text, hasPendingImages) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 15,
-        system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images of a person, place, or thing from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.',
+        system: 'Classify the user intent for an AI chat app. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.\nVISION_ANALYSIS = user wants to analyze an attached image.\nCONVERSATION = everything else including questions, requests, discussion.',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
       }),
       signal: AbortSignal.timeout(2500)
     });
     var d = await res.json();
     var label = ((d.content && d.content[0] && d.content[0].text) || 'CONVERSATION').trim().replace(/[^A-Z_]/g,'').toUpperCase();
-    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','CLEAR_CHAT','DELETE_CHAT','NEW_CHAT','ARCHIVE','SHOW_HIDDEN','CONVERSATION'];
+    // API classifier ONLY handles image disambiguation — never destructive session actions
+    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','CONVERSATION'];
     return valid.indexOf(label) !== -1 ? label : 'CONVERSATION';
   } catch(e) { return localLabel; }
 }
