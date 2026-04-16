@@ -8969,26 +8969,103 @@ function initBRPN() {
     toolShapeGroups[def.type]=group;
   });
 
-  // ── Pointer/touch drag ───────────────────────────────────────────────────
+  // ── Pointer/touch drag + pinch zoom + two-finger pan ────────────────────
   let isDrag=false,prevX=0,prevY=0,rotX=0,rotY=0;
+  let panX=0,panY=0;           // camera pan offset
+  let prevPinchDist=0;         // last pinch distance
+  let prevMidX=0,prevMidY=0;  // last two-finger midpoint (for pan)
+  let touchMode='none';        // 'rotate' | 'pinch-pan'
   const el=renderer.domElement;
-  el.addEventListener("pointerdown",e=>{isDrag=true;prevX=e.clientX;prevY=e.clientY});
+
+  // Mouse: left drag = rotate, wheel = zoom, middle/right drag = pan
+  el.addEventListener("pointerdown",e=>{
+    if(e.pointerType==='mouse'){
+      isDrag=true; prevX=e.clientX; prevY=e.clientY;
+    }
+  });
   window.addEventListener("pointermove",e=>{
-    if(!isDrag)return;
-    rotY+=(e.clientX-prevX)*0.005; rotX+=(e.clientY-prevY)*0.005;
-    rotX=Math.max(-1.2,Math.min(1.2,rotX));
+    if(!isDrag||e.pointerType!=='mouse') return;
+    if(e.buttons===1){
+      // Left button — rotate
+      rotY+=(e.clientX-prevX)*0.005; rotX+=(e.clientY-prevY)*0.005;
+      rotX=Math.max(-1.5,Math.min(1.5,rotX));
+    } else if(e.buttons===4||e.buttons===2){
+      // Middle/right button — pan
+      panX+=(e.clientX-prevX)*0.004; panY-=(e.clientY-prevY)*0.004;
+    }
     prevX=e.clientX; prevY=e.clientY;
   });
   window.addEventListener("pointerup",()=>{isDrag=false});
-  el.addEventListener("wheel",e=>{camera.position.z=Math.max(2.5,Math.min(10,camera.position.z+e.deltaY*0.005))},{passive:true});
-  el.addEventListener("touchstart",e=>{if(e.touches.length===1){isDrag=true;prevX=e.touches[0].clientX;prevY=e.touches[0].clientY}},{passive:true});
+
+  // Mouse wheel zoom
+  el.addEventListener("wheel",e=>{
+    e.preventDefault();
+    camera.position.z=Math.max(2.0,Math.min(12,camera.position.z+e.deltaY*0.005));
+  },{passive:false});
+
+  // Touch: 1 finger = rotate, 2 fingers = pinch-zoom + pan
+  el.addEventListener("touchstart",e=>{
+    e.preventDefault();
+    if(e.touches.length===1){
+      touchMode='rotate';
+      prevX=e.touches[0].clientX; prevY=e.touches[0].clientY;
+    } else if(e.touches.length===2){
+      touchMode='pinch-pan';
+      prevPinchDist=Math.hypot(
+        e.touches[0].clientX-e.touches[1].clientX,
+        e.touches[0].clientY-e.touches[1].clientY
+      );
+      prevMidX=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      prevMidY=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    }
+  },{passive:false});
+
   el.addEventListener("touchmove",e=>{
-    if(!isDrag||e.touches.length!==1)return;
-    rotY+=(e.touches[0].clientX-prevX)*0.005; rotX+=(e.touches[0].clientY-prevY)*0.005;
-    rotX=Math.max(-1.2,Math.min(1.2,rotX));
-    prevX=e.touches[0].clientX; prevY=e.touches[0].clientY;
+    e.preventDefault();
+    if(touchMode==='rotate'&&e.touches.length===1){
+      rotY+=(e.touches[0].clientX-prevX)*0.005;
+      rotX+=(e.touches[0].clientY-prevY)*0.005;
+      rotX=Math.max(-1.5,Math.min(1.5,rotX));
+      prevX=e.touches[0].clientX; prevY=e.touches[0].clientY;
+    } else if(touchMode==='pinch-pan'&&e.touches.length===2){
+      // Pinch-to-zoom
+      const dist=Math.hypot(
+        e.touches[0].clientX-e.touches[1].clientX,
+        e.touches[0].clientY-e.touches[1].clientY
+      );
+      const delta=prevPinchDist-dist;
+      camera.position.z=Math.max(2.0,Math.min(12,camera.position.z+delta*0.012));
+      prevPinchDist=dist;
+      // Two-finger pan (midpoint translation)
+      const midX=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      const midY=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      panX+=(midX-prevMidX)*0.005;
+      panY-=(midY-prevMidY)*0.005;
+      prevMidX=midX; prevMidY=midY;
+    }
+  },{passive:false});
+
+  el.addEventListener("touchend",e=>{
+    if(e.touches.length===0){ touchMode='none'; }
+    else if(e.touches.length===1){
+      touchMode='rotate';
+      prevX=e.touches[0].clientX; prevY=e.touches[0].clientY;
+    }
   },{passive:true});
-  el.addEventListener("touchend",()=>{isDrag=false},{passive:true});
+
+  // Double-tap to reset view
+  let lastTap=0;
+  el.addEventListener("touchend",e=>{
+    const now=Date.now();
+    if(now-lastTap<300&&e.changedTouches.length===1){
+      rotX=0; rotY=0; panX=0; panY=0;
+      camera.position.z=5;
+    }
+    lastTap=now;
+  },{passive:true});
+
+  // Expose pan to animate loop
+  el._getPan=()=>({x:panX,y:panY});
 
   // ── Multi-user ASH node layer ────────────────────────────────────────────
   setTimeout(function(){ if(typeof _initAshNodeLayer==='function') _initAshNodeLayer(); }, 800);
@@ -9155,6 +9232,10 @@ function initBRPN() {
     shellPulse*=0.994;
     // ── Multi-user ASH node drift ────────────────────────────────────────
     if(f%3===0 && typeof _tickAshNodes==='function') _tickAshNodes(f);
+    // Apply pan offset to camera
+    var _pan=el._getPan?el._getPan():{x:0,y:0};
+    camera.position.x=_pan.x;
+    camera.position.y=_pan.y;
     renderer.render(scene,camera);
     animId=requestAnimationFrame(animate);
   }
