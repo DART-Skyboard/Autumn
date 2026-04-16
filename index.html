@@ -842,9 +842,14 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .src-strip{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .src-pill{font-family:var(--font-d);font-size:.42rem;letter-spacing:1.5px;padding:2px 7px;border:1px solid var(--border);border-radius:2px;color:rgba(0,255,204,.45);text-transform:uppercase}
 /* Voice controls */
-.mic-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;flex-shrink:0}
-.mic-btn:hover{color:var(--cyan);border-color:var(--cyan)}
+.mic-btn,.speaker-btn,.ptt-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;flex-shrink:0}
+.mic-btn:hover,.speaker-btn:hover{color:var(--cyan);border-color:var(--cyan)}
 .mic-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse 1s infinite}
+/* Speaker (TTS) button — cyan when voice output is active */
+.speaker-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,255,204,.1);box-shadow:0 0 10px rgba(0,255,204,.25)}
+/* PTT mic — red pulse while listening */
+.ptt-btn:hover{color:#ff4466;border-color:#ff4466}
+.ptt-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse .8s infinite;box-shadow:0 0 12px rgba(255,68,102,.4)}
 .listen-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0}
 .listen-btn:hover{color:#ffb347;border-color:#ffb347;box-shadow:0 0 10px rgba(255,179,71,.15)}
 .listen-btn.tuning{color:#ffb347;border-color:#ffb347;background:rgba(255,179,71,.1);animation:musicPulse 1.2s ease-in-out infinite}
@@ -1362,11 +1367,12 @@ select.ash-ctrl-input{cursor:pointer}
     <button id="scroll-to-top" onclick="document.getElementById('chat-scroll').scrollTo({top:0,behavior:'smooth'})" title="Scroll to top">↑</button>
     <button id="scroll-to-bottom" onclick="document.getElementById('chat-scroll').scrollTo({top:999999,behavior:'smooth'})" title="Scroll to bottom">↓</button>
     <div id="input-bar">
-      <button class="mic-btn" id="mic-btn" onclick="toggleVoiceMode()" title="Voice mode">🎤</button>
+      <button class="speaker-btn" id="speaker-btn" onclick="toggleSpeakerMode()" title="Enable Autumn voice responses">🔊</button>
       <button class="listen-btn" id="listen-btn" onclick="toggleMusicListen()" title="Listen to identify music">♫</button>
       <button class="upload-btn" id="upload-btn" onclick="triggerImageUpload()" title="Attach images, video, or documents">📎</button>
       <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.frax,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.pdf,.txt,.md,.html,.htm,.js,.ts,.json,.csv,.svg,.py,.css,.xml,.yaml,.yml,.sh,.rb,.java,.c,.cpp,.h,.rs,.log,.ini,.conf,.toml,.glb,.gltf,.obj,.stl,.fbx,.dae,.docx,.rtf,.odt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain" multiple style="display:none" onchange="handleImageFilesSelect(this.files)">
       <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
+      <button class="ptt-btn" id="ptt-btn" onclick="pttTalk()" title="Tap to speak">🎤</button>
       <button class="send-btn" id="send-btn">▸ Send</button>
     </div>
     <div id="img-preview-strip">
@@ -10028,37 +10034,67 @@ function initSTT(){
   };
 }
 
-function toggleVoiceMode(){
-  if(Voice.active){
-    // Interrupt Autumn if she's speaking — stop her, start listening
-    if(Voice.speaking){
-      stopSpeaking();
-      setTimeout(function(){
-        if(!Voice.recognition) initSTT();
-        if(Voice.recognition&&Voice.active){
-          Voice.recognition.lang=Voice.sttLang;
-          try{Voice.recognition.start();Voice.isListening=true;}catch(e){}
-          document.getElementById('mic-btn').classList.add('recording');
-          var vi=document.getElementById('voice-indicator');
-          if(vi) vi.style.display='flex';
-        }
-      }, 150);
-      return;
+// Speaker button: toggles TTS (Autumn speaks responses). No STT.
+function toggleSpeakerMode(){
+  Voice.autoRead=!Voice.autoRead;
+  var sb=document.getElementById('speaker-btn');
+  if(sb){
+    sb.classList.toggle('active',Voice.autoRead);
+    sb.title=Voice.autoRead?'Speaker on — tap to mute Autumn':'Enable Autumn voice responses';
+  }
+  if(!Voice.autoRead) stopSpeaking();
+}
+// Keep toggleVoiceMode as alias for live-mode compatibility
+function toggleVoiceMode(){ toggleSpeakerMode(); }
+
+// PTT: one-shot STT → auto-send. Independent of continuous voice mode.
+function pttTalk(){
+  var pttBtn=document.getElementById('ptt-btn');
+  var inp=document.getElementById('chat-input');
+  // Cancel if already recording
+  if(Voice._pttActive){
+    Voice._pttActive=false;
+    if(Voice._pttRec){try{Voice._pttRec.stop();}catch(e){}Voice._pttRec=null;}
+    if(pttBtn){pttBtn.classList.remove('recording');pttBtn.title='Tap to speak';}
+    return;
+  }
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Speech recognition not supported in this browser.');return;}
+  Voice._pttActive=true;
+  Voice._pttRec=null;
+  if(pttBtn){pttBtn.classList.add('recording');pttBtn.title='Listening... tap to cancel';}
+  var vi=document.getElementById('voice-indicator');if(vi)vi.style.display='flex';
+  var rec=new SR();
+  Voice._pttRec=rec;
+  rec.continuous=false;
+  rec.interimResults=true;
+  rec.lang=Voice.sttLang||'en-US';
+  var _final='';
+  rec.onresult=function(e){
+    var interim='';
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) _final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
     }
-    // Toggle off
-    Voice.active=false;Voice.autoRead=false;stopSpeaking();
-    if(Voice.isListening&&Voice.recognition){try{Voice.recognition.stop();}catch(e){}Voice.isListening=false;}
-    var mb=document.getElementById('mic-btn');if(mb)mb.classList.remove('recording');
-    var vi=document.getElementById('voice-indicator');if(vi)vi.style.display='none';
-  } else {
-    Voice.active=true;Voice.autoRead=true;if(!Voice.recognition) initSTT();
-    if(Voice.recognition){
-      Voice.recognition.lang=Voice.sttLang;
-      try{Voice.recognition.start();}catch(e){Voice.recognition.stop();setTimeout(function(){try{Voice.recognition.start();}catch(e){}},200);}
-      Voice.isListening=true;
-      var mb=document.getElementById('mic-btn');if(mb)mb.classList.add('recording');
-      var vi=document.getElementById('voice-indicator');if(vi)vi.style.display='flex';
-    }
+    inp.value=(_final||interim).trim();
+  };
+  rec.onend=function(){
+    Voice._pttActive=false;Voice._pttRec=null;
+    if(pttBtn){pttBtn.classList.remove('recording');pttBtn.title='Tap to speak';}
+    if(vi)vi.style.display='none';
+    var txt=inp.value.trim();
+    if(txt){setTimeout(function(){if(typeof window.handleSend==='function')window.handleSend();},80);}
+  };
+  rec.onerror=function(e){
+    Voice._pttActive=false;Voice._pttRec=null;
+    if(pttBtn){pttBtn.classList.remove('recording');pttBtn.title='Tap to speak';}
+    if(vi)vi.style.display='none';
+    console.warn('[PTT] error:',e.error);
+  };
+  try{rec.start();}catch(e){
+    Voice._pttActive=false;
+    if(pttBtn)pttBtn.classList.remove('recording');
+    if(vi)vi.style.display='none';
   }
 }
 
@@ -10066,7 +10102,7 @@ function restartListeningIfActive(){
   if(!Voice.active||!Voice.recognition) return;
   setTimeout(()=>{
     if(!Voice.active) return;
-    try{Voice.recognition.lang=Voice.sttLang;Voice.recognition.start();Voice.isListening=true;document.getElementById('mic-btn').classList.add('recording');document.getElementById('voice-indicator').classList.add('show');}catch(e){}
+    try{Voice.recognition.lang=Voice.sttLang;Voice.recognition.start();Voice.isListening=true;document.getElementById('voice-indicator')?.classList.add('show');}catch(e){}
   },300);
 }
 
