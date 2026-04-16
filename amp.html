@@ -1045,11 +1045,11 @@
 
 <!-- ═══════════════════════════════════════════════════════
      DRAFT & DRIP — Graphic Design News Overlay
-     newsdata.io API · graphic design category only
+     newsdata.io API · graphic design · entertainment + technology categories
 ═══════════════════════════════════════════════════════ -->
 <style>
-  /* ── Fonts (same as Autumn) ── */
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap');
+  /* ── Fonts ── */
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap');
 
   /* ── Toggle FAB ── */
   #dd-fab {
@@ -1163,63 +1163,118 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 20px 13px;
-    border-bottom: 1px solid rgba(251,146,60,.2);
-    background: rgba(10,4,24,.7);
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    padding: 12px 18px 11px;
+    border-bottom: 1px solid rgba(251,146,60,.18);
+    background: linear-gradient(180deg,rgba(12,5,26,.85) 0%,rgba(8,3,18,.78) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
-  #dd-header-cup { font-size: 1.4rem; animation: ddFabSteam 3s ease-in-out infinite; }
+  #dd-header-left { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
   #dd-header-title {
     font-family: 'Orbitron', monospace;
-    font-size: .75rem;
-    font-weight: 900;
-    letter-spacing: 2px;
+    font-size: .72rem; font-weight: 900; letter-spacing: 2.5px;
     color: rgba(251,191,100,.95);
+    text-shadow: 0 0 12px rgba(251,146,60,.3);
   }
   #dd-header-sub {
     font-family: 'Exo 2', sans-serif;
-    font-size: .65rem;
-    color: rgba(180,139,255,.6);
-    margin-left: auto;
-    letter-spacing: .5px;
+    font-size: .55rem; letter-spacing: 1px;
+    color: rgba(180,139,255,.5);
   }
-  #dd-header-filter {
-    display: flex;
-    gap: 6px;
-    margin-left: 16px;
-  }
-  .dd-filter-chip {
-    font-family: 'Orbitron', monospace;
-    font-size: .38rem;
-    letter-spacing: 1px;
-    padding: 4px 9px;
-    border-radius: 12px;
-    border: 1px solid rgba(251,146,60,.3);
-    background: rgba(251,146,60,.08);
-    color: rgba(251,191,100,.75);
-    cursor: pointer;
-    transition: all .2s;
-  }
-  .dd-filter-chip.active, .dd-filter-chip:hover {
-    background: rgba(251,146,60,.2);
-    border-color: rgba(251,191,100,.6);
-    color: rgba(251,191,100,1);
+  #dd-header-right {
+    display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0;
   }
   #dd-status {
-    font-family: 'Orbitron', monospace;
-    font-size: .36rem;
-    color: rgba(0,229,255,.4);
-    letter-spacing: 1px;
-    margin-left: 8px;
-    flex-shrink: 0;
+    font-family: 'Orbitron', monospace; font-size: .34rem;
+    letter-spacing: 1px; color: rgba(0,229,255,.45);
+  }
+  #dd-refresh, #dd-collapse-btn {
+    background: transparent;
+    border: 1px solid rgba(251,146,60,.2);
+    border-radius: 8px; padding: 4px 7px;
+    font-size: .7rem; color: rgba(251,191,100,.55);
+    cursor: pointer; transition: all .18s; line-height: 1;
+    font-family: inherit;
+  }
+  #dd-refresh:hover, #dd-collapse-btn:hover {
+    border-color: rgba(251,191,100,.6); color: rgba(251,191,100,.9);
+    background: rgba(251,146,60,.1);
+  }
+  #dd-refresh { animation-duration: .5s; }
+  #dd-refresh.spinning { animation: ddSpin .5s linear; }
+
+  /* ── Filter chips row ── */
+  #dd-header-filter {
+    display: flex; gap: 5px; flex-wrap: wrap; order: 3; width: 100%;
+  }
+  .dd-filter-chip {
+    font-family: 'Orbitron', monospace; font-size: .36rem;
+    letter-spacing: 1px; padding: 4px 10px; border-radius: 14px;
+    border: 1px solid rgba(251,146,60,.28);
+    background: rgba(251,146,60,.07);
+    color: rgba(251,191,100,.7); cursor: pointer; transition: all .2s;
+    user-select: none; white-space: nowrap;
+  }
+  .dd-filter-chip.active {
+    background: rgba(251,146,60,.22); border-color: rgba(251,191,100,.65);
+    color: rgba(251,191,100,1);
+    box-shadow: 0 0 10px rgba(251,146,60,.18);
+  }
+  .dd-filter-chip:hover:not(.active) {
+    background: rgba(251,146,60,.13); border-color: rgba(251,191,100,.45);
+    color: rgba(251,191,100,.9);
+  }
+
+  /* ── Search bar ── */
+  #dd-search-wrap {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(4,2,12,.7);
+    border: 1px solid rgba(251,146,60,.22);
+    border-radius: 16px; padding: 5px 10px;
+    order: 2; flex: 1; min-width: 160px; max-width: 280px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  #dd-search-wrap:focus-within {
+    border-color: rgba(251,191,100,.55);
+    box-shadow: 0 0 12px rgba(251,146,60,.15);
+  }
+  #dd-search-icon { font-size: .95rem; color: rgba(251,191,100,.35); flex-shrink:0; }
+  #dd-search {
+    flex: 1; background: transparent; border: none; outline: none;
+    font-family: 'Exo 2', sans-serif; font-size: .65rem;
+    color: rgba(224,210,255,.85); caret-color: rgba(251,191,100,.7);
+  }
+  #dd-search::placeholder { color: rgba(180,139,255,.3); }
+  #dd-search-clear {
+    background: transparent; border: none; cursor: pointer;
+    font-size: .7rem; color: rgba(251,146,60,.35); padding: 0 2px;
+    transition: color .15s; line-height: 1; flex-shrink: 0;
+    display: none;
+  }
+  #dd-search-clear.visible { display: block; }
+  #dd-search-clear:hover { color: rgba(251,191,100,.75); }
+
+  /* ── Overlay panel ── */
+  #dd-panel {
+    position: fixed; inset: 0; z-index: 8500;
+    display: flex; flex-direction: column;
+    background: rgba(5,2,14,.93);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+    transition: opacity .4s cubic-bezier(.4,0,.2,1), transform .4s cubic-bezier(.4,0,.2,1);
+    overflow: hidden;
+  }
+  #dd-panel.collapsed {
+    opacity: 0; transform: translateY(32px) scale(.98);
+    pointer-events: none;
   }
 
   /* ── Scroll area ── */
   #dd-scroll {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 20px;
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    padding: 22px 20px 32px;
     scrollbar-width: thin;
     scrollbar-color: rgba(251,146,60,.2) transparent;
   }
@@ -1229,163 +1284,178 @@
   /* ── Article grid ── */
   #dd-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 18px;
+    animation: ddGridIn .35s ease;
   }
+  @keyframes ddGridIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:none;} }
 
   /* ── Article card ── */
   .dd-card {
-    background: rgba(14,8,30,.75);
-    border: 1px solid rgba(251,146,60,.14);
-    border-radius: 10px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    background: rgba(14,8,30,.8);
+    border: 1px solid rgba(251,146,60,.12);
+    border-radius: 12px; overflow: hidden;
+    display: flex; flex-direction: column;
     transition: border-color .22s, box-shadow .22s, transform .22s;
-    cursor: pointer;
-    text-decoration: none;
+    text-decoration: none; cursor: pointer;
+    position: relative;
   }
-  .dd-card:hover {
-    border-color: rgba(251,191,100,.45);
-    box-shadow: 0 4px 24px rgba(251,146,60,.12), 0 0 8px rgba(139,92,246,.1);
-    transform: translateY(-3px);
+  .dd-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(251,146,60,.03) 0%, transparent 60%);
+    opacity: 0; transition: opacity .22s;
   }
+  .dd-card:hover { border-color: rgba(251,191,100,.4); transform: translateY(-4px); }
+  .dd-card:hover::before { opacity: 1; }
+  .dd-card:hover { box-shadow: 0 8px 32px rgba(251,146,60,.12), 0 2px 8px rgba(139,92,246,.08); }
+
+  /* Card image */
   .dd-card-img {
-    width: 100%;
-    height: 170px;
-    object-fit: cover;
-    display: block;
+    width: 100%; height: 178px; object-fit: cover; display: block;
     background: linear-gradient(135deg, rgba(20,8,40,.9), rgba(8,4,18,.95));
+    transition: filter .25s;
   }
+  .dd-card:hover .dd-card-img { filter: brightness(1.08) saturate(1.1); }
   .dd-card-img-placeholder {
-    width: 100%;
-    height: 170px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 100%; height: 178px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
     background: linear-gradient(135deg, rgba(30,10,55,.8), rgba(15,5,30,.95));
-    font-size: 2.4rem;
-    color: rgba(251,146,60,.2);
-    border-bottom: 1px solid rgba(251,146,60,.08);
+    font-size: 2.2rem; color: rgba(251,146,60,.18);
+    border-bottom: 1px solid rgba(251,146,60,.06);
   }
-  .dd-card-body { padding: 14px 14px 10px; flex: 1; display: flex; flex-direction: column; }
+  .dd-card-img-placeholder-label {
+    font-family: 'Orbitron', monospace; font-size: .3rem;
+    letter-spacing: 2px; color: rgba(251,191,100,.2);
+  }
+
+  /* Badge (video, photo) */
+  .dd-card-badge {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(255,46,102,.75); color: #fff;
+    font-family: 'Orbitron', monospace; font-size: .3rem;
+    letter-spacing: 1px; padding: 2px 7px; border-radius: 4px;
+    backdrop-filter: blur(6px);
+  }
+  .dd-card-badge.photo { background: rgba(139,92,246,.75); }
+
+  /* Card body */
+  .dd-card-body { padding: 14px 14px 12px; flex: 1; display: flex; flex-direction: column; }
+  .dd-card-meta {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 7px;
+  }
   .dd-card-source {
-    font-family: 'Orbitron', monospace;
-    font-size: .35rem;
-    letter-spacing: 1.4px;
-    color: rgba(251,191,100,.55);
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    font-family: 'Orbitron', monospace; font-size: .32rem; letter-spacing: 1.4px;
+    color: rgba(251,191,100,.5); display: flex; align-items: center; gap: 5px;
   }
   .dd-card-source-dot {
-    width: 5px; height: 5px; border-radius: 50%;
-    background: rgba(251,146,60,.5);
-    flex-shrink: 0;
+    width: 4px; height: 4px; border-radius: 50%;
+    background: rgba(251,146,60,.55); flex-shrink: 0;
+    box-shadow: 0 0 4px rgba(251,146,60,.4);
+  }
+  .dd-card-readtime {
+    font-family: 'Exo 2', sans-serif; font-size: .55rem;
+    color: rgba(139,92,246,.45); margin-left: auto;
   }
   .dd-card-title {
-    font-family: 'Exo 2', sans-serif;
-    font-size: .8rem;
-    font-weight: 600;
-    color: rgba(224,210,255,.92);
-    line-height: 1.4;
-    margin-bottom: 8px;
-    flex: 1;
+    font-family: 'Exo 2', sans-serif; font-size: .82rem; font-weight: 700;
+    color: rgba(228,218,255,.92); line-height: 1.42; margin-bottom: 8px; flex: 1;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
   }
   .dd-card-desc {
-    font-family: 'Exo 2', sans-serif;
-    font-size: .68rem;
-    color: rgba(160,150,200,.6);
-    line-height: 1.5;
-    margin-bottom: 10px;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-family: 'Exo 2', sans-serif; font-size: .67rem;
+    color: rgba(160,150,200,.55); line-height: 1.55; margin-bottom: 11px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
   .dd-card-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-top: 1px solid rgba(251,146,60,.08);
-    padding-top: 9px;
-    margin-top: auto;
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid rgba(251,146,60,.07); padding-top: 9px; margin-top: auto;
   }
   .dd-card-date {
-    font-family: 'Orbitron', monospace;
-    font-size: .32rem;
-    letter-spacing: .8px;
-    color: rgba(139,92,246,.5);
+    font-family: 'Orbitron', monospace; font-size: .3rem;
+    letter-spacing: .8px; color: rgba(139,92,246,.45);
   }
   .dd-card-read {
-    font-family: 'Orbitron', monospace;
-    font-size: .33rem;
-    letter-spacing: 1px;
-    color: rgba(251,191,100,.6);
-    border: 1px solid rgba(251,146,60,.25);
-    padding: 3px 8px;
-    border-radius: 8px;
-    transition: all .18s;
+    font-family: 'Orbitron', monospace; font-size: .31rem; letter-spacing: 1.2px;
+    color: rgba(251,191,100,.55); border: 1px solid rgba(251,146,60,.2);
+    padding: 3px 9px; border-radius: 10px; transition: all .18s;
   }
   .dd-card:hover .dd-card-read {
-    background: rgba(251,146,60,.15);
-    color: rgba(251,191,100,.9);
+    background: rgba(251,146,60,.14); color: rgba(251,191,100,.9);
     border-color: rgba(251,191,100,.5);
   }
 
-  /* ── Loading / empty states ── */
-  #dd-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 220px;
-    gap: 16px;
+  /* Category tag */
+  .dd-card-tag {
+    font-family: 'Orbitron', monospace; font-size: .29rem; letter-spacing: .8px;
+    color: rgba(180,139,255,.5); border: 1px solid rgba(139,92,246,.15);
+    padding: 2px 6px; border-radius: 6px; flex-shrink: 0;
   }
-  .dd-spinner {
-    width: 36px; height: 36px;
-    border: 2px solid rgba(251,146,60,.15);
-    border-top-color: rgba(251,191,100,.7);
-    border-radius: 50%;
-    animation: ddSpin .9s linear infinite;
+
+  /* ── Loading state ── */
+  #dd-loading {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 260px; gap: 18px;
+  }
+  .dd-spinner-ring {
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 2px solid rgba(251,146,60,.12);
+    border-top-color: rgba(251,191,100,.65);
+    border-right-color: rgba(180,139,255,.4);
+    animation: ddSpin .85s linear infinite;
   }
   @keyframes ddSpin { to { transform: rotate(360deg); } }
   .dd-loading-txt {
-    font-family: 'Orbitron', monospace;
-    font-size: .42rem;
-    letter-spacing: 2px;
-    color: rgba(251,191,100,.5);
-    animation: ddPulse 1.6s ease-in-out infinite;
+    font-family: 'Orbitron', monospace; font-size: .4rem;
+    letter-spacing: 2px; color: rgba(251,191,100,.45);
+    animation: ddPulse 1.8s ease-in-out infinite;
   }
-  @keyframes ddPulse { 0%,100%{opacity:.4;} 50%{opacity:.9;} }
+  @keyframes ddPulse { 0%,100%{opacity:.35;} 50%{opacity:.85;} }
+
+  /* ── Empty state ── */
+  #dd-empty {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 220px; gap: 10px;
+  }
+  .dd-empty-ico { font-size: 2.5rem; opacity: .2; }
+  .dd-empty-txt {
+    font-family: 'Orbitron', monospace; font-size: .42rem;
+    letter-spacing: 2px; color: rgba(251,146,60,.35);
+  }
+  .dd-empty-sub {
+    font-family: 'Exo 2', sans-serif; font-size: .65rem;
+    color: rgba(160,150,200,.35);
+  }
 
   /* ── Load more ── */
   #dd-load-more {
-    display: block;
-    margin: 22px auto 0;
-    background: transparent;
-    border: 1px solid rgba(251,146,60,.3);
-    border-radius: 20px;
-    padding: 9px 28px;
-    font-family: 'Orbitron', monospace;
-    font-size: .42rem;
-    letter-spacing: 1.5px;
-    color: rgba(251,191,100,.75);
-    cursor: pointer;
-    transition: all .2s;
+    display: flex; align-items: center; justify-content: center;
+    margin: 28px auto 0; background: transparent;
+    border: 1px solid rgba(251,146,60,.28); border-radius: 22px;
+    padding: 10px 30px; font-family: 'Orbitron', monospace;
+    font-size: .4rem; letter-spacing: 1.5px;
+    color: rgba(251,191,100,.7); cursor: pointer; transition: all .2s;
   }
   #dd-load-more:hover {
-    background: rgba(251,146,60,.12);
-    border-color: rgba(251,191,100,.6);
-    color: rgba(251,191,100,1);
+    background: rgba(251,146,60,.1); border-color: rgba(251,191,100,.6);
+    color: rgba(251,191,100,1); box-shadow: 0 0 18px rgba(251,146,60,.18);
   }
 
-  /* ── Mobile tweaks ── */
-  @media (max-width: 500px) {
+  /* ── Skeleton loader cards ── */
+  .dd-skeleton {
+    background: rgba(14,8,30,.8); border: 1px solid rgba(251,146,60,.08);
+    border-radius: 12px; overflow: hidden;
+  }
+  .dd-skel-img { width: 100%; height: 178px; background: linear-gradient(90deg,rgba(20,10,40,.6) 25%,rgba(40,20,60,.4) 50%,rgba(20,10,40,.6) 75%); background-size: 200% 100%; animation: ddShimmer 1.6s infinite; }
+  .dd-skel-body { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .dd-skel-line { border-radius: 4px; background: linear-gradient(90deg,rgba(20,10,40,.6) 25%,rgba(40,20,60,.4) 50%,rgba(20,10,40,.6) 75%); background-size: 200% 100%; animation: ddShimmer 1.6s infinite; }
+  @keyframes ddShimmer { to { background-position: -200% 0; } }
+
+  /* ── Mobile ── */
+  @media (max-width: 560px) {
     #dd-grid { grid-template-columns: 1fr; }
-    #dd-header { flex-wrap: wrap; gap: 8px; }
+    #dd-header { gap: 8px 10px; padding: 10px 14px; }
     #dd-header-sub { display: none; }
+    #dd-search-wrap { min-width: 120px; }
   }
 </style>
 
@@ -1397,30 +1467,61 @@
 
 <!-- Draft & Drip panel -->
 <div id="dd-panel">
+
+  <!-- ── Header bar ── -->
   <div id="dd-header">
     <span id="dd-header-cup">☕</span>
-    <span id="dd-header-title">DRAFT &amp; DRIP</span>
-    <div id="dd-header-filter">
-      <span class="dd-filter-chip active" data-q="graphic design">ALL</span>
-      <span class="dd-filter-chip" data-q="graphic design typography">TYPE</span>
-      <span class="dd-filter-chip" data-q="graphic design branding">BRAND</span>
-      <span class="dd-filter-chip" data-q="graphic design technology">TECH</span>
-      <span class="dd-filter-chip" data-q="graphic design trends">TRENDS</span>
+    <div id="dd-header-left">
+      <div id="dd-header-title">DRAFT &amp; DRIP</div>
+      <div id="dd-header-sub">GRAPHIC DESIGN LOUNGE</div>
     </div>
-    <span id="dd-header-sub">GRAPHIC DESIGN LOUNGE</span>
-    <span id="dd-status">LOADING…</span>
+
+    <!-- Filter chips -->
+    <div id="dd-header-filter">
+      <span class="dd-filter-chip active" data-q="graphic design" data-cat="entertainment,technology,science">ALL</span>
+      <span class="dd-filter-chip" data-q="typography font lettering design" data-cat="entertainment,technology">TYPE</span>
+      <span class="dd-filter-chip" data-q="logo brand identity visual design" data-cat="entertainment,technology,business">BRAND</span>
+      <span class="dd-filter-chip" data-q="design technology AI creative tools" data-cat="technology,science">TECH</span>
+      <span class="dd-filter-chip" data-q="graphic design trends aesthetics 2025" data-cat="entertainment,technology">TRENDS</span>
+      <span class="dd-filter-chip" data-q="illustration digital art concept design" data-cat="entertainment">ART</span>
+      <span class="dd-filter-chip" data-q="packaging industrial product design" data-cat="entertainment,technology,business">PRODUCT</span>
+      <span class="dd-filter-chip" data-q="UX UI web design interface" data-cat="technology">UX/UI</span>
+    </div>
+
+    <!-- Search bar -->
+    <div id="dd-search-wrap">
+      <span id="dd-search-icon">⌕</span>
+      <input id="dd-search" type="text" placeholder="Search within design…" autocomplete="off" spellcheck="false">
+      <button id="dd-search-clear" onclick="ddClearSearch()" title="Clear">✕</button>
+    </div>
+
+    <!-- Live status + collapse -->
+    <div id="dd-header-right">
+      <span id="dd-status">LOADING…</span>
+      <button id="dd-refresh" onclick="ddRefresh()" title="Refresh feed">↻</button>
+      <button id="dd-collapse-btn" onclick="ddToggle()" title="Collapse panel">▾</button>
+    </div>
   </div>
+
+  <!-- ── Scroll area ── -->
   <div id="dd-scroll">
     <div id="dd-loading">
-      <div class="dd-spinner"></div>
-      <div class="dd-loading-txt">FETCHING LATEST ARTICLES…</div>
+      <div class="dd-spinner-ring"></div>
+      <div class="dd-loading-txt">BREWING LATEST ARTICLES…</div>
     </div>
     <div id="dd-grid" style="display:none"></div>
-    <button id="dd-load-more" style="display:none" onclick="ddLoadMore()">↓ LOAD MORE</button>
+    <div id="dd-empty" style="display:none">
+      <div class="dd-empty-ico">✏</div>
+      <div class="dd-empty-txt">NO ARTICLES FOUND</div>
+      <div class="dd-empty-sub">Try a different filter or search term</div>
+    </div>
+    <button id="dd-load-more" style="display:none" onclick="ddLoadMore()">
+      <span>↓ LOAD MORE ARTICLES</span>
+    </button>
   </div>
 </div>
 
-<!-- FAB toggle -->
+<!-- FAB toggle (visible when panel is collapsed) -->
 <div id="dd-fab" onclick="ddToggle()">
   <span id="dd-fab-cup">☕</span>
   <span id="dd-fab-txt">DRAFT &amp; DRIP</span>
@@ -1429,127 +1530,276 @@
 
 <script>
 (function(){
-  const API_KEY = 'pub_efe075f8a95941dc811fdf037b6ef756';
-  const BASE    = 'https://newsdata.io/api/1/news';
+  const API_KEY  = 'pub_efe075f8a95941dc811fdf037b6ef756';
+  const BASE     = 'https://newsdata.io/api/1/latest';  // /latest for freshest content
 
   // State
-  let _expanded  = true;   // start expanded
-  let _page      = null;   // nextPage cursor from API
-  let _loading   = false;
-  let _articles  = [];
-  let _activeQ   = 'graphic design';
+  let _expanded    = true;
+  let _page        = null;
+  let _loading     = false;
+  let _articles    = [];
+  let _activeQ     = 'graphic design';
+  let _activeCat   = 'entertainment,technology,science';
+  let _searchTimer = null;
 
-  // ── Toggle panel ────────────────────────────────────────
+  // ── Toggle panel ────────────────────────────────────────────
   window.ddToggle = function() {
     _expanded = !_expanded;
     document.getElementById('dd-panel').classList.toggle('collapsed', !_expanded);
     document.getElementById('dd-fab').classList.toggle('collapsed', !_expanded);
   };
 
-  // ── Build article card HTML ──────────────────────────────
+  // ── Refresh ─────────────────────────────────────────────────
+  window.ddRefresh = function() {
+    const btn = document.getElementById('dd-refresh');
+    if(btn){ btn.classList.add('spinning'); setTimeout(function(){ btn.classList.remove('spinning'); }, 500); }
+    loadFeed(_activeQ, _activeCat, true);
+  };
+
+  // ── Search ──────────────────────────────────────────────────
+  window.ddClearSearch = function() {
+    var inp = document.getElementById('dd-search');
+    if(inp){ inp.value = ''; }
+    document.getElementById('dd-search-clear').classList.remove('visible');
+    loadFeed(_activeQ, _activeCat, true);
+  };
+
+  // ── Estimate reading time from description ───────────────────
+  function readTime(text) {
+    if(!text) return null;
+    var words = text.trim().split(/\s+/).length;
+    var mins  = Math.max(1, Math.round(words / 200));
+    return mins + ' MIN READ';
+  }
+
+  // ── Relative date ────────────────────────────────────────────
+  function relDate(dateStr) {
+    if(!dateStr) return '';
+    var d    = new Date(dateStr.replace(' ', 'T'));
+    var now  = Date.now();
+    var diff = now - d.getTime();
+    var mins = Math.floor(diff / 60000);
+    if(mins < 60)   return mins <= 1 ? 'JUST NOW' : mins + 'M AGO';
+    var hrs = Math.floor(mins / 60);
+    if(hrs  < 24)   return hrs + 'H AGO';
+    var days = Math.floor(hrs / 24);
+    if(days < 7)    return days + 'D AGO';
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase();
+  }
+
+  // ── Detect media type for badge ──────────────────────────────
+  function mediaBadge(a) {
+    if(a.video_url)   return '<span class="dd-card-badge">▶ VIDEO</span>';
+    if(a.image_url)   return '<span class="dd-card-badge photo">◼ PHOTO</span>';
+    return '';
+  }
+
+  // ── Pick a placeholder icon by category ──────────────────────
+  function placeholderIcon(a) {
+    var cats = (a.category || []).join(' ').toLowerCase();
+    if(/techno|digital|ai|software/.test(cats)) return '⚙';
+    if(/entertain|art|music|film/.test(cats))   return '◈';
+    if(/science|research/.test(cats))           return '◉';
+    if(/business|brand/.test(cats))             return '◇';
+    return '✏';
+  }
+
+  // ── Build article card HTML ──────────────────────────────────
   function buildCard(a) {
-    const img   = a.image_url || '';
-    const title = (a.title  || 'Untitled').replace(/</g,'&lt;');
-    const desc  = (a.description || '').replace(/</g,'&lt;').slice(0,180);
-    const src   = (a.source_id  || '').replace(/</g,'&lt;').toUpperCase();
-    const link  = a.link  || '#';
-    const date  = a.pubDate ? new Date(a.pubDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    var img   = a.image_url || '';
+    var title = (a.title       || 'Untitled').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var desc  = (a.description || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var src   = (a.source_id   || a.source_name || '').replace(/</g,'&lt;').toUpperCase();
+    var link  = a.link  || '#';
+    var rt    = readTime(a.description || a.title);
+    var cats  = (a.category || []).slice(0,2).map(function(c){ return c.toUpperCase(); }).join(' · ');
 
-    const imgHtml = img
-      ? `<img class="dd-card-img" src="${img}" alt="" loading="lazy" onerror="this.outerHTML='<div class=dd-card-img-placeholder>✏</div>'">`
-      : `<div class="dd-card-img-placeholder">✏</div>`;
+    var imgHtml = img
+      ? `<img class="dd-card-img" src="${img}" alt="" loading="lazy"
+             onerror="this.outerHTML='<div class=dd-card-img-placeholder><span>${placeholderIcon(a)}</span><span class=dd-card-img-placeholder-label>DESIGN ARTICLE</span></div>'">`
+      : `<div class="dd-card-img-placeholder"><span>${placeholderIcon(a)}</span><span class="dd-card-img-placeholder-label">DESIGN ARTICLE</span></div>`;
 
-    return `<a class="dd-card" href="${link}" target="_blank" rel="noopener">
+    return `<a class="dd-card" href="${link}" target="_blank" rel="noopener noreferrer">
       ${imgHtml}
+      ${mediaBadge(a)}
       <div class="dd-card-body">
-        <div class="dd-card-source"><div class="dd-card-source-dot"></div>${src}</div>
+        <div class="dd-card-meta">
+          <div class="dd-card-source">
+            <div class="dd-card-source-dot"></div>
+            ${src}
+          </div>
+          ${rt ? `<span class="dd-card-readtime">${rt}</span>` : ''}
+        </div>
         <div class="dd-card-title">${title}</div>
         ${desc ? `<div class="dd-card-desc">${desc}</div>` : ''}
         <div class="dd-card-footer">
-          <span class="dd-card-date">${date}</span>
+          <span class="dd-card-date">${relDate(a.pubDate)}</span>
+          ${cats ? `<span class="dd-card-tag">${cats}</span>` : ''}
           <span class="dd-card-read">READ ↗</span>
         </div>
       </div>
     </a>`;
   }
 
-  // ── Fetch articles ───────────────────────────────────────
-  async function fetchArticles(query, page) {
-    const params = new URLSearchParams({
+  // ── Skeleton loaders while fetching ──────────────────────────
+  function showSkeletons(n) {
+    var grid = document.getElementById('dd-grid');
+    grid.style.display = 'grid';
+    var html = '';
+    for(var i=0; i<n; i++) {
+      html += `<div class="dd-skeleton">
+        <div class="dd-skel-img"></div>
+        <div class="dd-skel-body">
+          <div class="dd-skel-line" style="height:8px;width:40%"></div>
+          <div class="dd-skel-line" style="height:14px;width:90%;margin-top:4px"></div>
+          <div class="dd-skel-line" style="height:14px;width:75%;margin-top:4px"></div>
+          <div class="dd-skel-line" style="height:10px;width:60%;margin-top:8px"></div>
+        </div>
+      </div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  // ── Fetch articles ───────────────────────────────────────────
+  async function fetchArticles(query, category, page) {
+    var params = {
       apikey:   API_KEY,
       q:        query,
       language: 'en',
       size:     10,
-    });
-    if (page) params.set('page', page);
+      category: category,
+    };
+    if(page) params.page = page;
 
-    const r = await fetch(`${BASE}?${params}`, { signal: AbortSignal.timeout(12000) });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
+    var qs = Object.keys(params).map(function(k){
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+
+    var r = await fetch(BASE + '?' + qs, { signal: AbortSignal.timeout(14000) });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    var data = await r.json();
+    if(data.status === 'error') throw new Error(data.results && data.results.message ? data.results.message : 'API error');
+    return data;
   }
 
-  // ── Render cards into grid ───────────────────────────────
+  // ── Render cards ─────────────────────────────────────────────
   function renderCards(articles, append) {
-    const grid = document.getElementById('dd-grid');
-    if (!append) grid.innerHTML = '';
-    grid.style.display = 'grid';
-    articles.forEach(function(a) { grid.insertAdjacentHTML('beforeend', buildCard(a)); });
+    var grid  = document.getElementById('dd-grid');
+    var empty = document.getElementById('dd-empty');
+    if(!append) {
+      grid.innerHTML = '';
+      // Remove any skeleton divs
+      document.querySelectorAll('.dd-skeleton').forEach(function(s){ s.remove(); });
+    }
+    if(!articles.length && !append) {
+      grid.style.display = 'none';
+      empty.style.display = 'flex';
+      return;
+    }
+    empty.style.display = 'none';
+    grid.style.display  = 'grid';
+    // Remove leftover skeletons before appending real cards
+    grid.querySelectorAll('.dd-skeleton').forEach(function(s){ s.remove(); });
+    articles.forEach(function(a){ grid.insertAdjacentHTML('beforeend', buildCard(a)); });
   }
 
-  // ── Initial load ─────────────────────────────────────────
-  async function loadFeed(query, reset) {
-    if (_loading) return;
+  // ── Main load ────────────────────────────────────────────────
+  async function loadFeed(query, category, reset) {
+    if(_loading) return;
     _loading = true;
-    const status   = document.getElementById('dd-status');
-    const loading  = document.getElementById('dd-loading');
-    const loadMore = document.getElementById('dd-load-more');
 
-    if (reset) {
-      _page = null;
-      _articles = [];
-      document.getElementById('dd-grid').style.display = 'none';
-      document.getElementById('dd-grid').innerHTML = '';
+    var status   = document.getElementById('dd-status');
+    var loading  = document.getElementById('dd-loading');
+    var loadMore = document.getElementById('dd-load-more');
+    var empty    = document.getElementById('dd-empty');
+
+    if(reset) {
+      _page = null; _articles = [];
+      empty.style.display = 'none';
       loading.style.display = 'flex';
       loadMore.style.display = 'none';
+      // Show skeleton cards while loading
+      loading.style.display = 'none';
+      showSkeletons(6);
     }
     status.textContent = 'FETCHING…';
 
     try {
-      const data = await fetchArticles(query, _page);
-      const articles = (data.results || []);
-      _page = data.nextPage || null;
-      _articles = _articles.concat(articles);
+      var data     = await fetchArticles(query, category, _page);
+      var articles = data.results || [];
+      _page        = data.nextPage || null;
+      _articles    = _articles.concat(articles);
 
-      loading.style.display = 'none';
       renderCards(articles, !reset);
-      loadMore.style.display = _page ? 'block' : 'none';
-      status.textContent = _articles.length + ' ARTICLES · GRAPHIC DESIGN';
+      loadMore.style.display = _page && _articles.length >= 10 ? 'flex' : 'none';
+      var count = _articles.length;
+      status.textContent = count + (count === 1 ? ' ARTICLE' : ' ARTICLES') + ' · GRAPHIC DESIGN';
     } catch(e) {
-      loading.style.display = 'none';
-      document.getElementById('dd-grid').style.display = 'grid';
-      document.getElementById('dd-grid').innerHTML =
-        '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:Orbitron,monospace;font-size:.45rem;color:rgba(251,146,60,.4);letter-spacing:2px">COULD NOT FETCH ARTICLES — CHECK CONNECTION<br><br><span style="font-size:.35rem;color:rgba(255,68,102,.4)">' + e.message + '</span></div>';
+      document.querySelectorAll('.dd-skeleton').forEach(function(s){ s.remove(); });
+      var grid = document.getElementById('dd-grid');
+      grid.style.display = 'grid';
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:50px 20px;font-family:'Orbitron',monospace">
+        <div style="font-size:2rem;margin-bottom:16px;opacity:.2">☕</div>
+        <div style="font-size:.42rem;letter-spacing:2px;color:rgba(251,146,60,.45);margin-bottom:8px">COULD NOT BREW ARTICLES</div>
+        <div style="font-size:.35rem;color:rgba(255,68,102,.35);letter-spacing:1px">${e.message}</div>
+        <button onclick="ddRefresh()" style="margin-top:20px;background:transparent;border:1px solid rgba(251,146,60,.3);border-radius:16px;padding:7px 20px;font-family:'Orbitron',monospace;font-size:.38rem;letter-spacing:1px;color:rgba(251,191,100,.6);cursor:pointer">↻ RETRY</button>
+      </div>`;
       status.textContent = 'ERROR';
     }
+    loading.style.display = 'none';
     _loading = false;
   }
 
-  // ── Load more ────────────────────────────────────────────
-  window.ddLoadMore = function() { loadFeed(_activeQ, false); };
+  // ── Load more ────────────────────────────────────────────────
+  window.ddLoadMore = function() { loadFeed(_activeQ, _activeCat, false); };
 
-  // ── Filter chips ─────────────────────────────────────────
+  // ── Filter chips ─────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.dd-filter-chip').forEach(function(chip) {
       chip.addEventListener('click', function() {
         document.querySelectorAll('.dd-filter-chip').forEach(function(c){ c.classList.remove('active'); });
         chip.classList.add('active');
-        _activeQ = chip.dataset.q;
-        loadFeed(_activeQ, true);
+        _activeQ   = chip.dataset.q;
+        _activeCat = chip.dataset.cat || 'entertainment,technology';
+        // Clear search
+        var inp = document.getElementById('dd-search');
+        if(inp) inp.value = '';
+        document.getElementById('dd-search-clear').classList.remove('visible');
+        loadFeed(_activeQ, _activeCat, true);
       });
     });
 
+    // Search input — debounce 600ms
+    var searchEl = document.getElementById('dd-search');
+    if(searchEl) {
+      searchEl.addEventListener('input', function() {
+        var val = searchEl.value.trim();
+        document.getElementById('dd-search-clear').classList.toggle('visible', val.length > 0);
+        clearTimeout(_searchTimer);
+        if(val.length >= 3) {
+          _searchTimer = setTimeout(function() {
+            // Combine search term with "graphic design" anchor
+            _activeQ = 'graphic design ' + val;
+            loadFeed(_activeQ, _activeCat, true);
+          }, 600);
+        } else if(val.length === 0) {
+          // Revert to active chip
+          var activeChip = document.querySelector('.dd-filter-chip.active');
+          if(activeChip) { _activeQ = activeChip.dataset.q; _activeCat = activeChip.dataset.cat || 'entertainment,technology'; }
+          loadFeed(_activeQ, _activeCat, true);
+        }
+      });
+      searchEl.addEventListener('keydown', function(e) {
+        if(e.key === 'Enter' && searchEl.value.trim().length >= 2) {
+          clearTimeout(_searchTimer);
+          _activeQ = 'graphic design ' + searchEl.value.trim();
+          loadFeed(_activeQ, _activeCat, true);
+        }
+      });
+    }
+
     // Start loading
-    loadFeed(_activeQ, true);
+    loadFeed(_activeQ, _activeCat, true);
   });
 
 })();
