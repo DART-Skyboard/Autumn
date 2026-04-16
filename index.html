@@ -5709,11 +5709,19 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},
-      body:JSON.stringify({model:'claude-3-5-sonnet-20241022',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
-      signal:AbortSignal.timeout(25000)
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
+      signal:AbortSignal.timeout(30000)
     });
     var data = await res.json();
-    var reply = data.content ? data.content.map(function(b){return b.text||'';}).join('') : 'Could not analyze image.';
+    // Surface any API error message clearly instead of generic fallback
+    var reply;
+    if(data.content) {
+      reply = data.content.map(function(b){return b.text||'';}).join('');
+    } else if(data.error) {
+      reply = 'Vision API error: ' + (data.error.message || JSON.stringify(data.error));
+    } else {
+      reply = 'Could not analyze image — unexpected API response.';
+    }
 
     var idx = msgs().findIndex(function(m){return m.id===cardId;});
     // If user asked for news/media alongside the image, run web query on identified subject
@@ -5852,7 +5860,7 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
   var visionDescription='';
   try{
     var ak=_getAK()||'';
-    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-3-5-sonnet-20241022',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
+    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
     var vData=await vRes.json();
     visionDescription=vData.content?vData.content.map(function(b){return b.text||'';}).join(''):'';
   }catch(e){visionDescription='';}
@@ -6332,6 +6340,10 @@ function classifyIntentLocal(text, hasPendingImages) {
   if (/\b(show|restore|unhide|reveal)\b.*\b(messages|history|hidden)\b/.test(lc)) return 'SHOW_HIDDEN';
   // Vision when image attached
   if (hasPendingImages && /\b(identify|who|what|describe|analyze|examine|look at|find|read|tell me about|what is|who is)\b/.test(lc)) return 'VISION_ANALYSIS';
+  // If message contains a URL → always route to CONVERSATION so the pre-fetched
+  // URL context (injected into augmentedText above) gets passed to generateReply.
+  // Never let a URL message fall into WEB_IMAGE_FETCH or IMAGE_GEN by accident.
+  if (/https?:\/\//.test(text) && !/\b(generate|create|make|draw|paint|render|illustrate)\b/i.test(text)) return 'CONVERSATION';
   // If image is attached and no explicit generate intent → always analyze it, never web-fetch
   if (hasPendingImages) return 'VISION_ANALYSIS';
   // Web image fetch — "show me photos/pictures of X" about real people/topics → web fetch NOT generator
@@ -6946,6 +6958,38 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   }
 
   const msgId='msg-'+Date.now();
+
+  // Build inline URL preview card if the message contained a URL
+  var _urlPreviewHtml = '';
+  if(extractedUrls && extractedUrls.length > 0) {
+    try {
+      var _pUrl = extractedUrls[0];
+      var _pDomain = _pUrl.replace(/https?:\/\//,'').split('/')[0];
+      // Try to extract og:image + title from the augmentedText context we already fetched
+      var _rawHtml = augmentedText.match(/\[Content from [^\]]+\]:\s*([\s\S]{0,6000})/);
+      var _rawContent = _rawHtml ? _rawHtml[1] : '';
+      var _pvOgImg = '', _pvTitle = '', _pvDesc = '';
+      var _ogIM = _rawContent.match(/property=["\']og:image["\'][^>]*content=["\']([^"\']+)["\']|content=["\']([^"\']+)["\'][^>]*property=["\']og:image["\']/i);
+      if(_ogIM) _pvOgImg = (_ogIM[1]||_ogIM[2]||'').trim();
+      var _ogTM = _rawContent.match(/property=["\']og:title["\'][^>]*content=["\']([^"\']+)["\']|content=["\']([^"\']+)["\'][^>]*property=["\']og:title["\']/i);
+      if(!_ogTM) _ogTM = _rawContent.match(/<title[^>]*>([^<]{1,120})<\/title>/i);
+      if(_ogTM) _pvTitle = (_ogTM[1]||_ogTM[2]||'').trim().slice(0,80);
+      var _ogDM = _rawContent.match(/property=["\']og:description["\'][^>]*content=["\']([^"\']+)["\']|content=["\']([^"\']+)["\'][^>]*property=["\']og:description["\']/i);
+      if(!_ogDM) _ogDM = _rawContent.match(/name=["\']description["\'][^>]*content=["\']([^"\']+)["\']|content=["\']([^"\']+)["\'][^>]*name=["\']description["\']/i);
+      if(_ogDM) _pvDesc = (_ogDM[1]||_ogDM[2]||'').trim().slice(0,180);
+      var _pvThumb = _pvOgImg || ('https://image.thum.io/get/width/600/crop/340/noanimate/' + encodeURIComponent(_pUrl));
+      _urlPreviewHtml = '<div style="background:rgba(0,8,18,.75);border:1px solid rgba(0,229,255,.18);border-radius:9px;overflow:hidden;max-width:460px;margin:8px 0 2px">'
+        + '<img src="'+_pvThumb+'" style="width:100%;max-height:200px;object-fit:cover;display:block;border-bottom:1px solid rgba(0,229,255,.1)" onerror="this.style.display=\'none\'" loading="lazy">'
+        + '<div style="padding:9px 12px 10px">'
+        + (_pvTitle ? '<div style="font-family:\'Orbitron\',sans-serif;font-size:.62rem;color:#00e5ff;margin-bottom:4px;letter-spacing:.4px;line-height:1.3">'+_pvTitle.replace(/</g,'&lt;')+'</div>' : '')
+        + (_pvDesc  ? '<div style="font-size:.68rem;color:rgba(255,255,255,.6);line-height:1.5;margin-bottom:5px">'+_pvDesc.replace(/</g,'&lt;')+'</div>' : '')
+        + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<span style="font-size:.55rem;color:rgba(0,229,255,.4);font-family:\'Orbitron\',sans-serif;letter-spacing:.5px">⬡ '+_pDomain+'</span>'
+        + '<a href="'+_pUrl+'" target="_blank" rel="noopener" style="font-size:.55rem;color:rgba(0,229,255,.55);font-family:\'Orbitron\',sans-serif;text-decoration:none;border:1px solid rgba(0,229,255,.2);padding:2px 7px;border-radius:3px;letter-spacing:.5px">↗ OPEN</a>'
+        + '</div></div></div>';
+    } catch(e) { _urlPreviewHtml = ''; }
+  }
+
   msgs().push({
     role:"autumn", text:fullReply, ts:new Date().toISOString(), id:msgId,
     meta:{ elapsed:analysis.elapsed, qs:analysis.quantumSocket, grammar:grammarSignature(analysis.grammar) },
@@ -6957,6 +7001,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     mazeWid: reflexData.activeMazeWid||null,
     weatherHtml: reflexData.weatherHtml||'',
     mapHtml: (reflexData.mapHtml||'') + (_placeMapHtml||''),
+    imageGenCard: _urlPreviewHtml || null,
     media: _explicitMediaRequest
       ? { videos:liveData.videos, images:liveData.images, links:liveData.links, sources:liveData.sources }
       : { videos:[], images:[], links:[], sources:[] }
