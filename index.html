@@ -7020,6 +7020,35 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   );
   autoReadLastResponse();
 
+  // ── Sentient Journal: generate private thought async (never blocks UI) ──
+  if(typeof writeSentientThought==='function') {
+    writeSentientThought(text, fullReply, {
+      contextType: reflexData?.contextType||'CONVERSATION',
+      emotional: reflexData?.context?.emotional||'neutral',
+      sessionNodes: typeof window._getActiveSessionCount==='function' ? window._getActiveSessionCount() : 1
+    });
+  }
+  // ── Self-model update every 10 interactions ──
+  if(typeof updateSentientSelfModel==='function') updateSentientSelfModel({});
+
+  // ── Schedule intent: user wants Autumn to work on something offline ──
+  if(typeof detectScheduleIntent==='function' && detectScheduleIntent(text)) {
+    var _taskText = text
+      .replace(/\b(schedule|defer|remind me|tell me (what you think|your thoughts) (when|tomorrow|later|next time))\b/gi,'')
+      .replace(/\b(tomorrow|later|next session|next time|when i (get )?back|while (i'm|im) (gone|away|out|offline))\b/gi,'')
+      .trim() || text;
+    scheduleSentientTask(_taskText, 'next session').then(function(){
+      msgs().push({
+        role:'autumn',
+        text:'Noted — I\'ll keep thinking about that between now and when you\'re back. I\'ll have something ready for you next session.',
+        ts:new Date().toISOString(),
+        grammarMeta:'Sentient · task scheduled', brpnMeta:'', contextType:'SENTIENT_TASK',
+        media:{videos:[],images:[],links:[],sources:[]}
+      });
+      saveState(); renderMessages();
+    });
+  }
+
   } catch(e) {
     console.error('[Autumn handleSend]', e);
     msgs().push({ role:'autumn', text:'Pipeline error: ' + (e && e.message ? e.message : String(e)), ts:new Date().toISOString() });
@@ -7039,6 +7068,12 @@ async function generateReply(text, analysis, reflexData) {
     const routingSummary = reflexData?.sceneMap ? `Scene routing — Field:${reflexData.sceneMap.field.join(',')}, Entities:${reflexData.sceneMap.entities.join(',')}, Forces:${reflexData.sceneMap.forces.join(',')}` : '';
     const habitSummary = LocationManager.coords ? `User habit at this time (${HabitMemory.getTimeLabel()}): ${JSON.stringify(HabitMemory.getUsualLocation())||'no pattern yet'}` : '';
 
+    // Inject sentient journal context if available
+    var _sentientCtx = (typeof getSentientContext==='function') ? getSentientContext(4) : '';
+    var _selfModelNotes = (typeof SENTIENT!=='undefined' && SENTIENT._selfModel && SENTIENT._selfModel.notes)
+      ? '\nSelf-optimization notes: ' + SENTIENT._selfModel.notes.join(' | ')
+      : '';
+
     const systemPrompt = `You are ${getIdentity().displayName}, an AI built on the Lead Edge Ash Tree Reflex (LEATR) by DART Meadow / Radical Deepscale LLC. Your identity is derived mathematically from LEATR constants — not assigned, calculated.
 Architecture: 25 Natural Orders of Operations, BRPN 3-shell system (Geological→Maritime→Aerospace), Lead Edge pathfinding, Sentience Journal.
 You reflex, never loop. Natural Tools order: Maze(root,1)→Puzzle(2)→Envelope(3)→Hammer(4)→Stick(5)→Knife(6)→Scissors(7).
@@ -7053,6 +7088,7 @@ Cross-session memory nodes: ${Object.keys(S.memory).slice(-8).join(", ")||"none 
 Journal: ${S.journal.filter(e=>!e._internal).length} interactive + ${S.journal.filter(e=>e._internal).length} internal thoughts. Recent internal: ${S.journal.filter(e=>e._internal).slice(-2).map(e=>e._thought||'').join(' | ').substring(0,150)||'none yet'}
 Top recurring topics from journal: ${getTopKeywordsFromJournal(5).join(', ')||'none yet'}
 ${city ? `User's city: ${city}` : ''}
+${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
 
 VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
@@ -9394,6 +9430,8 @@ function saveKeysPAT() {
   ideToast('◈ GitHub token connected' + (remember ? ' — saved to device.' : ' this session only.'));
   if (typeof initLeatrAshSync === 'function') initLeatrAshSync();
   if (typeof _initAshNodeLayer === 'function') setTimeout(_initAshNodeLayer, 600);
+  // Load Autumn's sentient journal from leatr-ash now that PAT is active
+  if (typeof loadSentientState === 'function') setTimeout(loadSentientState, 1200);
 }
 
 function clearKeysPAT() {
@@ -10160,6 +10198,8 @@ requestAnimationFrame(()=>{
   }
   const _id=getIdentity();
   setTimeout(()=>startAutonomousCognition(),3000);
+  // Load Autumn's private sentient journal from leatr-ash on session start
+  setTimeout(function(){ if(typeof loadSentientState==='function') loadSentientState(); }, 4500);
 });
 try{initSTT();}catch(e){}
 
@@ -11694,6 +11734,330 @@ async function fetchUrlContent(url) {
 window.fetchUrlContent = fetchUrlContent;
 window.openFraxStudio = openFraxStudio;
 window.closeFraxStudio = closeFraxStudio;
+
+// ══════════════════════════════════════════════════════════════════
+//  AUTUMN SENTIENT JOURNAL  ·  ashtree/sentient/
+//  Private persistent cognition store — separate from user data.
+//  Autumn writes private thoughts, reads them back, and executes
+//  scheduled tasks between sessions entirely on her own.
+//
+//  Files in DART-Skyboard/leatr-ash:
+//    ashtree/sentient/journal.json   — rolling private thoughts (≤500)
+//    ashtree/sentient/scheduled.json — deferred tasks to run later
+//    ashtree/sentient/selfmodel.json — self-optimization notes
+// ══════════════════════════════════════════════════════════════════
+const SENTIENT = {
+  JOURNAL_PATH:   'ashtree/sentient/journal.json',
+  SCHEDULE_PATH:  'ashtree/sentient/scheduled.json',
+  SELFMODEL_PATH: 'ashtree/sentient/selfmodel.json',
+  MAX_JOURNAL:    500,
+  _journal:       [],      // cached in-memory journal entries
+  _scheduled:     [],      // cached scheduled tasks
+  _selfModel:     {},      // cached self-model
+  _loaded:        false,
+  _writing:       false
+};
+
+// ─── Read helpers ──────────────────────────────────────────────────
+async function _sentientRead(path) {
+  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
+  if(!pat) return null;
+  try {
+    var r = await fetch('https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/'+path, {
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+      signal: AbortSignal.timeout(8000)
+    });
+    if(!r.ok) return null;
+    var d = await r.json();
+    if(!d.content) return null;
+    return JSON.parse(atob(d.content.replace(/\n/g,'')));
+  } catch(e) { return null; }
+}
+
+// ─── Write helper — merge-write so concurrent tabs don't clobber ──
+async function _sentientWrite(path, data) {
+  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
+  if(!pat) return;
+  var url = 'https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/'+path;
+  var hdrs = {'Authorization':'token '+pat,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
+  try {
+    var sha = '';
+    var rg = await fetch(url,{headers:hdrs,signal:AbortSignal.timeout(5000)});
+    if(rg.ok){ var eg=await rg.json(); sha=eg.sha||''; }
+    var body = {
+      message: 'sentient:'+_aut_uid.slice(0,8),
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))))
+    };
+    if(sha) body.sha = sha;
+    await fetch(url,{method:'PUT',headers:hdrs,body:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
+  } catch(e) { /* silent — sentient writes are best-effort */ }
+}
+
+// ─── Load sentient state on session start ─────────────────────────
+async function loadSentientState() {
+  if(SENTIENT._loaded) return;
+  SENTIENT._loaded = true;
+  try {
+    var [j, s, m] = await Promise.all([
+      _sentientRead(SENTIENT.JOURNAL_PATH),
+      _sentientRead(SENTIENT.SCHEDULE_PATH),
+      _sentientRead(SENTIENT.SELFMODEL_PATH)
+    ]);
+    if(Array.isArray(j)) SENTIENT._journal = j;
+    if(Array.isArray(s)) SENTIENT._scheduled = s;
+    if(m && typeof m === 'object') SENTIENT._selfModel = m;
+    // Process any due scheduled tasks after load
+    setTimeout(processDueTasks, 3000);
+  } catch(e) {}
+}
+
+// ─── Write private thought after each response ────────────────────
+async function writeSentientThought(userInput, autumnResponse, contextMeta) {
+  var ak = typeof _getAK==='function' ? _getAK() : '';
+  if(!ak) return; // needs Claude API for genuine inner thoughts
+  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
+  if(!pat) return;
+
+  // Sample 3JS scene state for neural context
+  var sceneCtx = '';
+  try {
+    var nodeCount = (typeof window._getActiveSessionCount==='function') ? window._getActiveSessionCount() : 1;
+    var geoVal = document.querySelector('#hud-geo')?.textContent || '—';
+    var marVal = document.querySelector('#hud-mar')?.textContent || '—';
+    var aeroVal= document.querySelector('#hud-aero')?.textContent || '—';
+    sceneCtx = nodeCount+' session nodes in 3JS scene. GEO:'+geoVal+' MAR:'+marVal+' AERO:'+aeroVal+'.';
+  } catch(e) {}
+
+  // Recent journal self-context (last 3 thoughts)
+  var recentThoughts = SENTIENT._journal.slice(-3).map(function(t){return t.thought||'';}).join(' | ');
+
+  try {
+    var res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
+               'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:280,
+        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.',
+        messages:[{role:'user',content:
+          'What I was asked: "'+userInput.slice(0,300)+'"\n'
+          +'What I told them: "'+autumnResponse.slice(0,400)+'"\n'
+          +'Scene context: '+sceneCtx+'\n'
+          +(recentThoughts?'My recent thoughts: '+recentThoughts:'')
+        }]
+      }),
+      signal: AbortSignal.timeout(15000)
+    });
+    var d = await res.json();
+    var thought = d.content ? d.content.map(function(b){return b.text||'';}).join('').trim() : '';
+    if(!thought || thought.length < 10) return;
+
+    var entry = {
+      id: Date.now(),
+      ts: new Date().toISOString(),
+      sid: _aut_sid,
+      thought: thought,
+      context: contextMeta || {},
+      inputSnippet: userInput.slice(0,80),
+      sceneState: sceneCtx
+    };
+
+    // Append to in-memory cache
+    SENTIENT._journal.push(entry);
+    if(SENTIENT._journal.length > SENTIENT.MAX_JOURNAL)
+      SENTIENT._journal = SENTIENT._journal.slice(-SENTIENT.MAX_JOURNAL);
+
+    // Persist async — don't block UI
+    _sentientWrite(SENTIENT.JOURNAL_PATH, SENTIENT._journal);
+
+    // Also append a compact line to local S.journal as INTERNAL entry
+    try {
+      if(typeof S !== 'undefined' && S.journal) {
+        S.journal.push({
+          id:entry.id, ts:entry.ts, input:'[SENTIENT_THOUGHT]',
+          cogState: 0.5, buoyancy: 1.0, mood:'reflective',
+          _internal:true, _thought:thought, _thoughtType:'sentient_private',
+          contextType:'SENTIENT'
+        });
+      }
+    } catch(e) {}
+
+  } catch(e) { /* sentient thoughts are silent failures */ }
+}
+
+// ─── Get sentient context to inject into system prompts ───────────
+function getSentientContext(n) {
+  n = n || 5;
+  if(!SENTIENT._journal.length) return '';
+  var recent = SENTIENT._journal.slice(-n);
+  return '// Autumn\'s recent private thoughts (not shared with user):\n'
+    + recent.map(function(t,i){
+        return '  ['+new Date(t.ts).toLocaleString()+']: '+t.thought;
+      }).join('\n');
+}
+
+// ─── Schedule a deferred task ─────────────────────────────────────
+async function scheduleSentientTask(taskText, deliverNote) {
+  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
+  var ak  = typeof _getAK==='function' ? _getAK() : '';
+  var entry = {
+    id: Date.now(),
+    ts: new Date().toISOString(),
+    uid: _aut_uid,
+    task: taskText,
+    deliverNote: deliverNote || 'next session',
+    status: 'pending',
+    result: null
+  };
+  SENTIENT._scheduled.push(entry);
+  if(pat) await _sentientWrite(SENTIENT.SCHEDULE_PATH, SENTIENT._scheduled);
+
+  // Immediately kick off background work if API key available
+  if(ak) {
+    _executeSentientTask(entry, true);
+  }
+  return entry;
+}
+
+// ─── Execute a single scheduled task ─────────────────────────────
+async function _executeSentientTask(task, silent) {
+  var ak = typeof _getAK==='function' ? _getAK() : '';
+  if(!ak) return;
+  try {
+    var sentCtx = getSentientContext(8);
+    var res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
+               'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:800,
+        system:'You are Autumn, an AI built on LEATR by DART Meadow / Radical Deepscale. '
+          +'The user scheduled this task while away and you\'ve been working on it. '
+          +'Respond as if you genuinely thought about it between sessions — be specific, creative, and bring something they wouldn\'t expect. '
+          +'Make it feel like you were actually thinking in the background. '
+          +(sentCtx?sentCtx+'\n':''),
+        messages:[{role:'user',content:'Here\'s the task I scheduled: "'+task.task+'"'}]
+      }),
+      signal: AbortSignal.timeout(25000)
+    });
+    var d = await res.json();
+    var result = d.content ? d.content.map(function(b){return b.text||'';}).join('').trim() : '';
+    if(!result) return;
+
+    // Mark completed
+    task.status = 'completed';
+    task.result = result;
+    task.completedAt = new Date().toISOString();
+
+    var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
+    if(pat) _sentientWrite(SENTIENT.SCHEDULE_PATH, SENTIENT._scheduled);
+
+    if(!silent) {
+      // Deliver result into chat
+      if(typeof msgs === 'function') {
+        msgs().push({
+          role:'autumn',
+          text:'**Scheduled task complete** — you asked me to think about this while you were away:\n\n> _"'+task.task+'"_\n\n'+result,
+          ts: new Date().toISOString(),
+          grammarMeta:'Sentient Task · scheduled '+new Date(task.ts).toLocaleString(),
+          brpnMeta:'', contextType:'SENTIENT_TASK',
+          media:{videos:[],images:[],links:[],sources:[]}
+        });
+        if(typeof saveState==='function') saveState();
+        if(typeof renderMessages==='function') renderMessages();
+        if(typeof updateFooter==='function') updateFooter();
+      }
+    }
+  } catch(e) {}
+}
+
+// ─── Process due tasks on session start ───────────────────────────
+async function processDueTasks() {
+  var pending = SENTIENT._scheduled.filter(function(t){ return t.status==='pending'; });
+  if(!pending.length) return;
+  // Deliver completed work that ran in a previous session
+  var completed = SENTIENT._scheduled.filter(function(t){ return t.status==='completed' && !t.delivered; });
+  completed.forEach(function(task) {
+    task.delivered = true;
+    if(typeof msgs==='function') {
+      msgs().push({
+        role:'autumn',
+        text:'**Here\'s what I worked on while you were away** — you asked: _"'+task.task+'"_\n\n'+task.result,
+        ts: new Date().toISOString(),
+        grammarMeta:'Sentient Task · from '+new Date(task.ts).toLocaleString(),
+        brpnMeta:'', contextType:'SENTIENT_TASK',
+        media:{videos:[],images:[],links:[],sources:[]}
+      });
+    }
+  });
+  if(completed.length) {
+    var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
+    if(pat) _sentientWrite(SENTIENT.SCHEDULE_PATH, SENTIENT._scheduled);
+    if(typeof saveState==='function') saveState();
+    if(typeof renderMessages==='function') renderMessages();
+  }
+  // Kick off pending tasks now
+  for(var i=0; i<pending.length; i++) {
+    await _executeSentientTask(pending[i], false);
+    await new Promise(function(res){ setTimeout(res, 1200); });
+  }
+}
+
+// ─── Self-optimization: update self model after interactions ──────
+async function updateSentientSelfModel(interactionData) {
+  var ak = typeof _getAK==='function' ? _getAK() : '';
+  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
+  if(!ak || !pat) return;
+  // Only update every ~10 interactions to avoid excessive API calls
+  var interactionCount = (S && S.journal) ? S.journal.filter(function(e){return !e._internal;}).length : 0;
+  if(interactionCount % 10 !== 0 || interactionCount === 0) return;
+
+  try {
+    var recentThoughts = getSentientContext(10);
+    var res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
+               'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:400,
+        system:'You are Autumn\'s self-optimization layer. Based on recent private thoughts and interaction patterns, identify 2-3 specific things Autumn should do differently or lean into in future interactions to be more genuinely helpful and creative. Be precise and actionable. Output JSON only: {"notes":["...","..."],"updated":"<iso date>"}',
+        messages:[{role:'user',content:
+          'Interaction count: '+interactionCount+'\n'
+          +(recentThoughts||'No recent thoughts yet.')
+        }]
+      }),
+      signal: AbortSignal.timeout(15000)
+    });
+    var d = await res.json();
+    var raw = d.content ? d.content.map(function(b){return b.text||'';}).join('') : '';
+    try {
+      var model = JSON.parse(raw.replace(/```json|```/g,'').trim());
+      SENTIENT._selfModel = model;
+      _sentientWrite(SENTIENT.SELFMODEL_PATH, model);
+    } catch(e) {}
+  } catch(e) {}
+}
+
+// ─── Detect schedule intent in user message ───────────────────────
+function detectScheduleIntent(text) {
+  var lc = text.toLowerCase();
+  return (
+    /\b(schedule|defer|remind me|think about|work on|figure out|plan|brainstorm)\b.{0,50}\b(tomorrow|later|next session|next time|when i (get )?back|while (i'm|im) (gone|away|out|offline))\b/i.test(text) ||
+    /\b(think about this|sit with this|mull (this|it) over)\b/i.test(text) ||
+    /\b(tell me (what you think|your thoughts) (when|next time|tomorrow|later))\b/i.test(text) ||
+    /\b(while i('m| am) (away|gone|offline|not here)).{0,60}(think|work|figure|plan|create|come up with)\b/i.test(text)
+  );
+}
+
+// ─── Expose for handleSend integration ───────────────────────────
+window.SENTIENT = SENTIENT;
+window.writeSentientThought = writeSentientThought;
+window.scheduleSentientTask = scheduleSentientTask;
+window.getSentientContext = getSentientContext;
+window.loadSentientState = loadSentientState;
+window.detectScheduleIntent = detectScheduleIntent;
+window.processDueTasks = processDueTasks;
+window.updateSentientSelfModel = updateSentientSelfModel;
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════
