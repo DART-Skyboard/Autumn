@@ -218,6 +218,11 @@ window._kokoroLoad = (async () => {
   }
 })();
 </script>
+<!-- Gradio JS client — used by World Studio inline generation -->
+<script type="module">
+import { Client } from 'https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js';
+window._GradioClient = Client;
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
@@ -6784,21 +6789,36 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   if((_wsExplicit || _wsScenePrompt) && !_pendingImgs.length) {
     var _wsPromptEnc = encodeURIComponent(augmentedText.trim().slice(0,800));
     var _wsUrl = 'https://leatr.xyz/worldstudio.html?prompt='+_wsPromptEnc;
-    var _wsCard = '<div style="background:rgba(10,5,30,.85);border:1px solid rgba(139,92,246,.3);border-radius:10px;overflow:hidden;max-width:460px;margin:6px 0">'
+    var _wsMsgId = 'ws-'+Date.now();
+    var _wsCard = '<div style="background:rgba(10,5,30,.88);border:1px solid rgba(139,92,246,.3);border-radius:10px;overflow:hidden;max-width:480px;margin:6px 0">'
       + '<div style="padding:12px 14px 14px">'
-      + '<div style="font-family:\'Orbitron\',monospace;font-size:.55rem;color:#c4b5fd;letter-spacing:1.5px;margin-bottom:8px">⬡ WORLD STUDIO</div>'
-      + '<div style="font-size:.72rem;color:rgba(200,180,255,.75);line-height:1.5;margin-bottom:12px">'
-      + 'That reads like a 3D environment generation prompt. World Studio can use HunyuanWorld to build this as a navigable GLB scene.'
+      + '<div style="font-family:\'Orbitron\',monospace;font-size:.52rem;color:#c4b5fd;letter-spacing:1.5px;margin-bottom:7px;display:flex;align-items:center;gap:6px">'
+      + '<span style="animation:wsGlow 2.5s ease-in-out infinite">⬡</span> WORLD STUDIO DETECTED'
       + '</div>'
-      + '<div style="background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.15);border-radius:6px;padding:8px 10px;font-size:.65rem;color:rgba(200,180,255,.55);line-height:1.5;margin-bottom:12px;font-style:italic">'
-      + '"' + augmentedText.trim().slice(0,160).replace(/"/g,'&quot;') + (augmentedText.length>160?'…':'') + '"'
+      + '<div style="font-size:.7rem;color:rgba(200,180,255,.65);line-height:1.5;margin-bottom:10px">'
+      + 'That looks like a 3D environment prompt. Generate it inline here — the scene will render in this chat window with a download button.'
       + '</div>'
-      + '<a href="'+_wsUrl+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(0,229,255,.1));border:1px solid rgba(139,92,246,.45);border-radius:7px;padding:8px 16px;text-decoration:none;font-family:\'Orbitron\',monospace;font-size:.42rem;letter-spacing:1.2px;color:#c4b5fd;transition:all .2s">'
-      + '<span>⬡</span><span>OPEN IN WORLD STUDIO</span>'
+      + '<div style="background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.12);border-radius:6px;padding:8px 10px;font-size:.62rem;color:rgba(200,180,255,.5);line-height:1.5;margin-bottom:12px;font-style:italic">'
+      + '"' + augmentedText.trim().slice(0,160).replace(/</g,'&lt;').replace(/"/g,'&quot;') + (augmentedText.length>160?'…':'') + '"'
+      + '</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button onclick="runWorldStudioInline(\''+_wsMsgId+'\',\''+augmentedText.trim().replace(/'/g,'\\\'').replace(/\n/g,' ').slice(0,600)+'\')" '
+      + 'style="flex:1;min-width:120px;display:inline-flex;align-items:center;justify-content:center;gap:6px;'
+      + 'background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(0,229,255,.12));'
+      + 'border:1px solid rgba(139,92,246,.5);border-radius:7px;padding:9px 14px;'
+      + 'font-family:\'Orbitron\',monospace;font-size:.4rem;letter-spacing:1px;color:#c4b5fd;cursor:pointer">'
+      + '<span>⬡</span><span>GENERATE IN CHAT</span>'
+      + '</button>'
+      + '<a href="'+_wsUrl+'" target="_blank" rel="noopener" '
+      + 'style="flex:1;min-width:120px;display:inline-flex;align-items:center;justify-content:center;gap:6px;'
+      + 'background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);border-radius:7px;padding:9px 14px;'
+      + 'font-family:\'Orbitron\',monospace;font-size:.4rem;letter-spacing:1px;color:rgba(0,229,255,.7);text-decoration:none">'
+      + '<span>↗</span><span>OPEN WORLD STUDIO</span>'
       + '</a>'
+      + '</div>'
       + '</div></div>';
 
-    msgs().push({role:'autumn', text:'', ts:new Date().toISOString(),
+    msgs().push({role:'autumn', text:'', ts:new Date().toISOString(), id:_wsMsgId,
       grammarMeta:'World Studio · scene prompt detected', brpnMeta:'',
       contextType:'WORLD_STUDIO', imageGenCard:_wsCard,
       media:{videos:[],images:[],links:[],sources:[]}});
@@ -12360,6 +12380,243 @@ async function fetchUrlContent(url) {
 window.fetchUrlContent = fetchUrlContent;
 window.openFraxStudio = openFraxStudio;
 window.closeFraxStudio = closeFraxStudio;
+
+// ══════════════════════════════════════════════════════════════════
+//  WORLD STUDIO INLINE — generate 3D directly inside chat bubble
+//  Uses @gradio/client to call tencent/Hunyuan3D-2.1 Gradio Space
+//  Result renders as inline Three.js GLB viewer with download button
+// ══════════════════════════════════════════════════════════════════
+window.runWorldStudioInline = async function(msgId, prompt) {
+  // Update the card to a loading state
+  function setWsCard(html) {
+    var idx = msgs().findIndex(function(m){ return m.id === msgId; });
+    if(idx < 0) return;
+    msgs()[idx] = Object.assign({}, msgs()[idx], { imageGenCard: html });
+    renderMessages();
+  }
+
+  function wsLoadingCard(txt, pct) {
+    return '<div style="background:rgba(10,5,30,.88);border:1px solid rgba(139,92,246,.3);border-radius:10px;'
+      + 'overflow:hidden;max-width:480px;margin:6px 0;padding:14px 16px">'
+      + '<div style="font-family:\'Orbitron\',monospace;font-size:.48rem;color:#c4b5fd;letter-spacing:1.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px">'
+      + '<div style="width:12px;height:12px;border-radius:50%;border:2px solid rgba(167,139,250,.2);border-top-color:#c4b5fd;animation:ddSpin .8s linear infinite"></div>'
+      + '<span>WORLD STUDIO · ' + txt + '</span>'
+      + '</div>'
+      + '<div style="height:3px;background:rgba(139,92,246,.12);border-radius:3px;overflow:hidden;margin-bottom:10px">'
+      + '<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#a78bfa,#00e5ff);border-radius:3px;transition:width .4s"></div>'
+      + '</div>'
+      + '<div style="font-size:.62rem;color:rgba(200,180,255,.4);font-style:italic">'
+      + '"' + prompt.slice(0,100).replace(/</g,'&lt;') + (prompt.length>100?'…':'') + '"'
+      + '</div>'
+      + '</div>';
+  }
+
+  setWsCard(wsLoadingCard('CONNECTING TO GRADIO API…', 10));
+
+  try {
+    // Wait for Gradio client to load (injected via module script)
+    var attempts = 0;
+    while(!window._GradioClient && attempts < 40) {
+      await new Promise(function(r){ setTimeout(r, 250); });
+      attempts++;
+    }
+    if(!window._GradioClient) throw new Error('Gradio client not available. Try the Open World Studio link instead.');
+
+    setWsCard(wsLoadingCard('CONNECTING TO HUNYUAN3D-2.1…', 20));
+
+    var app;
+    try {
+      app = await window._GradioClient.connect('tencent/Hunyuan3D-2.1');
+    } catch(e) {
+      throw new Error('Could not connect to Hunyuan3D-2.1 Space — it may be sleeping. Try again in 30 seconds. (' + e.message + ')');
+    }
+
+    setWsCard(wsLoadingCard('SUBMITTING GENERATION JOB…', 35));
+
+    var job = app.submit('/generate', [
+      prompt,    // text prompt
+      null,      // reference image
+      30,        // steps
+      7.5,       // guidance
+      -1,        // seed (random)
+      true,      // export glb
+      true       // export ply
+    ]);
+
+    var result = null;
+    for await (var msg of job) {
+      if(msg.type === 'status') {
+        var pos = msg.queue_position;
+        if(pos !== undefined && pos !== null) {
+          var pct = Math.max(35, Math.min(70, 70 - pos * 4));
+          setWsCard(wsLoadingCard('QUEUE POSITION ' + pos, pct));
+        } else {
+          setWsCard(wsLoadingCard('GENERATING 3D WORLD…', 78));
+        }
+      } else if(msg.type === 'data') {
+        result = msg.data;
+      }
+    }
+
+    if(!result) throw new Error('No result returned from Hunyuan3D-2.1.');
+
+    setWsCard(wsLoadingCard('LOADING 3D MODEL…', 92));
+
+    // Extract GLB URL from result array
+    var glbUrl = null, plyUrl = null;
+    if(Array.isArray(result)) {
+      result.forEach(function(item) {
+        if(!item) return;
+        var url = (typeof item === 'object' && item.url) ? item.url : (typeof item === 'string' ? item : null);
+        if(!url) return;
+        if(url.endsWith('.glb') || url.includes('/glb') || url.includes('glb')) { if(!glbUrl) glbUrl = url; }
+        else if(url.endsWith('.ply') || url.includes('/ply')) { if(!plyUrl) plyUrl = url; }
+        else if(!glbUrl) glbUrl = url;
+      });
+    } else if(result && result.url) {
+      glbUrl = result.url;
+    }
+
+    if(!glbUrl) throw new Error('API returned no GLB file. Try the Open World Studio link for full diagnostics.');
+
+    // Build the final result card with inline Three.js viewer
+    var viewerId = 'ws-viewer-'+Date.now();
+    var resultCard = '<div style="background:rgba(8,4,22,.92);border:1px solid rgba(139,92,246,.35);border-radius:10px;overflow:hidden;max-width:520px;margin:6px 0">'
+      // Header
+      + '<div style="padding:10px 14px 8px;border-bottom:1px solid rgba(139,92,246,.15);display:flex;align-items:center;justify-content:space-between">'
+      + '<div style="font-family:\'Orbitron\',monospace;font-size:.46rem;color:#c4b5fd;letter-spacing:1.5px;display:flex;align-items:center;gap:6px">'
+      + '<span style="color:#00e5ff">⬡</span> 3D WORLD GENERATED'
+      + '</div>'
+      + '<div style="font-family:\'Orbitron\',monospace;font-size:.32rem;color:rgba(139,92,246,.5);letter-spacing:.8px">HUNYUAN3D-2.1</div>'
+      + '</div>'
+      // 3D Viewer container
+      + '<div id="'+viewerId+'-wrap" style="width:100%;height:320px;background:#020a14;position:relative">'
+      + '<div id="'+viewerId+'" style="width:100%;height:100%"></div>'
+      + '<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-family:\'Orbitron\',monospace;font-size:.28rem;letter-spacing:1px;color:rgba(0,229,255,.3);pointer-events:none;white-space:nowrap">⬡ drag to orbit · scroll to zoom · dbl-tap auto-rotate</div>'
+      + '</div>'
+      // Action bar
+      + '<div style="padding:10px 12px;display:flex;gap:7px;flex-wrap:wrap;border-top:1px solid rgba(139,92,246,.12)">'
+      + '<button onclick="(function(){var a=document.createElement(\'a\');a.href=\''+glbUrl+'\';a.download=\'world.glb\';a.click();})()" '
+      + 'style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);border-radius:6px;padding:6px 12px;font-family:\'Orbitron\',monospace;font-size:.37rem;letter-spacing:1px;color:rgba(0,229,255,.8);cursor:pointer">'
+      + '<span>↓</span><span>DOWNLOAD GLB</span>'
+      + '</button>'
+      + (plyUrl ? '<button onclick="(function(){var a=document.createElement(\'a\');a.href=\''+plyUrl+'\';a.download=\'world.ply\';a.click();})()" '
+      + 'style="display:inline-flex;align-items:center;gap:5px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25);border-radius:6px;padding:6px 12px;font-family:\'Orbitron\',monospace;font-size:.37rem;letter-spacing:1px;color:rgba(167,139,250,.7);cursor:pointer">'
+      + '<span>↓</span><span>DOWNLOAD PLY</span>'
+      + '</button>' : '')
+      + '<a href="https://leatr.xyz/worldstudio.html" target="_blank" rel="noopener" '
+      + 'style="display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px solid rgba(139,92,246,.18);border-radius:6px;padding:6px 12px;font-family:\'Orbitron\',monospace;font-size:.37rem;letter-spacing:1px;color:rgba(139,92,246,.55);text-decoration:none">'
+      + '<span>↗</span><span>WORLD STUDIO</span>'
+      + '</a>'
+      + '<div id="'+viewerId+'-meta" style="margin-left:auto;font-family:\'Orbitron\',monospace;font-size:.3rem;letter-spacing:.8px;color:rgba(0,229,255,.35)"></div>'
+      + '</div>'
+      + '</div>';
+
+    // Update message
+    var idx = msgs().findIndex(function(m){ return m.id === msgId; });
+    if(idx >= 0) {
+      msgs()[idx] = Object.assign({}, msgs()[idx], {
+        imageGenCard: resultCard,
+        grammarMeta: 'World Studio · Hunyuan3D-2.1 · GLB generated',
+        text: ''
+      });
+    }
+    renderMessages();
+
+    // Mount Three.js viewer once DOM updates
+    setTimeout(function() {
+      var container = document.getElementById(viewerId);
+      if(!container || typeof THREE === 'undefined') return;
+
+      var w = container.clientWidth || 480;
+      var h = container.clientHeight || 320;
+      var scene    = new THREE.Scene();
+      scene.background = new THREE.Color(0x020a14);
+
+      var renderer = new THREE.WebGLRenderer({antialias:true});
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+      renderer.setSize(w, h);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      container.appendChild(renderer.domElement);
+
+      var camera = new THREE.PerspectiveCamera(45, w/h, 0.01, 500);
+      camera.position.set(0, 1.5, 4);
+
+      var controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true; controls.dampingFactor = 0.08;
+      controls.minDistance = 0.05; controls.maxDistance = 100;
+
+      // Lighting
+      scene.add(new THREE.AmbientLight(0x334466, 1.0));
+      var d1 = new THREE.DirectionalLight(0x00e5ff, 1.2); d1.position.set(3,5,3); scene.add(d1);
+      var d2 = new THREE.DirectionalLight(0xa78bfa, 0.6); d2.position.set(-3,2,-3); scene.add(d2);
+
+      // Grid
+      var grid = new THREE.GridHelper(20,20,0x001133,0x001122);
+      grid.material.opacity = 0.2; grid.material.transparent = true; scene.add(grid);
+
+      var autoRot = true;
+      container.addEventListener('dblclick', function(){ autoRot = !autoRot; controls.autoRotate = autoRot; });
+
+      // Load GLB
+      var loader = new THREE.GLTFLoader();
+      loader.load(glbUrl, function(gltf) {
+        var model = gltf.scene;
+        var box    = new THREE.Box3().setFromObject(model);
+        var center = new THREE.Vector3(); var size = new THREE.Vector3();
+        box.getCenter(center); box.getSize(size);
+        var maxDim = Math.max(size.x, size.y, size.z) || 1;
+        var scale  = 2.5 / maxDim;
+        model.position.sub(center.multiplyScalar(scale));
+        model.scale.setScalar(scale);
+        scene.add(model);
+
+        camera.position.set(0, size.y*scale*0.5, maxDim*scale*2.2);
+        controls.target.set(0, size.y*scale*0.3, 0); controls.update();
+
+        var verts = 0, tris = 0;
+        model.traverse(function(n){
+          if(n.isMesh && n.geometry) {
+            var p = n.geometry.attributes.position;
+            if(p) verts += p.count;
+            var ix = n.geometry.index;
+            tris += ix ? ix.count/3 : (p ? p.count/3 : 0);
+          }
+        });
+        var meta = document.getElementById(viewerId+'-meta');
+        if(meta) meta.textContent = Math.round(verts).toLocaleString()+' VERTS · '+Math.round(tris).toLocaleString()+' TRIS';
+      }, null, function(e){ console.warn('[WS inline]', e); });
+
+      (function tick() {
+        requestAnimationFrame(tick);
+        controls.autoRotate = autoRot; controls.update();
+        renderer.render(scene, camera);
+      })();
+
+      // Resize observer
+      new ResizeObserver(function(){
+        var nw = container.clientWidth, nh = container.clientHeight;
+        if(!nw||!nh) return;
+        camera.aspect = nw/nh; camera.updateProjectionMatrix();
+        renderer.setSize(nw, nh);
+      }).observe(container);
+
+    }, 200);
+
+  } catch(err) {
+    var errCard = '<div style="background:rgba(30,5,15,.9);border:1px solid rgba(255,68,102,.25);border-radius:10px;padding:14px 16px;max-width:480px;margin:6px 0">'
+      + '<div style="font-family:\'Orbitron\',monospace;font-size:.45rem;color:#ff4466;letter-spacing:1.5px;margin-bottom:8px">⚠ WORLD STUDIO ERROR</div>'
+      + '<div style="font-size:.68rem;color:rgba(255,150,160,.7);line-height:1.6;margin-bottom:12px">' + (err.message||String(err)).replace(/</g,'&lt;') + '</div>'
+      + '<a href="https://leatr.xyz/worldstudio.html?prompt='+encodeURIComponent(prompt.slice(0,600))+'" target="_blank" rel="noopener" '
+      + 'style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);border-radius:6px;padding:7px 14px;font-family:\'Orbitron\',monospace;font-size:.38rem;letter-spacing:1px;color:rgba(0,229,255,.7);text-decoration:none">'
+      + '<span>↗</span><span>TRY IN WORLD STUDIO</span>'
+      + '</a>'
+      + '</div>';
+    setWsCard(errCard);
+  }
+};
 
 // ══════════════════════════════════════════════════════════════════
 //  AUTUMN SENTIENT JOURNAL  ·  ashtree/sentient/
