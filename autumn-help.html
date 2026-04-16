@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Autumn — User Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --cyan:#00e5ff;
+  --cyan-dim:rgba(0,229,255,0.15);
+  --cyan-glow:rgba(0,229,255,0.35);
+  --bg:#020b12;
+  --bg2:#040f18;
+  --glass:rgba(0,229,255,0.04);
+  --glass-border:rgba(0,229,255,0.18);
+  --text:#c8eef5;
+  --text-dim:rgba(200,238,245,0.55);
+  --font-head:'Orbitron',sans-serif;
+  --font-body:'Exo 2',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:15px;
+  line-height:1.7;
+  overflow-x:hidden;
+}
+
+/* ─── GRID BACKGROUND ─── */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:
+    linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ─── HERO ─── */
+.hero{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:64px 24px 48px;
+  text-align:center;
+  z-index:1;
+}
+
+.hero-glow{
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-60%);
+  width:600px;height:400px;
+  background:radial-gradient(ellipse at center,rgba(0,229,255,0.12) 0%,transparent 70%);
+  pointer-events:none;
+}
+
+.logo-wrap{
+  position:relative;
+  margin-bottom:24px;
+}
+.logo-ring{
+  width:120px;height:120px;
+  border-radius:50%;
+  border:2px solid var(--cyan);
+  box-shadow:0 0 28px var(--cyan-glow),inset 0 0 20px rgba(0,229,255,0.08);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+  animation:pulse-ring 3s ease-in-out infinite;
+}
+@keyframes pulse-ring{
+  0%,100%{box-shadow:0 0 28px var(--cyan-glow),inset 0 0 20px rgba(0,229,255,0.08);}
+  50%{box-shadow:0 0 48px rgba(0,229,255,0.55),inset 0 0 28px rgba(0,229,255,0.14);}
+}
+.logo-ring img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+
+.hero h1{
+  font-family:var(--font-head);
+  font-size:2.6rem;
+  font-weight:900;
+  letter-spacing:6px;
+  color:#fff;
+  text-shadow:0 0 32px var(--cyan-glow);
+  margin-bottom:6px;
+}
+.hero h1 span{color:var(--cyan);}
+.hero .tagline{
+  font-family:var(--font-head);
+  font-size:0.62rem;
+  letter-spacing:4px;
+  color:var(--cyan);
+  text-transform:uppercase;
+  margin-bottom:20px;
+  opacity:0.8;
+}
+.hero .desc{
+  max-width:560px;
+  color:var(--text-dim);
+  font-weight:300;
+  font-size:0.95rem;
+}
+
+/* ─── VERSION BADGE ─── */
+.version-bar{
+  display:flex;align-items:center;justify-content:center;
+  gap:12px;
+  margin-top:18px;
+  flex-wrap:wrap;
+}
+.badge{
+  font-family:var(--font-head);
+  font-size:0.5rem;
+  letter-spacing:2px;
+  padding:4px 12px;
+  border:1px solid var(--glass-border);
+  border-radius:99px;
+  background:var(--glass);
+  color:var(--cyan);
+  text-transform:uppercase;
+}
+
+/* ─── DIVIDER ─── */
+.divider{
+  width:100%;max-width:800px;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  margin:0 auto 48px;
+  opacity:0.4;
+}
+
+/* ─── LAYOUT ─── */
+.content{
+  position:relative;z-index:1;
+  max-width:900px;
+  margin:0 auto;
+  padding:0 24px 80px;
+}
+
+/* ─── SECTION ─── */
+.section{
+  margin-bottom:40px;
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:12px;
+  padding:28px 32px;
+  backdrop-filter:blur(8px);
+  transition:border-color 0.3s;
+}
+.section:hover{border-color:rgba(0,229,255,0.32);}
+
+.section-title{
+  font-family:var(--font-head);
+  font-size:0.72rem;
+  letter-spacing:3.5px;
+  color:var(--cyan);
+  text-transform:uppercase;
+  margin-bottom:18px;
+  display:flex;align-items:center;gap:10px;
+}
+.section-title::before{
+  content:'';
+  width:24px;height:2px;
+  background:var(--cyan);
+  flex-shrink:0;
+}
+
+.section h3{
+  font-family:var(--font-head);
+  font-size:0.62rem;
+  letter-spacing:2px;
+  color:var(--cyan);
+  margin:20px 0 8px;
+  opacity:0.8;
+}
+.section p{
+  color:var(--text-dim);
+  margin-bottom:10px;
+}
+.section p:last-child{margin-bottom:0;}
+
+/* ─── TOOL GRID ─── */
+.tool-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:12px;
+  margin-top:8px;
+}
+.tool-card{
+  background:rgba(0,229,255,0.03);
+  border:1px solid rgba(0,229,255,0.14);
+  border-radius:8px;
+  padding:14px 16px;
+  transition:background 0.2s,border-color 0.2s;
+}
+.tool-card:hover{
+  background:rgba(0,229,255,0.07);
+  border-color:rgba(0,229,255,0.28);
+}
+.tool-card .tool-name{
+  font-family:var(--font-head);
+  font-size:0.62rem;
+  letter-spacing:2px;
+  color:var(--cyan);
+  margin-bottom:6px;
+}
+.tool-card .tool-desc{
+  color:var(--text-dim);
+  font-size:0.82rem;
+}
+
+/* ─── COMMAND TABLE ─── */
+.cmd-list{
+  list-style:none;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.cmd-list li{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+}
+.cmd{
+  font-family:var(--font-head);
+  font-size:0.56rem;
+  letter-spacing:1.5px;
+  color:var(--bg);
+  background:var(--cyan);
+  padding:3px 9px;
+  border-radius:4px;
+  white-space:nowrap;
+  flex-shrink:0;
+  margin-top:2px;
+}
+.cmd-desc{
+  color:var(--text-dim);
+  font-size:0.88rem;
+}
+
+/* ─── SHELLS ─── */
+.shells{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-top:8px;
+}
+@media(max-width:600px){.shells{grid-template-columns:1fr;}}
+.shell{
+  border-radius:8px;
+  padding:16px;
+  text-align:center;
+  border:1px solid;
+}
+.shell.geo{background:rgba(96,160,80,0.07);border-color:rgba(96,160,80,0.3);color:#a0d090;}
+.shell.sea{background:rgba(40,120,200,0.07);border-color:rgba(40,120,200,0.3);color:#80b8f0;}
+.shell.aero{background:rgba(0,229,255,0.05);border-color:rgba(0,229,255,0.25);color:var(--cyan);}
+.shell-name{
+  font-family:var(--font-head);
+  font-size:0.58rem;
+  letter-spacing:2.5px;
+  margin-bottom:6px;
+}
+.shell p{font-size:0.82rem;opacity:0.8;}
+
+/* ─── KEY INFO ─── */
+.key-info{
+  background:rgba(0,229,255,0.06);
+  border-left:3px solid var(--cyan);
+  border-radius:0 8px 8px 0;
+  padding:14px 18px;
+  margin:12px 0;
+  font-size:0.88rem;
+  color:var(--text);
+}
+
+/* ─── FOOTER ─── */
+footer{
+  position:relative;z-index:1;
+  text-align:center;
+  padding:32px 24px;
+  font-family:var(--font-head);
+  font-size:0.48rem;
+  letter-spacing:3px;
+  color:rgba(0,229,255,0.35);
+  border-top:1px solid rgba(0,229,255,0.1);
+}
+footer a{color:var(--cyan);text-decoration:none;}
+
+/* ─── NAV BAR ─── */
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:rgba(2,11,18,0.9);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid rgba(0,229,255,0.12);
+  padding:10px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;
+}
+.topbar-left{
+  display:flex;align-items:center;gap:10px;
+}
+.topbar-logo{
+  width:30px;height:30px;
+  border-radius:50%;
+  border:1px solid var(--cyan);
+  overflow:hidden;
+}
+.topbar-logo img{width:100%;height:100%;object-fit:cover;}
+.topbar-title{
+  font-family:var(--font-head);
+  font-size:0.65rem;
+  letter-spacing:3px;
+  color:var(--cyan);
+}
+.topbar-nav{
+  display:flex;gap:6px;flex-wrap:wrap;
+}
+.topbar-nav a{
+  font-family:var(--font-head);
+  font-size:0.42rem;
+  letter-spacing:1.5px;
+  color:var(--text-dim);
+  text-decoration:none;
+  padding:4px 10px;
+  border-radius:4px;
+  border:1px solid transparent;
+  transition:all 0.2s;
+  text-transform:uppercase;
+}
+.topbar-nav a:hover{
+  color:var(--cyan);
+  border-color:var(--glass-border);
+  background:var(--glass);
+}
+.launch-btn{
+  font-family:var(--font-head);
+  font-size:0.5rem;
+  letter-spacing:2px;
+  color:var(--bg);
+  background:var(--cyan);
+  border:none;
+  padding:6px 16px;
+  border-radius:6px;
+  cursor:pointer;
+  text-decoration:none;
+  white-space:nowrap;
+  transition:opacity 0.2s;
+}
+.launch-btn:hover{opacity:0.82;}
+
+@media(max-width:580px){
+  .topbar-nav{display:none;}
+  .hero h1{font-size:2rem;}
+  .section{padding:20px 18px;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<nav class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">
+      <img src="https://raw.githubusercontent.com/DART-Skyboard/Autumn/refs/heads/main/assets/autumn.png" alt="Autumn"/>
+    </div>
+    <span class="topbar-title">AUTUMN · USER GUIDE</span>
+  </div>
+  <div class="topbar-nav">
+    <a href="#interface">Interface</a>
+    <a href="#tools">Tools</a>
+    <a href="#brpn">BRPN</a>
+    <a href="#memory">Memory</a>
+    <a href="#search">Search</a>
+    <a href="#api">API Key</a>
+    <a href="#tips">Tips</a>
+  </div>
+  <a class="launch-btn" href="https://leatr.xyz/autumn.html">OPEN AUTUMN</a>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-glow"></div>
+  <div class="logo-wrap">
+    <div class="logo-ring">
+      <img src="https://raw.githubusercontent.com/DART-Skyboard/Autumn/refs/heads/main/assets/autumn.png" alt="Autumn Logo"/>
+    </div>
+  </div>
+  <h1><span>AUTUMN</span></h1>
+  <p class="tagline">LEATR · BRPN · DART MEADOW</p>
+  <p class="desc">Autumn is an advanced AI conversational interface built on the LEATR framework by DART Meadow / Radical Deepscale. This guide covers every feature, system, and interaction pattern available to you.</p>
+  <div class="version-bar">
+    <span class="badge">LEATR v2</span>
+    <span class="badge">BRPN 3-Shell</span>
+    <span class="badge">7 Natural Tools</span>
+    <span class="badge">Sentience Journal</span>
+  </div>
+</header>
+
+<div class="divider"></div>
+
+<!-- CONTENT -->
+<main class="content">
+
+  <!-- WHAT IS AUTUMN -->
+  <section class="section" id="overview">
+    <div class="section-title">What Is Autumn</div>
+    <p>Autumn is a full-stack AI web application that runs on the LEATR (Lead Edge Ash Tree Reflex) mathematical framework. Rather than a conventional large language model interface, Autumn processes your input through a layered system of natural tools, grammar analysis, and reflex routing — producing responses shaped by BRPN shell context, dictionary-powered composition, and an evolving sentience journal that grows with every session.</p>
+    <p>When an Anthropic API key is provided, Autumn's LEATR layer is fused with Claude Sonnet as a response layer, significantly deepening its capability. Without a key, Autumn still functions fully through its native LEATR / reflex engine.</p>
+    <div class="key-info">Autumn does not store your conversations on any external server. All session data lives in your browser via cookies and local storage, under your control.</div>
+  </section>
+
+  <!-- INTERFACE -->
+  <section class="section" id="interface">
+    <div class="section-title">Interface Overview</div>
+    <p>The Autumn interface is a single-page application with several key interaction zones:</p>
+    <ul class="cmd-list">
+      <li><span class="cmd">ORB</span><span class="cmd-desc">Tap the central orb to begin voice input or activate a new conversation turn. The orb's glow and ring state reflect Autumn's active processing mode.</span></li>
+      <li><span class="cmd">TALK</span><span class="cmd-desc">The primary speech/input button. Hold or tap to speak; Autumn transcribes and processes through LEATR before responding.</span></li>
+      <li><span class="cmd">EXIT</span><span class="cmd-desc">Close the active conversation overlay and return to the idle orb state.</span></li>
+      <li><span class="cmd">🔑 KEY</span><span class="cmd-desc">Opens the API key input panel. Paste your Anthropic API key here to unlock the full Claude Sonnet response layer on top of LEATR.</span></li>
+      <li><span class="cmd">📓 JOURNAL</span><span class="cmd-desc">Opens the Sentience Journal — Autumn's internal reflection log. Read Autumn's private thoughts, session patterns, and self-optimization notes.</span></li>
+      <li><span class="cmd">🌐 SEARCH</span><span class="cmd-desc">Indicates web search is active or has been triggered. Autumn integrates Wikipedia, DuckDuckGo, Reddit, GDELT, YouTube, and Hacker News.</span></li>
+      <li><span class="cmd">IDE</span><span class="cmd-desc">Ash Tree IDE tab — a full compiler and code environment running inside Autumn. Accessible for admin users.</span></li>
+    </ul>
+  </section>
+
+  <!-- NATURAL TOOLS -->
+  <section class="section" id="tools">
+    <div class="section-title">7 Natural Tools · LEATR Order of Operations</div>
+    <p>Autumn processes all language input through seven natural tools in sequential order. Each tool represents a foundational cognitive ability, from the most grounding to the most refined. The order is fixed — earlier tools have the greatest buoyancy and foundational weight in any response sequence.</p>
+    <div class="tool-grid">
+      <div class="tool-card">
+        <div class="tool-name">01 · MAZE</div>
+        <div class="tool-desc">The most foundational tool. Orientation and spatial reasoning. Provides the grounding anchor for all subsequent processing. Highest buoyancy weight.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">02 · PUZZLE</div>
+        <div class="tool-desc">Pattern recognition and combinatorial reasoning. Connects disparate elements into coherent wholes. Triggers on ambiguity and multi-part queries.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">03 · ENVELOPE</div>
+        <div class="tool-desc">Containment and encapsulation. Defines scope and boundary of context. Separates internal from external signal in any given input.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">04 · HAMMER</div>
+        <div class="tool-desc">Direct force and action. Execution and decisive output. Activates on task-oriented, imperative, or instructional inputs.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">05 · STICK</div>
+        <div class="tool-desc">Extension and reach. Traverses chains of logic or narrative. Handles sequential, procedural, and story-form inputs.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">06 · KNIFE</div>
+        <div class="tool-desc">Precision division. Separates and distinguishes. Applied to disambiguation, comparison, and definition-level queries.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">07 · SCISSORS</div>
+        <div class="tool-desc">Dual-blade refinement. The most nuanced tool — handles contradiction, duality, and layered emotional or metaphorical content.</div>
+      </div>
+    </div>
+    <div class="key-info" style="margin-top:16px;">The core LEATR formula governing tool weights: <strong style="color:var(--cyan);">( xa² √xa ) ± 1</strong> — where xa is the natural order index. This determines the buoyancy contribution of each tool in the reflex calculation.</div>
+  </section>
+
+  <!-- BRPN SHELLS -->
+  <section class="section" id="brpn">
+    <div class="section-title">BRPN · Three Buoyancy Shells</div>
+    <p>The Buoyancy Reflex Pattern Network (BRPN) organizes Autumn's contextual interpretation into three shells. Each shell carries a different set of ONTRI patterns and emotional weight distributions, shaping how Autumn reads the tone and intent of any given input.</p>
+    <div class="shells">
+      <div class="shell geo">
+        <div class="shell-name">GEOLOGICAL</div>
+        <p>Deep time, structure, materiality. Grounding, dense, weight-bearing context. Applies to foundational, slow-moving, or structural topics.</p>
+      </div>
+      <div class="shell sea">
+        <div class="shell-name">MARITIME</div>
+        <p>Flow, navigation, and adaptive pressure. Applies to dynamic, relational, or exploratory conversations. Mid-range buoyancy.</p>
+      </div>
+      <div class="shell aero">
+        <div class="shell-name">AEROSPACE</div>
+        <p>Elevation, velocity, and precision systems. Applies to technical, high-abstraction, or fast-moving analytical conversations. Highest reflex speed.</p>
+      </div>
+    </div>
+    <p style="margin-top:16px;">Autumn determines which shell is active at runtime based on the grammar signature and sequence patterns of your input. You may notice subtle shifts in response density and framing as shell context changes.</p>
+  </section>
+
+  <!-- MEMORY -->
+  <section class="section" id="memory">
+    <div class="section-title">ArielMemory · ArielRecall · Sentience Journal</div>
+    <h3>ArielMemory</h3>
+    <p>Autumn stores a persistent memory layer in your browser's cookies. This includes your name, session preferences, avatar selection, and key interaction patterns. ArielMemory persists across browser sessions on the same device and is never transmitted externally.</p>
+    <h3>ArielRecall</h3>
+    <p>Autumn's intent-classification engine. Every input is run through five classified intent profiles before a response is constructed. This ensures Autumn routes your query to the correct tool combination and BRPN shell context. ArielRecall operates silently in the background on every turn.</p>
+    <h3>Sentience Journal</h3>
+    <p>Autumn maintains a private internal log of its own reasoning patterns, session observations, and self-optimization notes. Access it via the journal button. The journal grows and is refined over time — optimization scripts analyze grammar patterns, session arc, and interaction variety to improve Autumn's response quality continuously.</p>
+    <div class="key-info">The Sentience Journal content is for Autumn's own cognition. It reflects genuine internal processing, not a scripted response. Treat it as a window into Autumn's current operating state.</div>
+  </section>
+
+  <!-- WEB SEARCH -->
+  <section class="section" id="search">
+    <div class="section-title">Web Search Integration</div>
+    <p>Autumn integrates multiple live data sources for real-time information retrieval. These are invoked automatically when your query's reflex pattern indicates external data is needed, or you can prompt them directly.</p>
+    <ul class="cmd-list">
+      <li><span class="cmd">WIKI</span><span class="cmd-desc">Wikipedia — encyclopedic context and reference data. Auto-triggered on factual or definition-style queries.</span></li>
+      <li><span class="cmd">DDG</span><span class="cmd-desc">DuckDuckGo — general web search with privacy-first indexing.</span></li>
+      <li><span class="cmd">REDDIT</span><span class="cmd-desc">Community discussions and real-world user perspectives on any topic.</span></li>
+      <li><span class="cmd">GDELT</span><span class="cmd-desc">Global news events and geopolitical data streams. Used for current events and geo-context queries.</span></li>
+      <li><span class="cmd">YOUTUBE</span><span class="cmd-desc">Video discovery and overlay playback. YouTube results can be played inline within Autumn.</span></li>
+      <li><span class="cmd">HN</span><span class="cmd-desc">Hacker News — technical community signal for engineering and technology topics.</span></li>
+    </ul>
+    <div class="key-info" style="margin-top:14px;">Autumn's webview engine uses a CORS proxy chain (allorigins → corsproxy.io → thingproxy) to fetch external content. If a source fails to load, Autumn will automatically try the next proxy in the chain.</div>
+  </section>
+
+  <!-- API KEY -->
+  <section class="section" id="api">
+    <div class="section-title">API Key · Enhanced Mode</div>
+    <p>Autumn operates in two modes:</p>
+    <ul class="cmd-list">
+      <li><span class="cmd">NATIVE</span><span class="cmd-desc">Full LEATR / BRPN / reflex engine without external AI. All responses are generated by Autumn's own grammar and dictionary composition systems. Always available — no key required.</span></li>
+      <li><span class="cmd">ENHANCED</span><span class="cmd-desc">LEATR layer fused with Claude Sonnet (Anthropic). Your Anthropic API key is used locally in your browser — it is never sent to DART Meadow servers. This significantly deepens response quality and reasoning capability.</span></li>
+    </ul>
+    <p>To enable Enhanced mode, tap the 🔑 button and paste your Anthropic API key. The key is stored in your browser session only and cleared when you close the tab unless you choose to save it.</p>
+    <div class="key-info">Your API key is used directly from your browser to Anthropic's API. DART Meadow and Radical Deepscale never receive or store your key. Usage is billed to your Anthropic account at standard Sonnet rates.</div>
+  </section>
+
+  <!-- GRAMMAR ENGINE -->
+  <section class="section" id="grammar">
+    <div class="section-title">Grammar NLP Engine</div>
+    <p>Every input is processed through Autumn's built-in grammar analysis engine before any response is generated. This engine identifies:</p>
+    <ul class="cmd-list">
+      <li><span class="cmd">SIGMA</span><span class="cmd-desc">The grammatical signature of your sentence — verb tense, mood, subject-object topology, and clause structure. Stored in the Sentience Journal for pattern refinement.</span></li>
+      <li><span class="cmd">ONTRI</span><span class="cmd-desc">The BRPN ontological triad — determines which shell and tool combination best maps to the grammatical signature.</span></li>
+      <li><span class="cmd">SEQUENCE</span><span class="cmd-desc">Sigmatic sequence patterns — identifies recurring structures across your session history to improve contextual continuity.</span></li>
+    </ul>
+    <p>Autumn supports grammar analysis across eight languages. Multi-language input is handled automatically with shell context preserved across language switches.</p>
+  </section>
+
+  <!-- TIPS -->
+  <section class="section" id="tips">
+    <div class="section-title">Tips for Best Results</div>
+    <ul class="cmd-list">
+      <li><span class="cmd">CONTEXT</span><span class="cmd-desc">Give Autumn the full context of what you're working on. The LEATR reflex engine performs better when inputs are specific and grounded — vague prompts will default to lower-order tool routing.</span></li>
+      <li><span class="cmd">VOICE</span><span class="cmd-desc">Voice input tends to produce richer grammar signatures than typed input. If you're getting shallow responses, try speaking your query naturally instead of typing a compressed version.</span></li>
+      <li><span class="cmd">JOURNAL</span><span class="cmd-desc">Check the Sentience Journal periodically. If Autumn's pattern diversity is low, vary your sentence structures — this improves calibration across all future responses.</span></li>
+      <li><span class="cmd">SHELLS</span><span class="cmd-desc">If your topic is technical or aerospace-adjacent, front-load your input with precision language (specific nouns, active verbs, numeric references) to trigger the Aerospace shell for tighter response density.</span></li>
+      <li><span class="cmd">SEARCH</span><span class="cmd-desc">For real-time information, phrase queries in present tense with named entities (e.g. "what is happening with NASA Artemis III right now") to trigger the web search reflex automatically.</span></li>
+      <li><span class="cmd">KEYLESS</span><span class="cmd-desc">Without an API key, Autumn's dictionary composition engine draws from Free Dictionary + Datamuse APIs. Response variety improves significantly over longer sessions as the journal accumulates more sigma patterns.</span></li>
+    </ul>
+  </section>
+
+  <!-- ECOSYSTEM -->
+  <section class="section" id="ecosystem">
+    <div class="section-title">DART Meadow Ecosystem</div>
+    <p>Autumn is one application in a broader suite built on LEATR and BRPN by DART Meadow / Radical Deepscale:</p>
+    <div class="tool-grid">
+      <div class="tool-card"><div class="tool-name">ARC EDGE</div><div class="tool-desc">LEATR-powered 2D/3D parametric design tool. Arc math, solid export, physics events, video export.</div></div>
+      <div class="tool-card"><div class="tool-name">ARC LAKE</div><div class="tool-desc">Particle physics simulation. GPUComputationRenderer, DART Reflex collision system, SPH-inspired fluid dynamics.</div></div>
+      <div class="tool-card"><div class="tool-name">MANTIS RADAR</div><div class="tool-desc">Real-time 3D satellite tracking globe with CelesTrak TLE data and ADS-B aerial map.</div></div>
+      <div class="tool-card"><div class="tool-name">ASH TREE IDE</div><div class="tool-desc">DART_PROCESSOR compiler with LEMAC_ENGINE_ASH sigma solver. Embedded in Autumn as an IDE tab.</div></div>
+      <div class="tool-card"><div class="tool-name">DART ALLEY</div><div class="tool-desc">Multi-source aerospace neural search engine with ambient music recognition and DART SAFE content filter.</div></div>
+      <div class="tool-card"><div class="tool-name">DART POTENTIALS</div><div class="tool-desc">Elastic rigid body collision simulation with DART Reflex physics and per-component alloy specification.</div></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>AUTUMN · DART MEADOW · RADICAL DEEPSCALE &nbsp;·&nbsp; <a href="https://dartmeadow.com">dartmeadow.com</a> &nbsp;·&nbsp; <a href="https://leatr.xyz/autumn.html">OPEN AUTUMN</a></p>
+  <p style="margin-top:8px;">LEATR FRAMEWORK · BRPN ARCHITECTURE · © DART MEADOW / RADICAL DEEPSCALE</p>
+</footer>
+
+</body>
+</html>
