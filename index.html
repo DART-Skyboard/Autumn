@@ -6812,26 +6812,27 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     MEMORY_ANALYSIS_TRIGGERS.some(function(t){ return augmentedText.toLowerCase().includes(t); });
 
   // ── World Studio intent detection ────────────────────────────────────────
-  // Catches: explicit mentions, generate/create/build + 3D scene nouns,
-  // and pure scene descriptions (2+ keyword clusters, ≥50 chars, no image)
+  // Explicit only: direct World Studio / 3D generation commands
+  // Removed: /world\b/ standalone (matches "da Vinci's world" etc)
+  // Removed: short/ambiguous cluster words (style, dark, glow, room, scene, city...)
   var _wsExplicit = /\bworld\s*studio\b/i.test(augmentedText) ||
-    /\b(open|launch|go to|take me to|use)\b.{0,20}\b(world\s*studio|3d\s*world|hunyuan)\b/i.test(augmentedText) ||
-    /\b(generate|create|build|make|design)\b.{0,30}\b(3d\s*(world|scene|environment|model|space|room|lab|facility|level)|world\b)/i.test(augmentedText);
+    /\b(open|launch|go to|take me to|use)\b.{0,20}\b(world\s*studio|hunyuan)\b/i.test(augmentedText) ||
+    /\b(generate|create|build|make|design)\b.{0,30}\b(3d\s*(world|scene|environment|model|space|lab|facility|level))\b/i.test(augmentedText);
 
-  var _wsScenePrompt = !_pendingImgs.length && (
+  // Scene prompt: requires 3+ RARE 3D-specific terms, ≥80 chars, not a question
+  var _wsScenePrompt = !_pendingImgs.length && augmentedText.length >= 80 &&
+    !augmentedText.trim().endsWith('?') && (
     (function(){
       var lc = augmentedText.toLowerCase();
       var clusters = [
-        /\b(interior|exterior|environment|scene|landscape|facility|lab|station|world|arena|dungeon|city|terrain|biome|plaza|campus|compound|hangar|bay|room|corridor|chamber|structure)\b/,
-        /\b(cylindrical|industrial|sci.?fi|futuristic|fantasy|medieval|alien|orbital|underground|underwater|arctic|tropical|desert|urban|gothic|brutalist|minimalist)\b/,
-        /\b(lighting|lit|glow|illuminat|ambient|atmospheric|cinematic|aesthetic|style|realistic|stylized|low.poly|pbr|high.detail|photorealistic|dark|neon|foggy|misty)\b/,
-        /\b(game.engine|unity|unreal|vr|ar|blender|ready|export|mesh|geometry|3d|glb|gltf|model|navigable|walkable)\b/,
-        /\b(materials?|textures?|surfaces?|metallic|roughness|hard.surface|chrome|glass|concrete|steel|wood|stone)\b/,
-        /\b(pipes?|tanks?|vessels?|panels?|chambers?|platforms?|structures?|towers?|consoles?|terminals?|gauges?|vats?|reactors?)\b/
+        /\b(reaction vessel|pressure gauge|observation panel|simulation tank|launch gantry|antenna array|docking bay|heat exchanger|boiler system|orbital platform)\b/,
+        /\b(cylindrical|industrial|sci-fi|scifi|sci\.fi|futuristic|medieval|alien|orbital|underground|underwater|arctic|brutalist)\b/,
+        /\b(game-engine ready|game engine ready|unity ready|unreal ready|pbr material|hard surface|photorealistic|low-poly environment|high.detail mesh)\b/,
+        /\b(glb export|gltf export|blender export|navigable world|walkable world)\b/,
+        /\b(pipes? and|tanks? with|vessels? with|gauges? and|reactors? with|gantry tower|radar dish)\b/
       ];
       var hits = clusters.filter(function(r){ return r.test(lc); }).length;
-      // 2 clusters + length ≥50, or 3 clusters any length
-      return (hits >= 2 && augmentedText.length >= 50) || hits >= 3;
+      return hits >= 3;
     })()
   );
 
