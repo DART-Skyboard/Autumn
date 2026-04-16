@@ -503,6 +503,24 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
   color:rgba(0,229,255,.9);line-height:1;flex-shrink:0;
 }
 .help-label{font-family:var(--font-d);font-size:.46rem;letter-spacing:1.2px;font-weight:700;}
+
+/* ── World Studio button ────────────────────────────── */
+.world-studio-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  text-decoration:none;
+  background:linear-gradient(135deg,rgba(0,229,255,.1),rgba(139,92,246,.1));
+  border:1px solid rgba(139,92,246,.35)!important;
+  color:rgba(167,139,250,.9)!important;
+  position:relative;overflow:hidden;transition:all .22s;padding:5px 10px;
+}
+.world-studio-btn:hover{
+  color:#c4b5fd!important;border-color:rgba(167,139,250,.7)!important;
+  background:linear-gradient(135deg,rgba(0,229,255,.14),rgba(139,92,246,.2))!important;
+  box-shadow:0 0 14px rgba(139,92,246,.2);transform:translateY(-1px);
+}
+.ws-icon{font-size:.75rem;animation:wsGlow 2.5s ease-in-out infinite;}
+.ws-label{font-family:var(--font-d);font-size:.46rem;letter-spacing:1.2px;font-weight:700;}
+@keyframes wsGlow{0%,100%{opacity:.7;filter:drop-shadow(0 0 2px rgba(167,139,250,.4));}50%{opacity:1;filter:drop-shadow(0 0 6px rgba(167,139,250,.8));}}
 /* ── Backdrop opacity toggle pill ── */
 #scrim-toggle{
   display:flex;align-items:center;gap:6px;
@@ -1240,6 +1258,9 @@ select.ash-ctrl-input{cursor:pointer}
     </a>
     <a class="hdr-btn help-btn" href="https://leatr.xyz/autumn-help.pdf" target="_blank" rel="noopener" title="Autumn User Guide — commands, setup, API keys, full reference">
       <span class="help-icon">?</span><span class="help-label">HELP</span>
+    </a>
+    <a class="hdr-btn world-studio-btn" href="https://leatr.xyz/worldstudio.html" target="_blank" rel="noopener" title="World Studio — HunyuanWorld 3D generation">
+      <span class="ws-icon">⬡</span><span class="ws-label">WORLD STUDIO</span>
     </a>
   </div>
 </header>
