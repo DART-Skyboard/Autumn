@@ -3355,8 +3355,16 @@ async function assembleLinguisticResponse(input, analysis, reflexData) {
 
   // ── Fallback — always produce something from the pattern ─────
   if (!sentence || sentence.length < 8) {
-    sentence = capitalize(primary || input.slice(0,20)) + ' — ';
-    sentence += (syns.length ? syns.slice(0,2).join(', ') : (assoc.slice(0,2).join(', ')||'pattern noted')) + '.';
+    // Try the grammar-template engine (Datamuse + grammar DB) before bare LEATR
+    try {
+      var _gramResp = await buildGrammarResponse(input, primary, g, reflexData);
+      if(_gramResp && _gramResp.length > 10) sentence = _gramResp;
+    } catch(e) {}
+    // Still nothing — bare minimum
+    if(!sentence || sentence.length < 8) {
+      sentence = capitalize(primary || input.slice(0,20)) + ' — ';
+      sentence += (syns.length ? syns.slice(0,2).join(', ') : (assoc.slice(0,2).join(', ')||'pattern noted')) + '.';
+    }
   }
 
   var _result = sentence.replace(/\s{2,}/g, ' ').trim();
@@ -3379,6 +3387,221 @@ async function assembleLinguisticResponse(input, analysis, reflexData) {
   } catch(e) {}
 
   return _result;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  AUTUMN GRAMMAR DATABASE — loads from leatr-ash, powers offline NLP
+//  Source: grammar/english_grammar.json in DART-Skyboard/leatr-ash
+// ══════════════════════════════════════════════════════════════════
+var _GRAM = null;         // loaded grammar DB
+var _GRAM_LOADING = false;
+var _GRAM_CACHE_KEY = '_aut_gram_db';
+
+async function loadGrammarDB() {
+  if(_GRAM) return _GRAM;
+  if(_GRAM_LOADING) return null;
+  // Check sessionStorage first (in-session cache)
+  try {
+    var cached = sessionStorage.getItem(_GRAM_CACHE_KEY);
+    if(cached) { _GRAM = JSON.parse(cached); return _GRAM; }
+  } catch(e) {}
+
+  _GRAM_LOADING = true;
+  try {
+    // Try raw GitHub CDN first (no auth needed for public-readable files)
+    var gramUrl = 'https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/grammar/english_grammar.json';
+    var resp = await fetch(gramUrl, { signal: AbortSignal.timeout(8000) });
+    if(resp.ok) {
+      var db = await resp.json();
+      _GRAM = db;
+      try { sessionStorage.setItem(_GRAM_CACHE_KEY, JSON.stringify(db)); } catch(e) {}
+      console.log('[Autumn] Grammar DB loaded:', Object.keys(db).join(', '));
+      return _GRAM;
+    }
+  } catch(e) {}
+
+  // If private repo (PAT needed), try API
+  var pat = (typeof getLeatrAshPAT === 'function') ? getLeatrAshPAT() : '';
+  if(pat) {
+    try {
+      var apiUrl = 'https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/grammar/english_grammar.json';
+      var r2 = await fetch(apiUrl, {
+        headers: {'Authorization':'token '+pat, 'Accept':'application/vnd.github.v3+json'},
+        signal: AbortSignal.timeout(8000)
+      });
+      if(r2.ok) {
+        var jd = await r2.json();
+        if(jd.content) {
+          var db2 = JSON.parse(atob(jd.content.replace(/\n/g,'')));
+          _GRAM = db2;
+          try { sessionStorage.setItem(_GRAM_CACHE_KEY, JSON.stringify(db2)); } catch(e) {}
+          return _GRAM;
+        }
+      }
+    } catch(e) {}
+  }
+  _GRAM_LOADING = false;
+  return null;
+}
+
+// Auto-load on startup
+setTimeout(function(){ loadGrammarDB().catch(function(){}); }, 3000);
+
+// ── Datamuse with POS tags — richer word lookup ───────────────────
+async function datumuseLookup(word, options) {
+  options = options || {};
+  var params = [];
+  // Strategy: triggered words + synonyms + parts of speech
+  if(options.topic)  params.push('rel_trg='+encodeURIComponent(word));
+  else               params.push('ml='+encodeURIComponent(word));
+  params.push('md=pd');  // definitions + parts of speech
+  params.push('max='+(options.max||15));
+  if(options.lc) params.push('lc='+encodeURIComponent(options.lc));
+  if(options.rc) params.push('rc='+encodeURIComponent(options.rc));
+  try {
+    var resp = await fetch('https://api.datamuse.com/words?'+params.join('&'),
+      { signal: AbortSignal.timeout(4000) });
+    if(!resp.ok) return [];
+    var words = await resp.json();
+    return words.filter(function(w){ return w.word && w.word.length > 2; });
+  } catch(e) { return []; }
+}
+
+// Extract POS groups from Datamuse result set
+function _posGroups(words) {
+  var nouns=[],verbs=[],adjs=[],advs=[];
+  (words||[]).forEach(function(w) {
+    var tags = (w.tags||[]).join(' ');
+    if(/\bn\b/.test(tags))   nouns.push(w.word);
+    else if(/\bv\b/.test(tags))   verbs.push(w.word);
+    else if(/adj/.test(tags)) adjs.push(w.word);
+    else if(/adv/.test(tags)) advs.push(w.word);
+    else                      nouns.push(w.word); // default to noun
+  });
+  return {nouns,verbs,adjs,advs};
+}
+
+// ── Grammar-template sentence builder ────────────────────────────
+// Uses the loaded grammar DB's response templates + Datamuse vocabulary
+// to construct proper sentences when the input topic has no direct definition
+async function buildGrammarResponse(input, primaryWord, analysisGrammar, reflexData) {
+  var g    = analysisGrammar;
+  var mood = g.mood || 'declarative';
+  var qWord = (input.match(/^(who|what|where|when|why|which|how)/i)||[])[0]||'';
+  var topic = (primaryWord||'').toLowerCase();
+
+  // Parallel lookups: triggered words + synonyms
+  var [triggered, synonyms] = await Promise.all([
+    datumuseLookup(topic, {topic:true, max:18}),
+    datumuseLookup(topic, {topic:false, max:12})
+  ]);
+
+  var trigPOS = _posGroups(triggered);
+  var synPOS  = _posGroups(synonyms);
+
+  // Merge word pools
+  var allNouns = [].concat(trigPOS.nouns, synPOS.nouns).filter(function(w,i,a){ return a.indexOf(w)===i; }).slice(0,6);
+  var allVerbs = [].concat(trigPOS.verbs, synPOS.verbs).filter(function(w,i,a){ return a.indexOf(w)===i; }).slice(0,4);
+  var allAdjs  = [].concat(trigPOS.adjs,  synPOS.adjs ).filter(function(w,i,a){ return a.indexOf(w)===i; }).slice(0,4);
+
+  // Get first definition from Datamuse (contains WordNet defs)
+  var def = null;
+  var defWord = synonyms.find(function(w){ return w.defs && w.defs.length; });
+  if(defWord) def = defWord.defs[0].replace(/^[a-z]+\t/,''); // strip POS prefix
+
+  // Grammar templates — pick by question type and available data
+  var cap = function(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : ''; };
+  var pick = function(arr){ return arr && arr.length ? arr[Math.floor(Math.random()*arr.length)] : null; };
+
+  var G = _GRAM; // grammar DB (may be null if not loaded yet)
+  var transitions = G ? G.transitions : {};
+
+  var parts = [];
+
+  if(mood === 'interrogative' || qWord) {
+    qWord = qWord.toLowerCase();
+
+    if(qWord === 'who') {
+      // Person query — use triggered nouns as roles/descriptors
+      var roles = allNouns.slice(0,3);
+      var acts  = allVerbs.slice(0,2);
+      if(def) {
+        parts.push(cap(topic) + ': ' + def + '.');
+      } else if(roles.length) {
+        parts.push(cap(topic) + ' is associated with ' + roles.slice(0,2).join(' and ') + '.');
+      }
+      if(acts.length) parts.push('Known for: ' + acts.join(', ') + '.');
+      if(allAdjs.length) parts.push(cap(allAdjs[0]) + ' in character and approach.');
+
+    } else if(qWord === 'what') {
+      if(def) {
+        parts.push(cap(topic) + ': ' + def + '.');
+        if(allNouns.length) parts.push('Related concepts: ' + allNouns.slice(0,3).join(', ') + '.');
+      } else if(allNouns.length) {
+        parts.push(cap(topic) + ' encompasses ' + allNouns.slice(0,3).join(', ') + '.');
+        if(allAdjs.length) parts.push(cap(allAdjs[0]) + ' and ' + (allAdjs[1]||allAdjs[0]) + ' in nature.');
+      }
+
+    } else if(qWord === 'how') {
+      var method = allVerbs.slice(0,2).join(' and ') || 'direct process';
+      parts.push(cap(topic) + ' works through ' + method + '.');
+      if(allNouns.length) parts.push('The key elements are ' + allNouns.slice(0,3).join(', ') + '.');
+
+    } else if(qWord === 'why') {
+      var cause  = allNouns[0]  || topic;
+      var effect = allNouns[1]  || (allAdjs[0] || 'that quality');
+      parts.push(cap(topic) + ' — ' + cause + ' drives ' + effect + '.');
+      if(allAdjs.length) parts.push(cap(allAdjs[0]) + ' by nature.');
+
+    } else if(qWord === 'where') {
+      parts.push(cap(topic) + ' exists within ' + (allNouns[0]||'its domain') + '.');
+      if(allNouns[1]) parts.push('Connected to ' + allNouns[1] + ' and ' + (allNouns[2]||allNouns[0]) + '.');
+
+    } else {
+      // Which / generic
+      if(def) parts.push(cap(topic) + ': ' + def + '.');
+      else if(allNouns.length) parts.push(cap(topic) + ' — ' + allNouns.slice(0,3).join(', ') + '.');
+    }
+
+  } else {
+    // Declarative / statement input — acknowledge and expand
+    if(def) {
+      parts.push(cap(topic) + ' — ' + def + '.');
+    } else if(allAdjs.length && allNouns.length) {
+      parts.push(cap(topic) + ' is ' + allAdjs[0] + ' in its ' + allNouns[0] + '.');
+    } else if(allNouns.length) {
+      parts.push(cap(topic) + ' connects to ' + allNouns.slice(0,2).join(' and ') + '.');
+    }
+    if(allVerbs.length && parts.length) {
+      var trans = pick((transitions && transitions.addition)||['Furthermore,']);
+      parts.push(trans + ' ' + cap(allVerbs[0]) + ' is central to how it operates.');
+    }
+  }
+
+  // Always add a connective sentence if we have enough vocab
+  if(parts.length && allNouns.length >= 3) {
+    var lastNouns = allNouns.slice(1,4);
+    var transPick = pick((transitions && transitions.elaboration)||['More specifically,']);
+    parts.push(transPick + ' ' + lastNouns.join(', ') + ' are all part of this pattern.');
+  }
+
+  // Store learned vocabulary in memory
+  try {
+    if(!S.memory[topic] && def) S.memory[topic] = def.slice(0,120);
+    allNouns.slice(0,3).forEach(function(n){ if(!S.memory[topic+'_'+n]) S.memory[topic+'_'+n] = n; });
+    if(typeof saveState === 'function') saveState();
+  } catch(e) {}
+
+  var result = parts.filter(Boolean).join(' ').replace(/\s{2,}/g,' ').trim();
+
+  // Absolute fallback if even Datamuse returned nothing
+  if(!result || result.length < 10) {
+    var fb = G && G.responseTemplates && G.responseTemplates.conversational;
+    result = pick(fb||null) || (cap(topic) + ' — not enough data to compose a full response offline. Try connecting to fetch more vocabulary.');
+    result = result.replace('{topic}', cap(topic));
+  }
+
+  return result;
 }
 
 // ── LanguageTool grammar check on Autumn's output ────────────
@@ -3575,18 +3798,20 @@ async function composeResponse(input, analysis, reflexData) {
     .forEach(t => { S.memory[t.word] = s.raw.substring(0,80); }));
 
   // ── Primary path: full linguistic assembly via Datamuse + Dictionary ──
-  // If parts is still empty OR we want the richest possible response,
-  // run the full linguistic engine on the input
   if (!parts.length) {
     try {
       var _lingResp = await assembleLinguisticResponse(input, analysis, reflexData);
       if (_lingResp && _lingResp.length > 5) {
-        // Grammar-validate Autumn's output before sending
         var _validated = await validateGrammar(_lingResp).catch(function(){ return _lingResp; });
         return _reply(_validated, g, analysis, tools);
       }
     } catch(e) { console.warn('[Autumn linguistic engine]', e.message); }
-    // Last resort — pure LEATR encode
+    // Grammar DB + Datamuse POS engine
+    try {
+      var _gramFb = await buildGrammarResponse(input, primaryWord||input.split(/\s+/)[0], g, reflexData);
+      if(_gramFb && _gramFb.length > 8) return _reply(_gramFb, g, analysis, tools);
+    } catch(e) {}
+    // Absolute last resort — LEATR encode
     parts.push(_leatrCompose(primaryWord||input.slice(0,40), adjs, verbs, activeTool, tense));
   }
 
