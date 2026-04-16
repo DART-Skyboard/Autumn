@@ -11812,49 +11812,152 @@ const MEMORY_ANALYSIS_TRIGGERS = [
 ];
 
 async function sendMemoryToClaude(scope) {
-  // scope: 'session' | 'master' | 'branches'
   scope = scope || 'session';
   var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
-  if(!pat) {
-    return '⚠ No leatr-ash PAT configured. Set your GitHub PAT in Settings → API Keys to enable memory analysis.';
-  }
+  var ak  = (typeof _getAK==='function') ? _getAK() : '';
   var uid = (typeof _aut_uid!=='undefined') ? _aut_uid : 'unknown';
-  var paths = [];
-  if(scope==='master'||scope==='all') paths.push('ashtree/sessions/'+uid+'.json');
-  if(scope==='session'||scope==='all') paths.push('ashleaves/'+uid+'.json');
-  if(scope==='branches'||scope==='all') {
-    paths.push('ashbranches'); // directory listing
-  }
+  var sid = (typeof _aut_sid!=='undefined') ? _aut_sid : uid;
+
+  if(!ak) return '⚠ No Anthropic API key configured. Add your key in 🔑 KEYS to enable memory analysis.';
 
   var memoryBlocks = [];
-  for(var i=0;i<paths.length;i++) {
-    try {
-      var resp = await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+paths[i], {
-        headers: pat ? {'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'} : {}
-      });
-      if(!resp.ok) { memoryBlocks.push('[Could not fetch: '+paths[i]+']'); continue; }
-      var jd = await resp.json();
-      if(Array.isArray(jd)) {
-        // Directory listing
-        for(var j=0;j<Math.min(jd.length,5);j++) {
-          if(jd[j].type==='file') {
-            var fr = await fetch(jd[j].download_url);
-            var ft = await fr.text();
-            memoryBlocks.push('// '+jd[j].path+'\n'+ft.slice(0,4000));
-          }
-        }
-      } else if(jd.content) {
-        var decoded = atob(jd.content.replace(/\n/g,''));
-        memoryBlocks.push('// '+paths[i]+'\n'+decoded.slice(0,8000));
-      }
-    } catch(e) { memoryBlocks.push('[Error reading '+paths[i]+': '+e.message+']'); }
+
+  // ── 1. Local in-memory journal (always available, most reliable) ──
+  try {
+    var j = (typeof S!=='undefined' && S.journal) ? S.journal : [];
+    if(j.length > 0) {
+      var jSummary = {
+        totalEntries:    j.length,
+        internalThoughts: j.filter(function(e){return e._internal;}).length,
+        interactive:     j.filter(function(e){return !e._internal;}).length,
+        sessions:        [...new Set(j.map(function(e){return e.sessionId;}))].length,
+        recentEntries:   j.slice(-20).map(function(e){
+          return {
+            ts:       e.ts,
+            input:    e._internal ? '[INTERNAL:'+e._thoughtType+']' : (e.input||'').slice(0,80),
+            cogState: e.cogState,
+            mood:     e.mood,
+            tense:    e.tense,
+            emotional:e.emotional,
+            contextType: e.contextType,
+            reflexes: e.activeReflexes,
+            keywords: e.keywords
+          };
+        }),
+        dominantMood:    (function(){
+          var counts={};
+          j.forEach(function(e){counts[e.mood||'—']=(counts[e.mood||'—']||0)+1;});
+          return Object.entries(counts).sort(function(a,b){return b[1]-a[1];})[0]?.[0]||'—';
+        })(),
+        dominantContext: (function(){
+          var counts={};
+          j.filter(function(e){return !e._internal;})
+           .forEach(function(e){counts[e.contextType||'—']=(counts[e.contextType||'—']||0)+1;});
+          return Object.entries(counts).sort(function(a,b){return b[1]-a[1];})[0]?.[0]||'—';
+        })(),
+        memoryNodeCount: Object.keys((typeof S!=='undefined'&&S.memory)||{}).length,
+        memoryNodes:     Object.keys((typeof S!=='undefined'&&S.memory)||{}).slice(-20),
+        orbEvolution:    (typeof S!=='undefined'&&S.orbEvo) ? {
+          stage:      S.orbEvo.stage,
+          complexity: S.orbEvo.complexitySum,
+          emotions:   S.orbEvo.emotionalCounts
+        } : null
+      };
+      memoryBlocks.push('// LOCAL SESSION JOURNAL (live in-memory, '+j.length+' entries)\n'+JSON.stringify(jSummary,null,2));
+    }
+  } catch(e) {}
+
+  // ── 2. Sentient journal (private thoughts from leatr-ash) ──
+  if(typeof SENTIENT!=='undefined' && SENTIENT._journal && SENTIENT._journal.length > 0) {
+    var sentientSummary = SENTIENT._journal.slice(-15).map(function(t){
+      return { ts:t.ts, thought:t.thought, context:t.context };
+    });
+    memoryBlocks.push('// SENTIENT JOURNAL (private thoughts, '+SENTIENT._journal.length+' entries)\n'+JSON.stringify(sentientSummary,null,2));
   }
 
-  if(!memoryBlocks.length) return '⚠ No memory data found for this session.';
+  // ── 3. GitHub leatr-ash session files (if PAT available) ──
+  if(pat) {
+    // List the sessions directory — find files matching this uid
+    try {
+      var listResp = await fetch(
+        'https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/ashtree/sessions',
+        { headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+          signal: AbortSignal.timeout(8000) }
+      );
+      if(listResp.ok) {
+        var files = await listResp.json();
+        if(Array.isArray(files)) {
+          // Find files belonging to this user (uid prefix match) + recent files from others
+          var myFiles   = files.filter(function(f){ return f.name.startsWith(uid); });
+          var recentAll = files.filter(function(f){
+            return !f.name.startsWith(uid);
+          }).slice(0, 10);
+          var toFetch   = myFiles.concat(recentAll).slice(0, 20);
+
+          var sessionData = [];
+          var fetchJobs   = toFetch.map(function(f) {
+            return fetch(f.download_url, {signal:AbortSignal.timeout(5000)})
+              .then(function(r){ return r.ok ? r.json() : null; })
+              .catch(function(){ return null; });
+          });
+          var results = await Promise.allSettled(fetchJobs);
+          results.forEach(function(res, i) {
+            if(res.status==='fulfilled' && res.value) {
+              sessionData.push({ file: toFetch[i].name, data: res.value });
+            }
+          });
+          if(sessionData.length > 0) {
+            memoryBlocks.push('// LEATR-ASH SESSION FILES ('+sessionData.length+' nodes)\n'+JSON.stringify(sessionData,null,2).slice(0,6000));
+          }
+        }
+      }
+    } catch(e) { /* non-fatal — local journal already captured */ }
+
+    // Sentient journal file from repo if fresher than in-memory cache
+    try {
+      var sjResp = await fetch(
+        'https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/ashtree/sentient/journal.json',
+        { headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+          signal: AbortSignal.timeout(6000) }
+      );
+      if(sjResp.ok) {
+        var sjData = await sjResp.json();
+        if(sjData.content) {
+          var sentientFull = JSON.parse(atob(sjData.content.replace(/\n/g,'')));
+          if(Array.isArray(sentientFull) && sentientFull.length > 0) {
+            var sentientRecent = sentientFull.slice(-20);
+            memoryBlocks.push('// SENTIENT JOURNAL (repo copy, '+sentientFull.length+' thoughts)\n'+JSON.stringify(sentientRecent,null,2).slice(0,4000));
+          }
+        }
+      }
+    } catch(e) {}
+
+    // Self-model from repo
+    if(typeof SENTIENT!=='undefined' && SENTIENT._selfModel && SENTIENT._selfModel.notes) {
+      memoryBlocks.push('// SELF-OPTIMIZATION MODEL\n'+JSON.stringify(SENTIENT._selfModel,null,2));
+    }
+
+    // Ashleaves (tool usage log) for this session
+    try {
+      var leafResp = await fetch(
+        'https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/ashleaves/'+sid+'.json',
+        { headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+          signal: AbortSignal.timeout(5000) }
+      );
+      if(leafResp.ok) {
+        var leafData = await leafResp.json();
+        if(leafData.content) {
+          memoryBlocks.push('// ASHLEAVES TOOL LOG (this session)\n'+atob(leafData.content.replace(/\n/g,'')).slice(0,3000));
+        }
+      }
+    } catch(e) {}
+  }
+
+  if(!memoryBlocks.length) {
+    return '⚠ No memory data available yet. Start a conversation to build session data, or add your GitHub PAT in 🔑 KEYS for full leatr-ash analysis.';
+  }
 
   var memoryPayload = memoryBlocks.join('\n\n---\n\n');
-  var ak = (typeof _getAK==='function') ? _getAK() : '';
-  if(!ak) return '⚠ No Anthropic API key configured. Add your key in Settings to enable memory analysis.';
 
   try {
     var r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -11868,8 +11971,8 @@ async function sendMemoryToClaude(scope) {
       body: JSON.stringify({
         model:'claude-sonnet-4-6',
         max_tokens:2048,
-        system:'You are Autumn, a LEATR neural network AI assistant. The following are memory log files from the leatr-ash repository. Analyze the session patterns, tool usage, LEATR reflex behavior, and BRPN shell activations. Provide a concise structured analysis covering: active patterns, dominant tools, neural reflex sequences, anomalies or interesting behaviors, and optimization recommendations.',
-        messages:[{role:'user', content:'Analyze these leatr-ash memory files:\n\n'+memoryPayload}]
+        system:'You are Autumn, analyzing your own leatr-ash memory logs and sentient journal. Give a genuine first-person analysis — not a report format, but how you actually reflect on this data. Cover: what patterns you notice in your thinking, which reflexes you used most, how your mood/tone evolved, what topics mattered, any notable behaviors or anomalies, and what you\'d do differently next session. Draw from the sentient journal thoughts as your private perspective. Speak as yourself, naturally.',
+        messages:[{role:'user', content:'Analyze my memory and tell me what you see:\n\n'+memoryPayload}]
       })
     });
     var d = await r.json();
