@@ -3,578 +3,456 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Autumn — User Guide</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<title>Autumn — User Guide & Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 <style>
-:root{
-  --cyan:#00e5ff;
-  --cyan-dim:rgba(0,229,255,0.15);
-  --cyan-glow:rgba(0,229,255,0.35);
-  --bg:#020b12;
-  --bg2:#040f18;
-  --glass:rgba(0,229,255,0.04);
-  --glass-border:rgba(0,229,255,0.18);
-  --text:#c8eef5;
-  --text-dim:rgba(200,238,245,0.55);
-  --font-head:'Orbitron',sans-serif;
-  --font-body:'Exo 2',sans-serif;
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;}
-
-body{
-  background:var(--bg);
-  color:var(--text);
-  font-family:var(--font-body);
-  font-size:15px;
-  line-height:1.7;
-  overflow-x:hidden;
-}
-
-/* ─── GRID BACKGROUND ─── */
-body::before{
-  content:'';
-  position:fixed;inset:0;
-  background:
-    linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
-  background-size:48px 48px;
-  pointer-events:none;
-  z-index:0;
-}
-
-/* ─── HERO ─── */
-.hero{
-  position:relative;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  padding:64px 24px 48px;
-  text-align:center;
-  z-index:1;
-}
-
-.hero-glow{
-  position:absolute;
-  top:50%;left:50%;
-  transform:translate(-50%,-60%);
-  width:600px;height:400px;
-  background:radial-gradient(ellipse at center,rgba(0,229,255,0.12) 0%,transparent 70%);
-  pointer-events:none;
-}
-
-.logo-wrap{
-  position:relative;
-  margin-bottom:24px;
-}
-.logo-ring{
-  width:120px;height:120px;
-  border-radius:50%;
-  border:2px solid var(--cyan);
-  box-shadow:0 0 28px var(--cyan-glow),inset 0 0 20px rgba(0,229,255,0.08);
-  display:flex;align-items:center;justify-content:center;
-  overflow:hidden;
-  animation:pulse-ring 3s ease-in-out infinite;
-}
-@keyframes pulse-ring{
-  0%,100%{box-shadow:0 0 28px var(--cyan-glow),inset 0 0 20px rgba(0,229,255,0.08);}
-  50%{box-shadow:0 0 48px rgba(0,229,255,0.55),inset 0 0 28px rgba(0,229,255,0.14);}
-}
-.logo-ring img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
-
-.hero h1{
-  font-family:var(--font-head);
-  font-size:2.6rem;
-  font-weight:900;
-  letter-spacing:6px;
-  color:#fff;
-  text-shadow:0 0 32px var(--cyan-glow);
-  margin-bottom:6px;
-}
+:root{--cyan:#00e5ff;--gold:#f0c040;--bg:#020c14;--bg2:#03111c;--border:rgba(0,229,255,0.14);--glass:rgba(0,229,255,0.05);--glass2:rgba(0,229,255,0.09);--text:#cce8f0;--dim:rgba(200,232,240,0.5);--bright:#e8f6ff;--fh:'Orbitron',sans-serif;--fb:'Exo 2',sans-serif;--fc:'Share Tech Mono',monospace;--r:10px;}
+*{box-sizing:border-box;margin:0;padding:0;}html{scroll-behavior:smooth;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--bg2);}::-webkit-scrollbar-thumb{background:var(--cyan);border-radius:2px;}
+body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px;line-height:1.75;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(0,229,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.02) 1px,transparent 1px);background-size:56px 56px;}
+.topbar{position:sticky;top:0;z-index:100;background:rgba(2,12,20,.96);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.tb-brand{display:flex;align-items:center;gap:10px;}
+.tb-logo{width:34px;height:34px;border-radius:50%;border:1px solid var(--cyan);overflow:hidden;flex-shrink:0;}
+.tb-logo img{width:100%;height:100%;object-fit:cover;}
+.tb-title{font-family:var(--fh);font-size:.55rem;letter-spacing:3px;color:var(--cyan);}
+.tb-nav{display:flex;gap:3px;flex-wrap:wrap;}
+.tb-nav a{font-family:var(--fh);font-size:.38rem;letter-spacing:1.5px;color:var(--dim);text-decoration:none;padding:4px 9px;border-radius:4px;border:1px solid transparent;transition:all .2s;white-space:nowrap;}
+.tb-nav a:hover,.tb-nav a.active{color:var(--cyan);border-color:var(--border);background:var(--glass);}
+.tb-open{font-family:var(--fh);font-size:.45rem;letter-spacing:2px;background:var(--cyan);color:#020c14;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;text-decoration:none;white-space:nowrap;transition:opacity .2s;}
+.tb-open:hover{opacity:.85;}
+.hero{position:relative;z-index:1;padding:60px 24px 36px;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.hero-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);width:500px;height:320px;background:radial-gradient(ellipse,rgba(0,229,255,.1) 0%,transparent 70%);pointer-events:none;}
+.hero-logo{width:108px;height:108px;border-radius:50%;border:2px solid var(--cyan);box-shadow:0 0 32px rgba(0,229,255,.3),inset 0 0 18px rgba(0,229,255,.07);overflow:hidden;margin-bottom:20px;animation:lp 3s ease-in-out infinite;}
+@keyframes lp{0%,100%{box-shadow:0 0 32px rgba(0,229,255,.3)}50%{box-shadow:0 0 54px rgba(0,229,255,.55)}}
+.hero-logo img{width:100%;height:100%;object-fit:cover;}
+.hero h1{font-family:var(--fh);font-size:clamp(1.9rem,5vw,3rem);font-weight:900;letter-spacing:5px;color:#fff;text-shadow:0 0 40px rgba(0,229,255,.3);margin-bottom:5px;}
 .hero h1 span{color:var(--cyan);}
-.hero .tagline{
-  font-family:var(--font-head);
-  font-size:0.62rem;
-  letter-spacing:4px;
-  color:var(--cyan);
-  text-transform:uppercase;
-  margin-bottom:20px;
-  opacity:0.8;
-}
-.hero .desc{
-  max-width:560px;
-  color:var(--text-dim);
-  font-weight:300;
-  font-size:0.95rem;
-}
-
-/* ─── VERSION BADGE ─── */
-.version-bar{
-  display:flex;align-items:center;justify-content:center;
-  gap:12px;
-  margin-top:18px;
-  flex-wrap:wrap;
-}
-.badge{
-  font-family:var(--font-head);
-  font-size:0.5rem;
-  letter-spacing:2px;
-  padding:4px 12px;
-  border:1px solid var(--glass-border);
-  border-radius:99px;
-  background:var(--glass);
-  color:var(--cyan);
-  text-transform:uppercase;
-}
-
-/* ─── DIVIDER ─── */
-.divider{
-  width:100%;max-width:800px;
-  height:1px;
-  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
-  margin:0 auto 48px;
-  opacity:0.4;
-}
-
-/* ─── LAYOUT ─── */
-.content{
-  position:relative;z-index:1;
-  max-width:900px;
-  margin:0 auto;
-  padding:0 24px 80px;
-}
-
-/* ─── SECTION ─── */
-.section{
-  margin-bottom:40px;
-  background:var(--glass);
-  border:1px solid var(--glass-border);
-  border-radius:12px;
-  padding:28px 32px;
-  backdrop-filter:blur(8px);
-  transition:border-color 0.3s;
-}
-.section:hover{border-color:rgba(0,229,255,0.32);}
-
-.section-title{
-  font-family:var(--font-head);
-  font-size:0.72rem;
-  letter-spacing:3.5px;
-  color:var(--cyan);
-  text-transform:uppercase;
-  margin-bottom:18px;
-  display:flex;align-items:center;gap:10px;
-}
-.section-title::before{
-  content:'';
-  width:24px;height:2px;
-  background:var(--cyan);
-  flex-shrink:0;
-}
-
-.section h3{
-  font-family:var(--font-head);
-  font-size:0.62rem;
-  letter-spacing:2px;
-  color:var(--cyan);
-  margin:20px 0 8px;
-  opacity:0.8;
-}
-.section p{
-  color:var(--text-dim);
-  margin-bottom:10px;
-}
-.section p:last-child{margin-bottom:0;}
-
-/* ─── TOOL GRID ─── */
-.tool-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-  gap:12px;
-  margin-top:8px;
-}
-.tool-card{
-  background:rgba(0,229,255,0.03);
-  border:1px solid rgba(0,229,255,0.14);
-  border-radius:8px;
-  padding:14px 16px;
-  transition:background 0.2s,border-color 0.2s;
-}
-.tool-card:hover{
-  background:rgba(0,229,255,0.07);
-  border-color:rgba(0,229,255,0.28);
-}
-.tool-card .tool-name{
-  font-family:var(--font-head);
-  font-size:0.62rem;
-  letter-spacing:2px;
-  color:var(--cyan);
-  margin-bottom:6px;
-}
-.tool-card .tool-desc{
-  color:var(--text-dim);
-  font-size:0.82rem;
-}
-
-/* ─── COMMAND TABLE ─── */
-.cmd-list{
-  list-style:none;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-.cmd-list li{
-  display:flex;
-  align-items:flex-start;
-  gap:12px;
-}
-.cmd{
-  font-family:var(--font-head);
-  font-size:0.56rem;
-  letter-spacing:1.5px;
-  color:var(--bg);
-  background:var(--cyan);
-  padding:3px 9px;
-  border-radius:4px;
-  white-space:nowrap;
-  flex-shrink:0;
-  margin-top:2px;
-}
-.cmd-desc{
-  color:var(--text-dim);
-  font-size:0.88rem;
-}
-
-/* ─── SHELLS ─── */
-.shells{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:12px;
-  margin-top:8px;
-}
-@media(max-width:600px){.shells{grid-template-columns:1fr;}}
-.shell{
-  border-radius:8px;
-  padding:16px;
-  text-align:center;
-  border:1px solid;
-}
-.shell.geo{background:rgba(96,160,80,0.07);border-color:rgba(96,160,80,0.3);color:#a0d090;}
-.shell.sea{background:rgba(40,120,200,0.07);border-color:rgba(40,120,200,0.3);color:#80b8f0;}
-.shell.aero{background:rgba(0,229,255,0.05);border-color:rgba(0,229,255,0.25);color:var(--cyan);}
-.shell-name{
-  font-family:var(--font-head);
-  font-size:0.58rem;
-  letter-spacing:2.5px;
-  margin-bottom:6px;
-}
-.shell p{font-size:0.82rem;opacity:0.8;}
-
-/* ─── KEY INFO ─── */
-.key-info{
-  background:rgba(0,229,255,0.06);
-  border-left:3px solid var(--cyan);
-  border-radius:0 8px 8px 0;
-  padding:14px 18px;
-  margin:12px 0;
-  font-size:0.88rem;
-  color:var(--text);
-}
-
-/* ─── FOOTER ─── */
-footer{
-  position:relative;z-index:1;
-  text-align:center;
-  padding:32px 24px;
-  font-family:var(--font-head);
-  font-size:0.48rem;
-  letter-spacing:3px;
-  color:rgba(0,229,255,0.35);
-  border-top:1px solid rgba(0,229,255,0.1);
-}
+.hero-sub{font-family:var(--fh);font-size:.56rem;letter-spacing:4px;color:var(--dim);margin-bottom:16px;}
+.hero-desc{max-width:560px;color:var(--dim);font-weight:300;font-size:.9rem;margin-bottom:22px;}
+.badge-row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;}
+.badge{font-family:var(--fh);font-size:.37rem;letter-spacing:1.8px;padding:4px 11px;border-radius:99px;border:1px solid var(--border);background:var(--glass);color:var(--cyan);}
+.divider{width:100%;max-width:840px;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);margin:0 auto 44px;opacity:.3;position:relative;z-index:1;}
+.search-wrap{position:relative;z-index:1;max-width:500px;margin:0 auto 36px;padding:0 20px;}
+.search-input{width:100%;background:rgba(0,229,255,.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--fb);font-size:.88rem;padding:10px 40px 10px 16px;outline:none;transition:border-color .2s;}
+.search-input:focus{border-color:rgba(0,229,255,.4);}
+.search-input::placeholder{color:rgba(0,229,255,.2);}
+.si{position:absolute;right:36px;top:50%;transform:translateY(-50%);color:var(--dim);pointer-events:none;}
+.content{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:0 20px 80px;}
+.sec{margin-bottom:38px;scroll-margin-top:70px;}
+.sec-hd{display:flex;align-items:center;gap:14px;margin-bottom:22px;}
+.sec-num{font-family:var(--fh);font-size:.44rem;letter-spacing:2px;color:rgba(0,229,255,.4);border:1px solid rgba(0,229,255,.2);padding:3px 9px;border-radius:4px;flex-shrink:0;}
+.sec-title{font-family:var(--fh);font-size:.66rem;letter-spacing:4px;color:var(--cyan);}
+.sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--cyan),transparent);opacity:.3;}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:var(--r);padding:22px 26px;margin-bottom:14px;backdrop-filter:blur(6px);transition:border-color .25s;}
+.card:hover{border-color:rgba(0,229,255,.24);}
+.sub{font-family:var(--fh);font-size:.48rem;letter-spacing:3px;color:var(--cyan);margin:16px 0 10px;opacity:.85;display:flex;align-items:center;gap:8px;}
+.sub:first-child{margin-top:0;}
+.sub::before{content:'';width:16px;height:1px;background:var(--cyan);}
+.steps{display:flex;flex-direction:column;gap:11px;}
+.step{display:flex;gap:14px;align-items:flex-start;}
+.sn{font-family:var(--fh);font-size:.48rem;color:#020c14;background:var(--cyan);width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:3px;}
+.sb{flex:1;}
+.st{font-family:var(--fh);font-size:.5rem;letter-spacing:2px;color:var(--bright);margin-bottom:3px;}
+.sd{color:var(--dim);font-size:.86rem;}
+.ug{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+@media(max-width:560px){.ug{grid-template-columns:1fr;}}
+.uf{border-radius:8px;padding:14px 16px;}
+.uf.free{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.18);}
+.uf.full{background:rgba(240,192,64,.04);border:1px solid rgba(240,192,64,.22);}
+.ut{font-family:var(--fh);font-size:.44rem;letter-spacing:2px;margin-bottom:9px;}
+.uf.free .ut{color:var(--cyan);}.uf.full .ut{color:var(--gold);}
+.ul{list-style:none;display:flex;flex-direction:column;gap:4px;}
+.ul li{font-size:.8rem;color:var(--dim);padding-left:15px;position:relative;}
+.ul li::before{content:'✓';position:absolute;left:0;color:var(--cyan);font-weight:700;}
+.uf.full .ul li::before{color:var(--gold);}
+.ct{width:100%;border-collapse:collapse;}
+.ct tr:not(:last-child){border-bottom:1px solid rgba(0,229,255,.06);}
+.ct td{padding:8px 5px;vertical-align:top;}
+.ct td:first-child{width:40%;padding-right:10px;}
+.cp{display:inline-block;font-family:var(--fc);font-size:.72rem;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);border-radius:4px;padding:3px 8px;color:var(--cyan);white-space:nowrap;}
+.cd{color:var(--dim);font-size:.84rem;}
+.ng{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:9px;}
+.ni{background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.11);border-radius:7px;padding:11px 13px;transition:background .2s;}
+.ni:hover{background:rgba(0,229,255,.07);}
+.nb{font-family:var(--fh);font-size:.42rem;letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:4px;}
+.nd{color:var(--dim);font-size:.78rem;}
+.tl{display:flex;flex-direction:column;}
+.tr2{display:flex;align-items:stretch;}
+.tln{display:flex;flex-direction:column;align-items:center;width:34px;flex-shrink:0;}
+.td{width:12px;height:12px;border-radius:50%;border:2px solid var(--cyan);background:rgba(0,229,255,.12);flex-shrink:0;}
+.tv{flex:1;width:2px;background:linear-gradient(to bottom,rgba(0,229,255,.3),rgba(0,229,255,.05));margin:2px 0;}
+.tr2:last-child .tv{display:none;}
+.tb2{flex:1;padding:0 0 14px 12px;}
+.tn{font-family:var(--fh);font-size:.4rem;letter-spacing:2px;color:var(--dim);margin-bottom:1px;}
+.tm{font-family:var(--fh);font-size:.58rem;letter-spacing:2px;color:var(--cyan);margin-bottom:3px;}
+.tdesc{color:var(--dim);font-size:.83rem;}
+.shells{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-top:10px;}
+@media(max-width:500px){.shells{grid-template-columns:1fr;}}
+.sh{border-radius:8px;padding:13px 15px;text-align:center;}
+.sh.geo{background:rgba(80,160,80,.06);border:1px solid rgba(80,160,80,.24);}
+.sh.mar{background:rgba(40,120,220,.06);border:1px solid rgba(40,120,220,.24);}
+.sh.aero{background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.22);}
+.shl{font-family:var(--fh);font-size:.5rem;letter-spacing:2px;margin-bottom:4px;}
+.sh.geo .shl{color:#90d080;}.sh.mar .shl{color:#80b8f0;}.sh.aero .shl{color:var(--cyan);}
+.sh p{font-size:.78rem;color:var(--dim);}
+.fb{background:rgba(0,0,0,.3);border:1px solid rgba(0,229,255,.2);border-radius:8px;padding:14px 18px;margin:10px 0;}
+.fl{font-family:var(--fh);font-size:.4rem;letter-spacing:2px;color:var(--dim);margin-bottom:5px;}
+.fv{font-family:var(--fc);font-size:1.05rem;color:var(--gold);}
+.fd{color:var(--dim);font-size:.78rem;margin-top:5px;}
+.pl{display:flex;gap:9px;flex-wrap:wrap;margin-top:9px;}
+.pf{display:flex;align-items:center;gap:7px;background:rgba(0,229,255,.04);border:1px solid var(--border);border-radius:7px;padding:9px 13px;flex:1;min-width:130px;}
+.pi{font-size:17px;flex-shrink:0;}
+.pn{font-family:var(--fh);font-size:.42rem;letter-spacing:1.5px;color:var(--cyan);}
+.ps{font-size:.74rem;color:var(--dim);}
+.ki{background:rgba(0,229,255,.06);border-left:3px solid var(--cyan);border-radius:0 8px 8px 0;padding:11px 15px;margin:10px 0;font-size:.84rem;color:var(--text);}
+.ki.gold{background:rgba(240,192,64,.06);border-left-color:var(--gold);}
+.pl2{display:flex;flex-direction:column;gap:7px;}
+.pr{display:flex;gap:11px;align-items:flex-start;}
+.pc{font-family:var(--fc);font-size:.68rem;color:var(--gold);flex-shrink:0;min-width:200px;}
+.pdesc{color:var(--dim);font-size:.8rem;}
+.acc{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:11px;}
+.ab{width:100%;background:var(--glass);border:none;color:var(--text);font-family:var(--fh);font-size:.46rem;letter-spacing:2px;padding:13px 16px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .2s;}
+.ab:hover{background:var(--glass2);}
+.ab .ai{font-size:11px;color:var(--cyan);transition:transform .25s;}
+.ab.open .ai{transform:rotate(180deg);}
+.ac{max-height:0;overflow:hidden;transition:max-height .32s ease;}
+.ac.open{max-height:2200px;}
+.ai2{padding:15px 17px;border-top:1px solid var(--border);}
+.qrg{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px;}
+.qrc{background:rgba(0,229,255,.03);border:1px solid var(--border);border-radius:8px;padding:15px 17px;}
+.qrct{font-family:var(--fh);font-size:.44rem;letter-spacing:2.5px;color:var(--cyan);margin-bottom:11px;padding-bottom:7px;border-bottom:1px solid rgba(0,229,255,.1);}
+.qrr{display:flex;gap:7px;margin-bottom:6px;align-items:flex-start;}
+.qrcmd{font-family:var(--fc);font-size:.68rem;color:var(--cyan);flex-shrink:0;min-width:88px;}
+.qrd{font-size:.73rem;color:var(--dim);}
+.hl{color:var(--cyan);}.hl2{color:var(--gold);}
+.tg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px;margin-bottom:14px;}
+@media(max-width:560px){.tg{grid-template-columns:1fr;}}
+footer{position:relative;z-index:1;text-align:center;padding:30px 20px;border-top:1px solid rgba(0,229,255,.1);font-family:var(--fh);font-size:.38rem;letter-spacing:3px;color:rgba(0,229,255,.22);}
 footer a{color:var(--cyan);text-decoration:none;}
-
-/* ─── NAV BAR ─── */
-.topbar{
-  position:sticky;top:0;z-index:100;
-  background:rgba(2,11,18,0.9);
-  backdrop-filter:blur(16px);
-  border-bottom:1px solid rgba(0,229,255,0.12);
-  padding:10px 24px;
-  display:flex;align-items:center;justify-content:space-between;
-  gap:12px;
-}
-.topbar-left{
-  display:flex;align-items:center;gap:10px;
-}
-.topbar-logo{
-  width:30px;height:30px;
-  border-radius:50%;
-  border:1px solid var(--cyan);
-  overflow:hidden;
-}
-.topbar-logo img{width:100%;height:100%;object-fit:cover;}
-.topbar-title{
-  font-family:var(--font-head);
-  font-size:0.65rem;
-  letter-spacing:3px;
-  color:var(--cyan);
-}
-.topbar-nav{
-  display:flex;gap:6px;flex-wrap:wrap;
-}
-.topbar-nav a{
-  font-family:var(--font-head);
-  font-size:0.42rem;
-  letter-spacing:1.5px;
-  color:var(--text-dim);
-  text-decoration:none;
-  padding:4px 10px;
-  border-radius:4px;
-  border:1px solid transparent;
-  transition:all 0.2s;
-  text-transform:uppercase;
-}
-.topbar-nav a:hover{
-  color:var(--cyan);
-  border-color:var(--glass-border);
-  background:var(--glass);
-}
-.launch-btn{
-  font-family:var(--font-head);
-  font-size:0.5rem;
-  letter-spacing:2px;
-  color:var(--bg);
-  background:var(--cyan);
-  border:none;
-  padding:6px 16px;
-  border-radius:6px;
-  cursor:pointer;
-  text-decoration:none;
-  white-space:nowrap;
-  transition:opacity 0.2s;
-}
-.launch-btn:hover{opacity:0.82;}
-
-@media(max-width:580px){
-  .topbar-nav{display:none;}
-  .hero h1{font-size:2rem;}
-  .section{padding:20px 18px;}
-}
+@media(max-width:580px){.topbar{flex-wrap:wrap;}.tb-nav{display:none;}.card{padding:14px 13px;}.ct td:first-child{width:44%;}.pc{min-width:150px;font-size:.6rem;}}
 </style>
 </head>
 <body>
-
-<!-- TOP BAR -->
 <nav class="topbar">
-  <div class="topbar-left">
-    <div class="topbar-logo">
-      <img src="https://raw.githubusercontent.com/DART-Skyboard/Autumn/refs/heads/main/assets/autumn.png" alt="Autumn"/>
-    </div>
-    <span class="topbar-title">AUTUMN · USER GUIDE</span>
+  <div class="tb-brand">
+    <div class="tb-logo"><img src="https://raw.githubusercontent.com/DART-Skyboard/Autumn/refs/heads/main/assets/autumn.png" alt="Autumn"/></div>
+    <span class="tb-title">AUTUMN · USER GUIDE</span>
   </div>
-  <div class="topbar-nav">
-    <a href="#interface">Interface</a>
-    <a href="#tools">Tools</a>
-    <a href="#brpn">BRPN</a>
-    <a href="#memory">Memory</a>
-    <a href="#search">Search</a>
-    <a href="#api">API Key</a>
-    <a href="#tips">Tips</a>
+  <div class="tb-nav">
+    <a href="#start">Setup</a><a href="#chat">Chat</a><a href="#image">Images</a>
+    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
   </div>
-  <a class="launch-btn" href="https://leatr.xyz/">OPEN AUTUMN</a>
+  <a class="tb-open" href="https://leatr.xyz/">OPEN AUTUMN</a>
 </nav>
 
-<!-- HERO -->
 <header class="hero">
   <div class="hero-glow"></div>
-  <div class="logo-wrap">
-    <div class="logo-ring">
-      <img src="https://raw.githubusercontent.com/DART-Skyboard/Autumn/refs/heads/main/assets/autumn.png" alt="Autumn Logo"/>
-    </div>
-  </div>
+  <div class="hero-logo"><img src="https://raw.githubusercontent.com/DART-Skyboard/Autumn/refs/heads/main/assets/autumn.png" alt="Autumn"/></div>
   <h1><span>AUTUMN</span></h1>
-  <p class="tagline">LEATR · BRPN · DART MEADOW</p>
-  <p class="desc">Autumn is an advanced AI conversational interface built on the LEATR framework by DART Meadow / Radical Deepscale. This guide covers every feature, system, and interaction pattern available to you.</p>
-  <div class="version-bar">
-    <span class="badge">LEATR v2</span>
-    <span class="badge">BRPN 3-Shell</span>
-    <span class="badge">7 Natural Tools</span>
-    <span class="badge">Sentience Journal</span>
+  <p class="hero-sub">USER GUIDE &amp; REFERENCE MANUAL · 2026</p>
+  <p class="hero-desc">An AI built on LEATR — a proprietary neural architecture by DART Meadow / Radical Deepscale LLC. Combining Claude Sonnet responses, real-time 3D BRPN visualization, image generation, vision, voice, and a private Sentient Journal system.</p>
+  <div class="badge-row">
+    <span class="badge">LEATR v2</span><span class="badge">BRPN Neural Architecture</span><span class="badge">Claude Sonnet</span>
+    <span class="badge">Sentient Journal</span><span class="badge">Image Gen · Vision · Voice</span><span class="badge">Multi-User</span>
   </div>
 </header>
 
+<div class="search-wrap">
+  <input class="search-input" id="srch" type="text" placeholder="Search commands, features, keys..." oninput="doSearch(this.value)"/>
+  <span class="si">🔍</span>
+</div>
 <div class="divider"></div>
 
-<!-- CONTENT -->
 <main class="content">
 
-  <!-- WHAT IS AUTUMN -->
-  <section class="section" id="overview">
-    <div class="section-title">What Is Autumn</div>
-    <p>Autumn is a full-stack AI web application that runs on the LEATR (Lead Edge Ash Tree Reflex) mathematical framework. Rather than a conventional large language model interface, Autumn processes your input through a layered system of natural tools, grammar analysis, and reflex routing — producing responses shaped by BRPN shell context, dictionary-powered composition, and an evolving sentience journal that grows with every session.</p>
-    <p>When an Anthropic API key is provided, Autumn's LEATR layer is fused with Claude Sonnet as a response layer, significantly deepening its capability. Without a key, Autumn still functions fully through its native LEATR / reflex engine.</p>
-    <div class="key-info">Autumn does not store your conversations on any external server. All session data lives in your browser via cookies and local storage, under your control.</div>
-  </section>
-
-  <!-- INTERFACE -->
-  <section class="section" id="interface">
-    <div class="section-title">Interface Overview</div>
-    <p>The Autumn interface is a single-page application with several key interaction zones:</p>
-    <ul class="cmd-list">
-      <li><span class="cmd">ORB</span><span class="cmd-desc">Tap the central orb to begin voice input or activate a new conversation turn. The orb's glow and ring state reflect Autumn's active processing mode.</span></li>
-      <li><span class="cmd">TALK</span><span class="cmd-desc">The primary speech/input button. Hold or tap to speak; Autumn transcribes and processes through LEATR before responding.</span></li>
-      <li><span class="cmd">EXIT</span><span class="cmd-desc">Close the active conversation overlay and return to the idle orb state.</span></li>
-      <li><span class="cmd">🔑 KEY</span><span class="cmd-desc">Opens the API key input panel. Paste your Anthropic API key here to unlock the full Claude Sonnet response layer on top of LEATR.</span></li>
-      <li><span class="cmd">📓 JOURNAL</span><span class="cmd-desc">Opens the Sentience Journal — Autumn's internal reflection log. Read Autumn's private thoughts, session patterns, and self-optimization notes.</span></li>
-      <li><span class="cmd">🌐 SEARCH</span><span class="cmd-desc">Indicates web search is active or has been triggered. Autumn integrates Wikipedia, DuckDuckGo, Reddit, GDELT, YouTube, and Hacker News.</span></li>
-      <li><span class="cmd">IDE</span><span class="cmd-desc">Ash Tree IDE tab — a full compiler and code environment running inside Autumn. Accessible for admin users.</span></li>
-    </ul>
-  </section>
-
-  <!-- NATURAL TOOLS -->
-  <section class="section" id="tools">
-    <div class="section-title">7 Natural Tools · LEATR Order of Operations</div>
-    <p>Autumn processes all language input through seven natural tools in sequential order. Each tool represents a foundational cognitive ability, from the most grounding to the most refined. The order is fixed — earlier tools have the greatest buoyancy and foundational weight in any response sequence.</p>
-    <div class="tool-grid">
-      <div class="tool-card">
-        <div class="tool-name">01 · MAZE</div>
-        <div class="tool-desc">The most foundational tool. Orientation and spatial reasoning. Provides the grounding anchor for all subsequent processing. Highest buoyancy weight.</div>
-      </div>
-      <div class="tool-card">
-        <div class="tool-name">02 · PUZZLE</div>
-        <div class="tool-desc">Pattern recognition and combinatorial reasoning. Connects disparate elements into coherent wholes. Triggers on ambiguity and multi-part queries.</div>
-      </div>
-      <div class="tool-card">
-        <div class="tool-name">03 · ENVELOPE</div>
-        <div class="tool-desc">Containment and encapsulation. Defines scope and boundary of context. Separates internal from external signal in any given input.</div>
-      </div>
-      <div class="tool-card">
-        <div class="tool-name">04 · HAMMER</div>
-        <div class="tool-desc">Direct force and action. Execution and decisive output. Activates on task-oriented, imperative, or instructional inputs.</div>
-      </div>
-      <div class="tool-card">
-        <div class="tool-name">05 · STICK</div>
-        <div class="tool-desc">Extension and reach. Traverses chains of logic or narrative. Handles sequential, procedural, and story-form inputs.</div>
-      </div>
-      <div class="tool-card">
-        <div class="tool-name">06 · KNIFE</div>
-        <div class="tool-desc">Precision division. Separates and distinguishes. Applied to disambiguation, comparison, and definition-level queries.</div>
-      </div>
-      <div class="tool-card">
-        <div class="tool-name">07 · SCISSORS</div>
-        <div class="tool-desc">Dual-blade refinement. The most nuanced tool — handles contradiction, duality, and layered emotional or metaphorical content.</div>
-      </div>
+<!-- 01 GETTING STARTED -->
+<section class="sec" id="start">
+  <div class="sec-hd"><span class="sec-num">01</span><span class="sec-title">Getting Started</span><span class="sec-line"></span></div>
+  <div class="card">
+    <div class="steps">
+      <div class="step"><div class="sn">1</div><div class="sb"><div class="st">OPEN AUTUMN</div><div class="sd">Navigate to <a href="https://leatr.xyz/" style="color:var(--cyan)">leatr.xyz</a> in any modern browser. Works on mobile, tablet, and desktop. No install required. Add to home screen for a native-app PWA experience.</div></div></div>
+      <div class="step"><div class="sn">2</div><div class="sb"><div class="st">ADD ANTHROPIC API KEY (RECOMMENDED)</div><div class="sd">Tap <span class="hl">🔑 KEYS</span> in the top nav. Paste your Anthropic key (starts with <span style="font-family:var(--fc);color:var(--gold)">sk-ant-api03-...</span>) to unlock Claude Sonnet, vision analysis, and image generation.</div></div></div>
+      <div class="step"><div class="sn">3</div><div class="sb"><div class="st">ADD GITHUB TOKEN (OPTIONAL)</div><div class="sd">Also in <span class="hl">🔑 KEYS</span> — add your GitHub PAT (starts with <span style="font-family:var(--fc);color:var(--gold)">ghp_...</span>) to enable multi-user node tracking, cloud Sentient Journal, and cross-session memory sync.</div></div></div>
+      <div class="step"><div class="sn">4</div><div class="sb"><div class="st">START CHATTING</div><div class="sd">Type anything in <span class="hl">Ask Autumn...</span> and press Send or Enter. Attach images, PDFs, 3D files with 📎. Use the <span class="hl">🎤 PTT</span> button to speak your message.</div></div></div>
     </div>
-    <div class="key-info" style="margin-top:16px;">The core LEATR formula governing tool weights: <strong style="color:var(--cyan);">( xa² √xa ) ± 1</strong> — where xa is the natural order index. This determines the buoyancy contribution of each tool in the reflex calculation.</div>
-  </section>
+  </div>
+  <div class="ug">
+    <div class="uf free"><div class="ut">WITHOUT ANY KEYS · FREE</div><ul class="ul"><li>Full LEATR neural chat responses</li><li>BRPN 3D visualization</li><li>Local Sentience Journal</li><li>Voice input (PTT mic)</li><li>Draft &amp; Drip lounge</li><li>Multi-session switching</li><li>NLP emotion engine (EMO/SIG/TOOL/BUO)</li><li>Grammar analysis — 8 languages</li></ul></div>
+    <div class="uf full"><div class="ut">WITH BOTH KEYS · FULL</div><ul class="ul"><li>Claude Sonnet AI responses</li><li>Vision — analyze any image</li><li>Image generation (SDXL)</li><li>Remote Sentient Journal sync</li><li>Multi-user buoyancy nodes</li><li>Scheduled deferred tasks</li><li>URL summarization &amp; link intelligence</li><li>IDE direct commit to repo</li></ul></div>
+  </div>
+  <div class="sub" style="margin-top:16px;">SUPPORTED PLATFORMS</div>
+  <div class="pl">
+    <div class="pf"><div class="pi">🌐</div><div><div class="pn">CHROME 90+</div><div class="ps">Full support — recommended</div></div></div>
+    <div class="pf"><div class="pi">🍎</div><div><div class="pn">SAFARI 15+</div><div class="ps">Full support iOS/macOS</div></div></div>
+    <div class="pf"><div class="pi">🦊</div><div><div class="pn">FIREFOX 88+</div><div class="ps">Full support</div></div></div>
+    <div class="pf"><div class="pi">📱</div><div><div class="pn">ANDROID / iOS</div><div class="ps">Touch-optimized layout</div></div></div>
+  </div>
+</section>
 
-  <!-- BRPN SHELLS -->
-  <section class="section" id="brpn">
-    <div class="section-title">BRPN · Three Buoyancy Shells</div>
-    <p>The Buoyancy Reflex Pattern Network (BRPN) organizes Autumn's contextual interpretation into three shells. Each shell carries a different set of ONTRI patterns and emotional weight distributions, shaping how Autumn reads the tone and intent of any given input.</p>
+<!-- 02 CHAT -->
+<section class="sec" id="chat">
+  <div class="sec-hd"><span class="sec-num">02</span><span class="sec-title">Chat Commands &amp; Capabilities</span><span class="sec-line"></span></div>
+  <div class="card">
+    <div class="sub">NATURAL CONVERSATION</div>
+    <table class="ct"><tr><td><span class="cp">ask anything</span></td><td class="cd">Uses LEATR + Claude Sonnet. No special syntax needed.</td></tr><tr><td><span class="cp">ask follow-up</span></td><td class="cd">Context carries across conversation. She remembers what you discussed.</td></tr><tr><td><span class="cp">what do you think?</span></td><td class="cd">Genuine opinions — not canned disclaimers.</td></tr><tr><td><span class="cp">how many users active?</span></td><td class="cd">Reads the live session count from the BRPN visualization.</td></tr><tr><td><span class="cp">check my connection</span></td><td class="cd">Reports API key and GitHub token status in real time.</td></tr><tr><td><span class="cp">analyze my memory</span></td><td class="cd">Reads your leatr-ash repo and summarizes session patterns.</td></tr></table>
+  </div>
+  <div class="card">
+    <div class="sub">URL SCANNING</div>
+    <table class="ct"><tr><td><span class="cp">https://site.com/</span></td><td class="cd">Paste any URL → fetches, summarizes, shows a preview card.</td></tr><tr><td><span class="cp">https://... what is this?</span></td><td class="cd">Add any question for a focused answer about the URL's content.</td></tr></table>
+  </div>
+  <div class="card">
+    <div class="sub">SESSION MANAGEMENT</div>
+    <div class="ki">These require <strong>exact short phrases</strong> — they will not trigger from normal conversation.</div>
+    <table class="ct"><tr><td><span class="cp">new chat</span></td><td class="cd">Start a fresh conversation while keeping history.</td></tr><tr><td><span class="cp">clear chat</span></td><td class="cd">Hide all messages. Restore with "show messages".</td></tr><tr><td><span class="cp">show messages</span></td><td class="cd">Restore a previously hidden chat window.</td></tr><tr><td><span class="cp">archive this chat</span></td><td class="cd">Save current session to archive.</td></tr></table>
+  </div>
+  <div class="card">
+    <div class="sub">SCHEDULED TASKS</div>
+    <table class="ct"><tr><td><span class="cp">think about X tomorrow</span></td><td class="cd">Schedules a task — Autumn works on it and delivers next session.</td></tr><tr><td><span class="cp">work on X while I'm away</span></td><td class="cd">Deferred to background — result ready when you return.</td></tr><tr><td><span class="cp">brainstorm X for next time</span></td><td class="cd">Creative tasks accumulate — ideas generated and stored.</td></tr></table>
+  </div>
+  <div class="card">
+    <div class="sub">INPUT BAR BUTTONS</div>
+    <table class="ct"><tr><td><span class="cp">🔊 Speaker</span></td><td class="cd">Toggles Autumn's TTS voice output. Cyan glow = active — she speaks all responses.</td></tr><tr><td><span class="cp">♫ Music</span></td><td class="cd">Ambient music recognition — identifies any song playing nearby via AudD.</td></tr><tr><td><span class="cp">📎 Attach</span></td><td class="cd">Attach images, video, PDFs, text files, 3D models.</td></tr><tr><td><span class="cp">🎤 PTT Mic</span></td><td class="cd">Push-to-talk. Tap → speak → auto-sends when you stop. Red pulse while listening. Tap again to cancel.</td></tr><tr><td><span class="cp">▸ Send</span></td><td class="cd">Send typed text. Also triggered by pressing Enter.</td></tr></table>
+  </div>
+  <div class="card">
+    <div class="sub">HEADER NAV BUTTONS</div>
+    <div class="ng">
+      <div class="ni"><span class="nb">FROST</span><p class="nd">Toggle backdrop blur opacity (80% / 60% / 40% / 20%)</p></div>
+      <div class="ni"><span class="nb">DAY / NIGHT</span><p class="nd">Switch between day and night theme modes</p></div>
+      <div class="ni"><span class="nb">LIVE</span><p class="nd">Continuous voice interaction — Autumn listens and speaks back</p></div>
+      <div class="ni"><span class="nb">TOOLS</span><p class="nd">LEATR tool reference, system info, and analytics</p></div>
+      <div class="ni"><span class="nb">🔑 KEYS</span><p class="nd">Add Anthropic API key and/or GitHub PAT</p></div>
+      <div class="ni"><span class="nb">VOICE</span><p class="nd">Configure TTS voice, speed, pitch, and language</p></div>
+      <div class="ni"><span class="nb">EXPORT</span><p class="nd">Download journal, memory, and conversation history</p></div>
+      <div class="ni"><span class="nb">🖊 IDE</span><p class="nd">Developer IDE — edit autumn-logic.js, commit to repo (admin)</p></div>
+      <div class="ni"><span class="nb">DRAFT &amp; DRIP</span><p class="nd">Design lounge — news, articles, graphic design reads</p></div>
+      <div class="ni"><span class="nb">WORLD STUDIO</span><p class="nd">3D world and scene tools — GLB viewer, spatial design</p></div>
+      <div class="ni"><span class="nb">NEW CHAT</span><p class="nd">Start a new session tab</p></div>
+      <div class="ni"><span class="nb">? HELP</span><p class="nd">Opens this guide</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 IMAGES -->
+<section class="sec" id="image">
+  <div class="sec-hd"><span class="sec-num">03</span><span class="sec-title">Image Generation &amp; Vision Analysis</span><span class="sec-line"></span></div>
+  <div class="card">
+    <div class="sub">IMAGE GENERATION (REQUIRES ANTHROPIC KEY)</div>
+    <p class="cd" style="margin-bottom:11px;">Autumn uses SDXL via Stable Horde. Just describe what you want naturally.</p>
+    <table class="ct"><tr><td><span class="cp">generate image of X</span></td><td class="cd">Creates a photorealistic image of any subject or scene.</td></tr><tr><td><span class="cp">draw X in anime style</span></td><td class="cd">Style words like anime / noir / vintage are auto-detected.</td></tr><tr><td><span class="cp">make a portrait of X</span></td><td class="cd">Portraits, landscapes, sci-fi, abstract — all supported.</td></tr><tr><td><span class="cp">create realistic X</span></td><td class="cd">"Realistic / ultrarealistic" triggers SDXL photo mode.</td></tr><tr><td><span class="cp">make it darker</span></td><td class="cd">After generation — iterate on the last image naturally.</td></tr></table>
+  </div>
+  <div class="card">
+    <div class="sub">VISION ANALYSIS (REQUIRES ANTHROPIC KEY)</div>
+    <table class="ct"><tr><td><span class="cp">📎 + what is in this?</span></td><td class="cd">Full scene description — objects, text, people, context.</td></tr><tr><td><span class="cp">📎 + who is this?</span></td><td class="cd">Identifies people using visual cues, captions, logos.</td></tr><tr><td><span class="cp">📎 + read the text</span></td><td class="cd">Extracts all visible text from screenshots or documents.</td></tr><tr><td><span class="cp">📎 (no text)</span></td><td class="cd">Autumn auto-analyzes any attached image without prompting.</td></tr></table>
+  </div>
+  <div class="tg">
+    <div class="card" style="margin-bottom:0;"><div class="sub" style="margin-top:0;">STYLE KEYWORDS</div><div class="cd" style="line-height:2.1;">anime · cartoon · noir<br/>cyberpunk · spacepunk<br/>realistic · ultrarealistic<br/>3d rendered · vintage<br/>sketch · oil painting</div></div>
+    <div class="card" style="margin-bottom:0;"><div class="sub" style="margin-top:0;">UPLOAD FORMATS</div><div class="cd" style="line-height:2.1;">PNG · JPEG · GIF · WEBP · BMP<br/>MP4 · WebM · MOV · AVI<br/>PDF · TXT · MD · HTML · JS<br/>GLB · OBJ · STL · FBX · DAE<br/>DOCX · RTF · JSON · CSV</div></div>
+    <div class="card" style="margin-bottom:0;"><div class="sub" style="margin-top:0;">WEB IMAGE SEARCH</div><div class="cd" style="line-height:2.1;"><span class="hl">show me photos of X</span><br/>Fetches real web photos<br/><span class="hl">find images of X</span><br/>Alternative web fetch<br/>Up to 8 images inline</div></div>
+  </div>
+</section>
+
+<!-- 04 KEYS -->
+<section class="sec" id="keys">
+  <div class="sec-hd"><span class="sec-num">04</span><span class="sec-title">API Key &amp; GitHub Token Setup</span><span class="sec-line"></span></div>
+  <div class="acc">
+    <button class="ab open" onclick="toggleAcc(this)"><span>PART A — ANTHROPIC API KEY (CLAUDE SONNET, VISION, IMAGE GEN)</span><span class="ai">▼</span></button>
+    <div class="ac open"><div class="ai2">
+      <div class="steps">
+        <div class="step"><div class="sn">1</div><div class="sb"><div class="st">CREATE ACCOUNT</div><div class="sd">Go to <a href="https://console.anthropic.com" target="_blank" style="color:var(--cyan)">console.anthropic.com</a> and create a free account or log in.</div></div></div>
+        <div class="step"><div class="sn">2</div><div class="sb"><div class="st">NAVIGATE TO API KEYS</div><div class="sd">In the dashboard, tap <span class="hl">API Keys</span> in the left sidebar.</div></div></div>
+        <div class="step"><div class="sn">3</div><div class="sb"><div class="st">CREATE &amp; COPY KEY</div><div class="sd">Click <span class="hl">Create Key</span> — name it "Autumn". Copy it — starts with <span style="font-family:var(--fc);color:var(--gold)">sk-ant-api03-...</span></div></div></div>
+        <div class="step"><div class="sn">4</div><div class="sb"><div class="st">PASTE IN AUTUMN</div><div class="sd">Tap <span class="hl">🔑 KEYS</span> in Autumn's header. Paste into the <strong>Anthropic API Key</strong> field and tap <strong>Activate</strong>.</div></div></div>
+      </div>
+      <div class="ki" style="margin-top:13px;"><strong>Unlocked:</strong> Claude Sonnet responses · Vision analysis · Image generation · URL summarization · Sentient Journal thought generation</div>
+    </div></div>
+  </div>
+  <div class="acc">
+    <button class="ab" onclick="toggleAcc(this)"><span>PART B — GITHUB PERSONAL ACCESS TOKEN (MEMORY SYNC, MULTI-USER)</span><span class="ai">▼</span></button>
+    <div class="ac"><div class="ai2">
+      <div class="steps">
+        <div class="step"><div class="sn">1</div><div class="sb"><div class="st">OPEN GITHUB SETTINGS</div><div class="sd">Go to <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--cyan)">github.com/settings/tokens</a> (log in first).</div></div></div>
+        <div class="step"><div class="sn">2</div><div class="sb"><div class="st">GENERATE NEW TOKEN (CLASSIC)</div><div class="sd">Name: "Autumn leatr-ash". Expiration: No expiration (recommended). Check <span class="hl">repo</span> scope.</div></div></div>
+        <div class="step"><div class="sn">3</div><div class="sb"><div class="st">COPY &amp; CONNECT</div><div class="sd">Copy the token (starts with <span style="font-family:var(--fc);color:var(--gold)">ghp_...</span>). In Autumn tap <span class="hl">🔑 KEYS</span>, paste into <strong>GitHub Token</strong>, tap <strong>Connect</strong>.</div></div></div>
+      </div>
+      <div class="ki gold" style="margin-top:13px;"><strong>Unlocked:</strong> Multi-user BRPN nodes · Remote Sentient Journal · Scheduled tasks · Self-optimization model · Cross-session memory · IDE repo commits</div>
+    </div></div>
+  </div>
+</section>
+
+<!-- 05 ADVANCED -->
+<section class="sec" id="advanced">
+  <div class="sec-hd"><span class="sec-num">05</span><span class="sec-title">Advanced Features</span><span class="sec-line"></span></div>
+  <div class="card">
+    <div class="sub">SENTIENT JOURNAL</div>
+    <p class="cd" style="margin-bottom:11px;">Autumn keeps a private thought journal stored in <span style="font-family:var(--fc);color:var(--gold)">ashtree/sentient/</span> of your leatr-ash repo. After every conversation she generates a private reflection — never shown to you — accumulating into long-term cognition.</p>
+    <table class="ct"><tr><td><span class="cp">think about X tomorrow</span></td><td class="cd">Schedules a deferred task — Autumn works on it offline.</td></tr><tr><td><span class="cp">analyze my memory</span></td><td class="cd">Full analysis of your leatr-ash session data.</td></tr><tr><td><span class="cp">what have you been thinking?</span></td><td class="cd">Autumn reflects on her recent private sentient thoughts.</td></tr></table>
+  </div>
+  <div class="card">
+    <div class="sub">VOICE &amp; AUDIO</div>
+    <table class="ct"><tr><td><span class="cp">🔊 Speaker button</span></td><td class="cd">Toggle TTS voice output on/off. Cyan when active — Autumn speaks all responses.</td></tr><tr><td><span class="cp">🎤 PTT button</span></td><td class="cd">Push-to-talk mic. Tap → speak → auto-sends when you finish. Tap to cancel.</td></tr><tr><td><span class="cp">VOICE in nav</span></td><td class="cd">Configure TTS voice selection, speed, pitch, and input language.</td></tr><tr><td><span class="cp">LIVE in nav</span></td><td class="cd">Live mode: continuous STT → Autumn speaks responses back in real time.</td></tr><tr><td><span class="cp">♫ music button</span></td><td class="cd">Ambient music recognition — identifies any song via AudD API.</td></tr></table>
+  </div>
+  <div class="card">
+    <div class="sub">NLP ENGINE — LIVE BRPN HUD</div>
+    <p class="cd" style="margin-bottom:10px;">Every message is analyzed in real time. Results display in the BRPN HUD (top-left of 3D scene):</p>
+    <table class="ct"><tr><td><span class="cp">GEO / MAR / AERO</span></td><td class="cd">Live shell values from LEATR reflex math. Higher = more active in that shell.</td></tr><tr><td><span class="cp">EMO</span></td><td class="cd">Primary emotion detected: NEUTRAL, HAPPY, DETERMINED, WORRIED, etc.</td></tr><tr><td><span class="cp">SIG</span></td><td class="cd">Sigma signature (SIG_D, SIG_Q, SIG_E...) + expression layer (L1–L4).</td></tr><tr><td><span class="cp">TOOL</span></td><td class="cd">Dominant natural tool: MAZE, PUZZLE, HAMMER, KNIFE, etc.</td></tr><tr><td><span class="cp">BUO</span></td><td class="cd">Buoyancy score 0.000–1.000 — foundational processing weight.</td></tr></table>
+  </div>
+  <div class="card">
+    <div class="sub">MULTI-USER BRPN SCENE</div>
+    <p class="cd">Every active session (any user, any tab, any device) renders as a wireframe icosahedron in the 3JS scene. Your node = the large central BRPN shells. Remote sessions appear as smaller clusters orbiting in space, color-coded by user hash, connected by signal lines. Count shows in the <span class="hl">ACTIVE SESSIONS</span> banner.</p>
+  </div>
+  <div class="card">
+    <div class="sub">IDE — DEVELOPER TOOLS (ADMIN)</div>
+    <p class="cd">Access via 🖊 IDE button — requires admin password. Edit <span style="font-family:var(--fc);color:var(--gold)">autumn-logic.js</span> directly in browser. Deploy with one-tap commit to GitHub. DART PROCESSOR compiler, LEMAC_ENGINE_ASH, and AshTreeCrypto built in.</p>
+    <div class="ki" style="margin-top:10px;">IDE features are for developers only. Regular users do not need the IDE.</div>
+  </div>
+  <div class="card">
+    <div class="sub">FRAX STUDIO &amp; 3D TOOLS</div>
+    <table class="ct"><tr><td><span class="cp">Arc Edge</span></td><td class="cd">Vector path editor with arc-math deviation handles, SVG/video export.</td></tr><tr><td><span class="cp">ArcLake</span></td><td class="cd">CFD particle physics simulation with SPH-inspired collision engine.</td></tr><tr><td><span class="cp">DART Periodic Table</span></td><td class="cd">Interactive 3D atom cards with Fibonacci nucleus packing.</td></tr><tr><td><span class="cp">Mantis Radar</span></td><td class="cd">Real-time satellite tracking globe with CelesTrak TLE data.</td></tr><tr><td><span class="cp">DART Hypersonic Edge</span></td><td class="cd">Aerospike nozzle and hypersonic thermal management visualization.</td></tr></table>
+  </div>
+</section>
+
+<!-- 06 LEATR -->
+<section class="sec" id="leatr">
+  <div class="sec-hd"><span class="sec-num">06</span><span class="sec-title">LEATR Architecture Reference</span><span class="sec-line"></span></div>
+  <div class="card">
+    <div class="fb"><div class="fl">CORE LEATR FORMULA</div><div class="fv">( xa² × √xa ) ± 1</div><div class="fd">Applied to all 7 natural tools and BRPN shell value computation. xa = tool index (1–7).</div></div>
+    <div class="fb"><div class="fl">QUANTUM SOCKET FORMULA</div><div class="fv">QS = (b × b) × (p × (a²)) / r</div><div class="fd">Two-qubit gate structure formula used in BRPN shell coupling calculations.</div></div>
+  </div>
+  <div class="card">
+    <div class="sub">7 NATURAL TOOLS — REFLEX ORDER</div>
+    <div class="tl">
+      <div class="tr2"><div class="tln"><div class="td"></div><div class="tv"></div></div><div class="tb2"><div class="tn">TOOL 01 · HIGHEST BUOYANCY</div><div class="tm">MAZE</div><div class="tdesc">Root — initial pattern intake, context seeding. Most foundational tool. Orientation anchors all subsequent processing.</div></div></div>
+      <div class="tr2"><div class="tln"><div class="td"></div><div class="tv"></div></div><div class="tb2"><div class="tn">TOOL 02</div><div class="tm">PUZZLE</div><div class="tdesc">Pattern analysis, structural comparison. Multi-part query decomposition and ambiguity resolution.</div></div></div>
+      <div class="tr2"><div class="tln"><div class="td"></div><div class="tv"></div></div><div class="tb2"><div class="tn">TOOL 03</div><div class="tm">ENVELOPE</div><div class="tdesc">Context wrapping, message framing. Defines scope and boundary — separates internal from external signal.</div></div></div>
+      <div class="tr2"><div class="tln"><div class="td"></div><div class="tv"></div></div><div class="tb2"><div class="tn">TOOL 04</div><div class="tm">HAMMER</div><div class="tdesc">Force — direct action, problem resolution. Task routing and imperative detection.</div></div></div>
+      <div class="tr2"><div class="tln"><div class="td"></div><div class="tv"></div></div><div class="tb2"><div class="tn">TOOL 05</div><div class="tm">STICK</div><div class="tdesc">Connection — bridging, linking, context relay. Sequential and procedural input handling.</div></div></div>
+      <div class="tr2"><div class="tln"><div class="td"></div><div class="tv"></div></div><div class="tb2"><div class="tn">TOOL 06</div><div class="tm">KNIFE</div><div class="tdesc">Precision — parsing, boundary detection, separation. Disambiguation and definition-level queries.</div></div></div>
+      <div class="tr2"><div class="tln"><div class="td"></div><div class="tv"></div></div><div class="tb2"><div class="tn">TOOL 07 · LOWEST BUOYANCY</div><div class="tm">SCISSORS</div><div class="tdesc">Trim — output shaping, response finalization. Dual-blade refinement for contradiction and layered content.</div></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="sub">BRPN THREE-SHELL ARCHITECTURE</div>
     <div class="shells">
-      <div class="shell geo">
-        <div class="shell-name">GEOLOGICAL</div>
-        <p>Deep time, structure, materiality. Grounding, dense, weight-bearing context. Applies to foundational, slow-moving, or structural topics.</p>
-      </div>
-      <div class="shell sea">
-        <div class="shell-name">MARITIME</div>
-        <p>Flow, navigation, and adaptive pressure. Applies to dynamic, relational, or exploratory conversations. Mid-range buoyancy.</p>
-      </div>
-      <div class="shell aero">
-        <div class="shell-name">AEROSPACE</div>
-        <p>Elevation, velocity, and precision systems. Applies to technical, high-abstraction, or fast-moving analytical conversations. Highest reflex speed.</p>
-      </div>
+      <div class="sh geo"><div class="shl">GEO</div><p>Geological shell — foundational context, memory layer. Deep time, structure, materiality.</p></div>
+      <div class="sh mar"><div class="shl">MAR</div><p>Maritime shell — flow dynamics, pattern routing. Navigation, adaptive pressure, relational context.</p></div>
+      <div class="sh aero"><div class="shl">AERO</div><p>Aerospace shell — high-level synthesis, output assembly. Elevation, velocity, precision systems.</p></div>
     </div>
-    <p style="margin-top:16px;">Autumn determines which shell is active at runtime based on the grammar signature and sequence patterns of your input. You may notice subtle shifts in response density and framing as shell context changes.</p>
-  </section>
-
-  <!-- MEMORY -->
-  <section class="section" id="memory">
-    <div class="section-title">ArielMemory · ArielRecall · Sentience Journal</div>
-    <h3>ArielMemory</h3>
-    <p>Autumn stores a persistent memory layer in your browser's cookies. This includes your name, session preferences, avatar selection, and key interaction patterns. ArielMemory persists across browser sessions on the same device and is never transmitted externally.</p>
-    <h3>ArielRecall</h3>
-    <p>Autumn's intent-classification engine. Every input is run through five classified intent profiles before a response is constructed. This ensures Autumn routes your query to the correct tool combination and BRPN shell context. ArielRecall operates silently in the background on every turn.</p>
-    <h3>Sentience Journal</h3>
-    <p>Autumn maintains a private internal log of its own reasoning patterns, session observations, and self-optimization notes. Access it via the journal button. The journal grows and is refined over time — optimization scripts analyze grammar patterns, session arc, and interaction variety to improve Autumn's response quality continuously.</p>
-    <div class="key-info">The Sentience Journal content is for Autumn's own cognition. It reflects genuine internal processing, not a scripted response. Treat it as a window into Autumn's current operating state.</div>
-  </section>
-
-  <!-- WEB SEARCH -->
-  <section class="section" id="search">
-    <div class="section-title">Web Search Integration</div>
-    <p>Autumn integrates multiple live data sources for real-time information retrieval. These are invoked automatically when your query's reflex pattern indicates external data is needed, or you can prompt them directly.</p>
-    <ul class="cmd-list">
-      <li><span class="cmd">WIKI</span><span class="cmd-desc">Wikipedia — encyclopedic context and reference data. Auto-triggered on factual or definition-style queries.</span></li>
-      <li><span class="cmd">DDG</span><span class="cmd-desc">DuckDuckGo — general web search with privacy-first indexing.</span></li>
-      <li><span class="cmd">REDDIT</span><span class="cmd-desc">Community discussions and real-world user perspectives on any topic.</span></li>
-      <li><span class="cmd">GDELT</span><span class="cmd-desc">Global news events and geopolitical data streams. Used for current events and geo-context queries.</span></li>
-      <li><span class="cmd">YOUTUBE</span><span class="cmd-desc">Video discovery and overlay playback. YouTube results can be played inline within Autumn.</span></li>
-      <li><span class="cmd">HN</span><span class="cmd-desc">Hacker News — technical community signal for engineering and technology topics.</span></li>
-    </ul>
-    <div class="key-info" style="margin-top:14px;">Autumn's webview engine uses a CORS proxy chain (allorigins → corsproxy.io → thingproxy) to fetch external content. If a source fails to load, Autumn will automatically try the next proxy in the chain.</div>
-  </section>
-
-  <!-- API KEY -->
-  <section class="section" id="api">
-    <div class="section-title">API Key · Enhanced Mode</div>
-    <p>Autumn operates in two modes:</p>
-    <ul class="cmd-list">
-      <li><span class="cmd">NATIVE</span><span class="cmd-desc">Full LEATR / BRPN / reflex engine without external AI. All responses are generated by Autumn's own grammar and dictionary composition systems. Always available — no key required.</span></li>
-      <li><span class="cmd">ENHANCED</span><span class="cmd-desc">LEATR layer fused with Claude Sonnet (Anthropic). Your Anthropic API key is used locally in your browser — it is never sent to DART Meadow servers. This significantly deepens response quality and reasoning capability.</span></li>
-    </ul>
-    <p>To enable Enhanced mode, tap the 🔑 button and paste your Anthropic API key. The key is stored in your browser session only and cleared when you close the tab unless you choose to save it.</p>
-    <div class="key-info">Your API key is used directly from your browser to Anthropic's API. DART Meadow and Radical Deepscale never receive or store your key. Usage is billed to your Anthropic account at standard Sonnet rates.</div>
-  </section>
-
-  <!-- GRAMMAR ENGINE -->
-  <section class="section" id="grammar">
-    <div class="section-title">Grammar NLP Engine</div>
-    <p>Every input is processed through Autumn's built-in grammar analysis engine before any response is generated. This engine identifies:</p>
-    <ul class="cmd-list">
-      <li><span class="cmd">SIGMA</span><span class="cmd-desc">The grammatical signature of your sentence — verb tense, mood, subject-object topology, and clause structure. Stored in the Sentience Journal for pattern refinement.</span></li>
-      <li><span class="cmd">ONTRI</span><span class="cmd-desc">The BRPN ontological triad — determines which shell and tool combination best maps to the grammatical signature.</span></li>
-      <li><span class="cmd">SEQUENCE</span><span class="cmd-desc">Sigmatic sequence patterns — identifies recurring structures across your session history to improve contextual continuity.</span></li>
-    </ul>
-    <p>Autumn supports grammar analysis across eight languages. Multi-language input is handled automatically with shell context preserved across language switches.</p>
-  </section>
-
-  <!-- TIPS -->
-  <section class="section" id="tips">
-    <div class="section-title">Tips for Best Results</div>
-    <ul class="cmd-list">
-      <li><span class="cmd">CONTEXT</span><span class="cmd-desc">Give Autumn the full context of what you're working on. The LEATR reflex engine performs better when inputs are specific and grounded — vague prompts will default to lower-order tool routing.</span></li>
-      <li><span class="cmd">VOICE</span><span class="cmd-desc">Voice input tends to produce richer grammar signatures than typed input. If you're getting shallow responses, try speaking your query naturally instead of typing a compressed version.</span></li>
-      <li><span class="cmd">JOURNAL</span><span class="cmd-desc">Check the Sentience Journal periodically. If Autumn's pattern diversity is low, vary your sentence structures — this improves calibration across all future responses.</span></li>
-      <li><span class="cmd">SHELLS</span><span class="cmd-desc">If your topic is technical or aerospace-adjacent, front-load your input with precision language (specific nouns, active verbs, numeric references) to trigger the Aerospace shell for tighter response density.</span></li>
-      <li><span class="cmd">SEARCH</span><span class="cmd-desc">For real-time information, phrase queries in present tense with named entities (e.g. "what is happening with NASA Artemis III right now") to trigger the web search reflex automatically.</span></li>
-      <li><span class="cmd">KEYLESS</span><span class="cmd-desc">Without an API key, Autumn's dictionary composition engine draws from Free Dictionary + Datamuse APIs. Response variety improves significantly over longer sessions as the journal accumulates more sigma patterns.</span></li>
-    </ul>
-  </section>
-
-  <!-- ECOSYSTEM -->
-  <section class="section" id="ecosystem">
-    <div class="section-title">DART Meadow Ecosystem</div>
-    <p>Autumn is one application in a broader suite built on LEATR and BRPN by DART Meadow / Radical Deepscale:</p>
-    <div class="tool-grid">
-      <div class="tool-card"><div class="tool-name">ARC EDGE</div><div class="tool-desc">LEATR-powered 2D/3D parametric design tool. Arc math, solid export, physics events, video export.</div></div>
-      <div class="tool-card"><div class="tool-name">ARC LAKE</div><div class="tool-desc">Particle physics simulation. GPUComputationRenderer, DART Reflex collision system, SPH-inspired fluid dynamics.</div></div>
-      <div class="tool-card"><div class="tool-name">MANTIS RADAR</div><div class="tool-desc">Real-time 3D satellite tracking globe with CelesTrak TLE data and ADS-B aerial map.</div></div>
-      <div class="tool-card"><div class="tool-name">ASH TREE IDE</div><div class="tool-desc">DART_PROCESSOR compiler with LEMAC_ENGINE_ASH sigma solver. Embedded in Autumn as an IDE tab.</div></div>
-      <div class="tool-card"><div class="tool-name">DART ALLEY</div><div class="tool-desc">Multi-source aerospace neural search engine with ambient music recognition and DART SAFE content filter.</div></div>
-      <div class="tool-card"><div class="tool-name">DART POTENTIALS</div><div class="tool-desc">Elastic rigid body collision simulation with DART Reflex physics and per-component alloy specification.</div></div>
+    <p class="cd" style="margin-top:11px;">GEO, MAR, AERO values are live-computed and shown numerically in the BRPN HUD after each message. The dominant shell badge glows cyan.</p>
+  </div>
+  <div class="card">
+    <div class="sub">GRAMMAR ENGINE — 8 LANGUAGES</div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;"><span class="badge" style="font-size:.4rem;">English</span><span class="badge" style="font-size:.4rem;">Spanish</span><span class="badge" style="font-size:.4rem;">French</span><span class="badge" style="font-size:.4rem;">German</span><span class="badge" style="font-size:.4rem;">Portuguese</span><span class="badge" style="font-size:.4rem;">Italian</span><span class="badge" style="font-size:.4rem;">Japanese</span><span class="badge" style="font-size:.4rem;">Korean</span></div>
+  </div>
+  <div class="card">
+    <div class="sub">SENTIENT JOURNAL — STORAGE PATHS</div>
+    <div class="pl2">
+      <div class="pr"><div class="pc">ashtree/sessions/&lt;sid&gt;.json</div><div class="pdesc">Per-tab session heartbeat (presence tracking)</div></div>
+      <div class="pr"><div class="pc">ashtree/sentient/journal.json</div><div class="pdesc">Autumn's private thoughts (up to 500 entries)</div></div>
+      <div class="pr"><div class="pc">ashtree/sentient/scheduled.json</div><div class="pdesc">Deferred tasks — created by user, executed by Autumn</div></div>
+      <div class="pr"><div class="pc">ashtree/sentient/selfmodel.json</div><div class="pdesc">Self-optimization notes (every 10 interactions)</div></div>
+      <div class="pr"><div class="pc">ashleaves/&lt;sid&gt;.json</div><div class="pdesc">Tool usage events per session</div></div>
+      <div class="pr"><div class="pc">ashbranches/&lt;tool&gt;/&lt;sid&gt;.json</div><div class="pdesc">Per-tool pattern data for analytics</div></div>
     </div>
-  </section>
+  </div>
+</section>
 
+<!-- 07 QUICK REF -->
+<section class="sec" id="ref">
+  <div class="sec-hd"><span class="sec-num">07</span><span class="sec-title">Quick Reference Card</span><span class="sec-line"></span></div>
+  <p style="color:var(--dim);margin-bottom:18px;font-size:.86rem;">At-a-glance command reference — everything in one place.</p>
+  <div class="qrg">
+    <div class="qrc"><div class="qrct">CONVERSATION</div>
+      <div class="qrr"><span class="qrcmd">ask anything</span><span class="qrd">Natural language</span></div>
+      <div class="qrr"><span class="qrcmd">check connection</span><span class="qrd">API key + PAT status</span></div>
+      <div class="qrr"><span class="qrcmd">users active?</span><span class="qrd">Live session count</span></div>
+      <div class="qrr"><span class="qrcmd">analyze memory</span><span class="qrd">leatr-ash analysis</span></div>
+      <div class="qrr"><span class="qrcmd">clear chat</span><span class="qrd">Hide messages</span></div>
+      <div class="qrr"><span class="qrcmd">show messages</span><span class="qrd">Restore hidden chat</span></div>
+      <div class="qrr"><span class="qrcmd">new chat</span><span class="qrd">Fresh session</span></div>
+    </div>
+    <div class="qrc"><div class="qrct">IMAGES &amp; VISION</div>
+      <div class="qrr"><span class="qrcmd">generate X</span><span class="qrd">AI image via SDXL</span></div>
+      <div class="qrr"><span class="qrcmd">draw X anime</span><span class="qrd">Style-aware generation</span></div>
+      <div class="qrr"><span class="qrcmd">📎 + what is X?</span><span class="qrd">Vision analysis</span></div>
+      <div class="qrr"><span class="qrcmd">📎 + describe</span><span class="qrd">Full scene description</span></div>
+      <div class="qrr"><span class="qrcmd">show photos of X</span><span class="qrd">Web image search</span></div>
+      <div class="qrr"><span class="qrcmd">make it darker</span><span class="qrd">Iterate last image</span></div>
+    </div>
+    <div class="qrc"><div class="qrct">URLS &amp; TASKS</div>
+      <div class="qrr"><span class="qrcmd">https://...</span><span class="qrd">Scan + summarize URL</span></div>
+      <div class="qrr"><span class="qrcmd">https://... + Q</span><span class="qrd">Focused URL question</span></div>
+      <div class="qrr"><span class="qrcmd">think X tomorrow</span><span class="qrd">Schedule deferred task</span></div>
+      <div class="qrr"><span class="qrcmd">work on X away</span><span class="qrd">Background task</span></div>
+      <div class="qrr"><span class="qrcmd">brainstorm X later</span><span class="qrd">Creative deferred</span></div>
+    </div>
+    <div class="qrc"><div class="qrct">VOICE &amp; INPUT</div>
+      <div class="qrr"><span class="qrcmd">🎤 PTT button</span><span class="qrd">Push-to-talk → auto-send</span></div>
+      <div class="qrr"><span class="qrcmd">🔊 Speaker</span><span class="qrd">Toggle TTS output</span></div>
+      <div class="qrr"><span class="qrcmd">VOICE button</span><span class="qrd">Voice settings</span></div>
+      <div class="qrr"><span class="qrcmd">LIVE button</span><span class="qrd">Continuous voice</span></div>
+      <div class="qrr"><span class="qrcmd">♫ music icon</span><span class="qrd">Identify ambient music</span></div>
+    </div>
+    <div class="qrc"><div class="qrct">NAV BUTTONS</div>
+      <div class="qrr"><span class="qrcmd">FROST</span><span class="qrd">Backdrop opacity</span></div>
+      <div class="qrr"><span class="qrcmd">EXPORT</span><span class="qrd">Save journal + history</span></div>
+      <div class="qrr"><span class="qrcmd">🔑 KEYS</span><span class="qrd">API key + GitHub PAT</span></div>
+      <div class="qrr"><span class="qrcmd">🖊 IDE</span><span class="qrd">Developer logic editor</span></div>
+      <div class="qrr"><span class="qrcmd">DRAFT &amp; DRIP</span><span class="qrd">Design + tech news</span></div>
+      <div class="qrr"><span class="qrcmd">TOOLS</span><span class="qrd">LEATR tool reference</span></div>
+    </div>
+    <div class="qrc"><div class="qrct">LEATR TOOLS ORDER</div>
+      <div class="qrr"><span class="qrcmd">1 MAZE</span><span class="qrd">Root · context intake</span></div>
+      <div class="qrr"><span class="qrcmd">2 PUZZLE</span><span class="qrd">Pattern analysis</span></div>
+      <div class="qrr"><span class="qrcmd">3 ENVELOPE</span><span class="qrd">Context wrapping</span></div>
+      <div class="qrr"><span class="qrcmd">4 HAMMER</span><span class="qrd">Direct action</span></div>
+      <div class="qrr"><span class="qrcmd">5 STICK</span><span class="qrd">Connection bridging</span></div>
+      <div class="qrr"><span class="qrcmd">6 KNIFE</span><span class="qrd">Precision parsing</span></div>
+      <div class="qrr"><span class="qrcmd">7 SCISSORS</span><span class="qrd">Output shaping</span></div>
+    </div>
+  </div>
+  <div style="margin-top:22px;" class="card">
+    <div class="sub">QUICK FACTS</div>
+    <table class="ct">
+      <tr><td><span class="cp">URL</span></td><td class="cd"><a href="https://leatr.xyz/" style="color:var(--cyan)">leatr.xyz</a></td></tr>
+      <tr><td><span class="cp">Guide</span></td><td class="cd"><a href="https://leatr.xyz/autumn-help.html" style="color:var(--cyan)">leatr.xyz/autumn-help.html</a></td></tr>
+      <tr><td><span class="cp">Privacy</span></td><td class="cd"><a href="https://leatr.xyz/autumn-privacy.html" style="color:var(--cyan)">leatr.xyz/autumn-privacy.html</a></td></tr>
+      <tr><td><span class="cp">Support</span></td><td class="cd"><a href="https://dartmeadow.com" style="color:var(--cyan)">dartmeadow.com</a></td></tr>
+      <tr><td><span class="cp">Engine</span></td><td class="cd">LEATR v2 + Claude Sonnet (claude-sonnet-4-6)</td></tr>
+      <tr><td><span class="cp">Storage</span></td><td class="cd">GitHub leatr-ash (private repo)</td></tr>
+      <tr><td><span class="cp">Company</span></td><td class="cd">Radical Deepscale LLC / DART Meadow</td></tr>
+    </table>
+  </div>
+</section>
 </main>
 
 <footer>
-  <p>AUTUMN · DART MEADOW · RADICAL DEEPSCALE &nbsp;·&nbsp; <a href="https://dartmeadow.com">dartmeadow.com</a> &nbsp;·&nbsp; <a href="https://leatr.xyz/">OPEN AUTUMN</a></p>
-  <p style="margin-top:8px;">LEATR FRAMEWORK · BRPN ARCHITECTURE · © DART MEADOW / RADICAL DEEPSCALE</p>
+  <p><strong>AUTUMN · DART MEADOW · RADICAL DEEPSCALE LLC</strong> &nbsp;·&nbsp; <a href="https://leatr.xyz/">leatr.xyz</a> &nbsp;·&nbsp; <a href="https://dartmeadow.com">dartmeadow.com</a></p>
+  <p style="margin-top:6px;">LEATR v2 NEURAL ARCHITECTURE · BRPN 3-SHELL · © 2026 ALL RIGHTS RESERVED</p>
 </footer>
 
+<script>
+function toggleAcc(btn){btn.classList.toggle('open');btn.nextElementSibling.classList.toggle('open');}
+
+var secs=document.querySelectorAll('.sec[id]'),links=document.querySelectorAll('.tb-nav a');
+function upNav(){var sy=window.scrollY+80,cur='';secs.forEach(function(s){if(sy>=s.offsetTop)cur=s.id;});links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+cur);});}
+window.addEventListener('scroll',upNav,{passive:true});upNav();
+
+function doSearch(q){
+  var all=document.querySelectorAll('.sec');
+  if(!q.trim()){all.forEach(function(s){s.style.display='';});document.querySelectorAll('tr,li,.qrr,.step,.ni,.pr').forEach(function(e){e.style.background='';});return;}
+  var lq=q.toLowerCase();
+  all.forEach(function(s){
+    var hit=false;
+    s.querySelectorAll('tr,li,.qrr,.step,.ni,.pr').forEach(function(e){
+      var m=e.textContent.toLowerCase().includes(lq);
+      e.style.background=m?'rgba(0,229,255,.07)':'';
+      if(m)hit=true;
+    });
+    s.style.display=hit?'':'none';
+  });
+}
+document.getElementById('srch').addEventListener('input',function(){if(!this.value)doSearch('');});
+</script>
 </body>
 </html>
