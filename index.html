@@ -562,7 +562,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #shell-status{position:absolute;top:8px;right:10px;z-index:10;display:flex;gap:8px;pointer-events:none}
 .shell-badge{display:flex;align-items:center;gap:4px;font-size:.52rem;font-family:var(--font-d);letter-spacing:1px;padding:3px 8px;border-radius:3px;background:rgba(3,10,14,.7);border:1px solid var(--border);backdrop-filter:blur(6px);text-shadow:0 0 6px rgba(0,0,0,.6)}
 .shell-badge .dot{width:6px;height:6px;border-radius:50%;animation:pulse 2s infinite}
-#brpn-resize{position:absolute;bottom:-4px;left:0;width:100%;height:8px;cursor:row-resize;z-index:20;display:flex;align-items:center;justify-content:center}
+#brpn-resize{position:absolute;bottom:-10px;left:0;width:100%;height:20px;cursor:row-resize;z-index:20;display:flex;align-items:center;justify-content:center;touch-action:none}
 #brpn-resize::after{content:'';width:50px;height:2px;background:var(--border);border-radius:2px;transition:background .15s}
 #brpn-resize:hover::after{background:var(--cyan);box-shadow:0 0 6px var(--cyan)}
 /* Context type indicator bar */
@@ -1336,11 +1336,9 @@ select.ash-ctrl-input{cursor:pointer}
       <div>MAR <span class="val" id="hud-mar">—</span></div>
       <div>AERO <span class="val" id="hud-aero">—</span></div>
       <div id="brpn-seq-log" style="margin-top:4px;font-size:.44rem;color:rgba(0,255,204,.5);letter-spacing:.5px;max-width:190px;line-height:1.5;word-break:break-word"></div>
-      <div id="nlp-hud-row" style="margin-top:5px;border-top:1px solid rgba(0,255,204,.08);padding-top:4px;">
-        <div>EMO <span class="val" id="nlp-emotion-badge" style="font-size:.55rem;letter-spacing:1.5px;">—</span></div>
-        <div>SIG <span id="nlp-sigma-badge" style="color:rgba(0,255,204,.45);font-size:.44rem;letter-spacing:1px;">—</span></div>
-        <div>TOOL <span id="nlp-tool-badge" style="color:rgba(0,255,204,.45);font-size:.44rem;letter-spacing:1px;">—</span></div>
-        <div>BUO <span id="nlp-buoy-badge" style="color:rgba(0,255,204,.45);font-size:.44rem;letter-spacing:1px;">—</span></div>
+      <div id="nlp-hud-row" style="margin-top:3px;">
+        <div>EMO <span class="val" id="nlp-emotion-badge" style="font-size:.56rem;letter-spacing:1px;">—</span></div>
+        <div style="color:rgba(0,255,204,.4);font-size:.5rem;">SIG <span id="nlp-sigma-badge">—</span> &nbsp; <span id="nlp-tool-badge">—</span> &nbsp; BUO <span id="nlp-buoy-badge">—</span></div>
       </div>
     </div>
     <div id="ctx-label" title="Current context type"></div>
@@ -9633,14 +9631,39 @@ function _tickAshNodes(frame) {
 (function(){
   const region=document.getElementById("brpn-region");
   const handle=document.getElementById("brpn-resize");
-  let dragging=false,startY=0,startH=0;
-  handle.addEventListener("pointerdown",e=>{dragging=true;startY=e.clientY;startH=region.offsetHeight;e.preventDefault()});
-  window.addEventListener("pointermove",e=>{
-    if(!dragging) return;
-    const nh=Math.max(100,Math.min(window.innerHeight - 100,startH+(e.clientY-startY)));
+  if(!region||!handle) return;
+  let dragging=false,startY=0,startH=0,activeId=null;
+
+  // Bigger touch target — extend via CSS
+  handle.style.height="20px";
+  handle.style.bottom="-10px";
+  handle.style.touchAction="none";
+
+  handle.addEventListener("pointerdown",function(e){
+    dragging=true;
+    startY=e.clientY;
+    startH=region.offsetHeight;
+    activeId=e.pointerId;
+    try{ handle.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+    e.stopPropagation();
+  },{passive:false});
+
+  handle.addEventListener("pointermove",function(e){
+    if(!dragging||e.pointerId!==activeId) return;
+    const nh=Math.max(80,Math.min(window.innerHeight-120,startH+(e.clientY-startY)));
     region.style.height=nh+"px";
+    e.preventDefault();
+  },{passive:false});
+
+  handle.addEventListener("pointerup",function(e){
+    dragging=false;activeId=null;
+    try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
   });
-  window.addEventListener("pointerup",()=>{dragging=false});
+
+  handle.addEventListener("pointercancel",function(e){
+    dragging=false;activeId=null;
+  });
 })();
 
 // ============================================================
@@ -13825,9 +13848,8 @@ window.init3DViewersInMessages = init3DViewersInMessages;
     var analysis=_origPL(input);
     var nlp;try{nlp=window.AutumnNLP.analyze(input);}catch(e){return analysis;}
     analysis.nlp=nlp;
-    var shellKey={GEOLOGICAL:'geo',MARITIME:'mar',AEROSPACE:'aero'}[nlp.brpn.shell]||'mar';
-    var conf=nlp.brpn.shell_confidence||0.5;
-    if(analysis.shells[shellKey])analysis.shells[shellKey].value=analysis.shells[shellKey].value*(1+conf*0.25);
+    // NLP shell stored as metadata — does NOT modify existing LEATR shell values
+    // (original shell math is preserved intact)
     analysis.nlpEmotion=nlp.emotion.primary;
     analysis.nlpCategory=nlp.emotion.category;
     analysis.nlpShell=nlp.brpn.shell;
