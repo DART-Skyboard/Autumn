@@ -576,6 +576,51 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .bubble{padding:10px 14px;font-size:13px;line-height:1.6;color:var(--bright);border-radius:12px;word-wrap:break-word}
 .msg.user .bubble{background:linear-gradient(135deg,rgba(0,136,255,.18),rgba(0,136,255,.08));border:1px solid rgba(0,136,255,.22);border-radius:12px 12px 3px 12px}
 .msg.autumn .bubble{background:linear-gradient(135deg,rgba(0,255,204,.06),rgba(0,100,80,.05));border:1px solid rgba(0,255,204,.12);border-radius:12px 12px 12px 3px}
+
+/* ── User message action bar ── */
+.msg-actions{
+  display:flex;align-items:center;gap:4px;
+  justify-content:flex-end;
+  margin-top:5px;opacity:0;
+  transition:opacity .18s;
+}
+.msg.user:hover .msg-actions,.msg-actions.editing{opacity:1}
+.msg-act-btn{
+  background:transparent;border:1px solid rgba(0,136,255,.2);
+  border-radius:5px;padding:3px 7px;
+  font-family:var(--font-d);font-size:.32rem;letter-spacing:.8px;
+  color:rgba(0,200,255,.5);cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;gap:3px;
+}
+.msg-act-btn:hover{background:rgba(0,136,255,.15);border-color:rgba(0,136,255,.45);color:rgba(0,229,255,.9)}
+.msg-act-btn.danger:hover{background:rgba(255,68,102,.1);border-color:rgba(255,68,102,.3);color:#ff4466}
+.msg-act-btn.copied{border-color:rgba(0,255,150,.4);color:rgba(0,255,150,.8)}
+
+/* ── Inline edit textarea ── */
+.msg-edit-area{
+  width:100%;background:rgba(0,8,20,.75);
+  border:1px solid rgba(0,136,255,.35);border-radius:8px;
+  padding:8px 10px;font-family:var(--font-b);font-size:13px;
+  color:#c0e8ff;line-height:1.6;resize:vertical;min-height:60px;
+  outline:none;margin-top:6px;
+  box-shadow:0 0 12px rgba(0,136,255,.1);
+  transition:border-color .2s;
+}
+.msg-edit-area:focus{border-color:rgba(0,136,255,.6)}
+.msg-edit-btns{display:flex;gap:6px;margin-top:6px;justify-content:flex-end}
+.msg-edit-send{
+  background:linear-gradient(135deg,rgba(0,136,255,.25),rgba(0,229,255,.12));
+  border:1px solid rgba(0,136,255,.4);border-radius:6px;
+  padding:5px 14px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;
+  color:rgba(0,229,255,.9);cursor:pointer;transition:all .18s;
+}
+.msg-edit-send:hover{background:rgba(0,136,255,.35);box-shadow:0 0 10px rgba(0,136,255,.2)}
+.msg-edit-cancel{
+  background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:6px;
+  padding:5px 12px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;
+  color:rgba(255,255,255,.35);cursor:pointer;transition:all .15s;
+}
+.msg-edit-cancel:hover{border-color:rgba(255,68,102,.3);color:#ff4466}
 .msg-lbl{font-size:8px;color:var(--cyan);font-family:var(--font-d);margin-bottom:4px;opacity:.6;letter-spacing:1px}
 .msg-meta{font-size:9px;color:#1a3a4a;margin-top:5px;font-family:monospace}
 .msg-grammar{font-size:9px;color:rgba(0,255,204,.18);margin-top:3px;font-family:monospace;word-break:break-all;border-top:1px solid rgba(0,255,204,.05);padding-top:3px}
@@ -7983,7 +8028,8 @@ function renderMessages() {
       if(!t||typeof t!=='string'||!t.startsWith('data:')) return '';
       return '<img src="'+t+'" alt="attached" title="Right-click or long-press for FRAX Studio" style="display:inline-block;max-width:72px;max-height:72px;border-radius:5px;margin:0 3px 4px 0;object-fit:cover;cursor:pointer" oncontextmenu="event.preventDefault();openFraxStudio(this.src,\'upscale\',\'thumb\')" ondblclick="openFraxStudio(this.src,\'upscale\',\'thumb\')">';
     }).join('') : '';
-    html+=`<div class="msg ${cls}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" style="white-space:pre-wrap">${esc(m.text)}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${m.role==="user"?'<button class="edit-btn" onclick="editUserMessage(this)" style="position:absolute; right:-25px; bottom:2px; background:none; border:none; cursor:pointer; font-size:14px; opacity:0.5; transition:opacity 0.2s;" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.5\'">✏️</button>':""}</div></div>`;
+    const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${m.id||i}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${(m.id||i)}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${(m.id||i)}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
+    html+=`<div class="msg ${cls}" data-msg-id="${m.id||i}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${m.id||i}" style="white-space:pre-wrap">${esc(m.text)}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
@@ -8015,31 +8061,155 @@ function appendChatBubble(msg) {
     ? `<div class="msg-lbl"><img src="assets/autumn.png" alt="" style="height:14px;width:auto;vertical-align:middle;margin-right:4px;filter:drop-shadow(0 0 4px rgba(191,0,255,.3))">AUTUMN</div>`
     : '';
 
-  // Create Pencil/Edit button for user bubbles
-  const editBtn = msg.role === 'user' ? `<button class="edit-btn" onclick="editUserMessage(this)" style="position:absolute; right:-25px; bottom:2px; background:none; border:none; cursor:pointer; font-size:14px; opacity:0.5; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">✏️</button>` : '';
+  // Create action bar for user bubbles
+  var msgUniqueId = msg.id || ('m-'+Date.now());
+  const userBar = msg.role === 'user' ? `<div class="msg-actions" id="act-${msgUniqueId}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${msgUniqueId}')" title="Edit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${msgUniqueId}')" title="Resend">↺ RESEND</button></div>` : '';
 
   const ctxBadge = msg.contextType ? `<div class="msg-ctx-badge">${msg.contextType}</div>` : '';
   const meta = msg.meta ? `<div class="msg-meta">${(msg.meta.elapsed||0).toFixed(1)}ms | Q:${(msg.meta.qs||0).toFixed(1)}</div>` : '';
   const div = document.createElement('div');
   div.className = `msg ${cls}`;
+  div.dataset.msgId = msgUniqueId;
   div.style.animation = 'fadeIn .3s ease';
-  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" style="white-space:pre-wrap">${esc(msg.text||'')}</div>${meta}${editBtn}</div>`;
+  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}" style="white-space:pre-wrap">${esc(msg.text||'')}</div>${meta}${userBar}</div>`;
   // Remove any typing indicator
   el.querySelector('.typing')?.remove();
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
 }
 
-window.editUserMessage = function(btn) {
-  const bubble = btn.closest('.bubble');
-  const txtContent = bubble.querySelector('.msg-text-content');
-  if(!txtContent) return;
-  const currentText = txtContent.innerText || txtContent.textContent;
-  const input = document.getElementById('chat-input');
-  if(input) {
-    input.value = currentText;
-    input.focus();
+// ══════════════════════════════════════════════════════════════════
+//  USER MESSAGE ACTIONS — Copy / Edit-in-place / Resubmit
+// ══════════════════════════════════════════════════════════════════
+
+// COPY — copies message text to clipboard, briefly shows confirmation
+window.copyUserMsg = function(btn) {
+  var msgEl   = btn.closest('[data-msg-id]');
+  var msgId   = msgEl ? msgEl.dataset.msgId : null;
+  var m       = msgId ? msgs().find(function(x){ return (x.id||'') === msgId; }) : null;
+  var text    = m ? m.text : (msgEl ? (msgEl.querySelector('.msg-text-content')||{}).innerText||'' : '');
+  if(!text) return;
+  navigator.clipboard.writeText(text).catch(function(){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+  });
+  var orig = btn.innerHTML;
+  btn.innerHTML = '✓ COPIED'; btn.classList.add('copied');
+  setTimeout(function(){ btn.innerHTML = orig; btn.classList.remove('copied'); }, 1400);
+};
+
+// EDIT — swaps the text display for an inline textarea with Send/Cancel
+window.editUserMsg = function(msgId) {
+  var msgEl = document.querySelector('[data-msg-id="'+msgId+'"]');
+  if(!msgEl) return;
+  var txtEl  = msgEl.querySelector('.msg-text-content');
+  var actEl  = msgEl.querySelector('.msg-actions');
+  var m      = msgs().find(function(x){ return (x.id||'') === msgId; });
+  if(!txtEl || !m) return;
+
+  // Already editing
+  if(msgEl.querySelector('.msg-edit-area')) return;
+
+  var original = m.text;
+  txtEl.style.display = 'none';
+  if(actEl) actEl.classList.add('editing');
+
+  var wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <textarea class="msg-edit-area" id="edit-ta-${msgId}">${original.replace(/</g,'&lt;')}</textarea>
+    <div class="msg-edit-btns">
+      <button class="msg-edit-cancel" onclick="cancelEditMsg('${msgId}')">CANCEL</button>
+      <button class="msg-edit-send" onclick="submitEditMsg('${msgId}')">↺ REGENERATE</button>
+    </div>`;
+  txtEl.parentNode.insertBefore(wrap, txtEl.nextSibling);
+
+  var ta = document.getElementById('edit-ta-'+msgId);
+  if(ta) {
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = ta.value.length;
+    // Ctrl+Enter submits
+    ta.addEventListener('keydown', function(e){
+      if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) { e.preventDefault(); window.submitEditMsg(msgId); }
+      if(e.key==='Escape') window.cancelEditMsg(msgId);
+    });
   }
+};
+
+window.cancelEditMsg = function(msgId) {
+  var msgEl = document.querySelector('[data-msg-id="'+msgId+'"]');
+  if(!msgEl) return;
+  var txtEl  = msgEl.querySelector('.msg-text-content');
+  var actEl  = msgEl.querySelector('.msg-actions');
+  var editWrap = msgEl.querySelector('.msg-edit-area');
+  if(editWrap) editWrap.parentNode.remove();
+  if(txtEl) txtEl.style.display = '';
+  if(actEl) actEl.classList.remove('editing');
+};
+
+window.submitEditMsg = function(msgId) {
+  var msgEl = document.querySelector('[data-msg-id="'+msgId+'"]');
+  if(!msgEl) return;
+  var ta    = document.getElementById('edit-ta-'+msgId);
+  var newText = ta ? ta.value.trim() : '';
+  if(!newText) return;
+
+  var allMsgs  = msgs();
+  var idx      = allMsgs.findIndex(function(x){ return (x.id||'') === msgId; });
+  if(idx < 0) return;
+
+  // Update the user message text
+  allMsgs[idx] = Object.assign({}, allMsgs[idx], { text: newText });
+
+  // Remove everything after this user message (the old responses)
+  // Keep messages before idx, plus the updated user message; drop everything after
+  S[S.activeSession] = allMsgs.slice(0, idx + 1);
+
+  // Re-render to show updated message, then trigger a new response
+  saveState();
+  renderMessages();
+
+  // Feed the edited text into the input and send
+  var input = document.getElementById('chat-input');
+  if(input) {
+    input.value = newText;
+    // Small delay to let render settle, then send
+    setTimeout(function(){
+      if(typeof handleSend === 'function') handleSend();
+      else if(typeof window.handleSend === 'function') window.handleSend();
+    }, 80);
+  }
+};
+
+// RESEND — resubmits the existing message unchanged, drops responses after it
+window.resubmitUserMsg = function(msgId) {
+  var allMsgs = msgs();
+  var idx     = allMsgs.findIndex(function(x){ return (x.id||'') === msgId; });
+  if(idx < 0) return;
+  var text    = allMsgs[idx].text;
+  if(!text) return;
+
+  // Drop everything after this message
+  S[S.activeSession] = allMsgs.slice(0, idx + 1);
+  saveState();
+  renderMessages();
+
+  var input = document.getElementById('chat-input');
+  if(input) {
+    input.value = text;
+    setTimeout(function(){
+      if(typeof handleSend === 'function') handleSend();
+      else if(typeof window.handleSend === 'function') window.handleSend();
+    }, 80);
+  }
+};
+
+// Keep legacy shim in case any old saved HTML references the old button
+window.editUserMessage = function(btn) {
+  var msgEl = btn ? btn.closest('[data-msg-id]') : null;
+  if(msgEl) window.editUserMsg(msgEl.dataset.msgId);
 };
 
 function esc(s){if(typeof s!=='string')return '';return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
