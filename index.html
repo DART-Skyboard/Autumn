@@ -5447,7 +5447,7 @@ async function loadSingleImageFile(file) {
     var _tctx2=tc.getContext('2d');var _ts2=Math.min(56/cw,56/ch);var _tw2=cw*_ts2;var _th2=ch*_ts2;
     _tctx2.drawImage(cv,(56-_tw2)/2,(56-_th2)/2,_tw2,_th2);thumbnail=tc.toDataURL('image/jpeg',0.85);
   }
-  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,isFrax:isFrax,isImage:true,isVideo:false,isDoc:false,fileSize:file.size};
+  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,isFrax:isFrax,isImage:true,isVideo:false,isDoc:false,fileSize:file.size,previewUrl:URL.createObjectURL(file)};
 }
 
 function renderThumbRow() {
@@ -5564,7 +5564,7 @@ function renderThumbRow() {
       wrap.appendChild(docDiv);wrap.appendChild(badge);
     } else {
       // Image / FRAX
-      var thumb=document.createElement('img');thumb.src=item.thumbnail;thumb.className='img-preview-thumb';thumb.title=item.fileName;
+      var thumb=document.createElement('img');thumb.src=item.previewUrl||item.thumbnail;thumb.className='img-preview-thumb';thumb.title=item.fileName;thumb.width=48;thumb.height=48;
       wrap.appendChild(thumb);
       if(item.isFrax){var badge=document.createElement('span');badge.className='attach-type-badge frax';badge.textContent='FRAX';wrap.appendChild(badge);}
     }
@@ -5599,6 +5599,7 @@ async function handleImageFilesSelect(files) {
   }
 }
 function clearPendingImage() {
+  (S.pendingImages||[]).forEach(function(m){if(m.previewUrl)try{URL.revokeObjectURL(m.previewUrl);}catch(e){}});
   S.pendingImages=[];S.pendingImage=null;
   var strip=document.getElementById('img-preview-strip');if(strip)strip.classList.remove('show');
   var btn=document.getElementById('upload-btn');if(btn)btn.classList.remove('has-image');
