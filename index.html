@@ -7019,7 +7019,7 @@ async function handleSend() {
   const _earlyPendingImgs = (S.pendingImages && S.pendingImages.length) ? [...S.pendingImages] : [];
 
   // Push user message and show typing indicator right away
-  msgs().push({ role:'user', text, ts:new Date().toISOString(),
+  msgs().push({ role:'user', id:'u-'+Date.now(), text, ts:new Date().toISOString(),
     uploadedImageThumbs: _earlyPendingImgs.map(function(i){ return i.is3D ? i : i.thumbnail; }) });
   renderMessages();
   const _earlyTyping = document.createElement('div');
@@ -8471,6 +8471,7 @@ function renderMessages() {
       return '<img src="'+t+'" alt="attached" title="Right-click or long-press for FRAX Studio" style="display:inline-block;max-width:72px;max-height:72px;border-radius:5px;margin:0 3px 4px 0;object-fit:cover;cursor:pointer" oncontextmenu="event.preventDefault();openFraxStudio(this.src,\'upscale\',\'thumb\')" ondblclick="openFraxStudio(this.src,\'upscale\',\'thumb\')">';
     }).join('') : '';
     const _mid = m.id || ('mi-'+_idx);
+    if(!m.id) m.id = _mid; // backfill so edit/resend find() works
     const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${_mid}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${_mid}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${_mid}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
     html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}" style="white-space:pre-wrap">${esc(m.text)}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
@@ -8506,6 +8507,7 @@ function appendChatBubble(msg) {
 
   // Create action bar for user bubbles
   var msgUniqueId = msg.id || ('m-'+Date.now());
+  if(!msg.id) msg.id = msgUniqueId; // backfill so edit/resend find() works
   const userBar = msg.role === 'user' ? `<div class="msg-actions" id="act-${msgUniqueId}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${msgUniqueId}')" title="Edit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${msgUniqueId}')" title="Resend">↺ RESEND</button></div>` : '';
 
   const ctxBadge = msg.contextType ? `<div class="msg-ctx-badge">${msg.contextType}</div>` : '';
