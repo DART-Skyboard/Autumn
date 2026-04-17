@@ -11351,7 +11351,8 @@ Return the complete updated autumn-logic.js file only.`;
   window.handleSend = async function handleSendIDE() {
     const input=document.getElementById('chat-input');
     const text=input?.value?.trim();
-    if(!text||S.isProcessing) return;
+    if((!text&&!(S.pendingImages&&S.pendingImages.length))||S.isProcessing) return;
+    if(!text) { _origHandleSend(); return; }
 
     if(checkLogicUpdateIntent(text)){
       input.value='';
