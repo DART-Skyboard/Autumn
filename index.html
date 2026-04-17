@@ -656,9 +656,13 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #input-pill input{flex:1;background:transparent;border:none;color:var(--bright);font-size:14px;padding:8px 4px;font-family:var(--font-b);outline:none}
 #input-pill input::placeholder{color:rgba(0,255,204,.18)}
 /* PTT mic inside pill */
-.ptt-btn{background:transparent;border:none;color:rgba(0,255,204,.3);width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0;padding:0}
+.ptt-btn{background:transparent;border:none;color:rgba(0,255,204,.3);width:32px;height:32px;border-radius:50%;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;
+  transition:all .15s;flex-shrink:0;padding:0;position:relative;user-select:none;-webkit-user-select:none;touch-action:none}
 .ptt-btn:hover{color:var(--red)}
+.ptt-btn.holding{color:#ff4466;filter:drop-shadow(0 0 8px rgba(255,68,102,.7));transform:scale(1.15)}
 .ptt-btn.recording{color:#ff4466;animation:pulse .8s infinite;filter:drop-shadow(0 0 6px rgba(255,68,102,.6))}
+.ptt-btn.transcribing{color:#ffb347;animation:pulse .5s infinite;filter:drop-shadow(0 0 6px rgba(255,179,71,.5))}
 /* Send / Stop action button */
 .action-btn{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .2s;flex-shrink:0}
 .action-btn.send{background:var(--cyan);color:#020a12;box-shadow:0 0 14px rgba(0,255,204,.3)}
@@ -877,7 +881,9 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .speaker-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,255,204,.1);box-shadow:0 0 10px rgba(0,255,204,.25)}
 /* PTT mic — red pulse while listening */
 .ptt-btn:hover{color:#ff4466;border-color:#ff4466}
+.ptt-btn.holding{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.18);transform:scale(1.12);box-shadow:0 0 16px rgba(255,68,102,.5)}
 .ptt-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse .8s infinite;box-shadow:0 0 12px rgba(255,68,102,.4)}
+.ptt-btn.transcribing{color:#ffb347;border-color:#ffb347;background:rgba(255,179,71,.1);animation:pulse .5s infinite}
 .listen-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0}
 .listen-btn:hover{color:#ffb347;border-color:#ffb347;box-shadow:0 0 10px rgba(255,179,71,.15)}
 .listen-btn.tuning{color:#ffb347;border-color:#ffb347;background:rgba(255,179,71,.1);animation:musicPulse 1.2s ease-in-out infinite}
@@ -1427,7 +1433,12 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="plus-btn" id="plus-btn" onclick="toggleInputTray()" title="More options">+</button>
         <div id="input-pill">
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
-          <button class="ptt-btn" id="ptt-btn" onclick="pttTalk()" title="Tap to speak">🎤</button>
+          <button class="ptt-btn" id="ptt-btn"
+            ontouchstart="pttHoldStart(event)" ontouchend="pttHoldEnd(event)" ontouchcancel="pttHoldCancel(event)"
+            onmousedown="pttHoldStart(event)" onmouseup="pttHoldEnd(event)" onmouseleave="pttHoldCancel(event)"
+            title="Hold to speak">🎤
+            <canvas id="ptt-level" width="28" height="28" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:0;transition:opacity .15s;border-radius:50%"></canvas>
+          </button>
         </div>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
       </div>
@@ -10136,56 +10147,157 @@ function toggleSpeakerMode(){
 // Keep toggleVoiceMode as alias for live-mode compatibility
 function toggleVoiceMode(){ toggleSpeakerMode(); }
 
-// PTT: one-shot STT → auto-send. Independent of continuous voice mode.
-function pttTalk(){
-  var pttBtn=document.getElementById('ptt-btn');
-  var inp=document.getElementById('chat-input');
-  // Cancel if already recording
-  if(Voice._pttActive){
-    Voice._pttActive=false;
-    if(Voice._pttRec){try{Voice._pttRec.stop();}catch(e){}Voice._pttRec=null;}
-    if(pttBtn){pttBtn.classList.remove('recording');pttBtn.title='Tap to speak';}
-    return;
+// ── HOLD-TO-TALK PTT ─────────────────────────────────────────────────────
+// Press & hold → records + shows live audio level ring
+// Release → transcribes (SpeechRecognition) → auto-sends
+// Short tap (<250ms) still works as toggle fallback
+(function(){
+  var _ptt={
+    active:false, rec:null, stream:null, analyser:null, animFrame:null,
+    holdStart:0, holdTimer:null, _final:'', _interim:'',
+    audioCtx:null
+  };
+  Voice._pttState=_ptt;
+
+  function _btn(){return document.getElementById('ptt-btn');}
+  function _inp(){return document.getElementById('chat-input');}
+  function _vi(){return document.getElementById('voice-indicator');}
+  function _canvas(){return document.getElementById('ptt-level');}
+
+  function _startLevel(stream){
+    try{
+      var ctx=new(window.AudioContext||window.webkitAudioContext)();
+      _ptt.audioCtx=ctx;
+      var src=ctx.createMediaStreamSource(stream);
+      var an=ctx.createAnalyser();an.fftSize=64;
+      src.connect(an);_ptt.analyser=an;
+      var cv=_canvas();if(!cv)return;
+      cv.style.opacity='1';
+      var buf=new Uint8Array(an.frequencyBinCount);
+      function draw(){
+        _ptt.animFrame=requestAnimationFrame(draw);
+        an.getByteFrequencyData(buf);
+        var avg=buf.reduce(function(a,b){return a+b;},0)/buf.length;
+        var r=Math.max(4,Math.min(14,(avg/255)*14));
+        var ctx2=cv.getContext('2d');
+        ctx2.clearRect(0,0,28,28);
+        ctx2.beginPath();
+        ctx2.arc(14,14,r,0,Math.PI*2);
+        ctx2.fillStyle='rgba(255,68,102,'+(0.15+avg/510)+')';
+        ctx2.fill();
+        ctx2.beginPath();
+        ctx2.arc(14,14,r+2,0,Math.PI*2);
+        ctx2.strokeStyle='rgba(255,68,102,'+(0.3+avg/512)+')';
+        ctx2.lineWidth=1.5;
+        ctx2.stroke();
+      }
+      draw();
+    }catch(e){}
   }
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){alert('Speech recognition not supported in this browser.');return;}
-  Voice._pttActive=true;
-  Voice._pttRec=null;
-  if(pttBtn){pttBtn.classList.add('recording');pttBtn.title='Listening... tap to cancel';}
-  var vi=document.getElementById('voice-indicator');if(vi)vi.style.display='flex';
-  var rec=new SR();
-  Voice._pttRec=rec;
-  rec.continuous=false;
-  rec.interimResults=true;
-  rec.lang=Voice.sttLang||'en-US';
-  var _final='';
-  rec.onresult=function(e){
-    var interim='';
-    for(var i=e.resultIndex;i<e.results.length;i++){
-      if(e.results[i].isFinal) _final+=e.results[i][0].transcript;
-      else interim+=e.results[i][0].transcript;
+
+  function _stopLevel(){
+    if(_ptt.animFrame){cancelAnimationFrame(_ptt.animFrame);_ptt.animFrame=null;}
+    if(_ptt.audioCtx){try{_ptt.audioCtx.close();}catch(e){}_ptt.audioCtx=null;}
+    _ptt.analyser=null;
+    var cv=_canvas();if(cv){cv.style.opacity='0';var c=cv.getContext('2d');c.clearRect(0,0,28,28);}
+  }
+
+  function _startRec(){
+    var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){
+      var inp=_inp();if(inp)inp.placeholder='Speech not supported — type instead';
+      return;
     }
-    inp.value=(_final||interim).trim();
-  };
-  rec.onend=function(){
-    Voice._pttActive=false;Voice._pttRec=null;
-    if(pttBtn){pttBtn.classList.remove('recording');pttBtn.title='Tap to speak';}
-    if(vi)vi.style.display='none';
-    var txt=inp.value.trim();
-    if(txt){setTimeout(function(){if(typeof window.handleSend==='function')window.handleSend();},80);}
-  };
-  rec.onerror=function(e){
-    Voice._pttActive=false;Voice._pttRec=null;
-    if(pttBtn){pttBtn.classList.remove('recording');pttBtn.title='Tap to speak';}
-    if(vi)vi.style.display='none';
-    console.warn('[PTT] error:',e.error);
-  };
-  try{rec.start();}catch(e){
-    Voice._pttActive=false;
-    if(pttBtn)pttBtn.classList.remove('recording');
-    if(vi)vi.style.display='none';
+    if(_ptt.rec){try{_ptt.rec.stop();}catch(e){}}
+    _ptt._final='';_ptt._interim='';
+    var rec=new SR();
+    _ptt.rec=rec;
+    rec.continuous=true;
+    rec.interimResults=true;
+    rec.lang=Voice.sttLang||'en-US';
+    rec.onresult=function(e){
+      var interim='';
+      for(var i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal) _ptt._final+=e.results[i][0].transcript+' ';
+        else interim=e.results[i][0].transcript;
+      }
+      var inp=_inp();
+      if(inp) inp.value=(_ptt._final+interim).trim();
+    };
+    rec.onend=function(){
+      if(_ptt.active){
+        // Android sometimes ends early — restart if still holding
+        try{rec.start();}catch(e){_ptt.active=false;_cleanup();}
+      }
+    };
+    rec.onerror=function(e){
+      if(e.error!=='aborted') console.warn('[PTT]',e.error);
+    };
+    try{rec.start();}catch(e){console.warn('[PTT start]',e);}
+
+    // Also grab mic stream for level meter
+    navigator.mediaDevices&&navigator.mediaDevices.getUserMedia({audio:true,video:false})
+      .then(function(s){_ptt.stream=s;_startLevel(s);})
+      .catch(function(){});
   }
-}
+
+  function _stopRec(send){
+    _ptt.active=false;
+    if(_ptt.rec){try{_ptt.rec.stop();}catch(e){}_ptt.rec=null;}
+    if(_ptt.stream){_ptt.stream.getTracks().forEach(function(t){t.stop();});_ptt.stream=null;}
+    _stopLevel();
+    var btn=_btn();
+    if(btn){btn.classList.remove('holding','recording','transcribing');btn.title='Hold to speak';}
+    var vi=_vi();if(vi)vi.style.display='none';
+    var inp=_inp();
+    var txt=inp?inp.value.trim():'';
+    if(send&&txt){
+      var ci=document.getElementById('chat-input');
+      if(ci&&!ci.value)ci.placeholder='Ask Autumn…';
+      setTimeout(function(){if(typeof window.handleSend==='function')window.handleSend();},80);
+    } else if(!txt&&inp){
+      inp.placeholder='Ask Autumn…';
+    }
+  }
+
+  function _cleanup(){_stopRec(false);}
+
+  window.pttHoldStart=function(e){
+    e.preventDefault();
+    if(_ptt.active) return;
+    _ptt.holdStart=Date.now();
+    _ptt.active=true;
+    var btn=_btn();
+    if(btn){btn.classList.add('holding');btn.title='Release to send';}
+    var vi=_vi();if(vi)vi.style.display='flex';
+    _startRec();
+    // Safety: auto-stop after 60s
+    _ptt.holdTimer=setTimeout(function(){if(_ptt.active)_stopRec(true);},60000);
+  };
+
+  window.pttHoldEnd=function(e){
+    if(e)e.preventDefault();
+    clearTimeout(_ptt.holdTimer);
+    if(!_ptt.active)return;
+    var btn=_btn();
+    if(btn){btn.classList.remove('holding');btn.classList.add('transcribing');btn.title='Processing…';}
+    // Small delay to let the final SpeechRecognition result arrive
+    setTimeout(function(){_stopRec(true);},320);
+  };
+
+  window.pttHoldCancel=function(e){
+    if(e)e.preventDefault();
+    clearTimeout(_ptt.holdTimer);
+    if(!_ptt.active)return;
+    _cleanup();
+  };
+
+  // Legacy tap support
+  window.pttTalk=function(){
+    if(_ptt.active) window.pttHoldCancel();
+    else window.pttHoldStart({preventDefault:function(){}});
+  };
+})();
 
 function restartListeningIfActive(){
   if(!Voice.active||!Voice.recognition) return;
