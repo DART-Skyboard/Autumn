@@ -10185,7 +10185,6 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
 // ── HOLD-TO-TALK PTT ─────────────────────────────────────────────────────
 // Press & hold → records + shows live audio level ring
 // Release → transcribes (SpeechRecognition) → auto-sends
-// Short tap (<250ms) still works as toggle fallback
 (function(){
   var _ptt={
     active:false, rec:null, stream:null, analyser:null, animFrame:null,
@@ -10263,15 +10262,15 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
       };
       rec.onend=function(){
         if(_ptt.active&&_ptt.rec===rec){
-          // Android ends early — restart with fresh instance
+          // Android ends early — restart with a fresh instance
           _ptt.rec=null;
           setTimeout(function(){ if(_ptt.active) _launchSR(); },80);
         }
       };
       rec.onerror=function(e){
         console.warn('[PTT]',e.error);
-        if(_ptt.active&&_ptt.rec===rec&&
-           (e.error==='aborted'||e.error==='audio-capture'||e.error==='network'||e.error==='no-speech')){
+        // Retry on any recoverable error while still holding
+        if(_ptt.active&&_ptt.rec===rec){
           _ptt.rec=null;
           setTimeout(function(){ if(_ptt.active) _launchSR(); },150);
         }
@@ -10282,8 +10281,8 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
       }
     }
 
-    // Grab mic stream for level meter FIRST, then start SR
-    // Prevents dual-mic-grab conflict that kills SR immediately on Android Chrome
+    // Grab mic stream for level meter first, then start SR
+    // Prevents simultaneous mic-grab conflict on Android Chrome
     if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
       navigator.mediaDevices.getUserMedia({audio:true,video:false})
         .then(function(s){ _ptt.stream=s; _startLevel(s); _launchSR(); })
@@ -10317,38 +10316,34 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
   window.pttHoldStart=function(e){
     e.preventDefault();
     if(_ptt.active) return;
-    // Track touch vs mouse to prevent Android synthetic mouse events double-firing
+    // Block synthetic mouse events that Android fires after touchstart
     if(e.type==='touchstart') _ptt._touchActive=true;
-    else if(_ptt._touchActive) return; // synthetic mousedown after touch — ignore
+    else if(_ptt._touchActive) return;
     _ptt.holdStart=Date.now();
     _ptt.active=true;
-    // Clear stale interrupted text from a previous turn
     Voice._interruptedRemaining='';
     var btn=_btn();
     if(btn){btn.classList.add('holding');btn.title='Release to send';}
     var vi=_vi();if(vi)vi.style.display='flex';
     _startRec();
-    // Safety: auto-stop after 60s
     _ptt.holdTimer=setTimeout(function(){if(_ptt.active)_stopRec(true);},60000);
   };
 
   window.pttHoldEnd=function(e){
     if(e)e.preventDefault();
-    // Ignore synthetic mouseup/mouseleave if touch already handled this
+    // Ignore synthetic mouse events after touch
     if(e&&(e.type==='mouseup'||e.type==='mouseleave')&&_ptt._touchActive) return;
     if(e&&e.type==='touchend') _ptt._touchActive=false;
     clearTimeout(_ptt.holdTimer);
     if(!_ptt.active)return;
     var btn=_btn();
     if(btn){btn.classList.remove('holding');btn.classList.add('transcribing');btn.title='Processing…';}
-    // Small delay to let the final SpeechRecognition result arrive
     setTimeout(function(){_stopRec(true);},320);
   };
 
   window.pttHoldCancel=function(e){
     if(e)e.preventDefault();
-    // Ignore synthetic mouse cancel if touch already handled this
-    if(e&&(e.type==='mouseleave')&&_ptt._touchActive) return;
+    if(e&&e.type==='mouseleave'&&_ptt._touchActive) return;
     if(e&&e.type==='touchcancel') _ptt._touchActive=false;
     clearTimeout(_ptt.holdTimer);
     if(!_ptt.active)return;
