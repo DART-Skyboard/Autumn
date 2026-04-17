@@ -6986,8 +6986,6 @@ async function handleSend() {
   const input=document.getElementById("chat-input");
   const text=input.value.trim();
   if((!text && !(S.pendingImages && S.pendingImages.length))||S.isProcessing) return;
-  // ── Interrupt Autumn mid-speech when user sends ──
-  if(Voice && Voice.speaking) interruptSpeaking();
   input.value="";
   cognoticeActivity();
 
@@ -7751,7 +7749,6 @@ Top recurring topics from journal: ${getTopKeywordsFromJournal(5).join(', ')||'n
 ${city ? `User's city: ${city}` : ''}
 ${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
 
-${(function(){if(Voice._interruptedBySend&&Voice._interruptCtx){var _ic=Voice._interruptCtx;Voice._interruptCtx=null;Voice._interruptedBySend=false;var _spk=(_ic.spoken||'').slice(-200);var _rem=(_ic.remaining||'').slice(0,300);return'\nINTERRUPT CONTEXT: You were speaking mid-response when the user interrupted. Already said: "'+_spk+'". Had not yet said: "'+_rem+'". Naturally weave in what you had not yet said if it is relevant to their new message, or briefly offer to finish that thought after. Stay seamless — do not announce the interruption mechanically.\n';}Voice._interruptCtx=null;Voice._interruptedBySend=false;return'';})()}
 VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
 IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
@@ -9734,9 +9731,7 @@ function _tickAshNodes(frame) {
 const Voice={
   synth:window.speechSynthesis||null,voices:[],selectedVoice:null,speed:1.0,pitch:1.0,
   autoRead:false,active:false,speaking:false,cancelled:false,
-  sttLang:'en-US',chatLang:'en',recognition:null,isListening:false,liveMode:false,
-  _currentSpeakText:'',_spokenSentences:[],_remainingSentences:[],
-  _interruptCtx:null,_interruptedBySend:false
+  sttLang:'en-US',chatLang:'en',recognition:null,isListening:false,liveMode:false
 };
 
 function loadVoices(){Voice.voices=Voice.synth.getVoices();populateVoiceSelect();}
@@ -10061,13 +10056,11 @@ function _pcmToWav(pcm, sampleRate) {
 function _speakWebSpeech(text, onEnd) {
   if (!Voice.synth) { Voice.speaking = false; if(onEnd) onEnd(); return; }
   Voice.synth.cancel(); Voice.speaking = true; Voice.cancelled = false;
-  Voice._currentSpeakText = text; Voice._spokenSentences = []; Voice._remainingSentences = [];
   var _mb = document.getElementById('mic-btn');
   if (_mb && Voice.active) _mb.style.boxShadow = '0 0 14px rgba(0,229,255,.6)';
   const clean = cleanForTTS(text);
   const sentences = clean.match(/[^.!?]+[.!?]*/g)||[clean]; let i=0;
   function speakNext(){
-    Voice._spokenSentences = sentences.slice(0,i); Voice._remainingSentences = sentences.slice(i);
     if(Voice.cancelled||i>=sentences.length){Voice.speaking=false;if(onEnd)onEnd();return;}
     const u=new SpeechSynthesisUtterance(sentences[i].trim());
     if(Voice.selectedVoice) u.voice=Voice.selectedVoice;
@@ -10093,16 +10086,6 @@ function stopSpeaking(){
   if(Voice._kokoroPlayer){Voice._kokoroPlayer.pause();Voice._kokoroPlayer.src='';Voice._kokoroPlayer=null;}
   var _mb=document.getElementById('mic-btn');
   if(_mb) _mb.style.boxShadow='';
-}
-function interruptSpeaking(){
-  if(!Voice.speaking) return;
-  var _spk = (Voice._spokenSentences||[]).join(' ').trim();
-  var _rem = (Voice._remainingSentences||[]).join(' ').trim();
-  if(_rem || _spk){
-    Voice._interruptCtx = { spoken:_spk, remaining:_rem };
-    Voice._interruptedBySend = true;
-  }
-  stopSpeaking();
 }
 function autoReadLastResponse(){
   if(!Voice.autoRead) return;
@@ -10155,8 +10138,6 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
 
 // PTT: one-shot STT → auto-send. Independent of continuous voice mode.
 function pttTalk(){
-  // ── Interrupt Autumn if she's mid-speech ──
-  if(Voice.speaking) interruptSpeaking();
   var pttBtn=document.getElementById('ptt-btn');
   var inp=document.getElementById('chat-input');
   // Cancel if already recording
@@ -14033,19 +14014,22 @@ _syncActionBtn();
   if(!_origPL){console.warn('[NLP Patch] processLEATR not found');return;}
   function processLEATR_NLP(input){
     var analysis=_origPL(input);
-    var nlp;try{nlp=window.AutumnNLP.analyze(input);}catch(e){return analysis;}
-    analysis.nlp=nlp;
-    // NLP shell stored as metadata — does NOT modify existing LEATR shell values
-    // (original shell math is preserved intact)
-    analysis.nlpEmotion=nlp.emotion.primary;
-    analysis.nlpCategory=nlp.emotion.category;
-    analysis.nlpShell=nlp.brpn.shell;
-    analysis.nlpTool=nlp.brpn.tool;
-    analysis.nlpLayer=nlp.emotion.expression_layer;
-    analysis.nlpLayerName=nlp.emotion.expression_layer_name;
-    analysis.nlpSigma=nlp.sigma.dominant;
-    analysis.nlpBuoyancy=nlp.brpn.buoyancy_score;
-    try{if(S&&S.orbEvo){var emo=nlp.emotion.primary||'neutral';S.orbEvo.emotionalCounts=S.orbEvo.emotionalCounts||{};S.orbEvo.emotionalCounts[emo]=(S.orbEvo.emotionalCounts[emo]||0)+1;}}catch(e){}
+    try{
+      var nlp=window.AutumnNLP.analyze(input);
+      if(!nlp||!nlp.brpn||!nlp.emotion||!nlp.sigma) return analysis;
+      analysis.nlp=nlp;
+      // NLP shell stored as metadata — does NOT modify existing LEATR shell values
+      // (original shell math is preserved intact)
+      analysis.nlpEmotion=nlp.emotion.primary;
+      analysis.nlpCategory=nlp.emotion.category;
+      analysis.nlpShell=nlp.brpn.shell;
+      analysis.nlpTool=nlp.brpn.tool;
+      analysis.nlpLayer=nlp.emotion.expression_layer;
+      analysis.nlpLayerName=nlp.emotion.expression_layer_name;
+      analysis.nlpSigma=nlp.sigma.dominant;
+      analysis.nlpBuoyancy=nlp.brpn.buoyancy_score;
+      try{if(S&&S.orbEvo){var emo=nlp.emotion.primary||'neutral';S.orbEvo.emotionalCounts=S.orbEvo.emotionalCounts||{};S.orbEvo.emotionalCounts[emo]=(S.orbEvo.emotionalCounts[emo]||0)+1;}}catch(_e){}
+    }catch(e){return analysis;}
     return analysis;
   }
   window.processLEATR=processLEATR_NLP;
