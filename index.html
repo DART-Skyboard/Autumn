@@ -9651,6 +9651,23 @@ function initBRPN() {
     shellPulse*=0.994;
     // ── Multi-user ASH node drift ────────────────────────────────────────
     if(f%3===0 && typeof _tickAshNodes==='function') _tickAshNodes(f);
+
+    // ── Local receive flash: any incoming pulse arriving at origin ─
+    if(f%2===0 && typeof _ashNodes!=='undefined' && _ashNodes._splines) {
+      var receivingFlash = 0;
+      Object.keys(_ashNodes._splines).forEach(function(k) {
+        var sp = _ashNodes._splines[k];
+        if(sp && sp.phaseIn !== undefined) {
+          // phaseIn near 0 = pulse just arrived at local node
+          var proximity = Math.max(0, 1 - sp.phaseIn * 6);
+          receivingFlash = Math.max(receivingFlash, proximity);
+        }
+      });
+      // Drive a gentle extra shell pulse when receiving
+      if(receivingFlash > 0.15) {
+        shellPulse = Math.max(shellPulse, receivingFlash * 0.55);
+      }
+    }
     renderer.render(scene,camera);
     animId=requestAnimationFrame(animate);
   }
@@ -9760,26 +9777,38 @@ function _nodeBasePos(uid) {
 function _makeSessionGroup(node) {
   var group = new THREE.Group();
   var colors = _uidShellColors(node.uid);
-  // Three concentric wireframe icosahedron shells (scale = 0.28× local)
   var radii  = [1.9 * 0.28, 1.4 * 0.28, 0.9 * 0.28];
   var shells = [];
   radii.forEach(function(r, i) {
-    var geo  = new THREE.IcosahedronGeometry(r, 1);
-    var mat  = new THREE.MeshBasicMaterial({
-      color: colors[i], wireframe: true, transparent: true,
-      opacity: 0.22 + i * 0.06
-    });
+    var geo = new THREE.IcosahedronGeometry(r, 1);
+    var mat = new THREE.MeshBasicMaterial({ color: colors[i], wireframe: true, transparent: true, opacity: 0.22 + i * 0.06 });
     var mesh = new THREE.Mesh(geo, mat);
-    group.add(mesh);
-    shells.push(mesh);
+    group.add(mesh); shells.push(mesh);
   });
-  // Tiny glowing core sphere
+  // Core
   var cg = new THREE.SphereGeometry(0.032, 6, 6);
   var cm = new THREE.MeshBasicMaterial({ color: colors[0], transparent: true, opacity: 0.55, wireframe: true });
   var core = new THREE.Mesh(cg, cm);
-  group.add(core);
-  shells.push(core);
-  return { group: group, shells: shells };
+  group.add(core); shells.push(core);
+
+  // Sigmatic pattern ring — torus that shows per-node sigma activity
+  // Rotates + pulses in response to its pattern score vs local node
+  var sigGeo = new THREE.TorusGeometry(radii[0] * 1.35, 0.009, 4, 16);
+  var sigMat = new THREE.MeshBasicMaterial({ color: colors[0], transparent: true, opacity: 0.0, wireframe: false });
+  var sigTorus = new THREE.Mesh(sigGeo, sigMat);
+  sigTorus.userData.isSigRing = true;
+  group.add(sigTorus);
+  shells.push(sigTorus);
+
+  // Incoming pulse receiver — small ring that flashes when a pulse arrives
+  var recvGeo = new THREE.RingGeometry(0.036, 0.056, 8);
+  var recvMat = new THREE.MeshBasicMaterial({ color: colors[1], transparent: true, opacity: 0.0, side: THREE.DoubleSide });
+  var receiver = new THREE.Mesh(recvGeo, recvMat);
+  receiver.userData.isReceiver = true;
+  group.add(receiver);
+  shells.push(receiver);
+
+  return { group: group, shells: shells, sigTorus: sigTorus, sigMat: sigMat, receiver: receiver, recvMat: recvMat };
 }
 
 function _initAshNodeLayer() {
@@ -9800,22 +9829,30 @@ function _initAshNodeLayer() {
 // Uses local BRPN shell values + journal activity to determine how
 // "resonant" two sessions are — drives spline color + pulse rate
 function _sessionPatternScore(uidA, uidB) {
-  var geoA = parseFloat(document.getElementById('hud-geo')?.textContent||'0')||0;
-  var marA = parseFloat(document.getElementById('hud-mar')?.textContent||'0')||0;
-  // Remote sessions: estimate from uid hash so different pairs get different scores
   var hA = _uidHash(uidA), hB = _uidHash(uidB);
   var hDiff = Math.abs(hA - hB);
-  // Score 0–1: lower hash diff = more similar "pattern"
   var resonance = Math.max(0, 1 - hDiff * 2.5);
-  // Boost if local is active (has journal entries)
-  var localActive = (typeof S !== 'undefined' && S.journal && S.journal.length > 10) ? 0.25 : 0;
-  return Math.min(1, resonance + localActive);
+  var localActive = (typeof S !== 'undefined' && S.journal && S.journal.length > 10) ? 0.2 : 0;
+  // ── Ash Canvas influence on pattern score ──────────────────
+  // When ash canvas is applied, its sigma pattern (tool+shell weights)
+  // shifts the pattern fingerprint, creating unique resonance signatures
+  var acBoost = 0;
+  var acInf = (typeof window.getAshCanvasInfluence === 'function') ? window.getAshCanvasInfluence() : null;
+  if(acInf && (acInf.geo || acInf.mar || acInf.aero)) {
+    var totalAcWeight = (acInf.geo + acInf.mar + acInf.aero);
+    // Ash canvas shifts local uid hash influence — more canvas = more distinct pattern
+    var acShift = Math.min(0.35, totalAcWeight * 0.06);
+    // If ash canvas is applied, LOCAL pattern is more "defined" → higher divergence with remotes
+    // but the VISUAL presentation treats this as intentional shaping (shown as sigmatic rings)
+    acBoost = acShift * (1 - hDiff); // boost similarity only where hash is already close
+  }
+  var sigmaScore = Math.min(1, resonance + localActive + acBoost);
+  return sigmaScore;
 }
 
 // ── Build one plasma spline between two 3D positions ─────────────
-function _makePlasmaSpline(posA, posB, colorHex, resonance) {
+function _makePlasmaSpline(posA, posB, colorHex, resonance, isLocalSpline) {
   var mid = posA.clone().add(posB).multiplyScalar(0.5);
-  // Control point offset — perpendicular bulge scaled by resonance
   var axis  = posB.clone().sub(posA);
   var perp  = new THREE.Vector3(-axis.z, axis.x, axis.y).normalize();
   var bulge = (0.6 + resonance * 1.2) * axis.length() * 0.22;
@@ -9827,29 +9864,48 @@ function _makePlasmaSpline(posA, posB, colorHex, resonance) {
   var geo   = new THREE.BufferGeometry().setFromPoints(pts);
   var col   = new THREE.Color(colorHex);
   var baseOpacity = 0.12 + resonance * 0.35;
-  var mat   = new THREE.LineBasicMaterial({
-    color: col, transparent: true, opacity: baseOpacity, linewidth: 1
-  });
+  var mat   = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: baseOpacity, linewidth: 1 });
   var line  = new THREE.Line(geo, mat);
 
-  // Traveling pulse — small glowing sphere that rides along the spline
-  var pGeo  = new THREE.SphereGeometry(0.025 + resonance * 0.018, 5, 5);
-  var pMat  = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85 });
+  // ── OUTGOING pulse (A→B) ─────────────────────────────────────
+  var pSize = 0.025 + resonance * 0.018;
+  var pGeo  = new THREE.SphereGeometry(pSize, 5, 5);
+  var pMat  = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.88 });
   var pulse = new THREE.Mesh(pGeo, pMat);
 
+  // ── INCOMING pulse (B→A) — slightly smaller, offset phase ────
+  var ipGeo = new THREE.SphereGeometry(pSize * 0.78, 4, 4);
+  // Return pulse color: shifted hue +60° for visual distinction
+  var retCol = col.clone();
+  var hsl = {}; retCol.getHSL(hsl);
+  retCol.setHSL((hsl.h + 0.16) % 1.0, hsl.s * 0.85, Math.min(0.9, hsl.l * 1.2));
+  var ipMat = new THREE.MeshBasicMaterial({ color: retCol, transparent: true, opacity: 0.72 });
+  var inPulse = new THREE.Mesh(ipGeo, ipMat);
+
+  // ── Ash Canvas influence ring (shown on local splines only) ───
+  // Sigmatic pattern indicator: thin ring that pulses at the midpoint
+  var sigRing = null, sigRingMat = null;
+  if (isLocalSpline) {
+    var sigGeo = new THREE.TorusGeometry(0.08 + resonance * 0.04, 0.008, 4, 12);
+    var sigCol = new THREE.Color(resonance > 0.6 ? 0xa78bfa : 0x00e5ff);
+    sigRingMat = new THREE.MeshBasicMaterial({ color: sigCol, transparent: true, opacity: 0.0, wireframe: true });
+    sigRing = new THREE.Mesh(sigGeo, sigRingMat);
+  }
+
   return {
-    line:     line,
-    pulse:    pulse,
-    mat:      mat,
-    pMat:     pMat,
-    curve:    curve,
-    pts:      pts,
-    phase:    Math.random(),               // pulse travel position 0–1
-    speed:    0.004 + resonance * 0.012,   // faster for more resonant pairs
-    resonance:resonance,
+    line: line, pulse: pulse, inPulse: inPulse,
+    sigRing: sigRing, sigRingMat: sigRingMat,
+    mat: mat, pMat: pMat, ipMat: ipMat,
+    curve: curve, pts: pts,
+    phase:   Math.random(),               // outgoing 0→1
+    phaseIn: (Math.random() + 0.5) % 1.0, // incoming 1→0 (opposite direction, offset)
+    speed:    0.004 + resonance * 0.012,
+    resonance: resonance,
     baseOpacity: baseOpacity,
-    color:    col,
-    wavePhase: Math.random() * Math.PI * 2 // for plasma wave animation
+    color: col, retCol: retCol,
+    wavePhase: Math.random() * Math.PI * 2,
+    isLocal: !!isLocalSpline,
+    sigPhase: Math.random() * Math.PI * 2
   };
 }
 
@@ -9973,11 +10029,12 @@ function _renderAshNodes(nodes) {
       var resonance = _sessionPatternScore(uids[a], uids[b]);
       // Color: high resonance = cyan, mid = violet, low = blue
       var colorHex = resonance > 0.6 ? 0x00e5ff : resonance > 0.3 ? 0xa78bfa : 0x4488ff;
-      var sp = _makePlasmaSpline(pa, pb, colorHex, resonance);
+      var sp = _makePlasmaSpline(pa, pb, colorHex, resonance, false);
       var key = uids[a]+':'+uids[b];
       _ashNodes._splines[key] = sp;
       _ashNodes._splineGroup.add(sp.line);
       _ashNodes._splineGroup.add(sp.pulse);
+      _ashNodes._splineGroup.add(sp.inPulse);
       splineCount++;
     }
 
@@ -9986,13 +10043,14 @@ function _renderAshNodes(nodes) {
       var distToCenter = origin.distanceTo(pa);
       if(distToCenter < 6.0) {
         var res = _sessionPatternScore(_ashNodes._localUid, uids[a]);
-        // Local→remote: always cyan-tinted
         var c2 = res > 0.5 ? 0x00ffcc : 0x0088ff;
-        var sp2 = _makePlasmaSpline(origin, pa, c2, res);
+        var sp2 = _makePlasmaSpline(origin, pa, c2, res, true); // isLocal=true
         var key2 = 'local:'+uids[a];
         _ashNodes._splines[key2] = sp2;
         _ashNodes._splineGroup.add(sp2.line);
         _ashNodes._splineGroup.add(sp2.pulse);
+        _ashNodes._splineGroup.add(sp2.inPulse);
+        if(sp2.sigRing) _ashNodes._splineGroup.add(sp2.sigRing);
         splineCount++;
       }
     }
@@ -10021,10 +10079,34 @@ function _tickAshNodes(frame) {
     );
     var age = (Date.now() - (entry.node.ts||Date.now())) / 60000;
     var fadeFactor = Math.max(0.1, Math.exp(-age * 0.08));
+    var patScore = _sessionPatternScore(_ashNodes._localUid, uid);
+    var acInfCluster = (typeof window.getAshCanvasInfluence==='function') ? window.getAshCanvasInfluence() : null;
     entry.shells.forEach(function(m, i) {
-      if(m.material) m.material.opacity = (0.22 + i * 0.06) * fadeFactor;
-      m.rotation.y = t * (0.3 + i * 0.15);
-      m.rotation.x = t * (0.1 + i * 0.08);
+      if(m.userData && m.userData.isSigRing) {
+        // Sigmatic ring: visible + rotating when pattern resonance is high or ash canvas active
+        var acBoost = acInfCluster ? Math.min(1,(acInfCluster.geo+acInfCluster.mar+acInfCluster.aero)*0.15) : 0;
+        var sigVis = patScore * 0.65 + acBoost * 0.45;
+        if(m.material) m.material.opacity = Math.max(0, Math.min(0.75, sigVis * (0.5+0.5*Math.sin(t*1.8+bp.h*6)) * fadeFactor));
+        m.rotation.z = t * (0.4 + patScore * 0.6);
+        m.rotation.x = t * 0.15;
+      } else if(m.userData && m.userData.isReceiver) {
+        // Receiver ring: flashes when incoming pulse is near this node
+        // Phase-locked to incoming pulse phase of local→this spline
+        var spKey = 'local:'+uid;
+        var sp = _ashNodes._splines && _ashNodes._splines[spKey];
+        var recvFlash = 0;
+        if(sp) {
+          // Flash when phaseIn is near 0 (incoming pulse just arrived)
+          recvFlash = Math.max(0, 1 - sp.phaseIn * 8) * 0.9;
+        }
+        if(m.material) m.material.opacity = Math.max(0, Math.min(0.92, recvFlash * fadeFactor));
+        m.rotation.z = t * 1.2;
+        m.scale.setScalar(1 + recvFlash * 0.4);
+      } else {
+        if(m.material) m.material.opacity = (0.22 + i * 0.06) * fadeFactor;
+        m.rotation.y = t * (0.3 + i * 0.15);
+        m.rotation.x = t * (0.1 + i * 0.08);
+      }
     });
   });
 
@@ -10071,17 +10153,15 @@ function _tickAshNodes(frame) {
       positions.needsUpdate = true;
     }
 
-    // ── 2. Pulse animation — sphere rides along the spline ───────
-    sp.phase = (sp.phase + sp.speed) % 1.0;
-    // Brief discharge burst when LEATR is processing
-    if(typeof S!=='undefined' && S.isProcessing) {
-      sp.phase = (sp.phase + sp.speed * 3) % 1.0;
-    }
+    var isProcessing = typeof S!=='undefined' && S.isProcessing;
+    var speedMult = isProcessing ? 3.2 : 1.0;
+
+    // ── 2. OUTGOING pulse (A→B, phase 0→1) ──────────────────────
+    sp.phase = (sp.phase + sp.speed * speedMult) % 1.0;
     var pPos = sp.curve.getPoint(sp.phase);
-    // Apply the same wave displacement at this phase position
-    var env2 = Math.sin(sp.phase * Math.PI);
-    var pw1  = Math.sin(sp.phase * 6 + t * 3.5 + sp.wavePhase) * 0.045 * env2;
-    var pw2  = Math.sin(sp.phase * 11 - t * 5.0 + sp.wavePhase * 1.7) * 0.022 * env2;
+    var env2  = Math.sin(sp.phase * Math.PI);
+    var pw1   = Math.sin(sp.phase * 6 + t * 3.5 + sp.wavePhase) * 0.045 * env2;
+    var pw2   = Math.sin(sp.phase * 11 - t * 5.0 + sp.wavePhase * 1.7) * 0.022 * env2;
     var boost2 = 1 + activityNorm * 2.5;
     sp.pulse.position.set(
       pPos.x + pw1 * boost2,
@@ -10089,32 +10169,106 @@ function _tickAshNodes(frame) {
       pPos.z + (pw1*0.5 + pw2*0.5) * boost2
     );
 
-    // ── 3. Pulsing opacity — plasma breathing + activity flicker ─
-    var breathe = 0.5 + 0.5 * Math.sin(t * 2.2 + sp.wavePhase);
+    // ── 3. INCOMING pulse (B→A, phase 1→0) ──────────────────────
+    sp.phaseIn = ((sp.phaseIn - sp.speed * speedMult * 0.85) + 1.0) % 1.0; // reverse direction
+    if(sp.inPulse) {
+      var ipPos = sp.curve.getPoint(sp.phaseIn);
+      var env3  = Math.sin(sp.phaseIn * Math.PI);
+      var iw1   = Math.sin(sp.phaseIn * 6 + t * 3.5 + sp.wavePhase + 1.2) * 0.045 * env3;
+      var iw2   = Math.sin(sp.phaseIn * 11 - t * 5.0 + sp.wavePhase * 1.7 + 0.8) * 0.022 * env3;
+      sp.inPulse.position.set(
+        ipPos.x + iw1 * boost2,
+        ipPos.y + iw2 * boost2,
+        ipPos.z + (iw1*0.5 + iw2*0.5) * boost2
+      );
+    }
+
+    // ── 4. Pulsing opacity ────────────────────────────────────────
+    var breathe    = 0.5 + 0.5 * Math.sin(t * 2.2 + sp.wavePhase);
     var activeBoost = activityNorm * 0.4;
     var lineOp  = sp.baseOpacity * (0.55 + 0.45 * breathe) + activeBoost;
     var pulseOp = 0.5 + 0.45 * breathe + activeBoost;
-    if(sp.mat)  sp.mat.opacity  = Math.min(0.85, lineOp);
-    if(sp.pMat) sp.pMat.opacity = Math.min(0.95, pulseOp);
+    var iPulseOp = 0.38 + 0.36 * breathe + activeBoost * 0.8;
+    if(sp.mat)   sp.mat.opacity   = Math.min(0.85, lineOp);
+    if(sp.pMat)  sp.pMat.opacity  = Math.min(0.95, pulseOp);
+    if(sp.ipMat) sp.ipMat.opacity = Math.min(0.80, iPulseOp);
 
-    // ── 4. Pulse scale throb ──────────────────────────────────────
-    var throb = 0.9 + 0.25 * Math.sin(t * 8 + sp.wavePhase * 3);
+    // ── 5. Pulse scale throb ──────────────────────────────────────
+    var throb    = 0.9 + 0.25 * Math.sin(t * 8 + sp.wavePhase * 3);
     var sizeBoost = 1 + activityNorm * 1.5;
     sp.pulse.scale.setScalar(throb * sizeBoost);
+    if(sp.inPulse) sp.inPulse.scale.setScalar((throb * 0.78) * sizeBoost);
 
-    // ── 5. Color shift on activity — discharge flash ──────────────
-    if(typeof S!=='undefined' && S.isProcessing) {
-      // During processing: spline flickers toward white-hot
+    // ── 6. Sigmatic ring (local splines only) ────────────────────
+    if(sp.isLocal && sp.sigRing && sp.sigRingMat) {
+      // Position at midpoint of the spline
+      var midPt = sp.curve.getPoint(0.5);
+      sp.sigRing.position.copy(midPt);
+      // Face the camera
+      sp.sigRing.lookAt(0, 0, 10);
+      // Animate: spin + opacity pulse driven by ash canvas + activity
+      sp.sigPhase = (sp.sigPhase || 0) + 0.05;
+      sp.sigRing.rotation.z += 0.022;
+      // Ash Canvas influence gates visibility
+      var acInf = (typeof window.getAshCanvasInfluence === 'function') ? window.getAshCanvasInfluence() : null;
+      var acStrength = acInf ? Math.min(1, (acInf.geo + acInf.mar + acInf.aero) / 3) : 0;
+      var sigOp = (acStrength * 0.55 + activityNorm * 0.35) * (0.4 + 0.6 * Math.sin(sp.sigPhase));
+      sp.sigRingMat.opacity = Math.max(0, Math.min(0.9, sigOp));
+      // Scale: grows with ash canvas shell weight
+      var sigScale = 1 + acStrength * 0.8 + activityNorm * 0.5;
+      sp.sigRing.scale.setScalar(sigScale);
+      // Color: shift toward violet when ash canvas is active
+      if(acStrength > 0.3) {
+        sp.sigRingMat.color.setRGB(
+          0.65 + acStrength * 0.15,
+          0.55 - acStrength * 0.1,
+          0.9 + acStrength * 0.1
+        );
+      }
+    }
+
+    // ── 7. Color shift on processing — discharge flash ────────────
+    if(isProcessing) {
       var flash = 0.7 + 0.3 * Math.sin(t * 18 + sp.wavePhase);
       sp.mat.color.setRGB(
         sp.color.r * flash + (1-flash),
         sp.color.g * flash + (1-flash) * 0.85,
         sp.color.b * flash + (1-flash) * 0.7
       );
+      if(sp.ipMat) {
+        sp.ipMat.color.setRGB(
+          sp.retCol.r * flash + (1-flash) * 0.8,
+          sp.retCol.g * flash + (1-flash) * 0.9,
+          sp.retCol.b * flash + (1-flash)
+        );
+      }
     } else {
       sp.mat.color.copy(sp.color);
+      if(sp.ipMat && sp.retCol) sp.ipMat.color.copy(sp.retCol);
     }
   });
+
+  // ── Ash Canvas tool-node visual feedback ─────────────────────
+  // Make the local shells subtly tint and pulse with ash canvas weights
+  var acInf2 = (typeof window.getAshCanvasInfluence==='function') ? window.getAshCanvasInfluence() : null;
+  if(acInf2) {
+    var shellEls = [
+      document.getElementById('ac-sock-geo'),
+      document.getElementById('ac-sock-mar'),
+      document.getElementById('ac-sock-aero')
+    ];
+    // Also drive 3D shell opacity boost from ash canvas shell weights
+    if(typeof shells !== 'undefined' && shells.length >= 3) {
+      var geoW  = Math.min(1, acInf2.geo * 0.5);
+      var marW  = Math.min(1, acInf2.mar * 0.5);
+      var aeroW = Math.min(1, acInf2.aero * 0.5);
+      // Pulse local shells: GEO=index0, MAR=index1, AERO=index2
+      var acPulse = 0.06 * Math.sin(t * 2 + frame * 0.01);
+      if(shells[0] && shells[0].material) shells[0].material.opacity = Math.min(0.7, shells[0].material.opacity + geoW  * 0.08 + acPulse * geoW);
+      if(shells[1] && shells[1].material) shells[1].material.opacity = Math.min(0.7, shells[1].material.opacity + marW  * 0.06 + acPulse * marW);
+      if(shells[2] && shells[2].material) shells[2].material.opacity = Math.min(0.7, shells[2].material.opacity + aeroW * 0.05 + acPulse * aeroW);
+    }
+  }
 }
 
 // ============================================================
