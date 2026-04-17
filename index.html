@@ -9509,7 +9509,9 @@ function initBRPN() {
       const baseOp=0.15+i*0.06;
       const pulseOp=shellPulse*0.04*Math.sin(f*0.04+i);
       const thinkOp=isThinking?0.06*Math.sin(f*0.08+i):0;
-      m.material.opacity=Math.max(0.05,Math.min(0.7,baseOp+pulseOp+thinkOp));
+      // Ash canvas boost — lerped target set by _tickAshNodes, no direct write conflict
+      const acBoost=(window._acShellBoost&&window._acShellBoost[i])||0;
+      m.material.opacity=Math.max(0.05,Math.min(0.7,baseOp+pulseOp+thinkOp+acBoost));
     });
 
     // ── Core + maze group ─────────────────────────────────────────────────
@@ -9651,21 +9653,20 @@ function initBRPN() {
     // ── Multi-user ASH node drift ────────────────────────────────────────
     if(f%3===0 && typeof _tickAshNodes==='function') _tickAshNodes(f);
 
-    // ── Local receive flash: any incoming pulse arriving at origin ─
-    if(f%2===0 && typeof _ashNodes!=='undefined' && _ashNodes._splines) {
-      var receivingFlash = 0;
+    // ── Local receive flash: incoming pulse arrival at origin ──────
+    // Only fire on the RISING EDGE (phaseIn crossed below threshold)
+    // to avoid continuous shellPulse injection every frame.
+    if(f%18===0 && typeof _ashNodes!=='undefined' && _ashNodes._splines) {
+      var peakFlash = 0;
       Object.keys(_ashNodes._splines).forEach(function(k) {
         var sp = _ashNodes._splines[k];
         if(sp && sp.phaseIn !== undefined) {
-          // phaseIn near 0 = pulse just arrived at local node
-          var proximity = Math.max(0, 1 - sp.phaseIn * 6);
-          receivingFlash = Math.max(receivingFlash, proximity);
+          // Only count when pulse is very close to arrival (phaseIn < 0.04)
+          if(sp.phaseIn < 0.04) peakFlash = Math.max(peakFlash, 0.25);
         }
       });
-      // Drive a gentle extra shell pulse when receiving
-      if(receivingFlash > 0.15) {
-        shellPulse = Math.max(shellPulse, receivingFlash * 0.55);
-      }
+      // Single gentle bump — shellPulse decays naturally (×0.994/frame)
+      if(peakFlash > 0) shellPulse = Math.min(shellPulse + 0.18, 1.2);
     }
     renderer.render(scene,camera);
     animId=requestAnimationFrame(animate);
@@ -10247,26 +10248,18 @@ function _tickAshNodes(frame) {
     }
   });
 
-  // ── Ash Canvas tool-node visual feedback ─────────────────────
-  // Make the local shells subtly tint and pulse with ash canvas weights
+  // ── Ash Canvas visual feedback ─────────────────────────────
+  // Set boost targets only — animate() is the single opacity authority
   var acInf2 = (typeof window.getAshCanvasInfluence==='function') ? window.getAshCanvasInfluence() : null;
+  window._acShellBoost = window._acShellBoost || [0,0,0];
   if(acInf2) {
-    var shellEls = [
-      document.getElementById('ac-sock-geo'),
-      document.getElementById('ac-sock-mar'),
-      document.getElementById('ac-sock-aero')
-    ];
-    // Also drive 3D shell opacity boost from ash canvas shell weights
-    if(typeof shells !== 'undefined' && shells.length >= 3) {
-      var geoW  = Math.min(1, acInf2.geo * 0.5);
-      var marW  = Math.min(1, acInf2.mar * 0.5);
-      var aeroW = Math.min(1, acInf2.aero * 0.5);
-      // Pulse local shells: GEO=index0, MAR=index1, AERO=index2
-      var acPulse = 0.06 * Math.sin(t * 2 + frame * 0.01);
-      if(shells[0] && shells[0].material) shells[0].material.opacity = Math.min(0.7, shells[0].material.opacity + geoW  * 0.08 + acPulse * geoW);
-      if(shells[1] && shells[1].material) shells[1].material.opacity = Math.min(0.7, shells[1].material.opacity + marW  * 0.06 + acPulse * marW);
-      if(shells[2] && shells[2].material) shells[2].material.opacity = Math.min(0.7, shells[2].material.opacity + aeroW * 0.05 + acPulse * aeroW);
-    }
+    window._acShellBoost[0] = Math.min(0.14, acInf2.geo  * 0.035);
+    window._acShellBoost[1] = Math.min(0.10, acInf2.mar  * 0.028);
+    window._acShellBoost[2] = Math.min(0.08, acInf2.aero * 0.022);
+  } else {
+    window._acShellBoost[0] = window._acShellBoost[0] * 0.92; // decay to 0
+    window._acShellBoost[1] = window._acShellBoost[1] * 0.92;
+    window._acShellBoost[2] = window._acShellBoost[2] * 0.92;
   }
 }
 
