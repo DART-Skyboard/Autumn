@@ -1126,7 +1126,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .as-btn.secondary{background:transparent;border-color:rgba(0,229,255,.2);color:rgba(0,229,255,.5)}
 .as-btn.danger{border-color:rgba(255,68,102,.3);color:rgba(255,68,102,.6);background:transparent}
 .as-btn.send-chat{background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.3);color:var(--cyan);width:100%;margin-top:6px;padding:6px}
-#arc-studio-viewport{flex:1;min-height:280px;max-height:420px;position:relative;background:#070d12}
+#arc-studio-viewport{flex:1;min-height:260px;height:300px;max-height:440px;position:relative;background:#0a0f14;overflow:hidden}
 #arc-studio-canvas{width:100%;height:100%;display:block}
 #arc-studio-readout{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.15);border-radius:4px;padding:6px 8px;font-family:monospace;font-size:9px;color:rgba(0,229,255,.6);line-height:1.55;min-width:120px;pointer-events:none}
 .user-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 5px var(--blue);display:inline-block}
@@ -14982,8 +14982,17 @@ _syncActionBtn();
     var el = document.getElementById('arc-studio-overlay');
     if (!el) return;
     el.classList.add('visible');
-    if (!_as.initialized) _asInit();
-    else { _as.animating = true; _asAnimate(); _asUpdateReadout(); }
+    // Give the flex layout one frame to settle before measuring viewport
+    requestAnimationFrame(function() {
+      if (!_as.initialized) {
+        _asInit();
+      } else {
+        _asResize();
+        _as.animating = true;
+        _asAnimate();
+        _asUpdateReadout();
+      }
+    });
   };
   window.arcStudioClose = function() {
     var el = document.getElementById('arc-studio-overlay');
@@ -15035,42 +15044,130 @@ _syncActionBtn();
   })();
 
   // ── THREE.js init ──────────────────────────────────────────────
+  function _asGetViewportSize() {
+    var vp = document.getElementById('arc-studio-viewport');
+    var cv = document.getElementById('arc-studio-canvas');
+    if (!vp || !cv) return {w:400, h:300};
+    // Use offsetWidth/offsetHeight so we measure after layout (overlay must be visible)
+    var w = vp.offsetWidth  || vp.clientWidth  || 400;
+    var h = vp.offsetHeight || vp.clientHeight || 300;
+    return {w: Math.max(w, 200), h: Math.max(h, 200)};
+  }
+
+  function _asResize() {
+    if (!_as.initialized) return;
+    var sz = _asGetViewportSize();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    _as.camera.aspect = sz.w / sz.h;
+    _as.camera.updateProjectionMatrix();
+    _as.renderer.setPixelRatio(dpr);
+    _as.renderer.setSize(sz.w, sz.h);
+  }
+
   function _asInit() {
     if (_as.initialized) return;
     var cv = document.getElementById('arc-studio-canvas');
     if (!cv || typeof THREE === 'undefined') { console.warn('[ArcStudio] THREE not loaded'); return; }
-    var w = cv.parentElement.clientWidth, h = cv.parentElement.clientHeight || 300;
-    cv.width = w; cv.height = h;
 
-    _as.scene    = new THREE.Scene();
-    _as.camera   = new THREE.PerspectiveCamera(60, w/h, 0.1, 1000);
-    _as.camera.position.set(8, 6, 14);
+    // Wait one animation frame so the overlay flex layout has settled
+    var sz = _asGetViewportSize();
+    if (sz.w < 50) { requestAnimationFrame(_asInit); return; }
+
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    _as.scene  = new THREE.Scene();
+    // FOV 75 + camera position matching original BRPN reference exactly
+    _as.camera = new THREE.PerspectiveCamera(75, sz.w / sz.h, 0.1, 1000);
+    _as.camera.position.set(5, 5, 15);
     _as.camera.lookAt(0, 0, 0);
 
-    _as.renderer = new THREE.WebGLRenderer({canvas:cv, antialias:true, alpha:true});
-    _as.renderer.setClearColor(0x070d12, 0.95);
-    _as.renderer.setSize(w, h);
-    _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    _as.renderer = new THREE.WebGLRenderer({canvas: cv, antialias: true, alpha: true});
+    _as.renderer.setClearColor(0x0a0f14, 1.0);
+    _as.renderer.setPixelRatio(dpr);
+    _as.renderer.setSize(sz.w, sz.h);
 
-    _as.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    var dl = new THREE.DirectionalLight(0xffffff, 0.8);
-    dl.position.set(6, 10, 8); _as.scene.add(dl);
-    _as.scene.add(new THREE.GridHelper(30, 30, 0x223344, 0x112233));
+    _as.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    var dl = new THREE.DirectionalLight(0xffffff, 0.85);
+    dl.position.set(5, 10, 7.5); _as.scene.add(dl);
+    // Lighter grid — matches original BRPN grid colours
+    _as.scene.add(new THREE.GridHelper(30, 30, 0x336677, 0x223344));
     _as.scene.add(new THREE.AxesHelper(5));
 
-    // OrbitControls — check if available
+    // OrbitControls — NO damping per user requirement
     if (typeof THREE.OrbitControls !== 'undefined') {
       _as.controls = new THREE.OrbitControls(_as.camera, cv);
-      _as.controls.enableDamping = true;
-      _as.controls.dampingFactor = 0.06;
+      _as.controls.enableDamping  = false; // instant response, no lag
+      _as.controls.enablePan      = true;
+      _as.controls.enableZoom     = true;
+      _as.controls.rotateSpeed    = 0.55;
+      _as.controls.zoomSpeed      = 1.1;
+      _as.controls.panSpeed       = 0.8;
+      _as.controls.minDistance    = 1;
+      _as.controls.maxDistance    = 80;
+      _as.controls.screenSpacePanning = true; // pan parallel to screen, not world Y
     }
 
-    window.addEventListener('resize', function() {
-      if (!_as.initialized) return;
-      var nw = cv.parentElement.clientWidth, nh = cv.parentElement.clientHeight||300;
-      _as.camera.aspect = nw/nh; _as.camera.updateProjectionMatrix();
-      _as.renderer.setSize(nw, nh);
-    });
+    // ── Raycaster for arc selection ───────────────────────────────
+    _as.raycaster = new THREE.Raycaster();
+    _as.raycaster.params.Line = { threshold: 0.25 }; // generous hit zone for thin lines
+    _as.pointer   = new THREE.Vector2();
+
+    function _asPick(e) {
+      var rect = cv.getBoundingClientRect();
+      var cx = (e.touches ? e.touches[0].clientX : e.clientX);
+      var cy = (e.touches ? e.touches[0].clientY : e.clientY);
+      _as.pointer.x =  ((cx - rect.left)  / rect.width)  * 2 - 1;
+      _as.pointer.y = -((cy - rect.top)   / rect.height) * 2 + 1;
+      _as.raycaster.setFromCamera(_as.pointer, _as.camera);
+      // Test against all arc lines
+      var lineObjs = _as.arcs.map(function(a){ return a.line; });
+      var hits = _as.raycaster.intersectObjects(lineObjs, false);
+      if (hits.length > 0) {
+        var hitLine = hits[0].object;
+        var idx = _as.arcs.findIndex(function(a){ return a.line === hitLine; });
+        if (idx >= 0) {
+          // Deselect old
+          if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
+            _as.arcs[_as.selectedArc].line.material.color.setHex(0x00e5ff);
+          }
+          // Select new — highlight yellow
+          _as.selectedArc = idx;
+          _as.arcs[idx].line.material.color.setHex(0xffee00);
+          // Show its measurements in readout
+          var ap = _as.arcs[idx].params;
+          var pts2 = _asCalcPoints(ap);
+          var len2 = 0;
+          for (var pi=1; pi<pts2.length; pi++) len2 += pts2[pi-1].distanceTo(pts2[pi]);
+          var rd = document.getElementById('arc-studio-readout');
+          if (rd) rd.innerHTML =
+            'SELECTED: Arc ' + (idx+1) + '<br>---'
+            +'<br>X:'+ap.x+' Y:'+ap.y+' Z:'+ap.z
+            +'<br>Dev: '+ap.mainDev
+            +'<br>Curve: '+ap.curveInd
+            +'<br>DevInd: '+ap.devInd
+            +'<br>Res: '+ap.resolution
+            +'<br>---'
+            +'<br>Length: '+len2.toFixed(5)
+            +'<br>Points: '+pts2.length;
+          if (typeof ideToast==='function') ideToast('Arc '+(idx+1)+' selected — length: '+len2.toFixed(4), 2200);
+          e.stopPropagation();
+        }
+      } else {
+        // Click on empty space — deselect
+        if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
+          _as.arcs[_as.selectedArc].line.material.color.setHex(0x00e5ff);
+          _as.selectedArc = null;
+          _asUpdateReadout();
+        }
+      }
+    }
+
+    cv.addEventListener('click',      _asPick, false);
+    cv.addEventListener('touchend',   function(e){ if (!_as._didDrag) _asPick(e); _as._didDrag=false; }, false);
+    cv.addEventListener('touchmove',  function(){  _as._didDrag = true; }, {passive:true});
+    cv.addEventListener('touchstart', function(){  _as._didDrag = false; }, {passive:true});
+
+    window.addEventListener('resize', _asResize);
 
     _as.initialized = true;
     _as.animating   = true;
@@ -15081,7 +15178,7 @@ _syncActionBtn();
   function _asAnimate() {
     if (!_as.animating || !_as.initialized) return;
     requestAnimationFrame(_asAnimate);
-    if (_as.controls) _as.controls.update();
+    // No controls.update() needed when damping is off
     _as.renderer.render(_as.scene, _as.camera);
   }
 
@@ -15120,15 +15217,22 @@ _syncActionBtn();
   window.arcStudioAddArc = function() {
     if (!_as.initialized) _asInit();
     if (!_as.initialized) return;
-    var p  = _asGetParams();
+    var p   = _asGetParams();
     var pts = _asCalcPoints(p);
     var geo = new THREE.BufferGeometry().setFromPoints(pts);
+    // Each arc gets its OWN material so selection colouring is independent
     var mat = new THREE.LineBasicMaterial({color:0x00e5ff, linewidth:2});
     var line = new THREE.Line(geo, mat);
     _as.scene.add(line);
-    _as.arcs.push({line, params:p});
+    // Measure arc length
+    var len = 0;
+    for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
+    _as.arcs.push({line: line, params: p, length: len});
     _asUpdateReadout();
-    if (typeof ideToast==='function') ideToast('Arc added — ' + pts.length + ' pts', 1800);
+    var rd = document.getElementById('arc-studio-readout');
+    if (rd) rd.innerHTML = 'Arc '+_as.arcs.length+' added<br>Length: '+len.toFixed(5)+'<br>Pts: '+pts.length
+      +'<br>---<br>Click arc to select';
+    if (typeof ideToast==='function') ideToast('Arc '+_as.arcs.length+' added — length: '+len.toFixed(4), 2000);
   };
 
   window.arcStudioUpdate = arcStudioUpdate;
@@ -15168,10 +15272,14 @@ _syncActionBtn();
   };
 
   window.arcStudioClearScene = function() {
-    _as.arcs.forEach(function(a){ _as.scene.remove(a.line); });
+    _as.arcs.forEach(function(a){
+      _as.scene.remove(a.line);
+      if (a.line.geometry) a.line.geometry.dispose();
+      if (a.line.material) a.line.material.dispose();
+    });
     _as.arcs = []; _as.selectedArc = null;
     _asUpdateReadout();
-    if (typeof ideToast==='function') ideToast('Arc scene cleared', 1600);
+    if (typeof ideToast==='function') ideToast('Scene cleared', 1600);
   };
 
   window.arcStudioSendToChat = function() {
