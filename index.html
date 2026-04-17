@@ -655,14 +655,6 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #input-pill:focus-within{border-color:rgba(0,255,204,.3)}
 #input-pill input{flex:1;background:transparent;border:none;color:var(--bright);font-size:14px;padding:8px 4px;font-family:var(--font-b);outline:none}
 #input-pill input::placeholder{color:rgba(0,255,204,.18)}
-/* PTT mic inside pill */
-.ptt-btn{background:transparent;border:none;color:rgba(0,255,204,.3);width:32px;height:32px;border-radius:50%;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;
-  transition:all .15s;flex-shrink:0;padding:0;position:relative;user-select:none;-webkit-user-select:none;touch-action:none}
-.ptt-btn:hover{color:var(--red)}
-.ptt-btn.holding{color:#ff4466;filter:drop-shadow(0 0 8px rgba(255,68,102,.7));transform:scale(1.15)}
-.ptt-btn.recording{color:#ff4466;animation:pulse .8s infinite;filter:drop-shadow(0 0 6px rgba(255,68,102,.6))}
-.ptt-btn.transcribing{color:#ffb347;animation:pulse .5s infinite;filter:drop-shadow(0 0 6px rgba(255,179,71,.5))}
 /* Send / Stop action button */
 .action-btn{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .2s;flex-shrink:0}
 .action-btn.send{background:var(--cyan);color:#020a12;box-shadow:0 0 14px rgba(0,255,204,.3)}
@@ -874,16 +866,10 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .src-strip{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .src-pill{font-family:var(--font-d);font-size:.42rem;letter-spacing:1.5px;padding:2px 7px;border:1px solid var(--border);border-radius:2px;color:rgba(0,255,204,.45);text-transform:uppercase}
 /* Voice controls */
-.mic-btn,.speaker-btn,.ptt-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;flex-shrink:0}
+.mic-btn,.speaker-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;flex-shrink:0}
 .mic-btn:hover,.speaker-btn:hover{color:var(--cyan);border-color:var(--cyan)}
-.mic-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse 1s infinite}
-/* Speaker (TTS) button — cyan when voice output is active */
+.mic-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse 1s infinite}/* Speaker (TTS) button — cyan when voice output is active */
 .speaker-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,255,204,.1);box-shadow:0 0 10px rgba(0,255,204,.25)}
-/* PTT mic — red pulse while listening */
-.ptt-btn:hover{color:#ff4466;border-color:#ff4466}
-.ptt-btn.holding{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.18);transform:scale(1.12);box-shadow:0 0 16px rgba(255,68,102,.5)}
-.ptt-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse .8s infinite;box-shadow:0 0 12px rgba(255,68,102,.4)}
-.ptt-btn.transcribing{color:#ffb347;border-color:#ffb347;background:rgba(255,179,71,.1);animation:pulse .5s infinite}
 .listen-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0}
 .listen-btn:hover{color:#ffb347;border-color:#ffb347;box-shadow:0 0 10px rgba(255,179,71,.15)}
 .listen-btn.tuning{color:#ffb347;border-color:#ffb347;background:rgba(255,179,71,.1);animation:musicPulse 1.2s ease-in-out infinite}
@@ -1433,11 +1419,6 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="plus-btn" id="plus-btn" onclick="toggleInputTray()" title="More options">+</button>
         <div id="input-pill">
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
-          <button class="ptt-btn" id="ptt-btn"
-            onclick="pttTalk()"
-            title="Tap to speak">🎤
-            <canvas id="ptt-level" width="28" height="28" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:0;transition:opacity .15s;border-radius:50%"></canvas>
-          </button>
         </div>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
       </div>
@@ -10181,173 +10162,107 @@ function toggleSpeakerMode(){
 // Keep toggleVoiceMode as alias for live-mode compatibility
 function toggleVoiceMode(){ toggleSpeakerMode(); }
 
-// ── PUSH-TO-TALK PTT ─────────────────────────────────────────────────────
-// Tap to start listening → auto-sends when you stop talking
-// Tap again while listening → cancel
+// ── SYSTEM SPEECH-TO-TEXT WATCHER ────────────────────────────────────────
+// No PTT button — relies entirely on the device's native keyboard dictation
+// (iOS mic key, Android Google keyboard mic, Samsung voice input, etc.)
+//
+// How it works:
+//   1. Watches the chat-input field for text being injected by the OS dictation engine
+//      (rapid 'input' events with no preceding keydown = system STT signature)
+//   2. When dictation starts: pauses Autumn's voice and captures remaining text
+//      so she can resume or incorporate what the user said
+//   3. When dictation finishes (silence after last injection): auto-submits the
+//      field — no button press needed
+//   4. Autumn's reply incorporates any interrupted context automatically via the
+//      existing Voice._interruptedRemaining mechanism
 (function(){
-  var _ptt={
-    active:false, rec:null, stream:null, analyser:null, animFrame:null,
-    _final:'', _interim:'', audioCtx:null, silenceTimer:null
+  var _stt = {
+    active: false,          // dictation in progress
+    silenceTimer: null,     // fires when user stops dictating
+    lastLen: 0,             // last known input length (detect OS injection vs manual typing)
+    lastInputTs: 0,         // timestamp of last 'input' event
+    interruptHandled: false // did we already pause Autumn for this dictation session
   };
-  Voice._pttState=_ptt;
 
-  function _btn(){ return document.getElementById('ptt-btn'); }
+  var SILENCE_MS = 1600;   // ms of no new dictation text → treat as done
+
   function _inp(){ return document.getElementById('chat-input'); }
-  function _vi(){  return document.getElementById('voice-indicator'); }
-  function _canvas(){ return document.getElementById('ptt-level'); }
 
-  function _startLevel(stream){
-    try{
-      var ctx=new(window.AudioContext||window.webkitAudioContext)();
-      _ptt.audioCtx=ctx;
-      var src=ctx.createMediaStreamSource(stream);
-      var an=ctx.createAnalyser(); an.fftSize=64;
-      src.connect(an); _ptt.analyser=an;
-      var cv=_canvas(); if(!cv) return;
-      cv.style.opacity='1';
-      var buf=new Uint8Array(an.frequencyBinCount);
-      function draw(){
-        _ptt.animFrame=requestAnimationFrame(draw);
-        an.getByteFrequencyData(buf);
-        var avg=buf.reduce(function(a,b){return a+b;},0)/buf.length;
-        var r=Math.max(4,Math.min(14,(avg/255)*14));
-        var ctx2=cv.getContext('2d');
-        ctx2.clearRect(0,0,28,28);
-        ctx2.beginPath(); ctx2.arc(14,14,r,0,Math.PI*2);
-        ctx2.fillStyle='rgba(255,68,102,'+(0.15+avg/510)+')'; ctx2.fill();
-        ctx2.beginPath(); ctx2.arc(14,14,r+2,0,Math.PI*2);
-        ctx2.strokeStyle='rgba(255,68,102,'+(0.3+avg/512)+')';
-        ctx2.lineWidth=1.5; ctx2.stroke();
-      }
-      draw();
-    }catch(e){}
+  // Heuristic: if the field gains a chunk of text very fast (< 80 ms after last
+  // event, or first injection) with no prior keydown, it's system dictation.
+  var _lastKeydown = 0;
+  document.addEventListener('keydown', function(){ _lastKeydown = Date.now(); }, true);
+
+  function _isDictationEvent(){
+    // Keyboard keydown fired within 200 ms → human typing, not dictation
+    return (Date.now() - _lastKeydown) > 200;
   }
 
-  function _stopLevel(){
-    if(_ptt.animFrame){ cancelAnimationFrame(_ptt.animFrame); _ptt.animFrame=null; }
-    if(_ptt.audioCtx){ try{ _ptt.audioCtx.close(); }catch(e){} _ptt.audioCtx=null; }
-    _ptt.analyser=null;
-    var cv=_canvas();
-    if(cv){ cv.style.opacity='0'; cv.getContext('2d').clearRect(0,0,28,28); }
-  }
-
-  function _launchSR(){
-    var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR){ var inp=_inp(); if(inp) inp.placeholder='Speech not supported'; return; }
-    if(_ptt.rec){ try{ _ptt.rec.stop(); }catch(e){} }
-    var rec=new SR();
-    _ptt.rec=rec;
-    rec.continuous=true;
-    rec.interimResults=true;
-    rec.lang=Voice.sttLang||'en-US';
-    rec.onresult=function(e){
-      var interim='';
-      for(var i=e.resultIndex;i<e.results.length;i++){
-        if(e.results[i].isFinal) _ptt._final+=e.results[i][0].transcript+' ';
-        else interim=e.results[i][0].transcript;
-      }
-      var inp=_inp();
-      if(inp) inp.value=(_ptt._final+interim).trim();
-      // ── Auto-send on silence ──────────────────────────────────
-      // Reset the silence timer every time speech arrives.
-      // If 1.5 s passes with no new speech, stop and submit.
-      if(_ptt.silenceTimer){ clearTimeout(_ptt.silenceTimer); _ptt.silenceTimer=null; }
-      var hasText=(_ptt._final+interim).trim().length>0;
-      if(hasText){
-        _ptt.silenceTimer=setTimeout(function(){
-          _ptt.silenceTimer=null;
-          if(_ptt.active) _stopListening(true);
-        }, 1500);
-      }
-    };
-    rec.onend=function(){
-      if(_ptt.active && _ptt.rec===rec){
-        // If we have text when SR ends naturally, send it
-        var inp=_inp();
-        var txt=inp ? inp.value.trim() : '';
-        if(txt){
-          _ptt.rec=null;
-          _stopListening(true);
-        } else {
-          // No text yet — Android ends continuous SR early, restart silently
-          _ptt.rec=null;
-          setTimeout(function(){ if(_ptt.active) _launchSR(); }, 80);
-        }
-      }
-    };
-    rec.onerror=function(e){
-      console.warn('[PTT]', e.error);
-      if(_ptt.silenceTimer){ clearTimeout(_ptt.silenceTimer); _ptt.silenceTimer=null; }
-      if(_ptt.active && _ptt.rec===rec){
-        _ptt.rec=null;
-        if(e.error==='no-speech'){
-          // User stopped talking — if we have text, send it; otherwise keep listening
-          var inp=_inp();
-          var txt=inp ? inp.value.trim() : '';
-          if(txt){ _stopListening(true); }
-          else { setTimeout(function(){ if(_ptt.active) _launchSR(); }, 150); }
-        } else {
-          setTimeout(function(){ if(_ptt.active) _launchSR(); }, 150);
-        }
-      }
-    };
-    try{ rec.start(); }catch(e){
-      console.warn('[PTT start]', e);
-      if(_ptt.active){ setTimeout(function(){ if(_ptt.active) _launchSR(); }, 200); }
+  function _onDictationStart(){
+    if(_stt.active) return;
+    _stt.active = true;
+    _stt.interruptHandled = false;
+    // Pause Autumn if she's currently speaking — captures remainder for resume
+    if(typeof stopSpeaking === 'function' && Voice && Voice.speaking){
+      stopSpeaking();
+      _stt.interruptHandled = true;
     }
   }
 
-  function _startListening(){
-    _ptt._final=''; _ptt._interim='';
-    var btn=_btn();
-    if(btn){ btn.classList.add('recording'); btn.title='Listening… tap to cancel'; }
-    var vi=_vi(); if(vi) vi.style.display='flex';
-    var inp=_inp(); if(inp) inp.value='';
-    // Get mic stream for level meter, then start SR
-    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
-      navigator.mediaDevices.getUserMedia({audio:true,video:false})
-        .then(function(s){ _ptt.stream=s; _startLevel(s); _launchSR(); })
-        .catch(function(){ _launchSR(); });
-    } else {
-      _launchSR();
-    }
+  function _onDictationEnd(){
+    _stt.active = false;
+    _stt.silenceTimer = null;
+    var inp = _inp();
+    var txt = inp ? inp.value.trim() : '';
+    if(!txt) return;
+    // Small delay so OS can finish committing final word before we read
+    setTimeout(function(){
+      var finalTxt = inp ? inp.value.trim() : '';
+      if(!finalTxt) return;
+
+      // If Autumn had remaining unspoken text captured in _interruptedRemaining,
+      // the normal handleSend → autoReadLastResponse flow will resume it after
+      // her next reply (already wired in autoReadLastResponse). No extra work needed.
+
+      if(typeof window.handleSend === 'function') window.handleSend();
+    }, 120);
   }
 
-  function _stopListening(send){
-    _ptt.active=false;
-    if(_ptt.silenceTimer){ clearTimeout(_ptt.silenceTimer); _ptt.silenceTimer=null; }
-    if(_ptt.rec){ try{ _ptt.rec.stop(); }catch(e){} _ptt.rec=null; }
-    if(_ptt.stream){ _ptt.stream.getTracks().forEach(function(t){ t.stop(); }); _ptt.stream=null; }
-    _stopLevel();
-    var btn=_btn();
-    if(btn){ btn.classList.remove('recording','transcribing'); btn.title='Tap to speak'; }
-    var vi=_vi(); if(vi) vi.style.display='none';
-    var inp=_inp();
-    var txt=inp ? inp.value.trim() : '';
-    if(send && txt){
-      setTimeout(function(){ if(typeof window.handleSend==='function') window.handleSend(); }, 80);
-    } else if(!txt && inp){
-      inp.placeholder='Ask Autumn…';
-    }
+  function _resetSilenceTimer(){
+    if(_stt.silenceTimer){ clearTimeout(_stt.silenceTimer); _stt.silenceTimer = null; }
+    _stt.silenceTimer = setTimeout(_onDictationEnd, SILENCE_MS);
   }
 
-  // Single tap: toggle listening on/off
-  window.pttTalk=function(){
-    if(_ptt.active){
-      // Already listening — cancel
-      _stopListening(false);
-    } else {
-      // Start listening — also interrupt Autumn's voice if she's speaking
-      if(typeof stopSpeaking==='function') stopSpeaking();
-      _ptt.active=true;
-      _startListening();
-    }
-  };
+  // Main observer: fires on every input event to the chat field
+  document.addEventListener('input', function(e){
+    var inp = _inp();
+    if(!inp || e.target !== inp) return;
+    if(!_isDictationEvent()) return;  // regular keyboard typing — do nothing
 
-  // Keep hold aliases as no-ops so nothing breaks if called
-  window.pttHoldStart=function(e){ if(e) e.preventDefault(); };
-  window.pttHoldEnd=function(e){ if(e) e.preventDefault(); };
-  window.pttHoldCancel=function(e){ if(e) e.preventDefault(); };
+    var len = inp.value.length;
+    if(len === 0){ _stt.lastLen = 0; return; }
+
+    // New text appeared without a matching keydown → system dictation active
+    _onDictationStart();
+    _stt.lastLen = len;
+    _stt.lastInputTs = Date.now();
+    _resetSilenceTimer();
+  }, true);
+
+  // If user manually clears the field, reset state
+  document.addEventListener('input', function(e){
+    var inp = _inp();
+    if(!inp || e.target !== inp) return;
+    if(inp.value.length === 0){ _stt.active = false; if(_stt.silenceTimer){ clearTimeout(_stt.silenceTimer); _stt.silenceTimer=null; } }
+  }, true);
+
+  // Keep pttTalk / hold aliases as no-ops in case anything else references them
+  window.pttTalk = function(){};
+  window.pttHoldStart = function(e){ if(e) e.preventDefault(); };
+  window.pttHoldEnd   = function(e){ if(e) e.preventDefault(); };
+  window.pttHoldCancel= function(e){ if(e) e.preventDefault(); };
+
+  console.log('[SystemSTT] System dictation watcher active — no PTT button needed');
 })();
 
 function restartListeningIfActive(){
