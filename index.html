@@ -5404,7 +5404,7 @@ async function loadSingleImageFile(file) {
   // ── IMAGE / FRAX (original logic) ─────────────────────────
   var ext=file.name.split('.').pop().toLowerCase();
   var isFrax=ext==='frax';
-  var base64='',mimeType='image/png',width=0,height=0,analysis=null,fraxMeta=null,thumbnail='';
+  var base64='',mimeType='image/png',width=0,height=0,analysis=null,fraxMeta=null,thumbnail='',_previewDataUrl='';
   if(isFrax){
     var ab=await file.arrayBuffer();
     var decoded=decodeFraxBuffer(ab);
@@ -5418,6 +5418,7 @@ async function loadSingleImageFile(file) {
     var _tctx=tc.getContext('2d');var _ts=Math.max(56/width,56/height);var _tw=width*_ts;var _th=height*_ts;_tctx.drawImage(cv,(56-_tw)/2,(56-_th)/2,_tw,_th);thumbnail=tc.toDataURL('image/png');
   } else {
     var dataUrl=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result);};r.onerror=rej;r.readAsDataURL(file);});
+    _previewDataUrl=dataUrl;
     mimeType=file.type||'image/png';
     var img=await new Promise(function(res,rej){var i=new Image();i.onload=function(){res(i);};i.onerror=rej;i.src=dataUrl;});
     width=img.width;height=img.height;
@@ -5447,7 +5448,7 @@ async function loadSingleImageFile(file) {
     var _tctx2=tc.getContext('2d',{willReadFrequently:true});var _ts2=Math.max(56/cw,56/ch);var _tw2=cw*_ts2;var _th2=ch*_ts2;
     _tctx2.drawImage(cv,(56-_tw2)/2,(56-_th2)/2,_tw2,_th2);thumbnail=tc.toDataURL('image/jpeg',0.85);
   }
-  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,isFrax:isFrax,isImage:true,isVideo:false,isDoc:false,fileSize:file.size};
+  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,previewDataUrl:_previewDataUrl||thumbnail,isFrax:isFrax,isImage:true,isVideo:false,isDoc:false,fileSize:file.size};
 }
 
 function renderThumbRow() {
@@ -5564,7 +5565,14 @@ function renderThumbRow() {
       wrap.appendChild(docDiv);wrap.appendChild(badge);
     } else {
       // Image / FRAX
-      var thumb=document.createElement('img');thumb.src=item.previewUrl||item.thumbnail;thumb.className='img-preview-thumb';thumb.title=item.fileName;thumb.width=48;thumb.height=48;
+      var thumb=document.createElement('img');
+      thumb.style.cssText='width:48px;height:48px;border-radius:5px;object-fit:cover;border:1px solid rgba(167,139,250,.3);display:block;flex-shrink:0;';
+      thumb.title=item.fileName;
+      var _srcs=[item.previewDataUrl,item.previewUrl,item.thumbnail].filter(Boolean);
+      var _si=0;
+      function _tryNext(){if(_si<_srcs.length){thumb.src=_srcs[_si++];}}
+      thumb.onerror=function(){_tryNext();};
+      _tryNext();
       wrap.appendChild(thumb);
       if(item.isFrax){var badge=document.createElement('span');badge.className='attach-type-badge frax';badge.textContent='FRAX';wrap.appendChild(badge);}
     }
@@ -5597,13 +5605,17 @@ async function handleImageFilesSelect(files) {
   }
   if(S.pendingImages.length){
     document.getElementById('img-preview-strip').classList.add('show');
-    document.getElementById('upload-btn').classList.add('has-image');
+    document.getElementById('upload-btn')&&document.getElementById('upload-btn').classList.add('has-image');
+    var _ci=document.getElementById('chat-input');
+    if(_ci&&!_ci.value)_ci.placeholder='Add a message or tap ↑ to send…';
     renderThumbRow();
   }
 }
 function clearPendingImage() {
   (S.pendingImages||[]).forEach(function(it){if(it.previewUrl){try{URL.revokeObjectURL(it.previewUrl);}catch(_e){}}});
   S.pendingImages=[];S.pendingImage=null;
+  var _ci2=document.getElementById('chat-input');
+  if(_ci2)_ci2.placeholder='Ask Autumn…';
   var strip=document.getElementById('img-preview-strip');if(strip)strip.classList.remove('show');
   var btn=document.getElementById('upload-btn');if(btn)btn.classList.remove('has-image');
   var row=document.getElementById('img-thumb-row');if(row)row.innerHTML='';
@@ -9988,13 +10000,12 @@ async function _speakKokoro(text, onEnd) {
     var pipe = window._kokoroPipe;
     if (!pipe) { _speakWebSpeech(text, onEnd); return; }
     Voice.speaking = true; Voice.cancelled = false;
-    _startBgKeepalive(); _registerMediaSession();
     var _mb = document.getElementById('mic-btn');
     if (_mb && Voice.active) _mb.style.boxShadow = '0 0 14px rgba(0,229,255,.6)';
     var clean = cleanForTTS(text);
     // Generate audio — pipeline returns {audio: Float32Array, sampling_rate: number}
     var result = await pipe(clean, { speaker_id: 0, speed: Voice.speed || 1.0 });
-    if (Voice.cancelled) { Voice.speaking=false; _stopBgKeepalive(); _clearMediaSession(); if(onEnd) onEnd(); return; }
+    if (Voice.cancelled) { Voice.speaking = false; if(onEnd) onEnd(); return; }
     // Convert Float32Array PCM to WAV blob
     var sr = result.sampling_rate || 24000;
     var pcm = result.audio;
@@ -10003,15 +10014,13 @@ async function _speakKokoro(text, onEnd) {
     var url = URL.createObjectURL(blob);
     var player = new Audio(url);
     player.onended = function() {
-      Voice.speaking = false; Voice._kokoroPlayer = null; Voice._kokoroOnEnd = null;
-      _stopBgKeepalive(); _clearMediaSession();
+      Voice.speaking = false;
       URL.revokeObjectURL(url);
       if (onEnd) onEnd();
       if (_mb) _mb.style.boxShadow = '';
     };
-    player.onerror = function() { Voice.speaking=false; Voice._kokoroPlayer=null; Voice._kokoroOnEnd=null; _stopBgKeepalive(); _clearMediaSession(); if (onEnd) onEnd(); };
+    player.onerror = function() { Voice.speaking = false; if (onEnd) onEnd(); };
     Voice._kokoroPlayer = player;
-    Voice._kokoroOnEnd = onEnd;
     player.play();
   } catch(e) {
     console.warn('[Kokoro] speak error, falling back:', e.message);
@@ -10047,19 +10056,17 @@ function _pcmToWav(pcm, sampleRate) {
 function _speakWebSpeech(text, onEnd) {
   if (!Voice.synth) { Voice.speaking = false; if(onEnd) onEnd(); return; }
   Voice.synth.cancel(); Voice.speaking = true; Voice.cancelled = false;
-  _startBgKeepalive(); _registerMediaSession();
   var _mb = document.getElementById('mic-btn');
   if (_mb && Voice.active) _mb.style.boxShadow = '0 0 14px rgba(0,229,255,.6)';
   const clean = cleanForTTS(text);
   const sentences = clean.match(/[^.!?]+[.!?]*/g)||[clean]; let i=0;
   function speakNext(){
-    Voice._ttsState={sentences:sentences,idx:i,onEnd:onEnd};
-    if(Voice.cancelled||i>=sentences.length){Voice.speaking=false;Voice._ttsState=null;_stopBgKeepalive();_clearMediaSession();if(onEnd)onEnd();return;}
+    if(Voice.cancelled||i>=sentences.length){Voice.speaking=false;if(onEnd)onEnd();return;}
     const u=new SpeechSynthesisUtterance(sentences[i].trim());
     if(Voice.selectedVoice) u.voice=Voice.selectedVoice;
     u.rate=Voice.speed; u.pitch=Voice.pitch;
-    u.onend=()=>{i++;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;Voice._ttsState=null;_stopBgKeepalive();_clearMediaSession();if(onEnd)onEnd();}};
-    u.onerror=()=>{i++;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;Voice._ttsState=null;_stopBgKeepalive();_clearMediaSession();if(onEnd)onEnd();}};
+    u.onend=()=>{i++;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;if(onEnd)onEnd();}};
+    u.onerror=()=>{i++;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;if(onEnd)onEnd();}};
     Voice.synth.speak(u);
   }
   speakNext();
@@ -10074,73 +10081,11 @@ function speak(text, onEnd) {
 }
 
 function stopSpeaking(){
-  Voice.cancelled=true;Voice.speaking=false;Voice._ttsState=null;
+  Voice.cancelled=true;Voice.speaking=false;
   if(Voice.synth) Voice.synth.cancel();
   if(Voice._kokoroPlayer){Voice._kokoroPlayer.pause();Voice._kokoroPlayer.src='';Voice._kokoroPlayer=null;}
-  _stopBgKeepalive();_clearMediaSession();
   var _mb=document.getElementById('mic-btn');
   if(_mb) _mb.style.boxShadow='';
-}
-
-// ── BACKGROUND KEEPALIVE: keeps Chrome audio session alive when tab is minimised ──
-// A near-silent looped Audio element registers this page as an active media player
-// on Android, preventing Chrome from suspending SpeechSynthesis on app switch.
-var _bgKeepalive=null;
-function _startBgKeepalive(){
-  if(_bgKeepalive)return;
-  try{
-    // 1-frame silent WAV data URL
-    _bgKeepalive=new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
-    _bgKeepalive.loop=true;_bgKeepalive.volume=0.001;
-    _bgKeepalive.play().catch(function(){});
-  }catch(e){}
-}
-function _stopBgKeepalive(){
-  if(!_bgKeepalive)return;
-  try{_bgKeepalive.pause();_bgKeepalive.src='';}catch(e){}
-  _bgKeepalive=null;
-}
-
-// ── MEDIA SESSION: shows Autumn in Android notification shade / lock screen controls ──
-function _registerMediaSession(){
-  if(!('mediaSession' in navigator))return;
-  try{
-    navigator.mediaSession.metadata=new MediaMetadata({
-      title:'Autumn · LEATR',artist:'Radical Deepscale LLC',album:'DART Meadow'
-    });
-    navigator.mediaSession.playbackState='playing';
-    navigator.mediaSession.setActionHandler('pause',function(){stopSpeaking();});
-    navigator.mediaSession.setActionHandler('stop',function(){stopSpeaking();});
-    navigator.mediaSession.setActionHandler('play',function(){});
-  }catch(e){}
-}
-function _clearMediaSession(){
-  if(!('mediaSession' in navigator))return;
-  try{navigator.mediaSession.playbackState='none';}catch(e){}
-}
-
-// ── PTT RESUME: replay remaining WebSpeech sentences after PTT interruption ──
-function _resumeSpeechFrom(state){
-  if(!state||!state.sentences)return;
-  var rem=state.sentences.slice(state.idx);
-  if(!rem.length){if(state.onEnd)state.onEnd();return;}
-  Voice.cancelled=false;Voice.speaking=true;
-  _startBgKeepalive();_registerMediaSession();
-  var i=0;
-  function _next(){
-    Voice._ttsState={sentences:rem,idx:i,onEnd:state.onEnd};
-    if(Voice.cancelled||i>=rem.length){
-      Voice.speaking=false;Voice._ttsState=null;_stopBgKeepalive();_clearMediaSession();
-      if(state.onEnd)state.onEnd();return;
-    }
-    var u=new SpeechSynthesisUtterance(rem[i].trim());
-    if(Voice.selectedVoice)u.voice=Voice.selectedVoice;
-    u.rate=Voice.speed;u.pitch=Voice.pitch;
-    u.onend=function(){i++;if(!Voice.cancelled)_next();else{Voice.speaking=false;Voice._ttsState=null;_stopBgKeepalive();_clearMediaSession();if(state.onEnd)state.onEnd();}};
-    u.onerror=function(){i++;if(!Voice.cancelled)_next();else{Voice.speaking=false;Voice._ttsState=null;_stopBgKeepalive();_clearMediaSession();if(state.onEnd)state.onEnd();}};
-    Voice.synth.speak(u);
-  }
-  _next();
 }
 function autoReadLastResponse(){
   if(!Voice.autoRead) return;
@@ -10202,30 +10147,8 @@ function pttTalk(){
     if(pttBtn){pttBtn.classList.remove('recording');pttBtn.title='Tap to speak';}
     return;
   }
-  // ── INTERRUPT: pause TTS and save state so we can resume after PTT ──
-  var _pttResume=null;
-  if(Voice.speaking){
-    if(Voice._kokoroPlayer){
-      // Kokoro: pause the audio element — can resume with .play()
-      var _kp=Voice._kokoroPlayer;var _ke=Voice._kokoroOnEnd;
-      _kp.pause();
-      _pttResume=function(newMsgSent){
-        if(!newMsgSent&&_kp){_kp.play();}
-        else if(_kp){_kp.pause();_kp.src='';Voice._kokoroPlayer=null;Voice._kokoroOnEnd=null;_stopBgKeepalive();_clearMediaSession();if(_ke)_ke();}
-      };
-    } else if(Voice._ttsState){
-      // WebSpeech: cancel and save sentence index for resume
-      var _saved=Object.assign({},Voice._ttsState);
-      Voice.cancelled=true;
-      if(Voice.synth)Voice.synth.cancel();
-      Voice.speaking=false;Voice._ttsState=null;
-      _pttResume=function(newMsgSent){
-        if(!newMsgSent)_resumeSpeechFrom(_saved);
-      };
-    }
-  }
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){alert('Speech recognition not supported in this browser.');if(_pttResume)_pttResume(false);return;}
+  if(!SR){alert('Speech recognition not supported in this browser.');return;}
   Voice._pttActive=true;
   Voice._pttRec=null;
   if(pttBtn){pttBtn.classList.add('recording');pttBtn.title='Listening... tap to cancel';}
@@ -10249,27 +10172,18 @@ function pttTalk(){
     if(pttBtn){pttBtn.classList.remove('recording');pttBtn.title='Tap to speak';}
     if(vi)vi.style.display='none';
     var txt=inp.value.trim();
-    if(txt){
-      // New message → send it; Autumn's new response will replace any pending speech
-      if(_pttResume)_pttResume(true);
-      setTimeout(function(){if(typeof window.handleSend==='function')window.handleSend();},80);
-    } else {
-      // Nothing said → resume where Autumn left off
-      if(_pttResume)_pttResume(false);
-    }
+    if(txt){setTimeout(function(){if(typeof window.handleSend==='function')window.handleSend();},80);}
   };
   rec.onerror=function(e){
     Voice._pttActive=false;Voice._pttRec=null;
     if(pttBtn){pttBtn.classList.remove('recording');pttBtn.title='Tap to speak';}
     if(vi)vi.style.display='none';
-    if(_pttResume)_pttResume(false);
     console.warn('[PTT] error:',e.error);
   };
   try{rec.start();}catch(e){
     Voice._pttActive=false;
     if(pttBtn)pttBtn.classList.remove('recording');
     if(vi)vi.style.display='none';
-    if(_pttResume)_pttResume(false);
   }
 }
 
