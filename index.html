@@ -1985,8 +1985,7 @@ function _updateImportPreview() {
   lines.push("Journal entries to add: " + totalJournal);
   lines.push("Memory keys to add: " + totalMemKeys);
   lines.push("Mode: MERGE (existing data preserved)");
-  sum.textContent = lines.join("
-");
+  sum.textContent = lines.join("\n");
   prev.style.display = "block";
 }
 
