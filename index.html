@@ -10187,7 +10187,7 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
 (function(){
   var _ptt={
     active:false, rec:null, stream:null, analyser:null, animFrame:null,
-    _final:'', _interim:'', audioCtx:null
+    _final:'', _interim:'', audioCtx:null, silenceTimer:null
   };
   Voice._pttState=_ptt;
 
@@ -10248,19 +10248,47 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
       }
       var inp=_inp();
       if(inp) inp.value=(_ptt._final+interim).trim();
+      // ── Auto-send on silence ──────────────────────────────────
+      // Reset the silence timer every time speech arrives.
+      // If 1.5 s passes with no new speech, stop and submit.
+      if(_ptt.silenceTimer){ clearTimeout(_ptt.silenceTimer); _ptt.silenceTimer=null; }
+      var hasText=(_ptt._final+interim).trim().length>0;
+      if(hasText){
+        _ptt.silenceTimer=setTimeout(function(){
+          _ptt.silenceTimer=null;
+          if(_ptt.active) _stopListening(true);
+        }, 1500);
+      }
     };
     rec.onend=function(){
       if(_ptt.active && _ptt.rec===rec){
-        // Android ends continuous SR early — restart silently
-        _ptt.rec=null;
-        setTimeout(function(){ if(_ptt.active) _launchSR(); }, 80);
+        // If we have text when SR ends naturally, send it
+        var inp=_inp();
+        var txt=inp ? inp.value.trim() : '';
+        if(txt){
+          _ptt.rec=null;
+          _stopListening(true);
+        } else {
+          // No text yet — Android ends continuous SR early, restart silently
+          _ptt.rec=null;
+          setTimeout(function(){ if(_ptt.active) _launchSR(); }, 80);
+        }
       }
     };
     rec.onerror=function(e){
       console.warn('[PTT]', e.error);
+      if(_ptt.silenceTimer){ clearTimeout(_ptt.silenceTimer); _ptt.silenceTimer=null; }
       if(_ptt.active && _ptt.rec===rec){
         _ptt.rec=null;
-        setTimeout(function(){ if(_ptt.active) _launchSR(); }, 150);
+        if(e.error==='no-speech'){
+          // User stopped talking — if we have text, send it; otherwise keep listening
+          var inp=_inp();
+          var txt=inp ? inp.value.trim() : '';
+          if(txt){ _stopListening(true); }
+          else { setTimeout(function(){ if(_ptt.active) _launchSR(); }, 150); }
+        } else {
+          setTimeout(function(){ if(_ptt.active) _launchSR(); }, 150);
+        }
       }
     };
     try{ rec.start(); }catch(e){
@@ -10287,6 +10315,7 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
 
   function _stopListening(send){
     _ptt.active=false;
+    if(_ptt.silenceTimer){ clearTimeout(_ptt.silenceTimer); _ptt.silenceTimer=null; }
     if(_ptt.rec){ try{ _ptt.rec.stop(); }catch(e){} _ptt.rec=null; }
     if(_ptt.stream){ _ptt.stream.getTracks().forEach(function(t){ t.stop(); }); _ptt.stream=null; }
     _stopLevel();
