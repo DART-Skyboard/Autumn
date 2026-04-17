@@ -5444,10 +5444,10 @@ async function loadSingleImageFile(file) {
     base64=_b64;mimeType=outMime;
     analysis=fraxChannelAnalysis(cv.getContext('2d').getImageData(0,0,Math.min(cw,200),Math.min(ch,200)));
     var tc=document.createElement('canvas');tc.width=56;tc.height=56;
-    var _tctx2=tc.getContext('2d');var _ts2=Math.min(56/cw,56/ch);var _tw2=cw*_ts2;var _th2=ch*_ts2;
+    var _tctx2=tc.getContext('2d',{willReadFrequently:true});var _ts2=Math.max(56/cw,56/ch);var _tw2=cw*_ts2;var _th2=ch*_ts2;
     _tctx2.drawImage(cv,(56-_tw2)/2,(56-_th2)/2,_tw2,_th2);thumbnail=tc.toDataURL('image/jpeg',0.85);
   }
-  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,isFrax:isFrax,isImage:true,isVideo:false,isDoc:false,fileSize:file.size,previewUrl:URL.createObjectURL(file)};
+  return{base64:base64,mimeType:mimeType,fileName:file.name,width:width,height:height,analysis:analysis,fraxMeta:fraxMeta,thumbnail:thumbnail,isFrax:isFrax,isImage:true,isVideo:false,isDoc:false,fileSize:file.size};
 }
 
 function renderThumbRow() {
@@ -5589,7 +5589,10 @@ async function handleImageFilesSelect(files) {
   for(var fi=0;fi<files.length;fi++){
     try{
       var item=await loadSingleImageFile(files[fi]);
-      if(item) S.pendingImages.push(item);
+      if(item){
+        if(item.isImage||item.isVideo||item.is3D){try{item.previewUrl=URL.createObjectURL(files[fi]);}catch(_e){}}
+        S.pendingImages.push(item);
+      }
     }catch(e){console.warn('[Autumn Attach]',files[fi].name,e);}
   }
   if(S.pendingImages.length){
@@ -5599,7 +5602,7 @@ async function handleImageFilesSelect(files) {
   }
 }
 function clearPendingImage() {
-  (S.pendingImages||[]).forEach(function(m){if(m.previewUrl)try{URL.revokeObjectURL(m.previewUrl);}catch(e){}});
+  (S.pendingImages||[]).forEach(function(it){if(it.previewUrl){try{URL.revokeObjectURL(it.previewUrl);}catch(_e){}}});
   S.pendingImages=[];S.pendingImage=null;
   var strip=document.getElementById('img-preview-strip');if(strip)strip.classList.remove('show');
   var btn=document.getElementById('upload-btn');if(btn)btn.classList.remove('has-image');
