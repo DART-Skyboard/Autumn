@@ -9744,7 +9744,8 @@ function _tickAshNodes(frame) {
 const Voice={
   synth:window.speechSynthesis||null,voices:[],selectedVoice:null,speed:1.0,pitch:1.0,
   autoRead:false,active:false,speaking:false,cancelled:false,
-  sttLang:'en-US',chatLang:'en',recognition:null,isListening:false,liveMode:false
+  sttLang:'en-US',chatLang:'en',recognition:null,isListening:false,liveMode:false,
+  _currentSentences:null,_currentSentIdx:0,_interruptedRemaining:''
 };
 
 function loadVoices(){Voice.voices=Voice.synth.getVoices();populateVoiceSelect();}
@@ -10073,13 +10074,16 @@ function _speakWebSpeech(text, onEnd) {
   if (_mb && Voice.active) _mb.style.boxShadow = '0 0 14px rgba(0,229,255,.6)';
   const clean = cleanForTTS(text);
   const sentences = clean.match(/[^.!?]+[.!?]*/g)||[clean]; let i=0;
+  Voice._currentSentences = sentences;
+  Voice._currentSentIdx = 0;
   function speakNext(){
-    if(Voice.cancelled||i>=sentences.length){Voice.speaking=false;if(onEnd)onEnd();return;}
+    if(Voice.cancelled||i>=sentences.length){Voice.speaking=false;Voice._currentSentences=null;Voice._currentSentIdx=0;if(onEnd)onEnd();return;}
+    Voice._currentSentIdx = i;
     const u=new SpeechSynthesisUtterance(sentences[i].trim());
     if(Voice.selectedVoice) u.voice=Voice.selectedVoice;
     u.rate=Voice.speed; u.pitch=Voice.pitch;
-    u.onend=()=>{i++;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;if(onEnd)onEnd();}};
-    u.onerror=()=>{i++;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;if(onEnd)onEnd();}};
+    u.onend=()=>{i++;Voice._currentSentIdx=i;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;Voice._currentSentences=null;Voice._currentSentIdx=0;if(onEnd)onEnd();}};
+    u.onerror=()=>{i++;Voice._currentSentIdx=i;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;Voice._currentSentences=null;Voice._currentSentIdx=0;if(onEnd)onEnd();}};
     Voice.synth.speak(u);
   }
   speakNext();
@@ -10094,7 +10098,12 @@ function speak(text, onEnd) {
 }
 
 function stopSpeaking(){
+  // Capture what was left unsaid before killing playback (for PTT interrupt resume)
+  if(Voice.speaking && Voice._currentSentences && Voice._currentSentIdx < Voice._currentSentences.length){
+    Voice._interruptedRemaining = Voice._currentSentences.slice(Voice._currentSentIdx).join(' ').trim();
+  }
   Voice.cancelled=true;Voice.speaking=false;
+  Voice._currentSentences=null;Voice._currentSentIdx=0;
   if(Voice.synth) Voice.synth.cancel();
   if(Voice._kokoroPlayer){Voice._kokoroPlayer.pause();Voice._kokoroPlayer.src='';Voice._kokoroPlayer=null;}
   var _mb=document.getElementById('mic-btn');
@@ -10105,7 +10114,17 @@ function autoReadLastResponse(){
   const m=msgs();const last=m[m.length-1];
   if(last&&last.role==='autumn'){
     if(Voice.isListening&&Voice.recognition){try{Voice.recognition.stop();}catch(e){}Voice.isListening=false;}
-    speak(last.text,()=>{if(Voice.active) restartListeningIfActive();});
+    // Grab any interrupted remainder before clearing it
+    const remainder = Voice._interruptedRemaining||'';
+    Voice._interruptedRemaining = '';
+    speak(last.text,()=>{
+      // After new response finishes, resume what was interrupted (if anything left to say)
+      if(remainder){
+        speak(remainder,()=>{if(Voice.active) restartListeningIfActive();});
+      } else {
+        if(Voice.active) restartListeningIfActive();
+      }
+    });
   }
 }
 
@@ -10269,6 +10288,8 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
     if(_ptt.active) return;
     _ptt.holdStart=Date.now();
     _ptt.active=true;
+    // Clear stale interrupted text from a previous turn
+    Voice._interruptedRemaining='';
     var btn=_btn();
     if(btn){btn.classList.add('holding');btn.title='Release to send';}
     var vi=_vi();if(vi)vi.style.display='flex';
