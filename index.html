@@ -10245,35 +10245,52 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
     }
     if(_ptt.rec){try{_ptt.rec.stop();}catch(e){}}
     _ptt._final='';_ptt._interim='';
-    var rec=new SR();
-    _ptt.rec=rec;
-    rec.continuous=true;
-    rec.interimResults=true;
-    rec.lang=Voice.sttLang||'en-US';
-    rec.onresult=function(e){
-      var interim='';
-      for(var i=e.resultIndex;i<e.results.length;i++){
-        if(e.results[i].isFinal) _ptt._final+=e.results[i][0].transcript+' ';
-        else interim=e.results[i][0].transcript;
-      }
-      var inp=_inp();
-      if(inp) inp.value=(_ptt._final+interim).trim();
-    };
-    rec.onend=function(){
-      if(_ptt.active){
-        // Android sometimes ends early — restart if still holding
-        try{rec.start();}catch(e){_ptt.active=false;_cleanup();}
-      }
-    };
-    rec.onerror=function(e){
-      if(e.error!=='aborted') console.warn('[PTT]',e.error);
-    };
-    try{rec.start();}catch(e){console.warn('[PTT start]',e);}
 
-    // Also grab mic stream for level meter
-    navigator.mediaDevices&&navigator.mediaDevices.getUserMedia({audio:true,video:false})
-      .then(function(s){_ptt.stream=s;_startLevel(s);})
-      .catch(function(){});
+    function _launchSR(){
+      var rec=new SR();
+      _ptt.rec=rec;
+      rec.continuous=true;
+      rec.interimResults=true;
+      rec.lang=Voice.sttLang||'en-US';
+      rec.onresult=function(e){
+        var interim='';
+        for(var i=e.resultIndex;i<e.results.length;i++){
+          if(e.results[i].isFinal) _ptt._final+=e.results[i][0].transcript+' ';
+          else interim=e.results[i][0].transcript;
+        }
+        var inp=_inp();
+        if(inp) inp.value=(_ptt._final+interim).trim();
+      };
+      rec.onend=function(){
+        if(_ptt.active&&_ptt.rec===rec){
+          // Android ends early — restart with fresh instance
+          _ptt.rec=null;
+          setTimeout(function(){ if(_ptt.active) _launchSR(); },80);
+        }
+      };
+      rec.onerror=function(e){
+        console.warn('[PTT]',e.error);
+        if(_ptt.active&&_ptt.rec===rec&&
+           (e.error==='aborted'||e.error==='audio-capture'||e.error==='network'||e.error==='no-speech')){
+          _ptt.rec=null;
+          setTimeout(function(){ if(_ptt.active) _launchSR(); },150);
+        }
+      };
+      try{ rec.start(); }catch(e){
+        console.warn('[PTT start]',e);
+        if(_ptt.active){ setTimeout(function(){ if(_ptt.active) _launchSR(); },200); }
+      }
+    }
+
+    // Grab mic stream for level meter FIRST, then start SR
+    // Prevents dual-mic-grab conflict that kills SR immediately on Android Chrome
+    if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+      navigator.mediaDevices.getUserMedia({audio:true,video:false})
+        .then(function(s){ _ptt.stream=s; _startLevel(s); _launchSR(); })
+        .catch(function(){ _launchSR(); });
+    } else {
+      _launchSR();
+    }
   }
 
   function _stopRec(send){
