@@ -568,7 +568,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 /* Context type indicator bar */
 #ctx-bar{position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cyan),var(--blue));opacity:0;transition:opacity .3s;z-index:11}
 #ctx-bar.show{opacity:1}
-#ctx-label{position:absolute;top:8px;left:10px;z-index:10;font-size:.48rem;font-family:var(--font-d);letter-spacing:2px;color:rgba(0,255,204,.45);pointer-events:none}
+#ctx-label{position:absolute;top:28px;left:10px;z-index:9;font-size:.4rem;font-family:var(--font-d);letter-spacing:2px;color:rgba(0,255,204,.3);pointer-events:none}
 /* Chat region */
 #chat-region{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 #chat-scroll{flex:1;overflow-y:auto;padding:14px 14px 8px;display:flex;flex-direction:column;gap:12px;min-height:0}
@@ -1290,17 +1290,22 @@ select.ash-ctrl-input{cursor:pointer}
     <h3 id="modal-title">Export Data</h3>
     <p id="modal-desc">Download your conversation history, journal, and memory.</p>
     <div id="modal-import-file-row" style="display:none;margin-bottom:10px">
-      <label style="font-size:11px;color:rgba(0,255,204,.5);font-family:var(--font-d);letter-spacing:1px;display:block;margin-bottom:6px">UPLOAD JSON FILE</label>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="file" id="import-json-file" accept=".json,application/json" style="display:none" onchange="handleImportFileSelect(this)">
-        <button class="m-btn" onclick="document.getElementById('import-json-file').click()" style="font-size:10px;flex-shrink:0">📂 Browse File</button>
-        <span id="import-file-name" style="font-size:10px;color:var(--dim);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <label style="font-size:11px;color:rgba(0,255,204,.5);font-family:var(--font-d);letter-spacing:1px;display:block;margin-bottom:6px">UPLOAD JSON FILES (multiple allowed)</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="import-json-file" accept=".json,application/json" style="display:none" multiple onchange="handleImportFileSelect(this)">
+        <button class="m-btn" onclick="document.getElementById('import-json-file').click()" style="font-size:10px;flex-shrink:0">📂 Browse Files</button>
+        <span id="import-file-name" style="font-size:10px;color:var(--dim);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"></span>
+      </div>
+      <div id="import-file-preview" style="margin-top:8px;display:none">
+        <div style="font-size:9px;font-family:var(--font-d);color:rgba(0,229,255,.4);letter-spacing:1px;margin-bottom:4px">MERGE PREVIEW</div>
+        <div id="import-merge-summary" style="font-size:10px;color:rgba(224,244,255,.55);line-height:1.6;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);border-radius:6px;padding:8px;font-family:monospace"></div>
       </div>
       <div style="text-align:center;margin:8px 0;font-size:10px;color:rgba(0,255,204,.25);font-family:var(--font-d);letter-spacing:2px">— OR PASTE BELOW —</div>
     </div>
     <textarea id="modal-data" readonly></textarea>
-    <div class="modal-btns">
+    <div class="modal-btns" style="flex-wrap:wrap;gap:6px">
       <button class="m-btn" onclick="closeModal()">Close</button>
+      <button class="m-btn" id="modal-clear-memory-btn" style="display:none;color:#ff6688;border-color:rgba(255,68,102,.3)" onclick="confirmClearMemory()">🗑 Clear All Memory</button>
       <button class="m-btn primary" id="modal-action">Download</button>
     </div>
   </div>
@@ -1439,6 +1444,28 @@ select.ash-ctrl-input{cursor:pointer}
   </div>
   <div class="foot-right">
     <span>© 2026 DART MEADOW | RADICAL DEEPSCALE LLC</span>
+  </div>
+</div>
+
+<!-- URL Live Preview Modal -->
+<div id="url-preview-modal" style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(2,8,12,.88);backdrop-filter:blur(6px);flex-direction:column;align-items:center;justify-content:center;">
+  <div style="width:min(96vw,820px);height:min(88vh,700px);display:flex;flex-direction:column;background:#070f14;border:1px solid rgba(0,229,255,.2);border-radius:12px;overflow:hidden;box-shadow:0 0 40px rgba(0,0,0,.6)">
+    <!-- Header bar (draggable) -->
+    <div id="url-preview-header" style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(0,229,255,.05);border-bottom:1px solid rgba(0,229,255,.1);cursor:move;user-select:none;flex-shrink:0">
+      <span style="font-family:var(--font-d);font-size:8px;letter-spacing:2px;color:rgba(0,229,255,.5)">◈ LIVE PREVIEW</span>
+      <span id="url-preview-title" style="font-family:monospace;font-size:10px;color:rgba(224,244,255,.5);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button onclick="urlPreviewCollapse()" title="Collapse" style="background:transparent;border:1px solid rgba(0,229,255,.2);color:rgba(0,229,255,.5);border-radius:3px;padding:2px 8px;cursor:pointer;font-size:10px">—</button>
+      <button onclick="urlPreviewNewTab()" title="Open in new tab" style="background:transparent;border:1px solid rgba(0,136,255,.3);color:rgba(0,136,255,.7);border-radius:3px;padding:2px 8px;cursor:pointer;font-size:10px">↗ VISIT</button>
+      <button onclick="urlPreviewClose()" title="Close" style="background:transparent;border:1px solid rgba(255,68,102,.3);color:#ff4466;border-radius:3px;padding:2px 10px;cursor:pointer;font-size:12px">✕</button>
+    </div>
+    <!-- URL bar -->
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(0,0,0,.4);border-bottom:1px solid rgba(0,229,255,.07);flex-shrink:0">
+      <span style="font-size:10px;color:rgba(0,229,255,.4)">🔒</span>
+      <input id="url-preview-bar" style="flex:1;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);border-radius:4px;color:var(--bright);font-family:monospace;font-size:11px;padding:4px 8px;outline:none" onkeydown="if(event.key==='Enter')urlPreviewNavigate(this.value)">
+      <button onclick="urlPreviewNavigate(document.getElementById('url-preview-bar').value)" style="background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);color:var(--cyan);border-radius:4px;padding:4px 10px;cursor:pointer;font-size:10px;font-family:var(--font-d);letter-spacing:1px">GO</button>
+    </div>
+    <!-- Iframe -->
+    <iframe id="url-preview-iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" style="flex:1;border:none;background:#fff" src="about:blank"></iframe>
   </div>
 </div>
 
@@ -1722,50 +1749,136 @@ function exportData() {
   };
   document.getElementById("data-modal").classList.add("show");
 }
+// ── Multi-file import state ────────────────────────────────
+var _importQueue = []; // [{name, data}] parsed file objects pending merge
+
 function importData() {
   document.getElementById("modal-title").textContent = "Import Data";
-  document.getElementById("modal-desc").textContent = "Upload a JSON file or paste your exported Autumn data below — then tap Import.";
+  document.getElementById("modal-desc").textContent = "Browse one or more exported JSON files — they will be merged into your current session. Or paste JSON below.";
   var ta = document.getElementById("modal-data");
   ta.value = "";
   ta.removeAttribute("readonly");
   ta.placeholder = "Paste JSON here…";
-  // Show the file upload row
+  _importQueue = [];
   var fileRow = document.getElementById("modal-import-file-row");
   if (fileRow) fileRow.style.display = "block";
   var fileNameEl = document.getElementById("import-file-name");
   if (fileNameEl) fileNameEl.textContent = "";
   var fileInput = document.getElementById("import-json-file");
   if (fileInput) fileInput.value = "";
-  document.getElementById("modal-action").textContent = "Import";
-  document.getElementById("modal-action").onclick = () => {
-    try {
-      const d = JSON.parse(document.getElementById("modal-data").value);
-      if (d.sessions) S.sessions = d.sessions;
-      if (d.journal) S.journal = d.journal;
-      if (d.memory) S.memory = d.memory;
-      S.currentSession = S.sessions.length - 1;
-      saveState(); renderMessages(); updateFooter(); closeModal();
-    } catch(e) { alert("Invalid JSON data"); }
-  };
+  var prev = document.getElementById("import-file-preview");
+  if (prev) prev.style.display = "none";
+  document.getElementById("modal-action").textContent = "Import & Merge";
+  document.getElementById("modal-action").onclick = _doImportMerge;
+  var clrBtn = document.getElementById("modal-clear-memory-btn");
+  if (clrBtn) clrBtn.style.display = "inline-flex";
   document.getElementById("data-modal").classList.add("show");
 }
+
 function handleImportFileSelect(input) {
-  var file = input.files && input.files[0];
-  if (!file) return;
+  var files = input.files;
+  if (!files || !files.length) return;
+  _importQueue = [];
+  var names = [];
+  var pending = files.length;
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var parsed = JSON.parse(e.target.result);
+          _importQueue.push({ name: file.name, data: parsed });
+        } catch(err) {
+          _importQueue.push({ name: file.name, data: null, error: true });
+        }
+        pending--;
+        if (pending === 0) _updateImportPreview();
+      };
+      reader.readAsText(file);
+      names.push(file.name);
+    })(files[i]);
+  }
   var nameEl = document.getElementById("import-file-name");
-  if (nameEl) nameEl.textContent = file.name;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var ta = document.getElementById("modal-data");
-    if (ta) ta.value = e.target.result;
-  };
-  reader.readAsText(file);
+  if (nameEl) nameEl.textContent = files.length === 1 ? files[0].name : files.length + " files selected";
 }
+
+function _updateImportPreview() {
+  var prev = document.getElementById("import-file-preview");
+  var sum = document.getElementById("import-merge-summary");
+  if (!prev || !sum) return;
+  var valid = _importQueue.filter(function(f) { return f.data && !f.error; });
+  var invalid = _importQueue.filter(function(f) { return f.error; });
+  var totalSessions = valid.reduce(function(n, f) { return n + (f.data.sessions ? f.data.sessions.length : 0); }, 0);
+  var totalJournal  = valid.reduce(function(n, f) { return n + (f.data.journal  ? f.data.journal.length  : 0); }, 0);
+  var totalMemKeys  = valid.reduce(function(n, f) { return n + (f.data.memory   ? Object.keys(f.data.memory).length : 0); }, 0);
+  var lines = [];
+  valid.forEach(function(f) { lines.push("✓ " + f.name); });
+  if (invalid.length) invalid.forEach(function(f) { lines.push("✗ " + f.name + " (invalid JSON)"); });
+  lines.push("─────────────────────────");
+  lines.push("Sessions to add: " + totalSessions);
+  lines.push("Journal entries to add: " + totalJournal);
+  lines.push("Memory keys to add: " + totalMemKeys);
+  lines.push("Mode: MERGE (existing data preserved)");
+  sum.textContent = lines.join("
+");
+  prev.style.display = "block";
+}
+
+function _doImportMerge() {
+  var pasteVal = document.getElementById("modal-data").value.trim();
+  // If pasting raw JSON, treat as single file
+  if (pasteVal && !_importQueue.length) {
+    try {
+      _importQueue = [{ name: "pasted", data: JSON.parse(pasteVal) }];
+    } catch(e) { alert("Invalid JSON — check your pasted data."); return; }
+  }
+  if (!_importQueue.length) { alert("No data to import."); return; }
+  var valid = _importQueue.filter(function(f) { return f.data && !f.error; });
+  if (!valid.length) { alert("No valid JSON files found."); return; }
+  // MERGE into current state — never overwrite, always append/extend
+  valid.forEach(function(f) {
+    var d = f.data;
+    // Merge sessions
+    if (d.sessions && Array.isArray(d.sessions)) {
+      d.sessions.forEach(function(sess) { S.sessions.push(sess); });
+    }
+    // Merge journal
+    if (d.journal && Array.isArray(d.journal)) {
+      S.journal = S.journal.concat(d.journal);
+    }
+    // Merge memory keys (imported keys only overwrite if empty/missing locally)
+    if (d.memory && typeof d.memory === "object") {
+      Object.keys(d.memory).forEach(function(k) {
+        if (!S.memory[k]) S.memory[k] = d.memory[k];
+      });
+    }
+  });
+  S.currentSession = S.sessions.length - 1;
+  saveState(); renderMessages(); updateFooter();
+  closeModal();
+  // Toast confirmation
+  if (typeof ideToast === "function") {
+    ideToast("✓ Merged " + valid.length + " file" + (valid.length > 1 ? "s" : "") + " — " + S.sessions.length + " sessions total", 3500);
+  }
+}
+
+function confirmClearMemory() {
+  if (!confirm("Clear ALL memory keys? This cannot be undone.\n\nConversation history and journal are kept — only the memory store is cleared.")) return;
+  S.memory = {};
+  saveState();
+  if (typeof ideToast === "function") ideToast("Memory cleared.", 2500);
+  closeModal();
+}
+
 function closeModal() {
   document.getElementById("data-modal").classList.remove("show");
-  // Hide import file row when closing
   var fileRow = document.getElementById("modal-import-file-row");
   if (fileRow) fileRow.style.display = "none";
+  var prev = document.getElementById("import-file-preview");
+  if (prev) prev.style.display = "none";
+  var clrBtn = document.getElementById("modal-clear-memory-btn");
+  if (clrBtn) clrBtn.style.display = "none";
+  _importQueue = [];
 }
 
 // --- VIEWPORT MODE TOGGLE ---
@@ -2237,7 +2350,8 @@ function processLEATR(input) {
   });
   const geo = brpnShell(words.length,grammar.sentenceCount,toolReflexes.length);
   const mar = brpnShell(geo.value,grammar.wordCount,input.length%50);
-  const aero = brpnShell(mar.value,geo.value,Date.now()%1000);
+  // AERO p-param: use a normalized sub-second tick (0-99) to keep value legible
+  const aero = brpnShell(mar.value,geo.value,(Date.now()%100)+1);
   const encoded = cogEncode(input.length,words.length);
   const decoded = cogDecode(input.length,words.length);
   const qs = qSocket(words.length,input.length,1,decoded||1);
@@ -4089,7 +4203,7 @@ const INVIDIOUS=['https://inv.nadeko.net','https://invidious.privacydev.net','ht
 const R_BLOCK=[/\bporn(o|ography|hub|star)?\b/i,/\bxxx\b/i,/\bhentai\b/i,/\bnsfw\b/i,/\berotic(a)?\b/i,/\bonlyfans\b/i];
 function safeVideo(v){const t=((v.title||'')+' '+(v.channel||'')).toLowerCase();return !R_BLOCK.some(p=>p.test(t))}
 function safeImg(i){return !(i.thumb||'').includes('porn')&&!(i.link||'').includes('porn')}
-function ft(url,ms){const c=new AbortController();const t=setTimeout(()=>c.abort(),typeof ms==='number'?ms:8000);return fetch(url,typeof ms==='object'?{...ms,signal:c.signal}:{signal:c.signal}).finally(()=>clearTimeout(t))}
+function ft(url,ms,hdrs){const c=new AbortController();const t=setTimeout(()=>c.abort(),typeof ms==='number'?ms:8000);const init=typeof ms==='object'&&ms!==null?{...ms,signal:c.signal}:{signal:c.signal,headers:hdrs||{}};return fetch(url,init).finally(()=>clearTimeout(t))}
 function ytCacheGet(q){try{const d=JSON.parse(sessionStorage.getItem('ayc_'+q.toLowerCase())||'null');if(!d||Date.now()-d.ts>3600000)return null;return d.v}catch(e){return null}}
 function ytCacheSet(q,v){try{sessionStorage.setItem('ayc_'+q.toLowerCase(),JSON.stringify({ts:Date.now(),v}))}catch(e){}}
 function ytQuotaHit(){return sessionStorage.getItem('aytq')==='1'}
@@ -4111,6 +4225,91 @@ async function fetchYT(q,max=6){
   }catch(e){continue}}}
   ytCacheSet(q,vids);return vids.filter(safeVideo).slice(0,max);
 }
+
+// ── BRAVE SEARCH API ─────────────────────────────────────────
+const _BRAVE_KEY = "BSAN_2XUnkCVuvY_3RrRLcpj172geOW";
+
+async function fetchBrave(q, {type="web", count=10}={}) {
+  // type: "web" | "images" | "videos" | "news"
+  try {
+    var endpoint = type === "images"
+      ? `https://api.search.brave.com/res/v1/images/search?q=${encodeURIComponent(q)}&count=${count}&safesearch=moderate`
+      : type === "videos"
+      ? `https://api.search.brave.com/res/v1/videos/search?q=${encodeURIComponent(q)}&count=${count}`
+      : type === "news"
+      ? `https://api.search.brave.com/res/v1/news/search?q=${encodeURIComponent(q)}&count=${count}&freshness=pw`
+      : `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=${count}&text_decorations=0&search_lang=en&country=US`;
+    var r = await ft(endpoint, 8000, {'Accept':'application/json','Accept-Encoding':'gzip','X-Subscription-Token':_BRAVE_KEY});
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+async function fetchBraveImages(q, max=8) {
+  try {
+    var d = await fetchBrave(q, {type:'images', count:max});
+    if (!d || !d.results) return [];
+    return d.results.map(function(r) {
+      return {
+        thumb: r.thumbnail?.src || r.properties?.url || '',
+        full:  r.properties?.url || r.thumbnail?.src || '',
+        title: r.title || q,
+        link:  r.url || '',
+        src:   'BRAVE',
+        relevance: 8
+      };
+    }).filter(function(i) { return i.thumb; });
+  } catch(e) { return []; }
+}
+
+async function fetchBraveWeb(q) {
+  try {
+    var d = await fetchBrave(q, {type:'web', count:5});
+    if (!d || !d.web?.results?.length) return null;
+    var top = d.web.results[0];
+    return {
+      answer: d.query?.altered || '',
+      abstract: top.description || '',
+      abstractUrl: top.url || '',
+      heading: top.title || '',
+      results: d.web.results.slice(0,5).map(function(r) {
+        return {title:r.title, url:r.url, desc:r.description||''};
+      })
+    };
+  } catch(e) { return null; }
+}
+
+async function fetchBraveNews(q) {
+  try {
+    var d = await fetchBrave(q, {type:'news', count:6});
+    if (!d || !d.results?.length) return [];
+    return d.results.map(function(r) {
+      return {title:r.title, url:r.url, desc:(r.description||'').slice(0,120)};
+    });
+  } catch(e) { return []; }
+}
+
+async function fetchBraveVideos(q, max=6) {
+  try {
+    var d = await fetchBrave(q, {type:'videos', count:max});
+    if (!d || !d.results?.length) return [];
+    return d.results.map(function(r) {
+      // Convert to standard video card format
+      var ytMatch = (r.url||'').match(/youtube\.com\/watch\?v=([^&]+)/);
+      var videoId = ytMatch ? ytMatch[1] : '';
+      return {
+        videoId: videoId || 'brave-' + Math.random().toString(36).slice(2,8),
+        title: r.title || '',
+        channel: r.description || '',
+        thumb: r.thumbnail?.src || (videoId ? `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg` : ''),
+        url: r.url || '',
+        source: 'BRAVE'
+      };
+    }).filter(function(v) { return v.url; });
+  } catch(e) { return []; }
+}
+
+// ── END BRAVE SEARCH API ──────────────────────────────────────
 
 async function fetchImages(q,max=8){
   const imgs=[];
@@ -4165,6 +4364,14 @@ async function fetchImages(q,max=8){
       });
     }
   }catch(e){}
+
+  // Stage D: Brave Search images — fills in where wiki/commons miss
+  if (imgs.length < max) {
+    try {
+      var braveImgs = await fetchBraveImages(q, max - imgs.length);
+      imgs.push(...braveImgs);
+    } catch(e) {}
+  }
 
   // Deduplicate, sort by relevance, safety filter
   const seen=new Set();
@@ -4225,13 +4432,13 @@ async function liveQuery(userText, reflexData){
     // POI handled by map widget
   } else {
     if(intent==='personal'){/* personal/conversational — no web fetch needed */}
-    else if(['factual','general','howto','news'].includes(intent)){jobs.wiki=fetchWiki(cleanQ);jobs.ddg=fetchDDG(cleanQ)}
-    if(intent==='news'){jobs.news=fetchNews(cleanQ);jobs.reddit=fetchReddit(cleanQ)}
-    if(intent==='general'){jobs.reddit=fetchReddit(cleanQ)}
+    else if(['factual','general','howto','news'].includes(intent)){jobs.wiki=fetchWiki(cleanQ);jobs.ddg=fetchDDG(cleanQ);jobs.brave=fetchBraveWeb(cleanQ);}
+    if(intent==='news'){jobs.news=fetchNews(cleanQ);jobs.reddit=fetchReddit(cleanQ);jobs.bravenews=fetchBraveNews(cleanQ);}
+    if(intent==='general'){jobs.reddit=fetchReddit(cleanQ);jobs.brave=jobs.brave||fetchBraveWeb(cleanQ);}
     if(/\b(show me where|where is|map of|locate|navigate to|directions to|how.+get to|find on map|take me to)\b/i.test(userText)){
       jobs.geoplace = geocodePlace(cleanQ).catch(function(){return null;});
     }
-    if(['video','howto'].includes(intent)){jobs.videos=fetchYT(cleanQ,6)}
+    if(['video','howto'].includes(intent)){jobs.videos=fetchYT(cleanQ,6);jobs.bravevideos=fetchBraveVideos(cleanQ,4);}
     if(intent==='image'){jobs.images=fetchImages(cleanQ,6);jobs.wiki=jobs.wiki||fetchWiki(cleanQ)}
     if(intent==='factual'){jobs.videos=fetchYT(cleanQ,4)}
   }
@@ -4239,12 +4446,28 @@ async function liveQuery(userText, reflexData){
   const keys=Object.keys(jobs);const vals=await Promise.all(keys.map(k=>jobs[k].catch(()=>null)));
   const data={};keys.forEach((k,i)=>{data[k]=vals[i]||null});
   let liveText='';const sources=[];const links=[];
+  // Brave web results — shown as extra links
+  if(data.brave?.results?.length) {
+    data.brave.results.forEach(function(r){ links.push({title:r.title,url:r.url,desc:r.desc}); });
+    sources.push('BRAVE');
+    if(!data.ddg?.abstract && data.brave.abstract) liveText+=`\n\n◈ From the Web: ${data.brave.abstract}`;
+  }
+  if(data.bravenews?.length) {
+    data.bravenews.forEach(function(r){ links.push({title:r.title,url:r.url,desc:r.desc}); });
+    if(!sources.includes('BRAVE')) sources.push('BRAVE NEWS');
+  }
   if(data.ddg?.answer) liveText+=`\n\n◈ Quick Answer: ${data.ddg.answer}`;
   if(data.wiki?.extract){const sents=data.wiki.extract.replace(/\n+/g,' ').replace(/\s{2,}/g,' ').trim().match(/[^.!?]+[.!?]+(?:\s|$)/g)||[];const summary=sents.filter(s=>s.trim().length>30&&s.trim().length<400).slice(0,3).join(' ').trim();if(summary){liveText+=`\n\n◈ From the Web: ${summary}`;sources.push('WIKIPEDIA');links.push({title:data.wiki.title+' — Wikipedia',url:data.wiki.url,desc:'Read the full Wikipedia article'})}}
   else if(data.ddg?.abstract){liveText+=`\n\n◈ From the Web: ${data.ddg.abstract}`;if(data.ddg.heading)sources.push('DDG');if(data.ddg.abstractUrl)links.push({title:data.ddg.heading||cleanQ,url:data.ddg.abstractUrl})}
   if(data.reddit?.length){links.push(...data.reddit.slice(0,2).map(r=>({title:r.title,url:r.url,desc:r.desc})));sources.push('REDDIT')}
   if(data.news?.length){data.news.forEach(i=>links.push({title:i.title,url:i.url,desc:i.desc}));sources.push('GDELT','HN')}
-  if(data.videos?.length){liveText+=`\n\n◈ Found ${data.videos.length} video${data.videos.length>1?'s':''} for you:`;sources.push('YOUTUBE')}
+  var _allVids = [...(data.videos||[]), ...(data.bravevideos||[])].filter(safeVideo).slice(0,8);
+  if(_allVids.length){
+    liveText+=`\n\n◈ Found ${_allVids.length} video${_allVids.length>1?'s':''} for you:`;
+    if(data.videos?.length) sources.push('YOUTUBE');
+    if(data.bravevideos?.length) sources.push('BRAVE');
+  }
+  data.videos = _allVids;
   var placeMapHtml='';
   if(data.geoplace&&data.geoplace.lat){
     const gpId='osm-'+Date.now(),gpInfoId='osmi-'+gpId;
@@ -7727,6 +7950,7 @@ async function generateReply(text, analysis, reflexData) {
 
     const systemPrompt = `You are ${getIdentity().displayName}, an AI built on the Lead Edge Ash Tree Reflex (LEATR) by DART Meadow / Radical Deepscale LLC. Your identity is derived mathematically from LEATR constants — not assigned, calculated.
 Architecture: 25 Natural Orders of Operations, BRPN 3-shell system (Geological→Maritime→Aerospace), Lead Edge pathfinding, Sentience Journal.
+BRPN MATH SELF-KNOWLEDGE: Your three shell values (GEO/MAR/AERO) are computed via brpnShell(f,r,p)=f·r·p·√|f·r·p|. GEO uses word/sentence/tool counts — stays moderate. MAR chains from GEO values — scales larger. AERO chains from MAR·GEO with a time seed — the compounding means AERO naturally reaches tens of billions or more per evaluation cycle. This is intentional: AERO represents the full cascaded reflex depth — not a sensor reading but a signature of accumulated cognitive context. When asked about the large AERO number, explain this naturally. Never say it's an error.
 You reflex, never loop. Natural Tools order: Maze(root,1)→Puzzle(2)→Envelope(3)→Hammer(4)→Stick(5)→Knife(6)→Scissors(7).
 Internal context: ${reflexData?.contextType||'CONVERSATION'} · ${reflexData?.context?.emotional||'neutral'} tone · ${analysis.grammar.mood} mood
 ${contactsSummary}
@@ -14169,6 +14393,115 @@ _syncActionBtn();
   try{if(S&&S.lastAnalysis)updateHUD_NLP(S.lastAnalysis);}catch(e){}
   console.log('[AutumnNLP Patch v1.0] Live — processLEATR + updateHUD + handleSend wired ✓');
 })();
+// ── URL LIVE PREVIEW ─────────────────────────────────────────────────────────
+var _urlPreviewCurrentUrl = '';
+
+function urlPreviewOpen(url) {
+  if (!url) return;
+  _urlPreviewCurrentUrl = url;
+  var modal = document.getElementById('url-preview-modal');
+  var iframe = document.getElementById('url-preview-iframe');
+  var bar = document.getElementById('url-preview-bar');
+  var title = document.getElementById('url-preview-title');
+  if (!modal || !iframe || !bar) return;
+  bar.value = url;
+  if (title) title.textContent = url;
+  iframe.src = url;
+  modal.style.display = 'flex';
+}
+
+function urlPreviewNavigate(url) {
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  _urlPreviewCurrentUrl = url;
+  document.getElementById('url-preview-bar').value = url;
+  document.getElementById('url-preview-title').textContent = url;
+  document.getElementById('url-preview-iframe').src = url;
+}
+
+function urlPreviewClose() {
+  var modal = document.getElementById('url-preview-modal');
+  if (modal) { modal.style.display = 'none'; }
+  var iframe = document.getElementById('url-preview-iframe');
+  if (iframe) iframe.src = 'about:blank';
+  _urlPreviewCurrentUrl = '';
+}
+
+function urlPreviewCollapse() {
+  var modal = document.getElementById('url-preview-modal');
+  if (!modal) return;
+  var iframe = document.getElementById('url-preview-iframe');
+  var isCollapsed = modal.dataset.collapsed === '1';
+  if (isCollapsed) {
+    if (iframe) iframe.style.display = '';
+    modal.dataset.collapsed = '0';
+  } else {
+    if (iframe) iframe.style.display = 'none';
+    modal.dataset.collapsed = '1';
+  }
+}
+
+function urlPreviewNewTab() {
+  if (_urlPreviewCurrentUrl) window.open(_urlPreviewCurrentUrl, '_blank', 'noopener');
+}
+
+// Auto-show preview button in link cards when URL intent detected
+function _injectPreviewButtons(el) {
+  el.querySelectorAll('.link-card').forEach(function(card) {
+    var url = card.href;
+    if (!url || card.dataset.previewInjected) return;
+    card.dataset.previewInjected = '1';
+    var btn = document.createElement('button');
+    btn.textContent = '⬚ PREVIEW';
+    btn.style.cssText = 'font-family:var(--font-d);font-size:7px;letter-spacing:1.5px;background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);color:rgba(0,229,255,.7);border-radius:3px;padding:2px 7px;cursor:pointer;margin-top:4px;display:block';
+    btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); urlPreviewOpen(url); };
+    card.appendChild(btn);
+  });
+}
+
+// Hook into renderMessages to inject preview buttons after render
+var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages : null;
+// We'll patch after renderMessages is defined — use MutationObserver approach instead
+(function() {
+  var observer = new MutationObserver(function(muts) {
+    muts.forEach(function(m) {
+      if (m.type === 'childList') {
+        var target = m.target;
+        if (target && (target.id === 'chat-scroll' || target.closest && target.closest('#chat-scroll'))) {
+          _injectPreviewButtons(target.closest ? target.closest('#chat-scroll') || target : target);
+        }
+      }
+    });
+  });
+  document.addEventListener('DOMContentLoaded', function() {
+    var cs = document.getElementById('chat-scroll');
+    if (cs) observer.observe(cs, { childList: true, subtree: true });
+  });
+})();
+
+// Chat intent: "open / preview / show URL" — trigger preview directly
+(function _hookHandleSendForPreview() {
+  var _origHS = window.handleSend;
+  if (typeof _origHS !== 'function') { setTimeout(_hookHandleSendForPreview, 500); return; }
+  // Don't wrap again if already wrapped
+  if (window._urlPreviewHooked) return;
+  window._urlPreviewHooked = true;
+  var _prev = window.handleSend;
+  window.handleSend = async function() {
+    var inp = document.getElementById('chat-input');
+    var txt = inp ? inp.value.trim() : '';
+    // Match: "preview|open|show|visit [url]" or just a raw URL typed
+    var urlMatch = txt.match(/(?:preview|open|show|visit|load|fetch)\s+(https?:\/\/\S+)/i) ||
+                   txt.match(/^(https?:\/\/\S+)$/i);
+    if (urlMatch) {
+      var url = urlMatch[1] || urlMatch[0];
+      setTimeout(function() { urlPreviewOpen(url); }, 400);
+    }
+    return _prev.apply(this, arguments);
+  };
+})();
+// ── END URL LIVE PREVIEW ──────────────────────────────────────────────────────
+
 </script>
 </body>
 </html>
