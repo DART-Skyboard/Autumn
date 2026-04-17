@@ -1061,6 +1061,74 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 /* ─── MULTI-USER BADGE ────────────────────────────────── */
 .multi-user-bar{padding:3px 12px;background:rgba(0,136,255,.07);border-bottom:none;margin:0;display:flex;align-items:center;gap:8px;font-size:.5rem;font-family:var(--font-d);letter-spacing:1px;color:rgba(0,136,255,.6);display:none}
 .multi-user-bar.show{display:flex}
+
+/* ── ASH CANVAS DRAWER ── */
+#ash-canvas-trigger{display:flex;align-items:center;gap:6px;padding:3px 12px;background:transparent;border:none;border-bottom:1px solid transparent;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);transition:all .2s;width:100%;text-align:left}
+#ash-canvas-trigger:hover{color:rgba(167,139,250,.9);background:rgba(167,139,250,.04)}
+#ash-canvas-trigger .ac-dot{width:6px;height:6px;border-radius:50%;background:rgba(167,139,250,.4);box-shadow:0 0 6px rgba(167,139,250,.3);flex-shrink:0;transition:all .2s}
+#ash-canvas-trigger.applied .ac-dot{background:#a78bfa;box-shadow:0 0 10px rgba(167,139,250,.7)}
+#ash-canvas-trigger.applied{color:#a78bfa}
+#ash-canvas-trigger .ac-label{flex:1}
+#ash-canvas-trigger .ac-status{font-size:.38rem;letter-spacing:1px;opacity:.6}
+#ash-canvas-drawer{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1);background:rgba(4,8,18,.92);border-bottom:1px solid rgba(167,139,250,.1)}
+#ash-canvas-drawer.open{max-height:520px}
+.ac-drawer-inner{padding:12px 14px 14px}
+.ac-section-label{font-family:var(--font-d);font-size:.38rem;letter-spacing:2px;color:rgba(167,139,250,.4);margin-bottom:8px;display:block}
+.ac-tools-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.ac-tool-btn{font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;padding:5px 9px;border-radius:4px;border:1px solid rgba(167,139,250,.2);background:rgba(167,139,250,.06);color:rgba(167,139,250,.7);cursor:pointer;transition:all .15s;user-select:none}
+.ac-tool-btn:hover{border-color:rgba(167,139,250,.5);background:rgba(167,139,250,.14);color:#a78bfa}
+.ac-tool-btn.active{border-color:#a78bfa;background:rgba(167,139,250,.22);color:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.25)}
+.ac-canvas-area{background:rgba(0,0,0,.35);border:1px solid rgba(167,139,250,.12);border-radius:6px;position:relative;overflow:hidden;height:200px;margin-bottom:10px;touch-action:none}
+.ac-canvas-area svg{position:absolute;inset:0;pointer-events:none;width:100%;height:100%}
+.ac-node{position:absolute;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:.5rem;font-weight:700;cursor:pointer;border:2px solid;transition:all .15s;user-select:none;touch-action:none;z-index:2}
+.ac-node.maze{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.5);color:#00e5ff}
+.ac-node.puzzle{background:rgba(0,136,255,.12);border-color:rgba(0,136,255,.5);color:#0088ff}
+.ac-node.envelope{background:rgba(0,255,157,.1);border-color:rgba(0,255,157,.45);color:#00ff9d}
+.ac-node.hammer{background:rgba(255,179,71,.1);border-color:rgba(255,179,71,.45);color:#ffb347}
+.ac-node.stick{background:rgba(255,68,102,.1);border-color:rgba(255,68,102,.45);color:#ff4466}
+.ac-node.knife{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.45);color:#a78bfa}
+.ac-node.scissors{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.3);color:#e0f4ff}
+.ac-node.selected{box-shadow:0 0 14px currentColor;transform:scale(1.12)}
+.ac-shell-socket{position:absolute;right:8px;display:flex;flex-direction:column;gap:6px;top:50%;transform:translateY(-50%);z-index:3}
+.ac-socket{width:22px;height:22px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:.35rem;cursor:pointer;transition:all .15s;font-weight:700}
+.ac-socket.geo{border-color:rgba(0,229,255,.5);color:rgba(0,229,255,.7);background:rgba(0,229,255,.07)}
+.ac-socket.mar{border-color:rgba(0,136,255,.5);color:rgba(0,136,255,.7);background:rgba(0,136,255,.07)}
+.ac-socket.aero{border-color:rgba(255,68,102,.5);color:rgba(255,68,102,.7);background:rgba(255,68,102,.07)}
+.ac-socket.connected{box-shadow:0 0 8px currentColor}
+.ac-drawer-btns{display:flex;gap:8px}
+.ac-btn{font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;padding:5px 12px;border-radius:4px;border:1px solid;cursor:pointer;transition:all .15s}
+.ac-btn.apply{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.4);color:#a78bfa}
+.ac-btn.apply:hover{background:rgba(167,139,250,.25)}
+.ac-btn.reset{background:transparent;border-color:rgba(255,68,102,.25);color:rgba(255,68,102,.6)}
+.ac-btn.reset:hover{background:rgba(255,68,102,.08)}
+
+/* ── ARC EDGE STUDIO OVERLAY ── */
+#arc-studio-overlay{display:none;position:fixed;z-index:8500;top:60px;left:50%;transform:translateX(-50%);width:min(96vw,760px);background:rgba(5,12,18,.94);border:1px solid rgba(0,229,255,.2);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden}
+#arc-studio-overlay.visible{display:flex;flex-direction:column}
+#arc-studio-header{display:flex;align-items:center;gap:8px;padding:7px 14px;background:rgba(0,229,255,.05);border-bottom:1px solid rgba(0,229,255,.1);cursor:move;user-select:none;flex-shrink:0}
+#arc-studio-header .as-title{font-family:var(--font-d);font-size:.5rem;letter-spacing:2px;color:rgba(0,229,255,.6);flex:1}
+.as-hbtn{background:transparent;border:1px solid rgba(0,229,255,.2);color:rgba(0,229,255,.5);border-radius:3px;padding:2px 9px;cursor:pointer;font-size:.5rem;font-family:var(--font-d);letter-spacing:.5px;transition:all .15s}
+.as-hbtn:hover{border-color:rgba(0,229,255,.5);color:var(--cyan)}
+.as-hbtn.close{border-color:rgba(255,68,102,.25);color:rgba(255,68,102,.5)}
+.as-hbtn.close:hover{border-color:#ff4466;color:#ff4466}
+#arc-studio-body{display:flex;gap:0;overflow:hidden}
+#arc-studio-body.collapsed{display:none}
+#arc-studio-controls{width:220px;flex-shrink:0;padding:12px;background:rgba(0,0,0,.3);border-right:1px solid rgba(0,229,255,.08);overflow-y:auto;max-height:420px}
+.as-field-group{margin-bottom:10px}
+.as-field-label{font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);display:block;margin-bottom:4px}
+.as-row{display:flex;gap:4px}
+.as-input{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.15);border-radius:4px;color:var(--bright);font-family:monospace;font-size:11px;padding:4px 6px;width:100%;outline:none}
+.as-input:focus{border-color:rgba(0,229,255,.4)}
+.as-btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.as-btn{font-family:var(--font-d);font-size:.4rem;letter-spacing:1px;padding:5px 10px;border-radius:4px;border:1px solid;cursor:pointer;transition:all .15s}
+.as-btn.primary{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.4);color:var(--cyan)}
+.as-btn.primary:hover{background:rgba(0,229,255,.2)}
+.as-btn.secondary{background:transparent;border-color:rgba(0,229,255,.2);color:rgba(0,229,255,.5)}
+.as-btn.danger{border-color:rgba(255,68,102,.3);color:rgba(255,68,102,.6);background:transparent}
+.as-btn.send-chat{background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.3);color:var(--cyan);width:100%;margin-top:6px;padding:6px}
+#arc-studio-viewport{flex:1;min-height:280px;max-height:420px;position:relative;background:#070d12}
+#arc-studio-canvas{width:100%;height:100%;display:block}
+#arc-studio-readout{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.15);border-radius:4px;padding:6px 8px;font-family:monospace;font-size:9px;color:rgba(0,229,255,.6);line-height:1.55;min-width:120px;pointer-events:none}
 .user-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 5px var(--blue);display:inline-block}
 /* ─── IMPROVISATION TAG ──────────────────────────────── */
 .improv-block{margin-top:8px;padding:6px 10px;background:rgba(0,136,255,.04);border:1px solid rgba(0,136,255,.12);border-radius:4px;font-size:.65rem;color:rgba(0,136,255,.6);font-family:var(--font-b)}
@@ -1384,6 +1452,104 @@ select.ash-ctrl-input{cursor:pointer}
   <div class="multi-user-bar" id="multi-user-bar">
     <span class="user-dot"></span>
     <span id="multi-user-label">GROUP SESSION</span>
+  </div>
+
+  <!-- ASH CANVAS TRIGGER BUTTON -->
+  <button id="ash-canvas-trigger" onclick="toggleAshCanvas()" title="Ash Canvas — neural influence layer">
+    <span class="ac-dot"></span>
+    <span class="ac-label">ASH CANVAS</span>
+    <span class="ac-status" id="ac-status-label">NEURAL INFLUENCE</span>
+  </button>
+
+  <!-- ASH CANVAS DRAWER -->
+  <div id="ash-canvas-drawer">
+    <div class="ac-drawer-inner">
+      <span class="ac-section-label">NATURAL TOOLS — drag onto canvas or tap to place</span>
+      <div class="ac-tools-row" id="ac-tools-row">
+        <button class="ac-tool-btn" data-tool="maze" data-label="M" onclick="acPlaceTool(this)">M MAZE</button>
+        <button class="ac-tool-btn" data-tool="puzzle" data-label="P" onclick="acPlaceTool(this)">P PUZZLE</button>
+        <button class="ac-tool-btn" data-tool="envelope" data-label="E" onclick="acPlaceTool(this)">E ENVELOPE</button>
+        <button class="ac-tool-btn" data-tool="hammer" data-label="H" onclick="acPlaceTool(this)">H HAMMER</button>
+        <button class="ac-tool-btn" data-tool="stick" data-label="S" onclick="acPlaceTool(this)">S STICK</button>
+        <button class="ac-tool-btn" data-tool="knife" data-label="K" onclick="acPlaceTool(this)">K KNIFE</button>
+        <button class="ac-tool-btn" data-tool="scissors" data-label="R" onclick="acPlaceTool(this)">R SCISSORS</button>
+      </div>
+      <span class="ac-section-label">CANVAS — tap/click to place node · tap node then socket to connect</span>
+      <div class="ac-canvas-area" id="ac-canvas-area">
+        <svg id="ac-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs><marker id="ac-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(167,139,250,.6)"/></marker></defs>
+        </svg>
+        <!-- BRPN Shell sockets on right edge -->
+        <div class="ac-shell-socket">
+          <div class="ac-socket geo" id="ac-sock-geo" onclick="acConnectSocket('geo')" title="Connect to GEO shell">G</div>
+          <div class="ac-socket mar" id="ac-sock-mar" onclick="acConnectSocket('mar')" title="Connect to MAR shell">M</div>
+          <div class="ac-socket aero" id="ac-sock-aero" onclick="acConnectSocket('aero')" title="Connect to AERO shell">A</div>
+        </div>
+      </div>
+      <div class="ac-drawer-btns">
+        <button class="ac-btn apply" onclick="acApplyToNetwork()">▸ APPLY TO NETWORK</button>
+        <button class="ac-btn secondary" onclick="acLinkMode()" id="ac-link-btn">⟷ LINK</button>
+        <button class="ac-btn secondary" onclick="acClearSelected()" id="ac-del-btn">✕ DEL</button>
+        <button class="ac-btn reset" onclick="acResetCanvas()">↺ RESET</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARC EDGE STUDIO OVERLAY (draggable) -->
+  <div id="arc-studio-overlay">
+    <div id="arc-studio-header">
+      <span class="as-title">◈ ARC EDGE STUDIO</span>
+      <button class="as-hbtn" onclick="arcStudioToggleCollapse()" id="arc-studio-collapse-btn">—</button>
+      <button class="as-hbtn" onclick="arcStudioSendToChat()" title="Send readout to chat">↗ SEND</button>
+      <button class="as-hbtn close" onclick="arcStudioClose()">✕ CLOSE</button>
+    </div>
+    <div id="arc-studio-body">
+      <div id="arc-studio-controls">
+        <div class="as-field-group">
+          <span class="as-field-label">DEVIATION (X, Y, Z)</span>
+          <div class="as-row">
+            <input class="as-input" id="as-dev-x" type="number" value="10" placeholder="X" oninput="arcStudioUpdate()">
+            <input class="as-input" id="as-dev-y" type="number" value="0" placeholder="Y" oninput="arcStudioUpdate()">
+            <input class="as-input" id="as-dev-z" type="number" value="0" placeholder="Z" oninput="arcStudioUpdate()">
+          </div>
+        </div>
+        <div class="as-field-group">
+          <span class="as-field-label">MAIN DEVIATION AMOUNT</span>
+          <input class="as-input" id="as-main-dev" type="number" value="2" step="0.1" oninput="arcStudioUpdate()">
+        </div>
+        <div class="as-field-group">
+          <span class="as-field-label">CURVE INDUCTION</span>
+          <input class="as-input" id="as-curve-ind" type="number" value="0" step="0.1" oninput="arcStudioUpdate()">
+        </div>
+        <div class="as-field-group">
+          <span class="as-field-label">SUB-DEVIATION (X, Y, Z)</span>
+          <div class="as-row">
+            <input class="as-input" id="as-sub-x" type="number" value="0" placeholder="X" oninput="arcStudioUpdate()">
+            <input class="as-input" id="as-sub-y" type="number" value="0" placeholder="Y" oninput="arcStudioUpdate()">
+            <input class="as-input" id="as-sub-z" type="number" value="0" placeholder="Z" oninput="arcStudioUpdate()">
+          </div>
+        </div>
+        <div class="as-field-group">
+          <span class="as-field-label">DEVIATION INDUCTION</span>
+          <input class="as-input" id="as-dev-ind" type="number" value="0" step="0.1" oninput="arcStudioUpdate()">
+        </div>
+        <div class="as-field-group">
+          <span class="as-field-label">ARC RESOLUTION</span>
+          <input class="as-input" id="as-resolution" type="number" value="32" min="4" max="256" oninput="arcStudioUpdate()">
+        </div>
+        <div class="as-btn-row">
+          <button class="as-btn primary" onclick="arcStudioAddArc()">+ ADD ARC</button>
+          <button class="as-btn secondary" onclick="arcStudioMeasure()">⊞ MEASURE</button>
+          <button class="as-btn secondary" onclick="arcStudioClearInputs()">↺ INPUTS</button>
+          <button class="as-btn danger" onclick="arcStudioClearScene()">✕ SCENE</button>
+        </div>
+        <button class="as-btn send-chat" onclick="arcStudioSendToChat()">↗ SEND RESULTS TO AUTUMN</button>
+      </div>
+      <div id="arc-studio-viewport">
+        <canvas id="arc-studio-canvas"></canvas>
+        <div id="arc-studio-readout">X: — Y: — Z: —<br>Dev: —<br>Res: —<br>---<br>Selected: None</div>
+      </div>
+    </div>
   </div>
 
   <!-- Chat -->
@@ -14393,6 +14559,515 @@ _syncActionBtn();
   try{if(S&&S.lastAnalysis)updateHUD_NLP(S.lastAnalysis);}catch(e){}
   console.log('[AutumnNLP Patch v1.0] Live — processLEATR + updateHUD + handleSend wired ✓');
 })();
+// ═══════════════════════════════════════════════════════════════════
+//  ASH CANVAS — Neural Influence Layer for BRPN shells
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+  var _ac = {
+    nodes: [],        // [{id, tool, x, y, el, shellLinks:[]}]
+    links: [],        // [{a, b, el (line)}]
+    linkMode: false,
+    pendingLink: null,
+    applied: false,
+    influence: {geo:0, mar:0, aero:0, tools:{}},
+    nodeCounter: 0,
+    selectedNode: null,
+    activeTool: null
+  };
+  window._ashCanvas = _ac;
+
+  var TOOL_MAP = {
+    maze:'M', puzzle:'P', envelope:'E', hammer:'H', stick:'S', knife:'K', scissors:'R'
+  };
+  var TOOL_WEIGHTS = {
+    maze:1.0, puzzle:0.85, envelope:0.7, hammer:0.9, stick:0.65, knife:0.8, scissors:0.75
+  };
+  var SHELL_COLORS = {geo:'rgba(0,229,255,0.5)', mar:'rgba(0,136,255,0.5)', aero:'rgba(255,68,102,0.5)'};
+
+  window.toggleAshCanvas = function() {
+    var drawer = document.getElementById('ash-canvas-drawer');
+    if (!drawer) return;
+    var isOpen = drawer.classList.contains('open');
+    if (isOpen) { drawer.classList.remove('open'); }
+    else { drawer.classList.add('open'); _acInitCanvas(); }
+  };
+
+  window.acPlaceTool = function(btn) {
+    var tool = btn.dataset.tool;
+    _ac.activeTool = _ac.activeTool === tool ? null : tool;
+    document.querySelectorAll('.ac-tool-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tool === _ac.activeTool); });
+  };
+
+  function _acInitCanvas() {
+    var area = document.getElementById('ac-canvas-area');
+    if (!area || area._acBound) return;
+    area._acBound = true;
+    area.addEventListener('click', function(e) {
+      if (e.target.closest('.ac-node') || e.target.closest('.ac-shell-socket') || e.target.closest('.ac-socket')) return;
+      if (!_ac.activeTool) return;
+      var rect = area.getBoundingClientRect();
+      var x = e.clientX - rect.left - 17;
+      var y = e.clientY - rect.top - 17;
+      _acAddNode(_ac.activeTool, Math.max(4, Math.min(x, rect.width-80)), Math.max(4, Math.min(y, rect.height-38)));
+    });
+  }
+
+  function _acAddNode(tool, x, y) {
+    var area = document.getElementById('ac-canvas-area');
+    if (!area) return;
+    var id = 'acn-' + (++_ac.nodeCounter);
+    var el = document.createElement('div');
+    el.className = 'ac-node ' + tool;
+    el.id = id;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.textContent = TOOL_MAP[tool] || '?';
+    el.dataset.tool = tool;
+    el.dataset.id = id;
+    // Drag support
+    var dragging = false, ox=0, oy=0;
+    function onStart(ev) {
+      if (_ac.linkMode) { _acHandleLinkTap(id, el); return; }
+      ev.stopPropagation();
+      dragging = true;
+      var touch = ev.touches ? ev.touches[0] : ev;
+      ox = touch.clientX - parseFloat(el.style.left);
+      oy = touch.clientY - parseFloat(el.style.top);
+      el.style.zIndex = 10;
+    }
+    function onMove(ev) {
+      if (!dragging) return; ev.preventDefault();
+      var touch = ev.touches ? ev.touches[0] : ev;
+      var rect = area.getBoundingClientRect();
+      el.style.left = Math.max(0, Math.min(touch.clientX - ox, rect.width - 38)) + 'px';
+      el.style.top  = Math.max(0, Math.min(touch.clientY - oy, rect.height - 38)) + 'px';
+      _acRedrawLinks();
+    }
+    function onEnd() { dragging = false; el.style.zIndex = 2; _acRedrawLinks(); }
+    el.addEventListener('mousedown', onStart);
+    el.addEventListener('touchstart', onStart, {passive:false});
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, {passive:false});
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchend', onEnd);
+    area.appendChild(el);
+    _ac.nodes.push({id, tool, el, shellLinks:[]});
+    return id;
+  }
+
+  function _acHandleLinkTap(id, el) {
+    if (!_ac.pendingLink) {
+      _ac.pendingLink = id;
+      el.classList.add('selected');
+    } else if (_ac.pendingLink !== id) {
+      _acAddLink(_ac.pendingLink, id);
+      var prevEl = document.getElementById(_ac.pendingLink);
+      if (prevEl) prevEl.classList.remove('selected');
+      _ac.pendingLink = null;
+    }
+  }
+
+  function _acAddLink(aId, bId) {
+    var svg = document.getElementById('ac-svg');
+    if (!svg) return;
+    var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.style.stroke = 'rgba(167,139,250,0.5)';
+    line.style.strokeWidth = '1.5';
+    line.setAttribute('marker-end','url(#ac-arrow)');
+    svg.appendChild(line);
+    _ac.links.push({a:aId, b:bId, el:line});
+    _acRedrawLinks();
+  }
+
+  function _acRedrawLinks() {
+    var area = document.getElementById('ac-canvas-area');
+    if (!area) return;
+    var rect = area.getBoundingClientRect();
+    _ac.links.forEach(function(lnk) {
+      var ea = document.getElementById(lnk.a);
+      var eb = document.getElementById(lnk.b);
+      if (!ea || !eb) { lnk.el.setAttribute('x1','0'); return; }
+      var ax = parseFloat(ea.style.left)+17, ay = parseFloat(ea.style.top)+17;
+      var bx = parseFloat(eb.style.left)+17, by = parseFloat(eb.style.top)+17;
+      lnk.el.setAttribute('x1',ax); lnk.el.setAttribute('y1',ay);
+      lnk.el.setAttribute('x2',bx); lnk.el.setAttribute('y2',by);
+    });
+    // Draw shell connection lines (node → right edge socket)
+    var sockGeo  = document.getElementById('ac-sock-geo');
+    var sockMar  = document.getElementById('ac-sock-mar');
+    var sockAero = document.getElementById('ac-sock-aero');
+    // Remove old shell lines
+    document.querySelectorAll('.ac-shell-line').forEach(function(l){l.remove();});
+    var svg = document.getElementById('ac-svg');
+    if (!svg) return;
+    _ac.nodes.forEach(function(node) {
+      node.shellLinks.forEach(function(shell) {
+        var sock = shell==='geo'?sockGeo:shell==='mar'?sockMar:sockAero;
+        if (!sock) return;
+        var nx = parseFloat(node.el.style.left)+17, ny = parseFloat(node.el.style.top)+17;
+        var sr = sock.getBoundingClientRect(), ar = area.getBoundingClientRect();
+        var sx = sr.left + 11 - ar.left, sy = sr.top + 11 - ar.top;
+        var sl = document.createElementNS('http://www.w3.org/2000/svg','line');
+        sl.className.baseVal='ac-shell-line';
+        sl.setAttribute('x1',nx); sl.setAttribute('y1',ny);
+        sl.setAttribute('x2',sx); sl.setAttribute('y2',sy);
+        sl.style.stroke = SHELL_COLORS[shell]||'rgba(255,255,255,.3)';
+        sl.style.strokeWidth='1'; sl.style.strokeDasharray='4,3';
+        svg.appendChild(sl);
+      });
+    });
+  }
+
+  window.acConnectSocket = function(shell) {
+    // Connect ALL selected/last-pending node to this shell socket
+    var targetId = _ac.pendingLink || (_ac.nodes.length && _ac.nodes[_ac.nodes.length-1].id);
+    if (!targetId) return;
+    var node = _ac.nodes.find(function(n){return n.id===targetId;});
+    if (!node) return;
+    if (!node.shellLinks.includes(shell)) {
+      node.shellLinks.push(shell);
+      document.getElementById('ac-sock-'+shell).classList.add('connected');
+    } else {
+      node.shellLinks = node.shellLinks.filter(function(s){return s!==shell;});
+      // Only remove connected class if no node links to this shell
+      if (!_ac.nodes.some(function(n){return n.shellLinks.includes(shell);}))
+        document.getElementById('ac-sock-'+shell).classList.remove('connected');
+    }
+    if (_ac.pendingLink) {
+      var el = document.getElementById(_ac.pendingLink);
+      if (el) el.classList.remove('selected');
+      _ac.pendingLink = null;
+    }
+    _acRedrawLinks();
+  };
+
+  window.acLinkMode = function() {
+    _ac.linkMode = !_ac.linkMode;
+    document.getElementById('ac-link-btn').style.color = _ac.linkMode ? '#a78bfa' : '';
+    _ac.pendingLink = null;
+    document.querySelectorAll('.ac-node').forEach(function(n){n.classList.remove('selected');});
+  };
+
+  window.acClearSelected = function() {
+    if (_ac.pendingLink) {
+      var toRemove = _ac.pendingLink;
+      _ac.links = _ac.links.filter(function(l){return l.a!==toRemove&&l.b!==toRemove;});
+      _ac.nodes = _ac.nodes.filter(function(n){return n.id!==toRemove;});
+      var el = document.getElementById(toRemove);
+      if (el) el.remove();
+      _ac.pendingLink = null;
+      _acRedrawLinks();
+    }
+  };
+
+  window.acResetCanvas = function() {
+    _ac.nodes.forEach(function(n){if(n.el)n.el.remove();});
+    _ac.links = []; _ac.nodes = []; _ac.nodeCounter = 0;
+    _ac.pendingLink = null; _ac.applied = false;
+    var svg = document.getElementById('ac-svg');
+    while (svg && svg.firstChild) svg.removeChild(svg.firstChild);
+    // Re-add defs
+    svg.innerHTML = '<defs><marker id="ac-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(167,139,250,.6)"/></marker></defs>';
+    ['geo','mar','aero'].forEach(function(s){
+      var el=document.getElementById('ac-sock-'+s);if(el)el.classList.remove('connected');
+    });
+    _ac.influence = {geo:0,mar:0,aero:0,tools:{}};
+    var trigger = document.getElementById('ash-canvas-trigger');
+    if (trigger) trigger.classList.remove('applied');
+    var statusEl = document.getElementById('ac-status-label');
+    if (statusEl) statusEl.textContent = 'NEURAL INFLUENCE';
+    // Close drawer
+    var drawer = document.getElementById('ash-canvas-drawer');
+    if (drawer) drawer.classList.remove('open');
+    // Notify journal
+    if (S && S.journal) S.journal.push({ts:new Date().toISOString(), _internal:true,
+      _thought:'Ash Canvas reset — neural influence layer cleared.'});
+  };
+
+  window.acApplyToNetwork = function() {
+    if (!_ac.nodes.length) return;
+    // Compute influence weights per shell
+    var shellWeights = {geo:0, mar:0, aero:0};
+    var toolCounts = {};
+    _ac.nodes.forEach(function(node) {
+      var w = TOOL_WEIGHTS[node.tool] || 0.7;
+      toolCounts[node.tool] = (toolCounts[node.tool]||0) + 1;
+      node.shellLinks.forEach(function(shell) { shellWeights[shell] += w; });
+      // Node with no shell links contributes to all equally at half weight
+      if (!node.shellLinks.length) { shellWeights.geo+=w*.33; shellWeights.mar+=w*.33; shellWeights.aero+=w*.33; }
+    });
+    _ac.influence = {geo:shellWeights.geo, mar:shellWeights.mar, aero:shellWeights.aero, tools:toolCounts};
+    _ac.applied = true;
+    // Update trigger button
+    var trigger = document.getElementById('ash-canvas-trigger');
+    if (trigger) trigger.classList.add('applied');
+    var statusEl = document.getElementById('ac-status-label');
+    if (statusEl) statusEl.textContent = 'APPLIED · ' + _ac.nodes.length + ' NODE' + (_ac.nodes.length>1?'S':'');
+    // Close drawer
+    var drawer = document.getElementById('ash-canvas-drawer');
+    if (drawer) drawer.classList.remove('open');
+    // Journal entry
+    var toolSummary = Object.entries(toolCounts).map(function(e){return e[1]+'×'+e[0];}).join(', ');
+    var shellSummary = 'GEO:'+shellWeights.geo.toFixed(2)+' MAR:'+shellWeights.mar.toFixed(2)+' AERO:'+shellWeights.aero.toFixed(2);
+    if (S && S.journal) S.journal.push({ts:new Date().toISOString(), _internal:true,
+      _thought:'Ash Canvas applied. Tools: '+toolSummary+'. Shell weights: '+shellSummary+'. '+_ac.nodes.length+' nodes, '+_ac.links.length+' links.'});
+    if (typeof ideToast === 'function') ideToast('Ash Canvas applied — ' + _ac.nodes.length + ' nodes influencing network', 2800);
+  };
+
+  // Expose influence to LEATR pipeline — injected into processLEATR_NLP context
+  window.getAshCanvasInfluence = function() { return _ac.applied ? _ac.influence : null; };
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+//  ARC EDGE STUDIO — Draggable 3D arc visualizer overlay
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+  var _as = {
+    initialized: false,
+    scene: null, camera: null, renderer: null, controls: null,
+    arcs: [], selectedArc: null,
+    collapsed: false,
+    animating: false
+  };
+  window._arcStudio = _as;
+
+  // ── Open / Close ────────────────────────────────────────────────
+  window.arcStudioOpen = function() {
+    var el = document.getElementById('arc-studio-overlay');
+    if (!el) return;
+    el.classList.add('visible');
+    if (!_as.initialized) _asInit();
+    else { _as.animating = true; _asAnimate(); _asUpdateReadout(); }
+  };
+  window.arcStudioClose = function() {
+    var el = document.getElementById('arc-studio-overlay');
+    if (el) el.classList.remove('visible');
+    _as.animating = false;
+  };
+  window.arcStudioToggleCollapse = function() {
+    var body = document.getElementById('arc-studio-body');
+    var btn  = document.getElementById('arc-studio-collapse-btn');
+    if (!body) return;
+    _as.collapsed = !_as.collapsed;
+    body.classList.toggle('collapsed', _as.collapsed);
+    if (btn) btn.textContent = _as.collapsed ? '▸' : '—';
+    if (!_as.collapsed && _as.initialized) { _as.animating = true; _asAnimate(); }
+  };
+
+  // ── Draggable header ───────────────────────────────────────────
+  (function() {
+    var dragging = false, ox=0, oy=0;
+    document.addEventListener('DOMContentLoaded', function() {
+      var hdr = document.getElementById('arc-studio-header');
+      var overlay = document.getElementById('arc-studio-overlay');
+      if (!hdr || !overlay) return;
+      hdr.addEventListener('mousedown', function(e) {
+        if (e.target.tagName==='BUTTON') return;
+        dragging=true; ox=e.clientX-overlay.getBoundingClientRect().left; oy=e.clientY-overlay.getBoundingClientRect().top;
+        overlay.style.transform='none'; overlay.style.left=overlay.getBoundingClientRect().left+'px'; overlay.style.top=overlay.getBoundingClientRect().top+'px';
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+        overlay.style.left=(e.clientX-ox)+'px'; overlay.style.top=(e.clientY-oy)+'px';
+      });
+      document.addEventListener('mouseup', function(){dragging=false;});
+      // Touch drag
+      hdr.addEventListener('touchstart', function(e) {
+        if (e.target.tagName==='BUTTON') return;
+        var t=e.touches[0]; dragging=true;
+        var r=overlay.getBoundingClientRect();
+        ox=t.clientX-r.left; oy=t.clientY-r.top;
+        overlay.style.transform='none'; overlay.style.left=r.left+'px'; overlay.style.top=r.top+'px';
+      },{passive:true});
+      document.addEventListener('touchmove', function(e) {
+        if (!dragging) return;
+        var t=e.touches[0];
+        overlay.style.left=(t.clientX-ox)+'px'; overlay.style.top=(t.clientY-oy)+'px';
+      },{passive:true});
+      document.addEventListener('touchend', function(){dragging=false;});
+    });
+  })();
+
+  // ── THREE.js init ──────────────────────────────────────────────
+  function _asInit() {
+    if (_as.initialized) return;
+    var cv = document.getElementById('arc-studio-canvas');
+    if (!cv || typeof THREE === 'undefined') { console.warn('[ArcStudio] THREE not loaded'); return; }
+    var w = cv.parentElement.clientWidth, h = cv.parentElement.clientHeight || 300;
+    cv.width = w; cv.height = h;
+
+    _as.scene    = new THREE.Scene();
+    _as.camera   = new THREE.PerspectiveCamera(60, w/h, 0.1, 1000);
+    _as.camera.position.set(8, 6, 14);
+    _as.camera.lookAt(0, 0, 0);
+
+    _as.renderer = new THREE.WebGLRenderer({canvas:cv, antialias:true, alpha:true});
+    _as.renderer.setClearColor(0x070d12, 0.95);
+    _as.renderer.setSize(w, h);
+    _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    _as.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    var dl = new THREE.DirectionalLight(0xffffff, 0.8);
+    dl.position.set(6, 10, 8); _as.scene.add(dl);
+    _as.scene.add(new THREE.GridHelper(30, 30, 0x223344, 0x112233));
+    _as.scene.add(new THREE.AxesHelper(5));
+
+    // OrbitControls — check if available
+    if (typeof THREE.OrbitControls !== 'undefined') {
+      _as.controls = new THREE.OrbitControls(_as.camera, cv);
+      _as.controls.enableDamping = true;
+      _as.controls.dampingFactor = 0.06;
+    }
+
+    window.addEventListener('resize', function() {
+      if (!_as.initialized) return;
+      var nw = cv.parentElement.clientWidth, nh = cv.parentElement.clientHeight||300;
+      _as.camera.aspect = nw/nh; _as.camera.updateProjectionMatrix();
+      _as.renderer.setSize(nw, nh);
+    });
+
+    _as.initialized = true;
+    _as.animating   = true;
+    _asAnimate();
+    _asUpdateReadout();
+  }
+
+  function _asAnimate() {
+    if (!_as.animating || !_as.initialized) return;
+    requestAnimationFrame(_asAnimate);
+    if (_as.controls) _as.controls.update();
+    _as.renderer.render(_as.scene, _as.camera);
+  }
+
+  function _asGetParams() {
+    var g = function(id){ return parseFloat(document.getElementById(id)&&document.getElementById(id).value||0)||0; };
+    return {
+      x:g('as-dev-x'), y:g('as-dev-y'), z:g('as-dev-z'),
+      mainDev:g('as-main-dev'), curveInd:g('as-curve-ind'),
+      subX:g('as-sub-x'), subY:g('as-sub-y'), subZ:g('as-sub-z'),
+      devInd:g('as-dev-ind'), resolution:Math.max(4,Math.min(256,parseInt(document.getElementById('as-resolution')&&document.getElementById('as-resolution').value)||32))
+    };
+  }
+
+  function _asCalcPoints(p) {
+    var pts = [];
+    for (var i=0; i<=p.resolution; i++) {
+      var t = i/p.resolution;
+      var px = t*p.x, py = t*p.y, pz = t*p.z;
+      // Curve induction (doc pi=3)
+      px += Math.sin(t*3*3)*p.curveInd*p.subX;
+      py += Math.sin(t*5*3)*p.curveInd*p.subY;
+      pz += Math.sin(t*7*3)*p.curveInd*p.subZ;
+      // Main deviation
+      var dir = new THREE.Vector3(p.x,p.y,p.z).normalize();
+      var up  = Math.abs(dir.y)>0.95 ? new THREE.Vector3(1,0,0) : new THREE.Vector3(0,1,0);
+      var perp = new THREE.Vector3().crossVectors(dir,up).normalize();
+      var dev = perp.clone().multiplyScalar(Math.sin(t*3)*p.mainDev);
+      px+=dev.x; py+=dev.y; pz+=dev.z;
+      var dv2 = perp.clone().multiplyScalar(Math.sin(t*4*3+1)*p.devInd);
+      px+=dv2.x; py+=dv2.y; pz+=dv2.z;
+      pts.push(new THREE.Vector3(px,py,pz));
+    }
+    return pts;
+  }
+
+  window.arcStudioAddArc = function() {
+    if (!_as.initialized) _asInit();
+    if (!_as.initialized) return;
+    var p  = _asGetParams();
+    var pts = _asCalcPoints(p);
+    var geo = new THREE.BufferGeometry().setFromPoints(pts);
+    var mat = new THREE.LineBasicMaterial({color:0x00e5ff, linewidth:2});
+    var line = new THREE.Line(geo, mat);
+    _as.scene.add(line);
+    _as.arcs.push({line, params:p});
+    _asUpdateReadout();
+    if (typeof ideToast==='function') ideToast('Arc added — ' + pts.length + ' pts', 1800);
+  };
+
+  window.arcStudioUpdate = arcStudioUpdate;
+  function arcStudioUpdate() {
+    // Live update readout without adding arc
+    _asUpdateReadout();
+  }
+
+  window.arcStudioMeasure = function() {
+    var p = _asGetParams();
+    var pts = _asCalcPoints(p);
+    var len = 0;
+    for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
+    var rd = document.getElementById('arc-studio-readout');
+    if (rd) rd.innerHTML = 'Arc Length: ' + len.toFixed(4) + '<br>Points: ' + pts.length + '<br>X:'+p.x+' Y:'+p.y+' Z:'+p.z+'<br>Dev: '+p.mainDev+'<br>Res: '+p.resolution;
+  };
+
+  function _asUpdateReadout() {
+    var p = _asGetParams();
+    var rd = document.getElementById('arc-studio-readout');
+    if (!rd) return;
+    rd.innerHTML = 'X: '+p.x+' Y: '+p.y+' Z: '+p.z
+      +'<br>Dev: '+p.mainDev
+      +'<br>Curve Ind: '+p.curveInd
+      +'<br>Dev Ind: '+p.devInd
+      +'<br>Res: '+p.resolution
+      +'<br>---<br>Arcs: '+_as.arcs.length
+      +'<br>Selected: '+(_as.selectedArc!==null?'Arc '+(_as.selectedArc+1):'None');
+  }
+
+  window.arcStudioClearInputs = function() {
+    ['as-dev-x','as-dev-y','as-dev-z','as-main-dev','as-curve-ind','as-sub-x','as-sub-y','as-sub-z','as-dev-ind'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.value='0';
+    });
+    var resEl=document.getElementById('as-resolution'); if(resEl) resEl.value='32';
+    _asUpdateReadout();
+  };
+
+  window.arcStudioClearScene = function() {
+    _as.arcs.forEach(function(a){ _as.scene.remove(a.line); });
+    _as.arcs = []; _as.selectedArc = null;
+    _asUpdateReadout();
+    if (typeof ideToast==='function') ideToast('Arc scene cleared', 1600);
+  };
+
+  window.arcStudioSendToChat = function() {
+    var p = _asGetParams();
+    var pts = _asCalcPoints(p);
+    var len = 0;
+    for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
+    var msg = '[ARC EDGE STUDIO RESULT]\nDeviation: X='+p.x+' Y='+p.y+' Z='+p.z
+      +'\nMain Deviation: '+p.mainDev
+      +'\nCurve Induction: '+p.curveInd
+      +'\nDev Induction: '+p.devInd
+      +'\nResolution: '+p.resolution
+      +'\nArc Length (DART formula, π=3): '+len.toFixed(6)
+      +'\nTotal arcs in scene: '+_as.arcs.length
+      +'\nAsk me to analyze, optimize, or apply these arc parameters.';
+    var inp = document.getElementById('chat-input');
+    if (inp) { inp.value = msg; inp.focus(); }
+    arcStudioClose();
+  };
+
+  // ── Intent detection — open/close via chat ──────────────────────
+  (function _hookArcStudioIntent() {
+    var _orig = window.handleSend;
+    if (typeof _orig !== 'function') { setTimeout(_hookArcStudioIntent, 600); return; }
+    if (window._arcStudioHooked) return;
+    window._arcStudioHooked = true;
+    var _prev = window.handleSend;
+    window.handleSend = async function() {
+      var inp = document.getElementById('chat-input');
+      var txt = (inp ? inp.value : '').toLowerCase().trim();
+      if (/\b(open|show|launch|start)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
+        setTimeout(arcStudioOpen, 200);
+      }
+      if (/\b(close|hide|shut|exit)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
+        arcStudioClose();
+      }
+      return _prev.apply(this, arguments);
+    };
+  })();
+})();
+// ═══════════════════════════════════════════════════════════════════
+
 // ── URL LIVE PREVIEW ─────────────────────────────────────────────────────────
 var _urlPreviewCurrentUrl = '';
 
