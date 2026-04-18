@@ -13204,8 +13204,22 @@ renderMessages();
 updateFooter();
 if(S.lastAnalysis) updateHUD(S.lastAnalysis);
 
-requestAnimationFrame(()=>{
-  if(typeof THREE !== 'undefined') { initBRPN(); } else { console.warn('[BRPN] THREE.js not loaded — skipping 3D orb init'); }
+// ── BRPN 3D init with THREE.js load retry ─────────────────────────
+(function _waitForTHREE(attempt) {
+  if (attempt > 40) { console.warn('[BRPN] THREE.js not loaded after retries — skipping 3D orb'); return; }
+  if (typeof THREE !== 'undefined') {
+    // Ensure container has dimensions before init
+    var _bc = document.getElementById('brpn-canvas');
+    if (_bc && _bc.clientWidth > 0 && _bc.clientHeight > 0) {
+      initBRPN();
+    } else {
+      // Container not sized yet — wait one more frame
+      setTimeout(function(){ _waitForTHREE(attempt+1); }, attempt < 5 ? 50 : 100);
+    }
+  } else {
+    setTimeout(function(){ _waitForTHREE(attempt+1); }, 150);
+  }
+})(0);
   // Scroll position buttons — show/hide based on scroll position
   var _cs = document.getElementById('chat-scroll');
   var _btnTop = document.getElementById('scroll-to-top');
@@ -16403,6 +16417,11 @@ window.forgeRun = function() {
     if (pl) { pl.textContent = 'OUTPUT'; pl.style.color='rgba(255,179,71,.7)'; }
   }
   if (typeof ideToast==='function') ideToast('FORGE: running '+lang.toUpperCase(), 1500);
+  var _fLines = (_forge.editor ? _forge.editor.getValue().split('\n').length : 0);
+  if (typeof window._forgeSentientLog==='function') window._forgeSentientLog(lang,'run',_fLines);
+  // Pulse AERO shell (synthesis/precision) on code execution
+  if (typeof pulseShells==='function') pulseShells(0.6);
+  if (typeof pushOrbContextMode==='function') pushOrbContextMode('FORGE·'+lang.toUpperCase());
 };
 
 window.forgeTogglePreviewMode = function() {
@@ -16452,6 +16471,7 @@ window.forgeDownload = function() {
   document.body.appendChild(a); a.click();
   setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 800);
   if (typeof ideToast==='function') ideToast('Saved: ' + filename, 2000);
+  if (typeof window._forgeSentientLog==='function') window._forgeSentientLog(_forge.lang,'download',0);
 };
 
 window.forgeClear = function() {
