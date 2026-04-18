@@ -274,6 +274,48 @@ html,body{height:100%;background:var(--bg);color:#e0f4ff;font-family:var(--font-
       <div class="nate-section" style="padding:0;border:none">
         <div class="nate-sec-title">VOICE TEST OUTPUT</div>
         <div id="voice-test-area">
+          <!-- Kokoro voice selector -->
+          <div style="margin-bottom:8px">
+            <div class="nate-sec-title" style="font-size:.36rem;margin-bottom:6px">KOKORO VOICE ENGINE</div>
+            <select id="nate-kokoro-voice" style="width:100%;background:rgba(167,139,250,.08);
+              border:1px solid rgba(167,139,250,.25);color:#e0f4ff;border-radius:5px;
+              font-family:var(--font-d);font-size:.38rem;padding:5px 8px;outline:none;cursor:pointer;
+              letter-spacing:.5px">
+              <optgroup label="🇺🇸 AMERICAN FEMALE">
+                <option value="af_heart"   selected>Heart — warm, natural (default)</option>
+                <option value="af_bella">Bella — soft, breathy</option>
+                <option value="af_aoede">Aoede — clear, neutral</option>
+                <option value="af_kore">Kore — crisp, precise</option>
+                <option value="af_sarah">Sarah — conversational</option>
+                <option value="af_nova">Nova — bright, upbeat</option>
+                <option value="af_sky">Sky — airy, light</option>
+                <option value="af_nicole">Nicole — smooth, professional</option>
+              </optgroup>
+              <optgroup label="🇺🇸 AMERICAN MALE">
+                <option value="am_adam">Adam — standard baritone</option>
+                <option value="am_michael">Michael — deep, authoritative</option>
+                <option value="am_echo">Echo — neutral, clear</option>
+                <option value="am_eric">Eric — warm, mid-range</option>
+                <option value="am_liam">Liam — casual, natural</option>
+              </optgroup>
+              <optgroup label="🇬🇧 BRITISH FEMALE">
+                <option value="bf_alice">Alice — crisp British accent</option>
+                <option value="bf_emma">Emma — warm, BBC tone</option>
+                <option value="bf_isabella">Isabella — formal, refined</option>
+                <option value="bf_lily">Lily — light, expressive</option>
+              </optgroup>
+              <optgroup label="🇬🇧 BRITISH MALE">
+                <option value="bm_daniel">Daniel — standard British male</option>
+                <option value="bm_fable">Fable — storytelling, expressive</option>
+                <option value="bm_george">George — deep, authoritative</option>
+                <option value="bm_lewis">Lewis — modern, natural</option>
+              </optgroup>
+            </select>
+            <div style="font-size:.38rem;color:rgba(167,139,250,.45);margin-top:4px;font-family:var(--font-d)">
+              ◈ Kokoro-82M-ONNX neural TTS · same engine as Autumn
+              <span id="nate-kokoro-status" style="float:right;color:var(--dim)">checking...</span>
+            </div>
+          </div>
           <textarea id="voice-test-input" placeholder="Type a test phrase and press SPEAK..." rows="3">Hi, I'm Autumn. The neural network is active and the BRPN shells are resonating at baseline.</textarea>
           <div class="test-btn-row">
             <button class="s-btn play" style="padding:4px 14px" onclick="nateTestSpeak()">▶ SPEAK</button>
@@ -453,6 +495,28 @@ async function nateInit() {
   startCorrAnimation();
   updateStatusBadge();
   nateLog('N.A.T.E initialized — ' + _nate.samples.length + ' samples loaded');
+
+  // Check Kokoro pipeline status
+  (function _checkKokoro() {
+    var el = document.getElementById('nate-kokoro-status');
+    var pipe = _getNatePipe();
+    if (pipe) {
+      if (el) el.textContent = '● KOKORO READY';
+      if (el) el.style.color = 'var(--green)';
+      nateLog('Kokoro-82M pipeline: ready');
+    } else {
+      if (el) el.textContent = 'loading... (open from Autumn for best quality)';
+      if (el) el.style.color = 'var(--gold)';
+      // Poll until ready
+      var poll = setInterval(function() {
+        if (_getNatePipe()) {
+          clearInterval(poll);
+          if (el) { el.textContent = '● KOKORO READY'; el.style.color='var(--green)'; }
+          nateLog('Kokoro-82M pipeline: connected');
+        }
+      }, 2000);
+    }
+  })();
 
   // Check if NATE voice is already applied
   var saved = _getSavedConfig();
@@ -894,38 +958,134 @@ function nateRemoveSample(idx) {
 // ═══════════════════════════════════════════════════════════════════
 //  VOICE TEST (TTS with NATE params)
 // ═══════════════════════════════════════════════════════════════════
-function nateTestSpeak() {
+// ── Kokoro TTS integration ────────────────────────────────────────
+// NATE uses the same Kokoro-82M-ONNX pipeline as Autumn.
+// Opens a bridge to the parent Autumn window to share the pipeline.
+function _getNatePipe() {
+  // Try parent window first (if opened from Autumn)
+  try { if (window.opener && window.opener._kokoroPipe) return window.opener._kokoroPipe; } catch(e){}
+  // Try same-window (if navigated directly)
+  if (window._kokoroPipe) return window._kokoroPipe;
+  return null;
+}
+
+function _natePCMtoWAV(pcm, sr) {
+  var len = pcm.length;
+  var buf = new ArrayBuffer(44 + len*2);
+  var dv = new DataView(buf);
+  function ws(off, val, n){ n===4?dv.setUint32(off,val,true):dv.setUint16(off,val,true); }
+  'RIFF'.split('').forEach(function(c,i){dv.setUint8(i,c.charCodeAt(0));});
+  ws(4, 36+len*2, 4);
+  'WAVEfmt '.split('').forEach(function(c,i){dv.setUint8(8+i,c.charCodeAt(0));});
+  ws(16,16,4); ws(20,1,2); ws(22,1,2); ws(24,sr,4); ws(28,sr*2,4); ws(32,2,2); ws(34,16,2);
+  'data'.split('').forEach(function(c,i){dv.setUint8(36+i,c.charCodeAt(0));});
+  ws(40, len*2, 4);
+  var view = new Int16Array(buf, 44);
+  pcm.forEach(function(v,i){ view[i] = Math.max(-32768, Math.min(32767, v*32767)); });
+  return buf;
+}
+
+// Apply Web Audio post-processing chain to an AudioBuffer
+async function _natePostProcess(audioCtx, sourceBuf) {
+  var p = _nate.params;
+  var offline = new OfflineAudioContext(1, sourceBuf.length, sourceBuf.sampleRate);
+  var src = offline.createBufferSource();
+  src.buffer = sourceBuf;
+  src.playbackRate.value = p.speed;
+  src.detune.value = (p.pitch - 1.0) * 1200; // pitch in cents
+
+  // Warmth: low-shelf boost/cut
+  var warmth = offline.createBiquadFilter();
+  warmth.type = 'lowshelf'; warmth.frequency.value = 350;
+  warmth.gain.value = (p.warmth - 0.5) * 9;
+
+  // Clarity: high-shelf
+  var clarity = offline.createBiquadFilter();
+  clarity.type = 'highshelf'; clarity.frequency.value = 3500;
+  clarity.gain.value = (p.clarity - 0.5) * 7;
+
+  // Formant peak
+  var formant = offline.createBiquadFilter();
+  formant.type = 'peaking';
+  formant.frequency.value = 800 + 1400 * (p.formant - 0.5);
+  formant.Q.value = 1.5 + p.resonance * 4;
+  formant.gain.value = p.resonance * 5;
+
+  var gain = offline.createGain(); gain.gain.value = 0.92;
+
+  src.connect(warmth); warmth.connect(clarity); clarity.connect(formant);
+  formant.connect(gain); gain.connect(offline.destination);
+  src.start(0);
+
+  var processed = await offline.startRendering();
+  return processed;
+}
+
+async function nateTestSpeak() {
   var text = document.getElementById('voice-test-input').value.trim();
   if (!text) return;
   nateStopPlayback();
   var status = document.getElementById('test-status');
-  status.textContent = 'SPEAKING...';
+  status.textContent = 'GENERATING...';
 
-  // Use Web Speech API with modified params
-  if ('speechSynthesis' in window) {
-    var synth = window.speechSynthesis;
-    synth.cancel();
-    var utt = new SpeechSynthesisUtterance(text);
-    utt.rate  = Math.min(2.5, Math.max(0.4, _nate.params.speed));
-    utt.pitch = Math.min(2.0, Math.max(0.4, _nate.params.pitch));
-    utt.volume = 1.0;
+  var pipe = _getNatePipe();
+  if (pipe) {
+    try {
+      // Get selected Kokoro voice name
+      var voiceSel = document.getElementById('nate-kokoro-voice');
+      var voiceName = voiceSel ? voiceSel.value : 'af_heart';
+      status.textContent = 'SYNTHESIZING · ' + voiceName.toUpperCase() + '...';
 
-    // Try to pick a voice matching gender
-    var voices = synth.getVoices();
-    var srcSample = _nate.samples.find(s=>s.id===_nate.params.sourceId);
-    if (srcSample && voices.length > 0) {
-      var genderVoices = voices.filter(v =>
-        srcSample.gender === 'female'
-          ? /female|woman|zira|samantha|victoria|karen|fiona|moira|tessa|veena/i.test(v.name)
-          : /male|man|daniel|alex|fred|jorge|thomas|luca|otoya/i.test(v.name)
-      );
-      if (genderVoices.length > 0) utt.voice = genderVoices[0];
+      var result = await pipe(text, {
+        voice: voiceName,
+        speed: Math.min(2.0, Math.max(0.4, _nate.params.speed))
+      });
+
+      var sr = result.sampling_rate || 24000;
+      var pcm = result.audio;
+
+      // Build AudioBuffer from PCM
+      var rawBuf = _nate.audioCtx.createBuffer(1, pcm.length, sr);
+      rawBuf.getChannelData(0).set(pcm);
+
+      // Apply NATE post-processing
+      status.textContent = 'PROCESSING...';
+      var processed = await _natePostProcess(_nate.audioCtx, rawBuf);
+
+      // Play through analyser for visualization
+      nateStopPlayback();
+      var src = _nate.audioCtx.createBufferSource();
+      src.buffer = processed;
+      src.connect(_nate.analyserNode);
+      _nate.sourceNode = src;
+      src.start(0);
+      src.onended = function() {
+        _nate.sourceNode = null;
+        status.textContent = '';
+      };
+      startWaveformAnimation();
+      status.textContent = '● SPEAKING';
+      nateLog('Kokoro speak: ' + voiceName + ' · ' + text.slice(0,40));
+    } catch(e) {
+      status.textContent = 'Kokoro error — falling back';
+      console.warn('[NATE Kokoro]', e);
+      _nateWebSpeechFallback(text, status);
     }
-
-    utt.onend = function() { status.textContent = ''; };
-    utt.onerror = function() { status.textContent = 'Speech error'; };
-    synth.speak(utt);
+  } else {
+    status.textContent = 'Kokoro loading — using Web Speech...';
+    _nateWebSpeechFallback(text, status);
+    nateLog('Kokoro not ready — Web Speech fallback used');
   }
+}
+
+function _nateWebSpeechFallback(text, statusEl) {
+  if (!('speechSynthesis' in window)) { if(statusEl) statusEl.textContent=''; return; }
+  window.speechSynthesis.cancel();
+  var utt = new SpeechSynthesisUtterance(text);
+  utt.rate  = Math.min(2.5, Math.max(0.4, _nate.params.speed));
+  utt.pitch = Math.min(2.0, Math.max(0.4, _nate.params.pitch));
+  utt.onend = function(){ if(statusEl) statusEl.textContent=''; };
+  window.speechSynthesis.speak(utt);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -981,8 +1141,10 @@ function nateApplyVoice() {
     localStorage.setItem(_NATE_BASELINE_KEY, JSON.stringify(baseline));
   }
 
+  var voiceSel = document.getElementById('nate-kokoro-voice');
   var config = {
     params: Object.assign({}, _nate.params, {sigmaBlend:null}),
+    kokoroVoice: voiceSel ? voiceSel.value : 'af_heart',
     nateActive: true,
     appliedAt: new Date().toISOString()
   };
