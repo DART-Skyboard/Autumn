@@ -17031,7 +17031,8 @@ window.emmToggle = function() {
       _as.scene.add(line);
       var len = 0;
       for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
-      _as.arcs.push({line: line, params: p, length: len, devIndex: d});
+      _as.arcs.push({line: line, params: p, length: len, devIndex: d,
+                     phaseOffset: phaseOffset, scaleFactor: scaleFactor});
       addedLines.push(len);
     }
 
@@ -17140,7 +17141,11 @@ window.emmToggle = function() {
   function _asGetMeshes() {
     var out=[];
     _as.arcs.forEach(function(arc,ai){
-      var pts=_asCalcPoints(arc.params);
+      // Use the EXACT same phaseOffset and scaleFactor used when arc was created
+      // so the exported mesh matches what is displayed on screen
+      var phase = (typeof arc.phaseOffset !== 'undefined') ? arc.phaseOffset : 0;
+      var scale = (typeof arc.scaleFactor !== 'undefined') ? arc.scaleFactor : 1;
+      var pts = _asCalcPointsWithPhase(arc.params, phase, scale);
       if(pts.length<2) return;
       // Read the actual Three.js material color so the GLB matches what's on screen
       var cr=0, cg=1, cb=0.533;
@@ -17151,7 +17156,8 @@ window.emmToggle = function() {
       }
       _asBuildTube._cr=cr; _asBuildTube._cg=cg; _asBuildTube._cb=cb;
       out.push({tube:_asBuildTube(pts), ai:ai+1, params:arc.params,
-                len:arc.length||0, cr:cr, cg:cg, cb:cb});
+                len:arc.length||0, cr:cr, cg:cg, cb:cb,
+                phaseOffset:phase, scaleFactor:scale});
     });
     return out;
   }
@@ -17470,16 +17476,30 @@ window.emmToggle = function() {
     var pts = _asCalcPoints(p);
     var len = 0;
     for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
-    var msg = '[ARC EDGE STUDIO RESULT]\nDeviation: X='+p.x+' Y='+p.y+' Z='+p.z
-      +'\nMain Deviation: '+p.mainDev
-      +'\nCurve Induction: '+p.curveInd
-      +'\nDev Induction: '+p.devInd
-      +'\nResolution: '+p.resolution
-      +'\nArc Length (Arc Edge = 3): '+len.toFixed(6)
-      +'\nTotal arcs in scene: '+_as.arcs.length
-      +'\nAsk me to analyze, optimize, or apply these arc parameters.';
+    // Build a compact scene summary grouped by unique params
+    var uniqueConfigs = [];
+    _as.arcs.forEach(function(arc) {
+      var key = JSON.stringify({x:arc.params.x,y:arc.params.y,z:arc.params.z,dev:arc.params.mainDev,curve:arc.params.curveInd,devInd:arc.params.devInd,curves:arc.params.devCount});
+      if (!uniqueConfigs.find(function(u){return u.key===key;})) uniqueConfigs.push({key:key,params:arc.params,count:1});
+      else uniqueConfigs.find(function(u){return u.key===key;}).count++;
+    });
+    var msg = '[ARC EDGE STUDIO — '+_as.arcs.length+' arcs in scene]\n'
+      + uniqueConfigs.slice(0,6).map(function(u){
+          return 'Config ×'+u.count+': x='+u.params.x+' y='+u.params.y+' z='+u.params.z
+            +' dev='+u.params.mainDev+' curve='+u.params.curveInd+' devInd='+u.params.devInd
+            +' curves='+u.params.devCount;
+        }).join('\n')
+      + (uniqueConfigs.length > 6 ? '\n...and '+(uniqueConfigs.length-6)+' more configurations' : '')
+      + '\n\nAnalyze this scene, describe what you see geometrically, and suggest what to add or adjust next.';
     var inp = document.getElementById('chat-input');
-    if (inp) { inp.value = msg; inp.focus(); }
+    if (inp) {
+      inp.value = msg;
+      // Auto-submit so user doesn't need to press send manually
+      setTimeout(function(){
+        if (typeof handleSend === 'function') handleSend();
+        else if (typeof window.handleSend === 'function') window.handleSend();
+      }, 150);
+    }
     arcStudioClose();
   };
 
