@@ -7551,6 +7551,12 @@ function classifyIntentLocal(text, hasPendingImages) {
   var hasStyle = styleWords.some(function(w){ return lc.indexOf(w) !== -1; });
   if (hasAction && (hasNoun || hasStyle)) return 'IMAGE_GEN';
   if (hasStyle && hasNoun) return 'IMAGE_GEN';
+  // ── Browse/preview site intent ────────────────────────────────────────────
+  var _browseVerbs = /\b(show me|open|preview|display|browse|visit|load|pull up|go to|navigate to|take me to|launch|show)\b/i.test(text);
+  var _siteNoun = /\b(site|website|page|url|domain|homepage|web page|preview of|the web|live preview)\b/i.test(text) ||
+    /\b[\w-]+\.(com|org|net|io|gov|edu|xyz|co|ai|app|dev)\b/i.test(text);
+  var _knownSite = /\b(spacex|nasa|google|microsoft|apple|amazon|wikipedia|github|twitter|reddit|youtube|netflix|spotify|bbc|cnn|nytimes|techcrunch|openai|anthropic|tesla|bing|duckduckgo|facebook|instagram|linkedin|x\.com|espn|nfl|nba|mlb|imdb|ebay|walmart|target|airbnb|booking|tripadvisor|twitch|discord|notion|figma|vercel|netlify|stripe|shopify|wordpress|medium|substack|hackernews|producthunt)\b/i.test(lc);
+  if (_browseVerbs && (_siteNoun || _knownSite)) return 'BROWSE_SITE';
   return 'CONVERSATION';
 }
 
@@ -7569,7 +7575,7 @@ async function classifyIntent(text, hasPendingImages) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 15,
-        system: 'Classify the user intent for an AI chat app. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.\nVISION_ANALYSIS = user wants to analyze an attached image.\nCONVERSATION = everything else including questions, requests, discussion.',
+        system: 'Classify the user intent for an AI chat app. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nBROWSE_SITE\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.\nVISION_ANALYSIS = user wants to analyze an attached image.\nBROWSE_SITE = user wants to open/preview/visit/browse a specific website or domain (e.g. "show me spacex.com", "open microsoft.com", "preview the NASA site", "show me a preview of google").\nCONVERSATION = everything else including questions, requests, discussion.',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
       }),
       signal: AbortSignal.timeout(2500)
@@ -7577,7 +7583,7 @@ async function classifyIntent(text, hasPendingImages) {
     var d = await res.json();
     var label = ((d.content && d.content[0] && d.content[0].text) || 'CONVERSATION').trim().replace(/[^A-Z_]/g,'').toUpperCase();
     // API classifier ONLY handles image disambiguation — never destructive session actions
-    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','CONVERSATION'];
+    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','BROWSE_SITE','CONVERSATION'];
     return valid.indexOf(label) !== -1 ? label : 'CONVERSATION';
   } catch(e) { return localLabel; }
 }
@@ -8076,6 +8082,68 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     saveState(); renderMessages(); updateFooter();
     autoReadLastResponse();
     return;
+  }
+
+  // ── Site browse / live preview intent ────────────────────────────────────
+  if (_intentLabel === 'BROWSE_SITE') {
+    var _bsUrl = '';
+    var _bsExplicit = text.match(/https?:\/\/[^\s]+/i);
+    if (_bsExplicit) {
+      _bsUrl = _bsExplicit[0].replace(/[.,!?;:]+$/, '');
+    } else {
+      var _bsDomain = text.match(/\b([a-z0-9][a-z0-9-]*\.(com|org|net|io|gov|edu|xyz|co|ai|app|dev|tv|us|uk|ca))\b/i);
+      if (_bsDomain) {
+        _bsUrl = 'https://' + _bsDomain[0].toLowerCase();
+      } else {
+        var _bsMap = {
+          'spacex':'https://spacex.com','nasa':'https://nasa.gov','google':'https://google.com',
+          'microsoft':'https://microsoft.com','apple':'https://apple.com','amazon':'https://amazon.com',
+          'wikipedia':'https://wikipedia.org','github':'https://github.com','twitter':'https://twitter.com',
+          'x.com':'https://x.com','reddit':'https://reddit.com','youtube':'https://youtube.com',
+          'netflix':'https://netflix.com','spotify':'https://spotify.com','bbc':'https://bbc.com',
+          'cnn':'https://cnn.com','nytimes':'https://nytimes.com','techcrunch':'https://techcrunch.com',
+          'openai':'https://openai.com','anthropic':'https://anthropic.com','tesla':'https://tesla.com',
+          'bing':'https://bing.com','duckduckgo':'https://duckduckgo.com','facebook':'https://facebook.com',
+          'instagram':'https://instagram.com','linkedin':'https://linkedin.com','twitch':'https://twitch.tv',
+          'discord':'https://discord.com','notion':'https://notion.so','figma':'https://figma.com',
+          'vercel':'https://vercel.com','netlify':'https://netlify.com','stripe':'https://stripe.com',
+          'shopify':'https://shopify.com','wordpress':'https://wordpress.com','medium':'https://medium.com',
+          'substack':'https://substack.com','espn':'https://espn.com','imdb':'https://imdb.com',
+          'ebay':'https://ebay.com','walmart':'https://walmart.com','airbnb':'https://airbnb.com',
+          'booking':'https://booking.com','tripadvisor':'https://tripadvisor.com',
+          'hackernews':'https://news.ycombinator.com','producthunt':'https://producthunt.com',
+          'nfl':'https://nfl.com','nba':'https://nba.com','mlb':'https://mlb.com'
+        };
+        var _lcText = text.toLowerCase();
+        for (var _bk in _bsMap) {
+          if (_lcText.indexOf(_bk) !== -1) { _bsUrl = _bsMap[_bk]; break; }
+        }
+        if (!_bsUrl) {
+          var _bsStripped = text
+            .replace(/\b(show me|open|preview|display|browse|visit|load|pull up|go to|navigate to|take me to|launch|show|a|the|me|site|website|page|url|domain|homepage|web page|preview of|live preview|please|can you|could you|would you)\b/gi,'')
+            .trim().split(/\s+/)[0];
+          if (_bsStripped && /^[a-z0-9-]+$/i.test(_bsStripped) && _bsStripped.length > 1) {
+            _bsUrl = 'https://' + _bsStripped.toLowerCase() + '.com';
+          }
+        }
+      }
+    }
+    if (_bsUrl) {
+      var _bsDisplayName = _bsUrl.replace(/https?:\/\/(www\.)?/,'').replace(/\/$/,'');
+      msgs().push({
+        role: 'autumn', text: 'Opening live preview of **' + _bsDisplayName + '** — use the preview panel to browse interactively, or tap ↗ VISIT to open in a new tab.',
+        ts: new Date().toISOString(), id: 'browse-' + Date.now(),
+        grammarMeta: 'Live Preview · ' + _bsDisplayName, brpnMeta: '', contextType: 'BROWSE_SITE',
+        media: { videos: [], images: [], links: [], sources: [] }
+      });
+      S.isProcessing = false;
+      if (typeof setOrbThinking === 'function') setOrbThinking(false);
+      S.pendingImages = []; S.pendingImage = null;
+      saveState(); renderMessages(); updateFooter();
+      setTimeout(function() { urlPreviewOpen(_bsUrl); }, 350);
+      return;
+    }
+    // Couldn't resolve URL — fall through to CONVERSATION
   }
 
   // ── Web image fetch: user wants real photos from the web, not AI-generated ──
@@ -15957,81 +16025,172 @@ function _urlPreviewIsBlocked(url) {
   } catch(e) { return false; }
 }
 
-// Build a rich preview card using screenshot API + favicon + metadata
+// Build a rich preview card — screenshot + favicon + metadata + Brave results
 function _urlPreviewBuildCard(url, container) {
   var host = '';
   try { host = new URL(url).hostname; } catch(e) { host = url; }
+  var hostClean = host.replace(/^www\./, '');
+  var faviconUrl = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(host);
+  var safeUrl = url.replace(/'/g, '%27');
 
-  // Screenshot via screenshotapi.net (free tier) or thum.io (free, no key)
-  var screenshotUrl = 'https://image.thum.io/get/width/800/crop/600/noanimate/' + encodeURIComponent(url);
-  var faviconUrl = 'https://www.google.com/s2/favicons?sz=32&domain=' + encodeURIComponent(host);
+  // Screenshot service fallback chain — try each in order until one loads
+  // 1. screenshotone.com free tier  2. thum.io  3. s0.wordpress.com mshots
+  var _shotServices = [
+    'https://api.screenshotone.com/take?url=' + encodeURIComponent(url) + '&viewport_width=1280&viewport_height=800&format=jpg&image_quality=80&block_ads=true&block_cookie_banners=true',
+    'https://image.thum.io/get/width/900/crop/550/allowJPG/noanimate/' + encodeURIComponent(url),
+    'https://s0.wordpress.com/mshots/v1/' + encodeURIComponent(url) + '?w=900&h=550'
+  ];
+  var _shotIdx = 0;
 
   container.innerHTML =
-    '<div style="display:flex;flex-direction:column;height:100%;background:#060e16">'
+    '<div style="display:flex;flex-direction:column;height:100%;background:#060e16;font-family:var(--font-b)">'
     // Screenshot hero
-    +'<div style="flex:0 0 auto;position:relative;background:#0a1420;border-bottom:1px solid rgba(0,229,255,.08);overflow:hidden;max-height:55%">'
-    +'<img id="upv-shot" src="'+screenshotUrl+'" alt="Preview" style="width:100%;display:block;object-fit:cover" onerror="this.parentElement.style.display=\'none\'">'
-    +'<div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 60%,#060e16 100%);pointer-events:none"></div>'
+    +'<div id="upv-shot-wrap" style="flex:0 0 auto;position:relative;background:#0a1420;border-bottom:1px solid rgba(0,229,255,.1);overflow:hidden;cursor:pointer;min-height:200px;max-height:50%" onclick="urlPreviewNewTab()" title="Click to open site">'
+    +'<img id="upv-shot" src="'+_shotServices[0]+'" alt="Site preview" style="width:100%;display:block;object-fit:cover;min-height:200px;opacity:0;transition:opacity .4s"'
+    +' onload="this.style.opacity=1"'
+    +' onerror="window._upvNextShot && window._upvNextShot(this)">'
+    +'<div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,#060e16 100%);pointer-events:none"></div>'
+    +'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.25);border-radius:4px;padding:3px 10px;font-family:var(--font-d);font-size:8px;letter-spacing:1.5px;color:rgba(0,229,255,.8)">↗ CLICK TO VISIT</div>'
     +'</div>'
-    // Info card
-    +'<div style="flex:1;padding:20px 24px;overflow-y:auto">'
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
-    +'<img src="'+faviconUrl+'" style="width:20px;height:20px;border-radius:3px" onerror="this.style.display=\'none\'">'
-    +'<span style="font-family:var(--font-d);font-size:10px;letter-spacing:2px;color:var(--cyan)">'+host.toUpperCase()+'</span>'
+    // Info panel
+    +'<div style="flex:1;padding:16px 18px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">'
+    // Domain identity
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<img src="'+faviconUrl+'" style="width:26px;height:26px;border-radius:5px;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    +'<div style="min-width:0">'
+    +'<div style="font-family:var(--font-d);font-size:11px;letter-spacing:2px;color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+hostClean.toUpperCase()+'</div>'
+    +'<div style="font-family:monospace;font-size:10px;color:rgba(200,232,240,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+url+'</div>'
     +'</div>'
-    +'<div style="font-family:monospace;font-size:11px;color:rgba(200,232,240,.5);word-break:break-all;margin-bottom:16px">'+url+'</div>'
-    +'<div id="upv-meta" style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:20px">'
-    +'<span style="color:rgba(0,229,255,.3);font-size:10px;font-family:var(--font-d);letter-spacing:1px">FETCHING PAGE INFO...</span>'
     +'</div>'
-    +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
-    +'<button onclick="urlPreviewNewTab()" style="background:rgba(0,136,255,.15);border:1px solid rgba(0,136,255,.4);color:rgba(0,136,255,.9);border-radius:6px;padding:9px 20px;cursor:pointer;font-family:var(--font-d);font-size:9px;letter-spacing:2px">↗ OPEN SITE</button>'
-    +'<button onclick="_urlPreviewTryIframe(\''+url.replace(/'/g,"\\'")+'\')" style="background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);color:rgba(0,229,255,.6);border-radius:6px;padding:9px 20px;cursor:pointer;font-family:var(--font-d);font-size:9px;letter-spacing:2px">⬚ TRY EMBED</button>'
+    // Meta (title + description) — populated async
+    +'<div id="upv-meta" style="color:var(--text);line-height:1.7">'
+    +'<div style="display:flex;align-items:center;gap:7px;color:rgba(0,229,255,.35);font-size:9px;font-family:var(--font-d);letter-spacing:1.5px">'
+    +'<div style="width:12px;height:12px;border:1.5px solid rgba(0,229,255,.25);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>'
+    +'FETCHING PAGE INFO…'
+    +'</div>'
+    +'</div>'
+    // Brave search results — populated async
+    +'<div id="upv-brave" style="display:none;border-top:1px solid rgba(0,229,255,.08);padding-top:10px">'
+    +'<div style="font-family:var(--font-d);font-size:8px;letter-spacing:2px;color:rgba(0,229,255,.4);margin-bottom:8px">◈ RELATED PAGES</div>'
+    +'<div id="upv-brave-list" style="display:flex;flex-direction:column;gap:5px"></div>'
+    +'</div>'
+    // Buttons
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:2px">'
+    +'<button onclick="urlPreviewNewTab()" style="background:rgba(0,136,255,.18);border:1px solid rgba(0,136,255,.45);color:rgba(100,180,255,.95);border-radius:6px;padding:8px 18px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:2px" onmouseover="this.style.background=\'rgba(0,136,255,.3)\'" onmouseout="this.style.background=\'rgba(0,136,255,.18)\'">↗ OPEN IN NEW TAB</button>'
+    +'<button onclick="_urlPreviewTryIframe(\''+safeUrl+'\')" style="background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);color:rgba(0,229,255,.5);border-radius:6px;padding:8px 18px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:2px" onmouseover="this.style.background=\'rgba(0,229,255,.12)\'" onmouseout="this.style.background=\'rgba(0,229,255,.06)\'">⬚ TRY EMBED</button>'
     +'</div>'
     +'</div>'
     +'</div>';
 
-  // Fetch metadata via DuckDuckGo instant answer or Autumn's own fetch
-  _urlPreviewFetchMeta(url, function(meta) {
+  // Screenshot fallback cycling
+  window._upvNextShot = function(img) {
+    _shotIdx++;
+    if (_shotIdx < _shotServices.length) {
+      img.src = _shotServices[_shotIdx];
+    } else {
+      // All services failed — hide the screenshot area gracefully
+      var wrap = document.getElementById('upv-shot-wrap');
+      if (wrap) {
+        wrap.style.minHeight = '0';
+        wrap.style.display = 'none';
+      }
+    }
+  };
+
+  // Metadata: try DDG instant answer first (fast, no key), then Brave, then allorigins
+  _urlPreviewFetchMeta(url, hostClean, function(meta) {
     var el = document.getElementById('upv-meta');
     if (!el) return;
     if (meta.title || meta.description) {
       el.innerHTML =
-        (meta.title ? '<div style="font-weight:600;color:var(--bright);font-size:14px;margin-bottom:8px">'+_escHtml(meta.title)+'</div>' : '')
-        +(meta.description ? '<div style="color:var(--text);font-size:12px;line-height:1.7">'+_escHtml(meta.description)+'</div>' : '');
+        (meta.title ? '<div style="font-weight:700;color:var(--bright);font-size:14px;margin-bottom:5px;line-height:1.4">'+_escHtml(meta.title)+'</div>' : '')
+        +(meta.description ? '<div style="color:var(--text);font-size:12px;line-height:1.7;opacity:.85">'+_escHtml(meta.description)+'</div>' : '');
     } else {
-      el.innerHTML = '<span style="color:rgba(200,232,240,.35);font-size:11px">No description available — tap Open Site to visit directly.</span>';
+      el.innerHTML = '<span style="color:rgba(200,232,240,.28);font-size:11px;font-style:italic">No description available — tap Open in New Tab to visit.</span>';
     }
   });
+
+  // Brave results for this domain
+  if (typeof fetchBraveWeb === 'function') {
+    fetchBraveWeb(hostClean, 5).then(function(d) {
+      _renderBravePreviewResults((d && d.results) || [], document.getElementById('upv-brave-list'), document.getElementById('upv-brave'));
+    }).catch(function(){});
+  }
+}
+
+function _renderBravePreviewResults(results, listEl, wrapEl) {
+  if (!results || !results.length || !listEl || !wrapEl) return;
+  wrapEl.style.display = 'block';
+  listEl.innerHTML = results.slice(0, 5).map(function(r) {
+    var st = _escHtml((r.title || '').slice(0, 80));
+    var sd = _escHtml((r.desc  || '').slice(0, 130));
+    var su = _escHtml(r.url || '');
+    var suj = (r.url || '').replace(/'/g, '%27');
+    return '<div style="background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.1);border-radius:5px;padding:7px 10px;cursor:pointer;transition:background .15s" onclick="urlPreviewOpen(\''+suj+'\')" onmouseover="this.style.background=\'rgba(0,229,255,.07)\'" onmouseout="this.style.background=\'rgba(0,229,255,.03)\'">'
+      +(st ? '<div style="font-size:12px;font-weight:600;color:var(--cyan);margin-bottom:2px;line-height:1.3">'+st+'</div>' : '')
+      +(sd ? '<div style="font-size:11px;color:rgba(200,232,240,.5);line-height:1.5;margin-bottom:3px">'+sd+'</div>' : '')
+      +'<div style="font-size:9px;color:rgba(0,229,255,.28);font-family:var(--font-d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+su+'</div>'
+      +'</div>';
+  }).join('');
 }
 
 function _escHtml(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Fetch page title + description via Open Graph tags through a CORS proxy
-function _urlPreviewFetchMeta(url, cb) {
-  // Use allorigins as a lightweight CORS proxy to read OG tags
-  var proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-  fetch(proxy, {signal: AbortSignal.timeout(8000)})
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
-      var html = data.contents || '';
-      var title = '';
-      var desc = '';
-      // Extract OG title > title tag
-      var m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
-             || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)
-             || html.match(/<title[^>]*>([^<]+)<\/title>/i);
-      if (m) title = m[1].trim();
-      // Extract OG description > meta description
-      var d = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
-              || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)
-              || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
-              || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
-      if (d) desc = d[1].trim();
-      cb({title: title, description: desc});
-    })
-    .catch(function(){ cb({}); });
+// Fetch page title + description — multi-source with fallback chain
+// Source order: 1) DDG instant answer (fast)  2) Brave web result  3) allorigins CORS proxy
+function _urlPreviewFetchMeta(url, hostClean, cb) {
+  var done = false;
+  function resolve(meta) {
+    if (done) return;
+    done = true;
+    cb(meta);
+  }
+
+  // Source 1: DDG instant answer — often has abstract + title for known sites
+  if (typeof fetchDDG === 'function') {
+    fetchDDG(hostClean).then(function(d) {
+      if (d && (d.heading || d.abstract)) {
+        resolve({ title: d.heading || '', description: d.abstract || '' });
+      }
+    }).catch(function(){});
+  }
+
+  // Source 2: Brave web search — first result title+desc is usually the homepage
+  if (typeof fetchBraveWeb === 'function') {
+    fetchBraveWeb(hostClean + ' official site', 1).then(function(d) {
+      var r = d && d.results && d.results[0];
+      if (r && !done) resolve({ title: r.title || '', description: r.desc || '' });
+    }).catch(function(){});
+  }
+
+  // Source 3: allorigins CORS proxy — last resort, reads actual OG tags
+  setTimeout(function() {
+    if (done) return;
+    var proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    fetch(proxy, { signal: AbortSignal.timeout(7000) })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (done) return;
+        var html = data.contents || '';
+        var title = '', desc = '';
+        var m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+               || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)
+               || html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (m) title = m[1].trim();
+        var d2 = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
+                || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)
+                || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
+                || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+        if (d2) desc = d2[1].trim();
+        resolve({ title: title, description: desc });
+      })
+      .catch(function() { resolve({}); });
+  }, 800); // slight delay so DDG/Brave can win first
+
+  // Final timeout — show empty state if all sources fail
+  setTimeout(function() { resolve({}); }, 9000);
 }
 
 // Force-try the iframe even on blocked domains (user's choice)
@@ -16046,61 +16205,28 @@ function urlPreviewOpen(url) {
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   _urlPreviewCurrentUrl = url;
-  var modal = document.getElementById('url-preview-modal');
-  var iframe = document.getElementById('url-preview-iframe');
+  var modal    = document.getElementById('url-preview-modal');
+  var iframe   = document.getElementById('url-preview-iframe');
   var fallback = document.getElementById('url-preview-fallback');
-  var loading = document.getElementById('url-preview-loading');
-  var bar = document.getElementById('url-preview-bar');
-  var title = document.getElementById('url-preview-title');
+  var loading  = document.getElementById('url-preview-loading');
+  var bar      = document.getElementById('url-preview-bar');
+  var titleEl  = document.getElementById('url-preview-title');
   if (!modal) return;
   bar.value = url;
-  if (title) title.textContent = url;
+  if (titleEl) titleEl.textContent = url;
   modal.style.display = 'flex';
   modal.dataset.collapsed = '0';
 
-  // Decide: iframe or rich card?
-  if (_urlPreviewIsBlocked(url)) {
-    // Known blocked — go straight to rich card
-    iframe.style.display = 'none';
-    iframe.src = 'about:blank';
-    fallback.style.display = 'block';
-    if (loading) { loading.style.display = 'flex'; }
-    _urlPreviewBuildCard(url, fallback);
-    if (loading) setTimeout(function(){ loading.style.display = 'none'; }, 400);
-  } else {
-    // Try iframe first
-    fallback.style.display = 'none';
-    iframe.style.display = '';
-    if (loading) { loading.style.display = 'flex'; }
-    iframe.src = 'about:blank';
-
-    // Set a load timeout — if iframe doesn't load content in 4s, switch to card
-    var _iframeTimer = setTimeout(function() {
-      if (document.getElementById('url-preview-modal').style.display !== 'none') {
-        _urlPreviewShowCard(url);
-      }
-    }, 4000);
-
-    iframe.onload = function() {
-      clearTimeout(_iframeTimer);
-      if (loading) loading.style.display = 'none';
-      // Check if iframe actually loaded something (blank = blocked)
-      try {
-        var doc = iframe.contentDocument || iframe.contentWindow.document;
-        if (!doc || !doc.body || doc.body.innerHTML.trim() === '') {
-          _urlPreviewShowCard(url);
-        }
-      } catch(e) {
-        // Cross-origin — can't read doc, but load fired means something loaded
-        if (loading) loading.style.display = 'none';
-      }
-    };
-    iframe.onerror = function() {
-      clearTimeout(_iframeTimer);
-      _urlPreviewShowCard(url);
-    };
-    setTimeout(function(){ iframe.src = url; }, 50);
-  }
+  // Always show rich card immediately — most sites block iframes.
+  // User can tap "⬚ TRY EMBED" if they want to attempt it.
+  iframe.style.display = 'none';
+  iframe.src = 'about:blank';
+  iframe.onload = null; iframe.onerror = null;
+  fallback.innerHTML = '';
+  fallback.style.display = 'block';
+  if (loading) { loading.style.display = 'flex'; }
+  _urlPreviewBuildCard(url, fallback);
+  if (loading) setTimeout(function(){ loading.style.display = 'none'; }, 300);
 }
 
 function _urlPreviewShowCard(url) {
