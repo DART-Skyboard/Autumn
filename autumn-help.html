@@ -141,7 +141,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="tb-nav">
     <a href="#start">Setup</a><a href="#chat">Chat</a><a href="#image">Images</a>
-    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
+    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#canvas">Ash Canvas</a><a href="#arcedge">Arc Edge</a><a href="#scene">3D Scene</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
   </div>
   <a class="tb-open" href="https://leatr.xyz/">OPEN AUTUMN</a>
 </nav>
@@ -290,7 +290,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="card">
     <div class="sub">VOICE &amp; AUDIO</div>
-    <table class="ct"><tr><td><span class="cp">🔊 Speaker button</span></td><td class="cd">Toggle TTS voice output on/off. Cyan when active — Autumn speaks all responses.</td></tr><tr><td><span class="cp">🎤 PTT button</span></td><td class="cd">Push-to-talk mic. Tap → speak → auto-sends when you finish. Tap to cancel.</td></tr><tr><td><span class="cp">VOICE in nav</span></td><td class="cd">Configure TTS voice selection, speed, pitch, and input language.</td></tr><tr><td><span class="cp">LIVE in nav</span></td><td class="cd">Live mode: continuous STT → Autumn speaks responses back in real time.</td></tr><tr><td><span class="cp">♫ music button</span></td><td class="cd">Ambient music recognition — identifies any song via AudD API.</td></tr></table>
+    <table class="ct"><tr><td><span class="cp">🔊 Speaker button</span></td><td class="cd">Toggle TTS voice output on/off. Cyan when active — Autumn speaks all responses.</td></tr><tr><td><span class="cp">🎤 PTT button</span></td><td class="cd">Hold-to-talk mic. Press &amp; hold → speak (live audio ring shows) → release to auto-send. Slide off button to cancel without sending.</td></tr><tr><td><span class="cp">VOICE in nav</span></td><td class="cd">Configure TTS voice selection, speed, pitch, and input language.</td></tr><tr><td><span class="cp">LIVE in nav</span></td><td class="cd">Live mode: continuous STT → Autumn speaks responses back in real time.</td></tr><tr><td><span class="cp">♫ music button</span></td><td class="cd">Ambient music recognition — identifies any song via AudD API.</td></tr></table>
   </div>
   <div class="card">
     <div class="sub">NLP ENGINE — LIVE BRPN HUD</div>
@@ -299,7 +299,12 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="card">
     <div class="sub">MULTI-USER BRPN SCENE</div>
-    <p class="cd">Every active session (any user, any tab, any device) renders as a wireframe icosahedron in the 3JS scene. Your node = the large central BRPN shells. Remote sessions appear as smaller clusters orbiting in space, color-coded by user hash, connected by signal lines. Count shows in the <span class="hl">ACTIVE SESSIONS</span> banner.</p>
+    <p class="cd" style="margin-bottom:10px;">Every active session renders as a wireframe icosahedron cluster in the 3D scene. Your node is the large central orb. Remote sessions orbit as smaller colored clusters connected by plasma splines.</p>
+    <table class="ct">
+      <tr><td><span class="cp">Bidirectional pulses</span></td><td class="cd">Each spline carries two pulse spheres — outgoing (A→B) and incoming (B→A) in a shifted hue. Both triple speed when Autumn is processing.</td></tr>
+      <tr><td><span class="cp">Sigmatic rings</span></td><td class="cd">Spinning torus rings on remote nodes reflect pattern resonance and Ash Canvas influence.</td></tr>
+      <tr><td><span class="cp">Receiver flash</span></td><td class="cd">Your shells briefly brighten when an incoming pulse arrives from another node.</td></tr>
+    </table>
   </div>
   <div class="card">
     <div class="sub">IDE — DEVELOPER TOOLS (ADMIN)</div>
@@ -308,13 +313,116 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="card">
     <div class="sub">FRAX STUDIO &amp; 3D TOOLS</div>
-    <table class="ct"><tr><td><span class="cp">Arc Edge</span></td><td class="cd">Vector path editor with arc-math deviation handles, SVG/video export.</td></tr><tr><td><span class="cp">ArcLake</span></td><td class="cd">CFD particle physics simulation with SPH-inspired collision engine.</td></tr><tr><td><span class="cp">DART Periodic Table</span></td><td class="cd">Interactive 3D atom cards with Fibonacci nucleus packing.</td></tr><tr><td><span class="cp">Mantis Radar</span></td><td class="cd">Real-time satellite tracking globe with CelesTrak TLE data.</td></tr><tr><td><span class="cp">DART Hypersonic Edge</span></td><td class="cd">Aerospike nozzle and hypersonic thermal management visualization.</td></tr></table>
+    <table class="ct"><tr><td><span class="cp">Arc Edge Studio</span></td><td class="cd">3D arc visualizer built into Autumn. Say <span class="hl">open arc edge</span> to launch the overlay.</td></tr><tr><td><span class="cp">ArcLake</span></td><td class="cd">CFD particle physics simulation with SPH-inspired collision engine.</td></tr><tr><td><span class="cp">DART Periodic Table</span></td><td class="cd">Interactive 3D atom cards with Fibonacci nucleus packing.</td></tr><tr><td><span class="cp">Mantis Radar</span></td><td class="cd">Real-time satellite tracking globe with CelesTrak TLE data.</td></tr><tr><td><span class="cp">DART Hypersonic Edge</span></td><td class="cd">Aerospike nozzle and hypersonic thermal management visualization.</td></tr></table>
   </div>
 </section>
 
-<!-- 06 LEATR -->
+  <div class="card">
+    <div class="sub">WEB SEARCH &mdash; BRAVE + MULTI-SOURCE</div>
+    <table class="ct">
+      <tr><td><span class="cp">show photos of X</span></td><td class="cd">Wikipedia + Wikimedia + Brave Images cascade fills results.</td></tr>
+      <tr><td><span class="cp">latest news on X</span></td><td class="cd">Brave News + GDELT + Hacker News + Reddit combined.</td></tr>
+      <tr><td><span class="cp">videos of X</span></td><td class="cd">YouTube + Brave Video merged.</td></tr>
+      <tr><td><span class="cp">preview https://...</span></td><td class="cd">Opens a live interactive iframe of any URL in the chat window. Tap &#x2197; VISIT to open in a new tab.</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div class="sub">IMPORT / EXPORT &mdash; MULTI-FILE MERGE</div>
+    <table class="ct">
+      <tr><td><span class="cp">EXPORT</span></td><td class="cd">Saves full conversation history, journal, and memory as JSON.</td></tr>
+      <tr><td><span class="cp">IMPORT (multi-file)</span></td><td class="cd">Select one or more exported JSON files. Merge preview shows counts before confirming. All data is <strong>merged</strong> &mdash; nothing is replaced.</td></tr>
+      <tr><td><span class="cp">Clear All Memory</span></td><td class="cd">Button in the import modal. Wipes memory store only &mdash; conversations and journal preserved.</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ASH CANVAS -->
+<section class="sec" id="canvas">
+  <div class="sec-hd"><span class="sec-num">06</span><span class="sec-title">Ash Canvas &mdash; Neural Influence Layer</span><span class="sec-line"></span></div>
+  <div class="card">
+    <p class="cd" style="margin-bottom:12px;">Visually configure how Autumn&rsquo;s 7 Natural Tools and 3 BRPN shells interact with the neural network. Tap <span class="hl">ASH CANVAS</span> (below the Active Sessions banner) to open the slide-out drawer. Always available to all users.</p>
+    <table class="ct">
+      <tr><td><span class="cp">ASH CANVAS button</span></td><td class="cd">Opens/closes the drawer. Glows purple and shows <span class="hl">APPLIED &middot; N NODES</span> when active.</td></tr>
+      <tr><td><span class="cp">Tool buttons M P E H S K R</span></td><td class="cd">Tap a tool, then tap the canvas to place a node. M=Maze, P=Puzzle, E=Envelope, H=Hammer, S=Stick, K=Knife, R=Scissors.</td></tr>
+      <tr><td><span class="cp">Drag nodes</span></td><td class="cd">Drag placed nodes to reposition anywhere on the canvas.</td></tr>
+      <tr><td><span class="cp">&#x27F7; LINK mode</span></td><td class="cd">Tap LINK, then tap node A, then node B to draw a connection between them.</td></tr>
+      <tr><td><span class="cp">G / M / A shell sockets</span></td><td class="cd">Right-edge sockets for GEO, MAR, AERO. In LINK mode, tap a node then a socket to wire that tool&rsquo;s weight into that shell. Dashed lines show connections.</td></tr>
+      <tr><td><span class="cp">&#x25B8; APPLY TO NETWORK</span></td><td class="cd">Commits the canvas. Tool weights inject into BRPN shell processing. 3D orb and splines immediately reflect new influence. Logged to Sentience Journal.</td></tr>
+      <tr><td><span class="cp">&#x21BA; RESET</span></td><td class="cd">Clears all nodes, links, and shell connections. Removes canvas influence.</td></tr>
+      <tr><td><span class="cp">&#x2715; DEL</span></td><td class="cd">Select a node in LINK mode then tap DEL to remove it and its connections.</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div class="sub">HOW IT AFFECTS THE NETWORK</div>
+    <table class="ct">
+      <tr><td><span class="cp">GEO weight</span></td><td class="cd">Emphasizes foundational context, memory anchoring, structural analysis.</td></tr>
+      <tr><td><span class="cp">MAR weight</span></td><td class="cd">Emphasizes flow dynamics, pattern routing, adaptive response.</td></tr>
+      <tr><td><span class="cp">AERO weight</span></td><td class="cd">Emphasizes high-level synthesis, precision output, velocity.</td></tr>
+      <tr><td><span class="cp">3D scene feedback</span></td><td class="cd">Applied canvas boosts local shell glow and midpoint sigmatic rings on splines &mdash; visible to all active users in real time.</td></tr>
+      <tr><td><span class="cp">Pattern score</span></td><td class="cd">Canvas shifts your sigma fingerprint, altering resonance scores and spline colors between your node and others.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px;">Canvas applies emphasis weights on top of LEATR math &mdash; it tunes shell sensitivity, not the core formula.</div>
+  </div>
+</section>
+
+<!-- ARC EDGE STUDIO -->
+<section class="sec" id="arcedge">
+  <div class="sec-hd"><span class="sec-num">07</span><span class="sec-title">Arc Edge Studio &mdash; 3D Arc Visualizer</span><span class="sec-line"></span></div>
+  <div class="card">
+    <p class="cd" style="margin-bottom:12px;">Draggable, collapsible Three.js overlay for building and measuring arcs using DART&rsquo;s formula (&radic;(d&times;3)&sup2; replaces &pi;). Open at any time by voice or text command.</p>
+    <table class="ct">
+      <tr><td><span class="cp">open arc edge</span></td><td class="cd">Opens the overlay. Also: <span class="hl">show arc edge</span>, <span class="hl">launch arc studio</span>.</td></tr>
+      <tr><td><span class="cp">close arc edge</span></td><td class="cd">Closes the overlay. Or tap &#x2715; CLOSE. Also: <span class="hl">hide arc edge</span>.</td></tr>
+      <tr><td><span class="cp">&mdash; / &#x25B8; buttons</span></td><td class="cd">Collapse to header bar / expand. 3D scene keeps rendering.</td></tr>
+      <tr><td><span class="cp">Drag header</span></td><td class="cd">Reposition overlay anywhere on screen (mouse or touch).</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div class="sub">INPUT PARAMETERS</div>
+    <table class="ct">
+      <tr><td><span class="cp">Deviation X / Y / Z</span></td><td class="cd">Arc endpoint direction vector.</td></tr>
+      <tr><td><span class="cp">Main Deviation Amount</span></td><td class="cd">Perpendicular bulge magnitude.</td></tr>
+      <tr><td><span class="cp">Curve Induction</span></td><td class="cd">Sinusoidal wave amplitude (DART doc-&pi;=3).</td></tr>
+      <tr><td><span class="cp">Sub-Deviation X/Y/Z</span></td><td class="cd">Per-axis curve induction multipliers.</td></tr>
+      <tr><td><span class="cp">Deviation Induction</span></td><td class="cd">Second-layer phase-shifted sine deviation.</td></tr>
+      <tr><td><span class="cp">Arc Resolution</span></td><td class="cd">Point count on arc (4&ndash;256). Higher = smoother.</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div class="sub">SCENE CONTROLS &amp; SELECTION</div>
+    <table class="ct">
+      <tr><td><span class="cp">+ ADD ARC</span></td><td class="cd">Renders arc as cyan line. Shows arc length immediately. Multiple arcs allowed.</td></tr>
+      <tr><td><span class="cp">Tap / click an arc</span></td><td class="cd">Selects it (highlights yellow). Readout shows exact params and measured length. Tap empty space to deselect.</td></tr>
+      <tr><td><span class="cp">&#x229E; MEASURE</span></td><td class="cd">Measures current inputs without adding to scene.</td></tr>
+      <tr><td><span class="cp">&#x21BA; INPUTS</span></td><td class="cd">Resets all input fields to zero.</td></tr>
+      <tr><td><span class="cp">&#x2715; SCENE</span></td><td class="cd">Removes all arcs from scene.</td></tr>
+      <tr><td><span class="cp">&#x2197; SEND TO AUTUMN</span></td><td class="cd">Sends arc parameters + measured length to chat for analysis.</td></tr>
+    </table>
+    <p class="cd" style="margin-top:10px;"><strong>Viewport navigation:</strong> one-finger drag to orbit (no damping &mdash; instant response), scroll/pinch to zoom (1&times;&ndash;80&times;), two-finger drag to pan. FOV 75&deg; matching original BRPN reference. Axes always visible: red=X, green=Y, blue=Z.</p>
+  </div>
+</section>
+
+<!-- 3D SCENE -->
+<section class="sec" id="scene">
+  <div class="sec-hd"><span class="sec-num">08</span><span class="sec-title">3D Scene &mdash; BRPN Orb &amp; Network</span><span class="sec-line"></span></div>
+  <div class="card">
+    <table class="ct">
+      <tr><td><span class="cp">Three shells</span></td><td class="cd">Outer GEO (cyan), mid MAR (blue), inner AERO (red). Scale and opacity respond to conversation activity and Ash Canvas weight.</td></tr>
+      <tr><td><span class="cp">Maze core</span></td><td class="cd">LEMAC 3D maze renders at center. Solution path reveals step-by-step while Autumn is thinking. Regenerates each response.</td></tr>
+      <tr><td><span class="cp">Tool swarm</span></td><td class="cd">Natural tool shapes (Knife, Stick, Hammer, Envelope, Scissors) orbit in LEATR sequence. Activate during processing, fade when idle.</td></tr>
+      <tr><td><span class="cp">Outgoing pulse</span></td><td class="cd">Sphere travels 0&#x2192;1 along each plasma spline toward a remote node.</td></tr>
+      <tr><td><span class="cp">Incoming pulse</span></td><td class="cd">Second sphere in shifted hue travels 1&#x2192;0 on the same spline &mdash; the return signal from that session.</td></tr>
+      <tr><td><span class="cp">Processing burst</span></td><td class="cd">All pulse speeds triple while Autumn generates a response. Splines flash toward white-hot.</td></tr>
+      <tr><td><span class="cp">Sigmatic torus rings</span></td><td class="cd">Spinning rings on remote node clusters. Visibility = pattern resonance score + Ash Canvas influence weight.</td></tr>
+      <tr><td><span class="cp">Receiver flash ring</span></td><td class="cd">Briefly flashes on a remote node the moment its incoming pulse arrives at your local orb.</td></tr>
+      <tr><td><span class="cp">AERO large value</span></td><td class="cd">Expected behavior &mdash; AERO chains MAR&times;GEO + time seed, producing a large unique cognitive signature. Not an error.</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 09 LEATR -->
 <section class="sec" id="leatr">
-  <div class="sec-hd"><span class="sec-num">06</span><span class="sec-title">LEATR Architecture Reference</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">09</span><span class="sec-title">LEATR Architecture Reference</span><span class="sec-line"></span></div>
   <div class="card">
     <div class="fb"><div class="fl">CORE LEATR FORMULA</div><div class="fv">( xa² × √xa ) ± 1</div><div class="fd">Applied to all 7 natural tools and BRPN shell value computation. xa = tool index (1–7).</div></div>
     <div class="fb"><div class="fl">QUANTUM SOCKET FORMULA</div><div class="fv">QS = (b × b) × (p × (a²)) / r</div><div class="fd">Two-qubit gate structure formula used in BRPN shell coupling calculations.</div></div>
@@ -359,7 +467,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 
 <!-- 07 QUICK REF -->
 <section class="sec" id="ref">
-  <div class="sec-hd"><span class="sec-num">07</span><span class="sec-title">Quick Reference Card</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">10</span><span class="sec-title">Quick Reference Card</span><span class="sec-line"></span></div>
   <p style="color:var(--dim);margin-bottom:18px;font-size:.86rem;">At-a-glance command reference — everything in one place.</p>
   <div class="qrg">
     <div class="qrc"><div class="qrct">CONVERSATION</div>
@@ -368,41 +476,57 @@ footer a{color:var(--cyan);text-decoration:none;}
       <div class="qrr"><span class="qrcmd">users active?</span><span class="qrd">Live session count</span></div>
       <div class="qrr"><span class="qrcmd">analyze memory</span><span class="qrd">leatr-ash analysis</span></div>
       <div class="qrr"><span class="qrcmd">clear chat</span><span class="qrd">Hide messages</span></div>
-      <div class="qrr"><span class="qrcmd">show messages</span><span class="qrd">Restore hidden chat</span></div>
       <div class="qrr"><span class="qrcmd">new chat</span><span class="qrd">Fresh session</span></div>
     </div>
     <div class="qrc"><div class="qrct">IMAGES &amp; VISION</div>
       <div class="qrr"><span class="qrcmd">generate X</span><span class="qrd">AI image via SDXL</span></div>
       <div class="qrr"><span class="qrcmd">draw X anime</span><span class="qrd">Style-aware generation</span></div>
-      <div class="qrr"><span class="qrcmd">📎 + what is X?</span><span class="qrd">Vision analysis</span></div>
-      <div class="qrr"><span class="qrcmd">📎 + describe</span><span class="qrd">Full scene description</span></div>
+      <div class="qrr"><span class="qrcmd">&#x1F4CE; + what is X?</span><span class="qrd">Vision analysis</span></div>
+      <div class="qrr"><span class="qrcmd">&#x1F4CE; + describe</span><span class="qrd">Full scene description</span></div>
       <div class="qrr"><span class="qrcmd">show photos of X</span><span class="qrd">Web image search</span></div>
       <div class="qrr"><span class="qrcmd">make it darker</span><span class="qrd">Iterate last image</span></div>
     </div>
-    <div class="qrc"><div class="qrct">URLS &amp; TASKS</div>
+    <div class="qrc"><div class="qrct">URLS &amp; WEB</div>
       <div class="qrr"><span class="qrcmd">https://...</span><span class="qrd">Scan + summarize URL</span></div>
-      <div class="qrr"><span class="qrcmd">https://... + Q</span><span class="qrd">Focused URL question</span></div>
+      <div class="qrr"><span class="qrcmd">preview https://...</span><span class="qrd">Live URL iframe</span></div>
+      <div class="qrr"><span class="qrcmd">latest news on X</span><span class="qrd">Brave + GDELT + HN</span></div>
+      <div class="qrr"><span class="qrcmd">videos of X</span><span class="qrd">YouTube + Brave Video</span></div>
+      <div class="qrr"><span class="qrcmd">photos of X</span><span class="qrd">Brave + Wiki images</span></div>
       <div class="qrr"><span class="qrcmd">think X tomorrow</span><span class="qrd">Schedule deferred task</span></div>
-      <div class="qrr"><span class="qrcmd">work on X away</span><span class="qrd">Background task</span></div>
-      <div class="qrr"><span class="qrcmd">brainstorm X later</span><span class="qrd">Creative deferred</span></div>
     </div>
     <div class="qrc"><div class="qrct">VOICE &amp; INPUT</div>
-      <div class="qrr"><span class="qrcmd">🎤 PTT button</span><span class="qrd">Push-to-talk → auto-send</span></div>
-      <div class="qrr"><span class="qrcmd">🔊 Speaker</span><span class="qrd">Toggle TTS output</span></div>
+      <div class="qrr"><span class="qrcmd">&#x1F3A4; PTT button</span><span class="qrd">Hold-to-talk &rarr; release sends</span></div>
+      <div class="qrr"><span class="qrcmd">&#x1F50A; Speaker</span><span class="qrd">Toggle TTS output</span></div>
       <div class="qrr"><span class="qrcmd">VOICE button</span><span class="qrd">Voice settings</span></div>
       <div class="qrr"><span class="qrcmd">LIVE button</span><span class="qrd">Continuous voice</span></div>
-      <div class="qrr"><span class="qrcmd">♫ music icon</span><span class="qrd">Identify ambient music</span></div>
+      <div class="qrr"><span class="qrcmd">&#x266B; music icon</span><span class="qrd">Identify ambient music</span></div>
     </div>
     <div class="qrc"><div class="qrct">NAV BUTTONS</div>
       <div class="qrr"><span class="qrcmd">FROST</span><span class="qrd">Backdrop opacity</span></div>
       <div class="qrr"><span class="qrcmd">EXPORT</span><span class="qrd">Save journal + history</span></div>
-      <div class="qrr"><span class="qrcmd">🔑 KEYS</span><span class="qrd">API key + GitHub PAT</span></div>
-      <div class="qrr"><span class="qrcmd">🖊 IDE</span><span class="qrd">Developer logic editor</span></div>
-      <div class="qrr"><span class="qrcmd">DRAFT &amp; DRIP</span><span class="qrd">Design + tech news</span></div>
+      <div class="qrr"><span class="qrcmd">IMPORT (multi-file)</span><span class="qrd">Merge JSON files</span></div>
+      <div class="qrr"><span class="qrcmd">&#x1F511; KEYS</span><span class="qrd">API key + GitHub PAT</span></div>
+      <div class="qrr"><span class="qrcmd">&#x1F58A; IDE</span><span class="qrd">Developer logic editor</span></div>
       <div class="qrr"><span class="qrcmd">TOOLS</span><span class="qrd">LEATR tool reference</span></div>
     </div>
+    <div class="qrc"><div class="qrct">ASH CANVAS</div>
+      <div class="qrr"><span class="qrcmd">ASH CANVAS button</span><span class="qrd">Open drawer</span></div>
+      <div class="qrr"><span class="qrcmd">tap tool + canvas</span><span class="qrd">Place node</span></div>
+      <div class="qrr"><span class="qrcmd">LINK + 2 nodes</span><span class="qrd">Connect nodes</span></div>
+      <div class="qrr"><span class="qrcmd">node + G/M/A socket</span><span class="qrd">Wire to shell</span></div>
+      <div class="qrr"><span class="qrcmd">&#x25B8; APPLY</span><span class="qrd">Activate influence</span></div>
+      <div class="qrr"><span class="qrcmd">&#x21BA; RESET</span><span class="qrd">Clear canvas</span></div>
+    </div>
+    <div class="qrc"><div class="qrct">ARC EDGE STUDIO</div>
+      <div class="qrr"><span class="qrcmd">open arc edge</span><span class="qrd">Launch studio</span></div>
+      <div class="qrr"><span class="qrcmd">close arc edge</span><span class="qrd">Close studio</span></div>
+      <div class="qrr"><span class="qrcmd">+ ADD ARC</span><span class="qrd">Render arc</span></div>
+      <div class="qrr"><span class="qrcmd">tap arc</span><span class="qrd">Select &amp; measure</span></div>
+      <div class="qrr"><span class="qrcmd">&#x2197; SEND</span><span class="qrd">Send to Autumn</span></div>
+      <div class="qrr"><span class="qrcmd">drag header</span><span class="qrd">Reposition overlay</span></div>
+    </div>
     <div class="qrc"><div class="qrct">LEATR TOOLS ORDER</div>
-      <div class="qrr"><span class="qrcmd">1 MAZE</span><span class="qrd">Root · context intake</span></div>
+      <div class="qrr"><span class="qrcmd">1 MAZE</span><span class="qrd">Root &middot; context intake</span></div>
       <div class="qrr"><span class="qrcmd">2 PUZZLE</span><span class="qrd">Pattern analysis</span></div>
       <div class="qrr"><span class="qrcmd">3 ENVELOPE</span><span class="qrd">Context wrapping</span></div>
       <div class="qrr"><span class="qrcmd">4 HAMMER</span><span class="qrd">Direct action</span></div>
@@ -410,7 +534,7 @@ footer a{color:var(--cyan);text-decoration:none;}
       <div class="qrr"><span class="qrcmd">6 KNIFE</span><span class="qrd">Precision parsing</span></div>
       <div class="qrr"><span class="qrcmd">7 SCISSORS</span><span class="qrd">Output shaping</span></div>
     </div>
-  </div>
+  </div
   <div style="margin-top:22px;" class="card">
     <div class="sub">QUICK FACTS</div>
     <table class="ct">
