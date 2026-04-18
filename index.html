@@ -9055,7 +9055,7 @@ function renderMessages() {
     const _mid = m.id || ('mi-'+_idx);
     if(!m.id) m.id = _mid; // backfill so edit/resend find() works
     const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${_mid}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${_mid}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${_mid}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
-    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}" style="white-space:pre-wrap">${esc(m.text)}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
+    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}" style="white-space:pre-wrap">${esc((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').trim())}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
@@ -9098,7 +9098,7 @@ function appendChatBubble(msg) {
   div.className = `msg ${cls}`;
   div.dataset.msgId = msgUniqueId;
   div.style.animation = 'fadeIn .3s ease';
-  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}" style="white-space:pre-wrap">${esc(msg.text||'')}</div>${meta}${userBar}</div>`;
+  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}" style="white-space:pre-wrap">${esc((msg.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').trim())}</div>${meta}${userBar}</div>`;
   // Remove any typing indicator
   el.querySelector('.typing')?.remove();
   el.appendChild(div);
@@ -15553,6 +15553,7 @@ _syncActionBtn();
       +'<br>Curve Ind: '+p.curveInd
       +'<br>Dev Ind: '+p.devInd
       +'<br>Res: '+p.resolution
+      +'<br>Curves: '+p.devCount
       +'<br>---<br>Arcs: '+_as.arcs.length
       +'<br>Selected: '+(_as.selectedArc!==null?'Arc '+(_as.selectedArc+1):'None');
   }
@@ -15562,6 +15563,7 @@ _syncActionBtn();
       var el=document.getElementById(id); if(el) el.value='0';
     });
     var resEl=document.getElementById('as-resolution'); if(resEl) resEl.value='32';
+    var dcEl=document.getElementById('as-dev-count'); if(dcEl) dcEl.value='1';
     _asUpdateReadout();
   };
 
