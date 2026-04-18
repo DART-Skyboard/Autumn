@@ -141,7 +141,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="tb-nav">
     <a href="#start">Setup</a><a href="#chat">Chat</a><a href="#image">Images</a>
-    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#calc">Calculator</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
+    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#calc">Calculator</a><a href="#nate">N.A.T.E</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
   </div>
   <a class="tb-open" href="https://leatr.xyz/">OPEN AUTUMN</a>
 </nav>
@@ -650,6 +650,127 @@ footer a{color:var(--cyan);text-decoration:none;}
     </table>
   </div>
 </section>
+
+<!-- N.A.T.E -->
+<section class="sec" id="nate">
+  <div class="sec-hd">
+    <span class="sec-num" style="color:rgba(167,139,250,.7)">◈</span>
+    <span class="sec-title" style="background:linear-gradient(135deg,#a78bfa,#00e5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">N.A.T.E — Neutral Audio Tonal Exertion Engine</span>
+    <span class="sec-line"></span>
+  </div>
+
+  <!-- Identity card -->
+  <div class="card" style="background:linear-gradient(135deg,rgba(167,139,250,.06),rgba(0,229,255,.04));border-color:rgba(167,139,250,.25)">
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-family:var(--font-d);font-size:.9rem;letter-spacing:3px;margin-bottom:4px;
+          background:linear-gradient(135deg,#a78bfa,#00e5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          N.A.T.E
+        </div>
+        <div style="font-family:var(--font-d);font-size:.36rem;letter-spacing:1.5px;
+          color:rgba(167,139,250,.55);margin-bottom:10px">NEUTRAL AUDIO TONAL EXERTION ENGINE</div>
+        <p class="cd" style="margin-bottom:8px">
+          N.A.T.E is an admin-only voice synthesis lab built into the Autumn ecosystem. It is not accessible to general users — it exists so DART Meadow developers can craft, analyse, and publish custom voice personas that appear as selectable presets in every user's Voice Settings panel.
+        </p>
+        <div class="ki" style="border-color:rgba(167,139,250,.25);background:rgba(167,139,250,.06)">
+          N.A.T.E is for <strong>admin and DevOps use only</strong>. Users interact with its output through the Voice menu in the Autumn web app — they never access N.A.T.E directly.
+        </div>
+      </div>
+      <div style="flex-shrink:0;text-align:center">
+        <div style="font-family:var(--font-d);font-size:2.5rem;letter-spacing:4px;
+          background:linear-gradient(135deg,#a78bfa,#00e5ff,#00ff88);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+          border:1px solid rgba(167,139,250,.2);border-radius:10px;padding:14px 20px;
+          background-clip:text">N.A.T.E</div>
+        <div style="font-family:var(--font-d);font-size:.32rem;color:rgba(167,139,250,.35);
+          letter-spacing:1px;margin-top:5px">DART MEADOW · ADMIN</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- What it does -->
+  <div class="card">
+    <div class="sub">WHAT N.A.T.E DOES</div>
+    <p class="cd" style="margin-bottom:12px">
+      N.A.T.E is a browser-based voice engineering tool that connects directly to Autumn's Kokoro-82M neural TTS engine. It gives admins the ability to analyse voice waveforms, combine multiple voice samples into a single tonal midpoint (sigma blend), fine-tune synthesis parameters, and define named voice personas — then publish those personas as presets that all Autumn users can choose from.
+    </p>
+    <table class="ct">
+      <tr><td><span class="cp">Voice Sample Library</span></td><td class="cd">Six built-in reference samples (3 female · 3 male) synthesised using Klatt cascade formant modelling. Upload your own WAV/MP3/OGG files for custom base tones.</td></tr>
+      <tr><td><span class="cp">Tonal Controls</span></td><td class="cd">Seven real-time parameters — Pitch, Speed, Formant, Resonance, Warmth, Clarity, Vibrato — applied as a Web Audio post-processing chain on top of the Kokoro neural output.</td></tr>
+      <tr><td><span class="cp">Sigma Blend</span></td><td class="cd">Select two or more voice samples and compute a weighted median. The OfflineAudioContext mixes all selected samples at equal weight into a single blended waveform that can be analysed and used as a voice foundation.</td></tr>
+      <tr><td><span class="cp">Kokoro Voice Selector</span></td><td class="cd">20 Kokoro-82M neural voices available: American and British, male and female. Selected voice routes through Autumn's same TTS pipeline — no degradation from re-encoding.</td></tr>
+      <tr><td><span class="cp">Neural Correlation</span></td><td class="cd">Live display mapping current tonal parameters against the three BRPN shells (GEO / MAR / AERO). Voice parameters that align with a shell's frequency profile increase its correlation bar in real time.</td></tr>
+      <tr><td><span class="cp">Tonal Analysis</span></td><td class="cd">After playing a sample, NATE extracts fundamental frequency (F0), first and second formants (F1, F2), sigma score, per-shell alignment percentages, and an estimated emotion tone based on formant ratios.</td></tr>
+    </table>
+  </div>
+
+  <!-- Persona system -->
+  <div class="card">
+    <div class="sub">PERSONA WORKSHOP — ADMIN WORKFLOW</div>
+    <p class="cd" style="margin-bottom:12px">
+      The admin workflow for creating and publishing a new voice persona involves three stages in N.A.T.E:
+    </p>
+    <div class="steps">
+      <div class="step">
+        <div class="sn">1</div>
+        <div class="sb">
+          <div class="st">BUILD IN THE WORKSHOP</div>
+          <div class="sd">Set the tonal controls and select a Kokoro voice. Hit <span class="hl">+ NEW</span> and give the persona a name — it captures all current parameters and appears as a card in the <strong>Persona Workshop</strong> grid. Edit freely, rename, preview with the ▶ button, or delete and start over. Workshop cards are private and not yet visible to anyone.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="sn">2</div>
+        <div class="sb">
+          <div class="st">DRAG TO PUBLISHED</div>
+          <div class="sd">Drag any workshop card into the <strong>Published Presets</strong> row. This queues it for release. You can drag multiple personas in, rearrange, or drag them back to the workshop to remove them from the queue. The published grid is still local until the next step.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="sn">3</div>
+        <div class="sb">
+          <div class="st">PUBLISH TO AUTUMN</div>
+          <div class="sd">Hit <span class="hl">▲ PUBLISH TO AUTUMN</span>. N.A.T.E writes <span style="font-family:var(--fc);color:var(--gold)">ashtree/nate/published_presets.json</span> to the private leatr-ash repository using your GitHub PAT. Every Autumn session reads this file the next time the voice modal opens — the new personas appear immediately in the user-facing preset grid.</div>
+        </div>
+      </div>
+    </div>
+    <div class="ki" style="margin-top:12px">
+      The built-in presets (Autumn F, Crisp F, Warm F, Standard M, Deep M, British F) are always present as defaults and cannot be removed by publishing. Your published personas are additions or replacements stacked on top of those defaults.
+    </div>
+  </div>
+
+  <!-- What users see -->
+  <div class="card">
+    <div class="sub">WHAT USERS SEE — THE VOICE MENU</div>
+    <p class="cd" style="margin-bottom:12px">
+      All users have access to voice customisation through the standard Voice &amp; Language Settings panel (accessible via the speaker icon or voice settings in Autumn's interface). They never interact with N.A.T.E directly.
+    </p>
+    <table class="ct">
+      <tr><td><span class="cp">Voice Preset grid</span></td><td class="cd">Shows all available presets — built-in defaults plus any personas published by the admin via N.A.T.E. Tap a preset card to activate it. The active card is highlighted. The grid updates automatically whenever the admin publishes new presets.</td></tr>
+      <tr><td><span class="cp">Fine-Tune sliders</span></td><td class="cd">Speed and Pitch sliders apply a per-session adjustment on top of the selected preset. These are local to the user's browser session and do not affect other users or the preset definition itself.</td></tr>
+      <tr><td><span class="cp">Language settings</span></td><td class="cd">Chat text language and speech recognition language are still independently configurable regardless of which voice preset is active.</td></tr>
+      <tr><td><span class="cp">▶ Preview Voice</span></td><td class="cd">Plays a short test phrase through the currently configured voice so the user can hear the preset before saving.</td></tr>
+      <tr><td><span class="cp">Save</span></td><td class="cd">Persists the chosen preset and fine-tune values. Autumn's TTS engine immediately begins using the selected Kokoro voice with those parameters for all speech output.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px">
+      Voice changes are local to each user's browser. The admin publishing a new preset does not change anyone's currently active voice — users choose when to switch.
+    </div>
+  </div>
+
+  <!-- Technical -->
+  <div class="card">
+    <div class="sub">TECHNICAL OVERVIEW</div>
+    <table class="ct">
+      <tr><td><span class="cp">TTS engine</span></td><td class="cd">Kokoro-82M-ONNX — same neural model used by Autumn's core TTS. Runs fully in-browser via transformers.js (WASM). No API key required, no audio sent to external servers.</td></tr>
+      <tr><td><span class="cp">Post-processing</span></td><td class="cd">Web Audio API — OfflineAudioContext applies pitch detune, low-shelf warmth EQ, high-shelf clarity EQ, and a bandpass formant peak on the Kokoro PCM output before playback.</td></tr>
+      <tr><td><span class="cp">Voice samples</span></td><td class="cd">Stored in <span style="font-family:var(--fc);color:var(--gold)">nate/audio/</span> in the Autumn repository. Built-in samples use Klatt cascade formant synthesis. Add your own WAV files to that directory to expand the library.</td></tr>
+      <tr><td><span class="cp">Preset storage</span></td><td class="cd">Published presets: <span style="font-family:var(--fc);color:var(--gold)">ashtree/nate/published_presets.json</span> in leatr-ash (requires PAT). Workshop drafts: browser localStorage only.</td></tr>
+      <tr><td><span class="cp">Security</span></td><td class="cd">N.A.T.E requires the same admin password as the Autumn IDE. Direct URL access to nate.html without a valid session redirects to the login gate. The credential is never transmitted — only its SHA-256 hash is compared client-side.</td></tr>
+      <tr><td><span class="cp">Revert to baseline</span></td><td class="cd">The <span class="hl">↺ REVERT TO BASELINE</span> button in N.A.T.E restores Autumn's original voice configuration. The baseline is captured the first time any preset is applied and preserved permanently so it can always be restored.</td></tr>
+    </table>
+  </div>
+
+</section>
+
 </main>
 
 <footer>
