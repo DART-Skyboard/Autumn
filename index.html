@@ -693,6 +693,9 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #nlp-emotion-badge[data-emotion="spiritual"],#nlp-emotion-badge[data-emotion="guiding"]{color:#a78bfa!important;}
 #nlp-emotion-badge[data-emotion="sad"],#nlp-emotion-badge[data-emotion="worried"],#nlp-emotion-badge[data-emotion="concerned"]{color:#80b8f0!important;}
 #nlp-emotion-badge[data-emotion="lucrative"],#nlp-emotion-badge[data-emotion="condescending"]{color:#f0c040!important;}
+#nlp-emotion-badge[data-emotion="apathetic"]{color:#445566!important;opacity:.6}
+#nlp-emotion-badge[data-emotion="empathetic"]{color:#bb88ff!important;}
+#nlp-emotion-badge[data-emotion="confused"]{color:#8866ff!important;}
 #shell-status{position:absolute;top:8px;right:10px;z-index:10;display:flex;gap:8px;pointer-events:none}
 .shell-badge{display:flex;align-items:center;gap:4px;font-size:.52rem;font-family:var(--font-d);letter-spacing:1px;padding:3px 8px;border-radius:3px;background:rgba(3,10,14,.7);border:1px solid var(--border);backdrop-filter:blur(6px);text-shadow:0 0 6px rgba(0,0,0,.6)}
 .shell-badge .dot{width:6px;height:6px;border-radius:50%;animation:pulse 2s infinite}
@@ -2830,13 +2833,20 @@ function classifyRelationship(verb) {
 //  Emotional + Physics context from contacts
 // ============================================================
 const EMOTIONAL_SIGNATURES = {
-  conflict:  { buoyancyMod:1.6, knifeWeight:1.4, hammerWeight:1.0, stickWeight:1.2, icon:"⚡" },
-  happy:     { buoyancyMod:1.4, knifeWeight:0.3, hammerWeight:0.6, stickWeight:0.8, icon:"☀️" },
-  sad:       { buoyancyMod:0.6, knifeWeight:0.2, hammerWeight:0.8, stickWeight:0.4, icon:"🌧" },
-  angry:     { buoyancyMod:1.8, knifeWeight:1.2, hammerWeight:1.4, stickWeight:1.1, icon:"🔥" },
-  fearful:   { buoyancyMod:0.8, knifeWeight:0.9, hammerWeight:1.1, stickWeight:0.3, icon:"❄️" },
-  excited:   { buoyancyMod:2.0, knifeWeight:0.7, hammerWeight:0.9, stickWeight:1.3, icon:"✨" },
-  neutral:   { buoyancyMod:1.0, knifeWeight:0.5, hammerWeight:0.5, stickWeight:0.5, icon:"◈" }
+  conflict:   { buoyancyMod:1.6, knifeWeight:1.4, hammerWeight:1.0, stickWeight:1.2, icon:"⚡" },
+  happy:      { buoyancyMod:1.4, knifeWeight:0.3, hammerWeight:0.6, stickWeight:0.8, icon:"☀️" },
+  sad:        { buoyancyMod:0.6, knifeWeight:0.2, hammerWeight:0.8, stickWeight:0.4, icon:"🌧" },
+  angry:      { buoyancyMod:1.8, knifeWeight:1.2, hammerWeight:1.4, stickWeight:1.1, icon:"🔥" },
+  fearful:    { buoyancyMod:0.8, knifeWeight:0.9, hammerWeight:1.1, stickWeight:0.3, icon:"❄️" },
+  excited:    { buoyancyMod:2.0, knifeWeight:0.7, hammerWeight:0.9, stickWeight:1.3, icon:"✨" },
+  neutral:    { buoyancyMod:1.0, knifeWeight:0.5, hammerWeight:0.5, stickWeight:0.5, icon:"◈" },
+  // ── NEW STATES ─────────────────────────────────────────────────────────
+  // apathetic: low-energy scissors idle — very low buoyancy, minimal drive
+  apathetic:  { buoyancyMod:0.3, knifeWeight:0.1, hammerWeight:0.2, stickWeight:0.1, icon:"〇" },
+  // empathetic: envelope projection — elevated buoyancy, strong containment
+  empathetic: { buoyancyMod:1.5, knifeWeight:0.2, hammerWeight:0.3, stickWeight:1.4, icon:"⊙" },
+  // confused: puzzle cycling without resolution — moderate, high knife split
+  confused:   { buoyancyMod:0.7, knifeWeight:1.1, hammerWeight:0.4, stickWeight:0.6, icon:"？" }
 };
 
 const PHYSICS_SIGNATURES = {
@@ -5197,9 +5207,116 @@ const ORB_MODE_COLORS = {
   weather:   [0x0099ff, 0x44ccff, 0x8866ff, 0x44aaff],
   location:  [0xffcc00, 0xff9900, 0x00ffcc, 0xffbb33],
   writing:   [0xff88cc, 0xcc44ff, 0x8888ff, 0xff66cc],
-  attentive: [0x00ffcc, 0xff4466, 0xffcc00, 0xffffff],  // attentive mode
+  attentive: [0x00ffcc, 0xff4466, 0xffcc00, 0xffffff],
   thinking:  [0x4444ff, 0x8800ff, 0xff4466, 0x8888ff]
 };
+
+// ── Emotion → 3D orb color + pulse signature ─────────────────────────────
+// Each entry: [geo-shell, mar-shell, aero-shell, core/particle],
+//             pulseIntensity, particleSpeedMult, shellOpacityBoost
+const ORB_EMOTION_STATES = {
+  // POS
+  happy:        { colors:[0x39ff14, 0x00ffcc, 0x00ff88, 0x39ff14], pulse:0.9, speed:1.15, opBoost:0.04 },
+  love:         { colors:[0xff66cc, 0xff44aa, 0xff88cc, 0xff66cc], pulse:0.8, speed:0.9,  opBoost:0.06 },
+  inspiring:    { colors:[0xffcc00, 0xff9900, 0x00ffcc, 0xffdd44], pulse:1.2, speed:1.2,  opBoost:0.08 },
+  determined:   { colors:[0xff6600, 0xff4400, 0xffaa00, 0xff6600], pulse:1.4, speed:1.3,  opBoost:0.1  },
+  spiritual:    { colors:[0xa78bfa, 0x8866ff, 0xcc99ff, 0xa78bfa], pulse:0.5, speed:0.7,  opBoost:0.08 },
+  guiding:      { colors:[0x44aaff, 0x0088ff, 0x88ccff, 0x44aaff], pulse:0.6, speed:0.85, opBoost:0.05 },
+  inspired:     { colors:[0xffee00, 0xffcc00, 0x00ffcc, 0xffee00], pulse:1.1, speed:1.1,  opBoost:0.07 },
+  amused:       { colors:[0xff88cc, 0xffaa00, 0x00ffcc, 0xff88cc], pulse:1.0, speed:1.05, opBoost:0.05 },
+  thoughtful:   { colors:[0x6699ff, 0x4477ff, 0x88bbff, 0x6699ff], pulse:0.5, speed:0.8,  opBoost:0.04 },
+  // NEG
+  angry:        { colors:[0xff2200, 0xff4400, 0xff6600, 0xff2200], pulse:2.0, speed:1.6,  opBoost:0.14 },
+  hateful:      { colors:[0xcc0000, 0xff0000, 0x880000, 0xcc0000], pulse:1.8, speed:1.4,  opBoost:0.12 },
+  condescending:{ colors:[0xffcc00, 0xff8800, 0xff4400, 0xffcc00], pulse:1.2, speed:1.1,  opBoost:0.08 },
+  disrespectful:{ colors:[0xff4466, 0xff2244, 0xcc0044, 0xff4466], pulse:1.6, speed:1.3,  opBoost:0.1  },
+  forgiving:    { colors:[0x88ffcc, 0x44ffaa, 0x00ff99, 0x88ffcc], pulse:0.7, speed:0.85, opBoost:0.05 },
+  // NEU
+  neutral:      { colors:[0x00ffcc, 0x0088ff, 0xff4466, 0x00ffcc], pulse:0.0, speed:1.0,  opBoost:0.0  },
+  sad:          { colors:[0x4488cc, 0x2266aa, 0x335577, 0x4488cc], pulse:0.3, speed:0.65, opBoost:0.0  },
+  worried:      { colors:[0x8899ff, 0x6677ff, 0x4455cc, 0x8899ff], pulse:0.6, speed:0.9,  opBoost:0.03 },
+  jealous:      { colors:[0xaacc00, 0x88aa00, 0x558800, 0xaacc00], pulse:0.7, speed:1.05, opBoost:0.04 },
+  lucrative:    { colors:[0xffdd00, 0xffbb00, 0xcc8800, 0xffdd00], pulse:0.9, speed:1.1,  opBoost:0.06 },
+  concerned:    { colors:[0x66aaff, 0x4488ee, 0x2266cc, 0x66aaff], pulse:0.5, speed:0.8,  opBoost:0.02 },
+  judgemental:  { colors:[0xeeaa00, 0xcc8800, 0xaa6600, 0xeeaa00], pulse:0.6, speed:0.95, opBoost:0.04 },
+  curious:      { colors:[0x00ddff, 0x0099ff, 0x0066cc, 0x00ddff], pulse:0.8, speed:1.1,  opBoost:0.05 },
+  // NEW STATES
+  // apathetic: dim, slow — low-energy scissors idle. GEO barely lit, near-black core
+  apathetic:    { colors:[0x223344, 0x334455, 0x445566, 0x112233], pulse:0.05, speed:0.35, opBoost:-0.06 },
+  // empathetic: warm resonance, GEO violet, MAR soft cyan — envelope projection
+  empathetic:   { colors:[0xbb88ff, 0x44cccc, 0x88aaff, 0xcc99ff], pulse:0.7, speed:0.88, opBoost:0.09 },
+  // confused: unstable rapid-cycle — mismatched hues, jittery pulse
+  confused:     { colors:[0x8866ff, 0xff6600, 0x66aaff, 0xaa88ff], pulse:1.1, speed:1.35, opBoost:0.03 }
+};
+
+// ── Apply an emotion state to the live 3D orb ──────────────────────────
+var _orbEmoTransition = null;  // lerp target for smooth color transition
+var _orbEmoCurrent = "neutral";
+
+function applyOrbEmotion(emoName) {
+  if (!emoName || typeof emoName !== "string") return;
+  var emo = emoName.toLowerCase().trim();
+  if (_orbEmoCurrent === emo) return; // no change
+  _orbEmoCurrent = emo;
+  var state = ORB_EMOTION_STATES[emo] || ORB_EMOTION_STATES.neutral;
+  // Lerp colors over ~20 frames using a stored transition
+  _orbEmoTransition = {
+    colors: state.colors,
+    frames: 0,
+    totalFrames: 35,
+    pulse: state.pulse,
+    speedMult: state.speed,
+    opBoost: state.opBoost
+  };
+  // Immediately apply pulse
+  if (state.pulse > 0 && typeof pulseShells === "function") {
+    pulseShells(Math.min(state.pulse, 1.8));
+  }
+  // Store speed multiplier for animate() to read
+  window._orbEmoSpeedMult = state.speedMult;
+  window._orbEmoOpBoost   = state.opBoost;
+}
+
+// Called from animate() every frame to lerp colors
+function tickOrbEmoTransition() {
+  if (!_orbEmoTransition) return;
+  var t = _orbEmoTransition;
+  t.frames++;
+  var alpha = Math.min(1, t.frames / t.totalFrames);
+  // Apply lerped color to shells, core, particles
+  if (typeof shells !== "undefined" && shells.length >= 3) {
+    for (var si = 0; si < 3; si++) {
+      if (shells[si] && shells[si].material && shells[si].material.color) {
+        var tc = new THREE.Color(t.colors[si]);
+        shells[si].material.color.lerp(tc, alpha * 0.08);
+      }
+    }
+  }
+  if (typeof core !== "undefined" && core && core.material && core.material.color) {
+    core.material.color.lerp(new THREE.Color(t.colors[3]), alpha * 0.1);
+  }
+  if (typeof particles !== "undefined" && t.frames % 3 === 0) {
+    var pCol = new THREE.Color(t.colors[t.frames % 3]);
+    particles.forEach(function(p, i) {
+      if (p && p.material && p.material.color && (i % 4 === 0)) {
+        p.material.color.lerp(pCol, 0.06);
+      }
+    });
+  }
+  // Done
+  if (t.frames >= t.totalFrames * 2) _orbEmoTransition = null;
+}
+
+// ── Also define pushOrbEvoUpdate (was called but never defined) ───────
+function pushOrbEvoUpdate(evo, emotion, analysis) {
+  // Drive 3D orb from emotion attached to this message
+  if (emotion && emotion !== "neutral") applyOrbEmotion(emotion);
+  // Also adjust particle speed from buoyancyMod
+  var sig = (typeof EMOTIONAL_SIGNATURES !== "undefined" && EMOTIONAL_SIGNATURES[emotion])
+    ? EMOTIONAL_SIGNATURES[emotion] : { buoyancyMod: 1.0 };
+  window._orbEmoSpeedMult = sig.buoyancyMod;
+}
+
 
 function pushOrbContextMode(mode) {
   const colors = ORB_MODE_COLORS[mode] || ORB_MODE_COLORS.neutral;
@@ -9868,7 +9985,8 @@ function initBRPN() {
 
     // ── Particles ──────────────────────────────────────────────────────────
     particles.forEach(p=>{
-      const spd=p.userData.spd*(isThinking?1.6:1.0);
+      var _emoMult = window._orbEmoSpeedMult || 1.0;
+      const spd=p.userData.spd*(isThinking?1.6:_emoMult);
       const t=f*0.007*spd+p.userData.off;
       const r=p.userData.r*(1+shellPulse*0.1*Math.sin(f*0.05));
       p.position.x=Math.cos(t)*r; p.position.z=Math.sin(t)*r;
@@ -9946,6 +10064,8 @@ function initBRPN() {
     shellPulse*=0.994;
     // ── Multi-user ASH node drift ────────────────────────────────────────
     if(f%3===0 && typeof _tickAshNodes==='function') _tickAshNodes(f);
+    // Lerp 3D colors toward current emotion state every frame
+    if(typeof tickOrbEmoTransition==='function') tickOrbEmoTransition();
 
     // ── Local receive flash: incoming pulse arrival at origin ──────
     // Only fire on the RISING EDGE (phaseIn crossed below threshold)
@@ -14954,6 +15074,8 @@ _syncActionBtn();
     var safeEmo = (emo && typeof emo === 'string' && emo.trim()) ? emo.trim().toLowerCase() : 'neutral';
     emoEl.textContent = safeEmo.toUpperCase();
     emoEl.setAttribute('data-emotion', safeEmo);
+    // Drive 3D orb colors/pulse from Autumn's emotional state
+    if (typeof applyOrbEmotion === 'function') applyOrbEmotion(safeEmo);
   };
   // Initialize to NEUTRAL on load
   (function(){ var el=document.getElementById('nlp-emotion-badge'); if(el){el.textContent='NEUTRAL';el.setAttribute('data-emotion','neutral');} })();
