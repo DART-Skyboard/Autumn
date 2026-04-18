@@ -1151,7 +1151,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .as-btn.secondary{background:transparent;border-color:rgba(0,229,255,.2);color:rgba(0,229,255,.5)}
 .as-btn.danger{border-color:rgba(255,68,102,.3);color:rgba(255,68,102,.6);background:transparent}
 .as-btn.send-chat{background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.3);color:var(--cyan);width:100%;margin-top:6px;padding:6px}
-#arc-studio-viewport{flex:1;min-height:280px;height:auto;align-self:stretch;position:relative;background:#0a0f14;overflow:hidden}
+#arc-studio-viewport{flex-shrink:0;position:relative;background:#0a0f14;overflow:hidden}
 #arc-studio-canvas{width:100%;height:100%;display:block}
 #arc-studio-readout{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.15);border-radius:4px;padding:6px 8px;font-family:monospace;font-size:9px;color:rgba(0,229,255,.6);line-height:1.55;min-width:120px;pointer-events:none}
 .user-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 5px var(--blue);display:inline-block}
@@ -15139,12 +15139,22 @@ _syncActionBtn();
     if (!_as.initialized) return;
     var vp = document.getElementById('arc-studio-viewport');
     if (!vp) return;
-    var w = vp.clientWidth  || 400;
-    var h = vp.clientHeight || 300;
-    if (w < 10 || h < 10) return;
+    // Measure the parent body's flex allocation, not vp itself (vp is now fixed-size)
+    var body = document.getElementById('arc-studio-body');
+    var controls = document.getElementById('arc-studio-controls');
+    if (!body) return;
+    var bodyW = body.clientWidth || 400;
+    var bodyH = body.clientHeight || 320;
+    var ctrlW = controls ? (controls.offsetWidth || 220) : 220;
+    var w = Math.max(bodyW - ctrlW, 200);
+    var h = Math.max(bodyH, 200);
     _as.camera.aspect = w / h;
     _as.camera.updateProjectionMatrix();
+    _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     _as.renderer.setSize(w, h);
+    // Keep vp div exactly sized to canvas — prevents getBoundingClientRect mismatch
+    vp.style.width  = w + 'px';
+    vp.style.height = h + 'px';
   }
 
   function _asInit() {
@@ -15170,10 +15180,14 @@ _syncActionBtn();
     _as.renderer.setClearColor(0x0a0f14, 1.0);
     _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     _as.renderer.setSize(w, h);
-    // Style the canvas so it fills the viewport div
+    // Critical: do NOT CSS-stretch the canvas — let the renderer own exact pixel size.
+    // CSS width/height = 100% causes coordinate mismatch on hi-DPI screens → stair-stepping.
     _as.renderer.domElement.style.display = 'block';
-    _as.renderer.domElement.style.width   = '100%';
-    _as.renderer.domElement.style.height  = '100%';
+    // touch-action:none tells the browser to hand ALL touch events to JS (no scroll hijack)
+    _as.renderer.domElement.style.touchAction = 'none';
+    // Make the viewport div exactly match the canvas so getBoundingClientRect() is accurate
+    vp.style.width  = w + 'px';
+    vp.style.height = h + 'px';
     // Replace any existing canvas child, then append renderer's canvas
     var oldCv = document.getElementById('arc-studio-canvas');
     if (oldCv) oldCv.style.display = 'none'; // hide placeholder
@@ -15207,6 +15221,15 @@ _syncActionBtn();
     _as.pointer   = new THREE.Vector2();
 
     var domEl = _as.renderer.domElement;
+
+    // ── Isolate canvas events from page scroll + overlay drag handler ──
+    // Without this the page's touchmove and the header drag both receive the
+    // same pointer events as OrbitControls, causing the stair-stepping jitter.
+    ['pointerdown','pointermove','pointerup',
+     'touchstart','touchmove','touchend',
+     'mousedown','mousemove','mouseup','wheel'].forEach(function(evt) {
+      domEl.addEventListener(evt, function(e) { e.stopPropagation(); }, {passive: false});
+    });
 
     function _asPick(e) {
       // Don't pick if OrbitControls just dragged
