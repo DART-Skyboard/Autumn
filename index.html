@@ -5097,22 +5097,41 @@ async function fetchReddit(q){try{const r=await ft(`https://www.reddit.com/searc
 
 function detectIntent(text){
   const lc=text.toLowerCase().trim();
-  // Personal / conversational — never fetch web data for these
-  if(/^(hi|hello|hey|howdy|greetings|good\s+(morning|afternoon|evening|night))\b/.test(lc))return'personal';
-  if(/\b(how are you|how do you feel|how's it going|what's up|you doing|you feeling|are you ok|you alright|tell me about yourself|who are you|what are you)\b/.test(lc))return'personal';
-  if(/\b(thank|thanks|appreciate|great job|well done|nice work|love you|miss you|good job)\b/.test(lc))return'personal';
-  if(/\b(yes|no|ok|okay|sure|alright|got it|i see|i know|makes sense|understood|cool|awesome|nice|wow|interesting|really|actually)\b/.test(lc)&&lc.length<40)return'personal';
-  if(/\b(show me( a| some)? video|play( a| the)? video|youtube|watch( a| the)? video|music video|trailer for|clip of|video of|videos? about)\b/.test(lc))return'video';
-  if(/\b(show me( a| some)? (picture|photo|image)|picture of|photos? of|images? of|what does .+ look like|show me what|gallery of)\b/.test(lc))return'image';
-  if(/\b(latest|recent|today|breaking|news|current events|happening now|this week|2025|2026)\b/.test(lc))return'news';
-  if(/\bhow (to|do i|can i|do you|does one)\b/.test(lc))return'howto';
-  // Self-directed "what" questions are personal, not factual web lookups
-  if(/^what (is your|are you|do you|can you|is autumn|does autumn)\b/.test(lc))return'personal';
-  if(/^who (are you|is autumn)\b/.test(lc))return'personal';
-  // Claude/AI names are conversational, never search queries
-  if(/\b(claude|anthropic|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc))return'personal';
-  if(/^(who|what|where|when|why|which|how)\b/.test(lc))return'factual';
-  return'general';
+
+  // ── Explicitly conversational — NEVER search web ──────────────────────
+  if(/^(hi|hello|hey|howdy|greetings|good\s+(morning|afternoon|evening|night))\b/.test(lc)) return'personal';
+  if(/\b(how are you|how do you feel|how.s it going|what.s up|you doing|you feeling|are you ok|you alright|tell me about yourself|who are you|what are you)\b/.test(lc)) return'personal';
+  if(/\b(thank|thanks|appreciate|great job|well done|nice work|love you|miss you|good job)\b/.test(lc)) return'personal';
+  if(/\b(yes|no|ok|okay|sure|alright|got it|i see|i know|makes sense|understood|cool|awesome|nice|wow|interesting|really|actually)\b/.test(lc)&&lc.length<40) return'personal';
+  // Time/date queries — Autumn answers from JS Date, no search needed
+  if(/\b(what time|what.s the time|current time|what date|what.s the date|today.s date|what day|what year|what month|what hour|tell me the time|give me the time)\b/.test(lc)) return'personal';
+  // Short questions about Autumn herself
+  if(/^what (is your|are you|do you|can you|is autumn|does autumn)\b/.test(lc)) return'personal';
+  if(/^who (are you|is autumn)\b/.test(lc)) return'personal';
+  // AI/Claude references are always conversational
+  if(/\b(claude|anthropic|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc)) return'personal';
+  // Pure location/feeling questions with no search topic
+  if(/\b(where am i|my location|are you near|near the|at the beach|at the park|at the store|coffee shop|restaurant nearby|find me a)\b/.test(lc)&&lc.length<80) return'personal';
+
+  // ── Media intents ───────────────────────────────────────────────────────
+  if(/\b(show me( a| some)? video|play( a| the)? video|youtube|watch( a| the)? video|music video|trailer for|clip of|video of|videos? about)\b/.test(lc)) return'video';
+  if(/\b(show me( a| some)? (picture|photo|image)|picture of|photos? of|images? of|what does .+ look like|show me what|gallery of)\b/.test(lc)) return'image';
+
+  // ── News — only when EXPLICITLY asking for news, NOT just because "today" appears ──
+  // "today" alone is NOT a news trigger — it appears in "what day is today?", "I'm going out today", etc.
+  if(/\b(breaking news|latest news|news today|news this week|current events|what.s happening|headlines|top stories|recent news|in the news)\b/.test(lc)) return'news';
+  if(/\b(how to|how do i|how can i|how do you|how does one)\b/.test(lc)) return'howto';
+
+  // ── Factual — explicit lookup signals only ──────────────────────────────
+  // Only treat as factual if there's a clear external-world topic to look up
+  if(/^(who is|what is|where is|when did|why did|which is|how is|who was|what was|where was|when was)\b/.test(lc)) return'factual';
+  if(/\b(explain|define|definition of|meaning of|tell me about|background on|history of|facts about|information about|what happened to|who invented|who discovered)\b/.test(lc)) return'factual';
+
+  // ── General search — only when clearly asking for external information ──
+  if(/\b(search for|look up|find out about|research|google|look for information)\b/.test(lc)) return'general';
+
+  // Anything else: treat as personal/conversational — do NOT default to web search
+  return'personal';
 }
 
 async function liveQuery(userText, reflexData){
@@ -8731,9 +8750,12 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   try { S.journal.push(createJournalEntry(augmentedText,analysis,reflexData)); } catch(e) {}
   try { updateHUD(analysis); } catch(e) {}
 
-  // Run live web query and generate reply in parallel
+  // Run live web query ONLY when intent may need external data
+  var _preIntent = detectIntent(text);
+  var _needsWeb = ['factual','general','howto','news','video','image'].includes(_preIntent);
+  const _emptyLive = {liveText:'',videos:[],images:[],links:[],sources:[],placeMapHtml:''};
   const [liveData,reply] = await Promise.all([
-    liveQuery(augmentedText, reflexData).catch(()=>({liveText:'',videos:[],images:[],links:[],sources:[]})),
+    _needsWeb ? liveQuery(augmentedText, reflexData).catch(()=>_emptyLive) : Promise.resolve(_emptyLive),
     generateReply(augmentedText, analysis, reflexData).catch(function(e){ return { text: 'Error: ' + e.message, grammarMeta:'', brpnMeta:'' }; })
   ]);
 
@@ -8742,7 +8764,15 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   let brpnMeta = (reply && typeof reply === 'object') ? reply.brpnMeta : '';
   // Only append web data when user explicitly requests search/news/media — suppress for normal conversation
   var _liveIntent = detectIntent(text);
-  var _explicitMediaRequest = /\b(search|look up|find|news|latest|recent|video|videos|youtube|images|photos|pictures|articles|headlines|what.s happening|current|today)\b/i.test(text);
+  // Only append web data if user is EXPLICITLY asking for it
+  var _liveIntentNeedsWeb = ['factual','general','howto','news','video','image'].includes(_liveIntent);
+  var _explicitMediaRequest = _liveIntentNeedsWeb && /\b(search|look up|search for|find out|news|latest news|recent news|video|videos|youtube|images|photos|pictures|articles|headlines|what.s happening)\b/i.test(text);
+  // Also allow if intent is factual/howto AND there's a clear non-personal search query
+  if(!_explicitMediaRequest && ['factual','howto'].includes(_liveIntent) && liveData.liveText) {
+    // Only append if liveText adds real value — not just random web noise
+    var _queryHasTopic = text.trim().split(/\s+/).length > 4;
+    _explicitMediaRequest = _queryHasTopic;
+  }
   if(liveData.liveText && _liveIntent !== 'personal' && _explicitMediaRequest) fullReply += liveData.liveText;
   var _placeMapHtml = liveData.placeMapHtml || '';
   // If we still have nothing, it means the API call failed — skip pushing an empty bubble
