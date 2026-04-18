@@ -16823,18 +16823,58 @@ window.openNate = function() {
     window.addEventListener('load', _patchTTSForNate);
     return;
   }
+  // NATE patches both Kokoro and WebSpeech TTS paths
+  window._speakKokoro = async function(text, onEnd) {
+    var np = window._nateVoiceParams;
+    var cfg = JSON.parse(localStorage.getItem('_nate_voice_config')||'null');
+    var kokoroVoice = cfg && cfg.kokoroVoice ? cfg.kokoroVoice : null;
+    var pipe = window._kokoroPipe;
+    if (!pipe) { window._speakWebSpeech(text, onEnd); return; }
+    try {
+      Voice.speaking = true; Voice.cancelled = false;
+      var speed = np ? (np.speed || 1.0) : (Voice.speed || 1.0);
+      var opts = { speed: Math.min(2.0, Math.max(0.4, speed)) };
+      if (kokoroVoice) opts.voice = kokoroVoice;
+      var result = await pipe(text, opts);
+      if (Voice.cancelled) { Voice.speaking=false; if(onEnd) onEnd(); return; }
+      var sr = result.sampling_rate || 24000;
+      var pcm = result.audio;
+      // Build WAV blob
+      var wavBuf = _pcmToWav(pcm, sr);
+      // If NATE active, apply post-processing via Web Audio
+      if (np && window._nateAudioCtx) {
+        var actx = window._nateAudioCtx || new AudioContext();
+        var rawBuf = await actx.decodeAudioData(wavBuf.slice(0));
+        var offline = new OfflineAudioContext(1, rawBuf.length, rawBuf.sampleRate);
+        var src = offline.createBufferSource(); src.buffer = rawBuf;
+        src.playbackRate.value = 1.0; // speed already applied by kokoro
+        src.detune.value = ((np.pitch||1.0) - 1.0) * 1200;
+        var wm = offline.createBiquadFilter(); wm.type='lowshelf'; wm.frequency.value=350;
+        wm.gain.value = ((np.warmth||0.5)-0.5)*9;
+        var cl = offline.createBiquadFilter(); cl.type='highshelf'; cl.frequency.value=3500;
+        cl.gain.value = ((np.clarity||0.6)-0.5)*7;
+        src.connect(wm); wm.connect(cl); cl.connect(offline.destination);
+        src.start(0);
+        var processed = await offline.startRendering();
+        var finalPCM = processed.getChannelData(0);
+        wavBuf = _pcmToWav(finalPCM, processed.sampleRate);
+      }
+      var blob = new Blob([wavBuf],{type:'audio/wav'});
+      var url = URL.createObjectURL(blob);
+      var player = new Audio(url);
+      player.onended = function(){ Voice.speaking=false; URL.revokeObjectURL(url); if(onEnd) onEnd(); };
+      player.onerror = function(){ Voice.speaking=false; if(onEnd) onEnd(); };
+      Voice._kokoroPlayer = player; player.play();
+    } catch(e) { console.warn('[NATE+Kokoro]',e); window._speakWebSpeech(text,onEnd); }
+  };
   window._speakWebSpeech = function(text, onEnd) {
     var np = window._nateVoiceParams;
-    if (!np) return _origWSS(text, onEnd); // baseline untouched
-    // Temporarily override Voice speed/pitch from NATE config
+    if (!np) return _origWSS(text, onEnd);
     var origSpeed = Voice.speed, origPitch = Voice.pitch;
     Voice.speed = np.speed || 1.0;
     Voice.pitch = np.pitch || 1.0;
-    // Run original (it reads Voice.speed and Voice.pitch internally)
     _origWSS(text, function() {
-      // Restore after utterance
-      Voice.speed = origSpeed;
-      Voice.pitch = origPitch;
+      Voice.speed = origSpeed; Voice.pitch = origPitch;
       if (onEnd) onEnd();
     });
   };
