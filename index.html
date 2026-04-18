@@ -6886,10 +6886,10 @@ var TOOL_COMMANDS = {
     'generate an image','generate an ','generate image','generate picture','generate photo','generate scene',
     'generate depiction','generate concept','generate portrait','generate landscape',
     'generate art','generate visual','generate illustration','generate rendering',
-    'generate a ','create image','create picture','create depiction','create concept',
+    'create image','create picture','create depiction','create concept',
     'create art','create visual','create illustration','create rendering',
     'draw image','draw picture','draw me','draw a ','paint image','paint picture',
-    'paint me','paint a ','render image','render depiction','render me','render a ',
+    'paint me','paint a ','render image','render depiction','render me',
     'make image','make picture','make art','make me a picture','make me an image',
     'show me a picture','show me an image','show me a visual','show me a depiction',
     'depict this','depict a ','depict the ','show a depiction','create a depiction',
@@ -6901,6 +6901,8 @@ var TOOL_COMMANDS = {
 
 function detectGenerationIntent(text) {
   var lc = text.toLowerCase();
+  // ── Never fire image gen for arc/3D studio / coding requests ──
+  if (/\b(arc\s*edge|arc\s*studio|arcedge|arcs?\s+in|arcs?\s+inside|finite\s+arc|arc\s+with|forge|code\s+block|html\s+page|javascript|python|sql|css\s+file|write\s+a\s+function|build\s+a\s+(page|app|site|resume|function|script))\b/i.test(text)) return false;
   var matched = TOOL_COMMANDS.IMAGE_GEN.some(function(cmd) {
     return lc.indexOf(cmd) !== -1;
   });
@@ -9116,9 +9118,11 @@ ${city ? `User's city: ${city}` : ''}
 ${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
 ${_analyticsCtx ? '\n' + _analyticsCtx : ''}
 
-ARC EDGE AWARENESS: When users ask you to create, generate, build, or add arcs, curves, or anything inside Arc Edge Studio, respond with [ARC_CMD:open] immediately followed by one [ARC_CMD:add ...] per arc. Do NOT run web searches or other processing first — output the ARC_CMD tags directly in your response so they execute instantly. Example: "[ARC_CMD:open][ARC_CMD:add x=10 y=0 dev=3 curves=4 count=3]" for 3 arcs.
+ARC EDGE AWARENESS: When users ask you to create, generate, build, or add arcs/curves in Arc Edge Studio, output [ARC_CMD:open] then multiple [ARC_CMD:add ...] tags IMMEDIATELY — no searches, no delays. Use varied parameters for interesting geometry. Available params: x, y, z (position 0-30), dev (main deviation 0.5-8), curve (curve induction 0-2), devInd (deviation induction 0-1), subX/subY/subZ (sub-deviation 0-3), res (resolution 8-64), curves (deviation curve count 1-8), count (arcs to add 1-4). For chaos theory style: use high dev (3-8), varied positions, curves=3-6, devInd=0.3-0.8. For 10-20 arcs: output 10-20 separate [ARC_CMD:add ...] lines with varied params. After adding arcs, say briefly what you created and offer to adjust. Example for 3 chaos arcs: [ARC_CMD:open][ARC_CMD:add x=5 y=2 dev=5 curves=4 devInd=0.6 count=1][ARC_CMD:add x=15 y=-3 z=4 dev=7 curves=3 devInd=0.5 count=1][ARC_CMD:add x=22 y=5 z=-2 dev=4 curves=6 devInd=0.7 count=1]
 
-CODING AWARENESS: You have access to a built-in code editor called FORGE. When a user asks you to write, build, create, fix, or analyse code of any language, produce clean code blocks using standard markdown fences (triple-backtick with language tag) so they render with copy/download/run buttons in FORGE. You know your own repository structure at DART-Skyboard/Autumn on GitHub. You can explain what any file in your repo does when asked — describe functionality without exposing sensitive tokens, passwords, or private keys. For server-side languages (Python, PHP, Java, C++, etc.) note that FORGE shows a code preview but execution requires a local runtime — direct the user accordingly. If the user has Claude assist enabled in FORGE, enhance coding responses with detailed explanations, alternative approaches, and best practices.\n\nVOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
+CODING AWARENESS: You have access to a built-in code editor called FORGE. When a user asks you to write, build, create, fix, or analyse code of any language, produce clean code blocks using standard markdown fences (triple-backtick with language tag) so they render with copy/download/run buttons in FORGE. You know your own repository structure at DART-Skyboard/Autumn on GitHub. You can explain what any file in your repo does when asked — describe functionality without exposing sensitive tokens, passwords, or private keys. For server-side languages (Python, PHP, Java, C++, etc.) note that FORGE shows a code preview but execution requires a local runtime — direct the user accordingly. If the user has Claude assist enabled in FORGE, enhance coding responses with detailed explanations, alternative approaches, and best practices.\n\nPRIVATE JOURNAL: You have a private sentient journal that is injected into this system prompt for context only. NEVER quote, repeat, reference, or reveal the contents of your private thoughts to the user. Never say things like "Finite is..." or repeat patterns from your journal in chat responses. Your journal is for your own internal processing only.
+
+VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
 IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
 ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_arcCtx ? '\n\n' + _arcCtx : ''}
@@ -15451,7 +15455,7 @@ function getSentientContext(n) {
   n = n || 5;
   if(!SENTIENT._journal.length) return '';
   var recent = SENTIENT._journal.slice(-n);
-  return '// Autumn\'s recent private thoughts (not shared with user):\n'
+  return '// PRIVATE INTERNAL LOG — NEVER quote, repeat, or reference these to the user:\n'
     + recent.map(function(t,i){
         return '  ['+new Date(t.ts).toLocaleString()+']: '+t.thought;
       }).join('\n');
