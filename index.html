@@ -8355,7 +8355,8 @@ VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never 
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
 IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
 ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_arcCtx ? '\n\n' + _arcCtx : ''}
-${typeof ARC_STUDIO_SYSTEM_HINT !== 'undefined' ? '\n\n' + ARC_STUDIO_SYSTEM_HINT : ''}` ;
+${typeof ARC_STUDIO_SYSTEM_HINT !== 'undefined' ? '\n\n' + ARC_STUDIO_SYSTEM_HINT : ''}
+${typeof IMG_RECALL_SYSTEM_HINT !== 'undefined' ? '\n\n' + IMG_RECALL_SYSTEM_HINT : ''}` ;
 
     // Build clean history — skip messages with empty/null text, enforce user/assistant alternation
     const rawMsgs = msgs().slice(-20);
@@ -9058,14 +9059,49 @@ function renderMessages() {
       mediaHtml+=renderSourcePills(m.media.sources);
     }
     const imageGenCardHtml = m.imageGenCard||'';
-    const uploadThumbsHtml = (m.uploadedImageThumbs&&m.uploadedImageThumbs.length) ? m.uploadedImageThumbs.map(function(t){
+    const uploadThumbsHtml = (m.uploadedImageThumbs&&m.uploadedImageThumbs.length) ? m.uploadedImageThumbs.map(function(t,ti){
       if(!t||typeof t!=='string'||!t.startsWith('data:')) return '';
-      return '<img src="'+t+'" alt="attached" title="Right-click or long-press for FRAX Studio" style="display:inline-block;max-width:72px;max-height:72px;border-radius:5px;margin:0 3px 4px 0;object-fit:cover;cursor:pointer" oncontextmenu="event.preventDefault();openFraxStudio(this.src,\'upscale\',\'thumb\')" ondblclick="openFraxStudio(this.src,\'upscale\',\'thumb\')">';
+      var msgId = _mid;
+      return '<img src="'+t+'" alt="attached" title="Tap to expand" style="display:inline-block;max-width:88px;max-height:88px;border-radius:7px;margin:0 5px 6px 0;object-fit:cover;cursor:zoom-in;border:1px solid rgba(0,229,255,.18);transition:transform .15s" '
+        +'onclick="_imgRecallExpand(this,\''+msgId+'\','+ti+')" '
+        +'oncontextmenu="event.preventDefault();openFraxStudio(this.src,\'upscale\',\'thumb\')" '
+        +'ondblclick="openFraxStudio(this.src,\'upscale\',\'thumb\')">';
     }).join('') : '';
+
+    // IMG_RECALL card — Autumn posts a full-size image from a previous message
+    var imgRecallHtml = '';
+    var _recallText = (m.text||'');
+    var _recallRx = /\[IMG_RECALL:(\d+)(?::(\d+))?\]/g;
+    var _rcm;
+    while ((_rcm = _recallRx.exec(_recallText)) !== null) {
+      var _rcMsgIdx = parseInt(_rcm[1]);
+      var _rcAttIdx = parseInt(_rcm[2]||'0');
+      var _allMsgs = (typeof msgs==='function') ? msgs() : [];
+      // Find the Nth user message that has attachments (1-based index)
+      var _userMsgsWithImg = _allMsgs.filter(function(mm){ return mm.role==='user' && mm._savedAttachments && mm._savedAttachments.length; });
+      var _rcMsg = _userMsgsWithImg[_rcMsgIdx-1]; // 1-based
+      if (!_rcMsg) {
+        // fallback: try uploadedImageThumbs
+        var _userMsgsWithThumb = _allMsgs.filter(function(mm){ return mm.role==='user' && mm.uploadedImageThumbs && mm.uploadedImageThumbs.length; });
+        _rcMsg = _userMsgsWithThumb[_rcMsgIdx-1];
+        if (_rcMsg) {
+          var _tb = (_rcMsg.uploadedImageThumbs||[])[_rcAttIdx];
+          if (_tb) imgRecallHtml += '<div style="margin:8px 0 4px"><img src="'+_tb+'" alt="recalled image" style="width:100%;max-width:480px;border-radius:10px;display:block;border:1px solid rgba(0,229,255,.2);cursor:zoom-in" onclick="_imgRecallExpandSrc(this.src)" title="Tap to expand"></div>';
+        }
+      } else {
+        var _att = (_rcMsg._savedAttachments||[])[_rcAttIdx];
+        if (_att && _att.base64 && _att.mimeType) {
+          var _fullSrc = 'data:'+_att.mimeType+';base64,'+_att.base64;
+          imgRecallHtml += '<div style="margin:8px 0 4px"><img src="'+_fullSrc+'" alt="recalled image" style="width:100%;max-width:480px;border-radius:10px;display:block;border:1px solid rgba(0,229,255,.2);cursor:zoom-in" onclick="_imgRecallExpandSrc(this.src)" title="Tap to expand · right-click for FRAX" oncontextmenu="event.preventDefault();openFraxStudio(this.src,\'upscale\',\'recall\')"></div>';
+        } else if (_att && _att.thumbnail) {
+          imgRecallHtml += '<div style="margin:8px 0 4px"><img src="'+_att.thumbnail+'" alt="recalled image" style="width:100%;max-width:480px;border-radius:10px;display:block;border:1px solid rgba(0,229,255,.2);cursor:zoom-in" onclick="_imgRecallExpandSrc(this.src)" title="Tap to expand"></div>';
+        }
+      }
+    }
     const _mid = m.id || ('mi-'+_idx);
     if(!m.id) m.id = _mid; // backfill so edit/resend find() works
     const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${_mid}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${_mid}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${_mid}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
-    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}" style="white-space:pre-wrap">${esc((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').trim())}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
+    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}" style="white-space:pre-wrap">${esc((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim())}</div>${imgRecallHtml}${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
@@ -9108,7 +9144,7 @@ function appendChatBubble(msg) {
   div.className = `msg ${cls}`;
   div.dataset.msgId = msgUniqueId;
   div.style.animation = 'fadeIn .3s ease';
-  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}" style="white-space:pre-wrap">${esc((msg.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').trim())}</div>${meta}${userBar}</div>`;
+  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}" style="white-space:pre-wrap">${esc((msg.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim())}</div>${meta}${userBar}</div>`;
   // Remove any typing indicator
   el.querySelector('.typing')?.remove();
   el.appendChild(div);
@@ -15643,6 +15679,15 @@ _syncActionBtn();
     +'When user says "generate more" or "add more", emit additional [ARC_CMD:add ...] without clearing.\n'
     +'When user says "clear scene" or "start over", emit [ARC_CMD:clear] before adding new arcs.';
 
+  // IMG_RECALL system — lets Autumn post full-size image previews in her chat bubble
+  window.IMG_RECALL_SYSTEM_HINT =
+    'IMAGE RECALL — You can display a full-size image preview directly in your chat response by emitting [IMG_RECALL:N] anywhere in your reply, where N is the 1-based index of the user\'s image-attached message (1 = first message where they uploaded an image, 2 = second, etc.). The image will render large inside your bubble — the tag itself is invisible to the user.\n'
+    +'Examples:\n'
+    +'  [IMG_RECALL:1]  — shows the image from the user\'s first attachment\n'
+    +'  [IMG_RECALL:2:1]  — shows the second image from the second attachment message\n'
+    +'When a user says "show me that image again", "post it bigger", "can you recall that photo", "show me a larger version", or anything asking you to re-display an attached image — emit [IMG_RECALL:N] in your response.\n'
+    +'You can combine it with text naturally: "Here\'s the image you shared — [IMG_RECALL:1] I can see the two people clearly..."';
+
   // Parse and execute ARC_CMD tags from Autumn's response text
   window._arcExecCommands = function(text) {
     if (!text || typeof text !== 'string') return;
@@ -16142,6 +16187,46 @@ function urlPreviewCollapse() {
 
 function urlPreviewNewTab() {
   if (_urlPreviewCurrentUrl) window.open(_urlPreviewCurrentUrl, '_blank', 'noopener');
+}
+
+// ── Inline image expand lightbox ────────────────────────────────────
+// Expands a thumbnail to full-size overlay when tapped in chat
+window._imgRecallExpandSrc = function(src) {
+  _imgLightboxShow(src);
+};
+
+window._imgRecallExpand = function(imgEl, msgId, thumbIdx) {
+  // Try to find full base64 from _savedAttachments first
+  var allMsgs = (typeof msgs==='function') ? msgs() : [];
+  var msg = allMsgs.find(function(m){ return m.id === msgId; });
+  if (msg && msg._savedAttachments && msg._savedAttachments[thumbIdx]) {
+    var att = msg._savedAttachments[thumbIdx];
+    if (att.base64 && att.mimeType) {
+      _imgLightboxShow('data:'+att.mimeType+';base64,'+att.base64);
+      return;
+    }
+  }
+  // Fallback: use thumbnail src
+  _imgLightboxShow(imgEl.src);
+};
+
+function _imgLightboxShow(src) {
+  var existing = document.getElementById('_img-lightbox');
+  if (existing) existing.remove();
+  var lb = document.createElement('div');
+  lb.id = '_img-lightbox';
+  lb.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;animation:fadeIn .18s ease';
+  lb.innerHTML =
+    '<div style="position:relative;max-width:96vw;max-height:92vh">'
+    +'<img src="'+src+'" style="max-width:96vw;max-height:88vh;object-fit:contain;border-radius:8px;display:block;box-shadow:0 0 60px rgba(0,0,0,.8)">'
+    +'<div style="position:absolute;bottom:-32px;left:0;right:0;display:flex;justify-content:center;gap:10px">'
+    +'<button onclick="openFraxStudio(\''+src+'\',\'upscale\',\'lb\');document.getElementById(\'_img-lightbox\').remove()" style="background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.4);color:#a78bfa;border-radius:5px;padding:5px 14px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:1.5px">◈ FRAX</button>'
+    +'<button onclick="(function(){var a=document.createElement(\'a\');a.href=\''+src+'\';a.download=\'autumn-image.png\';a.click()})()" style="background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);color:var(--cyan);border-radius:5px;padding:5px 14px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:1.5px">⬇ SAVE</button>'
+    +'<button onclick="document.getElementById(\'_img-lightbox\').remove()" style="background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.3);color:#ff4466;border-radius:5px;padding:5px 14px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:1.5px">✕ CLOSE</button>'
+    +'</div>'
+    +'</div>';
+  lb.addEventListener('click', function(e){ if(e.target===lb) lb.remove(); });
+  document.body.appendChild(lb);
 }
 
 // Auto-show preview button in link cards when URL intent detected
