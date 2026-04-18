@@ -328,56 +328,189 @@ function buildSelfPortraitPrompt(text, styleInfo) {
   return AUTUMN_IDENTITY.selfPortraitBase + attireOverride + ', ' + scene + recalledStyle + ', ' + styleInfo.suffix;
 }
 
-// OrbitControls UMD shim for Three.js r128
+// OrbitControls UMD shim for Three.js r128 — fluid pointer-capture edition
 (function(){
 if(typeof THREE==='undefined') return;
 THREE.OrbitControls=function(camera,domElement){
   this.camera=camera; this.domElement=domElement||document.body;
   this.enabled=true; this.enableDamping=false; this.dampingFactor=0.05;
   this.enableZoom=true; this.enableRotate=true; this.enablePan=true;
+  this.screenSpacePanning=true;
   this.target=new THREE.Vector3();
-  var _this=this, spherical=new THREE.Spherical(), sphericalDelta=new THREE.Spherical();
+  this.autoRotate=false; this.autoRotateSpeed=2.0;
+  this.zoomSpeed=1.0; this.rotateSpeed=1.0; this.panSpeed=1.0;
+  this.minDistance=0; this.maxDistance=Infinity;
+
+  var _this=this;
+  var spherical=new THREE.Spherical(), sphericalDelta=new THREE.Spherical();
   var scale=1, panOffset=new THREE.Vector3(), zoomChanged=false;
   var rotateStart=new THREE.Vector2(), rotateEnd=new THREE.Vector2(), rotateDelta=new THREE.Vector2();
-  var STATE={NONE:-1,ROTATE:0,DOLLY:1,PAN:2}, state=STATE.NONE;
+  var panStart=new THREE.Vector2(), panEnd=new THREE.Vector2(), panDelta=new THREE.Vector2();
+  // Touch pinch zoom
+  var touch0=new THREE.Vector2(), touch1=new THREE.Vector2(), prevPinchDist=0;
+  var STATE={NONE:-1,ROTATE:0,DOLLY:1,PAN:2,TOUCH_ROTATE:3,TOUCH_DOLLY_PAN:4}, state=STATE.NONE;
   var EPS=0.000001;
+
   function getAutoRotationAngle(){return 2*Math.PI/60/60*_this.autoRotateSpeed;}
   function getZoomScale(){return Math.pow(0.95,_this.zoomSpeed);}
-  function rotateLeft(angle){sphericalDelta.theta-=angle;}
-  function rotateUp(angle){sphericalDelta.phi-=angle;}
-  var v=new THREE.Vector3();
-  function panLeft(distance,objectMatrix){v.setFromMatrixColumn(objectMatrix,0);v.multiplyScalar(-distance);panOffset.add(v);}
-  function panUp(distance,objectMatrix){v.setFromMatrixColumn(objectMatrix,1);v.multiplyScalar(distance);panOffset.add(v);}
-  function pan(deltaX,deltaY){var el=_this.domElement;if(camera.isPerspectiveCamera){var pos=camera.position,targetDist=pos.clone().sub(_this.target).length(),th=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));panLeft(2*deltaX*targetDist*th/el.clientHeight,camera.matrix);panUp(2*deltaY*targetDist*th/el.clientHeight,camera.matrix);}else if(camera.isOrthographicCamera){panLeft(deltaX*(camera.right-camera.left)/camera.zoom/el.clientWidth,camera.matrix);panUp(deltaY*(camera.top-camera.bottom)/camera.zoom/el.clientHeight,camera.matrix);}}
-  this.autoRotate=false; this.autoRotateSpeed=2.0; this.zoomSpeed=1.0; this.rotateSpeed=1.0;
+  function rotateLeft(a){sphericalDelta.theta-=a;}
+  function rotateUp(a){sphericalDelta.phi-=a;}
+  var _v=new THREE.Vector3();
+  function panLeft(dist,mat){_v.setFromMatrixColumn(mat,0);_v.multiplyScalar(-dist);panOffset.add(_v);}
+  function panUp(dist,mat){
+    if(_this.screenSpacePanning){_v.setFromMatrixColumn(mat,1);}
+    else{_v.setFromMatrixColumn(mat,0);_v.crossVectors(camera.up,_v);}
+    _v.multiplyScalar(dist);panOffset.add(_v);
+  }
+  function pan(dx,dy){
+    var el=_this.domElement;
+    if(camera.isPerspectiveCamera){
+      var pos=camera.position,td=pos.clone().sub(_this.target).length(),th=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+      panLeft(2*dx*td*th/el.clientHeight*_this.panSpeed,camera.matrix);
+      panUp(2*dy*td*th/el.clientHeight*_this.panSpeed,camera.matrix);
+    } else if(camera.isOrthographicCamera){
+      panLeft(dx*(camera.right-camera.left)/camera.zoom/el.clientWidth*_this.panSpeed,camera.matrix);
+      panUp(dy*(camera.top-camera.bottom)/camera.zoom/el.clientHeight*_this.panSpeed,camera.matrix);
+    }
+  }
+
   this.update=function(){
-    var offset=new THREE.Vector3(), quat=new THREE.Quaternion().setFromUnitVectors(camera.up,new THREE.Vector3(0,1,0)), quatInverse=quat.clone().invert(), lastPos=new THREE.Vector3(), lastQuat=new THREE.Quaternion();
+    var offset=new THREE.Vector3(),
+        quat=new THREE.Quaternion().setFromUnitVectors(camera.up,new THREE.Vector3(0,1,0)),
+        quatInv=quat.clone().invert(),
+        lastPos=new THREE.Vector3(), lastQuat=new THREE.Quaternion();
     return function update(){
-      var position=camera.position; offset.copy(position).sub(_this.target); offset.applyQuaternion(quat);
+      var position=camera.position;
+      offset.copy(position).sub(_this.target);
+      offset.applyQuaternion(quat);
       spherical.setFromVector3(offset);
       if(_this.autoRotate&&state===STATE.NONE){rotateLeft(getAutoRotationAngle());}
-      if(_this.enableDamping){spherical.theta+=sphericalDelta.theta*_this.dampingFactor;spherical.phi+=sphericalDelta.phi*_this.dampingFactor;}
-      else{spherical.theta+=sphericalDelta.theta;spherical.phi+=sphericalDelta.phi;}
+      if(_this.enableDamping){
+        spherical.theta+=sphericalDelta.theta*_this.dampingFactor;
+        spherical.phi  +=sphericalDelta.phi  *_this.dampingFactor;
+      } else {
+        spherical.theta+=sphericalDelta.theta;
+        spherical.phi  +=sphericalDelta.phi;
+      }
       spherical.phi=Math.max(EPS,Math.min(Math.PI-EPS,spherical.phi));
-      spherical.makeSafe(); spherical.radius*=scale;
+      spherical.makeSafe();
+      spherical.radius=Math.max(_this.minDistance,Math.min(_this.maxDistance,spherical.radius*scale));
       _this.target.add(panOffset);
-      offset.setFromSpherical(spherical); offset.applyQuaternion(quatInverse);
-      position.copy(_this.target).add(offset); camera.lookAt(_this.target);
-      if(_this.enableDamping){sphericalDelta.theta*=(1-_this.dampingFactor);sphericalDelta.phi*=(1-_this.dampingFactor);panOffset.multiplyScalar(1-_this.dampingFactor);}
-      else{sphericalDelta.set(0,0,0);panOffset.set(0,0,0);}
+      offset.setFromSpherical(spherical);
+      offset.applyQuaternion(quatInv);
+      position.copy(_this.target).add(offset);
+      camera.lookAt(_this.target);
+      if(_this.enableDamping){
+        sphericalDelta.theta*=(1-_this.dampingFactor);
+        sphericalDelta.phi  *=(1-_this.dampingFactor);
+        panOffset.multiplyScalar(1-_this.dampingFactor);
+      } else {
+        sphericalDelta.set(0,0,0);
+        panOffset.set(0,0,0);
+      }
       scale=1; zoomChanged=false;
-      if(lastPos.distanceToSquared(camera.position)>EPS||8*(1-lastQuat.dot(camera.quaternion))>EPS){lastPos.copy(camera.position);lastQuat.copy(camera.quaternion);zoomChanged=true;}
+      if(lastPos.distanceToSquared(camera.position)>EPS||8*(1-lastQuat.dot(camera.quaternion))>EPS){
+        lastPos.copy(camera.position);lastQuat.copy(camera.quaternion);zoomChanged=true;
+      }
       return zoomChanged;
     };
   }();
-  this.dispose=function(){_this.domElement.removeEventListener('contextmenu',onContextMenu);_this.domElement.removeEventListener('pointerdown',onPointerDown);_this.domElement.removeEventListener('wheel',onMouseWheel);};
-  function onPointerDown(e){if(!_this.enabled)return;if(e.pointerType==='touch'){if(e.touches&&e.touches.length>1)return;rotateStart.set(e.clientX,e.clientY);}else if(e.button===0){rotateStart.set(e.clientX,e.clientY);}state=STATE.ROTATE;document.addEventListener('pointermove',onPointerMove);document.addEventListener('pointerup',onPointerUp);}
-  function onPointerMove(e){if(!_this.enabled||state!==STATE.ROTATE)return;rotateEnd.set(e.clientX,e.clientY);rotateDelta.subVectors(rotateEnd,rotateStart).multiplyScalar(_this.rotateSpeed);var el=_this.domElement;rotateLeft(2*Math.PI*rotateDelta.x/el.clientHeight);rotateUp(2*Math.PI*rotateDelta.y/el.clientHeight);rotateStart.copy(rotateEnd);}
-  function onPointerUp(){state=STATE.NONE;document.removeEventListener('pointermove',onPointerMove);document.removeEventListener('pointerup',onPointerUp);}
-  function onMouseWheel(e){if(!_this.enabled||!_this.enableZoom)return;e.preventDefault();if(e.deltaY<0){scale/=getZoomScale();}else{scale*=getZoomScale();}_this.update();}
+
+  this.dispose=function(){
+    var el=_this.domElement;
+    el.removeEventListener('contextmenu',onContextMenu);
+    el.removeEventListener('pointerdown',onPointerDown);
+    el.removeEventListener('pointermove',onPointerMove);
+    el.removeEventListener('pointerup',onPointerUp);
+    el.removeEventListener('wheel',onMouseWheel);
+  };
+
+  // ── Pointer events — use setPointerCapture for continuous tracking ──
+  // This is the key fix for stair-stepping: pointer capture means pointermove
+  // always fires on the element even when the pointer leaves it, with no
+  // document-level listener conflicts.
+  function onPointerDown(e){
+    if(!_this.enabled) return;
+    // Only left button or touch
+    if(e.button!==0 && e.pointerType!=='touch') return;
+    try { _this.domElement.setPointerCapture(e.pointerId); } catch(ex){}
+    if(e.pointerType==='touch'){
+      // Count active touches via pointerdown count tracking
+      _touchPointers.push(e.pointerId);
+      if(_touchPointers.length===1){
+        state=STATE.TOUCH_ROTATE;
+        rotateStart.set(e.clientX,e.clientY);
+      } else if(_touchPointers.length===2){
+        state=STATE.TOUCH_DOLLY_PAN;
+        // store initial pinch positions
+        var r=_this.domElement.getBoundingClientRect();
+        touch0.set(_touchCache[_touchPointers[0]]||e.clientX, 0);
+        touch1.set(e.clientX, e.clientY);
+        prevPinchDist=0; // will be set on first move
+        panStart.set(e.clientX,e.clientY);
+      }
+    } else {
+      if(e.shiftKey||e.button===2){state=STATE.PAN; panStart.set(e.clientX,e.clientY);}
+      else {state=STATE.ROTATE; rotateStart.set(e.clientX,e.clientY);}
+    }
+    _touchCache[e.pointerId]={x:e.clientX,y:e.clientY};
+  }
+  // Cache for multi-touch coords
+  var _touchPointers=[], _touchCache={};
+
+  function onPointerMove(e){
+    if(!_this.enabled) return;
+    _touchCache[e.pointerId]={x:e.clientX,y:e.clientY};
+    var el=_this.domElement;
+    if(state===STATE.ROTATE||state===STATE.TOUCH_ROTATE){
+      rotateEnd.set(e.clientX,e.clientY);
+      rotateDelta.subVectors(rotateEnd,rotateStart).multiplyScalar(_this.rotateSpeed);
+      rotateLeft(2*Math.PI*rotateDelta.x/el.clientHeight);
+      rotateUp(2*Math.PI*rotateDelta.y/el.clientHeight);
+      rotateStart.copy(rotateEnd);
+      _this.update();
+    } else if(state===STATE.PAN){
+      panEnd.set(e.clientX,e.clientY);
+      panDelta.subVectors(panEnd,panStart);
+      pan(panDelta.x,panDelta.y);
+      panStart.copy(panEnd);
+      _this.update();
+    } else if(state===STATE.TOUCH_DOLLY_PAN && _touchPointers.length>=2){
+      // Pinch zoom from two active pointers
+      var ids=_touchPointers, c0=_touchCache[ids[0]], c1=_touchCache[ids[1]];
+      if(c0&&c1){
+        var dist=Math.sqrt(Math.pow(c0.x-c1.x,2)+Math.pow(c0.y-c1.y,2));
+        if(prevPinchDist>0){
+          var ratio=prevPinchDist/dist;
+          scale*=ratio;
+        }
+        prevPinchDist=dist;
+        _this.update();
+      }
+    }
+  }
+
+  function onPointerUp(e){
+    try { _this.domElement.releasePointerCapture(e.pointerId); } catch(ex){}
+    var idx=_touchPointers.indexOf(e.pointerId);
+    if(idx>=0) _touchPointers.splice(idx,1);
+    delete _touchCache[e.pointerId];
+    if(_touchPointers.length===0) state=STATE.NONE;
+    else if(_touchPointers.length===1){ state=STATE.TOUCH_ROTATE; rotateStart.set(_touchCache[_touchPointers[0]].x,_touchCache[_touchPointers[0]].y); }
+  }
+
+  function onMouseWheel(e){
+    if(!_this.enabled||!_this.enableZoom) return;
+    e.preventDefault(); e.stopPropagation();
+    if(e.deltaY<0){scale/=getZoomScale();}else{scale*=getZoomScale();}
+    _this.update();
+  }
   function onContextMenu(e){if(!_this.enabled)return;e.preventDefault();}
-  _this.domElement.addEventListener('contextmenu',onContextMenu);
-  _this.domElement.addEventListener('pointerdown',onPointerDown);
+
+  _this.domElement.addEventListener('contextmenu',onContextMenu,false);
+  _this.domElement.addEventListener('pointerdown',onPointerDown,false);
+  _this.domElement.addEventListener('pointermove',onPointerMove,false);
+  _this.domElement.addEventListener('pointerup',  onPointerUp,  false);
   _this.domElement.addEventListener('wheel',onMouseWheel,{passive:false});
   this.update();
 };
@@ -1614,7 +1747,6 @@ select.ash-ctrl-input{cursor:pointer}
         </div>
         <div class="as-btn-row">
           <button class="as-btn primary" onclick="arcStudioAddArc()">+ ADD ARC</button>
-          <button class="as-btn secondary" onclick="arcStudioMeasure()">⊞ MEASURE</button>
           <button class="as-btn secondary" onclick="arcStudioClearInputs()">↺ INPUTS</button>
           <button class="as-btn danger" onclick="arcStudioClearScene()">✕ SCENE</button>
         </div>
@@ -15204,7 +15336,7 @@ _syncActionBtn();
     // NO damping, full pan/zoom/rotate
     if (typeof THREE.OrbitControls !== 'undefined') {
       _as.controls = new THREE.OrbitControls(_as.camera, _as.renderer.domElement);
-      _as.controls.enableDamping      = false;
+      _as.controls.enableDamping      = true;
       _as.controls.enablePan          = true;
       _as.controls.enableZoom         = true;
       _as.controls.rotateSpeed        = 0.55;
