@@ -15128,11 +15128,11 @@ _syncActionBtn();
         if (idx >= 0) {
           // Deselect old
           if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
-            _as.arcs[_as.selectedArc].line.material.color.setHex(0x00e5ff);
+            _as.arcs[_as.selectedArc].line.material.color.setHex(0x00ff88);
           }
-          // Select new — highlight yellow
+          // Select new — neon hot-pink
           _as.selectedArc = idx;
-          _as.arcs[idx].line.material.color.setHex(0xffee00);
+          _as.arcs[idx].line.material.color.setHex(0xff1166);
           // Show its measurements in readout
           var ap = _as.arcs[idx].params;
           var pts2 = _asCalcPoints(ap);
@@ -15155,7 +15155,7 @@ _syncActionBtn();
       } else {
         // Click on empty space — deselect
         if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
-          _as.arcs[_as.selectedArc].line.material.color.setHex(0x00e5ff);
+          _as.arcs[_as.selectedArc].line.material.color.setHex(0x00ff88);
           _as.selectedArc = null;
           _asUpdateReadout();
         }
@@ -15221,7 +15221,7 @@ _syncActionBtn();
     var pts = _asCalcPoints(p);
     var geo = new THREE.BufferGeometry().setFromPoints(pts);
     // Each arc gets its OWN material so selection colouring is independent
-    var mat = new THREE.LineBasicMaterial({color:0x00e5ff, linewidth:2});
+    var mat = new THREE.LineBasicMaterial({color:0x00ff88, linewidth:2});
     var line = new THREE.Line(geo, mat);
     _as.scene.add(line);
     // Measure arc length
