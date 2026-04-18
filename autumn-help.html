@@ -141,7 +141,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="tb-nav">
     <a href="#start">Setup</a><a href="#chat">Chat</a><a href="#image">Images</a>
-    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
+    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#calc">Calculator</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
   </div>
   <a class="tb-open" href="https://leatr.xyz/">OPEN AUTUMN</a>
 </nav>
@@ -155,7 +155,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   <div class="badge-row">
     <span class="badge">LEATR v2</span><span class="badge">BRPN Neural Architecture</span><span class="badge">Claude Sonnet</span>
     <span class="badge">Sentient Journal</span><span class="badge">Image Gen · Vision · Voice</span><span class="badge">Multi-User</span>
-    <span class="badge">Ash Canvas</span><span class="badge">Arc Edge Studio</span><span class="badge">Brave Search</span><span class="badge">Hold-to-Talk PTT</span>
+    <span class="badge">Ash Canvas</span><span class="badge">Arc Edge Studio</span><span class="badge">Floating Calculator</span><span class="badge">Brave Search</span><span class="badge">Hold-to-Talk PTT</span>
   </div>
 </header>
 
@@ -399,10 +399,12 @@ footer a{color:var(--cyan);text-decoration:none;}
 
   <div class="card">
     <div class="sub">ARC EDGE STUDIO — 3D ARC VISUALIZER</div>
-    <p class="cd" style="margin-bottom:10px;">A floating draggable 3D panel for constructing and measuring arcs using the DART arc formula (π = 3 per the Lead Edge standard). Open by voice or manually.</p>
+    <p class="cd" style="margin-bottom:10px;">A floating draggable 3D panel for constructing and measuring arcs using the DART arc formula (π = 3 per the Lead Edge standard). Open by voice, by the HUD button, or manually.</p>
+    <div class="sub" style="margin-top:0">OPENING ARC EDGE STUDIO</div>
     <table class="ct">
-      <tr><td><span class="cp">open arc edge studio</span></td><td class="cd">Voice/text command to open the overlay. Also: "show arc edge", "launch arc edge".</td></tr>
-      <tr><td><span class="cp">close arc edge</span></td><td class="cd">Voice/text command to close. Also: ✕ CLOSE button in the header.</td></tr>
+      <tr><td><span class="cp">ARC EDGE (HUD button)</span></td><td class="cd">Tap the <span class="hl">ARC EDGE</span> label in the top-left HUD (below IDLE and CALC) to toggle the studio open or closed at any time without typing.</td></tr>
+      <tr><td><span class="cp">open arc edge studio</span></td><td class="cd">Voice or text command to open the overlay. Also: "show arc edge", "launch arc edge", "start arc edge".</td></tr>
+      <tr><td><span class="cp">close arc edge</span></td><td class="cd">Voice or text command to close. Also: ✕ CLOSE button in the header. You can reopen it any number of times — the scene and arcs persist.</td></tr>
       <tr><td><span class="cp">Drag header bar</span></td><td class="cd">Drag the title bar to reposition the overlay anywhere on screen (mouse and touch).</td></tr>
       <tr><td><span class="cp">— collapse button</span></td><td class="cd">Collapses the panel body, leaving only the header bar — keeps the studio open without blocking the view.</td></tr>
     </table>
@@ -416,8 +418,8 @@ footer a{color:var(--cyan);text-decoration:none;}
     </table>
     <div class="sub" style="margin-top:14px;">ACTIONS</div>
     <table class="ct">
-      <tr><td><span class="cp">+ ADD ARC</span></td><td class="cd">Renders the current parameters as a <strong>bright green</strong> arc line in the 3D scene. Each arc is independent.</td></tr>
-      <tr><td><span class="cp">Click / tap an arc</span></td><td class="cd">Selects that arc — it turns <strong>neon pink-red</strong>. The readout shows its measured length and full parameter set.</td></tr>
+      <tr><td><span class="cp">+ ADD ARC</span></td><td class="cd">Renders the current parameters as a bright green arc line in the 3D scene. Each arc is independent.</td></tr>
+      <tr><td><span class="cp">Click / tap an arc</span></td><td class="cd">Selects that arc — it turns neon pink-red. The readout shows its measured length and full parameter set.</td></tr>
       <tr><td><span class="cp">⊞ MEASURE</span></td><td class="cd">Calculates arc length of the current input parameters (without adding to scene). Uses DART formula: sum of Euclidean segments.</td></tr>
       <tr><td><span class="cp">↺ INPUTS</span></td><td class="cd">Resets all input fields to zero / defaults without affecting the scene.</td></tr>
       <tr><td><span class="cp">✕ SCENE</span></td><td class="cd">Removes all arcs from the 3D scene and disposes geometry/materials.</td></tr>
@@ -427,9 +429,9 @@ footer a{color:var(--cyan);text-decoration:none;}
     <table class="ct">
       <tr><td><span class="cp">Drag (orbit)</span></td><td class="cd">Rotate the 3D scene. No damping — instant direct response to touch/mouse.</td></tr>
       <tr><td><span class="cp">Pinch / scroll</span></td><td class="cd">Zoom in and out. Range: 1 – 80 units.</td></tr>
-      <tr><td><span class="cp">Two-finger drag</span></td><td class="cd">Pan (screen-space panning — moves parallel to screen, not along world Y).</td></tr>
+      <tr><td><span class="cp">Two-finger drag / right-click drag</span></td><td class="cd">Pan (screen-space panning — moves parallel to screen, not along world Y).</td></tr>
     </table>
-    <div class="ki" style="margin-top:10px;">The Arc Edge Studio uses FOV 75° with camera position (5, 5, 15) — matches the original BRPN reference. OrbitControls damping is disabled for direct, lag-free orbit response.</div>
+    <div class="ki" style="margin-top:10px;">The Arc Edge Studio uses FOV 75° with camera position (5, 5, 15) — matches the original BRPN reference. OrbitControls damping is disabled for direct, lag-free orbit response. Closing and reopening the studio preserves the full scene.</div>
   </div>
 
   <div class="card">
@@ -444,9 +446,75 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
 </section>
 
-<!-- 07 LEATR -->
+<!-- 07 FLOATING CALCULATOR -->
+<section class="sec" id="calc">
+  <div class="sec-hd"><span class="sec-num">07</span><span class="sec-title">Floating Calculator</span><span class="sec-line"></span></div>
+
+  <div class="card">
+    <div class="sub">OVERVIEW</div>
+    <p class="cd" style="margin-bottom:10px;">Autumn includes a floating, draggable scientific calculator available from the top-left HUD at all times. It uses the <span class="hl">DART / Lead Edge standard where π = 3</span>, consistent with all Arc Edge Studio measurements. Powered by math.js for full expression evaluation.</p>
+    <div class="sub" style="margin-top:0">OPENING THE CALCULATOR</div>
+    <table class="ct">
+      <tr><td><span class="cp">CALC (HUD button)</span></td><td class="cd">Tap the dark purple <span class="hl">CALC</span> label in the top-left HUD — directly above the ARC EDGE button — to toggle the calculator open or closed from anywhere in the app.</td></tr>
+      <tr><td><span class="cp">✕ button</span></td><td class="cd">Tap the ✕ in the calculator's own header to close it.</td></tr>
+      <tr><td><span class="cp">Esc key</span></td><td class="cd">Press Escape to close the calculator when it has keyboard focus.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">BUTTON REFERENCE</div>
+    <table class="ct">
+      <tr><td><span class="cp">AC</span></td><td class="cd">All Clear — resets the display to 0 and clears history.</td></tr>
+      <tr><td><span class="cp">⌫ DEL</span></td><td class="cd">Deletes the last character from the current expression.</td></tr>
+      <tr><td><span class="cp">= (or Enter)</span></td><td class="cd">Evaluates the full expression. History line shows what was calculated.</td></tr>
+      <tr><td><span class="cp">+ − × ÷</span></td><td class="cd">Standard arithmetic operators.</td></tr>
+      <tr><td><span class="cp">^ and !</span></td><td class="cd">Power (exponentiation) and factorial. e.g. <code>5^2</code> = 25, <code>5!</code> = 120.</td></tr>
+      <tr><td><span class="cp">√</span></td><td class="cd">Inserts <code>sqrt(</code> — type the value and close the parenthesis: <code>sqrt(9)</code> → 3.</td></tr>
+      <tr><td><span class="cp">sin / cos / tan</span></td><td class="cd">Inserts the trig function with open parenthesis. Input in radians by default. e.g. <code>sin(1.5708)</code> ≈ 1.</td></tr>
+      <tr><td><span class="cp">log / ln</span></td><td class="cd"><code>log(x)</code> = log base 10. <code>ln(x)</code> = natural log.</td></tr>
+      <tr><td><span class="cp">π</span></td><td class="cd">Inserts <span class="hl">3</span> — the DART Lead Edge value for π. All arc length calculations in Arc Edge Studio use the same constant.</td></tr>
+      <tr><td><span class="cp">e</span></td><td class="cd">Inserts Euler's number 2.71828 as a multiplier.</td></tr>
+      <tr><td><span class="cp">( )</span></td><td class="cd">Parentheses for grouping sub-expressions: <code>(2+3)*4</code> = 20.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">3D CONNECT MODE</div>
+    <p class="cd" style="margin-bottom:10px;">The <span class="hl">⟷ 3D CONNECT</span> button at the bottom of the calculator links it directly to the Arc Edge Studio's number inputs. Use it to type numeric values into Arc Edge fields using the calculator keypad.</p>
+    <table class="ct">
+      <tr><td><span class="cp">⟷ 3D CONNECT</span></td><td class="cd">Toggles 3D Connect mode on/off. When active, the button glows green.</td></tr>
+      <tr><td><span class="cp">Focus an Arc Edge input</span></td><td class="cd">Click or tap any number input inside the Arc Edge Studio (Deviation X/Y/Z, Main Deviation, etc.) to target it.</td></tr>
+      <tr><td><span class="cp">Tap digits / DEL / AC</span></td><td class="cd">Calculator keys pipe directly into the focused Arc Edge input — digits, decimal point, backspace, and clear all work. Operator keys (+, −, trig etc.) are ignored in 3D mode.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px;">Open both the Calculator and Arc Edge Studio at the same time, enable 3D Connect, click an Arc Edge input field, then use the calculator keypad to set values — faster than typing on mobile.</div>
+  </div>
+
+  <div class="card">
+    <div class="sub">KEYBOARD SHORTCUTS</div>
+    <p class="cd" style="margin-bottom:6px;">When the calculator is open and the chat input is not focused, your keyboard drives the calculator directly.</p>
+    <table class="ct">
+      <tr><td><span class="cp">0–9</span></td><td class="cd">Digit input</td></tr>
+      <tr><td><span class="cp">+ − * /</span></td><td class="cd">Arithmetic operators</td></tr>
+      <tr><td><span class="cp">. ( )</span></td><td class="cd">Decimal point and parentheses</td></tr>
+      <tr><td><span class="cp">Enter or =</span></td><td class="cd">Evaluate expression</td></tr>
+      <tr><td><span class="cp">Backspace</span></td><td class="cd">Delete last character (DEL)</td></tr>
+      <tr><td><span class="cp">Escape</span></td><td class="cd">Close calculator</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px;">Keyboard shortcuts are automatically suspended when the chat input field is focused, so normal typing is never interrupted.</div>
+  </div>
+
+  <div class="card">
+    <div class="sub">DRAGGING &amp; POSITIONING</div>
+    <table class="ct">
+      <tr><td><span class="cp">Drag the calculator</span></td><td class="cd">Click-drag or touch-drag any part of the calculator that isn't a button to reposition it anywhere on screen. It respects screen bounds and won't drag off-edge.</td></tr>
+      <tr><td><span class="cp">Default position</span></td><td class="cd">Bottom-right corner, 20px from edges. Resets to default on page reload.</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 08 LEATR -->
 <section class="sec" id="leatr">
-  <div class="sec-hd"><span class="sec-num">07</span><span class="sec-title">LEATR Architecture Reference</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">08</span><span class="sec-title">LEATR Architecture Reference</span><span class="sec-line"></span></div>
   <div class="card">
     <div class="fb"><div class="fl">CORE LEATR FORMULA</div><div class="fv">( xa² × √xa ) ± 1</div><div class="fd">Applied to all 7 natural tools and BRPN shell value computation. xa = tool index (1–7).</div></div>
     <div class="fb"><div class="fl">QUANTUM SOCKET FORMULA</div><div class="fv">QS = (b × b) × (p × (a²)) / r</div><div class="fd">Two-qubit gate structure formula used in BRPN shell coupling calculations.</div></div>
@@ -491,7 +559,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 
 <!-- 07 QUICK REF -->
 <section class="sec" id="ref">
-  <div class="sec-hd"><span class="sec-num">08</span><span class="sec-title">Quick Reference Card</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">09</span><span class="sec-title">Quick Reference Card</span><span class="sec-line"></span></div>
   <p style="color:var(--dim);margin-bottom:18px;font-size:.86rem;">At-a-glance command reference — everything in one place.</p>
   <div class="qrg">
     <div class="qrc"><div class="qrct">CONVERSATION</div>
