@@ -13562,6 +13562,12 @@ const _ASH_SYNTAX_URL = _ASH_DEFS_BASE + 'syntaxdefinitions.json';
 const _ASH_INSTR_URL  = _ASH_DEFS_BASE + 'instructionset.json';
 const _ASH_OUTPUT_URL = _ASH_DEFS_BASE + 'outputdefinitions.json';
 
+// Inlined fallback defs — used immediately so no fetch is needed.
+// This prevents 404 errors when running locally or from a downloaded file.
+const _ASH_INLINE_SYNTAX = {"tokens":[{"type":"comment","regex":"\\/\\/.*"},{"type":"node-block-start","regex":"\\([a-zA-Z0-9_]+\\):-:\\{"},{"type":"node-block-end","regex":"\\}\\[\\';\\'\\/"},{"type":"keyword","regex":"\\b(with|var|Var|Input|when|thenplace|place|irin|irout)\\b"},{"type":"function-def","regex":"\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"},{"type":"string","regex":"\"[^\"]*\""},{"type":"number","regex":"\\b\\d+(\\.\\d+)?\\b"},{"type":"operator","regex":"[=+\\-*\\/()]"},{"type":"delimiter","regex":"[:(),;]"},{"type":"whitespace","regex":"\\s+"},{"type":"error","regex":"."}],"parser_rules":{"node_block":{"start_token":"node-block-start","end_token":"node-block-end"}}};
+const _ASH_INLINE_INSTR = {"ast_node_mappings":{"NodeBlock":{"runtime_function":"executeNodeBlock","argument_source":"node"},"KeywordStatement":{"runtime_function":"executeKeywordStatement","argument_source":"node"},"FunctionCall":{"runtime_function":"executeLegacyFunction","argument_source":"node"}},"keyword_functions":{"irin":"runtime_irin","irout":"runtime_irout","thenplace":"runtime_thenplace"}};
+const _ASH_INLINE_OUTPUT = {"templates":{"node_start":"<div class='output-node'><div class='node-header'>NODE START &#9658; <span class='node-name'>{{name}}</span></div><div class='node-body'>","node_end":"</div><div class='node-footer'>&#9668; NODE END: <span class='node-name'>{{name}}</span></div></div>","keyword_irin":"<p class='output-keyword-in'>&#8594; <strong>irin:</strong> <span class='data-value'>{{data}}</span></p>","keyword_irout":"<p class='output-keyword-out'>&#8592; <strong>irout:</strong> <span class='data-value'>{{result}}</span></p>","keyword_thenplace":"<p class='output-action'>&#10227; <strong>thenplace:</strong> Placing <span class='target'>{{target}}</span> with <span class='source'>{{source}}</span></p>","generic_log":"<p class='output-log'>{{message}}</p>","error":"<p class='output-error'><strong>ERROR:</strong> {{message}}</p>"}};
+
 // ── Ash IDE State ───────────────────────────────────────────────────────
 const _ashState = {
   tab: 'language',          // 'language' | 'maze' | 'crypto'
@@ -13581,16 +13587,20 @@ const _ashState = {
 // ── Load Ash language defs from GitHub ─────────────────────────────────
 async function ashLoadDefs() {
   if (_ashState.defsLoaded) return;
+  // Use inlined defs immediately — works offline, locally, and from downloaded files
+  _ashState.syntaxDefs  = _ASH_INLINE_SYNTAX;
+  _ashState.instrDefs   = _ASH_INLINE_INSTR;
+  _ashState.outputDefs  = _ASH_INLINE_OUTPUT;
+  _ashState.defsLoaded  = true;
+  // Optionally upgrade from server files (silent — never blocks or errors)
   try {
     const [s,i,o] = await Promise.all([
-      fetch(_ASH_SYNTAX_URL).then(r=>r.json()),
-      fetch(_ASH_INSTR_URL).then(r=>r.json()),
-      fetch(_ASH_OUTPUT_URL).then(r=>r.json())
+      fetch(_ASH_SYNTAX_URL).then(r=>{ if(!r.ok) throw new Error('skip'); return r.json(); }),
+      fetch(_ASH_INSTR_URL).then(r=>{ if(!r.ok) throw new Error('skip'); return r.json(); }),
+      fetch(_ASH_OUTPUT_URL).then(r=>{ if(!r.ok) throw new Error('skip'); return r.json(); })
     ]);
     _ashState.syntaxDefs = s; _ashState.instrDefs = i; _ashState.outputDefs = o;
-    _ashState.defsLoaded = true;
-    console.log('[Ash] Definition files loaded from dartide/');
-  } catch(e) { console.warn('[Ash] Could not load defs:', e.message); }
+  } catch(e) { /* offline or local — inlined defs already active, no error */ }
 }
 
 // ── DART_PROCESSOR (Ash language compiler) ──────────────────────────────
@@ -13607,7 +13617,7 @@ const DART_PROCESSOR = {
     el.appendChild(div); el.scrollTop = el.scrollHeight;
   },
   lex(code) {
-    const defs = _ashState.syntaxDefs || this.syntaxDefs;
+    const defs = _ashState.syntaxDefs || this.syntaxDefs || _ASH_INLINE_SYNTAX;
     if (!defs) return [{type:'text',value:code}];
     const tokens = []; let remaining = code;
     while (remaining.length > 0) {
