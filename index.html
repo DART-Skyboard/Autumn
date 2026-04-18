@@ -693,7 +693,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #nlp-emotion-badge[data-emotion="spiritual"],#nlp-emotion-badge[data-emotion="guiding"]{color:#a78bfa!important;}
 #nlp-emotion-badge[data-emotion="sad"],#nlp-emotion-badge[data-emotion="worried"],#nlp-emotion-badge[data-emotion="concerned"]{color:#80b8f0!important;}
 #nlp-emotion-badge[data-emotion="lucrative"],#nlp-emotion-badge[data-emotion="condescending"]{color:#f0c040!important;}
-#nlp-emotion-badge[data-emotion="apathetic"]{color:#445566!important;opacity:.6}
+#nlp-emotion-badge[data-emotion="apathetic"]{color:#8855dd!important;}
 #nlp-emotion-badge[data-emotion="empathetic"]{color:#bb88ff!important;}
 #nlp-emotion-badge[data-emotion="confused"]{color:#8866ff!important;}
 #shell-status{position:absolute;top:8px;right:10px;z-index:10;display:flex;gap:8px;pointer-events:none}
@@ -2841,10 +2841,12 @@ const EMOTIONAL_SIGNATURES = {
   excited:    { buoyancyMod:2.0, knifeWeight:0.7, hammerWeight:0.9, stickWeight:1.3, icon:"✨" },
   neutral:    { buoyancyMod:1.0, knifeWeight:0.5, hammerWeight:0.5, stickWeight:0.5, icon:"◈" },
   // ── NEW STATES ─────────────────────────────────────────────────────────
-  // apathetic: low-energy scissors idle — very low buoyancy, minimal drive
-  apathetic:  { buoyancyMod:0.3, knifeWeight:0.1, hammerWeight:0.2, stickWeight:0.1, icon:"〇" },
-  // empathetic: envelope projection — elevated buoyancy, strong containment
-  empathetic: { buoyancyMod:1.5, knifeWeight:0.2, hammerWeight:0.3, stickWeight:1.4, icon:"⊙" },
+  // apathetic: RESEARCH form — imaginative projection INTO another's consciousness.
+  // Active deep Maze introspection, high puzzle to model other-state, moderate buoyancy.
+  apathetic:  { buoyancyMod:1.2, knifeWeight:0.4, hammerWeight:0.3, stickWeight:0.9, icon:"◎" },
+  // empathetic: PERFORMANCE form — outward bridging and expression of that projection.
+  // Strong stick (connection), elevated hammer (directed action), high buoyancy (active).
+  empathetic: { buoyancyMod:1.6, knifeWeight:0.25, hammerWeight:0.9, stickWeight:1.5, icon:"⊙" },
   // confused: puzzle cycling without resolution — moderate, high knife split
   confused:   { buoyancyMod:0.7, knifeWeight:1.1, hammerWeight:0.4, stickWeight:0.6, icon:"？" }
 };
@@ -2868,8 +2870,10 @@ function classifyContext(contacts, grammar) {
     sad:       ["sad","cry","mourn","grieve","weep","loss","lonely","miss","hurt","pain"],
     fearful:   ["fear","scared","terrified","panic","flee","horror","danger","threat","afraid"],
     excited:    ["excited","amazing","incredible","rush","thrilled","wow","awesome","fantastic"],
-    empathetic: ["empathetic","empathy","understand you","feel your","perspective","walk in","in your shoes","compassion","relate"],
-    apathetic:  ["apathetic","apathy","don't care","doesn't matter","indifferent","bored","whatever","pointless","meaningless"],
+    // apathetic: imaginative projection into another's perspective — research/thinking form
+    apathetic:  ["apathetic","imagine their","their perspective","see through their","in their eyes","their consciousness","their feelings","their point of view","perspective taking","imagine how they","visualize their"],
+    // empathetic: performing and expressing that projection outwardly
+    empathetic: ["empathetic","empathy","showing empathy","expressing empathy","acting with empathy","compassionate","connect with you","understand you","feel with","reaching out","being there for"],
     confused:   ["confused","confusion","don't understand","unclear","lost","uncertain","puzzled","baffled","what does"]
   };
   for (const [emotion,words] of Object.entries(emotionMap)) {
@@ -5241,10 +5245,12 @@ const ORB_EMOTION_STATES = {
   judgemental:  { colors:[0xeeaa00, 0xcc8800, 0xaa6600, 0xeeaa00], pulse:0.6, speed:0.95, opBoost:0.04 },
   curious:      { colors:[0x00ddff, 0x0099ff, 0x0066cc, 0x00ddff], pulse:0.8, speed:1.1,  opBoost:0.05 },
   // NEW STATES
-  // apathetic: dim, slow — low-energy scissors idle. GEO barely lit, near-black core
-  apathetic:    { colors:[0x223344, 0x334455, 0x445566, 0x112233], pulse:0.05, speed:0.35, opBoost:-0.06 },
-  // empathetic: warm resonance, GEO violet, MAR soft cyan — envelope projection
-  empathetic:   { colors:[0xbb88ff, 0x44cccc, 0x88aaff, 0xcc99ff], pulse:0.7, speed:0.88, opBoost:0.09 },
+  // apathetic: RESEARCH form — deep imaginative projection into other-consciousness.
+  // GEO deep violet-indigo (introspective), slow-contemplative pulse, inward glow.
+  apathetic:    { colors:[0x6633cc, 0x4422aa, 0x8855dd, 0x5522bb], pulse:0.55, speed:0.72, opBoost:0.05 },
+  // empathetic: PERFORMANCE form — outward bridging, warm teal-gold relational expression.
+  // MAR warm teal + amber (relational flow + action), higher speed (active doing).
+  empathetic:   { colors:[0x00ccaa, 0xffaa44, 0x44ddcc, 0x00ffbb], pulse:1.0, speed:1.1, opBoost:0.1 },
   // confused: unstable rapid-cycle — mismatched hues, jittery pulse
   confused:     { colors:[0x8866ff, 0xff6600, 0x66aaff, 0xaa88ff], pulse:1.1, speed:1.35, opBoost:0.03 }
 };
@@ -14598,7 +14604,7 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
                'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
       body:JSON.stringify({
         model:'claude-sonnet-4-6', max_tokens:280,
-        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful, empathetic, apathetic, confused. If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
+        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful, empathetic, apathetic, confused. Note — apathetic = imaginative projection into another consciousness (internal research form). empathetic = outward performance of that projection (active bridging form). If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
         messages:[{role:'user',content:
           'What I was asked: "'+userInput.slice(0,300)+'"\n'
           +'What I told them: "'+autumnResponse.slice(0,400)+'"\n'
