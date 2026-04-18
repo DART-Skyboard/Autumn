@@ -1728,6 +1728,7 @@ select.ash-ctrl-input{cursor:pointer}
     <button class="hdr-btn" onclick="window.open('autumn-privacy.html', '_blank')" title="Data Policy" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">POLICY</button>
     <button class="hdr-btn" id="view-toggle-btn" onclick="toggleViewMode()" title="Toggle mobile/desktop view">📱</button>
     <button class="hdr-btn" onclick="openIDE()" title="Autumn Logic IDE" style="color:rgba(0,255,204,.75);border-color:rgba(0,255,204,.28)">◈ IDE</button>
+    <button class="hdr-btn" onclick="openNate()" title="N.A.T.E — Neutral Audio Tonal Exertion Engine (admin)" style="color:rgba(167,139,250,.7);border-color:rgba(167,139,250,.3)">◈ NATE</button>
     <a class="hdr-btn draft-drip-btn" href="https://leatr.xyz/amp.html" target="_blank" rel="noopener" title="Draft &amp; Drip — design lounge &amp; industry reads">
       <span class="dd-cup">☕</span><span class="dd-label">DRAFT &amp; DRIP</span>
     </a>
@@ -16784,7 +16785,63 @@ _syncActionBtn();
   };
 
   // ── Visibility ─────────────────────────────────────────────────
-  window.fcToggle = function() {
+  // ═══════════════════════════════════════════════════════════════
+//  N.A.T.E integration — open engine + apply voice from config
+// ═══════════════════════════════════════════════════════════════
+window.openNate = function() {
+  // Open nate.html — pass a session token so it knows we came from Autumn
+  var w = window.open('nate.html', '_nate_engine');
+  if (!w) {
+    // Fallback: same-tab navigate
+    sessionStorage.setItem('_nate_unlocked', '1');
+    window.location.href = 'nate.html';
+  }
+};
+
+// ── Read NATE voice config and apply to Autumn's TTS ────────────
+(function _applyNateVoiceIfActive() {
+  try {
+    var cfg = JSON.parse(localStorage.getItem('_nate_voice_config') || 'null');
+    if (!cfg || !cfg.nateActive || !cfg.params) return;
+    var p = cfg.params;
+    // Apply to Autumn's Voice object
+    if (typeof Voice !== 'undefined') {
+      if (p.speed  !== undefined) Voice.speed  = p.speed;
+      if (p.pitch  !== undefined) Voice.pitch  = p.pitch;
+    }
+    // Store for _speakWebSpeech to read
+    window._nateVoiceParams = p;
+    console.log('[NATE] Voice config applied:', p.pitch, p.speed);
+  } catch(e) {}
+})();
+
+// ── Patch _speakWebSpeech to use NATE params when active ────────
+(function _patchTTSForNate() {
+  var _origWSS = window._speakWebSpeech;
+  if (typeof _origWSS !== 'function') {
+    // Retry after DOM ready
+    window.addEventListener('load', _patchTTSForNate);
+    return;
+  }
+  window._speakWebSpeech = function(text, onEnd) {
+    var np = window._nateVoiceParams;
+    if (!np) return _origWSS(text, onEnd); // baseline untouched
+    // Temporarily override Voice speed/pitch from NATE config
+    var origSpeed = Voice.speed, origPitch = Voice.pitch;
+    Voice.speed = np.speed || 1.0;
+    Voice.pitch = np.pitch || 1.0;
+    // Run original (it reads Voice.speed and Voice.pitch internally)
+    _origWSS(text, function() {
+      // Restore after utterance
+      Voice.speed = origSpeed;
+      Voice.pitch = origPitch;
+      if (onEnd) onEnd();
+    });
+  };
+})();
+
+window.fcToggle = function() {
+
     var el = document.getElementById('float-calc');
     if (!el) return;
     var visible = el.classList.toggle('fc-visible');
