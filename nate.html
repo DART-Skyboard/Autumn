@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>N.A.T.E — Neutral Audio Tonal Exertion Engine</title>
+<link rel="icon" href="assets/favicon.ico">
+<style>
+/* ═══ BASE ═══════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#030810;--bg2:#060f1a;--bg3:#0a1520;
+  --cyan:#00e5ff;--violet:#a78bfa;--green:#00ff88;--gold:#ffb347;
+  --red:#ff4466;--blue:#0088ff;
+  --border:rgba(0,229,255,.12);--dim:rgba(224,244,255,.4);
+  --font-d:'Orbitron',monospace;--font-b:'Exo 2',sans-serif;
+}
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Exo+2:wght@300;400;500&display=swap');
+html,body{height:100%;background:var(--bg);color:#e0f4ff;font-family:var(--font-b);overflow-x:hidden}
+
+/* ═══ LOGIN GATE ═══════════════════════════════════════════════════ */
+#nate-gate{position:fixed;inset:0;background:var(--bg);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+#nate-gate.hidden{display:none}
+.gate-logo{font-family:var(--font-d);font-size:1.8rem;letter-spacing:4px;
+  background:linear-gradient(135deg,var(--violet),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.gate-sub{font-size:.55rem;letter-spacing:3px;color:rgba(167,139,250,.55);font-family:var(--font-d)}
+.gate-input{width:280px;padding:10px 14px;background:rgba(167,139,250,.08);
+  border:1px solid rgba(167,139,250,.3);border-radius:6px;color:#e0f4ff;
+  font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;outline:none;text-align:center}
+.gate-btn{padding:9px 28px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.4);
+  color:var(--violet);border-radius:5px;cursor:pointer;font-family:var(--font-d);
+  font-size:.5rem;letter-spacing:2px;transition:all .2s}
+.gate-btn:hover{background:rgba(167,139,250,.22);color:#fff}
+.gate-err{font-size:.45rem;color:var(--red);letter-spacing:1px;min-height:14px;font-family:var(--font-d)}
+.gate-back{font-size:.42rem;color:var(--dim);letter-spacing:1px;text-decoration:none;
+  border-bottom:1px solid rgba(224,244,255,.15);padding-bottom:2px}
+
+/* ═══ MAIN APP ═══════════════════════════════════════════════════════ */
+#nate-app{display:none;flex-direction:column;min-height:100vh}
+#nate-app.active{display:flex}
+
+/* Header */
+#nate-header{display:flex;align-items:center;gap:14px;padding:12px 18px;
+  background:rgba(3,8,16,.95);border-bottom:1px solid rgba(167,139,250,.15);
+  position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
+.nate-logo{font-family:var(--font-d);font-size:.8rem;letter-spacing:3px;
+  background:linear-gradient(135deg,var(--violet),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;flex:1}
+.nate-logo span{font-size:.38rem;color:rgba(167,139,250,.45);display:block;letter-spacing:2px;margin-top:2px}
+.nate-hbtn{padding:5px 12px;background:transparent;border:1px solid;border-radius:4px;
+  cursor:pointer;font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;transition:all .2s}
+.nate-hbtn.apply{border-color:rgba(0,255,136,.4);color:var(--green)}
+.nate-hbtn.apply:hover{background:rgba(0,255,136,.1)}
+.nate-hbtn.revert{border-color:rgba(255,179,71,.4);color:var(--gold)}
+.nate-hbtn.revert:hover{background:rgba(255,179,71,.1)}
+.nate-hbtn.logout{border-color:rgba(255,68,102,.2);color:rgba(255,68,102,.5)}
+.nate-hbtn.logout:hover{border-color:var(--red);color:var(--red)}
+#nate-status-badge{font-family:var(--font-d);font-size:.36rem;letter-spacing:1px;
+  padding:3px 9px;border-radius:12px;background:rgba(0,255,136,.08);
+  border:1px solid rgba(0,255,136,.2);color:var(--green)}
+#nate-status-badge.baseline{background:rgba(255,179,71,.08);
+  border-color:rgba(255,179,71,.3);color:var(--gold)}
+
+/* Main grid */
+#nate-main{flex:1;display:grid;grid-template-columns:300px 1fr 300px;gap:0;overflow:hidden}
+@media(max-width:900px){#nate-main{grid-template-columns:1fr;overflow:auto}}
+
+/* Panels */
+.nate-panel{border-right:1px solid var(--border);overflow-y:auto;max-height:calc(100vh - 60px)}
+.nate-panel:last-child{border-right:none;border-left:1px solid var(--border)}
+.nate-section{padding:14px;border-bottom:1px solid var(--border)}
+.nate-sec-title{font-family:var(--font-d);font-size:.4rem;letter-spacing:2px;
+  color:rgba(167,139,250,.6);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.nate-sec-title::before{content:'◈';color:var(--violet)}
+
+/* Sample library */
+.sample-card{background:rgba(10,21,32,.6);border:1px solid var(--border);border-radius:7px;
+  padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .2s;position:relative}
+.sample-card:hover,.sample-card.active{border-color:rgba(167,139,250,.4);
+  background:rgba(167,139,250,.06)}
+.sample-card.active::after{content:'▶';position:absolute;right:10px;top:50%;
+  transform:translateY(-50%);color:var(--violet);font-size:.6rem}
+.sample-name{font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;color:#e0f4ff}
+.sample-type{font-size:.38rem;color:var(--dim);margin-top:2px}
+.sample-freq{font-size:.35rem;color:rgba(167,139,250,.5);font-family:var(--font-d)}
+.sample-actions{display:flex;gap:5px;margin-top:6px}
+.s-btn{padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-d);
+  font-size:.34rem;letter-spacing:.5px;border:1px solid;background:transparent;transition:all .15s}
+.s-btn.play{border-color:rgba(0,229,255,.3);color:var(--cyan)}
+.s-btn.play:hover{background:rgba(0,229,255,.08)}
+.s-btn.analyze{border-color:rgba(167,139,250,.3);color:var(--violet)}
+.s-btn.analyze:hover{background:rgba(167,139,250,.08)}
+.s-btn.merge{border-color:rgba(0,255,136,.3);color:var(--green)}
+.s-btn.merge:hover{background:rgba(0,255,136,.08)}
+.s-btn.remove{border-color:rgba(255,68,102,.2);color:rgba(255,68,102,.5)}
+.s-btn.remove:hover{background:rgba(255,68,102,.06)}
+
+/* Waveform canvas */
+#waveform-canvas{width:100%;height:120px;background:rgba(6,15,26,.9);
+  border-radius:6px;border:1px solid var(--border);display:block}
+#spectrum-canvas{width:100%;height:100px;background:rgba(6,15,26,.9);
+  border-radius:6px;border:1px solid var(--border);display:block;margin-top:8px}
+#sigma-canvas{width:100%;height:90px;background:rgba(6,15,26,.9);
+  border-radius:6px;border:1px solid var(--border);display:block;margin-top:8px}
+
+/* Controls */
+.ctrl-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ctrl-lbl{font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;
+  color:var(--dim);width:85px;flex-shrink:0}
+.ctrl-slider{flex:1;height:3px;-webkit-appearance:none;appearance:none;
+  background:rgba(167,139,250,.2);border-radius:2px;outline:none;cursor:pointer}
+.ctrl-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;
+  border-radius:50%;background:var(--violet);cursor:pointer;box-shadow:0 0 6px rgba(167,139,250,.4)}
+.ctrl-val{font-family:var(--font-d);font-size:.38rem;color:var(--violet);
+  width:38px;text-align:right;flex-shrink:0}
+
+/* Presets */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.preset-btn{padding:8px 6px;background:rgba(10,21,32,.8);border:1px solid var(--border);
+  border-radius:6px;cursor:pointer;text-align:center;transition:all .2s}
+.preset-btn:hover{border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.07)}
+.preset-btn.active-preset{border-color:rgba(167,139,250,.55);background:rgba(167,139,250,.12)}
+.preset-name{font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;color:#e0f4ff}
+.preset-desc{font-size:.36rem;color:var(--dim);margin-top:2px}
+
+/* Neural correlation panel */
+.corr-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.corr-label{font-family:var(--font-d);font-size:.36rem;letter-spacing:1px;
+  color:var(--dim);width:65px;flex-shrink:0}
+.corr-bar-bg{flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.corr-bar-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.corr-val{font-family:var(--font-d);font-size:.35rem;color:var(--cyan);width:32px;text-align:right}
+
+/* Voice output test */
+#voice-test-area{background:rgba(6,15,26,.8);border:1px solid var(--border);
+  border-radius:6px;padding:10px;margin-top:8px}
+#voice-test-input{width:100%;background:transparent;border:none;outline:none;
+  color:#e0f4ff;font-family:var(--font-b);font-size:.55rem;resize:none;
+  min-height:50px;line-height:1.6}
+.test-btn-row{display:flex;gap:6px;margin-top:8px}
+
+/* Toast */
+#nate-toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+  background:rgba(4,9,16,.95);border:1px solid rgba(167,139,250,.3);
+  border-radius:20px;padding:8px 20px;font-family:var(--font-d);font-size:.42rem;
+  letter-spacing:1px;color:var(--violet);opacity:0;transition:opacity .3s;
+  pointer-events:none;z-index:9000}
+#nate-toast.show{opacity:1}
+
+/* Upload zone */
+.upload-zone{border:1px dashed rgba(167,139,250,.25);border-radius:7px;
+  padding:14px;text-align:center;cursor:pointer;transition:all .2s;margin-top:6px}
+.upload-zone:hover{border-color:rgba(167,139,250,.5);background:rgba(167,139,250,.04)}
+.upload-zone p{font-size:.44rem;color:var(--dim);margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN GATE ══════════════════════════════════════════════════ -->
+<div id="nate-gate">
+  <div class="gate-logo">N.A.T.E</div>
+  <div class="gate-sub">NEUTRAL AUDIO TONAL EXERTION ENGINE</div>
+  <div class="gate-sub" style="font-size:.35rem;margin-top:-10px;color:rgba(167,139,250,.3)">DART MEADOW · RADICAL DEEPSCALE LLC · RESTRICTED ACCESS</div>
+  <input class="gate-input" id="gate-pw" type="password" placeholder="ADMIN PASSWORD" autocomplete="off"
+    onkeydown="if(event.key==='Enter') nateLogin()">
+  <div class="gate-err" id="gate-err"></div>
+  <button class="gate-btn" onclick="nateLogin()">UNLOCK N.A.T.E</button>
+  <a class="gate-back" href="/" id="gate-back-link">← RETURN TO AUTUMN</a>
+</div>
+
+<!-- ═══ MAIN APP ════════════════════════════════════════════════════ -->
+<div id="nate-app">
+  <div id="nate-header">
+    <div class="nate-logo">N.A.T.E
+      <span>NEUTRAL AUDIO TONAL EXERTION ENGINE</span>
+    </div>
+    <div id="nate-status-badge" class="baseline">BASELINE ACTIVE</div>
+    <button class="nate-hbtn apply" onclick="nateApplyVoice()">▶ APPLY TO AUTUMN</button>
+    <button class="nate-hbtn revert" onclick="nateRevertBaseline()">↺ REVERT TO BASELINE</button>
+    <button class="nate-hbtn logout" onclick="nateLogout()">LOCK</button>
+  </div>
+
+  <div id="nate-main">
+
+    <!-- ── LEFT PANEL: Sample Library ─────────────────────────── -->
+    <div class="nate-panel" id="panel-library">
+
+      <div class="nate-section">
+        <div class="nate-sec-title">VOICE SAMPLE LIBRARY</div>
+        <div id="sample-list"></div>
+        <div class="upload-zone" onclick="document.getElementById('wav-upload').click()">
+          <div style="font-size:1.2rem;color:rgba(167,139,250,.35)">⊕</div>
+          <p>Tap to upload WAV / MP3 samples</p>
+          <p style="font-size:.38rem;margin-top:2px">Or drag & drop here</p>
+        </div>
+        <input type="file" id="wav-upload" accept=".wav,.mp3,.ogg,.m4a" multiple style="display:none" onchange="nateLoadUserFiles(this.files)">
+      </div>
+
+      <div class="nate-section">
+        <div class="nate-sec-title">SIGMA BLEND</div>
+        <p style="font-size:.44rem;color:var(--dim);line-height:1.6;margin-bottom:10px">
+          Select 2+ samples and compute a sigma median — the averaged tonal midpoint across all selected waveforms becomes the new voice foundation.
+        </p>
+        <div id="merge-status" style="font-family:var(--font-d);font-size:.38rem;color:var(--dim);margin-bottom:8px">0 samples selected for blend</div>
+        <button class="s-btn merge" style="width:100%;padding:6px" onclick="nateComputeSigma()">⊕ COMPUTE SIGMA BLEND</button>
+      </div>
+
+    </div>
+
+    <!-- ── CENTER PANEL: Waveform + Controls ──────────────────── -->
+    <div class="nate-panel" id="panel-center" style="padding:14px;border-right:1px solid var(--border)">
+
+      <div style="margin-bottom:14px">
+        <div class="nate-sec-title">WAVEFORM VISUALIZER</div>
+        <canvas id="waveform-canvas"></canvas>
+        <canvas id="spectrum-canvas"></canvas>
+        <canvas id="sigma-canvas"></canvas>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button class="s-btn play" onclick="natePlaySelected()">▶ PLAY SELECTED</button>
+          <button class="s-btn analyze" onclick="nateAnalyzeSelected()">◈ ANALYZE</button>
+          <button class="s-btn play" onclick="nateStopPlayback()" style="border-color:rgba(255,68,102,.3);color:var(--red)">■ STOP</button>
+        </div>
+      </div>
+
+      <div class="nate-section" style="padding:0;border:none;margin-bottom:14px">
+        <div class="nate-sec-title">TONAL CONTROLS</div>
+
+        <div class="ctrl-row">
+          <span class="ctrl-lbl">PITCH</span>
+          <input class="ctrl-slider" type="range" id="ctrl-pitch" min="0.4" max="2.0" step="0.01" value="1.0"
+            oninput="nateCtrlUpdate('pitch',this.value)">
+          <span class="ctrl-val" id="val-pitch">1.00</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-lbl">SPEED</span>
+          <input class="ctrl-slider" type="range" id="ctrl-speed" min="0.4" max="2.5" step="0.01" value="1.0"
+            oninput="nateCtrlUpdate('speed',this.value)">
+          <span class="ctrl-val" id="val-speed">1.00</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-lbl">FORMANT</span>
+          <input class="ctrl-slider" type="range" id="ctrl-formant" min="0.5" max="2.0" step="0.01" value="1.0"
+            oninput="nateCtrlUpdate('formant',this.value)">
+          <span class="ctrl-val" id="val-formant">1.00</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-lbl">RESONANCE</span>
+          <input class="ctrl-slider" type="range" id="ctrl-resonance" min="0.0" max="1.0" step="0.01" value="0.3"
+            oninput="nateCtrlUpdate('resonance',this.value)">
+          <span class="ctrl-val" id="val-resonance">0.30</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-lbl">WARMTH</span>
+          <input class="ctrl-slider" type="range" id="ctrl-warmth" min="0.0" max="1.0" step="0.01" value="0.5"
+            oninput="nateCtrlUpdate('warmth',this.value)">
+          <span class="ctrl-val" id="val-warmth">0.50</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-lbl">CLARITY</span>
+          <input class="ctrl-slider" type="range" id="ctrl-clarity" min="0.0" max="1.0" step="0.01" value="0.6"
+            oninput="nateCtrlUpdate('clarity',this.value)">
+          <span class="ctrl-val" id="val-clarity">0.60</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-lbl">VIBRATO</span>
+          <input class="ctrl-slider" type="range" id="ctrl-vibrato" min="0.0" max="0.5" step="0.01" value="0.08"
+            oninput="nateCtrlUpdate('vibrato',this.value)">
+          <span class="ctrl-val" id="val-vibrato">0.08</span>
+        </div>
+      </div>
+
+      <div class="nate-section" style="padding:0;border:none">
+        <div class="nate-sec-title">VOICE TEST OUTPUT</div>
+        <div id="voice-test-area">
+          <textarea id="voice-test-input" placeholder="Type a test phrase and press SPEAK..." rows="3">Hi, I'm Autumn. The neural network is active and the BRPN shells are resonating at baseline.</textarea>
+          <div class="test-btn-row">
+            <button class="s-btn play" style="padding:4px 14px" onclick="nateTestSpeak()">▶ SPEAK</button>
+            <button class="s-btn play" style="border-color:rgba(255,68,102,.3);color:var(--red);padding:4px 14px" onclick="nateStopPlayback()">■ STOP</button>
+            <span id="test-status" style="font-family:var(--font-d);font-size:.36rem;color:var(--dim);margin-left:6px"></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── RIGHT PANEL: Presets + Neural Correlation ──────────── -->
+    <div class="nate-panel" id="panel-right">
+
+      <div class="nate-section">
+        <div class="nate-sec-title">VOICE PRESETS</div>
+        <div class="preset-grid" id="preset-grid"></div>
+      </div>
+
+      <div class="nate-section">
+        <div class="nate-sec-title">NEURAL CORRELATION</div>
+        <p style="font-size:.42rem;color:var(--dim);line-height:1.6;margin-bottom:10px">
+          Real-time mapping of voice tonal parameters against active BRPN shell values.
+        </p>
+        <div id="corr-bars"></div>
+        <canvas id="corr-canvas" style="width:100%;height:80px;background:rgba(6,15,26,.9);
+          border-radius:6px;border:1px solid var(--border);display:block;margin-top:8px"></canvas>
+      </div>
+
+      <div class="nate-section">
+        <div class="nate-sec-title">TONAL ANALYSIS</div>
+        <div id="analysis-output" style="font-size:.43rem;color:var(--dim);line-height:1.8;font-family:var(--font-d)">
+          <div>FUNDAMENTAL: <span id="ana-fund" style="color:var(--cyan)">—</span> Hz</div>
+          <div>FORMANT F1: <span id="ana-f1" style="color:var(--cyan)">—</span> Hz</div>
+          <div>FORMANT F2: <span id="ana-f2" style="color:var(--cyan)">—</span> Hz</div>
+          <div>SIGMA SCORE: <span id="ana-sigma" style="color:var(--violet)">—</span></div>
+          <div>GEO ALIGN: <span id="ana-geo" style="color:rgba(0,255,204,.7)">—</span></div>
+          <div>MAR ALIGN: <span id="ana-mar" style="color:rgba(0,136,255,.7)">—</span></div>
+          <div>AERO ALIGN: <span id="ana-aero" style="color:rgba(255,68,102,.7)">—</span></div>
+          <div style="margin-top:6px">EMO TONE: <span id="ana-emo" style="color:var(--gold)">—</span></div>
+        </div>
+      </div>
+
+      <div class="nate-section">
+        <div class="nate-sec-title">SESSION LOG</div>
+        <div id="session-log" style="font-size:.4rem;font-family:var(--font-d);
+          color:rgba(167,139,250,.5);line-height:1.9;max-height:160px;overflow-y:auto"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="nate-toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  N.A.T.E  —  Neutral Audio Tonal Exertion Engine
+//  DART Meadow / Radical Deepscale LLC
+//  Admin access only — same credential as Autumn IDE
+// ═══════════════════════════════════════════════════════════════════
+
+const _NATE_PW_HASH = '6e5a2508490e95c53c475321202d036ae288795e9302b78670e80f7ca70fbf0b';
+const _NATE_SESSION_KEY = '_nate_unlocked';
+const _NATE_VOICE_KEY   = '_nate_voice_config';
+const _NATE_BASELINE_KEY = '_nate_baseline_stored';
+
+// ── SHA-256 ──────────────────────────────────────────────────────
+async function _sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── Auth gate ────────────────────────────────────────────────────
+async function nateLogin() {
+  const pw = document.getElementById('gate-pw').value;
+  const err = document.getElementById('gate-err');
+  if (!pw) { err.textContent = 'Enter password.'; return; }
+  const hash = await _sha256(pw);
+  if (hash === _NATE_PW_HASH) {
+    sessionStorage.setItem(_NATE_SESSION_KEY, '1');
+    document.getElementById('nate-gate').classList.add('hidden');
+    document.getElementById('nate-app').classList.add('active');
+    nateInit();
+  } else {
+    err.textContent = 'Incorrect password.';
+    document.getElementById('gate-pw').value = '';
+  }
+}
+function nateLogout() {
+  sessionStorage.removeItem(_NATE_SESSION_KEY);
+  document.getElementById('nate-app').classList.remove('active');
+  document.getElementById('nate-gate').classList.remove('hidden');
+}
+// Block direct URL access — check session on load
+window.addEventListener('DOMContentLoaded', function() {
+  if (sessionStorage.getItem(_NATE_SESSION_KEY) === '1') {
+    document.getElementById('nate-gate').classList.add('hidden');
+    document.getElementById('nate-app').classList.add('active');
+    nateInit();
+  }
+  // Gate back link: detect if loaded from Autumn iframe or direct
+  var ref = document.referrer;
+  var backLink = document.getElementById('gate-back-link');
+  if (ref && ref.includes('leatr.xyz')) {
+    backLink.href = ref;
+  } else {
+    backLink.href = 'https://leatr.xyz/';
+  }
+  // Enter key on password
+  document.getElementById('gate-pw').addEventListener('keydown', function(e){
+    if(e.key==='Enter') nateLogin();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  NATE STATE
+// ═══════════════════════════════════════════════════════════════════
+var _nate = {
+  samples: [],          // {id, name, type, gender, buffer, audioBuffer, selected, sigmaWeight}
+  mergeSet: new Set(),  // indices selected for sigma blend
+  audioCtx: null,
+  analyserNode: null,
+  sourceNode: null,
+  gainNode: null,
+  currentBuffer: null,
+  animFrame: null,
+  corrAnimFrame: null,
+  params: {
+    pitch: 1.0, speed: 1.0, formant: 1.0,
+    resonance: 0.3, warmth: 0.5, clarity: 0.6, vibrato: 0.08,
+    sourceId: null,   // which sample is the active voice foundation
+    sigmaBlend: null  // computed sigma blend data
+  },
+  nateActive: false,    // true = NATE voice applied to Autumn
+  analysisData: {}
+};
+
+// Built-in sample definitions (hosted in repo)
+const BUILTIN_SAMPLES = [
+  { id:'f_neutral', name:'Female · Neutral',  gender:'female', type:'NEUTRAL',  fund:210, desc:'Clean midrange female voice' },
+  { id:'f_warm',    name:'Female · Warm',     gender:'female', type:'WARM',     fund:195, desc:'Softer lower-register female' },
+  { id:'f_bright',  name:'Female · Bright',   gender:'female', type:'BRIGHT',   fund:245, desc:'Higher, articulate female' },
+  { id:'m_neutral', name:'Male · Neutral',    gender:'male',   type:'NEUTRAL',  fund:118, desc:'Standard baritone male' },
+  { id:'m_warm',    name:'Male · Warm',       gender:'male',   type:'WARM',     fund:104, desc:'Deeper warm male voice' },
+  { id:'m_deep',    name:'Male · Deep',       gender:'male',   type:'DEEP',     fund:92,  desc:'Low resonant bass male' },
+];
+
+const PRESETS = [
+  { id:'autumn_f',  name:'AUTUMN F',     desc:'Default Autumn female',
+    p:{pitch:1.08,speed:0.92,formant:1.12,resonance:0.28,warmth:0.62,clarity:0.68,vibrato:0.07}, src:'f_neutral' },
+  { id:'crisp_f',   name:'CRISP F',      desc:'High clarity, professional',
+    p:{pitch:1.18,speed:1.05,formant:1.22,resonance:0.15,warmth:0.35,clarity:0.85,vibrato:0.05}, src:'f_bright' },
+  { id:'warm_f',    name:'WARM F',       desc:'Warm broadcast female',
+    p:{pitch:0.98,speed:0.88,formant:0.95,resonance:0.42,warmth:0.78,clarity:0.55,vibrato:0.09}, src:'f_warm' },
+  { id:'standard_m',name:'STANDARD M',  desc:'Neutral male narrator',
+    p:{pitch:0.82,speed:0.95,formant:0.88,resonance:0.35,warmth:0.5,clarity:0.65,vibrato:0.06}, src:'m_neutral' },
+  { id:'deep_m',    name:'DEEP M',       desc:'Deep resonant male',
+    p:{pitch:0.72,speed:0.88,formant:0.78,resonance:0.48,warmth:0.7,clarity:0.55,vibrato:0.08}, src:'m_deep' },
+  { id:'sigma',     name:'SIGMA BLEND',  desc:'Computed from selected samples',
+    p:null, src:'sigma' },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+async function nateInit() {
+  _nate.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  _nate.analyserNode = _nate.audioCtx.createAnalyser();
+  _nate.analyserNode.fftSize = 2048;
+  _nate.analyserNode.connect(_nate.audioCtx.destination);
+
+  renderPresets();
+  renderCorrBars();
+  await loadBuiltinSamples();
+  renderSamples();
+  startCorrAnimation();
+  updateStatusBadge();
+  nateLog('N.A.T.E initialized — ' + _nate.samples.length + ' samples loaded');
+
+  // Check if NATE voice is already applied
+  var saved = _getSavedConfig();
+  if (saved && saved.nateActive) {
+    Object.assign(_nate.params, saved.params);
+    _nate.nateActive = true;
+    syncSlidersToParams();
+    updateStatusBadge();
+    nateLog('Restored active NATE voice configuration');
+  }
+}
+
+async function loadBuiltinSamples() {
+  var base = window.location.origin + window.location.pathname.replace('nate.html','');
+  for (var def of BUILTIN_SAMPLES) {
+    var url = base + 'nate/audio/' + (def.gender === 'female'
+      ? def.id.replace('f_','female_')
+      : def.id.replace('m_','male_')) + '.wav';
+    try {
+      var resp = await fetch(url);
+      if (!resp.ok) throw new Error('404');
+      var arrayBuf = await resp.arrayBuffer();
+      var audioBuf = await _nate.audioCtx.decodeAudioData(arrayBuf.slice(0));
+      _nate.samples.push({
+        id: def.id, name: def.name, gender: def.gender,
+        type: def.type, fund: def.fund, desc: def.desc,
+        arrayBuf: arrayBuf, audioBuf: audioBuf,
+        selected: false, builtin: true
+      });
+    } catch(e) {
+      // Fallback: create synthetic buffer
+      _nate.samples.push({
+        id: def.id, name: def.name, gender: def.gender,
+        type: def.type, fund: def.fund, desc: def.desc,
+        arrayBuf: null, audioBuf: _makeSyntheticBuffer(def.fund),
+        selected: false, builtin: true, synthetic: true
+      });
+    }
+  }
+}
+
+function _makeSyntheticBuffer(freq) {
+  var sr = _nate.audioCtx.sampleRate;
+  var dur = 2.5;
+  var buf = _nate.audioCtx.createBuffer(1, Math.floor(sr*dur), sr);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < data.length; i++) {
+    var t = i / sr;
+    var vib = 1 + 0.012 * Math.sin(2*Math.PI*5.5*t);
+    var s = Math.sin(2*Math.PI*freq*vib*t) * 0.5
+          + Math.sin(2*Math.PI*freq*2*t) * 0.25
+          + Math.sin(2*Math.PI*freq*3*t) * 0.12;
+    var env = Math.min(1, t/0.08) * Math.min(1, (dur-t)/0.15);
+    data[i] = Math.tanh(s*0.7) * 0.6 * env;
+  }
+  return buf;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════════
+function renderSamples() {
+  var el = document.getElementById('sample-list');
+  if (!el) return;
+  el.innerHTML = '';
+  _nate.samples.forEach(function(s, i) {
+    var card = document.createElement('div');
+    card.className = 'sample-card' + (s.selected ? ' active' : '');
+    card.innerHTML =
+      '<div class="sample-name">' + s.name + (s.synthetic?' <span style="color:rgba(255,179,71,.4);font-size:.3rem">SYNTH</span>':'') + '</div>' +
+      '<div class="sample-type">' + s.desc + '</div>' +
+      '<div class="sample-freq">' + s.gender.toUpperCase() + ' · ' + s.type + ' · F0: ~' + s.fund + ' Hz</div>' +
+      '<div class="sample-actions">' +
+        '<button class="s-btn play" onclick="natePlaySample('+i+')">▶ PLAY</button>' +
+        '<button class="s-btn analyze" onclick="nateAnalyzeSample('+i+')">◈ ANALYZE</button>' +
+        '<button class="s-btn merge" onclick="nateToggleMerge('+i+')" id="merge-btn-'+i+'">' +
+          (s.selected ? '✓ IN BLEND' : '⊕ ADD TO BLEND') +
+        '</button>' +
+        (!s.builtin ? '<button class="s-btn remove" onclick="nateRemoveSample('+i+')">✕</button>' : '') +
+      '</div>';
+    card.addEventListener('click', function(e) {
+      if (e.target.tagName === 'BUTTON') return;
+      nateSetActiveSample(i);
+    });
+    el.appendChild(card);
+  });
+  var selCount = _nate.samples.filter(s=>s.selected).length;
+  document.getElementById('merge-status').textContent = selCount + ' sample' + (selCount!==1?'s':'') + ' selected for blend';
+}
+
+function renderPresets() {
+  var el = document.getElementById('preset-grid');
+  if (!el) return;
+  el.innerHTML = PRESETS.map((p,i) =>
+    '<div class="preset-btn" onclick="nateApplyPreset('+i+')" id="preset-'+i+'">' +
+    '<div class="preset-name">' + p.name + '</div>' +
+    '<div class="preset-desc">' + p.desc + '</div></div>'
+  ).join('');
+}
+
+function renderCorrBars() {
+  var shells = [{id:'geo',label:'GEO',color:'rgba(0,255,204,.7)'},{id:'mar',label:'MAR',color:'rgba(0,136,255,.7)'},{id:'aero',label:'AERO',color:'rgba(255,68,102,.7)'}];
+  var el = document.getElementById('corr-bars');
+  el.innerHTML = shells.map(s =>
+    '<div class="corr-bar-row">' +
+    '<span class="corr-label">' + s.label + '</span>' +
+    '<div class="corr-bar-bg"><div class="corr-bar-fill" id="corr-'+s.id+'" style="width:30%;background:'+s.color+'"></div></div>' +
+    '<span class="corr-val" id="corr-v-'+s.id+'" style="color:'+s.color+'">0.30</span>' +
+    '</div>'
+  ).join('') +
+  ['PITCH','SPEED','FORMANT'].map(p =>
+    '<div class="corr-bar-row">' +
+    '<span class="corr-label">' + p + '</span>' +
+    '<div class="corr-bar-bg"><div class="corr-bar-fill" id="corr-'+p.toLowerCase()+'" style="width:50%;background:rgba(167,139,250,.6)"></div></div>' +
+    '<span class="corr-val" id="corr-v-'+p.toLowerCase()+'" style="color:var(--violet)">0.50</span>' +
+    '</div>'
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PLAYBACK
+// ═══════════════════════════════════════════════════════════════════
+function natePlaySample(idx) {
+  var s = _nate.samples[idx];
+  if (!s || !s.audioBuf) return;
+  natePlayBuffer(s.audioBuf);
+  nateSetActiveSample(idx);
+}
+
+function natePlaySelected() {
+  var s = _nate.samples.find(s => s.selected) || _nate.samples[0];
+  if (s && s.audioBuf) natePlayBuffer(s.audioBuf);
+}
+
+function natePlayBuffer(buf) {
+  nateStopPlayback();
+  if (_nate.audioCtx.state === 'suspended') _nate.audioCtx.resume();
+
+  var src = _nate.audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = _nate.params.speed;
+
+  // Pitch shift via detune (cents)
+  src.detune.value = (_nate.params.pitch - 1.0) * 1200;
+
+  var gain = _nate.audioCtx.createGain();
+  gain.gain.value = 0.85;
+
+  // Warmth = low-shelf boost
+  var warmth = _nate.audioCtx.createBiquadFilter();
+  warmth.type = 'lowshelf';
+  warmth.frequency.value = 400;
+  warmth.gain.value = (_nate.params.warmth - 0.5) * 8;
+
+  // Clarity = high-shelf boost
+  var clarity = _nate.audioCtx.createBiquadFilter();
+  clarity.type = 'highshelf';
+  clarity.frequency.value = 4000;
+  clarity.gain.value = (_nate.params.clarity - 0.5) * 6;
+
+  // Resonance = bandpass at formant freq
+  var resonance = _nate.audioCtx.createBiquadFilter();
+  resonance.type = 'bandpass';
+  resonance.frequency.value = 1200 * _nate.params.formant;
+  resonance.Q.value = _nate.params.resonance * 8;
+
+  src.connect(warmth);
+  warmth.connect(clarity);
+  clarity.connect(resonance);
+  resonance.connect(gain);
+  gain.connect(_nate.analyserNode);
+
+  _nate.sourceNode = src;
+  _nate.gainNode = gain;
+  _nate.currentBuffer = buf;
+  src.start(0);
+  src.onended = function() { _nate.sourceNode = null; };
+  startWaveformAnimation();
+}
+
+function nateStopPlayback() {
+  if (_nate.sourceNode) {
+    try { _nate.sourceNode.stop(); } catch(e){}
+    _nate.sourceNode = null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  WAVEFORM VISUALIZATION
+// ═══════════════════════════════════════════════════════════════════
+function startWaveformAnimation() {
+  if (_nate.animFrame) cancelAnimationFrame(_nate.animFrame);
+  drawWaveformFrame();
+}
+
+function drawWaveformFrame() {
+  _nate.animFrame = requestAnimationFrame(drawWaveformFrame);
+  var wc = document.getElementById('waveform-canvas');
+  var sc = document.getElementById('spectrum-canvas');
+  if (!wc || !sc || !_nate.analyserNode) return;
+
+  var W = wc.width = wc.offsetWidth, H = wc.height = wc.offsetHeight;
+  var wCtx = wc.getContext('2d');
+
+  // Time domain
+  var tData = new Uint8Array(_nate.analyserNode.frequencyBinCount);
+  _nate.analyserNode.getByteTimeDomainData(tData);
+  wCtx.fillStyle = 'rgba(6,15,26,0.15)';
+  wCtx.fillRect(0, 0, W, H);
+  wCtx.strokeStyle = '#a78bfa';
+  wCtx.lineWidth = 1.5;
+  wCtx.beginPath();
+  tData.forEach(function(v,i) {
+    var x = i / tData.length * W;
+    var y = (v / 128 - 1) * (H/2-6) + H/2;
+    i === 0 ? wCtx.moveTo(x,y) : wCtx.lineTo(x,y);
+  });
+  wCtx.stroke();
+
+  // Frequency spectrum
+  var SW = sc.width = sc.offsetWidth, SH = sc.height = sc.offsetHeight;
+  var sCtx = sc.getContext('2d');
+  var fData = new Uint8Array(_nate.analyserNode.frequencyBinCount);
+  _nate.analyserNode.getByteFrequencyData(fData);
+  sCtx.fillStyle = 'rgba(6,15,26,0.08)';
+  sCtx.fillRect(0,0,SW,SH);
+  var bw = SW / (fData.length/4);
+  fData.slice(0, fData.length/4).forEach(function(v,i) {
+    var h = v / 255 * SH;
+    var hue = 200 + (i/fData.length)*80;
+    sCtx.fillStyle = 'hsla('+hue+',70%,55%,0.7)';
+    sCtx.fillRect(i*bw, SH-h, Math.max(1,bw-1), h);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ANALYSIS
+// ═══════════════════════════════════════════════════════════════════
+async function nateAnalyzeSample(idx) {
+  var s = _nate.samples[idx];
+  if (!s || !s.audioBuf) return;
+  natePlayBuffer(s.audioBuf);
+  setTimeout(function() { runTonalAnalysis(s); }, 200);
+}
+
+function nateAnalyzeSelected() {
+  var s = _nate.samples.find(s=>s.selected) || _nate.samples[0];
+  if (s) { natePlayBuffer(s.audioBuf); setTimeout(function(){ runTonalAnalysis(s); }, 200); }
+}
+
+function runTonalAnalysis(s) {
+  // Pull frequency data from live analyser
+  setTimeout(function() {
+    var fData = new Float32Array(_nate.analyserNode.frequencyBinCount);
+    _nate.analyserNode.getFloatFrequencyData(fData);
+
+    var sr = _nate.audioCtx.sampleRate;
+    var binToHz = function(b) { return b * sr / (_nate.analyserNode.fftSize); };
+
+    // Find peak (fundamental)
+    var maxBin = 0, maxVal = -Infinity;
+    for (var i=1; i<fData.length/2; i++) {
+      if (fData[i] > maxVal) { maxVal = fData[i]; maxBin = i; }
+    }
+    var fund = Math.round(binToHz(maxBin));
+
+    // Formant peaks (local maxima above 400 Hz)
+    var f1 = 0, f2 = 0;
+    for (var i=20; i<fData.length/4; i++) {
+      if (fData[i] > fData[i-1] && fData[i] > fData[i+1] && fData[i] > -40) {
+        var hz = binToHz(i);
+        if (hz > 400 && !f1) f1 = Math.round(hz);
+        else if (hz > f1+200 && !f2) { f2 = Math.round(hz); break; }
+      }
+    }
+    if (!f1) f1 = s.fund * 3;
+    if (!f2) f2 = s.fund * 6;
+
+    // Sigma score — correlation between sample and current params
+    var sigma = ((f1 * _nate.params.formant) / 1200 + _nate.params.pitch * 0.5).toFixed(3);
+
+    // Shell alignment based on fundamental frequency
+    var geoAlign  = Math.max(0, 1 - Math.abs(s.fund - 150) / 200).toFixed(2);
+    var marAlign  = Math.max(0, 1 - Math.abs(s.fund - 200) / 200).toFixed(2);
+    var aeroAlign = Math.max(0, 1 - Math.abs(s.fund - 260) / 200).toFixed(2);
+
+    // Emotion tone estimate from fundamental + formant ratio
+    var ratio = f1 / Math.max(s.fund, 1);
+    var emoTone = ratio > 6 ? 'SPIRITUAL / APATHETIC' :
+                  ratio > 4 ? 'EMPATHETIC / GUIDING' :
+                  ratio > 3 ? 'NEUTRAL / CONCERNED' :
+                  ratio > 2 ? 'DETERMINED / HAPPY' : 'GROUNDED / DEEP';
+
+    _nate.analysisData = {fund, f1, f2, sigma, geoAlign, marAlign, aeroAlign, emoTone};
+    document.getElementById('ana-fund').textContent  = fund;
+    document.getElementById('ana-f1').textContent    = f1;
+    document.getElementById('ana-f2').textContent    = f2;
+    document.getElementById('ana-sigma').textContent = sigma;
+    document.getElementById('ana-geo').textContent   = geoAlign;
+    document.getElementById('ana-mar').textContent   = marAlign;
+    document.getElementById('ana-aero').textContent  = aeroAlign;
+    document.getElementById('ana-emo').textContent   = emoTone;
+
+    // Draw sigma visualization
+    drawSigmaViz(_nate.analysisData);
+    nateLog('Analysis: ' + s.name + ' — F0:' + fund + 'Hz F1:' + f1 + 'Hz σ:' + sigma);
+  }, 400);
+}
+
+function drawSigmaViz(data) {
+  var c = document.getElementById('sigma-canvas');
+  var W = c.width = c.offsetWidth, H = c.height = c.offsetHeight;
+  var ctx = c.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  // Draw GEO/MAR/AERO alignment bars
+  var bars = [
+    {label:'GEO', val:parseFloat(data.geoAlign), color:'rgba(0,255,204,.7)'},
+    {label:'MAR', val:parseFloat(data.marAlign), color:'rgba(0,136,255,.7)'},
+    {label:'AERO',val:parseFloat(data.aeroAlign),color:'rgba(255,68,102,.7)'},
+  ];
+  var bH = H/4;
+  bars.forEach(function(b,i) {
+    ctx.fillStyle = 'rgba(255,255,255,.05)';
+    ctx.fillRect(40, i*(bH+4)+8, W-50, bH);
+    ctx.fillStyle = b.color;
+    ctx.fillRect(40, i*(bH+4)+8, (W-50)*b.val, bH);
+    ctx.fillStyle = 'rgba(224,244,255,.5)';
+    ctx.font = '9px Orbitron, monospace';
+    ctx.fillText(b.label, 2, i*(bH+4)+bH/2+12);
+    ctx.fillText((b.val*100).toFixed(0)+'%', W-35, i*(bH+4)+bH/2+12);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SIGMA BLEND
+// ═══════════════════════════════════════════════════════════════════
+async function nateComputeSigma() {
+  var selected = _nate.samples.filter(s=>s.selected);
+  if (selected.length < 2) { nateToast('Select at least 2 samples for sigma blend'); return; }
+
+  nateToast('Computing sigma blend from ' + selected.length + ' samples...');
+
+  // Create an offline audio context for blending
+  var sr = _nate.audioCtx.sampleRate;
+  var maxLen = Math.max(...selected.map(s=>s.audioBuf.length));
+  var offline = new OfflineAudioContext(1, maxLen, sr);
+
+  // Mix all selected samples at equal weight
+  var weight = 1 / selected.length;
+  selected.forEach(function(s) {
+    var src = offline.createBufferSource();
+    src.buffer = s.audioBuf;
+    var gain = offline.createGain();
+    gain.gain.value = weight;
+    src.connect(gain); gain.connect(offline.destination);
+    src.start(0);
+  });
+
+  var blended = await offline.startRendering();
+
+  // Store sigma blend as a sample
+  var existingIdx = _nate.samples.findIndex(s=>s.id==='sigma_blend');
+  var blendSample = {
+    id:'sigma_blend', name:'Sigma Blend (' + selected.length + ' samples)',
+    gender:'blend', type:'SIGMA', fund: Math.round(selected.reduce((a,s)=>a+s.fund,0)/selected.length),
+    desc: 'Computed median from: ' + selected.map(s=>s.name).join(', '),
+    audioBuf: blended, selected: false, builtin: false, synthetic: false
+  };
+  if (existingIdx >= 0) _nate.samples[existingIdx] = blendSample;
+  else _nate.samples.push(blendSample);
+
+  _nate.params.sigmaBlend = blendSample;
+  renderSamples();
+  nateToast('Sigma blend computed — ' + selected.length + ' voices merged');
+  nateLog('Sigma blend: ' + selected.map(s=>s.name).join(' + '));
+
+  // Auto-play the blend
+  setTimeout(function() { natePlayBuffer(blended); }, 200);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════════════════════════
+function nateCtrlUpdate(param, val) {
+  _nate.params[param] = parseFloat(val);
+  var id = 'val-'+param;
+  var el = document.getElementById(id);
+  if (el) el.textContent = parseFloat(val).toFixed(2);
+}
+
+function syncSlidersToParams() {
+  var keys = ['pitch','speed','formant','resonance','warmth','clarity','vibrato'];
+  keys.forEach(function(k) {
+    var s = document.getElementById('ctrl-'+k);
+    var v = document.getElementById('val-'+k);
+    if (s) s.value = _nate.params[k];
+    if (v) v.textContent = parseFloat(_nate.params[k]).toFixed(2);
+  });
+}
+
+function nateApplyPreset(idx) {
+  var p = PRESETS[idx];
+  if (!p) return;
+  if (p.id === 'sigma' && !_nate.params.sigmaBlend) {
+    nateToast('Compute a sigma blend first'); return;
+  }
+  if (p.p) {
+    Object.assign(_nate.params, p.p);
+    syncSlidersToParams();
+  }
+  if (p.src && p.src !== 'sigma') {
+    var si = _nate.samples.findIndex(s=>s.id===p.src);
+    if (si >= 0) nateSetActiveSample(si);
+  }
+  document.querySelectorAll('.preset-btn').forEach(function(b,i){
+    b.classList.toggle('active-preset', i===idx);
+  });
+  nateToast('Preset: ' + p.name + ' applied');
+  nateLog('Preset: ' + p.name);
+}
+
+function nateSetActiveSample(idx) {
+  _nate.params.sourceId = _nate.samples[idx]?.id;
+  renderSamples();
+}
+
+function nateToggleMerge(idx) {
+  var s = _nate.samples[idx];
+  s.selected = !s.selected;
+  renderSamples();
+}
+
+function nateRemoveSample(idx) {
+  _nate.samples.splice(idx, 1);
+  renderSamples();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  VOICE TEST (TTS with NATE params)
+// ═══════════════════════════════════════════════════════════════════
+function nateTestSpeak() {
+  var text = document.getElementById('voice-test-input').value.trim();
+  if (!text) return;
+  nateStopPlayback();
+  var status = document.getElementById('test-status');
+  status.textContent = 'SPEAKING...';
+
+  // Use Web Speech API with modified params
+  if ('speechSynthesis' in window) {
+    var synth = window.speechSynthesis;
+    synth.cancel();
+    var utt = new SpeechSynthesisUtterance(text);
+    utt.rate  = Math.min(2.5, Math.max(0.4, _nate.params.speed));
+    utt.pitch = Math.min(2.0, Math.max(0.4, _nate.params.pitch));
+    utt.volume = 1.0;
+
+    // Try to pick a voice matching gender
+    var voices = synth.getVoices();
+    var srcSample = _nate.samples.find(s=>s.id===_nate.params.sourceId);
+    if (srcSample && voices.length > 0) {
+      var genderVoices = voices.filter(v =>
+        srcSample.gender === 'female'
+          ? /female|woman|zira|samantha|victoria|karen|fiona|moira|tessa|veena/i.test(v.name)
+          : /male|man|daniel|alex|fred|jorge|thomas|luca|otoya/i.test(v.name)
+      );
+      if (genderVoices.length > 0) utt.voice = genderVoices[0];
+    }
+
+    utt.onend = function() { status.textContent = ''; };
+    utt.onerror = function() { status.textContent = 'Speech error'; };
+    synth.speak(utt);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  USER FILE UPLOAD
+// ═══════════════════════════════════════════════════════════════════
+async function nateLoadUserFiles(files) {
+  for (var i=0; i<files.length; i++) {
+    var file = files[i];
+    var arrayBuf = await file.arrayBuffer();
+    try {
+      var audioBuf = await _nate.audioCtx.decodeAudioData(arrayBuf.slice(0));
+      var sampleRate = audioBuf.sampleRate;
+      // Estimate fundamental from autocorrelation
+      var data = audioBuf.getChannelData(0);
+      var fund = estimateFundamental(data, sampleRate);
+      var gender = fund > 160 ? 'female' : 'male';
+
+      _nate.samples.push({
+        id: 'user_'+Date.now(), name: file.name.replace(/\.[^.]+$/,''),
+        gender: gender, type: 'USER', fund: fund,
+        desc: 'User upload — F0: ~' + fund + ' Hz',
+        audioBuf: audioBuf, arrayBuf: arrayBuf,
+        selected: false, builtin: false
+      });
+      nateLog('Loaded: ' + file.name + ' (' + (audioBuf.duration).toFixed(1) + 's, F0:~' + fund + 'Hz)');
+    } catch(e) {
+      nateToast('Could not decode: ' + file.name);
+    }
+  }
+  renderSamples();
+}
+
+function estimateFundamental(data, sr) {
+  // Simple zero-crossing rate to estimate fundamental
+  var crossings = 0;
+  for (var i=1; i<Math.min(data.length, sr*0.5); i++) {
+    if ((data[i-1] < 0 && data[i] >= 0) || (data[i-1] >= 0 && data[i] < 0)) crossings++;
+  }
+  var freq = crossings / (2 * 0.5);
+  return Math.round(Math.max(60, Math.min(400, freq)));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  APPLY / REVERT
+// ═══════════════════════════════════════════════════════════════════
+function nateApplyVoice() {
+  // Save baseline FIRST if not yet stored
+  if (!localStorage.getItem(_NATE_BASELINE_KEY)) {
+    var baseline = {
+      speed:1.0, pitch:1.0, formant:1.0, resonance:0.3,
+      warmth:0.5, clarity:0.6, vibrato:0.08, sourceId:null, sigmaBlend:null
+    };
+    localStorage.setItem(_NATE_BASELINE_KEY, JSON.stringify(baseline));
+  }
+
+  var config = {
+    params: Object.assign({}, _nate.params, {sigmaBlend:null}),
+    nateActive: true,
+    appliedAt: new Date().toISOString()
+  };
+  localStorage.setItem(_NATE_VOICE_KEY, JSON.stringify(config));
+  _nate.nateActive = true;
+  updateStatusBadge();
+  nateToast('✓ NATE voice applied to Autumn');
+  nateLog('Voice applied: pitch=' + _nate.params.pitch + ' speed=' + _nate.params.speed + ' formant=' + _nate.params.formant);
+}
+
+function nateRevertBaseline() {
+  var baseline = localStorage.getItem(_NATE_BASELINE_KEY);
+  if (baseline) {
+    var b = JSON.parse(baseline);
+    Object.assign(_nate.params, b);
+    syncSlidersToParams();
+  }
+  var config = { params: _nate.params, nateActive: false, revertedAt: new Date().toISOString() };
+  localStorage.setItem(_NATE_VOICE_KEY, JSON.stringify(config));
+  _nate.nateActive = false;
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active-preset'));
+  updateStatusBadge();
+  nateToast('↺ Reverted to Autumn baseline voice');
+  nateLog('Reverted to original baseline');
+}
+
+function _getSavedConfig() {
+  try { return JSON.parse(localStorage.getItem(_NATE_VOICE_KEY)||'null'); } catch(e){ return null; }
+}
+
+function updateStatusBadge() {
+  var el = document.getElementById('nate-status-badge');
+  if (!el) return;
+  if (_nate.nateActive) {
+    el.textContent = 'NATE ACTIVE';
+    el.classList.remove('baseline');
+  } else {
+    el.textContent = 'BASELINE ACTIVE';
+    el.classList.add('baseline');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  NEURAL CORRELATION ANIMATION
+// ═══════════════════════════════════════════════════════════════════
+function startCorrAnimation() {
+  var frame = 0;
+  function tick() {
+    frame++;
+    // Simulate BRPN shell correlation based on voice params
+    var geoCorr  = Math.min(1, (_nate.params.warmth * 0.6 + (1-_nate.params.pitch)*0.3 + 0.1 + 0.08*Math.sin(frame*0.04)));
+    var marCorr  = Math.min(1, (_nate.params.pitch * 0.45 + _nate.params.speed*0.3 + 0.05 + 0.06*Math.sin(frame*0.032+1)));
+    var aeroCorr = Math.min(1, (_nate.params.clarity * 0.5 + _nate.params.formant*0.3 - 0.1 + 0.07*Math.sin(frame*0.038+2)));
+    var pc = Math.min(1, Math.abs(_nate.params.pitch - 1.0) / 1.0 + 0.5);
+    var sc = Math.min(1, _nate.params.speed / 2.5);
+    var fc = Math.min(1, _nate.params.formant / 2.0);
+
+    _setCorr('geo',  Math.max(0,geoCorr));
+    _setCorr('mar',  Math.max(0,marCorr));
+    _setCorr('aero', Math.max(0,aeroCorr));
+    _setCorr('pitch',   pc);
+    _setCorr('speed',   sc);
+    _setCorr('formant', fc);
+
+    // Draw correlation history canvas
+    var cc = document.getElementById('corr-canvas');
+    if (cc) {
+      var W = cc.width = cc.offsetWidth, H = cc.height = cc.offsetHeight;
+      var ctx = cc.getContext('2d');
+      ctx.fillStyle = 'rgba(6,15,26,0.12)';
+      ctx.fillRect(0,0,W,H);
+      [[geoCorr,'rgba(0,255,204,.6)'],[marCorr,'rgba(0,136,255,.6)'],[aeroCorr,'rgba(255,68,102,.6)']].forEach(function(pair,i){
+        var y = H * (1 - pair[0]);
+        ctx.strokeStyle = pair[1];
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(W - (frame%W), y, 1.2, 0, Math.PI*2);
+        ctx.stroke();
+      });
+    }
+
+    _nate.corrAnimFrame = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function _setCorr(id, val) {
+  var bar = document.getElementById('corr-'+id);
+  var txt = document.getElementById('corr-v-'+id);
+  if (bar) bar.style.width = (val*100).toFixed(1)+'%';
+  if (txt) txt.textContent = val.toFixed(2);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LOG / TOAST
+// ═══════════════════════════════════════════════════════════════════
+function nateLog(msg) {
+  var el = document.getElementById('session-log');
+  if (!el) return;
+  var ts = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  var line = document.createElement('div');
+  line.textContent = ts + '  ' + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+var _toastTimer;
+function nateToast(msg, dur) {
+  var el = document.getElementById('nate-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, dur||2400);
+}
+</script>
+</body>
+</html>
