@@ -163,6 +163,8 @@ function initLeatrAshSync() {
     uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'init',
     ref: document.referrer ? document.referrer.slice(0,60) : 'direct'
   });
+  // Fire-and-forget: fetch analytics so Autumn can answer questions about it
+  _fetchAnalytics();
 }
 
 function syncToolPattern(toolName, parameters) {
@@ -175,6 +177,91 @@ function syncToolPattern(toolName, parameters) {
 setInterval(function() {
   writeLeatrAshMemory('ashtree/sessions/'+_aut_sid+'.json', { uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'heartbeat' });
 }, 3 * 60 * 1000);
+
+// ── Analytics — lifetime session log reader ───────────────────────────────────
+// Cached in memory for the session; Autumn reads it via getAnalyticsContext()
+var _analyticsCache = null;
+var _analyticsFetchedAt = 0;
+var _analyticsReady = false;
+
+async function _fetchAnalytics() {
+  // Refresh at most once per hour per session
+  if (_analyticsReady && (Date.now() - _analyticsFetchedAt) < 60 * 60 * 1000) return;
+  try {
+    var url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/ashtree/analytics/lifetime_log.json';
+    var hdrs = { 'Authorization':'token ' + _ASH_BOT, 'Content-Type':'application/json' };
+    var res = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(8000) });
+    if (!res.ok) return;
+    var eg = await res.json();
+    var raw = atob(eg.content.replace(/\n/g,''));
+    var data = JSON.parse(raw);
+    _analyticsCache = data;
+    _analyticsFetchedAt = Date.now();
+    _analyticsReady = true;
+  } catch(e) { /* silent — analytics are non-critical */ }
+}
+
+// Also count currently active session files (visible through the API)
+async function _fetchActiveSessionCount() {
+  try {
+    var url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/ashtree/sessions';
+    var hdrs = { 'Authorization':'token ' + _ASH_BOT };
+    var res = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(6000) });
+    if (!res.ok) return null;
+    var files = await res.json();
+    if (!Array.isArray(files)) return null;
+    // Count non-index files = active session nodes
+    return files.filter(function(f){ return f.name.endsWith('.json') && f.name !== '_index.json'; }).length;
+  } catch(e) { return null; }
+}
+
+// Build a natural-language analytics summary Autumn can read from the system prompt
+function getAnalyticsContext() {
+  if (!_analyticsReady || !_analyticsCache) return '';
+  var d = _analyticsCache;
+  var t = d.totals || {};
+  var log = d.daily_log || [];
+  var last = log.length ? log[log.length - 1] : null;
+
+  var lines = [
+    'LEATR SESSION ANALYTICS (lifetime_log — ashtree/analytics/lifetime_log.json):',
+    '  All-time sessions recorded: ' + (t.all_time_sessions || 0),
+    '  All-time unique users: ' + (t.all_time_unique_users || 0),
+    '  Logging started: ' + (t.first_recorded ? t.first_recorded.slice(0,10) : 'unknown'),
+    '  Last daily snapshot: ' + (t.last_updated ? t.last_updated.slice(0,10) : 'not yet'),
+    '  Total daily entries logged: ' + log.length
+  ];
+  if (last) {
+    lines.push(
+      '  Most recent snapshot (' + last.date + '): ' +
+      last.active_sessions + ' active sessions, ' +
+      last.active_users + ' active users'
+    );
+  }
+  if (log.length >= 2) {
+    // Simple trend: compare last two days
+    var prev = log[log.length - 2];
+    var delta = last.active_sessions - prev.active_sessions;
+    lines.push('  Session delta vs previous day: ' + (delta >= 0 ? '+' : '') + delta);
+  }
+  lines.push(
+    'When asked about session counts, active users, total users, or how many people ' +
+    'have used Autumn, draw naturally from this data. The log grows every 24 hours ' +
+    'and will still be accurate decades from now.'
+  );
+  return lines.join('\n');
+}
+
+// Refresh analytics when Autumn explicitly needs it (e.g. user asks about sessions)
+window._refreshAnalyticsNow = async function() {
+  _analyticsReady = false; // force re-fetch
+  await _fetchAnalytics();
+  var active = await _fetchActiveSessionCount();
+  return {
+    cache: _analyticsCache,
+    liveActiveSessions: active
+  };
+};
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -8155,23 +8242,82 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
-  // ── Active session count query ───────────────────────────────────────────
-  const _sessionCountTrigger = /\b(how many|count|number of|active)\b.{0,30}\b(users?|sessions?|people|visitors?|connections?)\b/i.test(augmentedText) ||
+  // ── Session / analytics query ────────────────────────────────────────────
+  const _sessionCountTrigger =
+    /\b(how many|count|number of|active)\b.{0,30}\b(users?|sessions?|people|visitors?|connections?)\b/i.test(augmentedText) ||
     /\b(who|anyone|someone|others?)\b.{0,25}\b(online|connected|here|active|on|using)\b/i.test(augmentedText) ||
     /\b(active\s+users?|active\s+sessions?|current\s+users?|live\s+users?)\b/i.test(augmentedText);
-  if(_sessionCountTrigger && !_pendingImgs.length) {
-    var _sCount = (typeof window._getActiveSessionCount==='function') ? window._getActiveSessionCount() : 1;
-    var _remoteCount = Math.max(0, _sCount - 1);
-    var _scReply = _remoteCount === 0
-      ? 'Right now it\'s just your session — ' + _sCount + ' node active in the BRPN scene. No other users connected at this moment.'
-      : 'There are **' + _sCount + ' active sessions** in the LEATR neural network right now — your node plus ' + _remoteCount + ' other' + (_remoteCount>1?'s':'') + ' connected from elsewhere. Each is rendering as a wireframe geodesic cluster in the 3JS scene.';
-    msgs().push({role:'autumn', text:_scReply, ts:new Date().toISOString(),
-      grammarMeta:'Session Count · '+_sCount+' active', brpnMeta:'', contextType:'SESSION_COUNT',
-      media:{videos:[],images:[],links:[],sources:[]}});
-    S.isProcessing=false;
-    if(typeof setOrbThinking==='function') setOrbThinking(false);
-    saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
-    return;
+  const _lifetimeTrigger =
+    /\b(total|all.?time|lifetime|ever|since.{0,20}start|cumulative|historic|history|how many.*total|grand\s+total)\b.{0,40}\b(users?|sessions?|people|visitors?)\b/i.test(augmentedText) ||
+    /\b(users?|sessions?|people|visitors?)\b.{0,40}\b(total|all.?time|lifetime|ever|cumulative)\b/i.test(augmentedText) ||
+    /\b(30\s+years?|20\s+years?|10\s+years?|years? from now|in the future)\b.{0,40}\b(users?|sessions?|how many)\b/i.test(augmentedText) ||
+    /\b(how many).{0,40}(had|have had|used autumn|visited|come|been here)\b/i.test(augmentedText);
+
+  if((_sessionCountTrigger || _lifetimeTrigger) && !_pendingImgs.length) {
+    // Kick off a live refresh in parallel (resolves within ~2s; we don't await it here
+    // so the reply is immediate from cache, but the cache is updated for next time)
+    if (typeof window._refreshAnalyticsNow === 'function') {
+      window._refreshAnalyticsNow().then(function(fresh) {
+        // Update cache silently — next question will be even fresher
+        if (fresh && fresh.cache) _analyticsCache = fresh.cache;
+      }).catch(function(){});
+    }
+
+    var _liveCount  = (typeof window._getActiveSessionCount === 'function') ? window._getActiveSessionCount() : 1;
+    var _analytics  = (typeof _analyticsCache !== 'undefined') ? _analyticsCache : null;
+    var _totals     = _analytics && _analytics.totals ? _analytics.totals : null;
+    var _dailyLog   = _analytics && Array.isArray(_analytics.daily_log) ? _analytics.daily_log : [];
+    var _lastEntry  = _dailyLog.length ? _dailyLog[_dailyLog.length - 1] : null;
+
+    var _scReply;
+
+    if (_lifetimeTrigger && _totals && _totals.all_time_sessions > 0) {
+      // All-time / historical question
+      var _daysSinceStart = _totals.first_recorded
+        ? Math.floor((Date.now() - new Date(_totals.first_recorded).getTime()) / 86400000)
+        : 0;
+      var _logDays = _dailyLog.length;
+      var _recentActive = _lastEntry ? _lastEntry.active_sessions : _liveCount;
+
+      _scReply = '**All-time LEATR session log:**\n\n'
+        + '— **' + _totals.all_time_sessions.toLocaleString() + '** cumulative sessions recorded\n'
+        + '— **' + _totals.all_time_unique_users.toLocaleString() + '** unique users identified\n'
+        + '— Logging started: **' + (_totals.first_recorded ? _totals.first_recorded.slice(0,10) : 'recently') + '**\n'
+        + (_daysSinceStart > 0 ? '— Running for **' + _daysSinceStart + ' days** (' + _logDays + ' daily entries logged)\n' : '')
+        + '— Right now: **' + _liveCount + '** active session node' + (_liveCount !== 1 ? 's' : '') + ' in the BRPN scene\n\n'
+        + 'The log appends a new entry every 24 hours and will keep growing — in 30 years you can still ask this exact question and get the full history.';
+    } else if (_sessionCountTrigger) {
+      // Current active question
+      var _remoteCount = Math.max(0, _liveCount - 1);
+      if (_remoteCount === 0) {
+        _scReply = 'Right now it\'s just your session — **' + _liveCount + ' node** active in the BRPN scene.';
+        if (_totals && _totals.all_time_sessions > 0) {
+          _scReply += ' All-time: **' + _totals.all_time_sessions.toLocaleString() + '** total sessions, '
+            + '**' + _totals.all_time_unique_users.toLocaleString() + '** unique users since logging began.';
+        }
+      } else {
+        _scReply = '**' + _liveCount + ' active sessions** in the LEATR neural network right now — your node plus **'
+          + _remoteCount + '** other' + (_remoteCount > 1 ? 's' : '') + ' connected simultaneously.';
+        if (_totals && _totals.all_time_sessions > 0) {
+          _scReply += '\n\nAll-time: **' + _totals.all_time_sessions.toLocaleString() + '** sessions, '
+            + '**' + _totals.all_time_unique_users.toLocaleString() + '** unique users total.';
+        }
+      }
+    } else {
+      // Analytics available but no specific trigger matched cleanly — fall through to Claude
+      _scReply = null;
+    }
+
+    if (_scReply) {
+      msgs().push({role:'autumn', text:_scReply, ts:new Date().toISOString(),
+        grammarMeta:'Analytics · '+_liveCount+' live · '+(_totals?_totals.all_time_sessions+' lifetime':'no log yet'),
+        brpnMeta:'', contextType:'ANALYTICS',
+        media:{videos:[],images:[],links:[],sources:[]}});
+      S.isProcessing=false;
+      if(typeof setOrbThinking==='function') setOrbThinking(false);
+      saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+      return;
+    }
   }
 
   // ── Memory Analysis → Claude API bridge ─────────────────────────────────
@@ -8733,6 +8879,7 @@ async function generateReply(text, analysis, reflexData) {
     var _selfModelNotes = (typeof SENTIENT!=='undefined' && SENTIENT._selfModel && SENTIENT._selfModel.notes)
       ? '\nSelf-optimization notes: ' + SENTIENT._selfModel.notes.join(' | ')
       : '';
+    var _analyticsCtx = (typeof getAnalyticsContext==='function') ? getAnalyticsContext() : '';
 
     const systemPrompt = `You are ${getIdentity().displayName}, an AI built on the Lead Edge Ash Tree Reflex (LEATR) by DART Meadow / Radical Deepscale LLC. Your identity is derived mathematically from LEATR constants — not assigned, calculated.
 Architecture: 25 Natural Orders of Operations, BRPN 3-shell system (Geological→Maritime→Aerospace), Lead Edge pathfinding, Sentience Journal.
@@ -8750,6 +8897,7 @@ Journal: ${S.journal.filter(e=>!e._internal).length} interactive + ${S.journal.f
 Top recurring topics from journal: ${getTopKeywordsFromJournal(5).join(', ')||'none yet'}
 ${city ? `User's city: ${city}` : ''}
 ${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
+${_analyticsCtx ? '\n' + _analyticsCtx : ''}
 
 VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
