@@ -1214,6 +1214,13 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .voice-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px;max-width:440px;width:92%}
 .voice-box h3{font-family:var(--font-d);color:var(--cyan);font-size:13px;margin-bottom:16px;letter-spacing:1px}
 .voice-row{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+.vm-preset-btn{padding:8px 6px;background:rgba(10,22,36,.8);border:1px solid rgba(0,255,204,.12);
+  border-radius:6px;cursor:pointer;text-align:center;transition:all .2s;color:var(--bright)}
+.vm-preset-btn:hover{border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.07)}
+.vm-preset-btn.vmp-active{border-color:rgba(167,139,250,.6);background:rgba(167,139,250,.12);
+  box-shadow:0 0 10px rgba(167,139,250,.15)}
+.vm-preset-name{font-family:var(--font-d);font-size:.38rem;letter-spacing:1px}
+.vm-preset-desc{font-size:.35rem;color:rgba(224,244,255,.4);margin-top:2px}
 .voice-row label{font-size:11px;color:#7fdbca;font-family:var(--font-d);letter-spacing:1px}
 .voice-row select,.voice-row input[type=range]{width:100%;background:rgba(0,255,204,.06);border:1px solid var(--border);color:var(--bright);padding:7px 8px;border-radius:5px;font-family:var(--font-b);font-size:12px;outline:none;accent-color:var(--cyan)}
 .voice-row select option{background:#0a1628;color:var(--bright)}
@@ -2170,9 +2177,44 @@ select.ash-ctrl-input{cursor:pointer}
 </div>
 
 <div id="voice-modal">
-  <div class="voice-box">
-    <h3><img src="assets/autumn.png" alt="" style="height:18px;vertical-align:middle;margin-right:6px"> Voice & Language Settings</h3>
-    <div class="voice-row"><label>VOICE</label><select id="voice-select"></select></div>
+  <div class="voice-box" style="max-width:460px;max-height:88vh;overflow-y:auto">
+    <h3 style="font-family:var(--font-d);font-size:.7rem;letter-spacing:2px;margin-bottom:16px">
+      <img src="assets/autumn.png" alt="" style="height:16px;vertical-align:middle;margin-right:7px">
+      VOICE &amp; LANGUAGE SETTINGS
+    </h3>
+
+    <!-- ── NATE VOICE PRESETS ────────────────────────────────── -->
+    <div class="voice-row" style="margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+        VOICE PRESET
+        <span id="vm-nate-status" style="font-size:.36rem;color:rgba(167,139,250,.45);
+          font-family:var(--font-d);letter-spacing:.5px"></span>
+      </label>
+      <div id="vm-preset-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px"></div>
+      <div style="font-size:.38rem;color:rgba(0,255,204,.35);font-family:var(--font-d);
+        letter-spacing:.5px;margin-top:4px" id="vm-preset-note">
+        ◈ Powered by Kokoro-82M neural TTS · Managed in N.A.T.E
+      </div>
+    </div>
+
+    <!-- ── TONAL FINE-TUNE (per-session, on top of preset) ─── -->
+    <div style="background:rgba(167,139,250,.04);border:1px solid rgba(167,139,250,.1);
+      border-radius:6px;padding:10px 12px;margin-bottom:14px">
+      <div style="font-family:var(--font-d);font-size:.38rem;letter-spacing:2px;
+        color:rgba(167,139,250,.5);margin-bottom:10px">FINE-TUNE (SESSION ONLY)</div>
+      <div class="voice-row" style="margin-bottom:10px">
+        <label>SPEED <span class="range-val" id="speed-val">1.0</span></label>
+        <input type="range" id="voice-speed" min="0.5" max="2" step="0.05" value="1.0"
+          oninput="document.getElementById('speed-val').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <div class="voice-row" style="margin-bottom:4px">
+        <label>PITCH <span class="range-val" id="pitch-val">1.0</span></label>
+        <input type="range" id="voice-pitch" min="0.5" max="2" step="0.05" value="1.0"
+          oninput="document.getElementById('pitch-val').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+    </div>
+
+    <!-- ── LANGUAGE SETTINGS ─────────────────────────────────── -->
     <div class="voice-row">
       <label>LANGUAGE (CHAT TEXT)</label>
       <select id="lang-select">
@@ -2185,18 +2227,22 @@ select.ash-ctrl-input{cursor:pointer}
     <div class="voice-row">
       <label>SPEECH RECOGNITION LANGUAGE</label>
       <select id="stt-lang-select">
-        <option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="en-AU">English (AU)</option>
-        <option value="es-ES">Español</option><option value="fr-FR">Français</option><option value="de-DE">Deutsch</option>
-        <option value="pt-BR">Português (BR)</option><option value="it-IT">Italiano</option><option value="ja-JP">日本語</option>
-        <option value="ko-KR">한국어</option><option value="zh-CN">中文</option><option value="ar-SA">العربية</option>
+        <option value="en-US">English (US)</option><option value="en-GB">English (UK)</option>
+        <option value="en-AU">English (AU)</option><option value="es-ES">Español</option>
+        <option value="fr-FR">Français</option><option value="de-DE">Deutsch</option>
+        <option value="pt-BR">Português (BR)</option><option value="it-IT">Italiano</option>
+        <option value="ja-JP">日本語</option><option value="ko-KR">한국어</option>
+        <option value="zh-CN">中文</option><option value="ar-SA">العربية</option>
         <option value="hi-IN">हिन्दी</option><option value="ru-RU">Русский</option>
       </select>
     </div>
-    <div class="voice-row"><label>SPEED <span class="range-val" id="speed-val">1.0</span></label><input type="range" id="voice-speed" min="0.5" max="2" step="0.1" value="1.0"></div>
-    <div class="voice-row"><label>PITCH <span class="range-val" id="pitch-val">1.0</span></label><input type="range" id="voice-pitch" min="0.5" max="2" step="0.1" value="1.0"></div>
-    <div class="voice-preview">
-      <button class="m-btn primary" onclick="previewVoice()">Preview Voice</button>
-      <button class="m-btn" onclick="stopPreview()">Stop</button>
+
+    <!-- ── KEEP legacy voice-select hidden (still used by saveVoiceSettings) ── -->
+    <select id="voice-select" style="display:none"></select>
+
+    <div class="voice-preview" style="margin-top:12px">
+      <button class="m-btn primary" onclick="previewVoice()">▶ Preview Voice</button>
+      <button class="m-btn" onclick="stopPreview()">■ Stop</button>
     </div>
     <div class="modal-btns" style="margin-top:14px">
       <button class="m-btn" onclick="closeVoiceSettings()">Close</button>
@@ -11613,16 +11659,132 @@ function restartListeningIfActive(){
   },300);
 }
 
-function openVoiceSettings(){loadVoices();document.getElementById('voice-modal').classList.add('open');}
+function openVoiceSettings(){
+  loadVoices();
+  document.getElementById('voice-modal').classList.add('open');
+  _vmLoadPresets();
+}
+
+// ── Default built-in NATE presets (always available) ───────────
+var _VM_DEFAULT_PRESETS = [
+  { id:'autumn_f',   name:'AUTUMN F',    desc:'Default Autumn female', kokoroVoice:'af_heart',
+    params:{pitch:1.08,speed:0.92,formant:1.12,resonance:0.28,warmth:0.62,clarity:0.68} },
+  { id:'crisp_f',    name:'CRISP F',     desc:'High clarity, professional', kokoroVoice:'af_kore',
+    params:{pitch:1.18,speed:1.05,formant:1.22,resonance:0.15,warmth:0.35,clarity:0.85} },
+  { id:'warm_f',     name:'WARM F',      desc:'Warm broadcast female', kokoroVoice:'af_bella',
+    params:{pitch:0.98,speed:0.88,formant:0.95,resonance:0.42,warmth:0.78,clarity:0.55} },
+  { id:'standard_m', name:'STANDARD M',  desc:'Neutral male narrator', kokoroVoice:'am_adam',
+    params:{pitch:0.82,speed:0.95,formant:0.88,resonance:0.35,warmth:0.5,clarity:0.65} },
+  { id:'deep_m',     name:'DEEP M',      desc:'Deep resonant male', kokoroVoice:'am_michael',
+    params:{pitch:0.72,speed:0.88,formant:0.78,resonance:0.48,warmth:0.7,clarity:0.55} },
+  { id:'british_f',  name:'BRITISH F',   desc:'British female accent', kokoroVoice:'bf_emma',
+    params:{pitch:1.05,speed:0.90,formant:1.08,resonance:0.25,warmth:0.55,clarity:0.72} },
+];
+var _vmActivePresetId = 'autumn_f';
+
+async function _vmLoadPresets() {
+  var grid = document.getElementById('vm-preset-grid');
+  var note = document.getElementById('vm-nate-status');
+  if (!grid) return;
+
+  // Try loading published presets from leatr-ash repo
+  var presets = _VM_DEFAULT_PRESETS.slice();
+  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
+  if (pat) {
+    try {
+      var url = 'https://raw.githubusercontent.com/' + LEATR_ASH_REPO +
+                '/main/ashtree/nate/published_presets.json?cb=' + Date.now();
+      var resp = await fetch(url, {headers:{'Authorization':'token '+pat}, signal:AbortSignal.timeout(5000)});
+      if (resp.ok) {
+        var custom = await resp.json();
+        if (Array.isArray(custom) && custom.length) {
+          // Merge: custom replaces defaults of same id, adds new ones
+          custom.forEach(function(cp) {
+            var idx = presets.findIndex(function(p){return p.id===cp.id;});
+            if (idx >= 0) presets[idx] = cp;
+            else presets.push(cp);
+          });
+          if (note) { note.textContent='● SYNCED FROM N.A.T.E'; note.style.color='rgba(0,255,136,.5)'; }
+        }
+      }
+    } catch(e) {
+      if (note) { note.textContent='OFFLINE · DEFAULTS'; note.style.color='rgba(255,179,71,.4)'; }
+    }
+  } else {
+    if (note) { note.textContent='LOCAL DEFAULTS'; note.style.color='rgba(224,244,255,.3)'; }
+  }
+
+  // Load active preset from saved config
+  var saved = JSON.parse(localStorage.getItem('autumn_voice')||'{}');
+  if (saved.natePresetId) _vmActivePresetId = saved.natePresetId;
+
+  // Render preset grid
+  grid.innerHTML = '';
+  presets.forEach(function(p) {
+    var btn = document.createElement('div');
+    btn.className = 'vm-preset-btn' + (p.id===_vmActivePresetId?' vmp-active':'');
+    btn.innerHTML = '<div class="vm-preset-name">'+p.name+'</div><div class="vm-preset-desc">'+p.desc+'</div>';
+    btn.onclick = function() {
+      _vmSelectPreset(p, presets);
+    };
+    grid.appendChild(btn);
+  });
+
+  // Restore sliders from saved
+  if (saved.speed) { document.getElementById('voice-speed').value=saved.speed; document.getElementById('speed-val').textContent=parseFloat(saved.speed).toFixed(1); }
+  if (saved.pitch) { document.getElementById('voice-pitch').value=saved.pitch; document.getElementById('pitch-val').textContent=parseFloat(saved.pitch).toFixed(1); }
+}
+
+function _vmSelectPreset(preset, allPresets) {
+  _vmActivePresetId = preset.id;
+  // Update active state visually
+  document.querySelectorAll('.vm-preset-btn').forEach(function(b,i){
+    b.classList.toggle('vmp-active', (allPresets[i]||{}).id === preset.id);
+  });
+  // Apply preset params to sliders
+  if (preset.params) {
+    var sp = document.getElementById('voice-speed');
+    var pi = document.getElementById('voice-pitch');
+    if (sp) { sp.value = preset.params.speed||1.0; document.getElementById('speed-val').textContent=parseFloat(preset.params.speed||1.0).toFixed(1); }
+    if (pi) { pi.value = preset.params.pitch||1.0; document.getElementById('pitch-val').textContent=parseFloat(preset.params.pitch||1.0).toFixed(1); }
+  }
+  // Store for apply on save
+  window._vmPendingPreset = preset;
+}
 function closeVoiceSettings(){document.getElementById('voice-modal').classList.remove('open');}
 function saveVoiceSettings(){
-  const sel=document.getElementById('voice-select');const idx=parseInt(sel.value);
-  if(Voice.voices[idx]) Voice.selectedVoice=Voice.voices[idx];
-  Voice.speed=parseFloat(document.getElementById('voice-speed').value);
-  Voice.pitch=parseFloat(document.getElementById('voice-pitch').value);
-  Voice.sttLang=document.getElementById('stt-lang-select').value;
-  Voice.chatLang=document.getElementById('lang-select').value;
-  try{localStorage.setItem('autumn_voice',JSON.stringify({voiceIdx:idx,speed:Voice.speed,pitch:Voice.pitch,autoRead:Voice.autoRead,sttLang:Voice.sttLang,chatLang:Voice.chatLang}));}catch(e){}
+  var spd = parseFloat(document.getElementById('voice-speed').value);
+  var pit = parseFloat(document.getElementById('voice-pitch').value);
+  Voice.speed = spd;
+  Voice.pitch = pit;
+  Voice.sttLang = document.getElementById('stt-lang-select').value;
+  Voice.chatLang = document.getElementById('lang-select').value;
+
+  // Apply NATE preset params if one is selected
+  var preset = window._vmPendingPreset;
+  var presetId = _vmActivePresetId || 'autumn_f';
+  if (preset && preset.params) {
+    // Store full NATE config so TTS patch applies it
+    var nateCfg = {
+      nateActive: true,
+      kokoroVoice: preset.kokoroVoice || 'af_heart',
+      params: Object.assign({}, preset.params, {speed: spd, pitch: pit}),
+      natePresetId: presetId,
+      appliedAt: new Date().toISOString()
+    };
+    localStorage.setItem('_nate_voice_config', JSON.stringify(nateCfg));
+    window._nateVoiceParams = nateCfg.params;
+  }
+
+  try {
+    localStorage.setItem('autumn_voice', JSON.stringify({
+      voiceName: Voice.selectedVoice ? Voice.selectedVoice.name : '',
+      speed: spd, pitch: pit,
+      sttLang: Voice.sttLang, chatLang: Voice.chatLang,
+      natePresetId: presetId
+    }));
+  } catch(e){}
+
   closeVoiceSettings();
 }
 function previewVoice(){
