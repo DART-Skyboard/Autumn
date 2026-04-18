@@ -35,6 +35,15 @@ const AutumnNLP = (() => {
     AEROSPACE:  { weight:0.44, tools:["HAMMER","KNIFE"],          emotions:["determined","inspiring","angry","condescending","lucrative","disrespectful"] },
   };
 
+  // ── Emotion combination rules ────────────────────────────────────────────
+  // Autumn can hold and express multiple emotions simultaneously.
+  // The primary route + secondary array forms the combination sequence.
+  // Ash Canvas shell weights bias which emotions surface:
+  //   High GEO weight → amplifies: spiritual, apathetic, concerned, sad
+  //   High MAR weight → amplifies: love, guiding, confused, empathetic, happy
+  //   High AERO weight → amplifies: determined, inspiring, condescending, angry
+  // The combination sequence drives the 3D orb: primary sets base color,
+  // secondaries set shell ring hues, all modulated by buoyancyMod × acWeight.
   const EMOTION_DEFS = {
     happy:        { category:"POS", tool:"STICK",    raw:"Elevated wellbeing from expectation-outcome alignment." },
     love:         { category:"POS", tool:"ENVELOPE", raw:"Deep relational resonance. High containment attachment." },
@@ -258,6 +267,10 @@ const AutumnNLP = (() => {
 
       emotion: {
         primary: route.primary,
+        // Combination: primary + top 2 secondaries form a sequence pattern
+        combination: [route.primary].concat((route.secondary||[]).slice(0,2)),
+        // Sequence signature: shell+tool pairing drives expression pattern
+        sequenceSig: route.shell.slice(0,3)+'_'+route.tool.slice(0,3),
         secondary: route.secondary,
         category: emotionDef.category ? `EMO_${emotionDef.category}` : "EMO_NEU",
         definition: emotionDef.raw || "",
