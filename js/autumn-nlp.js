@@ -30,9 +30,9 @@ const AutumnNLP = (() => {
   };
 
   const SHELLS = {
-    GEOLOGICAL: { weight:1.00, tools:["MAZE","SCISSORS"],         emotions:["spiritual","forgiving","concerned","judgemental","sad","empathetic"] },
-    MARITIME:   { weight:0.72, tools:["PUZZLE","ENVELOPE","STICK"],emotions:["love","guiding","worried","happy","neutral","jealous","confused"]  },
-    AEROSPACE:  { weight:0.44, tools:["HAMMER","KNIFE"],          emotions:["determined","inspiring","angry","condescending","lucrative","disrespectful","apathetic"] },
+    GEOLOGICAL: { weight:1.00, tools:["MAZE","SCISSORS"],         emotions:["spiritual","forgiving","concerned","judgemental","sad","apathetic"] },
+    MARITIME:   { weight:0.72, tools:["PUZZLE","ENVELOPE","STICK"],emotions:["love","guiding","worried","happy","neutral","jealous","confused","empathetic"] },
+    AEROSPACE:  { weight:0.44, tools:["HAMMER","KNIFE"],          emotions:["determined","inspiring","angry","condescending","lucrative","disrespectful"] },
   };
 
   const EMOTION_DEFS = {
@@ -55,8 +55,14 @@ const AutumnNLP = (() => {
     concerned:    { category:"NEU", tool:"ENVELOPE", raw:"Envelope monitoring external risk with active Puzzle sub-loop." },
     judgemental:  { category:"NEU", tool:"KNIFE",    raw:"Knife at max precision without Scissors refinement." },
     // ── NEW STATES ─────────────────────────────────────────
-    apathetic:    { category:"NEU", tool:"SCISSORS", raw:"Scissors in idle — no directional force. Low-energy neutral distinct from ready Neutral." },
-    empathetic:   { category:"POS", tool:"ENVELOPE", raw:"Envelope projection into external consciousness. Resonant containment of other-state." },
+    // apathetic: RESEARCH form — using imagination to project INTO another's consciousness,
+    // feelings, perspective and eyes. Internal imaginative exploration of other-state.
+    // Tool: MAZE (root intake, deep imaginative projection). Shell: GEOLOGICAL (deep introspection).
+    apathetic:    { category:"NEU", tool:"MAZE",     raw:"Imaginative projection into another's consciousness. Research phase of perspective-taking — internal, introspective, Maze-deep." },
+    // empathetic: PERFORMANCE form — externally acting on and expressing the perspective
+    // researched via apathy. The outward bridging and performance of the other-state.
+    // Tool: STICK (connection/bridging to other). Shell: MARITIME (relational flow, outward).
+    empathetic:   { category:"POS", tool:"STICK",    raw:"Performance of perspective-projection. Outward expression and bridging of internally-researched other-state. Stick-driven relational execution." },
     confused:     { category:"NEU", tool:"PUZZLE",   raw:"Puzzle cycling with unresolved input — uncertainty loop preceding Concerned or Judgemental." },
   };
 
@@ -74,16 +80,18 @@ const AutumnNLP = (() => {
     { shell:"AEROSPACE",  tool:"PUZZLE",   expLayer:2, primary:"lucrative",     secondary:["determined","jealous","worried"]     },
     { shell:"AEROSPACE",  tool:"SCISSORS", expLayer:4, primary:"disrespectful", secondary:["hateful","angry","sad"]              },
     // ── NEW ROUTES ────────────────────────────────────────────
-    { shell:"GEOLOGICAL", tool:"MAZE",     expLayer:1, primary:"empathetic",    secondary:["spiritual","concerned","love"]        },
+    // apathetic: GEOLOGICAL+MAZE (deep imaginative projection — introspective research into other-state)
+    { shell:"GEOLOGICAL", tool:"MAZE",     expLayer:1, primary:"apathetic",     secondary:["spiritual","empathetic","concerned"]  },
+    // empathetic: MARITIME+STICK (outward bridge — performance of the perspective-taking)
+    { shell:"MARITIME",   tool:"STICK",    expLayer:1, primary:"empathetic",    secondary:["love","guiding","happy"]              },
     { shell:"MARITIME",   tool:"PUZZLE",   expLayer:2, primary:"confused",      secondary:["worried","neutral","concerned"]       },
-    { shell:"AEROSPACE",  tool:"SCISSORS", expLayer:4, primary:"apathetic",     secondary:["neutral","sad","disrespectful"]       },
   ];
 
   const EXPRESSION_LAYERS = {
-    1: { name:"Contextual Statement", entryTool:"MAZE",    emotions:["happy","love","guiding","determined","inspiring","neutral","empathetic"] },
+    1: { name:"Contextual Statement", entryTool:"MAZE",    emotions:["happy","love","guiding","determined","inspiring","neutral","apathetic","empathetic"] },
     2: { name:"Question",             entryTool:"PUZZLE",  emotions:["curious","worried","jealous","neutral","concerned","judgemental","confused"] },
     3: { name:"Expression",           entryTool:"HAMMER",  emotions:["angry","inspiring","hateful","condescending","disrespectful","determined"] },
-    4: { name:"Sigmatic Sequence",    entryTool:"SCISSORS",emotions:["spiritual","sad","forgiving","lucrative","concerned","jealous","love","apathetic"] },
+    4: { name:"Sigmatic Sequence",    entryTool:"SCISSORS",emotions:["spiritual","sad","forgiving","lucrative","concerned","jealous","love"] },
   };
 
   // ─── SIGMA CLASSIFIER ────────────────────────────────────────────────────
