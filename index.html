@@ -2193,7 +2193,7 @@ select.ash-ctrl-input{cursor:pointer}
       <div id="vm-preset-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px"></div>
       <div style="font-size:.38rem;color:rgba(0,255,204,.35);font-family:var(--font-d);
         letter-spacing:.5px;margin-top:4px" id="vm-preset-note">
-        ◈ Powered by Kokoro-82M neural TTS · Managed in N.A.T.E
+        ◈ Kokoro-82M neural TTS · ★ = Grade A/A-/B- top quality · Managed in N.A.T.E (admin)
       </div>
     </div>
 
@@ -11666,19 +11666,33 @@ function openVoiceSettings(){
 }
 
 // ── Default built-in NATE presets (always available) ───────────
+// Quality grades: hexgrad/Kokoro-82M VOICES.md — ★ = Grade A/A-/B-
+// Female voices listed first per admin preference
 var _VM_DEFAULT_PRESETS = [
-  { id:'autumn_f',   name:'AUTUMN F',    desc:'Default Autumn female', kokoroVoice:'af_heart',
-    params:{pitch:1.08,speed:0.92,formant:1.12,resonance:0.28,warmth:0.62,clarity:0.68} },
-  { id:'crisp_f',    name:'CRISP F',     desc:'High clarity, professional', kokoroVoice:'af_kore',
-    params:{pitch:1.18,speed:1.05,formant:1.22,resonance:0.15,warmth:0.35,clarity:0.85} },
-  { id:'warm_f',     name:'WARM F',      desc:'Warm broadcast female', kokoroVoice:'af_bella',
-    params:{pitch:0.98,speed:0.88,formant:0.95,resonance:0.42,warmth:0.78,clarity:0.55} },
-  { id:'standard_m', name:'STANDARD M',  desc:'Neutral male narrator', kokoroVoice:'am_adam',
-    params:{pitch:0.82,speed:0.95,formant:0.88,resonance:0.35,warmth:0.5,clarity:0.65} },
-  { id:'deep_m',     name:'DEEP M',      desc:'Deep resonant male', kokoroVoice:'am_michael',
-    params:{pitch:0.72,speed:0.88,formant:0.78,resonance:0.48,warmth:0.7,clarity:0.55} },
-  { id:'british_f',  name:'BRITISH F',   desc:'British female accent', kokoroVoice:'bf_emma',
-    params:{pitch:1.05,speed:0.90,formant:1.08,resonance:0.25,warmth:0.55,clarity:0.72} },
+  { id:'autumn_f',  name:'AUTUMN F ★',  desc:'Grade A · warm, natural',
+    kokoroVoice:'af_heart',
+    params:{pitch:1.06,speed:0.93,formant:1.10,resonance:0.25,warmth:0.65,clarity:0.70} },
+  { id:'bella_f',   name:'BELLA ★',     desc:'Grade A- · soft, expressive',
+    kokoroVoice:'af_bella',
+    params:{pitch:1.04,speed:0.91,formant:1.08,resonance:0.30,warmth:0.72,clarity:0.65} },
+  { id:'nicole_f',  name:'NICOLE ★',    desc:'Grade B- · smooth, professional',
+    kokoroVoice:'af_nicole',
+    params:{pitch:1.10,speed:0.96,formant:1.15,resonance:0.18,warmth:0.50,clarity:0.80} },
+  { id:'emma_bf',   name:'EMMA UK ★',   desc:'Grade B- · warm British female',
+    kokoroVoice:'bf_emma',
+    params:{pitch:1.05,speed:0.90,formant:1.08,resonance:0.22,warmth:0.60,clarity:0.72} },
+  { id:'aoede_f',   name:'AOEDE',       desc:'Grade C+ · clear, neutral',
+    kokoroVoice:'af_aoede',
+    params:{pitch:1.08,speed:0.95,formant:1.12,resonance:0.20,warmth:0.55,clarity:0.75} },
+  { id:'kore_f',    name:'KORE',        desc:'Grade C+ · crisp, precise',
+    kokoroVoice:'af_kore',
+    params:{pitch:1.14,speed:1.00,formant:1.18,resonance:0.15,warmth:0.40,clarity:0.82} },
+  { id:'fenrir_m',  name:'FENRIR M',    desc:'Grade C+ · best male voice',
+    kokoroVoice:'am_fenrir',
+    params:{pitch:0.85,speed:0.95,formant:0.90,resonance:0.32,warmth:0.55,clarity:0.65} },
+  { id:'michael_m', name:'MICHAEL M',   desc:'Grade C+ · deep, authoritative',
+    kokoroVoice:'am_michael',
+    params:{pitch:0.78,speed:0.92,formant:0.82,resonance:0.40,warmth:0.65,clarity:0.60} },
 ];
 var _vmActivePresetId = 'autumn_f';
 
