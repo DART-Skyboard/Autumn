@@ -30,9 +30,9 @@ const AutumnNLP = (() => {
   };
 
   const SHELLS = {
-    GEOLOGICAL: { weight:1.00, tools:["MAZE","SCISSORS"],         emotions:["spiritual","forgiving","concerned","judgemental","sad"] },
-    MARITIME:   { weight:0.72, tools:["PUZZLE","ENVELOPE","STICK"],emotions:["love","guiding","worried","happy","neutral","jealous"]  },
-    AEROSPACE:  { weight:0.44, tools:["HAMMER","KNIFE"],          emotions:["determined","inspiring","angry","condescending","lucrative","disrespectful"] },
+    GEOLOGICAL: { weight:1.00, tools:["MAZE","SCISSORS"],         emotions:["spiritual","forgiving","concerned","judgemental","sad","empathetic"] },
+    MARITIME:   { weight:0.72, tools:["PUZZLE","ENVELOPE","STICK"],emotions:["love","guiding","worried","happy","neutral","jealous","confused"]  },
+    AEROSPACE:  { weight:0.44, tools:["HAMMER","KNIFE"],          emotions:["determined","inspiring","angry","condescending","lucrative","disrespectful","apathetic"] },
   };
 
   const EMOTION_DEFS = {
@@ -54,6 +54,10 @@ const AutumnNLP = (() => {
     lucrative:    { category:"NEU", tool:"KNIFE",    raw:"High-value Knife division yielding asymmetric gain." },
     concerned:    { category:"NEU", tool:"ENVELOPE", raw:"Envelope monitoring external risk with active Puzzle sub-loop." },
     judgemental:  { category:"NEU", tool:"KNIFE",    raw:"Knife at max precision without Scissors refinement." },
+    // ── NEW STATES ─────────────────────────────────────────
+    apathetic:    { category:"NEU", tool:"SCISSORS", raw:"Scissors in idle — no directional force. Low-energy neutral distinct from ready Neutral." },
+    empathetic:   { category:"POS", tool:"ENVELOPE", raw:"Envelope projection into external consciousness. Resonant containment of other-state." },
+    confused:     { category:"NEU", tool:"PUZZLE",   raw:"Puzzle cycling with unresolved input — uncertainty loop preceding Concerned or Judgemental." },
   };
 
   const ROUTING_TABLE = [
@@ -69,13 +73,17 @@ const AutumnNLP = (() => {
     { shell:"AEROSPACE",  tool:"KNIFE",    expLayer:2, primary:"condescending", secondary:["judgemental","lucrative","neutral"]  },
     { shell:"AEROSPACE",  tool:"PUZZLE",   expLayer:2, primary:"lucrative",     secondary:["determined","jealous","worried"]     },
     { shell:"AEROSPACE",  tool:"SCISSORS", expLayer:4, primary:"disrespectful", secondary:["hateful","angry","sad"]              },
+    // ── NEW ROUTES ────────────────────────────────────────────
+    { shell:"GEOLOGICAL", tool:"MAZE",     expLayer:1, primary:"empathetic",    secondary:["spiritual","concerned","love"]        },
+    { shell:"MARITIME",   tool:"PUZZLE",   expLayer:2, primary:"confused",      secondary:["worried","neutral","concerned"]       },
+    { shell:"AEROSPACE",  tool:"SCISSORS", expLayer:4, primary:"apathetic",     secondary:["neutral","sad","disrespectful"]       },
   ];
 
   const EXPRESSION_LAYERS = {
-    1: { name:"Contextual Statement", entryTool:"MAZE",    emotions:["happy","love","guiding","determined","inspiring","neutral"] },
-    2: { name:"Question",             entryTool:"PUZZLE",  emotions:["curious","worried","jealous","neutral","concerned","judgemental"] },
+    1: { name:"Contextual Statement", entryTool:"MAZE",    emotions:["happy","love","guiding","determined","inspiring","neutral","empathetic"] },
+    2: { name:"Question",             entryTool:"PUZZLE",  emotions:["curious","worried","jealous","neutral","concerned","judgemental","confused"] },
     3: { name:"Expression",           entryTool:"HAMMER",  emotions:["angry","inspiring","hateful","condescending","disrespectful","determined"] },
-    4: { name:"Sigmatic Sequence",    entryTool:"SCISSORS",emotions:["spiritual","sad","forgiving","lucrative","concerned","jealous","love"] },
+    4: { name:"Sigmatic Sequence",    entryTool:"SCISSORS",emotions:["spiritual","sad","forgiving","lucrative","concerned","jealous","love","apathetic"] },
   };
 
   // ─── SIGMA CLASSIFIER ────────────────────────────────────────────────────
