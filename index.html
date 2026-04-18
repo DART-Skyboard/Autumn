@@ -16170,19 +16170,21 @@ _syncActionBtn();
   function _pad4(n){return n+(4-n%4)%4;}
 
   // ── GLB / GLTF binary writer ─────────────────────────────────────
+  // COLOR_0 as VEC4 FLOAT (required by strict glTF validators + Nomad Sculpt)
   function _asWriteGLB(meshes, asBinary) {
     var aPos=[],aNrm=[],aCol=[],aIdx=[],vBase=0;
     meshes.forEach(function(m){
       var t=m.tube;
       for(var i=0;i<t.pos.length;i++) aPos.push(t.pos[i]);
       for(var i=0;i<t.nrm.length;i++) aNrm.push(t.nrm[i]);
-      for(var i=0;i<t.col.length;i++) aCol.push(t.col[i]);
+      // Expand VEC3 colour to VEC4 (alpha=1) — required by glTF spec for COLOR_0
+      for(var i=0;i<t.col.length;i+=3){ aCol.push(t.col[i],t.col[i+1],t.col[i+2],1.0); }
       for(var i=0;i<t.idx.length;i++) aIdx.push(t.idx[i]+vBase);
       vBase+=t.vc;
     });
     var TV=vBase, TI=aIdx.length;
     var useU16=TV<65536, idxCT=useU16?5123:5125, idxBPE=useU16?2:4;
-    var bPos=aPos.length*4, bNrm=aNrm.length*4, bCol=aCol.length*4, bIdx=aIdx.length*idxBPE;
+    var bPos=aPos.length*4, bNrm=aNrm.length*4, bCol=aCol.length*4, bIdx=TI*idxBPE;
     var offPos=0,offNrm=bPos,offCol=bPos+bNrm,offIdx=bPos+bNrm+bCol;
     var binRaw=offIdx+bIdx, binLen=_pad4(binRaw);
 
@@ -16195,21 +16197,23 @@ _syncActionBtn();
     var mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
     for(var i=0;i<aPos.length;i+=3){mn[0]=Math.min(mn[0],aPos[i]);mn[1]=Math.min(mn[1],aPos[i+1]);mn[2]=Math.min(mn[2],aPos[i+2]);mx[0]=Math.max(mx[0],aPos[i]);mx[1]=Math.max(mx[1],aPos[i+1]);mx[2]=Math.max(mx[2],aPos[i+2]);}
 
-    var gltf={asset:{version:'2.0',generator:'Autumn Arc Edge Studio — DART Meadow'},
+    // Use plain ASCII generator string — no em-dash or multi-byte chars
+    // to keep UTF-8 byte count predictable for 4-byte alignment padding
+    var gltf={asset:{version:'2.0',generator:'Autumn Arc Edge Studio - DART Meadow'},
       scene:0,scenes:[{name:'ArcEdge',nodes:[0]}],nodes:[{name:'Arcs',mesh:0}],
       meshes:[{name:'ArcTubes',primitives:[{attributes:{POSITION:0,NORMAL:1,COLOR_0:2},indices:3,material:0,mode:4}]}],
       materials:[{name:'ArcMat',pbrMetallicRoughness:{baseColorFactor:[0,1,0.533,1],metallicFactor:0.05,roughnessFactor:0.7},doubleSided:true}],
       accessors:[
         {bufferView:0,byteOffset:0,componentType:5126,count:TV,type:'VEC3',min:mn,max:mx},
         {bufferView:1,byteOffset:0,componentType:5126,count:TV,type:'VEC3'},
-        {bufferView:2,byteOffset:0,componentType:5126,count:TV,type:'VEC3'},
+        {bufferView:2,byteOffset:0,componentType:5126,count:TV,type:'VEC4'},
         {bufferView:3,byteOffset:0,componentType:idxCT,count:TI,type:'SCALAR'}
       ],
       bufferViews:[
         {buffer:0,byteOffset:offPos,byteLength:bPos,target:34962},
         {buffer:0,byteOffset:offNrm,byteLength:bNrm,target:34962},
         {buffer:0,byteOffset:offCol,byteLength:bCol,target:34962},
-        {buffer:0,byteOffset:offIdx,byteLength:aIdx.length*idxBPE,target:34963}
+        {buffer:0,byteOffset:offIdx,byteLength:bIdx,target:34963}
       ],
       buffers:[{byteLength:binLen}]
     };
@@ -16219,19 +16223,31 @@ _syncActionBtn();
       return new Blob([JSON.stringify(gltf,null,2)],{type:'model/gltf+json'});
     }
 
-    // GLB: pack JSON chunk + BIN chunk
-    var jStr=JSON.stringify(gltf); while(jStr.length%4) jStr+=' ';
+    // GLB: JSON chunk MUST be padded to 4-byte boundary using UTF-8 BYTE count,
+    // not JS string char count (they differ when multi-byte chars are present).
+    var jStr=JSON.stringify(gltf);
     var jBytes=new TextEncoder().encode(jStr);
-    var total=12+8+jBytes.length+8+binLen;
+    // Pad to 4-byte boundary with ASCII spaces (0x20)
+    var jPadded=jBytes;
+    var rem=jBytes.length%4;
+    if(rem){
+      var padded=new Uint8Array(jBytes.length+(4-rem));
+      padded.set(jBytes);
+      padded.fill(0x20,jBytes.length); // pad with spaces as per glTF spec
+      jPadded=padded;
+    }
+    var total=12+8+jPadded.length+8+binLen;
     var glb=new ArrayBuffer(total), gv=new DataView(glb), go=0;
-    gv.setUint32(go,0x46546C67,true);go+=4; // 'glTF'
-    gv.setUint32(go,2,true);go+=4;           // version
-    gv.setUint32(go,total,true);go+=4;        // length
-    gv.setUint32(go,jBytes.length,true);go+=4;
-    gv.setUint32(go,0x4E4F534A,true);go+=4;  // JSON
-    new Uint8Array(glb,go,jBytes.length).set(jBytes); go+=jBytes.length;
+    gv.setUint32(go,0x46546C67,true);go+=4; // magic: 'glTF'
+    gv.setUint32(go,2,true);go+=4;           // version 2
+    gv.setUint32(go,total,true);go+=4;        // total file length
+    // JSON chunk
+    gv.setUint32(go,jPadded.length,true);go+=4;
+    gv.setUint32(go,0x4E4F534A,true);go+=4;  // chunk type: JSON
+    new Uint8Array(glb,go,jPadded.length).set(jPadded); go+=jPadded.length;
+    // BIN chunk
     gv.setUint32(go,binLen,true);go+=4;
-    gv.setUint32(go,0x004E4942,true);go+=4;  // BIN\0
+    gv.setUint32(go,0x004E4942,true);go+=4;  // chunk type: BIN\0
     new Uint8Array(glb,go,binLen).set(new Uint8Array(bin));
     return new Blob([glb],{type:'model/gltf-binary'});
   }
