@@ -698,7 +698,12 @@ footer a{color:var(--cyan);text-decoration:none;}
       <tr><td><span class="cp">Voice Sample Library</span></td><td class="cd">Six built-in reference samples (3 female · 3 male) synthesised using Klatt cascade formant modelling. Upload your own WAV/MP3/OGG files for custom base tones.</td></tr>
       <tr><td><span class="cp">Tonal Controls</span></td><td class="cd">Seven real-time parameters — Pitch, Speed, Formant, Resonance, Warmth, Clarity, Vibrato — applied as a Web Audio post-processing chain on top of the Kokoro neural output.</td></tr>
       <tr><td><span class="cp">Sigma Blend</span></td><td class="cd">Select two or more voice samples and compute a weighted median. The OfflineAudioContext mixes all selected samples at equal weight into a single blended waveform that can be analysed and used as a voice foundation.</td></tr>
-      <tr><td><span class="cp">Kokoro Voice Selector</span></td><td class="cd">20 Kokoro-82M neural voices available: American and British, male and female. Selected voice routes through Autumn's same TTS pipeline — no degradation from re-encoding.</td></tr>
+      <tr><td><span class="cp">Kokoro Voice Selector</span></td><td class="cd">
+        All available Kokoro-82M voices are listed, grouped and labelled with their official quality grade from the model's training data documentation.
+        <span class="hl">★ Grade A/A-/B-</span> voices have the most training data and sound the most natural.
+        Grade C and D voices have limited training data and will have more synthetic character.
+        The selector defaults to <span style="font-family:var(--fc);color:var(--gold)">af_heart</span> (Grade A — the best overall voice in the model).
+      </td></tr>
       <tr><td><span class="cp">Neural Correlation</span></td><td class="cd">Live display mapping current tonal parameters against the three BRPN shells (GEO / MAR / AERO). Voice parameters that align with a shell's frequency profile increase its correlation bar in real time.</td></tr>
       <tr><td><span class="cp">Tonal Analysis</span></td><td class="cd">After playing a sample, NATE extracts fundamental frequency (F0), first and second formants (F1, F2), sigma score, per-shell alignment percentages, and an estimated emotion tone based on formant ratios.</td></tr>
     </table>
@@ -745,7 +750,12 @@ footer a{color:var(--cyan);text-decoration:none;}
       All users have access to voice customisation through the standard Voice &amp; Language Settings panel (accessible via the speaker icon or voice settings in Autumn's interface). They never interact with N.A.T.E directly.
     </p>
     <table class="ct">
-      <tr><td><span class="cp">Voice Preset grid</span></td><td class="cd">Shows all available presets — built-in defaults plus any personas published by the admin via N.A.T.E. Tap a preset card to activate it. The active card is highlighted. The grid updates automatically whenever the admin publishes new presets.</td></tr>
+      <tr><td><span class="cp">Voice Preset grid</span></td><td class="cd">
+        Shows all available presets — built-in defaults plus any personas published by the admin via N.A.T.E. Tap a preset card to activate it. The active card is highlighted.
+        Presets marked with <span class="hl">★</span> use Grade A or B Kokoro voices and will sound noticeably more natural and fluid.
+        The default preset is <strong>AUTUMN F ★</strong> which uses <span style="font-family:var(--fc);color:var(--gold)">af_heart</span> — the top-rated voice in the Kokoro-82M model.
+        The grid updates automatically whenever the admin publishes new presets from N.A.T.E.
+      </td></tr>
       <tr><td><span class="cp">Fine-Tune sliders</span></td><td class="cd">Speed and Pitch sliders apply a per-session adjustment on top of the selected preset. These are local to the user's browser session and do not affect other users or the preset definition itself.</td></tr>
       <tr><td><span class="cp">Language settings</span></td><td class="cd">Chat text language and speech recognition language are still independently configurable regardless of which voice preset is active.</td></tr>
       <tr><td><span class="cp">▶ Preview Voice</span></td><td class="cd">Plays a short test phrase through the currently configured voice so the user can hear the preset before saving.</td></tr>
@@ -761,6 +771,26 @@ footer a{color:var(--cyan);text-decoration:none;}
     <div class="sub">TECHNICAL OVERVIEW</div>
     <table class="ct">
       <tr><td><span class="cp">TTS engine</span></td><td class="cd">Kokoro-82M-ONNX — same neural model used by Autumn's core TTS. Runs fully in-browser via transformers.js (WASM). No API key required, no audio sent to external servers.</td></tr>
+      <tr><td><span class="cp">Voice quality grades</span></td><td class="cd">
+        Grades are sourced from the official <span style="font-family:var(--fc);color:var(--gold)">hexgrad/Kokoro-82M VOICES.md</span> and reflect training data quality and duration.
+        <br><br>
+        <strong style="color:#00ff88">★ Recommended female voices:</strong>
+        <div style="margin:6px 0 4px;font-family:var(--fc);font-size:.42rem;line-height:1.9;color:rgba(224,244,255,.7)">
+          af_heart &nbsp;— Grade <strong style="color:#00ffcc">A</strong> &nbsp;· warm, natural · default<br>
+          af_bella &nbsp;— Grade <strong style="color:#00ffcc">A-</strong> · soft, expressive · most training data<br>
+          af_nicole — Grade <strong style="color:#44ddaa">B-</strong> · smooth, professional<br>
+          bf_emma &nbsp;— Grade <strong style="color:#44ddaa">B-</strong> · warm British female
+        </div>
+        <strong style="color:rgba(224,244,255,.5)">Grade C+ female (less training data):</strong>
+        <div style="margin:4px 0;font-family:var(--fc);font-size:.4rem;color:rgba(224,244,255,.45);line-height:1.8">
+          af_aoede, af_kore, af_sarah — C+
+        </div>
+        <strong style="color:rgba(224,244,255,.35)">Avoid (D grade — minimal training):</strong>
+        <div style="margin:4px 0;font-family:var(--fc);font-size:.4rem;color:rgba(224,244,255,.3);line-height:1.8">
+          af_sky, af_jessica, af_river, bf_alice, bf_lily, am_adam (F+)
+        </div>
+        Male voices are generally lower quality across the board. Best male options: am_fenrir, am_michael, am_puck (all C+).
+      </td></tr>
       <tr><td><span class="cp">Post-processing</span></td><td class="cd">Web Audio API — OfflineAudioContext applies pitch detune, low-shelf warmth EQ, high-shelf clarity EQ, and a bandpass formant peak on the Kokoro PCM output before playback.</td></tr>
       <tr><td><span class="cp">Voice samples</span></td><td class="cd">Stored in <span style="font-family:var(--fc);color:var(--gold)">nate/audio/</span> in the Autumn repository. Built-in samples use Klatt cascade formant synthesis. Add your own WAV files to that directory to expand the library.</td></tr>
       <tr><td><span class="cp">Preset storage</span></td><td class="cd">Published presets: <span style="font-family:var(--fc);color:var(--gold)">ashtree/nate/published_presets.json</span> in leatr-ash (requires PAT). Workshop drafts: browser localStorage only.</td></tr>
