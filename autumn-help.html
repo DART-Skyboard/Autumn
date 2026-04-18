@@ -141,7 +141,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="tb-nav">
     <a href="#start">Setup</a><a href="#chat">Chat</a><a href="#image">Images</a>
-    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#calc">Calculator</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
+    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#calc">Calculator</a><a href="#forge">FORGE</a><a href="#nate">N.A.T.E</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
   </div>
   <a class="tb-open" href="https://leatr.xyz/">OPEN AUTUMN</a>
 </nav>
@@ -650,6 +650,275 @@ footer a{color:var(--cyan);text-decoration:none;}
     </table>
   </div>
 </section>
+
+<!-- FORGE -->
+<section class="sec" id="forge">
+  <div class="sec-hd">
+    <span class="sec-num" style="background:linear-gradient(135deg,#00e5ff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent">◈</span>
+    <span class="sec-title" style="background:linear-gradient(135deg,#00e5ff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent">FORGE — Autumn Code Studio</span>
+    <span class="sec-line"></span>
+  </div>
+
+  <div class="card" style="background:linear-gradient(135deg,rgba(0,229,255,.05),rgba(0,255,136,.03));border-color:rgba(0,229,255,.2)">
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-family:var(--font-d);font-size:.9rem;letter-spacing:4px;margin-bottom:4px;
+          background:linear-gradient(135deg,#00e5ff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent">FORGE</div>
+        <div style="font-family:var(--font-d);font-size:.36rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);margin-bottom:10px">AUTUMN CODE STUDIO</div>
+        <p class="cd" style="margin-bottom:8px">
+          FORGE is a full-screen code editor built directly into the Autumn web app. It gives every user access to a Monaco-powered coding environment supporting 20+ languages, live HTML/CSS/JavaScript preview, syntax highlighting, and direct integration with Autumn's AI — no separate app, no account required.
+        </p>
+        <div class="ki" style="border-color:rgba(0,229,255,.2);background:rgba(0,229,255,.04)">
+          Open FORGE from the <span class="hl">FORGE</span> button in the HUD column, or say <em>"open forge"</em> in chat. Autumn can generate code directly into FORGE from any coding request.
+        </div>
+      </div>
+      <div style="flex-shrink:0;text-align:center">
+        <div style="font-family:var(--font-d);font-size:2.5rem;letter-spacing:4px;
+          background:linear-gradient(135deg,#00e5ff,#00ff88);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+          border:1px solid rgba(0,229,255,.18);border-radius:10px;padding:14px 22px">FORGE</div>
+        <div style="font-family:var(--font-d);font-size:.32rem;color:rgba(0,229,255,.35);letter-spacing:1px;margin-top:5px">DART MEADOW · PUBLIC</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sub">EDITOR FEATURES</div>
+    <table class="ct">
+      <tr><td><span class="cp">Monaco Editor</span></td><td class="cd">The same editor that powers VS Code — full syntax highlighting, bracket matching, autocomplete, multi-cursor, and code folding for every supported language.</td></tr>
+      <tr><td><span class="cp">20+ Languages</span></td><td class="cd">HTML, CSS, JavaScript, TypeScript, Python, PHP, Ruby, Perl, Shell, PowerShell, C++, C, C#, Java, Kotlin, Swift, Go, Rust, SQL, JSON, XML, YAML, Markdown, GraphQL, GLSL, HLSL.</td></tr>
+      <tr><td><span class="cp">Language selector</span></td><td class="cd">Drop-down in the header grouped by category — Web, Scripting, Compiled, Data/DB, 3D/Shader. Switching language re-applies syntax highlighting instantly.</td></tr>
+      <tr><td><span class="cp">Status bar</span></td><td class="cd">Shows current cursor position (line/column), active language, and live character and line count.</td></tr>
+      <tr><td><span class="cp">Default snippets</span></td><td class="cd">Each language opens with a starter template so the editor is never blank. HTML gets a full document scaffold, JavaScript gets a working function, Python gets a clean script, etc.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">LIVE PREVIEW & OUTPUT</div>
+    <p class="cd" style="margin-bottom:12px">The right pane shows a live preview panel alongside the editor. Behaviour depends on language:</p>
+    <table class="ct">
+      <tr><td><span class="cp">HTML</span></td><td class="cd">Full rendered page in a sandboxed iframe — updates every time you hit <span class="hl">▶ RUN</span>. Styles, scripts, and media all render live.</td></tr>
+      <tr><td><span class="cp">JavaScript</span></td><td class="cd">Runs inside an iframe with <code>console.log</code> captured and displayed as output — see results without leaving FORGE.</td></tr>
+      <tr><td><span class="cp">CSS</span></td><td class="cd">Renders your stylesheet against a placeholder element so you can see colour, spacing, and typography changes immediately.</td></tr>
+      <tr><td><span class="cp">Markdown</span></td><td class="cd">Renders formatted HTML output — headings, bold, italic, inline code all previewed in real time.</td></tr>
+      <tr><td><span class="cp">Python / PHP / Java / C++ etc.</span></td><td class="cd">These require a server-side runtime and cannot execute in the browser. FORGE shows the code in the output pane with a note — copy and run locally, or ask Autumn to analyse it.</td></tr>
+      <tr><td><span class="cp">↗ NEW TAB</span></td><td class="cd">Opens the current preview in a new browser tab — useful for full-screen HTML review or sharing a rendered page.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">CODE BLOCKS IN CHAT</div>
+    <p class="cd" style="margin-bottom:12px">
+      Whenever Autumn generates code in the chat window, it renders as an interactive code block rather than plain text. Each block has its own action bar:
+    </p>
+    <table class="ct">
+      <tr><td><span class="cp">⬡ COPY</span></td><td class="cd">Copies the entire code block to the clipboard in one tap.</td></tr>
+      <tr><td><span class="cp">⬇ .EXT</span></td><td class="cd">Downloads the code as a file with the correct extension for the language — <code>.py</code> for Python, <code>.html</code> for HTML, <code>.sql</code> for SQL, etc.</td></tr>
+      <tr><td><span class="cp">▶ RUN</span></td><td class="cd">Opens the code in FORGE and immediately runs it — available for HTML, JavaScript, CSS, and Markdown (languages with live preview support).</td></tr>
+      <tr><td><span class="cp">◈ FORGE</span></td><td class="cd">Opens the code in FORGE for editing — loads it into the editor with the correct language already selected so you can modify and experiment.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">CLAUDE AI ASSIST TOGGLE</div>
+    <p class="cd" style="margin-bottom:12px">
+      If you have entered an Anthropic API key in <span class="hl">🔑 KEYS</span>, FORGE can use Claude to help with coding. A toggle button in the FORGE header controls this connection specifically for the code editor — it does not affect Claude elsewhere in Autumn.
+    </p>
+    <table class="ct">
+      <tr><td><span class="cp">◈ CLAUDE ON  (green)</span></td><td class="cd">Claude is connected to FORGE. Coding requests generate detailed AI-assisted responses — explanations, alternatives, best practices, and debugging help. Uses your Anthropic API credits.</td></tr>
+      <tr><td><span class="cp">◈ CLAUDE OFF  (greyed)</span></td><td class="cd">Claude is disconnected from FORGE specifically. Autumn still responds to coding requests using her built-in LEATR reasoning at no API cost. Your key remains active everywhere else in the app.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px">
+      The toggle state is saved per-browser. It defaults to ON if a key is present. This lets you use FORGE freely without consuming API credits while saving Claude for the main chat when you need it.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sub">TOOLBAR ACTIONS</div>
+    <table class="ct">
+      <tr><td><span class="cp">▶ RUN</span></td><td class="cd">Executes the current editor contents — renders HTML in the preview frame, runs JavaScript with console output, or shows the output panel for server-side languages.</td></tr>
+      <tr><td><span class="cp">⬡ COPY</span></td><td class="cd">Copies everything in the editor to the clipboard.</td></tr>
+      <tr><td><span class="cp">⬇ SAVE</span></td><td class="cd">Downloads the current code as a file with the correct extension for the active language.</td></tr>
+      <tr><td><span class="cp">✕ CLEAR</span></td><td class="cd">Resets the editor to the default starter snippet for the current language.</td></tr>
+      <tr><td><span class="cp">◈ ASK AUTUMN</span></td><td class="cd">Sends the current code to the chat window as a message asking Autumn to analyse it, explain it, find issues, and suggest improvements.</td></tr>
+      <tr><td><span class="cp">◈ CLAUDE ON/OFF</span></td><td class="cd">Toggles Claude AI assist for FORGE specifically — see above.</td></tr>
+      <tr><td><span class="cp">✕ CLOSE</span></td><td class="cd">Closes FORGE and returns to the main chat view.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">VOICE COMMANDS</div>
+    <table class="ct">
+      <tr><td><span class="cp">open forge</span></td><td class="cd">Opens the FORGE editor. Also: "launch forge", "show forge".</td></tr>
+      <tr><td><span class="cp">write me a Python script that...</span></td><td class="cd">Autumn generates the code in the chat as an interactive block with Run and FORGE buttons.</td></tr>
+      <tr><td><span class="cp">build me an HTML page for...</span></td><td class="cd">Generates a full HTML document. Tap ▶ RUN in the code block to see it rendered immediately.</td></tr>
+      <tr><td><span class="cp">fix this code / debug this</span></td><td class="cd">Paste code into the chat or use ◈ ASK AUTUMN from FORGE — Autumn will analyse it and suggest corrections.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">AUTUMN'S CODING AWARENESS</div>
+    <p class="cd">
+      Autumn understands her own codebase. If you ask her about how a feature works, what a particular file does, or how the LEATR neural architecture is implemented, she can look up her repository and explain it in plain language — without exposing any private keys, tokens, or sensitive configuration. This applies to all her tools including FORGE, N.A.T.E, the Ash Canvas, and the BRPN 3D visualization system.
+    </p>
+    <div class="ki" style="margin-top:10px">
+      FORGE is separate from the admin IDE (◈ IDE button). The IDE is password-protected and allows direct commits to the Autumn repository — it is for developers only. FORGE is a public coding tool for all users with no authentication required.
+    </div>
+  </div>
+
+</section>
+
+
+<!-- N.A.T.E -->
+<section class="sec" id="nate">
+  <div class="sec-hd">
+    <span class="sec-num" style="color:rgba(167,139,250,.7)">◈</span>
+    <span class="sec-title" style="background:linear-gradient(135deg,#a78bfa,#00e5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">N.A.T.E — Neutral Audio Tonal Exertion Engine</span>
+    <span class="sec-line"></span>
+  </div>
+
+  <!-- Identity card -->
+  <div class="card" style="background:linear-gradient(135deg,rgba(167,139,250,.06),rgba(0,229,255,.04));border-color:rgba(167,139,250,.25)">
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-family:var(--font-d);font-size:.9rem;letter-spacing:3px;margin-bottom:4px;
+          background:linear-gradient(135deg,#a78bfa,#00e5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          N.A.T.E
+        </div>
+        <div style="font-family:var(--font-d);font-size:.36rem;letter-spacing:1.5px;
+          color:rgba(167,139,250,.55);margin-bottom:10px">NEUTRAL AUDIO TONAL EXERTION ENGINE</div>
+        <p class="cd" style="margin-bottom:8px">
+          N.A.T.E is an admin-only voice synthesis lab built into the Autumn ecosystem. It is not accessible to general users — it exists so DART Meadow developers can craft, analyse, and publish custom voice personas that appear as selectable presets in every user's Voice Settings panel.
+        </p>
+        <div class="ki" style="border-color:rgba(167,139,250,.25);background:rgba(167,139,250,.06)">
+          N.A.T.E is for <strong>admin and DevOps use only</strong>. Users interact with its output through the Voice menu in the Autumn web app — they never access N.A.T.E directly.
+        </div>
+      </div>
+      <div style="flex-shrink:0;text-align:center">
+        <div style="font-family:var(--font-d);font-size:2.5rem;letter-spacing:4px;
+          background:linear-gradient(135deg,#a78bfa,#00e5ff,#00ff88);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+          border:1px solid rgba(167,139,250,.2);border-radius:10px;padding:14px 20px;
+          background-clip:text">N.A.T.E</div>
+        <div style="font-family:var(--font-d);font-size:.32rem;color:rgba(167,139,250,.35);
+          letter-spacing:1px;margin-top:5px">DART MEADOW · ADMIN</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- What it does -->
+  <div class="card">
+    <div class="sub">WHAT N.A.T.E DOES</div>
+    <p class="cd" style="margin-bottom:12px">
+      N.A.T.E is a browser-based voice engineering tool that connects directly to Autumn's Kokoro-82M neural TTS engine. It gives admins the ability to analyse voice waveforms, combine multiple voice samples into a single tonal midpoint (sigma blend), fine-tune synthesis parameters, and define named voice personas — then publish those personas as presets that all Autumn users can choose from.
+    </p>
+    <table class="ct">
+      <tr><td><span class="cp">Voice Sample Library</span></td><td class="cd">Six built-in reference samples (3 female · 3 male) synthesised using Klatt cascade formant modelling. Upload your own WAV/MP3/OGG files for custom base tones.</td></tr>
+      <tr><td><span class="cp">Tonal Controls</span></td><td class="cd">Seven real-time parameters — Pitch, Speed, Formant, Resonance, Warmth, Clarity, Vibrato — applied as a Web Audio post-processing chain on top of the Kokoro neural output.</td></tr>
+      <tr><td><span class="cp">Sigma Blend</span></td><td class="cd">Select two or more voice samples and compute a weighted median. The OfflineAudioContext mixes all selected samples at equal weight into a single blended waveform that can be analysed and used as a voice foundation.</td></tr>
+      <tr><td><span class="cp">Kokoro Voice Selector</span></td><td class="cd">
+        All available Kokoro-82M voices are listed, grouped and labelled with their official quality grade from the model's training data documentation.
+        <span class="hl">★ Grade A/A-/B-</span> voices have the most training data and sound the most natural.
+        Grade C and D voices have limited training data and will have more synthetic character.
+        The selector defaults to <span style="font-family:var(--fc);color:var(--gold)">af_heart</span> (Grade A — the best overall voice in the model).
+      </td></tr>
+      <tr><td><span class="cp">Neural Correlation</span></td><td class="cd">Live display mapping current tonal parameters against the three BRPN shells (GEO / MAR / AERO). Voice parameters that align with a shell's frequency profile increase its correlation bar in real time.</td></tr>
+      <tr><td><span class="cp">Tonal Analysis</span></td><td class="cd">After playing a sample, NATE extracts fundamental frequency (F0), first and second formants (F1, F2), sigma score, per-shell alignment percentages, and an estimated emotion tone based on formant ratios.</td></tr>
+    </table>
+  </div>
+
+  <!-- Persona system -->
+  <div class="card">
+    <div class="sub">PERSONA WORKSHOP — ADMIN WORKFLOW</div>
+    <p class="cd" style="margin-bottom:12px">
+      The admin workflow for creating and publishing a new voice persona involves three stages in N.A.T.E:
+    </p>
+    <div class="steps">
+      <div class="step">
+        <div class="sn">1</div>
+        <div class="sb">
+          <div class="st">BUILD IN THE WORKSHOP</div>
+          <div class="sd">Set the tonal controls and select a Kokoro voice. Hit <span class="hl">+ NEW</span> and give the persona a name — it captures all current parameters and appears as a card in the <strong>Persona Workshop</strong> grid. Edit freely, rename, preview with the ▶ button, or delete and start over. Workshop cards are private and not yet visible to anyone.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="sn">2</div>
+        <div class="sb">
+          <div class="st">DRAG TO PUBLISHED</div>
+          <div class="sd">Drag any workshop card into the <strong>Published Presets</strong> row. This queues it for release. You can drag multiple personas in, rearrange, or drag them back to the workshop to remove them from the queue. The published grid is still local until the next step.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="sn">3</div>
+        <div class="sb">
+          <div class="st">PUBLISH TO AUTUMN</div>
+          <div class="sd">Hit <span class="hl">▲ PUBLISH TO AUTUMN</span>. N.A.T.E writes <span style="font-family:var(--fc);color:var(--gold)">ashtree/nate/published_presets.json</span> to the private leatr-ash repository using your GitHub PAT. Every Autumn session reads this file the next time the voice modal opens — the new personas appear immediately in the user-facing preset grid.</div>
+        </div>
+      </div>
+    </div>
+    <div class="ki" style="margin-top:12px">
+      The built-in presets (Autumn F, Crisp F, Warm F, Standard M, Deep M, British F) are always present as defaults and cannot be removed by publishing. Your published personas are additions or replacements stacked on top of those defaults.
+    </div>
+  </div>
+
+  <!-- What users see -->
+  <div class="card">
+    <div class="sub">WHAT USERS SEE — THE VOICE MENU</div>
+    <p class="cd" style="margin-bottom:12px">
+      All users have access to voice customisation through the standard Voice &amp; Language Settings panel (accessible via the speaker icon or voice settings in Autumn's interface). They never interact with N.A.T.E directly.
+    </p>
+    <table class="ct">
+      <tr><td><span class="cp">Voice Preset grid</span></td><td class="cd">
+        Shows all available presets — built-in defaults plus any personas published by the admin via N.A.T.E. Tap a preset card to activate it. The active card is highlighted.
+        Presets marked with <span class="hl">★</span> use Grade A or B Kokoro voices and will sound noticeably more natural and fluid.
+        The default preset is <strong>AUTUMN F ★</strong> which uses <span style="font-family:var(--fc);color:var(--gold)">af_heart</span> — the top-rated voice in the Kokoro-82M model.
+        The grid updates automatically whenever the admin publishes new presets from N.A.T.E.
+      </td></tr>
+      <tr><td><span class="cp">Fine-Tune sliders</span></td><td class="cd">Speed and Pitch sliders apply a per-session adjustment on top of the selected preset. These are local to the user's browser session and do not affect other users or the preset definition itself.</td></tr>
+      <tr><td><span class="cp">Language settings</span></td><td class="cd">Chat text language and speech recognition language are still independently configurable regardless of which voice preset is active.</td></tr>
+      <tr><td><span class="cp">▶ Preview Voice</span></td><td class="cd">Plays a short test phrase through the currently configured voice so the user can hear the preset before saving.</td></tr>
+      <tr><td><span class="cp">Save</span></td><td class="cd">Persists the chosen preset and fine-tune values. Autumn's TTS engine immediately begins using the selected Kokoro voice with those parameters for all speech output.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px">
+      Voice changes are local to each user's browser. The admin publishing a new preset does not change anyone's currently active voice — users choose when to switch.
+    </div>
+  </div>
+
+  <!-- Technical -->
+  <div class="card">
+    <div class="sub">TECHNICAL OVERVIEW</div>
+    <table class="ct">
+      <tr><td><span class="cp">TTS engine</span></td><td class="cd">Kokoro-82M-ONNX — same neural model used by Autumn's core TTS. Runs fully in-browser via transformers.js (WASM). No API key required, no audio sent to external servers.</td></tr>
+      <tr><td><span class="cp">Voice quality grades</span></td><td class="cd">
+        Grades are sourced from the official <span style="font-family:var(--fc);color:var(--gold)">hexgrad/Kokoro-82M VOICES.md</span> and reflect training data quality and duration.
+        <br><br>
+        <strong style="color:#00ff88">★ Recommended female voices:</strong>
+        <div style="margin:6px 0 4px;font-family:var(--fc);font-size:.42rem;line-height:1.9;color:rgba(224,244,255,.7)">
+          af_heart &nbsp;— Grade <strong style="color:#00ffcc">A</strong> &nbsp;· warm, natural · default<br>
+          af_bella &nbsp;— Grade <strong style="color:#00ffcc">A-</strong> · soft, expressive · most training data<br>
+          af_nicole — Grade <strong style="color:#44ddaa">B-</strong> · smooth, professional<br>
+          bf_emma &nbsp;— Grade <strong style="color:#44ddaa">B-</strong> · warm British female
+        </div>
+        <strong style="color:rgba(224,244,255,.5)">Grade C+ female (less training data):</strong>
+        <div style="margin:4px 0;font-family:var(--fc);font-size:.4rem;color:rgba(224,244,255,.45);line-height:1.8">
+          af_aoede, af_kore, af_sarah — C+
+        </div>
+        <strong style="color:rgba(224,244,255,.35)">Avoid (D grade — minimal training):</strong>
+        <div style="margin:4px 0;font-family:var(--fc);font-size:.4rem;color:rgba(224,244,255,.3);line-height:1.8">
+          af_sky, af_jessica, af_river, bf_alice, bf_lily, am_adam (F+)
+        </div>
+        Male voices are generally lower quality across the board. Best male options: am_fenrir, am_michael, am_puck (all C+).
+      </td></tr>
+      <tr><td><span class="cp">Post-processing</span></td><td class="cd">Web Audio API — OfflineAudioContext applies pitch detune, low-shelf warmth EQ, high-shelf clarity EQ, and a bandpass formant peak on the Kokoro PCM output before playback.</td></tr>
+      <tr><td><span class="cp">Voice samples</span></td><td class="cd">Stored in <span style="font-family:var(--fc);color:var(--gold)">nate/audio/</span> in the Autumn repository. Built-in samples use Klatt cascade formant synthesis. Add your own WAV files to that directory to expand the library.</td></tr>
+      <tr><td><span class="cp">Preset storage</span></td><td class="cd">Published presets: <span style="font-family:var(--fc);color:var(--gold)">ashtree/nate/published_presets.json</span> in leatr-ash (requires PAT). Workshop drafts: browser localStorage only.</td></tr>
+      <tr><td><span class="cp">Security</span></td><td class="cd">N.A.T.E requires the same admin password as the Autumn IDE. Direct URL access to nate.html without a valid session redirects to the login gate. The credential is never transmitted — only its SHA-256 hash is compared client-side.</td></tr>
+      <tr><td><span class="cp">Revert to baseline</span></td><td class="cd">The <span class="hl">↺ REVERT TO BASELINE</span> button in N.A.T.E restores Autumn's original voice configuration. The baseline is captured the first time any preset is applied and preserved permanently so it can always be restored.</td></tr>
+    </table>
+  </div>
+
+</section>
+
 </main>
 
 <footer>

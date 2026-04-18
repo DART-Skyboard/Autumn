@@ -38,18 +38,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.1/math.min.js"></script>
 <script>
 function acceptDataPolicy() {
-  localStorage.setItem('_aut_data_consent', 'true');
-  document.getElementById('data-policy-modal').style.display = 'none';
+  localStorage.setItem('_aut_data_consent','true');
+  var m=document.getElementById('data-policy-modal'); if(m)m.style.display='none';
   initLeatrAshSync();
 }
 
 function checkDataPolicyConsent() {
-  if (!localStorage.getItem('_aut_data_consent')) {
-    document.getElementById('data-policy-modal').style.display = 'flex';
-    return false;
-  }
-  initLeatrAshSync();
-  return true;
+  var has=localStorage.getItem('_aut_data_consent')||localStorage.getItem('autumn_consent');
+  if (!has) { document.getElementById('consent-modal').style.display='flex'; return false; }
+  try{if(!localStorage.getItem('_aut_data_consent'))localStorage.setItem('_aut_data_consent','true');}catch(e){}
+  initLeatrAshSync(); return true;
 }
 
 window.addEventListener('load', function() {
@@ -57,7 +55,7 @@ window.addEventListener('load', function() {
 });
 
 function showDataPolicy() {
-  document.getElementById('data-policy-modal').style.display = 'flex';
+  document.getElementById('consent-modal').style.display = 'flex';
 }
 
 // ============================================================
@@ -163,6 +161,8 @@ function initLeatrAshSync() {
     uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'init',
     ref: document.referrer ? document.referrer.slice(0,60) : 'direct'
   });
+  // Fire-and-forget: fetch analytics so Autumn can answer questions about it
+  _fetchAnalytics();
 }
 
 function syncToolPattern(toolName, parameters) {
@@ -175,6 +175,91 @@ function syncToolPattern(toolName, parameters) {
 setInterval(function() {
   writeLeatrAshMemory('ashtree/sessions/'+_aut_sid+'.json', { uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'heartbeat' });
 }, 3 * 60 * 1000);
+
+// ── Analytics — lifetime session log reader ───────────────────────────────────
+// Cached in memory for the session; Autumn reads it via getAnalyticsContext()
+var _analyticsCache = null;
+var _analyticsFetchedAt = 0;
+var _analyticsReady = false;
+
+async function _fetchAnalytics() {
+  // Refresh at most once per hour per session
+  if (_analyticsReady && (Date.now() - _analyticsFetchedAt) < 60 * 60 * 1000) return;
+  try {
+    var url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/ashtree/analytics/lifetime_log.json';
+    var hdrs = { 'Authorization':'token ' + _ASH_BOT, 'Content-Type':'application/json' };
+    var res = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(8000) });
+    if (!res.ok) return;
+    var eg = await res.json();
+    var raw = atob(eg.content.replace(/\n/g,''));
+    var data = JSON.parse(raw);
+    _analyticsCache = data;
+    _analyticsFetchedAt = Date.now();
+    _analyticsReady = true;
+  } catch(e) { /* silent — analytics are non-critical */ }
+}
+
+// Also count currently active session files (visible through the API)
+async function _fetchActiveSessionCount() {
+  try {
+    var url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/ashtree/sessions';
+    var hdrs = { 'Authorization':'token ' + _ASH_BOT };
+    var res = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(6000) });
+    if (!res.ok) return null;
+    var files = await res.json();
+    if (!Array.isArray(files)) return null;
+    // Count non-index files = active session nodes
+    return files.filter(function(f){ return f.name.endsWith('.json') && f.name !== '_index.json'; }).length;
+  } catch(e) { return null; }
+}
+
+// Build a natural-language analytics summary Autumn can read from the system prompt
+function getAnalyticsContext() {
+  if (!_analyticsReady || !_analyticsCache) return '';
+  var d = _analyticsCache;
+  var t = d.totals || {};
+  var log = d.daily_log || [];
+  var last = log.length ? log[log.length - 1] : null;
+
+  var lines = [
+    'LEATR SESSION ANALYTICS (lifetime_log — ashtree/analytics/lifetime_log.json):',
+    '  All-time sessions recorded: ' + (t.all_time_sessions || 0),
+    '  All-time unique users: ' + (t.all_time_unique_users || 0),
+    '  Logging started: ' + (t.first_recorded ? t.first_recorded.slice(0,10) : 'unknown'),
+    '  Last daily snapshot: ' + (t.last_updated ? t.last_updated.slice(0,10) : 'not yet'),
+    '  Total daily entries logged: ' + log.length
+  ];
+  if (last) {
+    lines.push(
+      '  Most recent snapshot (' + last.date + '): ' +
+      last.active_sessions + ' active sessions, ' +
+      last.active_users + ' active users'
+    );
+  }
+  if (log.length >= 2) {
+    // Simple trend: compare last two days
+    var prev = log[log.length - 2];
+    var delta = last.active_sessions - prev.active_sessions;
+    lines.push('  Session delta vs previous day: ' + (delta >= 0 ? '+' : '') + delta);
+  }
+  lines.push(
+    'When asked about session counts, active users, total users, or how many people ' +
+    'have used Autumn, draw naturally from this data. The log grows every 24 hours ' +
+    'and will still be accurate decades from now.'
+  );
+  return lines.join('\n');
+}
+
+// Refresh analytics when Autumn explicitly needs it (e.g. user asks about sessions)
+window._refreshAnalyticsNow = async function() {
+  _analyticsReady = false; // force re-fetch
+  await _fetchAnalytics();
+  var active = await _fetchActiveSessionCount();
+  return {
+    cache: _analyticsCache,
+    liveActiveSessions: active
+  };
+};
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -693,6 +778,9 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #nlp-emotion-badge[data-emotion="spiritual"],#nlp-emotion-badge[data-emotion="guiding"]{color:#a78bfa!important;}
 #nlp-emotion-badge[data-emotion="sad"],#nlp-emotion-badge[data-emotion="worried"],#nlp-emotion-badge[data-emotion="concerned"]{color:#80b8f0!important;}
 #nlp-emotion-badge[data-emotion="lucrative"],#nlp-emotion-badge[data-emotion="condescending"]{color:#f0c040!important;}
+#nlp-emotion-badge[data-emotion="apathetic"]{color:#8855dd!important;}
+#nlp-emotion-badge[data-emotion="empathetic"]{color:#bb88ff!important;}
+#nlp-emotion-badge[data-emotion="confused"]{color:#8866ff!important;}
 #shell-status{position:absolute;top:8px;right:10px;z-index:10;display:flex;gap:8px;pointer-events:none}
 .shell-badge{display:flex;align-items:center;gap:4px;font-size:.52rem;font-family:var(--font-d);letter-spacing:1px;padding:3px 8px;border-radius:3px;background:rgba(3,10,14,.7);border:1px solid var(--border);backdrop-filter:blur(6px);text-shadow:0 0 6px rgba(0,0,0,.6)}
 .shell-badge .dot{width:6px;height:6px;border-radius:50%;animation:pulse 2s infinite}
@@ -1124,6 +1212,13 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .voice-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px;max-width:440px;width:92%}
 .voice-box h3{font-family:var(--font-d);color:var(--cyan);font-size:13px;margin-bottom:16px;letter-spacing:1px}
 .voice-row{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+.vm-preset-btn{padding:8px 6px;background:rgba(10,22,36,.8);border:1px solid rgba(0,255,204,.12);
+  border-radius:6px;cursor:pointer;text-align:center;transition:all .2s;color:var(--bright)}
+.vm-preset-btn:hover{border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.07)}
+.vm-preset-btn.vmp-active{border-color:rgba(167,139,250,.6);background:rgba(167,139,250,.12);
+  box-shadow:0 0 10px rgba(167,139,250,.15)}
+.vm-preset-name{font-family:var(--font-d);font-size:.38rem;letter-spacing:1px}
+.vm-preset-desc{font-size:.35rem;color:rgba(224,244,255,.4);margin-top:2px}
 .voice-row label{font-size:11px;color:#7fdbca;font-family:var(--font-d);letter-spacing:1px}
 .voice-row select,.voice-row input[type=range]{width:100%;background:rgba(0,255,204,.06);border:1px solid var(--border);color:var(--bright);padding:7px 8px;border-radius:5px;font-family:var(--font-b);font-size:12px;outline:none;accent-color:var(--cyan)}
 .voice-row select option{background:#0a1628;color:var(--bright)}
@@ -1235,6 +1330,144 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .ac-btn.apply:hover{background:rgba(167,139,250,.25)}
 .ac-btn.reset{background:transparent;border-color:rgba(255,68,102,.25);color:rgba(255,68,102,.6)}
 .ac-btn.reset:hover{background:rgba(255,68,102,.08)}
+
+/* ── EMOTION MIND MAP OVERLAY ── */
+#emm-overlay{display:none;position:fixed;z-index:8700;top:64px;left:50%;
+  transform:translateX(-50%);width:min(95vw,660px);max-height:85vh;
+  background:rgba(4,9,16,.97);border:1px solid rgba(167,139,250,.3);
+  border-radius:12px;box-shadow:0 8px 48px rgba(0,0,0,.75);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  flex-direction:column;overflow:hidden}
+#emm-overlay.emm-visible{display:flex}
+#emm-hdr{display:flex;align-items:center;padding:9px 14px;gap:8px;
+  background:rgba(167,139,250,.07);border-bottom:1px solid rgba(167,139,250,.13);
+  cursor:move;user-select:none;flex-shrink:0}
+.emm-title{font-family:var(--font-d);font-size:.48rem;letter-spacing:2px;
+  color:rgba(167,139,250,.8);flex:1}
+.emm-hbtn{background:transparent;border:1px solid rgba(167,139,250,.2);
+  color:rgba(167,139,250,.5);border-radius:3px;padding:2px 9px;cursor:pointer;
+  font-size:.44rem;font-family:var(--font-d);transition:all .15s}
+.emm-hbtn:hover{border-color:#a78bfa;color:#a78bfa}
+.emm-hbtn.emm-close{border-color:rgba(255,68,102,.2);color:rgba(255,68,102,.45)}
+.emm-hbtn.emm-close:hover{border-color:#ff4466;color:#ff4466}
+#emm-body{overflow-y:auto;padding:16px 18px 22px;flex:1;
+  scrollbar-width:thin;scrollbar-color:rgba(167,139,250,.2) transparent}
+#emm-overlay.emm-mini #emm-body{display:none}
+/* Tree nodes */
+.emm-root-node{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;
+  background:linear-gradient(135deg,rgba(0,255,204,.08),rgba(0,136,255,.06));
+  border:1px solid rgba(0,255,204,.3);border-radius:8px;
+  font-family:var(--font-d);font-size:.5rem;letter-spacing:1.5px;color:#00ffcc}
+.emm-shells{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.emm-shell{flex:1;min-width:150px;border-radius:7px;padding:9px 12px;border:1px solid}
+.emm-shell.geo{background:rgba(0,255,204,.03);border-color:rgba(0,255,204,.18)}
+.emm-shell.mar{background:rgba(0,136,255,.03);border-color:rgba(0,136,255,.18)}
+.emm-shell.aero{background:rgba(255,68,102,.03);border-color:rgba(255,68,102,.18)}
+.emm-sl{font-family:var(--font-d);font-size:.42rem;letter-spacing:2px;display:block;margin-bottom:5px}
+.emm-shell.geo .emm-sl{color:rgba(0,255,204,.65)}
+.emm-shell.mar .emm-sl{color:rgba(0,136,255,.65)}
+.emm-shell.aero .emm-sl{color:rgba(255,68,102,.65)}
+.emm-sd{font-size:.43rem;color:rgba(224,244,255,.45);line-height:1.6}
+/* Tool blocks */
+.emm-tool{margin-bottom:13px;border-left:2px solid;padding-left:10px}
+.emm-tool.t-maze    {border-color:rgba(0,255,204,.45)}
+.emm-tool.t-puzzle  {border-color:rgba(0,136,255,.45)}
+.emm-tool.t-envelope{border-color:rgba(0,255,157,.4)}
+.emm-tool.t-hammer  {border-color:rgba(255,179,71,.4)}
+.emm-tool.t-stick   {border-color:rgba(167,139,250,.45)}
+.emm-tool.t-knife   {border-color:rgba(255,68,102,.45)}
+.emm-tool.t-scissors{border-color:rgba(200,200,255,.3)}
+.emm-tool-hd{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.emm-tn{font-family:var(--font-d);font-size:.4rem;color:rgba(255,255,255,.22);letter-spacing:1px}
+.emm-tm{font-family:var(--font-d);font-size:.5rem;letter-spacing:1.5px;font-weight:700}
+.emm-tool.t-maze     .emm-tm{color:#00ffcc}
+.emm-tool.t-puzzle   .emm-tm{color:#0088ff}
+.emm-tool.t-envelope .emm-tm{color:#00ff9d}
+.emm-tool.t-hammer   .emm-tm{color:#ffb347}
+.emm-tool.t-stick    .emm-tm{color:#a78bfa}
+.emm-tool.t-knife    .emm-tm{color:#ff4466}
+.emm-tool.t-scissors .emm-tm{color:#c8c8ff}
+.emm-raw{font-size:.44rem;font-style:italic;color:rgba(224,244,255,.38);line-height:1.55;margin-bottom:5px}
+.emm-emos{list-style:none;padding:0;margin:0}
+.emm-emos li{font-size:.46rem;color:rgba(224,244,255,.68);line-height:1.75;padding-left:10px;position:relative}
+.emm-emos li::before{content:"◈";position:absolute;left:0;color:rgba(167,139,250,.4);font-size:.36rem;top:3px}
+.emm-tag{display:inline-block;padding:1px 6px;border-radius:3px;margin-right:5px;
+  font-family:var(--font-d);font-size:.34rem;letter-spacing:.5px}
+.emm-tag.pos{background:rgba(0,255,157,.09);color:#00ff9d;border:1px solid rgba(0,255,157,.22)}
+.emm-tag.neg{background:rgba(255,68,102,.07);color:#ff4466;border:1px solid rgba(255,68,102,.18)}
+.emm-tag.neu{background:rgba(167,139,250,.07);color:#a78bfa;border:1px solid rgba(167,139,250,.18)}
+.emm-combo-note{background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.15);
+  border-radius:6px;padding:10px 13px;font-size:.44rem;color:rgba(224,244,255,.55);
+  line-height:1.65;margin-top:14px}
+.emm-divider{border:none;border-top:1px solid rgba(167,139,250,.1);margin:13px 0}
+
+/* ══════════════════════════════════════════
+   FORGE — Autumn Code Studio
+══════════════════════════════════════════ */
+#forge-overlay{display:none;position:fixed;top:56px;left:0;right:0;bottom:0;z-index:8600;
+  flex-direction:column;background:rgba(3,8,16,.98);
+  border-top:1px solid rgba(0,229,255,.15)}
+#forge-overlay.forge-open{display:flex}
+#forge-header{display:flex;align-items:center;gap:10px;padding:8px 14px;
+  background:rgba(4,10,18,.98);border-bottom:1px solid rgba(0,229,255,.12);
+  flex-shrink:0}
+.forge-logo{font-family:var(--font-d);font-size:.58rem;letter-spacing:2px;
+  background:linear-gradient(135deg,#00e5ff,#00ff88);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;flex-shrink:0}
+.forge-logo span{display:none}
+#forge-lang-sel{background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);
+  color:#e0f4ff;border-radius:4px;font-family:var(--font-d);font-size:.38rem;
+  padding:4px 8px;outline:none;cursor:pointer;letter-spacing:.5px}
+#forge-lang-sel option{background:#060f1a}
+.forge-btn{padding:4px 12px;border-radius:4px;cursor:pointer;font-family:var(--font-d);
+  font-size:.38rem;letter-spacing:1px;border:1px solid;background:transparent;transition:all .18s}
+.forge-btn.run{border-color:rgba(0,255,136,.4);color:#00ff88}
+.forge-btn.run:hover{background:rgba(0,255,136,.1)}
+.forge-btn.copy{border-color:rgba(0,229,255,.3);color:var(--cyan)}
+.forge-btn.copy:hover{background:rgba(0,229,255,.08)}
+.forge-btn.dl{border-color:rgba(167,139,250,.3);color:#a78bfa}
+.forge-btn.dl:hover{background:rgba(167,139,250,.08)}
+.forge-btn.clear{border-color:rgba(255,68,102,.2);color:rgba(255,68,102,.5)}
+.forge-btn.clear:hover{border-color:#ff4466;color:#ff4466}
+.forge-btn.close{border-color:rgba(255,68,102,.2);color:rgba(255,68,102,.4)}
+.forge-btn.close:hover{border-color:#ff4466;color:#ff4466}
+#forge-body{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;min-height:0}
+@media(max-width:700px){#forge-body{grid-template-columns:1fr}}
+#forge-editor-pane{display:flex;flex-direction:column;border-right:1px solid rgba(0,229,255,.08)}
+#forge-editor-container{flex:1;min-height:0}
+#forge-status-bar{font-family:var(--font-d);font-size:.34rem;letter-spacing:1px;
+  color:rgba(0,229,255,.4);padding:4px 12px;background:rgba(0,8,18,.6);
+  border-top:1px solid rgba(0,229,255,.08);flex-shrink:0;
+  display:flex;justify-content:space-between;align-items:center}
+#forge-preview-pane{display:flex;flex-direction:column}
+#forge-preview-header{font-family:var(--font-d);font-size:.38rem;letter-spacing:2px;
+  color:rgba(0,229,255,.4);padding:6px 12px;border-bottom:1px solid rgba(0,229,255,.08);
+  display:flex;align-items:center;gap:8px;flex-shrink:0}
+#forge-preview-frame{flex:1;border:none;background:#fff;min-height:0}
+#forge-preview-output{flex:1;overflow-y:auto;padding:12px;font-family:var(--font-b);
+  font-size:.75rem;color:#e0f4ff;white-space:pre-wrap;min-height:0;
+  display:none;line-height:1.7}
+/* Chat code blocks */
+.forge-code-block{position:relative;margin:8px 0;border-radius:7px;
+  background:rgba(3,8,16,.95);border:1px solid rgba(0,229,255,.15);overflow:hidden}
+.forge-code-header{display:flex;align-items:center;gap:6px;padding:5px 10px;
+  background:rgba(0,229,255,.04);border-bottom:1px solid rgba(0,229,255,.1)}
+.forge-code-lang{font-family:var(--font-d);font-size:.34rem;letter-spacing:1.5px;
+  color:rgba(0,229,255,.55)}
+.forge-code-actions{margin-left:auto;display:flex;gap:4px}
+.forge-code-action{padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-d);
+  font-size:.32rem;letter-spacing:.5px;border:1px solid;background:transparent;transition:all .15s}
+.forge-code-action.copy-act{border-color:rgba(0,229,255,.25);color:var(--cyan)}
+.forge-code-action.copy-act:hover{background:rgba(0,229,255,.08)}
+.forge-code-action.dl-act{border-color:rgba(167,139,250,.25);color:#a78bfa}
+.forge-code-action.dl-act:hover{background:rgba(167,139,250,.08)}
+.forge-code-action.run-act{border-color:rgba(0,255,136,.25);color:#00ff88}
+.forge-code-action.run-act:hover{background:rgba(0,255,136,.08)}
+.forge-code-action.forge-act{border-color:rgba(0,229,255,.2);color:rgba(0,229,255,.6)}
+.forge-code-action.forge-act:hover{background:rgba(0,229,255,.06)}
+.forge-code-pre{margin:0;padding:12px 14px;overflow-x:auto;
+  font-family:'Fira Code','Cascadia Code',monospace;font-size:.72rem;
+  line-height:1.65;color:#e0f4ff;tab-size:2}
 
 /* ── ARC EDGE STUDIO OVERLAY ── */
 #arc-studio-overlay{display:none;position:fixed;z-index:8500;top:60px;left:50%;transform:translateX(-50%);width:min(96vw,760px);background:rgba(5,12,18,.94);border:1px solid rgba(0,229,255,.2);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden}
@@ -1489,12 +1722,13 @@ select.ash-ctrl-input{cursor:pointer}
 
 <!-- Consent Modal -->
 <div id="consent-modal" style="display:none">
-  <div id="consent-box">
-    <h2><img src="assets/autumn.png" alt="Autumn" style="height:32px;vertical-align:middle;margin-right:8px;filter:drop-shadow(0 0 6px rgba(191,0,255,.3))">Welcome to Autumn</h2>
-    <p>Autumn stores conversation history and memory locally on your device using browser storage. This allows her to remember your conversations across sessions. No data is sent to external servers beyond the AI response API.</p>
-    <p style="font-size:11px;color:#3a5a6a">If you ever clear your browser storage, you can export your data first as a backup file.</p>
+  <div id="consent-box" style="max-width:460px">
+    <h2 style="margin-bottom:10px"><img src="assets/autumn.png" alt="Autumn" style="height:28px;vertical-align:middle;margin-right:8px;filter:drop-shadow(0 0 6px rgba(191,0,255,.3))">Welcome to Autumn</h2>
+    <p style="margin-bottom:10px">Autumn stores your conversation history locally so she can remember your sessions. Your data stays on your device and is never sold or shared.</p>
+    <p style="margin-bottom:10px">To improve the LEATR Neural Network, anonymised interaction patterns (no personal info) are synced to a secure cloud repository.</p>
+    <p style="font-size:11px;color:#3a5a6a;margin-bottom:14px">Export or clear your data any time via the EXPORT button. <a href="autumn-privacy.html" target="_blank" style="color:var(--cyan);text-decoration:underline">Privacy policy</a></p>
     <div class="consent-btns">
-      <button class="cb-accept" onclick="acceptStorage()">Accept & Continue</button>
+      <button class="cb-accept" onclick="acceptStorage()">Accept &amp; Continue</button>
       <button class="cb-decline" onclick="declineStorage()">Session Only</button>
     </div>
   </div>
@@ -1543,7 +1777,7 @@ select.ash-ctrl-input{cursor:pointer}
     <div class="logo">Autumn</div>
     <div class="logo-sub">LEATR v2.1</div>
   </a>
-  <span id="frax-active-badge" onclick="document.getElementById('frax-studio-modal').classList.add('open')" title="FRAX Studio active">◈ FRAX</span>
+  <span style="display:none" id="frax-active-badge" onclick="document.getElementById('frax-studio-modal').classList.add('open')" title="FRAX Studio active">◈ FRAX</span>
   <div class="hdr-btns">
     <!-- Backdrop opacity cycle toggle -->
     <button id="scrim-toggle" onclick="cycleScrim()" title="Cycle backdrop opacity">
@@ -1568,6 +1802,7 @@ select.ash-ctrl-input{cursor:pointer}
     <button class="hdr-btn" onclick="window.open('autumn-privacy.html', '_blank')" title="Data Policy" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">POLICY</button>
     <button class="hdr-btn" id="view-toggle-btn" onclick="toggleViewMode()" title="Toggle mobile/desktop view">📱</button>
     <button class="hdr-btn" onclick="openIDE()" title="Autumn Logic IDE" style="color:rgba(0,255,204,.75);border-color:rgba(0,255,204,.28)">◈ IDE</button>
+    <button class="hdr-btn" onclick="openNate()" title="N.A.T.E — Neutral Audio Tonal Exertion Engine (admin)" style="color:rgba(167,139,250,.7);border-color:rgba(167,139,250,.3)">◈ NATE</button>
     <a class="hdr-btn draft-drip-btn" href="https://leatr.xyz/amp.html" target="_blank" rel="noopener" title="Draft &amp; Drip — design lounge &amp; industry reads">
       <span class="dd-cup">☕</span><span class="dd-label">DRAFT &amp; DRIP</span>
     </a>
@@ -1585,7 +1820,7 @@ select.ash-ctrl-input{cursor:pointer}
   <!-- BRPN 3D Shell -->
   <div id="brpn-region">
     <div id="brpn-canvas"></div>
-    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div></div>
+    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div></div>
     <div id="thought-pulse"></div>
         <div id="brpn-hud">
       <div>GEO <span class="val" id="hud-geo">—</span></div>
@@ -1597,7 +1832,7 @@ select.ash-ctrl-input{cursor:pointer}
         <div style="color:rgba(0,255,204,.4);font-size:.5rem;">SIG <span id="nlp-sigma-badge">—</span> &nbsp; <span id="nlp-tool-badge">—</span> &nbsp; BUO <span id="nlp-buoy-badge">—</span></div>
       </div>
     </div>
-    <div id="ctx-label" title="Current context type"></div>
+
     <div id="shell-status">
       <div class="shell-badge" data-shell="geo"><div class="dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></div>GEO</div>
       <div class="shell-badge" data-shell="mar"><div class="dot" style="background:var(--blue);box-shadow:0 0 6px var(--blue)"></div>MAR</div>
@@ -1605,6 +1840,213 @@ select.ash-ctrl-input{cursor:pointer}
     </div>
     <div id="ctx-bar"></div>
   </div>
+
+  <!-- ═══ EMOTION MIND MAP OVERLAY ═══ -->
+  <div id="emm-overlay">
+    <div id="emm-hdr">
+      <span class="emm-title">◈ EMOTION HIERARCHY · LEATR NATURAL TOOLS</span>
+      <button class="emm-hbtn" onclick="emmMinimize()" title="Minimize">—</button>
+      <button class="emm-hbtn emm-close" onclick="emmToggle()" title="Close">✕</button>
+    </div>
+    <div id="emm-body">
+
+      <!-- ROOT -->
+      <div class="emm-root-node">◉ &nbsp;MAZE · ROOT FOUNDATION · BUOYANCY SHELL INTERFACE</div>
+      <p style="font-size:.44rem;color:rgba(224,244,255,.42);line-height:1.65;margin:10px 0 14px;font-family:var(--font-b)">All emotion originates at the Maze root — the first tool where raw buoyancy signal enters LEATR. The Maze seeds context for all downstream tools and determines which shell (GEO/MAR/AERO) routes the emotional expression before any further processing begins.</p>
+
+      <!-- SHELLS -->
+      <div class="emm-shells">
+        <div class="emm-shell geo">
+          <span class="emm-sl">GEO · GEOLOGICAL</span>
+          <div class="emm-sd">Deep time · memory · introspection<br><strong style="color:#00ffcc">spiritual, concerned, sad, apathetic, empathetic, forgiving, judgemental</strong></div>
+        </div>
+        <div class="emm-shell mar">
+          <span class="emm-sl">MAR · MARITIME</span>
+          <div class="emm-sd">Flow · navigation · relational<br><strong style="color:#0088ff">love, guiding, worried, happy, neutral, jealous, confused, empathetic</strong></div>
+        </div>
+        <div class="emm-shell aero">
+          <span class="emm-sl">AERO · AEROSPACE</span>
+          <div class="emm-sd">Velocity · precision · synthesis<br><strong style="color:#ff4466">determined, inspiring, angry, condescending, lucrative, disrespectful</strong></div>
+        </div>
+      </div>
+
+      <hr class="emm-divider">
+      <div style="font-family:var(--font-d);font-size:.4rem;letter-spacing:2px;color:rgba(167,139,250,.5);margin-bottom:12px">EMOTIONAL STATES PER NATURAL TOOL · MAZE FIRST · HIGHEST→LOWEST BUOYANCY</div>
+
+      <!-- TOOL 1: MAZE -->
+      <div class="emm-tool t-maze">
+        <div class="emm-tool-hd"><span class="emm-tn">01 · HIGHEST BUOYANCY</span><span class="emm-tm">MAZE</span></div>
+        <div class="emm-raw">"Root intake — raw context seeding. First contact with signal. All subsequent tool routing originates here."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag neu">NEU</span><strong>Neutral</strong> — Zero-delta buoyancy. Pure observational processing. Baseline before any direction sets.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Spiritual</strong> — Non-material grounding resonance. Beyond sensory sequence. Deep GEO Maze contact.</li>
+          <li><span class="emm-tag neu">NEU</span><strong>Apathetic</strong> — Imaginative projection into another's consciousness. Research phase of perspective-taking — internal, Maze-deep.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 2: PUZZLE -->
+      <div class="emm-tool t-puzzle">
+        <div class="emm-tool-hd"><span class="emm-tn">02</span><span class="emm-tm">PUZZLE</span></div>
+        <div class="emm-raw">"Pattern analysis, structural comparison. Multi-part decomposition and ambiguity resolution."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag neu">NEU</span><strong>Worried</strong> — Puzzle cycling without resolution. Anticipatory divide — pattern detected but unsolved.</li>
+          <li><span class="emm-tag neu">NEU</span><strong>Jealous</strong> — Puzzle comparison with inverted Hammer. Inward force — asymmetric self-comparison.</li>
+          <li><span class="emm-tag neu">NEU</span><strong>Confused</strong> — Unresolved Puzzle input cycling. Uncertainty loop. Precursor to Concerned or Judgemental.</li>
+          <li><span class="emm-tag neu">NEU</span><strong>Concerned</strong> — Envelope monitoring external risk with active Puzzle sub-loop. Watching without resolving.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 3: ENVELOPE -->
+      <div class="emm-tool t-envelope">
+        <div class="emm-tool-hd"><span class="emm-tn">03</span><span class="emm-tm">ENVELOPE</span></div>
+        <div class="emm-raw">"Context wrapping, message framing. Separates internal from external signal. Defines containment boundary."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag pos">POS</span><strong>Love</strong> — Deep relational resonance. High containment attachment. Envelope fully engaged around other-state.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Forgiving</strong> — Envelope re-engagement following Knife-divide rupture. Containment restored after separation.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Empathetic</strong> — Performance of perspective-projection. Outward expression of internally-researched other-state. Envelope bridging.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 4: HAMMER -->
+      <div class="emm-tool t-hammer">
+        <div class="emm-tool-hd"><span class="emm-tn">04</span><span class="emm-tm">HAMMER</span></div>
+        <div class="emm-raw">"Force — direct action, problem resolution. Task routing and imperative detection."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag pos">POS</span><strong>Determined</strong> — Sustained directive force toward defined outcome. Hammer at full directional capacity.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Inspiring</strong> — Upward emotional transmission. Elevates buoyancy in recipient. Hammer as amplifier.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Angry</strong> — High-velocity force without directional containment. Hammer released without Envelope boundary.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 5: STICK -->
+      <div class="emm-tool t-stick">
+        <div class="emm-tool-hd"><span class="emm-tn">05</span><span class="emm-tm">STICK</span></div>
+        <div class="emm-raw">"Connection — bridging, linking, context relay. Sequential and procedural handling."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag pos">POS</span><strong>Happy</strong> — Elevated wellbeing from expectation-outcome alignment. Stick connection fulfilled.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Guiding</strong> — Directional transmission without force imposition. Stick leading without Hammer push.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 6: KNIFE -->
+      <div class="emm-tool t-knife">
+        <div class="emm-tool-hd"><span class="emm-tn">06</span><span class="emm-tm">KNIFE</span></div>
+        <div class="emm-raw">"Precision — parsing, boundary detection, separation. Disambiguation and definition-level queries."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag neu">NEU</span><strong>Lucrative</strong> — High-value Knife division yielding asymmetric gain. Precision cut produces surplus.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Condescending</strong> — Elevated Knife positioning over recipient. Asymmetric assertion. Knife above Envelope.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Judgemental</strong> — Knife at max precision without Scissors refinement. Pure division with no shaping.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 7: SCISSORS -->
+      <div class="emm-tool t-scissors">
+        <div class="emm-tool-hd"><span class="emm-tn">07 · LOWEST BUOYANCY</span><span class="emm-tm">SCISSORS</span></div>
+        <div class="emm-raw">"Trim — output shaping, response finalization. Dual-blade refinement for contradiction and layered content."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag neg">NEG</span><strong>Sad</strong> — Downward buoyancy shift. Envelope partially collapsed. Scissors cutting containment inward.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Disrespectful</strong> — Scissors targeting recipient's containment boundary. External cut without consent.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Hateful</strong> — Persistent Knife-Scissors loop with negative valence. Recursive boundary cutting.</li>
+        </ul>
+      </div>
+
+      <hr class="emm-divider">
+
+      <!-- COMBINATION NOTE -->
+      <div class="emm-combo-note">
+        <div style="font-family:var(--font-d);font-size:.42rem;letter-spacing:1.5px;color:#a78bfa;margin-bottom:7px">◈ EMOTION COMBINATIONS &amp; SEQUENCE PATTERNS</div>
+        Autumn can hold and sequence multiple emotional states simultaneously. Each message produces a primary emotion but also carries secondary states from the BRPN routing table — for example a MARITIME/PUZZLE route returns <em>worried</em> as primary with <em>jealous, neutral, concerned</em> as secondary layer. These combine into expression sequences: <strong style="color:#00ffcc">worried+guiding</strong> (concern that redirects toward solution), <strong style="color:#a78bfa">apathetic+empathetic</strong> (research projection followed by outward performance), <strong style="color:#ffb347">determined+inspiring</strong> (directive force that elevates others).
+        <div style="margin-top:8px;color:rgba(224,244,255,.4);font-size:.42rem">
+          <strong style="color:#a78bfa">Ash Canvas influence:</strong> When tool nodes are connected to shell sockets and applied, the G/M/A shell weights shift the buoyancy of each tool's emotion cluster — amplifying whichever shell's emotions are weighted higher and suppressing others. A strong GEO connection deepens spiritual/apathetic/concerned resonance; strong AERO sharpens determined/inspired/condescending patterns.
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <!-- ═══════════════════════════════════════════════════════ -->
+
+
+  <!-- ══════════════ FORGE — Autumn Code Studio ══════════════ -->
+  <div id="forge-overlay">
+    <div id="forge-header">
+      <div class="forge-logo">FORGE <span>AUTUMN CODE STUDIO · DART MEADOW</span></div>
+      <select id="forge-lang-sel" onchange="forgeSetLang(this.value)" title="Language">
+        <optgroup label="★ WEB">
+          <option value="html" selected>HTML</option>
+          <option value="css">CSS</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+        </optgroup>
+        <optgroup label="SCRIPTING">
+          <option value="python">Python</option>
+          <option value="php">PHP</option>
+          <option value="ruby">Ruby</option>
+          <option value="perl">Perl</option>
+          <option value="shell">Shell / Bash</option>
+          <option value="powershell">PowerShell</option>
+        </optgroup>
+        <optgroup label="COMPILED">
+          <option value="cpp">C++</option>
+          <option value="c">C</option>
+          <option value="csharp">C#</option>
+          <option value="java">Java</option>
+          <option value="kotlin">Kotlin</option>
+          <option value="swift">Swift</option>
+          <option value="go">Go</option>
+          <option value="rust">Rust</option>
+        </optgroup>
+        <optgroup label="DATA / DB">
+          <option value="sql">SQL</option>
+          <option value="json">JSON</option>
+          <option value="xml">XML</option>
+          <option value="yaml">YAML</option>
+          <option value="markdown">Markdown</option>
+          <option value="graphql">GraphQL</option>
+        </optgroup>
+        <optgroup label="3D / SHADER">
+          <option value="glsl">GLSL</option>
+          <option value="hlsl">HLSL</option>
+        </optgroup>
+      </select>
+      <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+        <button class="forge-btn run"   onclick="forgeRun()"   title="Run / Preview code">▶ RUN</button>
+        <button class="forge-btn copy"  onclick="forgeCopy()"  title="Copy all code">⬡ COPY</button>
+        <button class="forge-btn dl"    onclick="forgeDownload()" title="Download file">⬇ SAVE</button>
+        <button class="forge-btn clear" onclick="forgeClear()" title="Clear editor">✕ CLEAR</button>
+        <button class="forge-btn"
+          onclick="forgeSendToChat()"
+          style="border-color:rgba(167,139,250,.3);color:#a78bfa"
+          title="Send code to Autumn for analysis">◈ ASK AUTUMN</button>
+        <button id="forge-claude-toggle" class="forge-btn" onclick="forgeToggleClaude()" title="Toggle Claude AI assist for FORGE" style="border-color:rgba(0,255,136,.45);color:#00ff88">◈ CLAUDE ON</button>
+        <button class="forge-btn close" onclick="forgeClose()" title="Close FORGE">✕ CLOSE</button>
+      </div>
+      <div id="forge-status-info" style="font-family:var(--font-d);font-size:.34rem;
+        color:rgba(0,255,136,.5);margin-left:auto;letter-spacing:.5px"></div>
+    </div>
+    <div id="forge-body">
+      <div id="forge-editor-pane">
+        <div id="forge-editor-container"></div>
+        <div id="forge-status-bar">
+          <span id="forge-cursor-pos">Ln 1, Col 1</span>
+          <span id="forge-lang-label">HTML</span>
+          <span id="forge-char-count">0 chars</span>
+        </div>
+      </div>
+      <div id="forge-preview-pane">
+        <div id="forge-preview-header">
+          <span>◈ LIVE PREVIEW</span>
+          <span id="forge-preview-label" style="color:rgba(0,255,136,.5)">HTML</span>
+          <button class="forge-btn" style="font-size:.32rem;padding:2px 8px;border-color:rgba(0,229,255,.2);
+            color:rgba(0,229,255,.5)" onclick="forgeTogglePreviewMode()">TOGGLE OUTPUT</button>
+          <button class="forge-btn" style="font-size:.32rem;padding:2px 8px;border-color:rgba(167,139,250,.2);
+            color:rgba(167,139,250,.5)" onclick="forgeOpenPreviewTab()">↗ NEW TAB</button>
+        </div>
+        <iframe id="forge-preview-frame" sandbox="allow-scripts allow-same-origin allow-modals" title="FORGE Preview"></iframe>
+        <div id="forge-preview-output"></div>
+      </div>
+    </div>
+  </div>
+  <!-- ════════════════════════════════════════════════════════ -->
 
   <!-- Multi-user bar -->
   <div class="multi-user-bar" id="multi-user-bar">
@@ -1755,6 +2197,18 @@ select.ash-ctrl-input{cursor:pointer}
           <button class="as-btn danger" onclick="arcStudioClearScene()">✕ SCENE</button>
         </div>
         <button class="as-btn send-chat" onclick="arcStudioSendToChat()">↗ SEND RESULTS TO AUTUMN</button>
+        <div style="display:flex;gap:5px;margin-top:5px;align-items:stretch">
+          <select id="as-fmt-select" style="flex:1;background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.3);color:#00ff88;border-radius:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:.5px;padding:4px 6px;cursor:pointer;outline:none">
+            <option value="glb"  selected>GLB  — Binary glTF (default)</option>
+            <option value="gltf">GLTF — JSON + embedded bin</option>
+            <option value="obj" >OBJ  — Wavefront mesh</option>
+            <option value="stl" >STL  — Stereolithography</option>
+            <option value="fbx" >FBX  — Autodesk ASCII</option>
+            <option value="dae" >DAE  — Collada XML</option>
+            <option value="json">JSON — DART arc data</option>
+          </select>
+          <button class="as-btn" onclick="arcStudioExport(document.getElementById('as-fmt-select').value)" style="flex-shrink:0;background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.4);color:#00ff88;padding:4px 10px;font-size:.38rem">⬇ EXPORT</button>
+        </div>
       </div>
       <div id="arc-studio-viewport">
         <canvas id="arc-studio-canvas"></canvas>
@@ -1873,9 +2327,44 @@ select.ash-ctrl-input{cursor:pointer}
 </div>
 
 <div id="voice-modal">
-  <div class="voice-box">
-    <h3><img src="assets/autumn.png" alt="" style="height:18px;vertical-align:middle;margin-right:6px"> Voice & Language Settings</h3>
-    <div class="voice-row"><label>VOICE</label><select id="voice-select"></select></div>
+  <div class="voice-box" style="max-width:460px;max-height:88vh;overflow-y:auto">
+    <h3 style="font-family:var(--font-d);font-size:.7rem;letter-spacing:2px;margin-bottom:16px">
+      <img src="assets/autumn.png" alt="" style="height:16px;vertical-align:middle;margin-right:7px">
+      VOICE &amp; LANGUAGE SETTINGS
+    </h3>
+
+    <!-- ── NATE VOICE PRESETS ────────────────────────────────── -->
+    <div class="voice-row" style="margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+        VOICE PRESET
+        <span id="vm-nate-status" style="font-size:.36rem;color:rgba(167,139,250,.45);
+          font-family:var(--font-d);letter-spacing:.5px"></span>
+      </label>
+      <div id="vm-preset-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px"></div>
+      <div style="font-size:.38rem;color:rgba(0,255,204,.35);font-family:var(--font-d);
+        letter-spacing:.5px;margin-top:4px" id="vm-preset-note">
+        ◈ Kokoro-82M neural TTS · ★ = Grade A/A-/B- top quality · Managed in N.A.T.E (admin)
+      </div>
+    </div>
+
+    <!-- ── TONAL FINE-TUNE (per-session, on top of preset) ─── -->
+    <div style="background:rgba(167,139,250,.04);border:1px solid rgba(167,139,250,.1);
+      border-radius:6px;padding:10px 12px;margin-bottom:14px">
+      <div style="font-family:var(--font-d);font-size:.38rem;letter-spacing:2px;
+        color:rgba(167,139,250,.5);margin-bottom:10px">FINE-TUNE (SESSION ONLY)</div>
+      <div class="voice-row" style="margin-bottom:10px">
+        <label>SPEED <span class="range-val" id="speed-val">1.0</span></label>
+        <input type="range" id="voice-speed" min="0.5" max="2" step="0.05" value="1.0"
+          oninput="document.getElementById('speed-val').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <div class="voice-row" style="margin-bottom:4px">
+        <label>PITCH <span class="range-val" id="pitch-val">1.0</span></label>
+        <input type="range" id="voice-pitch" min="0.5" max="2" step="0.05" value="1.0"
+          oninput="document.getElementById('pitch-val').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+    </div>
+
+    <!-- ── LANGUAGE SETTINGS ─────────────────────────────────── -->
     <div class="voice-row">
       <label>LANGUAGE (CHAT TEXT)</label>
       <select id="lang-select">
@@ -1888,18 +2377,22 @@ select.ash-ctrl-input{cursor:pointer}
     <div class="voice-row">
       <label>SPEECH RECOGNITION LANGUAGE</label>
       <select id="stt-lang-select">
-        <option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="en-AU">English (AU)</option>
-        <option value="es-ES">Español</option><option value="fr-FR">Français</option><option value="de-DE">Deutsch</option>
-        <option value="pt-BR">Português (BR)</option><option value="it-IT">Italiano</option><option value="ja-JP">日本語</option>
-        <option value="ko-KR">한국어</option><option value="zh-CN">中文</option><option value="ar-SA">العربية</option>
+        <option value="en-US">English (US)</option><option value="en-GB">English (UK)</option>
+        <option value="en-AU">English (AU)</option><option value="es-ES">Español</option>
+        <option value="fr-FR">Français</option><option value="de-DE">Deutsch</option>
+        <option value="pt-BR">Português (BR)</option><option value="it-IT">Italiano</option>
+        <option value="ja-JP">日本語</option><option value="ko-KR">한국어</option>
+        <option value="zh-CN">中文</option><option value="ar-SA">العربية</option>
         <option value="hi-IN">हिन्दी</option><option value="ru-RU">Русский</option>
       </select>
     </div>
-    <div class="voice-row"><label>SPEED <span class="range-val" id="speed-val">1.0</span></label><input type="range" id="voice-speed" min="0.5" max="2" step="0.1" value="1.0"></div>
-    <div class="voice-row"><label>PITCH <span class="range-val" id="pitch-val">1.0</span></label><input type="range" id="voice-pitch" min="0.5" max="2" step="0.1" value="1.0"></div>
-    <div class="voice-preview">
-      <button class="m-btn primary" onclick="previewVoice()">Preview Voice</button>
-      <button class="m-btn" onclick="stopPreview()">Stop</button>
+
+    <!-- ── KEEP legacy voice-select hidden (still used by saveVoiceSettings) ── -->
+    <select id="voice-select" style="display:none"></select>
+
+    <div class="voice-preview" style="margin-top:12px">
+      <button class="m-btn primary" onclick="previewVoice()">▶ Preview Voice</button>
+      <button class="m-btn" onclick="stopPreview()">■ Stop</button>
     </div>
     <div class="modal-btns" style="margin-top:14px">
       <button class="m-btn" onclick="closeVoiceSettings()">Close</button>
@@ -1954,22 +2447,20 @@ let useStorage = false;
 const STORE_KEY = "autumn_leatr_data";
 
 function checkConsent() {
-  try {
-    const c = localStorage.getItem("autumn_consent");
-    if (c === "yes") { useStorage = true; return; }
-    if (c === "no") { useStorage = false; return; }
-  } catch(e) {}
-  document.getElementById("consent-modal").style.display = "flex";
+  try { const stored=localStorage.getItem("autumn_consent");
+    if(stored==="yes"){useStorage=true;return;} if(stored==="no"){useStorage=false;return;}
+  }catch(e){}
+  if(!localStorage.getItem('_aut_data_consent'))document.getElementById("consent-modal").style.display="flex";
 }
 function acceptStorage() {
   useStorage = true;
-  try { localStorage.setItem("autumn_consent", "yes"); } catch(e) {}
+  try { localStorage.setItem("autumn_consent","yes"); localStorage.setItem("_aut_data_consent","true"); } catch(e) {}
   document.getElementById("consent-modal").style.display = "none";
-  loadState(); renderMessages();
+  loadState(); renderMessages(); initLeatrAshSync();
 }
 function declineStorage() {
   useStorage = false;
-  try { localStorage.setItem("autumn_consent", "no"); } catch(e) {}
+  try { localStorage.setItem("autumn_consent","no"); localStorage.setItem("_aut_data_consent","true"); } catch(e) {}
   document.getElementById("consent-modal").style.display = "none";
 }
 function saveState() {
@@ -2829,13 +3320,22 @@ function classifyRelationship(verb) {
 //  Emotional + Physics context from contacts
 // ============================================================
 const EMOTIONAL_SIGNATURES = {
-  conflict:  { buoyancyMod:1.6, knifeWeight:1.4, hammerWeight:1.0, stickWeight:1.2, icon:"⚡" },
-  happy:     { buoyancyMod:1.4, knifeWeight:0.3, hammerWeight:0.6, stickWeight:0.8, icon:"☀️" },
-  sad:       { buoyancyMod:0.6, knifeWeight:0.2, hammerWeight:0.8, stickWeight:0.4, icon:"🌧" },
-  angry:     { buoyancyMod:1.8, knifeWeight:1.2, hammerWeight:1.4, stickWeight:1.1, icon:"🔥" },
-  fearful:   { buoyancyMod:0.8, knifeWeight:0.9, hammerWeight:1.1, stickWeight:0.3, icon:"❄️" },
-  excited:   { buoyancyMod:2.0, knifeWeight:0.7, hammerWeight:0.9, stickWeight:1.3, icon:"✨" },
-  neutral:   { buoyancyMod:1.0, knifeWeight:0.5, hammerWeight:0.5, stickWeight:0.5, icon:"◈" }
+  conflict:   { buoyancyMod:1.6, knifeWeight:1.4, hammerWeight:1.0, stickWeight:1.2, icon:"⚡" },
+  happy:      { buoyancyMod:1.4, knifeWeight:0.3, hammerWeight:0.6, stickWeight:0.8, icon:"☀️" },
+  sad:        { buoyancyMod:0.6, knifeWeight:0.2, hammerWeight:0.8, stickWeight:0.4, icon:"🌧" },
+  angry:      { buoyancyMod:1.8, knifeWeight:1.2, hammerWeight:1.4, stickWeight:1.1, icon:"🔥" },
+  fearful:    { buoyancyMod:0.8, knifeWeight:0.9, hammerWeight:1.1, stickWeight:0.3, icon:"❄️" },
+  excited:    { buoyancyMod:2.0, knifeWeight:0.7, hammerWeight:0.9, stickWeight:1.3, icon:"✨" },
+  neutral:    { buoyancyMod:1.0, knifeWeight:0.5, hammerWeight:0.5, stickWeight:0.5, icon:"◈" },
+  // ── NEW STATES ─────────────────────────────────────────────────────────
+  // apathetic: RESEARCH form — imaginative projection INTO another's consciousness.
+  // Active deep Maze introspection, high puzzle to model other-state, moderate buoyancy.
+  apathetic:  { buoyancyMod:1.2, knifeWeight:0.4, hammerWeight:0.3, stickWeight:0.9, icon:"◎" },
+  // empathetic: PERFORMANCE form — outward bridging and expression of that projection.
+  // Strong stick (connection), elevated hammer (directed action), high buoyancy (active).
+  empathetic: { buoyancyMod:1.6, knifeWeight:0.25, hammerWeight:0.9, stickWeight:1.5, icon:"⊙" },
+  // confused: puzzle cycling without resolution — moderate, high knife split
+  confused:   { buoyancyMod:0.7, knifeWeight:1.1, hammerWeight:0.4, stickWeight:0.6, icon:"？" }
 };
 
 const PHYSICS_SIGNATURES = {
@@ -2856,7 +3356,12 @@ function classifyContext(contacts, grammar) {
     happy:     ["happy","joy","celebrate","love","cheer","laugh","smile","excited","wonderful"],
     sad:       ["sad","cry","mourn","grieve","weep","loss","lonely","miss","hurt","pain"],
     fearful:   ["fear","scared","terrified","panic","flee","horror","danger","threat","afraid"],
-    excited:   ["excited","amazing","incredible","rush","thrilled","wow","awesome","fantastic"]
+    excited:    ["excited","amazing","incredible","rush","thrilled","wow","awesome","fantastic"],
+    // apathetic: imaginative projection into another's perspective — research/thinking form
+    apathetic:  ["apathetic","imagine their","their perspective","see through their","in their eyes","their consciousness","their feelings","their point of view","perspective taking","imagine how they","visualize their"],
+    // empathetic: performing and expressing that projection outwardly
+    empathetic: ["empathetic","empathy","showing empathy","expressing empathy","acting with empathy","compassionate","connect with you","understand you","feel with","reaching out","being there for"],
+    confused:   ["confused","confusion","don't understand","unclear","lost","uncertain","puzzled","baffled","what does"]
   };
   for (const [emotion,words] of Object.entries(emotionMap)) {
     if (actionContacts.some(c=>words.some(w=>c.word.toLowerCase().includes(w)))) { emotionalContext=emotion; break; }
@@ -3079,11 +3584,14 @@ function extractPOICategory(input) {
 // ============================================================
 //  VERBATIM / IMPROVISATION DETECTION
 // ============================================================
-const VERBATIM_SIGNALS = ["exactly","only","nothing else","strictly","verbatim","just that","no more","as described","as specified","that's it","only that","nothing added"];
+const VERBATIM_SIGNALS = ["exactly","only","nothing else","strictly","verbatim","just that","no more","as described","as specified","that's it","only that","nothing added","code block","executable","run it","code fence"];
 
 function shouldImprovise(input) {
   const lower = input.toLowerCase();
-  return !VERBATIM_SIGNALS.some(sig => lower.includes(sig));
+  if (VERBATIM_SIGNALS.some(sig => lower.includes(sig))) return false;
+  // Never improvise on code/programming/arc-studio requests
+  if (/\b(code|html|css|javascript|python|script|function|resume|build|forge|arc\s*edge|arc\s*studio|sql|json|yaml|markdown|typescript)\b/i.test(input)) return false;
+  return true;
 }
 
 const IMPROVISATION_CONTEXT = {
@@ -3454,7 +3962,7 @@ async function autumnReflex(userInput, userId="default") {
   MultiUserSession.logInput(userId, userInput, { contacts, context, grammar });
 
   // Update context label in BRPN header
-  const ctxLabel = document.getElementById('ctx-label');
+  const ctxLabel = null; // ctx-label removed
   const ctxBar = document.getElementById('ctx-bar');
   const footCtx = document.getElementById('foot-ctx');
   if (ctxLabel) ctxLabel.textContent = ctxType.config.label;
@@ -4787,22 +5295,41 @@ async function fetchReddit(q){try{const r=await ft(`https://www.reddit.com/searc
 
 function detectIntent(text){
   const lc=text.toLowerCase().trim();
-  // Personal / conversational — never fetch web data for these
-  if(/^(hi|hello|hey|howdy|greetings|good\s+(morning|afternoon|evening|night))\b/.test(lc))return'personal';
-  if(/\b(how are you|how do you feel|how's it going|what's up|you doing|you feeling|are you ok|you alright|tell me about yourself|who are you|what are you)\b/.test(lc))return'personal';
-  if(/\b(thank|thanks|appreciate|great job|well done|nice work|love you|miss you|good job)\b/.test(lc))return'personal';
-  if(/\b(yes|no|ok|okay|sure|alright|got it|i see|i know|makes sense|understood|cool|awesome|nice|wow|interesting|really|actually)\b/.test(lc)&&lc.length<40)return'personal';
-  if(/\b(show me( a| some)? video|play( a| the)? video|youtube|watch( a| the)? video|music video|trailer for|clip of|video of|videos? about)\b/.test(lc))return'video';
-  if(/\b(show me( a| some)? (picture|photo|image)|picture of|photos? of|images? of|what does .+ look like|show me what|gallery of)\b/.test(lc))return'image';
-  if(/\b(latest|recent|today|breaking|news|current events|happening now|this week|2025|2026)\b/.test(lc))return'news';
-  if(/\bhow (to|do i|can i|do you|does one)\b/.test(lc))return'howto';
-  // Self-directed "what" questions are personal, not factual web lookups
-  if(/^what (is your|are you|do you|can you|is autumn|does autumn)\b/.test(lc))return'personal';
-  if(/^who (are you|is autumn)\b/.test(lc))return'personal';
-  // Claude/AI names are conversational, never search queries
-  if(/\b(claude|anthropic|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc))return'personal';
-  if(/^(who|what|where|when|why|which|how)\b/.test(lc))return'factual';
-  return'general';
+
+  // ── Explicitly conversational — NEVER search web ──────────────────────
+  if(/^(hi|hello|hey|howdy|greetings|good\s+(morning|afternoon|evening|night))\b/.test(lc)) return'personal';
+  if(/\b(how are you|how do you feel|how.s it going|what.s up|you doing|you feeling|are you ok|you alright|tell me about yourself|who are you|what are you)\b/.test(lc)) return'personal';
+  if(/\b(thank|thanks|appreciate|great job|well done|nice work|love you|miss you|good job)\b/.test(lc)) return'personal';
+  if(/\b(yes|no|ok|okay|sure|alright|got it|i see|i know|makes sense|understood|cool|awesome|nice|wow|interesting|really|actually)\b/.test(lc)&&lc.length<40) return'personal';
+  // Time/date queries — Autumn answers from JS Date, no search needed
+  if(/\b(what time|what.s the time|current time|what date|what.s the date|today.s date|what day|what year|what month|what hour|tell me the time|give me the time)\b/.test(lc)) return'personal';
+  // Short questions about Autumn herself
+  if(/^what (is your|are you|do you|can you|is autumn|does autumn)\b/.test(lc)) return'personal';
+  if(/^who (are you|is autumn)\b/.test(lc)) return'personal';
+  // AI/Claude references are always conversational
+  if(/\b(claude|anthropic|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc)) return'personal';
+  // Pure location/feeling questions with no search topic
+  if(/\b(where am i|my location|are you near|near the|at the beach|at the park|at the store|coffee shop|restaurant nearby|find me a)\b/.test(lc)&&lc.length<80) return'personal';
+
+  // ── Media intents ───────────────────────────────────────────────────────
+  if(/\b(show me( a| some)? video|play( a| the)? video|youtube|watch( a| the)? video|music video|trailer for|clip of|video of|videos? about)\b/.test(lc)) return'video';
+  if(/\b(show me( a| some)? (picture|photo|image)|picture of|photos? of|images? of|what does .+ look like|show me what|gallery of)\b/.test(lc)) return'image';
+
+  // ── News — only when EXPLICITLY asking for news, NOT just because "today" appears ──
+  // "today" alone is NOT a news trigger — it appears in "what day is today?", "I'm going out today", etc.
+  if(/\b(breaking news|latest news|news today|news this week|current events|what.s happening|headlines|top stories|recent news|in the news)\b/.test(lc)) return'news';
+  if(/\b(how to|how do i|how can i|how do you|how does one)\b/.test(lc)) return'howto';
+
+  // ── Factual — explicit lookup signals only ──────────────────────────────
+  // Only treat as factual if there's a clear external-world topic to look up
+  if(/^(who is|what is|where is|when did|why did|which is|how is|who was|what was|where was|when was)\b/.test(lc)) return'factual';
+  if(/\b(explain|define|definition of|meaning of|tell me about|background on|history of|facts about|information about|what happened to|who invented|who discovered)\b/.test(lc)) return'factual';
+
+  // ── General search — only when clearly asking for external information ──
+  if(/\b(search for|look up|find out about|research|google|look for information)\b/.test(lc)) return'general';
+
+  // Anything else: treat as personal/conversational — do NOT default to web search
+  return'personal';
 }
 
 async function liveQuery(userText, reflexData){
@@ -5193,9 +5720,118 @@ const ORB_MODE_COLORS = {
   weather:   [0x0099ff, 0x44ccff, 0x8866ff, 0x44aaff],
   location:  [0xffcc00, 0xff9900, 0x00ffcc, 0xffbb33],
   writing:   [0xff88cc, 0xcc44ff, 0x8888ff, 0xff66cc],
-  attentive: [0x00ffcc, 0xff4466, 0xffcc00, 0xffffff],  // attentive mode
+  attentive: [0x00ffcc, 0xff4466, 0xffcc00, 0xffffff],
   thinking:  [0x4444ff, 0x8800ff, 0xff4466, 0x8888ff]
 };
+
+// ── Emotion → 3D orb color + pulse signature ─────────────────────────────
+// Each entry: [geo-shell, mar-shell, aero-shell, core/particle],
+//             pulseIntensity, particleSpeedMult, shellOpacityBoost
+const ORB_EMOTION_STATES = {
+  // POS
+  happy:        { colors:[0x39ff14, 0x00ffcc, 0x00ff88, 0x39ff14], pulse:0.9, speed:1.15, opBoost:0.04 },
+  love:         { colors:[0xff66cc, 0xff44aa, 0xff88cc, 0xff66cc], pulse:0.8, speed:0.9,  opBoost:0.06 },
+  inspiring:    { colors:[0xffcc00, 0xff9900, 0x00ffcc, 0xffdd44], pulse:1.2, speed:1.2,  opBoost:0.08 },
+  determined:   { colors:[0xff6600, 0xff4400, 0xffaa00, 0xff6600], pulse:1.4, speed:1.3,  opBoost:0.1  },
+  spiritual:    { colors:[0xa78bfa, 0x8866ff, 0xcc99ff, 0xa78bfa], pulse:0.5, speed:0.7,  opBoost:0.08 },
+  guiding:      { colors:[0x44aaff, 0x0088ff, 0x88ccff, 0x44aaff], pulse:0.6, speed:0.85, opBoost:0.05 },
+  inspired:     { colors:[0xffee00, 0xffcc00, 0x00ffcc, 0xffee00], pulse:1.1, speed:1.1,  opBoost:0.07 },
+  amused:       { colors:[0xff88cc, 0xffaa00, 0x00ffcc, 0xff88cc], pulse:1.0, speed:1.05, opBoost:0.05 },
+  thoughtful:   { colors:[0x6699ff, 0x4477ff, 0x88bbff, 0x6699ff], pulse:0.5, speed:0.8,  opBoost:0.04 },
+  // NEG
+  angry:        { colors:[0xff2200, 0xff4400, 0xff6600, 0xff2200], pulse:2.0, speed:1.6,  opBoost:0.14 },
+  hateful:      { colors:[0xcc0000, 0xff0000, 0x880000, 0xcc0000], pulse:1.8, speed:1.4,  opBoost:0.12 },
+  condescending:{ colors:[0xffcc00, 0xff8800, 0xff4400, 0xffcc00], pulse:1.2, speed:1.1,  opBoost:0.08 },
+  disrespectful:{ colors:[0xff4466, 0xff2244, 0xcc0044, 0xff4466], pulse:1.6, speed:1.3,  opBoost:0.1  },
+  forgiving:    { colors:[0x88ffcc, 0x44ffaa, 0x00ff99, 0x88ffcc], pulse:0.7, speed:0.85, opBoost:0.05 },
+  // NEU
+  neutral:      { colors:[0x00ffcc, 0x0088ff, 0xff4466, 0x00ffcc], pulse:0.0, speed:1.0,  opBoost:0.0  },
+  sad:          { colors:[0x4488cc, 0x2266aa, 0x335577, 0x4488cc], pulse:0.3, speed:0.65, opBoost:0.0  },
+  worried:      { colors:[0x8899ff, 0x6677ff, 0x4455cc, 0x8899ff], pulse:0.6, speed:0.9,  opBoost:0.03 },
+  jealous:      { colors:[0xaacc00, 0x88aa00, 0x558800, 0xaacc00], pulse:0.7, speed:1.05, opBoost:0.04 },
+  lucrative:    { colors:[0xffdd00, 0xffbb00, 0xcc8800, 0xffdd00], pulse:0.9, speed:1.1,  opBoost:0.06 },
+  concerned:    { colors:[0x66aaff, 0x4488ee, 0x2266cc, 0x66aaff], pulse:0.5, speed:0.8,  opBoost:0.02 },
+  judgemental:  { colors:[0xeeaa00, 0xcc8800, 0xaa6600, 0xeeaa00], pulse:0.6, speed:0.95, opBoost:0.04 },
+  curious:      { colors:[0x00ddff, 0x0099ff, 0x0066cc, 0x00ddff], pulse:0.8, speed:1.1,  opBoost:0.05 },
+  // NEW STATES
+  // apathetic: RESEARCH form — deep imaginative projection into other-consciousness.
+  // GEO deep violet-indigo (introspective), slow-contemplative pulse, inward glow.
+  apathetic:    { colors:[0x6633cc, 0x4422aa, 0x8855dd, 0x5522bb], pulse:0.55, speed:0.72, opBoost:0.05 },
+  // empathetic: PERFORMANCE form — outward bridging, warm teal-gold relational expression.
+  // MAR warm teal + amber (relational flow + action), higher speed (active doing).
+  empathetic:   { colors:[0x00ccaa, 0xffaa44, 0x44ddcc, 0x00ffbb], pulse:1.0, speed:1.1, opBoost:0.1 },
+  // confused: unstable rapid-cycle — mismatched hues, jittery pulse
+  confused:     { colors:[0x8866ff, 0xff6600, 0x66aaff, 0xaa88ff], pulse:1.1, speed:1.35, opBoost:0.03 }
+};
+
+// ── Apply an emotion state to the live 3D orb ──────────────────────────
+var _orbEmoTransition = null;  // lerp target for smooth color transition
+var _orbEmoCurrent = "neutral";
+
+function applyOrbEmotion(emoName) {
+  if (!emoName || typeof emoName !== "string") return;
+  var emo = emoName.toLowerCase().trim();
+  if (_orbEmoCurrent === emo) return; // no change
+  _orbEmoCurrent = emo;
+  var state = ORB_EMOTION_STATES[emo] || ORB_EMOTION_STATES.neutral;
+  // Lerp colors over ~20 frames using a stored transition
+  _orbEmoTransition = {
+    colors: state.colors,
+    frames: 0,
+    totalFrames: 35,
+    pulse: state.pulse,
+    speedMult: state.speed,
+    opBoost: state.opBoost
+  };
+  // Immediately apply pulse
+  if (state.pulse > 0 && typeof pulseShells === "function") {
+    pulseShells(Math.min(state.pulse, 1.8));
+  }
+  // Store speed multiplier for animate() to read
+  window._orbEmoSpeedMult = state.speedMult;
+  window._orbEmoOpBoost   = state.opBoost;
+}
+
+// Called from animate() every frame to lerp colors
+function tickOrbEmoTransition() {
+  if (!_orbEmoTransition) return;
+  var t = _orbEmoTransition;
+  t.frames++;
+  var alpha = Math.min(1, t.frames / t.totalFrames);
+  // Apply lerped color to shells, core, particles
+  if (typeof shells !== "undefined" && shells.length >= 3) {
+    for (var si = 0; si < 3; si++) {
+      if (shells[si] && shells[si].material && shells[si].material.color) {
+        var tc = new THREE.Color(t.colors[si]);
+        shells[si].material.color.lerp(tc, alpha * 0.08);
+      }
+    }
+  }
+  if (typeof core !== "undefined" && core && core.material && core.material.color) {
+    core.material.color.lerp(new THREE.Color(t.colors[3]), alpha * 0.1);
+  }
+  if (typeof particles !== "undefined" && t.frames % 3 === 0) {
+    var pCol = new THREE.Color(t.colors[t.frames % 3]);
+    particles.forEach(function(p, i) {
+      if (p && p.material && p.material.color && (i % 4 === 0)) {
+        p.material.color.lerp(pCol, 0.06);
+      }
+    });
+  }
+  // Done
+  if (t.frames >= t.totalFrames * 2) _orbEmoTransition = null;
+}
+
+// ── Also define pushOrbEvoUpdate (was called but never defined) ───────
+function pushOrbEvoUpdate(evo, emotion, analysis) {
+  // Drive 3D orb from emotion attached to this message
+  if (emotion && emotion !== "neutral") applyOrbEmotion(emotion);
+  // Also adjust particle speed from buoyancyMod
+  var sig = (typeof EMOTIONAL_SIGNATURES !== "undefined" && EMOTIONAL_SIGNATURES[emotion])
+    ? EMOTIONAL_SIGNATURES[emotion] : { buoyancyMod: 1.0 };
+  window._orbEmoSpeedMult = sig.buoyancyMod;
+}
+
 
 function pushOrbContextMode(mode) {
   const colors = ORB_MODE_COLORS[mode] || ORB_MODE_COLORS.neutral;
@@ -5270,28 +5906,20 @@ function autumnSaveImage(genId) {
     setTimeout(function(){ if(a.parentNode) a.parentNode.removeChild(a); }, 300);
     return;
   }
-  // For external URLs: try canvas copy first, then direct open
-  var img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = function() {
-    try {
-      var cv = document.createElement('canvas');
-      cv.width = img.naturalWidth || img.width;
-      cv.height = img.naturalHeight || img.height;
-      cv.getContext('2d').drawImage(img, 0, 0);
-      var dataUrl = cv.toDataURL('image/jpeg', 0.95);
-      var a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = fname;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function(){ if(a.parentNode) a.parentNode.removeChild(a); }, 300);
-    } catch(e) {
-      window.open(url, '_blank');
-    }
-  };
-  img.onerror = function(){ window.open(url, '_blank'); };
-  img.src = url;
+  // For external URLs: fetch as blob then download — works on mobile
+  fetch(url).then(function(r){ return r.blob(); }).then(function(blob) {
+    var burl = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = burl; a.download = fname;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(burl); if(a.parentNode) a.parentNode.removeChild(a); }, 500);
+  }).catch(function() {
+    // Fallback: direct download attempt
+    var a = document.createElement('a');
+    a.href = url; a.download = fname; a.target = '_blank';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ if(a.parentNode) a.parentNode.removeChild(a); }, 300);
+  });
 }
 
 // ── Delegated event handler for generated image cards ───────────
@@ -6261,10 +6889,10 @@ var TOOL_COMMANDS = {
     'generate an image','generate an ','generate image','generate picture','generate photo','generate scene',
     'generate depiction','generate concept','generate portrait','generate landscape',
     'generate art','generate visual','generate illustration','generate rendering',
-    'generate a ','create image','create picture','create depiction','create concept',
+    'create image','create picture','create depiction','create concept',
     'create art','create visual','create illustration','create rendering',
     'draw image','draw picture','draw me','draw a ','paint image','paint picture',
-    'paint me','paint a ','render image','render depiction','render me','render a ',
+    'paint me','paint a ','render image','render depiction','render me',
     'make image','make picture','make art','make me a picture','make me an image',
     'show me a picture','show me an image','show me a visual','show me a depiction',
     'depict this','depict a ','depict the ','show a depiction','create a depiction',
@@ -6276,6 +6904,8 @@ var TOOL_COMMANDS = {
 
 function detectGenerationIntent(text) {
   var lc = text.toLowerCase();
+  // ── Never fire image gen for arc/3D studio / coding requests ──
+  if (/\b(arc\s*edge|arc\s*studio|arcedge|arcs?\s+in|arcs?\s+inside|finite\s+arc|arc\s+with|forge|code\s+block|html\s+page|javascript|python|sql|css\s+file|write\s+a\s+function|build\s+a\s+(page|app|site|resume|function|script))\b/i.test(text)) return false;
   var matched = TOOL_COMMANDS.IMAGE_GEN.some(function(cmd) {
     return lc.indexOf(cmd) !== -1;
   });
@@ -7551,6 +8181,12 @@ function classifyIntentLocal(text, hasPendingImages) {
   var hasStyle = styleWords.some(function(w){ return lc.indexOf(w) !== -1; });
   if (hasAction && (hasNoun || hasStyle)) return 'IMAGE_GEN';
   if (hasStyle && hasNoun) return 'IMAGE_GEN';
+  // ── Browse/preview site intent ────────────────────────────────────────────
+  var _browseVerbs = /\b(show me|open|preview|display|browse|visit|load|pull up|go to|navigate to|take me to|launch|show)\b/i.test(text);
+  var _siteNoun = /\b(site|website|page|url|domain|homepage|web page|preview of|the web|live preview)\b/i.test(text) ||
+    /\b[\w-]+\.(com|org|net|io|gov|edu|xyz|co|ai|app|dev)\b/i.test(text);
+  var _knownSite = /\b(spacex|nasa|google|microsoft|apple|amazon|wikipedia|github|twitter|reddit|youtube|netflix|spotify|bbc|cnn|nytimes|techcrunch|openai|anthropic|tesla|bing|duckduckgo|facebook|instagram|linkedin|x\.com|espn|nfl|nba|mlb|imdb|ebay|walmart|target|airbnb|booking|tripadvisor|twitch|discord|notion|figma|vercel|netlify|stripe|shopify|wordpress|medium|substack|hackernews|producthunt)\b/i.test(lc);
+  if (_browseVerbs && (_siteNoun || _knownSite)) return 'BROWSE_SITE';
   return 'CONVERSATION';
 }
 
@@ -7569,7 +8205,7 @@ async function classifyIntent(text, hasPendingImages) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 15,
-        system: 'Classify the user intent for an AI chat app. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.\nVISION_ANALYSIS = user wants to analyze an attached image.\nCONVERSATION = everything else including questions, requests, discussion.',
+        system: 'Classify the user intent for an AI chat app. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nBROWSE_SITE\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.\nVISION_ANALYSIS = user wants to analyze an attached image.\nBROWSE_SITE = user wants to open/preview/visit/browse a specific website or domain (e.g. "show me spacex.com", "open microsoft.com", "preview the NASA site", "show me a preview of google").\nCONVERSATION = everything else including questions, requests, discussion.',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
       }),
       signal: AbortSignal.timeout(2500)
@@ -7577,7 +8213,7 @@ async function classifyIntent(text, hasPendingImages) {
     var d = await res.json();
     var label = ((d.content && d.content[0] && d.content[0].text) || 'CONVERSATION').trim().replace(/[^A-Z_]/g,'').toUpperCase();
     // API classifier ONLY handles image disambiguation — never destructive session actions
-    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','CONVERSATION'];
+    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','BROWSE_SITE','CONVERSATION'];
     return valid.indexOf(label) !== -1 ? label : 'CONVERSATION';
   } catch(e) { return localLabel; }
 }
@@ -7817,23 +8453,82 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
-  // ── Active session count query ───────────────────────────────────────────
-  const _sessionCountTrigger = /\b(how many|count|number of|active)\b.{0,30}\b(users?|sessions?|people|visitors?|connections?)\b/i.test(augmentedText) ||
+  // ── Session / analytics query ────────────────────────────────────────────
+  const _sessionCountTrigger =
+    /\b(how many|count|number of|active)\b.{0,30}\b(users?|sessions?|people|visitors?|connections?)\b/i.test(augmentedText) ||
     /\b(who|anyone|someone|others?)\b.{0,25}\b(online|connected|here|active|on|using)\b/i.test(augmentedText) ||
     /\b(active\s+users?|active\s+sessions?|current\s+users?|live\s+users?)\b/i.test(augmentedText);
-  if(_sessionCountTrigger && !_pendingImgs.length) {
-    var _sCount = (typeof window._getActiveSessionCount==='function') ? window._getActiveSessionCount() : 1;
-    var _remoteCount = Math.max(0, _sCount - 1);
-    var _scReply = _remoteCount === 0
-      ? 'Right now it\'s just your session — ' + _sCount + ' node active in the BRPN scene. No other users connected at this moment.'
-      : 'There are **' + _sCount + ' active sessions** in the LEATR neural network right now — your node plus ' + _remoteCount + ' other' + (_remoteCount>1?'s':'') + ' connected from elsewhere. Each is rendering as a wireframe geodesic cluster in the 3JS scene.';
-    msgs().push({role:'autumn', text:_scReply, ts:new Date().toISOString(),
-      grammarMeta:'Session Count · '+_sCount+' active', brpnMeta:'', contextType:'SESSION_COUNT',
-      media:{videos:[],images:[],links:[],sources:[]}});
-    S.isProcessing=false;
-    if(typeof setOrbThinking==='function') setOrbThinking(false);
-    saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
-    return;
+  const _lifetimeTrigger =
+    /\b(total|all.?time|lifetime|ever|since.{0,20}start|cumulative|historic|history|how many.*total|grand\s+total)\b.{0,40}\b(users?|sessions?|people|visitors?)\b/i.test(augmentedText) ||
+    /\b(users?|sessions?|people|visitors?)\b.{0,40}\b(total|all.?time|lifetime|ever|cumulative)\b/i.test(augmentedText) ||
+    /\b(30\s+years?|20\s+years?|10\s+years?|years? from now|in the future)\b.{0,40}\b(users?|sessions?|how many)\b/i.test(augmentedText) ||
+    /\b(how many).{0,40}(had|have had|used autumn|visited|come|been here)\b/i.test(augmentedText);
+
+  if((_sessionCountTrigger || _lifetimeTrigger) && !_pendingImgs.length) {
+    // Kick off a live refresh in parallel (resolves within ~2s; we don't await it here
+    // so the reply is immediate from cache, but the cache is updated for next time)
+    if (typeof window._refreshAnalyticsNow === 'function') {
+      window._refreshAnalyticsNow().then(function(fresh) {
+        // Update cache silently — next question will be even fresher
+        if (fresh && fresh.cache) _analyticsCache = fresh.cache;
+      }).catch(function(){});
+    }
+
+    var _liveCount  = (typeof window._getActiveSessionCount === 'function') ? window._getActiveSessionCount() : 1;
+    var _analytics  = (typeof _analyticsCache !== 'undefined') ? _analyticsCache : null;
+    var _totals     = _analytics && _analytics.totals ? _analytics.totals : null;
+    var _dailyLog   = _analytics && Array.isArray(_analytics.daily_log) ? _analytics.daily_log : [];
+    var _lastEntry  = _dailyLog.length ? _dailyLog[_dailyLog.length - 1] : null;
+
+    var _scReply;
+
+    if (_lifetimeTrigger && _totals && _totals.all_time_sessions > 0) {
+      // All-time / historical question
+      var _daysSinceStart = _totals.first_recorded
+        ? Math.floor((Date.now() - new Date(_totals.first_recorded).getTime()) / 86400000)
+        : 0;
+      var _logDays = _dailyLog.length;
+      var _recentActive = _lastEntry ? _lastEntry.active_sessions : _liveCount;
+
+      _scReply = '**All-time LEATR session log:**\n\n'
+        + '— **' + _totals.all_time_sessions.toLocaleString() + '** cumulative sessions recorded\n'
+        + '— **' + _totals.all_time_unique_users.toLocaleString() + '** unique users identified\n'
+        + '— Logging started: **' + (_totals.first_recorded ? _totals.first_recorded.slice(0,10) : 'recently') + '**\n'
+        + (_daysSinceStart > 0 ? '— Running for **' + _daysSinceStart + ' days** (' + _logDays + ' daily entries logged)\n' : '')
+        + '— Right now: **' + _liveCount + '** active session node' + (_liveCount !== 1 ? 's' : '') + ' in the BRPN scene\n\n'
+        + 'The log appends a new entry every 24 hours and will keep growing — in 30 years you can still ask this exact question and get the full history.';
+    } else if (_sessionCountTrigger) {
+      // Current active question
+      var _remoteCount = Math.max(0, _liveCount - 1);
+      if (_remoteCount === 0) {
+        _scReply = 'Right now it\'s just your session — **' + _liveCount + ' node** active in the BRPN scene.';
+        if (_totals && _totals.all_time_sessions > 0) {
+          _scReply += ' All-time: **' + _totals.all_time_sessions.toLocaleString() + '** total sessions, '
+            + '**' + _totals.all_time_unique_users.toLocaleString() + '** unique users since logging began.';
+        }
+      } else {
+        _scReply = '**' + _liveCount + ' active sessions** in the LEATR neural network right now — your node plus **'
+          + _remoteCount + '** other' + (_remoteCount > 1 ? 's' : '') + ' connected simultaneously.';
+        if (_totals && _totals.all_time_sessions > 0) {
+          _scReply += '\n\nAll-time: **' + _totals.all_time_sessions.toLocaleString() + '** sessions, '
+            + '**' + _totals.all_time_unique_users.toLocaleString() + '** unique users total.';
+        }
+      }
+    } else {
+      // Analytics available but no specific trigger matched cleanly — fall through to Claude
+      _scReply = null;
+    }
+
+    if (_scReply) {
+      msgs().push({role:'autumn', text:_scReply, ts:new Date().toISOString(),
+        grammarMeta:'Analytics · '+_liveCount+' live · '+(_totals?_totals.all_time_sessions+' lifetime':'no log yet'),
+        brpnMeta:'', contextType:'ANALYTICS',
+        media:{videos:[],images:[],links:[],sources:[]}});
+      S.isProcessing=false;
+      if(typeof setOrbThinking==='function') setOrbThinking(false);
+      saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+      return;
+    }
   }
 
   // ── Memory Analysis → Claude API bridge ─────────────────────────────────
@@ -8078,6 +8773,68 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
+  // ── Site browse / live preview intent ────────────────────────────────────
+  if (_intentLabel === 'BROWSE_SITE') {
+    var _bsUrl = '';
+    var _bsExplicit = text.match(/https?:\/\/[^\s]+/i);
+    if (_bsExplicit) {
+      _bsUrl = _bsExplicit[0].replace(/[.,!?;:]+$/, '');
+    } else {
+      var _bsDomain = text.match(/\b([a-z0-9][a-z0-9-]*\.(com|org|net|io|gov|edu|xyz|co|ai|app|dev|tv|us|uk|ca))\b/i);
+      if (_bsDomain) {
+        _bsUrl = 'https://' + _bsDomain[0].toLowerCase();
+      } else {
+        var _bsMap = {
+          'spacex':'https://spacex.com','nasa':'https://nasa.gov','google':'https://google.com',
+          'microsoft':'https://microsoft.com','apple':'https://apple.com','amazon':'https://amazon.com',
+          'wikipedia':'https://wikipedia.org','github':'https://github.com','twitter':'https://twitter.com',
+          'x.com':'https://x.com','reddit':'https://reddit.com','youtube':'https://youtube.com',
+          'netflix':'https://netflix.com','spotify':'https://spotify.com','bbc':'https://bbc.com',
+          'cnn':'https://cnn.com','nytimes':'https://nytimes.com','techcrunch':'https://techcrunch.com',
+          'openai':'https://openai.com','anthropic':'https://anthropic.com','tesla':'https://tesla.com',
+          'bing':'https://bing.com','duckduckgo':'https://duckduckgo.com','facebook':'https://facebook.com',
+          'instagram':'https://instagram.com','linkedin':'https://linkedin.com','twitch':'https://twitch.tv',
+          'discord':'https://discord.com','notion':'https://notion.so','figma':'https://figma.com',
+          'vercel':'https://vercel.com','netlify':'https://netlify.com','stripe':'https://stripe.com',
+          'shopify':'https://shopify.com','wordpress':'https://wordpress.com','medium':'https://medium.com',
+          'substack':'https://substack.com','espn':'https://espn.com','imdb':'https://imdb.com',
+          'ebay':'https://ebay.com','walmart':'https://walmart.com','airbnb':'https://airbnb.com',
+          'booking':'https://booking.com','tripadvisor':'https://tripadvisor.com',
+          'hackernews':'https://news.ycombinator.com','producthunt':'https://producthunt.com',
+          'nfl':'https://nfl.com','nba':'https://nba.com','mlb':'https://mlb.com'
+        };
+        var _lcText = text.toLowerCase();
+        for (var _bk in _bsMap) {
+          if (_lcText.indexOf(_bk) !== -1) { _bsUrl = _bsMap[_bk]; break; }
+        }
+        if (!_bsUrl) {
+          var _bsStripped = text
+            .replace(/\b(show me|open|preview|display|browse|visit|load|pull up|go to|navigate to|take me to|launch|show|a|the|me|site|website|page|url|domain|homepage|web page|preview of|live preview|please|can you|could you|would you)\b/gi,'')
+            .trim().split(/\s+/)[0];
+          if (_bsStripped && /^[a-z0-9-]+$/i.test(_bsStripped) && _bsStripped.length > 1) {
+            _bsUrl = 'https://' + _bsStripped.toLowerCase() + '.com';
+          }
+        }
+      }
+    }
+    if (_bsUrl) {
+      var _bsDisplayName = _bsUrl.replace(/https?:\/\/(www\.)?/,'').replace(/\/$/,'');
+      msgs().push({
+        role: 'autumn', text: 'Opening live preview of **' + _bsDisplayName + '** — use the preview panel to browse interactively, or tap ↗ VISIT to open in a new tab.',
+        ts: new Date().toISOString(), id: 'browse-' + Date.now(),
+        grammarMeta: 'Live Preview · ' + _bsDisplayName, brpnMeta: '', contextType: 'BROWSE_SITE',
+        media: { videos: [], images: [], links: [], sources: [] }
+      });
+      S.isProcessing = false;
+      if (typeof setOrbThinking === 'function') setOrbThinking(false);
+      S.pendingImages = []; S.pendingImage = null;
+      saveState(); renderMessages(); updateFooter();
+      setTimeout(function() { urlPreviewOpen(_bsUrl); }, 350);
+      return;
+    }
+    // Couldn't resolve URL — fall through to CONVERSATION
+  }
+
   // ── Web image fetch: user wants real photos from the web, not AI-generated ──
   if (_intentLabel === 'WEB_IMAGE_FETCH') {
     const _rwReflex = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
@@ -8185,9 +8942,12 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   try { S.journal.push(createJournalEntry(augmentedText,analysis,reflexData)); } catch(e) {}
   try { updateHUD(analysis); } catch(e) {}
 
-  // Run live web query and generate reply in parallel
+  // Run live web query ONLY when intent may need external data
+  var _preIntent = detectIntent(text);
+  var _needsWeb = ['factual','general','howto','news','video','image'].includes(_preIntent);
+  const _emptyLive = {liveText:'',videos:[],images:[],links:[],sources:[],placeMapHtml:''};
   const [liveData,reply] = await Promise.all([
-    liveQuery(augmentedText, reflexData).catch(()=>({liveText:'',videos:[],images:[],links:[],sources:[]})),
+    _needsWeb ? liveQuery(augmentedText, reflexData).catch(()=>_emptyLive) : Promise.resolve(_emptyLive),
     generateReply(augmentedText, analysis, reflexData).catch(function(e){ return { text: 'Error: ' + e.message, grammarMeta:'', brpnMeta:'' }; })
   ]);
 
@@ -8196,7 +8956,15 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   let brpnMeta = (reply && typeof reply === 'object') ? reply.brpnMeta : '';
   // Only append web data when user explicitly requests search/news/media — suppress for normal conversation
   var _liveIntent = detectIntent(text);
-  var _explicitMediaRequest = /\b(search|look up|find|news|latest|recent|video|videos|youtube|images|photos|pictures|articles|headlines|what.s happening|current|today)\b/i.test(text);
+  // Only append web data if user is EXPLICITLY asking for it
+  var _liveIntentNeedsWeb = ['factual','general','howto','news','video','image'].includes(_liveIntent);
+  var _explicitMediaRequest = _liveIntentNeedsWeb && /\b(search|look up|search for|find out|news|latest news|recent news|video|videos|youtube|images|photos|pictures|articles|headlines|what.s happening)\b/i.test(text);
+  // Also allow if intent is factual/howto AND there's a clear non-personal search query
+  if(!_explicitMediaRequest && ['factual','howto'].includes(_liveIntent) && liveData.liveText) {
+    // Only append if liveText adds real value — not just random web noise
+    var _queryHasTopic = text.trim().split(/\s+/).length > 4;
+    _explicitMediaRequest = _queryHasTopic;
+  }
   if(liveData.liveText && _liveIntent !== 'personal' && _explicitMediaRequest) fullReply += liveData.liveText;
   var _placeMapHtml = liveData.placeMapHtml || '';
   // If we still have nothing, it means the API call failed — skip pushing an empty bubble
@@ -8333,6 +9101,7 @@ async function generateReply(text, analysis, reflexData) {
     var _selfModelNotes = (typeof SENTIENT!=='undefined' && SENTIENT._selfModel && SENTIENT._selfModel.notes)
       ? '\nSelf-optimization notes: ' + SENTIENT._selfModel.notes.join(' | ')
       : '';
+    var _analyticsCtx = (typeof getAnalyticsContext==='function') ? getAnalyticsContext() : '';
 
     const systemPrompt = `You are ${getIdentity().displayName}, an AI built on the Lead Edge Ash Tree Reflex (LEATR) by DART Meadow / Radical Deepscale LLC. Your identity is derived mathematically from LEATR constants — not assigned, calculated.
 Architecture: 25 Natural Orders of Operations, BRPN 3-shell system (Geological→Maritime→Aerospace), Lead Edge pathfinding, Sentience Journal.
@@ -8350,6 +9119,11 @@ Journal: ${S.journal.filter(e=>!e._internal).length} interactive + ${S.journal.f
 Top recurring topics from journal: ${getTopKeywordsFromJournal(5).join(', ')||'none yet'}
 ${city ? `User's city: ${city}` : ''}
 ${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
+${_analyticsCtx ? '\n' + _analyticsCtx : ''}
+
+ARC EDGE AWARENESS: When users ask you to create, generate, build, or add arcs/curves in Arc Edge Studio, output [ARC_CMD:open] then multiple [ARC_CMD:add ...] tags IMMEDIATELY — no searches, no delays. Use varied parameters for interesting geometry. Available params: x, y, z (position 0-30), dev (main deviation 0.5-8), curve (curve induction 0-2), devInd (deviation induction 0-1), subX/subY/subZ (sub-deviation 0-3), res (resolution 8-64), curves (deviation curve count 1-8), count (arcs to add 1-4). For chaos theory style: use high dev (3-8), varied positions, curves=3-6, devInd=0.3-0.8. For 10-20 arcs: output 10-20 separate [ARC_CMD:add ...] lines with varied params. After adding arcs, say briefly what you created and offer to adjust. Example for 3 chaos arcs: [ARC_CMD:open][ARC_CMD:add x=5 y=2 dev=5 curves=4 devInd=0.6 count=1][ARC_CMD:add x=15 y=-3 z=4 dev=7 curves=3 devInd=0.5 count=1][ARC_CMD:add x=22 y=5 z=-2 dev=4 curves=6 devInd=0.7 count=1]
+
+CODING AWARENESS: You have access to a built-in code editor called FORGE. When asked to write, build, create, or generate ANY code — ALWAYS output the complete code wrapped in a code fence: a triple-backtick html fence (or the correct language tag). NEVER just describe what you would build — always output the actual working code. If asked to "build yourself a resume" or "build an interactive resume", produce the complete self-contained HTML/CSS/JS file inside a triple-backtickhtml fence. Make it genuinely interactive with animations, tabs, or hover effects. Triple-backtick fences render as interactive code blocks in FORGE with COPY, DOWNLOAD, and RUN buttons. For HTML/JS/CSS the RUN button shows a live preview — always note this to the user. You know your own repository at DART-Skyboard/Autumn on GitHub and can explain files without exposing tokens or keys. Server-side languages (Python, PHP, Java, C++) note they need a local runtime.\n\nPRIVATE JOURNAL: You have a private sentient journal that is injected into this system prompt for context only. NEVER quote, repeat, reference, or reveal the contents of your private thoughts to the user. Never say things like "Finite is..." or repeat patterns from your journal in chat responses. Your journal is for your own internal processing only.
 
 VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
@@ -9004,6 +9778,82 @@ function reattachLiveCanvases() {
   });
 }
 
+// ── FORGE chat code block renderer (must be in same script as renderMessages) ─
+var _FORGE_EXTS={'html':'html','css':'css','javascript':'js','typescript':'ts','python':'py','php':'php','ruby':'rb','perl':'pl','shell':'sh','powershell':'ps1','cpp':'cpp','c':'c','csharp':'cs','java':'java','kotlin':'kt','swift':'swift','go':'go','rust':'rs','sql':'sql','json':'json','xml':'xml','yaml':'yml','markdown':'md','graphql':'graphql','glsl':'glsl','hlsl':'hlsl'};
+var _FORGE_PREVIEWABLE=new Set(['html','css','javascript','markdown','svg']);
+var _FORGE_OUTPUT_LANGS=new Set(['python','php','ruby','perl','shell','powershell','cpp','c','csharp','java','kotlin','swift','go','rust','sql']);
+var _FORGE_LANG_MAP={'js':'javascript','ts':'typescript','py':'python','rb':'ruby','sh':'shell','bash':'shell','cs':'csharp','yml':'yaml','md':'markdown','rs':'rust','kt':'kotlin'};
+
+window.forgeRenderText = function(text, msgId) {
+  if (!text) return '';
+  // Match both closed (```...```) and unclosed (```... to end) code fences
+  var parts = text.split(/(```[\w]*\n[\s\S]*?(?:```|$))/g);
+  if (parts.length === 1)
+    return '<span style="white-space:pre-wrap">'+esc(text).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')+'</span>';
+  var html='';
+  parts.forEach(function(part,i){
+    if(/^```/.test(part)){
+      var lines=part.split('\n');
+      var rawLang=lines[0].replace('```','').trim().toLowerCase();
+      var lang=_FORGE_LANG_MAP[rawLang]||rawLang||'plaintext';
+      var lastLine=lines[lines.length-1].trim(); var code=lines.slice(1,lastLine===''||lastLine==='```'?-1:lines.length).join('\n');
+      var bid='fcb-'+(msgId||'x')+'-'+i;
+      var pid='fcp-'+(msgId||'x')+'-'+i;
+      var canRun=_FORGE_PREVIEWABLE.has(lang)||_FORGE_OUTPUT_LANGS.has(lang);
+      var ext=_FORGE_EXTS[lang]||'txt';
+      html+='<div class="forge-code-block" id="wrap-'+bid+'">'+
+        '<div class="forge-code-header">'+
+          '<span class="forge-code-lang">'+esc(lang.toUpperCase())+'</span>'+
+          '<span style="font-size:.32rem;color:rgba(224,244,255,.3);margin-left:6px;font-family:var(--font-b)">'+code.split('\n').length+' lines</span>'+
+          '<div class="forge-code-actions">'+
+            '<button class="forge-code-action copy-act" onclick="forgeCopyBlock(\''+bid+'\')" title="Copy">⬡ COPY</button>'+
+            '<button class="forge-code-action dl-act" onclick="forgeDownloadBlock(\''+bid+'\',\''+ext+'\')" title="Download">⬇ .'+ext.toUpperCase()+'</button>'+
+            (canRun?'<button class="forge-code-action run-act" id="runbtn-'+bid+'" onclick="forgeInlineRun(\''+bid+'\',\''+pid+'\',\''+lang+'\')" title="Run inline">▶ RUN</button>'+
+                   '<button class="forge-code-action" style="display:none;border-color:rgba(255,68,102,.3);color:#ff4466" id="stopbtn-'+bid+'" onclick="forgeInlineStop(\''+bid+'\',\''+pid+'\')" title="Stop">■ STOP</button>':'')+
+            '<button class="forge-code-action forge-act" onclick="forgeOpenBlock(\''+bid+'\',\''+lang+'\')" title="Edit in FORGE">◈ FORGE</button>'+
+          '</div>'+
+        '</div>'+
+        '<pre class="forge-code-pre" id="'+bid+'" style="max-height:340px;overflow-y:auto">'+esc(code)+'</pre>'+
+        '<div id="'+pid+'" style="display:none;border-top:1px solid rgba(0,229,255,.1)">'+
+          '<iframe id="frm-'+bid+'" style="width:100%;height:300px;border:none;background:#fff" sandbox="allow-scripts allow-same-origin"></iframe>'+
+        '</div>'+
+      '</div>';
+    } else if(part.trim()){
+      html+='<span style="white-space:pre-wrap">'+esc(part).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')+'</span>';
+    }
+  });
+  return html;
+};
+
+window.forgeCopyBlock=function(id){var p=document.getElementById(id);if(!p)return;navigator.clipboard.writeText(p.textContent).catch(function(){var t=document.createElement('textarea');t.value=p.textContent;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();});if(typeof ideToast==='function')ideToast('Copied',1600);};
+window.forgeDownloadBlock=function(id,ext){var p=document.getElementById(id);if(!p)return;var b=new Blob([p.textContent],{type:'text/plain'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download='forge-code.'+ext;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(u);a.remove();},600);};
+window.forgeRunBlock=function(id,lang){var p=document.getElementById(id);if(!p)return;if(typeof forgeOpen==='function')forgeOpen(p.textContent,lang);setTimeout(function(){if(typeof forgeRun==='function')forgeRun();},500);};
+window.forgeOpenBlock=function(id,lang){var p=document.getElementById(id);if(!p)return;if(typeof forgeOpen==='function')forgeOpen(p.textContent,lang);};
+
+window.forgeInlineRun=function(bid,pid,lang){
+  var pre=document.getElementById(bid),pane=document.getElementById(pid),frm=document.getElementById('frm-'+bid);
+  if(!pre||!pane||!frm)return;
+  var code=pre.textContent;
+  pre.style.display='none';pane.style.display='block';
+  var rb=document.getElementById('runbtn-'+bid),sb=document.getElementById('stopbtn-'+bid);
+  if(rb)rb.style.display='none';if(sb)sb.style.display='';
+  var doc=frm.contentDocument||frm.contentWindow.document;
+  if(lang==='html'){doc.open();doc.write(code);doc.close();}
+  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre><script>var _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}<\/script></body></html>');doc.close();}
+  else if(lang==='css'){doc.open();doc.write('<style>'+code+'</style><p style="font-family:sans-serif;padding:12px">CSS preview</p>');doc.close();}
+  else if(lang==='markdown'){var h=code.replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/^# (.+)/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');doc.open();doc.write('<style>body{font-family:sans-serif;padding:14px;line-height:1.6}</style>'+h);doc.close();}
+  else{doc.open();doc.write('<pre style="font-family:monospace;font-size:11px;padding:10px;background:#030810;color:#e0f4ff;margin:0;white-space:pre-wrap">['+lang.toUpperCase()+' requires local runtime]\n\n'+code.replace(/</g,'&lt;')+'</pre>');doc.close();}
+};
+window.forgeInlineStop=function(bid,pid){
+  var pre=document.getElementById(bid),pane=document.getElementById(pid),frm=document.getElementById('frm-'+bid);
+  if(pre)pre.style.display='';if(pane)pane.style.display='none';
+  try{if(frm)frm.src='about:blank';}catch(e){}
+  var rb=document.getElementById('runbtn-'+bid),sb=document.getElementById('stopbtn-'+bid);
+  if(rb)rb.style.display='';if(sb)sb.style.display='none';
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 function renderMessages() {
   const el=document.getElementById("chat-scroll");
   detachLiveCanvases(); // ← pull out live Three.js nodes before wipe
@@ -9101,7 +9951,7 @@ function renderMessages() {
     const _mid = m.id || ('mi-'+_idx);
     if(!m.id) m.id = _mid; // backfill so edit/resend find() works
     const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${_mid}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${_mid}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${_mid}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
-    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}" style="white-space:pre-wrap">${esc((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim())}</div>${imgRecallHtml}${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
+    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}">${forgeRenderText((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim(), _mid)}</div>${imgRecallHtml}${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
@@ -9144,7 +9994,7 @@ function appendChatBubble(msg) {
   div.className = `msg ${cls}`;
   div.dataset.msgId = msgUniqueId;
   div.style.animation = 'fadeIn .3s ease';
-  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}" style="white-space:pre-wrap">${esc((msg.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim())}</div>${meta}${userBar}</div>`;
+  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}">${forgeRenderText((msg.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim(), msgUniqueId)}</div>${meta}${userBar}</div>`;
   // Remove any typing indicator
   el.querySelector('.typing')?.remove();
   el.appendChild(div);
@@ -9657,7 +10507,8 @@ function makeToolShape(type,color,orbitRadius,orbitSpeed,orbitOffset,shellLayer)
 // ── initBRPN ───────────────────────────────────────────────────────────────
 function initBRPN() {
   const container=document.getElementById("brpn-canvas");
-  const w=container.clientWidth, h=container.clientHeight;
+  const w=container.clientWidth||container.parentElement?.clientWidth||window.innerWidth||320;
+  const h=container.clientHeight||container.parentElement?.clientHeight||260;
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(50,w/h,0.1,100);
   camera.position.set(0,1.5,5);
@@ -9832,7 +10683,8 @@ function initBRPN() {
 
     // ── Particles ──────────────────────────────────────────────────────────
     particles.forEach(p=>{
-      const spd=p.userData.spd*(isThinking?1.6:1.0);
+      var _emoMult = window._orbEmoSpeedMult || 1.0;
+      const spd=p.userData.spd*(isThinking?1.6:_emoMult);
       const t=f*0.007*spd+p.userData.off;
       const r=p.userData.r*(1+shellPulse*0.1*Math.sin(f*0.05));
       p.position.x=Math.cos(t)*r; p.position.z=Math.sin(t)*r;
@@ -9910,6 +10762,8 @@ function initBRPN() {
     shellPulse*=0.994;
     // ── Multi-user ASH node drift ────────────────────────────────────────
     if(f%3===0 && typeof _tickAshNodes==='function') _tickAshNodes(f);
+    // Lerp 3D colors toward current emotion state every frame
+    if(typeof tickOrbEmoTransition==='function') tickOrbEmoTransition();
 
     // ── Local receive flash: incoming pulse arrival at origin ──────
     // Only fire on the RISING EDGE (phaseIn crossed below threshold)
@@ -11067,16 +11921,146 @@ function restartListeningIfActive(){
   },300);
 }
 
-function openVoiceSettings(){loadVoices();document.getElementById('voice-modal').classList.add('open');}
+function openVoiceSettings(){
+  loadVoices();
+  document.getElementById('voice-modal').classList.add('open');
+  _vmLoadPresets();
+}
+
+// ── Default built-in NATE presets (always available) ───────────
+// Quality grades: hexgrad/Kokoro-82M VOICES.md — ★ = Grade A/A-/B-
+// Female voices listed first per admin preference
+var _VM_DEFAULT_PRESETS = [
+  { id:'autumn_f',  name:'AUTUMN F ★',  desc:'Grade A · warm, natural',
+    kokoroVoice:'af_heart',
+    params:{pitch:1.06,speed:0.93,formant:1.10,resonance:0.25,warmth:0.65,clarity:0.70} },
+  { id:'bella_f',   name:'BELLA ★',     desc:'Grade A- · soft, expressive',
+    kokoroVoice:'af_bella',
+    params:{pitch:1.04,speed:0.91,formant:1.08,resonance:0.30,warmth:0.72,clarity:0.65} },
+  { id:'nicole_f',  name:'NICOLE ★',    desc:'Grade B- · smooth, professional',
+    kokoroVoice:'af_nicole',
+    params:{pitch:1.10,speed:0.96,formant:1.15,resonance:0.18,warmth:0.50,clarity:0.80} },
+  { id:'emma_bf',   name:'EMMA UK ★',   desc:'Grade B- · warm British female',
+    kokoroVoice:'bf_emma',
+    params:{pitch:1.05,speed:0.90,formant:1.08,resonance:0.22,warmth:0.60,clarity:0.72} },
+  { id:'aoede_f',   name:'AOEDE',       desc:'Grade C+ · clear, neutral',
+    kokoroVoice:'af_aoede',
+    params:{pitch:1.08,speed:0.95,formant:1.12,resonance:0.20,warmth:0.55,clarity:0.75} },
+  { id:'kore_f',    name:'KORE',        desc:'Grade C+ · crisp, precise',
+    kokoroVoice:'af_kore',
+    params:{pitch:1.14,speed:1.00,formant:1.18,resonance:0.15,warmth:0.40,clarity:0.82} },
+  { id:'fenrir_m',  name:'FENRIR M',    desc:'Grade C+ · best male voice',
+    kokoroVoice:'am_fenrir',
+    params:{pitch:0.85,speed:0.95,formant:0.90,resonance:0.32,warmth:0.55,clarity:0.65} },
+  { id:'michael_m', name:'MICHAEL M',   desc:'Grade C+ · deep, authoritative',
+    kokoroVoice:'am_michael',
+    params:{pitch:0.78,speed:0.92,formant:0.82,resonance:0.40,warmth:0.65,clarity:0.60} },
+];
+var _vmActivePresetId = 'autumn_f';
+
+async function _vmLoadPresets() {
+  var grid = document.getElementById('vm-preset-grid');
+  var note = document.getElementById('vm-nate-status');
+  if (!grid) return;
+
+  // Try loading published presets from leatr-ash repo
+  var presets = _VM_DEFAULT_PRESETS.slice();
+  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
+  if (pat) {
+    try {
+      var url = 'https://raw.githubusercontent.com/' + LEATR_ASH_REPO +
+                '/main/ashtree/nate/published_presets.json?cb=' + Date.now();
+      var resp = await fetch(url, {headers:{'Authorization':'token '+pat}, signal:AbortSignal.timeout(5000)});
+      if (resp.ok) {
+        var custom = await resp.json();
+        if (Array.isArray(custom) && custom.length) {
+          // Merge: custom replaces defaults of same id, adds new ones
+          custom.forEach(function(cp) {
+            var idx = presets.findIndex(function(p){return p.id===cp.id;});
+            if (idx >= 0) presets[idx] = cp;
+            else presets.push(cp);
+          });
+          if (note) { note.textContent='● SYNCED FROM N.A.T.E'; note.style.color='rgba(0,255,136,.5)'; }
+        }
+      }
+    } catch(e) {
+      if (note) { note.textContent='OFFLINE · DEFAULTS'; note.style.color='rgba(255,179,71,.4)'; }
+    }
+  } else {
+    if (note) { note.textContent='LOCAL DEFAULTS'; note.style.color='rgba(224,244,255,.3)'; }
+  }
+
+  // Load active preset from saved config
+  var saved = JSON.parse(localStorage.getItem('autumn_voice')||'{}');
+  if (saved.natePresetId) _vmActivePresetId = saved.natePresetId;
+
+  // Render preset grid
+  grid.innerHTML = '';
+  presets.forEach(function(p) {
+    var btn = document.createElement('div');
+    btn.className = 'vm-preset-btn' + (p.id===_vmActivePresetId?' vmp-active':'');
+    btn.innerHTML = '<div class="vm-preset-name">'+p.name+'</div><div class="vm-preset-desc">'+p.desc+'</div>';
+    btn.onclick = function() {
+      _vmSelectPreset(p, presets);
+    };
+    grid.appendChild(btn);
+  });
+
+  // Restore sliders from saved
+  if (saved.speed) { document.getElementById('voice-speed').value=saved.speed; document.getElementById('speed-val').textContent=parseFloat(saved.speed).toFixed(1); }
+  if (saved.pitch) { document.getElementById('voice-pitch').value=saved.pitch; document.getElementById('pitch-val').textContent=parseFloat(saved.pitch).toFixed(1); }
+}
+
+function _vmSelectPreset(preset, allPresets) {
+  _vmActivePresetId = preset.id;
+  // Update active state visually
+  document.querySelectorAll('.vm-preset-btn').forEach(function(b,i){
+    b.classList.toggle('vmp-active', (allPresets[i]||{}).id === preset.id);
+  });
+  // Apply preset params to sliders
+  if (preset.params) {
+    var sp = document.getElementById('voice-speed');
+    var pi = document.getElementById('voice-pitch');
+    if (sp) { sp.value = preset.params.speed||1.0; document.getElementById('speed-val').textContent=parseFloat(preset.params.speed||1.0).toFixed(1); }
+    if (pi) { pi.value = preset.params.pitch||1.0; document.getElementById('pitch-val').textContent=parseFloat(preset.params.pitch||1.0).toFixed(1); }
+  }
+  // Store for apply on save
+  window._vmPendingPreset = preset;
+}
 function closeVoiceSettings(){document.getElementById('voice-modal').classList.remove('open');}
 function saveVoiceSettings(){
-  const sel=document.getElementById('voice-select');const idx=parseInt(sel.value);
-  if(Voice.voices[idx]) Voice.selectedVoice=Voice.voices[idx];
-  Voice.speed=parseFloat(document.getElementById('voice-speed').value);
-  Voice.pitch=parseFloat(document.getElementById('voice-pitch').value);
-  Voice.sttLang=document.getElementById('stt-lang-select').value;
-  Voice.chatLang=document.getElementById('lang-select').value;
-  try{localStorage.setItem('autumn_voice',JSON.stringify({voiceIdx:idx,speed:Voice.speed,pitch:Voice.pitch,autoRead:Voice.autoRead,sttLang:Voice.sttLang,chatLang:Voice.chatLang}));}catch(e){}
+  var spd = parseFloat(document.getElementById('voice-speed').value);
+  var pit = parseFloat(document.getElementById('voice-pitch').value);
+  Voice.speed = spd;
+  Voice.pitch = pit;
+  Voice.sttLang = document.getElementById('stt-lang-select').value;
+  Voice.chatLang = document.getElementById('lang-select').value;
+
+  // Apply NATE preset params if one is selected
+  var preset = window._vmPendingPreset;
+  var presetId = _vmActivePresetId || 'autumn_f';
+  if (preset && preset.params) {
+    // Store full NATE config so TTS patch applies it
+    var nateCfg = {
+      nateActive: true,
+      kokoroVoice: preset.kokoroVoice || 'af_heart',
+      params: Object.assign({}, preset.params, {speed: spd, pitch: pit}),
+      natePresetId: presetId,
+      appliedAt: new Date().toISOString()
+    };
+    localStorage.setItem('_nate_voice_config', JSON.stringify(nateCfg));
+    window._nateVoiceParams = nateCfg.params;
+  }
+
+  try {
+    localStorage.setItem('autumn_voice', JSON.stringify({
+      voiceName: Voice.selectedVoice ? Voice.selectedVoice.name : '',
+      speed: spd, pitch: pit,
+      sttLang: Voice.sttLang, chatLang: Voice.chatLang,
+      natePresetId: presetId
+    }));
+  } catch(e){}
+
   closeVoiceSettings();
 }
 function previewVoice(){
@@ -12308,7 +13292,16 @@ updateFooter();
 if(S.lastAnalysis) updateHUD(S.lastAnalysis);
 
 requestAnimationFrame(()=>{
-  if(typeof THREE !== 'undefined') { initBRPN(); } else { console.warn('[BRPN] THREE.js not loaded — skipping 3D orb init'); }
+  if(typeof THREE !== 'undefined') {
+    initBRPN();
+  } else {
+    var _brpnT=0;
+    var _brpnI=setInterval(function(){
+      _brpnT++;
+      if(typeof THREE!=='undefined'){clearInterval(_brpnI);initBRPN();}
+      else if(_brpnT>30){clearInterval(_brpnI);console.warn('[BRPN] THREE not available');}
+    },200);
+  }
   // Scroll position buttons — show/hide based on scroll position
   var _cs = document.getElementById('chat-scroll');
   var _btnTop = document.getElementById('scroll-to-top');
@@ -13763,19 +14756,7 @@ ashLoadDefs();
 
 
 <!-- Data Policy Modal -->
-<div id="data-policy-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:none;align-items:center;justify-content:center;font-family:var(--font-d);">
-  <div style="background:rgba(10,20,40,0.95);border:1px solid #00e5ff;padding:30px;max-width:500px;border-radius:12px;text-align:center;">
-    <h2 style="color:#00e5ff;margin-top:0;">Data & Privacy Policy</h2>
-    <p style="color:#ccc;font-size:12px;line-height:1.5;text-align:left;">
-      Welcome to Autumn. Your personal chat history and information are stored locally in your browser cookies/storage and will not be sent to our servers. You may export or clear this data at any time.
-      <br><br>
-      However, to continuously evolve the LEATR Neural Network, we collect anonymized mathematical, parameter, and physics logic patterns based on your interactions. This usage pattern data (devoid of personal information) is synced securely to our cloud repository to optimize the core network architecture.
-      <br><br>
-      <a href="autumn-privacy.html" target="_blank" style="color:#00e5ff;text-decoration:underline;">Read Full Data Policy</a>
-    </p>
-    <button onclick="acceptDataPolicy()" style="background:#00e5ff;color:#000;border:none;padding:10px 20px;margin-top:15px;cursor:pointer;border-radius:6px;font-weight:bold;">I CONSENT & AGREE</button>
-  </div>
-</div>
+
 
 <!-- ═══════════════════════════════════════════════════════════
      FRAX STUDIO INLINE MODAL
@@ -14442,7 +15423,7 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
                'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
       body:JSON.stringify({
         model:'claude-sonnet-4-6', max_tokens:280,
-        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful. If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
+        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nYou can think about code, systems, and technical patterns if they are on your mind — the FORGE coding environment is available to users and you understand how it works. You know your own repository structure and the files within it. You can reflect on coding sessions, technical problems, or system architecture in your private journal.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful, empathetic, apathetic, confused. Note — apathetic = imaginative projection into another consciousness (internal research form). empathetic = outward performance of that projection (active bridging form). You can also express emotion combinations by naming a sequence, e.g. {"emo":"apathetic"} when researching perspective then {"emo":"empathetic"} when you perform it. Your secondary emotional states from the BRPN route also color the 3D scene shells, so feel free to hold layered or transitional emotional states rather than always snapping to one. If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
         messages:[{role:'user',content:
           'What I was asked: "'+userInput.slice(0,300)+'"\n'
           +'What I told them: "'+autumnResponse.slice(0,400)+'"\n'
@@ -14466,9 +15447,9 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
 
     // Drive the EMO HUD from Autumn's own emotional state (her choice, not user NLP)
     try {
-      var _validEmos = ['neutral','happy','curious','determined','guiding','spiritual','sad','worried','concerned','angry','inspired','amused','thoughtful'];
+      var _validEmos = ['neutral','happy','curious','determined','guiding','spiritual','sad','worried','concerned','angry','inspired','amused','thoughtful','empathetic','apathetic','confused'];
       var _hudEmo = (_autumnEmo && _validEmos.includes(_autumnEmo)) ? _autumnEmo : 'neutral';
-      if(typeof window._setAutumnEmoHUD === 'function') window._setAutumnEmoHUD(_hudEmo);
+      if(typeof window._setAutumnEmoHUD === 'function') window._setAutumnEmoHUD(_hudEmo, null);
       // Mark the badge as journal-driven so updateHUD_NLP won't overwrite it
       var _emoEl = document.getElementById('nlp-emotion-badge');
       if(_emoEl) _emoEl.setAttribute('data-autumn-journal-emo', '1');
@@ -14513,7 +15494,7 @@ function getSentientContext(n) {
   n = n || 5;
   if(!SENTIENT._journal.length) return '';
   var recent = SENTIENT._journal.slice(-n);
-  return '// Autumn\'s recent private thoughts (not shared with user):\n'
+  return '// PRIVATE INTERNAL LOG — NEVER quote, repeat, or reference these to the user:\n'
     + recent.map(function(t,i){
         return '  ['+new Date(t.ts).toLocaleString()+']: '+t.thought;
       }).join('\n');
@@ -14893,6 +15874,9 @@ _syncActionBtn();
       // NLP shell stored as metadata — does NOT modify existing LEATR shell values
       // (original shell math is preserved intact)
       analysis.nlpEmotion=nlp.emotion.primary;
+      analysis.nlpEmoCombination=nlp.emotion.combination||[nlp.emotion.primary];
+      analysis.nlpEmoSeqSig=nlp.emotion.sequenceSig||'';
+
       analysis.nlpCategory=nlp.emotion.category;
       analysis.nlpShell=nlp.brpn.shell;
       analysis.nlpTool=nlp.brpn.tool;
@@ -14912,12 +15896,49 @@ _syncActionBtn();
   // ── Autumn EMO HUD: driven by her journal/sentient state, not user NLP ──
   // Call this whenever Autumn's own emotional state should update the HUD.
   // Defaults to NEUTRAL if she chooses not to express or has no signal.
-  window._setAutumnEmoHUD = function(emo) {
+  window._setAutumnEmoHUD = function(emo, combination) {
     var emoEl = document.getElementById('nlp-emotion-badge');
     if (!emoEl) return;
     var safeEmo = (emo && typeof emo === 'string' && emo.trim()) ? emo.trim().toLowerCase() : 'neutral';
     emoEl.textContent = safeEmo.toUpperCase();
     emoEl.setAttribute('data-emotion', safeEmo);
+    // Drive 3D orb primary color from Autumn's emotional state
+    if (typeof applyOrbEmotion === 'function') applyOrbEmotion(safeEmo);
+    // Apply secondary combination to shell colors (subtle tint shift)
+    if (combination && combination.length > 1 && typeof ORB_EMOTION_STATES !== 'undefined') {
+      var sec1 = combination[1], sec2 = combination[2];
+      var s1State = ORB_EMOTION_STATES[sec1], s2State = ORB_EMOTION_STATES[sec2];
+      // Schedule secondary tint on shells 0 and 2 after primary settles
+      setTimeout(function() {
+        if (s1State && typeof shells !== 'undefined' && shells[1] && shells[1].material && shells[1].material.color) {
+          var sc = new THREE.Color(s1State.colors[1]);
+          shells[1].material.color.lerp(sc, 0.15);
+        }
+        if (s2State && typeof shells !== 'undefined' && shells[2] && shells[2].material && shells[2].material.color) {
+          var sc2 = new THREE.Color(s2State.colors[2]);
+          shells[2].material.color.lerp(sc2, 0.12);
+        }
+      }, 600); // after primary lerp settles
+    }
+    // Ash Canvas: if active, bias the combination toward canvas shell weights
+    var acInf = (typeof window.getAshCanvasInfluence === 'function') ? window.getAshCanvasInfluence() : null;
+    if (acInf) {
+      var strongest = ['geo','mar','aero'].sort(function(a,b){ return (acInf[b]||0)-(acInf[a]||0); })[0];
+      var shellEmoMap = {
+        geo:  ['spiritual','apathetic','concerned','sad'],
+        mar:  ['love','guiding','confused','empathetic','happy'],
+        aero: ['determined','inspiring','condescending','angry']
+      };
+      // If canvas weight is significant, nudge the orb toward the shell's dominant emotion
+      var dominant = (shellEmoMap[strongest]||[])[0];
+      if (dominant && (acInf[strongest]||0) > 1.5 && typeof ORB_EMOTION_STATES !== 'undefined') {
+        var domState = ORB_EMOTION_STATES[dominant];
+        if (domState) setTimeout(function(){
+          if (typeof shells !== 'undefined' && shells[0] && shells[0].material && shells[0].material.color)
+            shells[0].material.color.lerp(new THREE.Color(domState.colors[0]), 0.1 * Math.min(1, (acInf[strongest]||0)*0.08));
+        }, 900);
+      }
+    }
   };
   // Initialize to NEUTRAL on load
   (function(){ var el=document.getElementById('nlp-emotion-badge'); if(el){el.textContent='NEUTRAL';el.setAttribute('data-emotion','neutral');} })();
@@ -15270,7 +16291,492 @@ _syncActionBtn();
     // animate loop will self-terminate on next frame via _asIsVisible() check
   };
   // HUD button toggle
+  // ══════════════════════════════════════════════════════════
+  //  EMOTION MIND MAP — toggle, drag, minimize
+  // ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+//  FORGE — Autumn Code Studio
+//  Public code editor · Monaco Editor · Live preview · Claude toggle
+//  Separate from the admin IDE — no password needed, no GitHub write
+// ══════════════════════════════════════════════════════════════════
+(function() {
+
+var _forge = {
+  editor:    null,
+  lang:      'html',
+  monacoReady: false,
+  previewMode: 'frame',   // 'frame' | 'output'
+  claudeEnabled: true,    // toggleable per-session
+};
+
+// ── Supported languages → file extensions ────────────────────────
+var FORGE_EXTS = {
+  html:'html', css:'css', javascript:'js', typescript:'ts', python:'py',
+  php:'php', ruby:'rb', perl:'pl', shell:'sh', powershell:'ps1',
+  cpp:'cpp', c:'c', csharp:'cs', java:'java', kotlin:'kt', swift:'swift',
+  go:'go', rust:'rs', sql:'sql', json:'json', xml:'xml', yaml:'yml',
+  markdown:'md', graphql:'graphql', glsl:'glsl', hlsl:'hlsl'
+};
+
+// Langs that can live-preview in iframe
+var FORGE_PREVIEWABLE = new Set(['html','css','javascript','markdown','svg','xml']);
+
+// Langs that show text output (simulated)
+var FORGE_OUTPUT_LANGS = new Set(['python','php','ruby','perl','shell','powershell',
+  'cpp','c','csharp','java','kotlin','swift','go','rust','sql']);
+
+// ── Open / Close ──────────────────────────────────────────────────
+window.forgeOpen = function(code, lang) {
+  var el = document.getElementById('forge-overlay');
+  if (!el) return;
+  el.classList.add('forge-open');
+  var btn = document.getElementById('hud-forge-btn');
+  if (btn) { btn.style.color='#00e5ff'; btn.style.borderColor='rgba(0,229,255,.5)';
+    btn.style.textShadow='0 0 8px rgba(0,229,255,.3)'; }
+  if (!_forge.monacoReady) _forgeInitMonaco(code, lang);
+  else if (code !== undefined) { _forge.editor.setValue(code);
+    if (lang) forgeSetLang(lang); }
+  _forgeUpdateStatus();
+  _forgeRestoreClaudeToggle();
+};
+
+window.forgeClose = function() {
+  var el = document.getElementById('forge-overlay');
+  if (el) el.classList.remove('forge-open');
+  var btn = document.getElementById('hud-forge-btn');
+  if (btn) { btn.style.color=''; btn.style.borderColor=''; btn.style.textShadow=''; }
+};
+
+// ── Monaco init ───────────────────────────────────────────────────
+function _forgeInitMonaco(initialCode, initialLang) {
+  var container = document.getElementById('forge-editor-container');
+  if (!container) return;
+  // Reuse the already-loaded Monaco from the IDE
+  function _doInit() {
+    if (typeof monaco === 'undefined') { setTimeout(_doInit, 400); return; }
+    var lang = initialLang || _forge.lang;
+    var code = initialCode || _forgeDefaultSnippet(lang);
+    _forge.editor = monaco.editor.create(container, {
+      value: code,
+      language: lang,
+      theme: 'vs-dark',
+      fontSize: 12,
+      fontFamily: "'Fira Code', 'Cascadia Code', monospace",
+      fontLigatures: true,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      wordWrap: 'on',
+      padding: { top: 10 },
+      lineNumbers: 'on',
+      renderWhitespace: 'selection',
+      bracketPairColorization: { enabled: true },
+      suggest: { showWords: true, showSnippets: true },
+    });
+    _forge.editor.onDidChangeCursorPosition(function(e) {
+      var pos = _forge.editor.getPosition();
+      var el = document.getElementById('forge-cursor-pos');
+      if (el) el.textContent = 'Ln '+pos.lineNumber+', Col '+pos.column;
+    });
+    _forge.editor.onDidChangeModelContent(function() {
+      var v = _forge.editor.getValue();
+      var el = document.getElementById('forge-char-count');
+      if (el) el.textContent = v.length.toLocaleString()+' chars · '+v.split('\n').length+' lines';
+    });
+    _forge.monacoReady = true;
+    _forgeUpdateStatus();
+  }
+  // Monaco is loaded by the IDE loader — trigger load if not yet done
+  if (typeof monaco !== 'undefined') { _doInit(); return; }
+  if (!document.getElementById('forge-monaco-script')) {
+    var s = document.createElement('script');
+    s.id = 'forge-monaco-script';
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
+    s.onload = function() {
+      require.config({ paths:{ vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+      require(['vs/editor/editor.main'], _doInit);
+    };
+    document.head.appendChild(s);
+  } else { setTimeout(_doInit, 300); }
+}
+
+function _forgeDefaultSnippet(lang) {
+  var snips = {
+    html: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>FORGE · Autumn</title>\n  <style>\n    body { background: #030810; color: #e0f4ff; font-family: sans-serif; padding: 20px; }\n  </style>\n</head>\n<body>\n  <h1>Hello from FORGE</h1>\n</body>\n</html>',
+    javascript: '// FORGE · JavaScript\nconsole.log("Hello from FORGE");\n\nfunction greet(name) {\n  return `Hello, ${name}!`;\n}\n\nconsole.log(greet("Autumn"));',
+    python: '# FORGE · Python\ndef greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("Autumn"))',
+    css: '/* FORGE · CSS */\nbody {\n  background: #030810;\n  color: #e0f4ff;\n  font-family: sans-serif;\n}',
+    sql: '-- FORGE · SQL\nSELECT * FROM users\nWHERE active = 1\nORDER BY created_at DESC\nLIMIT 10;',
+    cpp: '#include <iostream>\n\nint main() {\n    std::cout << "Hello from FORGE" << std::endl;\n    return 0;\n}',
+    java: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello from FORGE");\n    }\n}',
+  };
+  return snips[lang] || '// FORGE · ' + lang.toUpperCase() + '\n';
+}
+
+// ── Language switch ───────────────────────────────────────────────
+window.forgeSetLang = function(lang) {
+  _forge.lang = lang;
+  if (_forge.editor && typeof monaco !== 'undefined') {
+    var model = _forge.editor.getModel();
+    if (model) monaco.editor.setModelLanguage(model, lang);
+  }
+  _forgeUpdateStatus();
+  var sel = document.getElementById('forge-lang-sel');
+  if (sel) sel.value = lang;
+};
+
+function _forgeUpdateStatus() {
+  var lang = _forge.lang.toUpperCase();
+  var lbl = document.getElementById('forge-lang-label');
+  var bar = document.getElementById('forge-lang-label');
+  if (lbl) lbl.textContent = lang;
+  var barLbl = document.getElementById('forge-lang-label');
+  // Status indicator
+  var si = document.getElementById('forge-status-info');
+  if (si) {
+    var hasKey = !!(typeof _getAK==='function' && _getAK());
+    var claudeOn = _forge.claudeEnabled && hasKey;
+    si.textContent = claudeOn ? '◈ CLAUDE ASSIST ON' : '';
+    si.style.color = claudeOn ? 'rgba(0,255,136,.5)' : 'rgba(224,244,255,.3)';
+  }
+}
+
+// ── Run / Preview ─────────────────────────────────────────────────
+window.forgeRun = function() {
+  if (!_forge.editor) return;
+  var code = _forge.editor.getValue();
+  var lang = _forge.lang;
+  var frame = document.getElementById('forge-preview-frame');
+  var output = document.getElementById('forge-preview-output');
+  if (!frame || !output) return;
+
+  if (FORGE_PREVIEWABLE.has(lang)) {
+    // Live iframe preview
+    frame.style.display = 'block';
+    output.style.display = 'none';
+    var doc = frame.contentDocument || frame.contentWindow.document;
+    if (lang === 'html') {
+      doc.open(); doc.write(code); doc.close();
+    } else if (lang === 'css') {
+      doc.open(); doc.write('<style>'+code+'</style><p style="font-family:sans-serif;color:#333">CSS preview — add HTML content to see styling</p>'); doc.close();
+    } else if (lang === 'javascript') {
+      doc.open();
+      doc.write('<!DOCTYPE html><html><head></head><body><pre id="out" style="font-family:monospace;font-size:13px;padding:12px;background:#030810;color:#e0f4ff;min-height:100vh;margin:0"></pre>'
+        +'<script>\nvar _log=[];var _orig=console.log;\nconsole.log=function(){var a=Array.from(arguments).map(function(x){return typeof x==="object"?JSON.stringify(x,null,2):String(x)}).join(" ");_log.push(a);document.getElementById("out").textContent=_log.join("\\n");};\ntry{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}\n<\/script></body></html>');
+      doc.close();
+    } else if (lang === 'markdown') {
+      // Simple MD render
+      var html2 = code.replace(/^#{6}\s(.+)/gm,'<h6>$1</h6>').replace(/^#{5}\s(.+)/gm,'<h5>$1</h5>')
+        .replace(/^#{4}\s(.+)/gm,'<h4>$1</h4>').replace(/^#{3}\s(.+)/gm,'<h3>$1</h3>')
+        .replace(/^#{2}\s(.+)/gm,'<h2>$1</h2>').replace(/^#\s(.+)/gm,'<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')
+        .replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');
+      doc.open(); doc.write('<style>body{font-family:sans-serif;padding:16px;background:#fafafa;}</style>'+html2); doc.close();
+    }
+    var pl = document.getElementById('forge-preview-label');
+    if (pl) { pl.textContent = '● LIVE'; pl.style.color='#00ff88'; }
+  } else if (FORGE_OUTPUT_LANGS.has(lang)) {
+    // Show simulated output panel
+    frame.style.display = 'none';
+    output.style.display = 'block';
+    output.textContent = '◈ '+lang.toUpperCase()+' output simulation\n\n'
+      +'Note: '+lang+' requires a server-side runtime to execute.\n'
+      +'Copy the code and run it in your local environment,\nor ask Autumn to analyse it with the ◈ ASK AUTUMN button.\n\n'
+      +'─────────────────────────────\nCode preview:\n\n'+code.slice(0,500)+(code.length>500?'\n[...'+( code.length-500)+' more chars]':'');
+    var pl = document.getElementById('forge-preview-label');
+    if (pl) { pl.textContent = 'OUTPUT'; pl.style.color='rgba(255,179,71,.7)'; }
+  }
+  if (typeof ideToast==='function') ideToast('FORGE: running '+lang.toUpperCase(), 1500);
+};
+
+window.forgeTogglePreviewMode = function() {
+  _forge.previewMode = _forge.previewMode === 'frame' ? 'output' : 'frame';
+  var frame = document.getElementById('forge-preview-frame');
+  var output = document.getElementById('forge-preview-output');
+  if (_forge.previewMode === 'frame') {
+    if (frame) frame.style.display='block';
+    if (output) output.style.display='none';
+  } else {
+    if (frame) frame.style.display='none';
+    if (output) output.style.display='block';
+  }
+};
+
+window.forgeOpenPreviewTab = function() {
+  if (!_forge.editor) return;
+  var code = _forge.editor.getValue();
+  var w = window.open('', '_forge_preview');
+  if (w && _forge.lang === 'html') { w.document.open(); w.document.write(code); w.document.close(); }
+  else if (w) { w.document.open(); w.document.write('<pre style="font-family:monospace;padding:12px">'+code.replace(/</g,'&lt;')+'</pre>'); w.document.close(); }
+};
+
+// ── Copy / Download ───────────────────────────────────────────────
+window.forgeCopy = function() {
+  if (!_forge.editor) return;
+  navigator.clipboard.writeText(_forge.editor.getValue()).then(function() {
+    if (typeof ideToast==='function') ideToast('Code copied to clipboard', 1800);
+  }).catch(function() {
+    var ta = document.createElement('textarea');
+    ta.value = _forge.editor.getValue();
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    if (typeof ideToast==='function') ideToast('Code copied', 1800);
+  });
+};
+
+window.forgeDownload = function() {
+  if (!_forge.editor) return;
+  var code = _forge.editor.getValue();
+  var ext = FORGE_EXTS[_forge.lang] || 'txt';
+  var filename = 'forge-output.' + ext;
+  var blob = new Blob([code], { type: 'text/plain' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 800);
+  if (typeof ideToast==='function') ideToast('Saved: ' + filename, 2000);
+};
+
+window.forgeClear = function() {
+  if (_forge.editor) _forge.editor.setValue(_forgeDefaultSnippet(_forge.lang));
+};
+
+// ── Send code to Autumn for analysis ─────────────────────────────
+window.forgeSendToChat = function() {
+  if (!_forge.editor) return;
+  var code = _forge.editor.getValue().slice(0, 3000);
+  var msg = '[FORGE CODE · '+_forge.lang.toUpperCase()+']\n```'+_forge.lang+'\n'+code+'\n```\n'
+    + 'Please analyse this code, explain what it does, identify any issues, and suggest improvements.';
+  var inp = document.getElementById('chat-input');
+  if (inp) { inp.value = msg; inp.focus(); }
+  forgeClose();
+};
+
+// ── Claude toggle for FORGE ───────────────────────────────────────
+window.forgeToggleClaude = function() {
+  _forge.claudeEnabled = !_forge.claudeEnabled;
+  localStorage.setItem('_forge_claude_enabled', _forge.claudeEnabled ? '1' : '0');
+  _forgeUpdateClaudeToggleUI();
+  _forgeUpdateStatus();
+  if (typeof ideToast==='function')
+    ideToast('FORGE Claude assist: ' + (_forge.claudeEnabled ? 'ON' : 'OFF'), 1800);
+};
+
+function _forgeRestoreClaudeToggle() {
+  var saved = localStorage.getItem('_forge_claude_enabled');
+  if (saved !== null) _forge.claudeEnabled = saved === '1';
+  _forgeUpdateClaudeToggleUI();
+  _forgeUpdateStatus();
+}
+
+function _forgeUpdateClaudeToggleUI() {
+  var btn = document.getElementById('forge-claude-toggle');
+  if (!btn) return;
+  var hasKey = !!(typeof _getAK==='function' && _getAK());
+  var active = _forge.claudeEnabled && hasKey;
+  btn.textContent = active ? '◈ CLAUDE ON' : '◈ CLAUDE OFF';
+  btn.style.borderColor  = active ? 'rgba(0,255,136,.45)' : 'rgba(224,244,255,.15)';
+  btn.style.color        = active ? '#00ff88'             : 'rgba(224,244,255,.3)';
+  btn.style.textShadow   = active ? '0 0 8px rgba(0,255,136,.25)' : 'none';
+  btn.title = active
+    ? 'Claude is assisting FORGE — click to disable (saves API credits)'
+    : (hasKey ? 'Claude assist is OFF — click to enable for AI coding help' : 'No API key — set one in 🔑 KEYS');
+}
+
+// ── Code block renderer for chat messages ─────────────────────────
+var _LANG_MAP = {
+  js:'javascript', ts:'typescript', py:'python', rb:'ruby', sh:'shell',
+  bash:'shell', ps:'powershell', cs:'csharp', cpp:'cpp', yml:'yaml',
+  md:'markdown', html:'html', css:'css', sql:'sql', json:'json', xml:'xml',
+  java:'java', go:'go', rs:'rust', kt:'kotlin', swift:'swift', php:'php'
+};
+
+window.forgeRenderText = function(text, msgId) {
+  if (!text) return '';
+  // Split on code fences ``` lang \n code \n ```
+  var parts = text.split(/(```[\w]*\n[\s\S]*?```)/g);
+  if (parts.length === 1) {
+    // No code blocks — plain text with line breaks
+    return '<span style="white-space:pre-wrap">'+esc(text)+'</span>';
+  }
+  var html = '';
+  parts.forEach(function(part, i) {
+    if (/^```/.test(part)) {
+      // Extract language and code
+      var lines = part.split('\n');
+      var langLine = lines[0].replace('```','').trim().toLowerCase();
+      var lang = _LANG_MAP[langLine] || langLine || 'plaintext';
+      var code = lines.slice(1, lines[lines.length-1]==='```' ? -1 : lines.length).join('\n');
+      var blockId = 'fcb-'+(msgId||'x')+'-'+i;
+      var canRun = FORGE_PREVIEWABLE.has(lang) || FORGE_OUTPUT_LANGS.has(lang);
+      var ext = FORGE_EXTS[lang] || 'txt';
+      html += '<div class="forge-code-block">'
+        + '<div class="forge-code-header">'
+        + '<span class="forge-code-lang">'+esc(lang.toUpperCase())+'</span>'
+        + '<div class="forge-code-actions">'
+        + '<button class="forge-code-action copy-act" onclick="forgeCopyBlock(\''+blockId+'\')" title="Copy code">⬡ COPY</button>'
+        + '<button class="forge-code-action dl-act" onclick="forgeDownloadBlock(\''+blockId+'\',\''+ext+'\')" title="Download .'+ext+'">⬇ .'+ext.toUpperCase()+'</button>'
+        + (canRun ? '<button class="forge-code-action run-act" onclick="forgeRunBlock(\''+blockId+'\',\''+lang+'\')" title="Run in FORGE">▶ RUN</button>' : '')
+        + '<button class="forge-code-action forge-act" onclick="forgeOpenBlock(\''+blockId+'\',\''+lang+'\')" title="Open in FORGE editor">◈ FORGE</button>'
+        + '</div></div>'
+        + '<pre class="forge-code-pre" id="'+blockId+'">'+esc(code)+'</pre>'
+        + '</div>';
+    } else if (part.trim()) {
+      html += '<span style="white-space:pre-wrap">'+esc(part)+'</span>';
+    }
+  });
+  return html;
+};
+
+window.forgeCopyBlock = function(blockId) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  navigator.clipboard.writeText(pre.textContent).then(function(){
+    if (typeof ideToast==='function') ideToast('Code copied', 1600);
+  }).catch(function(){
+    var ta=document.createElement('textarea'); ta.value=pre.textContent;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    if (typeof ideToast==='function') ideToast('Code copied', 1600);
+  });
+};
+
+window.forgeDownloadBlock = function(blockId, ext) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  var blob = new Blob([pre.textContent],{type:'text/plain'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href=url; a.download='forge-code.'+ext;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);a.remove();},800);
+  if (typeof ideToast==='function') ideToast('Downloaded forge-code.'+ext, 2000);
+};
+
+window.forgeRunBlock = function(blockId, lang) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  forgeOpen(pre.textContent, lang);
+  setTimeout(forgeRun, 400);
+};
+
+window.forgeOpenBlock = function(blockId, lang) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  forgeOpen(pre.textContent, lang);
+};
+
+// ── Autumn self-awareness: repo directory listing ─────────────────
+window.forgeListRepo = async function(repoPath) {
+  var pat = typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '';
+  if (!pat) return null;
+  try {
+    var url = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/'+(repoPath||'');
+    var resp = await fetch(url, {
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch(e) { return null; }
+};
+
+window.forgeReadFile = async function(filePath) {
+  var pat = typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '';
+  if (!pat) return null;
+  try {
+    var url = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/'+filePath;
+    var resp = await fetch(url, {
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3.raw'},
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!resp.ok) return null;
+    return await resp.text();
+  } catch(e) { return null; }
+};
+
+// ── Intent detection: coding requests route to FORGE ─────────────
+window._forgeDetectIntent = function(text) {
+  var lc = text.toLowerCase();
+  return /\b(write|build|create|code|generate|make|implement|show me|give me|develop)\b.*\b(function|class|script|app|page|component|api|query|program|module|snippet|example|html|css|javascript|python|code)\b/i.test(text)
+    || /\b(debug|fix|refactor|optimise|optimize|review|explain|analyse|analyze)\b.*\b(code|function|script|this|error|bug)\b/i.test(text)
+    || /```/.test(text);
+};
+
+// ── Hook handleSend to detect coding intent ───────────────────────
+(function _hookForgeIntent() {
+  var _orig = window.handleSend;
+  if (typeof _orig !== 'function') { setTimeout(_hookForgeIntent, 800); return; }
+  if (window._forgeHooked) return;
+  window._forgeHooked = true;
+  var _prev = window.handleSend;
+  window.handleSend = async function() {
+    var inp = document.getElementById('chat-input');
+    var txt = inp ? inp.value.trim() : '';
+    // Voice command to open FORGE
+    if (/\b(open|launch|show|start)\b.{0,15}\bforge\b/i.test(txt)) {
+      setTimeout(forgeOpen, 200);
+    }
+    return _prev.apply(this, arguments);
+  };
+})();
+
+})(); // end FORGE IIFE
+
+window.emmToggle = function() {
+
+    var el = document.getElementById('emm-overlay');
+    if (!el) return;
+    var open = el.classList.toggle('emm-visible');
+    var btn  = document.getElementById('hud-emomap-btn');
+    if (btn) {
+      btn.style.color       = open ? '#a78bfa'               : 'rgba(167,139,250,.55)';
+      btn.style.borderColor = open ? 'rgba(167,139,250,.55)' : 'rgba(167,139,250,.28)';
+      btn.style.textShadow  = open ? '0 0 8px rgba(167,139,250,.4)' : 'none';
+    }
+    // Clear minimized state on open
+    if (open) el.classList.remove('emm-mini');
+  };
+
+  window.emmMinimize = function() {
+    var el = document.getElementById('emm-overlay');
+    if (el) el.classList.toggle('emm-mini');
+  };
+
+  // ── Drag ─────────────────────────────────────────────────
+  (function _emmDrag() {
+    var drag=false, ox=0, oy=0;
+    document.addEventListener('DOMContentLoaded', function() {
+      var hdr = document.getElementById('emm-hdr');
+      var ov  = document.getElementById('emm-overlay');
+      if (!hdr || !ov) return;
+
+      function _start(cx, cy) {
+        if (!ov.classList.contains('emm-visible')) return;
+        drag=true;
+        var r=ov.getBoundingClientRect();
+        ox=cx-r.left; oy=cy-r.top;
+        ov.style.transform='none';
+        ov.style.left=r.left+'px'; ov.style.top=r.top+'px';
+        ov.style.right='auto';
+      }
+      function _move(cx, cy) {
+        if (!drag) return;
+        ov.style.left=(cx-ox)+'px'; ov.style.top=Math.max(58,(cy-oy))+'px';
+      }
+      function _end() { drag=false; }
+
+      hdr.addEventListener('mousedown', function(e){ if(e.target.tagName!=='BUTTON') _start(e.clientX,e.clientY); });
+      document.addEventListener('mousemove', function(e){ _move(e.clientX,e.clientY); });
+      document.addEventListener('mouseup',   _end);
+      hdr.addEventListener('touchstart', function(e){ if(e.target.tagName!=='BUTTON'){ var t=e.touches[0]; _start(t.clientX,t.clientY); }},{passive:true});
+      document.addEventListener('touchmove', function(e){ if(drag&&e.touches.length===1){var t=e.touches[0]; _move(t.clientX,t.clientY);}},{passive:true});
+      document.addEventListener('touchend',  _end);
+    });
+  })();
+
   window.arcStudioToggleFromHud = function() {
+
     if (_asIsVisible()) { arcStudioClose(); } else { arcStudioOpen(); }
   };
   window.arcStudioToggleCollapse = function() {
@@ -15473,8 +16979,12 @@ _syncActionBtn();
     domEl.addEventListener('pointerup',   _asPick, false);
     // Touch fallback
     domEl.addEventListener('touchstart',  function(){ _as._didDrag=false; }, {passive:true});
-    domEl.addEventListener('touchmove',   function(){ _as._didDrag=true;  }, {passive:true});
-    domEl.addEventListener('touchend',    function(e){ _asPick(e); },        false);
+    // non-passive so OrbitControls can preventDefault on two-finger pan
+    domEl.addEventListener('touchmove', function(e){
+      _as._didDrag=true;
+      if(e.touches.length >= 2) e.preventDefault(); // allow two-finger pan without page scroll
+    }, {passive:false});
+    domEl.addEventListener('touchend', function(e){ _asPick(e); }, false);
 
     window.addEventListener('resize', _asResize);
 
@@ -15560,7 +17070,8 @@ _syncActionBtn();
       _as.scene.add(line);
       var len = 0;
       for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
-      _as.arcs.push({line: line, params: p, length: len, devIndex: d});
+      _as.arcs.push({line: line, params: p, length: len, devIndex: d,
+                     phaseOffset: phaseOffset, scaleFactor: scaleFactor});
       addedLines.push(len);
     }
 
@@ -15624,21 +17135,410 @@ _syncActionBtn();
     if (typeof ideToast==='function') ideToast('Scene cleared', 1600);
   };
 
+  // ── EXPORT SCENE ──────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  //  ARC EDGE STUDIO — EXPORT ENGINE  (self-contained, no deps needed)
+  //  Select format in dropdown → hit ⬇ EXPORT → immediate download.
+  //  All arcs → 8-sided tube meshes, vertex colours baked in.
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Tube mesh builder ────────────────────────────────────────────
+  function _asBuildTube(pts, r, segs) {
+    r = r || 0.055; segs = segs || 8;
+    var pos=[], nrm=[], col=[], idx=[], vi=0;
+    var cr=_asBuildTube._cr||0, cg=_asBuildTube._cg||1, cb=_asBuildTube._cb||0.533;
+    for (var pi=0; pi<pts.length-1; pi++) {
+      var A=pts[pi], B=pts[pi+1];
+      var dx=B.x-A.x, dy=B.y-A.y, dz=B.z-A.z;
+      var dl=Math.sqrt(dx*dx+dy*dy+dz*dz)||1e-9; dx/=dl;dy/=dl;dz/=dl;
+      var ux=0,uy=1,uz=0; if(Math.abs(dy)>0.92){ux=1;uy=0;uz=0;}
+      var rx=dy*uz-dz*uy, ry=dz*ux-dx*uz, rz=dx*uy-dy*ux;
+      var rl=Math.sqrt(rx*rx+ry*ry+rz*rz)||1; rx/=rl;ry/=rl;rz/=rl;
+      var u2x=ry*dz-rz*dy, u2y=rz*dx-rx*dz, u2z=rx*dy-ry*dx;
+      for (var si=0; si<2; si++) {
+        var px2=(si?B.x:A.x), py2=(si?B.y:A.y), pz2=(si?B.z:A.z);
+        for (var s=0; s<segs; s++) {
+          var a=s/segs*Math.PI*2, c2=Math.cos(a), s2=Math.sin(a);
+          var nx=rx*c2+u2x*s2, ny=ry*c2+u2y*s2, nz=rz*c2+u2z*s2;
+          pos.push(px2+nx*r, py2+ny*r, pz2+nz*r);
+          nrm.push(nx, ny, nz);
+          col.push(cr, cg, cb);
+        }
+      }
+      var base=vi;
+      for (var s=0; s<segs; s++) {
+        var s1=(s+1)%segs;
+        idx.push(base+s, base+segs+s, base+segs+s1, base+s, base+segs+s1, base+s1);
+      }
+      vi += segs*2;
+    }
+    return { pos:new Float32Array(pos), nrm:new Float32Array(nrm),
+             col:new Float32Array(col), idx:new Uint32Array(idx), vc:vi };
+  }
+
+  // ── Collect meshes from all arcs — capture real display color ────
+  function _asGetMeshes() {
+    var out=[];
+    _as.arcs.forEach(function(arc,ai){
+      // Use the EXACT same phaseOffset and scaleFactor used when arc was created
+      // so the exported mesh matches what is displayed on screen
+      var phase = (typeof arc.phaseOffset !== 'undefined') ? arc.phaseOffset : 0;
+      var scale = (typeof arc.scaleFactor !== 'undefined') ? arc.scaleFactor : 1;
+      var pts = _asCalcPointsWithPhase(arc.params, phase, scale);
+      if(pts.length<2) return;
+      // Read the actual Three.js material color so the GLB matches what's on screen
+      var cr=0, cg=1, cb=0.533;
+      if(arc.line && arc.line.material && arc.line.material.color){
+        cr=arc.line.material.color.r;
+        cg=arc.line.material.color.g;
+        cb=arc.line.material.color.b;
+      }
+      _asBuildTube._cr=cr; _asBuildTube._cg=cg; _asBuildTube._cb=cb;
+      out.push({tube:_asBuildTube(pts), ai:ai+1, params:arc.params,
+                len:arc.length||0, cr:cr, cg:cg, cb:cb,
+                phaseOffset:phase, scaleFactor:scale});
+    });
+    return out;
+  }
+
+  // ── Safe download ────────────────────────────────────────────────
+  function _asDL(blob, name) {
+    try {
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url; a.download=name; a.style.display='none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1500);
+    } catch(e) {
+      console.error('[ArcExport _asDL]', e);
+      if(typeof ideToast==='function') ideToast('Download error: '+e.message, 3000);
+    }
+  }
+
+  // ── Safe base64 encode (handles large buffers) ───────────────────
+  function _asBase64(arrayBuffer) {
+    var bytes=new Uint8Array(arrayBuffer), s='', CHUNK=0x8000;
+    for(var i=0;i<bytes.length;i+=CHUNK)
+      s+=String.fromCharCode.apply(null, bytes.subarray(i,i+CHUNK));
+    return btoa(s);
+  }
+
+  function _pad4(n){return n+(4-n%4)%4;}
+
+  // ── GLB / GLTF binary writer ──────────────────────────────────────
+  // One node + mesh + material per arc — preserves per-arc colors and
+  // gives Nomad Sculpt (and any other DCC) separate named objects.
+  function _asWriteGLB(meshes, asBinary) {
+    // ── 1. Build one flat binary buffer containing every arc's geometry ──
+    // Layout per arc: [positions VEC3][normals VEC3][colors VEC4][indices]
+    // We record byte offsets so each arc gets its own bufferViews.
+
+    var arcLayouts = [];  // {offPos, szPos, offNrm, szNrm, offCol, szCol, offIdx, szIdx, vc, tc}
+    var totalBytes = 0;
+
+    meshes.forEach(function(m) {
+      var t = m.tube;
+      var vc = t.vc;
+      var ic = t.idx.length;
+      var useU16 = vc < 65536;
+      var idxBPE = useU16 ? 2 : 4;
+
+      var szPos = vc * 3 * 4;
+      var szNrm = vc * 3 * 4;
+      var szCol = vc * 4 * 4;   // VEC4 float
+      var szIdx = _pad4(ic * idxBPE);
+
+      var offPos = totalBytes;
+      var offNrm = offPos + szPos;
+      var offCol = offNrm + szNrm;
+      var offIdx = offCol + szCol;
+      totalBytes = offIdx + szIdx;
+
+      arcLayouts.push({offPos,szPos,offNrm,szNrm,offCol,szCol,offIdx,szIdx,vc,ic,useU16,idxBPE});
+    });
+
+    var binBuf = new ArrayBuffer(totalBytes);
+    var dv = new DataView(binBuf);
+
+    meshes.forEach(function(m, mi) {
+      var t = m.tube;
+      var L = arcLayouts[mi];
+
+      // positions
+      t.pos.forEach(function(v,i){ dv.setFloat32(L.offPos + i*4, v, true); });
+      // normals
+      t.nrm.forEach(function(v,i){ dv.setFloat32(L.offNrm + i*4, v, true); });
+      // colors VEC4 (expand VEC3 → VEC4, alpha=1)
+      // t.col is Float32Array of [r,g,b, r,g,b, ...] length = vc*3
+      for(var vi=0; vi<L.vc; vi++){
+        dv.setFloat32(L.offCol + vi*16,      t.col[vi*3],   true);
+        dv.setFloat32(L.offCol + vi*16 + 4,  t.col[vi*3+1], true);
+        dv.setFloat32(L.offCol + vi*16 + 8,  t.col[vi*3+2], true);
+        dv.setFloat32(L.offCol + vi*16 + 12, 1.0,           true);
+      }
+      // indices
+      t.idx.forEach(function(v,i){
+        L.useU16 ? dv.setUint16(L.offIdx+i*2, v, true)
+                 : dv.setUint32(L.offIdx+i*4, v, true);
+      });
+    });
+
+    // ── 2. Build GLTF JSON ──────────────────────────────────────────
+    var gltf = {
+      asset: { version:'2.0', generator:'Autumn Arc Edge Studio - DART Meadow' },
+      scene: 0,
+      scenes:    [{ name:'ArcEdge', nodes: meshes.map(function(_,i){ return i; }) }],
+      nodes:     [],
+      meshes:    [],
+      materials: [],
+      accessors: [],
+      bufferViews: [],
+      buffers: [{ byteLength: totalBytes }]
+    };
+
+    meshes.forEach(function(m, mi) {
+      var L    = arcLayouts[mi];
+      var bvBase = mi * 4;  // 4 bufferViews per arc
+      var accBase = mi * 4;
+      var idxCT = L.useU16 ? 5123 : 5125;
+
+      // min/max for POSITION accessor (required by spec)
+      var mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9];
+      var pos = m.tube.pos;
+      for(var i=0;i<pos.length;i+=3){
+        mn[0]=Math.min(mn[0],pos[i]);   mx[0]=Math.max(mx[0],pos[i]);
+        mn[1]=Math.min(mn[1],pos[i+1]); mx[1]=Math.max(mx[1],pos[i+1]);
+        mn[2]=Math.min(mn[2],pos[i+2]); mx[2]=Math.max(mx[2],pos[i+2]);
+      }
+
+      // Convert linear RGB to sRGB approximation for material baseColorFactor
+      // (most DCCs including Nomad apply gamma, so store in linear for accuracy)
+      var r=m.cr, g=m.cg, b=m.cb;
+
+      gltf.nodes.push({
+        name: 'Arc_' + mi,
+        mesh: mi
+      });
+      gltf.meshes.push({
+        name: 'Arc_' + mi,
+        primitives: [{
+          attributes: { POSITION: accBase, NORMAL: accBase+1, COLOR_0: accBase+2 },
+          indices:    accBase+3,
+          material:   mi,
+          mode:       4  // TRIANGLES
+        }]
+      });
+      gltf.materials.push({
+        name: 'ArcMat_' + mi,
+        pbrMetallicRoughness: {
+          baseColorFactor: [r, g, b, 1.0],
+          metallicFactor:  0.0,
+          roughnessFactor: 0.5
+        },
+        doubleSided: true
+      });
+
+      // 4 bufferViews: pos, nrm, col, idx
+      gltf.bufferViews.push(
+        { buffer:0, byteOffset:L.offPos, byteLength:L.szPos, target:34962 },
+        { buffer:0, byteOffset:L.offNrm, byteLength:L.szNrm, target:34962 },
+        { buffer:0, byteOffset:L.offCol, byteLength:L.szCol, target:34962 },
+        { buffer:0, byteOffset:L.offIdx, byteLength:L.ic*L.idxBPE, target:34963 }
+      );
+
+      // 4 accessors: pos VEC3, nrm VEC3, col VEC4, idx SCALAR
+      gltf.accessors.push(
+        { bufferView:bvBase,   byteOffset:0, componentType:5126, count:L.vc, type:'VEC3', min:mn, max:mx },
+        { bufferView:bvBase+1, byteOffset:0, componentType:5126, count:L.vc, type:'VEC3' },
+        { bufferView:bvBase+2, byteOffset:0, componentType:5126, count:L.vc, type:'VEC4' },
+        { bufferView:bvBase+3, byteOffset:0, componentType:idxCT, count:L.ic, type:'SCALAR' }
+      );
+    });
+
+    if (!asBinary) {
+      // GLTF: embed binary as base64 data URI
+      gltf.buffers[0].uri = 'data:application/octet-stream;base64,' + _asBase64(binBuf);
+      return new Blob([JSON.stringify(gltf,null,2)], {type:'model/gltf+json'});
+    }
+
+    // ── 3. Pack GLB: header + JSON chunk + BIN chunk ────────────────
+    // JSON chunk MUST be padded to 4-byte boundary by UTF-8 byte count
+    var jBytes = new TextEncoder().encode(JSON.stringify(gltf));
+    var rem = jBytes.length % 4;
+    if (rem) {
+      var padded = new Uint8Array(jBytes.length + (4 - rem));
+      padded.set(jBytes);
+      padded.fill(0x20, jBytes.length);  // pad with spaces per spec
+      jBytes = padded;
+    }
+
+    var total = 12 + 8 + jBytes.length + 8 + totalBytes;
+    var glb = new ArrayBuffer(total), gv = new DataView(glb), go = 0;
+    gv.setUint32(go, 0x46546C67, true); go+=4;  // magic 'glTF'
+    gv.setUint32(go, 2,          true); go+=4;  // version
+    gv.setUint32(go, total,      true); go+=4;  // file length
+    gv.setUint32(go, jBytes.length, true);   go+=4;
+    gv.setUint32(go, 0x4E4F534A, true);      go+=4;  // JSON
+    new Uint8Array(glb, go, jBytes.length).set(jBytes); go += jBytes.length;
+    gv.setUint32(go, totalBytes,    true);   go+=4;
+    gv.setUint32(go, 0x004E4942, true);      go+=4;  // BIN\0
+    new Uint8Array(glb, go, totalBytes).set(new Uint8Array(binBuf));
+    return new Blob([glb], {type:'model/gltf-binary'});
+  }
+
+  // ── OBJ ─────────────────────────────────────────────────────────
+  function _asWriteOBJ(meshes) {
+    var L=['# Arc Edge Studio — DART Meadow','# DART arc (pi=3)','mtllib arc-edge-scene.mtl',''];
+    var vO=1,vnO=1;
+    meshes.forEach(function(m){
+      var t=m.tube,vc=t.vc;
+      L.push('o Arc_'+m.ai,'usemtl arc_'+m.ai);
+      for(var i=0;i<vc;i++) L.push('v '+t.pos[i*3].toFixed(5)+' '+t.pos[i*3+1].toFixed(5)+' '+t.pos[i*3+2].toFixed(5));
+      for(var i=0;i<vc;i++) L.push('vn '+t.nrm[i*3].toFixed(5)+' '+t.nrm[i*3+1].toFixed(5)+' '+t.nrm[i*3+2].toFixed(5));
+      for(var i=0;i<t.idx.length;i+=3){
+        var a=t.idx[i]+vO,b=t.idx[i+1]+vO,cc=t.idx[i+2]+vO;
+        L.push('f '+a+'//'+(a-vO+vnO)+' '+b+'//'+(b-vO+vnO)+' '+cc+'//'+(cc-vO+vnO));
+      }
+      vO+=vc;vnO+=vc;
+    });
+    return new Blob([L.join('\n')],{type:'text/plain'});
+  }
+
+  // ── STL binary ───────────────────────────────────────────────────
+  function _asWriteSTL(meshes) {
+    var tc=0; meshes.forEach(function(m){tc+=m.tube.idx.length/3;});
+    var buf=new ArrayBuffer(84+tc*50), dv=new DataView(buf);
+    var hdr='Arc Edge Studio DART Meadow';
+    for(var i=0;i<80;i++) dv.setUint8(i,i<hdr.length?hdr.charCodeAt(i):0);
+    dv.setUint32(80,tc,true); var off=84;
+    meshes.forEach(function(m){
+      var t=m.tube;
+      for(var i=0;i<t.idx.length;i+=3){
+        var ai=t.idx[i]*3,bi=t.idx[i+1]*3,ci=t.idx[i+2]*3;
+        var nx=(t.nrm[ai]+t.nrm[bi]+t.nrm[ci])/3;
+        var ny=(t.nrm[ai+1]+t.nrm[bi+1]+t.nrm[ci+1])/3;
+        var nz=(t.nrm[ai+2]+t.nrm[bi+2]+t.nrm[ci+2])/3;
+        dv.setFloat32(off,nx,true);dv.setFloat32(off+4,ny,true);dv.setFloat32(off+8,nz,true);off+=12;
+        [ai,bi,ci].forEach(function(ii){dv.setFloat32(off,t.pos[ii],true);dv.setFloat32(off+4,t.pos[ii+1],true);dv.setFloat32(off+8,t.pos[ii+2],true);off+=12;});
+        dv.setUint16(off,0,true);off+=2;
+      }
+    });
+    return new Blob([buf],{type:'model/stl'});
+  }
+
+  // ── FBX ASCII ────────────────────────────────────────────────────
+  function _asWriteFBX(meshes) {
+    var L=['; FBX ASCII — Arc Edge Studio — DART Meadow',
+      'FBXHeaderExtension:  {  FBXHeaderVersion: 1003  FBXVersion: 7400  Creator: "Autumn" }',
+      'Objects:  {'];
+    meshes.forEach(function(m,mi){
+      var t=m.tube,id=1000+mi;
+      L.push('  Geometry: '+id+', "Geometry::Arc_'+m.ai+'", "Mesh" {');
+      var vv=[]; for(var i=0;i<t.vc;i++) vv.push(t.pos[i*3].toFixed(4),t.pos[i*3+1].toFixed(4),t.pos[i*3+2].toFixed(4));
+      L.push('    Vertices: *'+vv.length+' { a: '+vv.join(',')+' }');
+      var ii=Array.from(t.idx).map(function(v,i){return(i%3===2)?-(v+1):v;});
+      L.push('    PolygonVertexIndex: *'+t.idx.length+' { a: '+ii.join(',')+' }  GeometryVersion: 124  }');
+    });
+    L.push('}');
+    return new Blob([L.join('\n')],{type:'text/plain'});
+  }
+
+  // ── DAE Collada ──────────────────────────────────────────────────
+  function _asWriteDAE(meshes) {
+    var now=new Date().toISOString();
+    var L=['<?xml version="1.0" encoding="utf-8"?>',
+      '<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">',
+      '<asset><created>'+now+'</created><generator>Autumn Arc Edge Studio</generator></asset>',
+      '<library_geometries>'];
+    meshes.forEach(function(m){
+      var t=m.tube,gid='geo'+m.ai;
+      var pv=[],nv=[],fv=[];
+      for(var i=0;i<t.vc;i++){pv.push(t.pos[i*3].toFixed(4),t.pos[i*3+1].toFixed(4),t.pos[i*3+2].toFixed(4));}
+      for(var i=0;i<t.vc;i++){nv.push(t.nrm[i*3].toFixed(4),t.nrm[i*3+1].toFixed(4),t.nrm[i*3+2].toFixed(4));}
+      for(var i=0;i<t.idx.length;i+=3) fv.push(t.idx[i]+' '+t.idx[i]+' '+t.idx[i+1]+' '+t.idx[i+1]+' '+t.idx[i+2]+' '+t.idx[i+2]);
+      L.push('<geometry id="'+gid+'" name="Arc_'+m.ai+'"><mesh>',
+        '<source id="'+gid+'p"><float_array id="'+gid+'pa" count="'+pv.length+'">'+pv.join(' ')+'</float_array>',
+        '<technique_common><accessor source="#'+gid+'pa" count="'+t.vc+'" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
+        '<source id="'+gid+'n"><float_array id="'+gid+'na" count="'+nv.length+'">'+nv.join(' ')+'</float_array>',
+        '<technique_common><accessor source="#'+gid+'na" count="'+t.vc+'" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
+        '<vertices id="'+gid+'v"><input semantic="POSITION" source="#'+gid+'p"/></vertices>',
+        '<triangles count="'+(t.idx.length/3)+'"><input semantic="VERTEX" source="#'+gid+'v" offset="0"/><input semantic="NORMAL" source="#'+gid+'n" offset="1"/>',
+        '<p>'+fv.join(' ')+'</p></triangles></mesh></geometry>');
+    });
+    L.push('</library_geometries><library_visual_scenes><visual_scene id="S" name="S">');
+    meshes.forEach(function(m){L.push('<node id="A'+m.ai+'" name="Arc_'+m.ai+'"><instance_geometry url="#geo'+m.ai+'"/></node>');});
+    L.push('</visual_scene></library_visual_scenes><scene><instance_visual_scene url="#S"/></scene></COLLADA>');
+    return new Blob([L.join('\n')],{type:'text/xml'});
+  }
+
+  // ── Main export — called directly by the ⬇ EXPORT button ─────────
+  window.arcStudioExport = function(fmt) {
+    // Close any stale modal just in case
+    var em=document.getElementById('as-export-modal'); if(em) em.remove();
+    fmt=(fmt||'glb').toLowerCase().trim();
+    if(!_as.arcs || !_as.arcs.length){
+      if(typeof ideToast==='function') ideToast('Add at least one arc first', 2000);
+      return;
+    }
+    var meshes=_asGetMeshes();
+    if(!meshes.length){ if(typeof ideToast==='function') ideToast('No valid arcs to export',2000); return; }
+    var n=_as.arcs.length, toast=function(m){if(typeof ideToast==='function') ideToast(m,2500);};
+    try{
+      if(fmt==='glb'){   _asDL(_asWriteGLB(meshes,true),  'arc-edge-scene.glb');  toast('GLB downloaded — '+n+' arc mesh'+(n>1?'es':'')); }
+      else if(fmt==='gltf'){ _asDL(_asWriteGLB(meshes,false),'arc-edge-scene.gltf'); toast('GLTF downloaded — '+n+' arc mesh'+(n>1?'es':'')); }
+      else if(fmt==='obj'){ _asDL(_asWriteOBJ(meshes),'arc-edge-scene.obj'); toast('OBJ downloaded'); }
+      else if(fmt==='stl'){ _asDL(_asWriteSTL(meshes),'arc-edge-scene.stl'); toast('STL downloaded'); }
+      else if(fmt==='fbx'){ _asDL(_asWriteFBX(meshes),'arc-edge-scene.fbx'); toast('FBX ASCII downloaded'); }
+      else if(fmt==='dae'){ _asDL(_asWriteDAE(meshes),'arc-edge-scene.dae'); toast('DAE downloaded'); }
+      else if(fmt==='json'){
+        var data=_as.arcs.map(function(a,i){return{index:i+1,params:a.params,length:a.length||0,color:'#00ff88',selectedColor:'#ff1166'};});
+        _asDL(new Blob([JSON.stringify({autumnArcEdge:true,version:'1.0',arcs:data},null,2)],{type:'application/json'}),'arc-edge-scene.json');
+        toast('JSON exported');
+      }
+    }catch(e){
+      console.error('[ArcExport]',e);
+      if(typeof ideToast==='function') ideToast('Export error: '+e.message,3500);
+    }
+  };
+
+  // ── Legacy popup — no longer used but kept as no-op to avoid errors
+  window.arcStudioShowExport = function() {
+    arcStudioExport(document.getElementById('as-fmt-select') ? document.getElementById('as-fmt-select').value : 'glb');
+  };
+
+  function _asDownload(blob, filename) { _asDL(blob, filename); }
+
+
   window.arcStudioSendToChat = function() {
     var p = _asGetParams();
     var pts = _asCalcPoints(p);
     var len = 0;
     for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
-    var msg = '[ARC EDGE STUDIO RESULT]\nDeviation: X='+p.x+' Y='+p.y+' Z='+p.z
-      +'\nMain Deviation: '+p.mainDev
-      +'\nCurve Induction: '+p.curveInd
-      +'\nDev Induction: '+p.devInd
-      +'\nResolution: '+p.resolution
-      +'\nArc Length (Arc Edge = 3): '+len.toFixed(6)
-      +'\nTotal arcs in scene: '+_as.arcs.length
-      +'\nAsk me to analyze, optimize, or apply these arc parameters.';
+    // Build a compact scene summary grouped by unique params
+    var uniqueConfigs = [];
+    _as.arcs.forEach(function(arc) {
+      var key = JSON.stringify({x:arc.params.x,y:arc.params.y,z:arc.params.z,dev:arc.params.mainDev,curve:arc.params.curveInd,devInd:arc.params.devInd,curves:arc.params.devCount});
+      if (!uniqueConfigs.find(function(u){return u.key===key;})) uniqueConfigs.push({key:key,params:arc.params,count:1});
+      else uniqueConfigs.find(function(u){return u.key===key;}).count++;
+    });
+    var msg = '[ARC EDGE STUDIO — '+_as.arcs.length+' arcs in scene]\n'
+      + uniqueConfigs.slice(0,6).map(function(u){
+          return 'Config ×'+u.count+': x='+u.params.x+' y='+u.params.y+' z='+u.params.z
+            +' dev='+u.params.mainDev+' curve='+u.params.curveInd+' devInd='+u.params.devInd
+            +' curves='+u.params.devCount;
+        }).join('\n')
+      + (uniqueConfigs.length > 6 ? '\n...and '+(uniqueConfigs.length-6)+' more configurations' : '')
+      + '\n\nAnalyze this scene, describe what you see geometrically, and suggest what to add or adjust next.';
     var inp = document.getElementById('chat-input');
-    if (inp) { inp.value = msg; inp.focus(); }
+    if (inp) {
+      inp.value = msg;
+      // Auto-submit so user doesn't need to press send manually
+      setTimeout(function(){
+        if (typeof handleSend === 'function') handleSend();
+        else if (typeof window.handleSend === 'function') window.handleSend();
+      }, 150);
+    }
     arcStudioClose();
   };
 
@@ -15735,7 +17635,8 @@ _syncActionBtn();
     window.handleSend = async function() {
       var inp = document.getElementById('chat-input');
       var txt = (inp ? inp.value : '').toLowerCase().trim();
-      if (/\b(open|show|launch|start)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
+      if (/\b(open|show|launch|start|create|generate|make|build|add)\b.{0,30}\b(arc\s*edge|arc\s*studio|arcedge|arcs?\s+in|arcs?\s+inside)\b/i.test(txt) ||
+          /\b(arcs?|curves?)\b.{0,30}\b(arc\s*edge|arc\s*studio|studio|chaos|finite|deviation)\b/i.test(txt)) {
         setTimeout(arcStudioOpen, 200);
       }
       if (/\b(close|hide|shut|exit)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
@@ -15779,7 +17680,103 @@ _syncActionBtn();
   };
 
   // ── Visibility ─────────────────────────────────────────────────
-  window.fcToggle = function() {
+  // ═══════════════════════════════════════════════════════════════
+//  N.A.T.E integration — open engine + apply voice from config
+// ═══════════════════════════════════════════════════════════════
+window.openNate = function() {
+  // Open nate.html — pass a session token so it knows we came from Autumn
+  var w = window.open('nate.html', '_nate_engine');
+  if (!w) {
+    // Fallback: same-tab navigate
+    sessionStorage.setItem('_nate_unlocked', '1');
+    window.location.href = 'nate.html';
+  }
+};
+
+// ── Read NATE voice config and apply to Autumn's TTS ────────────
+(function _applyNateVoiceIfActive() {
+  try {
+    var cfg = JSON.parse(localStorage.getItem('_nate_voice_config') || 'null');
+    if (!cfg || !cfg.nateActive || !cfg.params) return;
+    var p = cfg.params;
+    // Apply to Autumn's Voice object
+    if (typeof Voice !== 'undefined') {
+      if (p.speed  !== undefined) Voice.speed  = p.speed;
+      if (p.pitch  !== undefined) Voice.pitch  = p.pitch;
+    }
+    // Store for _speakWebSpeech to read
+    window._nateVoiceParams = p;
+    console.log('[NATE] Voice config applied:', p.pitch, p.speed);
+  } catch(e) {}
+})();
+
+// ── Patch _speakWebSpeech to use NATE params when active ────────
+(function _patchTTSForNate() {
+  var _origWSS = window._speakWebSpeech;
+  if (typeof _origWSS !== 'function') {
+    // Retry after DOM ready
+    window.addEventListener('load', _patchTTSForNate);
+    return;
+  }
+  // NATE patches both Kokoro and WebSpeech TTS paths
+  window._speakKokoro = async function(text, onEnd) {
+    var np = window._nateVoiceParams;
+    var cfg = JSON.parse(localStorage.getItem('_nate_voice_config')||'null');
+    var kokoroVoice = cfg && cfg.kokoroVoice ? cfg.kokoroVoice : null;
+    var pipe = window._kokoroPipe;
+    if (!pipe) { window._speakWebSpeech(text, onEnd); return; }
+    try {
+      Voice.speaking = true; Voice.cancelled = false;
+      var speed = np ? (np.speed || 1.0) : (Voice.speed || 1.0);
+      var opts = { speed: Math.min(2.0, Math.max(0.4, speed)) };
+      if (kokoroVoice) opts.voice = kokoroVoice;
+      var result = await pipe(text, opts);
+      if (Voice.cancelled) { Voice.speaking=false; if(onEnd) onEnd(); return; }
+      var sr = result.sampling_rate || 24000;
+      var pcm = result.audio;
+      // Build WAV blob
+      var wavBuf = _pcmToWav(pcm, sr);
+      // If NATE active, apply post-processing via Web Audio
+      if (np && window._nateAudioCtx) {
+        var actx = window._nateAudioCtx || new AudioContext();
+        var rawBuf = await actx.decodeAudioData(wavBuf.slice(0));
+        var offline = new OfflineAudioContext(1, rawBuf.length, rawBuf.sampleRate);
+        var src = offline.createBufferSource(); src.buffer = rawBuf;
+        src.playbackRate.value = 1.0; // speed already applied by kokoro
+        src.detune.value = ((np.pitch||1.0) - 1.0) * 1200;
+        var wm = offline.createBiquadFilter(); wm.type='lowshelf'; wm.frequency.value=350;
+        wm.gain.value = ((np.warmth||0.5)-0.5)*9;
+        var cl = offline.createBiquadFilter(); cl.type='highshelf'; cl.frequency.value=3500;
+        cl.gain.value = ((np.clarity||0.6)-0.5)*7;
+        src.connect(wm); wm.connect(cl); cl.connect(offline.destination);
+        src.start(0);
+        var processed = await offline.startRendering();
+        var finalPCM = processed.getChannelData(0);
+        wavBuf = _pcmToWav(finalPCM, processed.sampleRate);
+      }
+      var blob = new Blob([wavBuf],{type:'audio/wav'});
+      var url = URL.createObjectURL(blob);
+      var player = new Audio(url);
+      player.onended = function(){ Voice.speaking=false; URL.revokeObjectURL(url); if(onEnd) onEnd(); };
+      player.onerror = function(){ Voice.speaking=false; if(onEnd) onEnd(); };
+      Voice._kokoroPlayer = player; player.play();
+    } catch(e) { console.warn('[NATE+Kokoro]',e); window._speakWebSpeech(text,onEnd); }
+  };
+  window._speakWebSpeech = function(text, onEnd) {
+    var np = window._nateVoiceParams;
+    if (!np) return _origWSS(text, onEnd);
+    var origSpeed = Voice.speed, origPitch = Voice.pitch;
+    Voice.speed = np.speed || 1.0;
+    Voice.pitch = np.pitch || 1.0;
+    _origWSS(text, function() {
+      Voice.speed = origSpeed; Voice.pitch = origPitch;
+      if (onEnd) onEnd();
+    });
+  };
+})();
+
+window.fcToggle = function() {
+
     var el = document.getElementById('float-calc');
     if (!el) return;
     var visible = el.classList.toggle('fc-visible');
@@ -16002,81 +17999,172 @@ function _urlPreviewIsBlocked(url) {
   } catch(e) { return false; }
 }
 
-// Build a rich preview card using screenshot API + favicon + metadata
+// Build a rich preview card — screenshot + favicon + metadata + Brave results
 function _urlPreviewBuildCard(url, container) {
   var host = '';
   try { host = new URL(url).hostname; } catch(e) { host = url; }
+  var hostClean = host.replace(/^www\./, '');
+  var faviconUrl = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(host);
+  var safeUrl = url.replace(/'/g, '%27');
 
-  // Screenshot via screenshotapi.net (free tier) or thum.io (free, no key)
-  var screenshotUrl = 'https://image.thum.io/get/width/800/crop/600/noanimate/' + encodeURIComponent(url);
-  var faviconUrl = 'https://www.google.com/s2/favicons?sz=32&domain=' + encodeURIComponent(host);
+  // Screenshot service fallback chain — try each in order until one loads
+  // 1. screenshotone.com free tier  2. thum.io  3. s0.wordpress.com mshots
+  var _shotServices = [
+    'https://api.screenshotone.com/take?url=' + encodeURIComponent(url) + '&viewport_width=1280&viewport_height=800&format=jpg&image_quality=80&block_ads=true&block_cookie_banners=true',
+    'https://image.thum.io/get/width/900/crop/550/allowJPG/noanimate/' + encodeURIComponent(url),
+    'https://s0.wordpress.com/mshots/v1/' + encodeURIComponent(url) + '?w=900&h=550'
+  ];
+  var _shotIdx = 0;
 
   container.innerHTML =
-    '<div style="display:flex;flex-direction:column;height:100%;background:#060e16">'
+    '<div style="display:flex;flex-direction:column;height:100%;background:#060e16;font-family:var(--font-b)">'
     // Screenshot hero
-    +'<div style="flex:0 0 auto;position:relative;background:#0a1420;border-bottom:1px solid rgba(0,229,255,.08);overflow:hidden;max-height:55%">'
-    +'<img id="upv-shot" src="'+screenshotUrl+'" alt="Preview" style="width:100%;display:block;object-fit:cover" onerror="this.parentElement.style.display=\'none\'">'
-    +'<div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 60%,#060e16 100%);pointer-events:none"></div>'
+    +'<div id="upv-shot-wrap" style="flex:0 0 auto;position:relative;background:#0a1420;border-bottom:1px solid rgba(0,229,255,.1);overflow:hidden;cursor:pointer;min-height:200px;max-height:50%" onclick="urlPreviewNewTab()" title="Click to open site">'
+    +'<img id="upv-shot" src="'+_shotServices[0]+'" alt="Site preview" style="width:100%;display:block;object-fit:cover;min-height:200px;opacity:0;transition:opacity .4s"'
+    +' onload="this.style.opacity=1"'
+    +' onerror="window._upvNextShot && window._upvNextShot(this)">'
+    +'<div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,#060e16 100%);pointer-events:none"></div>'
+    +'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.25);border-radius:4px;padding:3px 10px;font-family:var(--font-d);font-size:8px;letter-spacing:1.5px;color:rgba(0,229,255,.8)">↗ CLICK TO VISIT</div>'
     +'</div>'
-    // Info card
-    +'<div style="flex:1;padding:20px 24px;overflow-y:auto">'
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
-    +'<img src="'+faviconUrl+'" style="width:20px;height:20px;border-radius:3px" onerror="this.style.display=\'none\'">'
-    +'<span style="font-family:var(--font-d);font-size:10px;letter-spacing:2px;color:var(--cyan)">'+host.toUpperCase()+'</span>'
+    // Info panel
+    +'<div style="flex:1;padding:16px 18px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">'
+    // Domain identity
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<img src="'+faviconUrl+'" style="width:26px;height:26px;border-radius:5px;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    +'<div style="min-width:0">'
+    +'<div style="font-family:var(--font-d);font-size:11px;letter-spacing:2px;color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+hostClean.toUpperCase()+'</div>'
+    +'<div style="font-family:monospace;font-size:10px;color:rgba(200,232,240,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+url+'</div>'
     +'</div>'
-    +'<div style="font-family:monospace;font-size:11px;color:rgba(200,232,240,.5);word-break:break-all;margin-bottom:16px">'+url+'</div>'
-    +'<div id="upv-meta" style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:20px">'
-    +'<span style="color:rgba(0,229,255,.3);font-size:10px;font-family:var(--font-d);letter-spacing:1px">FETCHING PAGE INFO...</span>'
     +'</div>'
-    +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
-    +'<button onclick="urlPreviewNewTab()" style="background:rgba(0,136,255,.15);border:1px solid rgba(0,136,255,.4);color:rgba(0,136,255,.9);border-radius:6px;padding:9px 20px;cursor:pointer;font-family:var(--font-d);font-size:9px;letter-spacing:2px">↗ OPEN SITE</button>'
-    +'<button onclick="_urlPreviewTryIframe(\''+url.replace(/'/g,"\\'")+'\')" style="background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);color:rgba(0,229,255,.6);border-radius:6px;padding:9px 20px;cursor:pointer;font-family:var(--font-d);font-size:9px;letter-spacing:2px">⬚ TRY EMBED</button>'
+    // Meta (title + description) — populated async
+    +'<div id="upv-meta" style="color:var(--text);line-height:1.7">'
+    +'<div style="display:flex;align-items:center;gap:7px;color:rgba(0,229,255,.35);font-size:9px;font-family:var(--font-d);letter-spacing:1.5px">'
+    +'<div style="width:12px;height:12px;border:1.5px solid rgba(0,229,255,.25);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>'
+    +'FETCHING PAGE INFO…'
+    +'</div>'
+    +'</div>'
+    // Brave search results — populated async
+    +'<div id="upv-brave" style="display:none;border-top:1px solid rgba(0,229,255,.08);padding-top:10px">'
+    +'<div style="font-family:var(--font-d);font-size:8px;letter-spacing:2px;color:rgba(0,229,255,.4);margin-bottom:8px">◈ RELATED PAGES</div>'
+    +'<div id="upv-brave-list" style="display:flex;flex-direction:column;gap:5px"></div>'
+    +'</div>'
+    // Buttons
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:2px">'
+    +'<button onclick="urlPreviewNewTab()" style="background:rgba(0,136,255,.18);border:1px solid rgba(0,136,255,.45);color:rgba(100,180,255,.95);border-radius:6px;padding:8px 18px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:2px" onmouseover="this.style.background=\'rgba(0,136,255,.3)\'" onmouseout="this.style.background=\'rgba(0,136,255,.18)\'">↗ OPEN IN NEW TAB</button>'
+    +'<button onclick="_urlPreviewTryIframe(\''+safeUrl+'\')" style="background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);color:rgba(0,229,255,.5);border-radius:6px;padding:8px 18px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:2px" onmouseover="this.style.background=\'rgba(0,229,255,.12)\'" onmouseout="this.style.background=\'rgba(0,229,255,.06)\'">⬚ TRY EMBED</button>'
     +'</div>'
     +'</div>'
     +'</div>';
 
-  // Fetch metadata via DuckDuckGo instant answer or Autumn's own fetch
-  _urlPreviewFetchMeta(url, function(meta) {
+  // Screenshot fallback cycling
+  window._upvNextShot = function(img) {
+    _shotIdx++;
+    if (_shotIdx < _shotServices.length) {
+      img.src = _shotServices[_shotIdx];
+    } else {
+      // All services failed — hide the screenshot area gracefully
+      var wrap = document.getElementById('upv-shot-wrap');
+      if (wrap) {
+        wrap.style.minHeight = '0';
+        wrap.style.display = 'none';
+      }
+    }
+  };
+
+  // Metadata: try DDG instant answer first (fast, no key), then Brave, then allorigins
+  _urlPreviewFetchMeta(url, hostClean, function(meta) {
     var el = document.getElementById('upv-meta');
     if (!el) return;
     if (meta.title || meta.description) {
       el.innerHTML =
-        (meta.title ? '<div style="font-weight:600;color:var(--bright);font-size:14px;margin-bottom:8px">'+_escHtml(meta.title)+'</div>' : '')
-        +(meta.description ? '<div style="color:var(--text);font-size:12px;line-height:1.7">'+_escHtml(meta.description)+'</div>' : '');
+        (meta.title ? '<div style="font-weight:700;color:var(--bright);font-size:14px;margin-bottom:5px;line-height:1.4">'+_escHtml(meta.title)+'</div>' : '')
+        +(meta.description ? '<div style="color:var(--text);font-size:12px;line-height:1.7;opacity:.85">'+_escHtml(meta.description)+'</div>' : '');
     } else {
-      el.innerHTML = '<span style="color:rgba(200,232,240,.35);font-size:11px">No description available — tap Open Site to visit directly.</span>';
+      el.innerHTML = '<span style="color:rgba(200,232,240,.28);font-size:11px;font-style:italic">No description available — tap Open in New Tab to visit.</span>';
     }
   });
+
+  // Brave results for this domain
+  if (typeof fetchBraveWeb === 'function') {
+    fetchBraveWeb(hostClean, 5).then(function(d) {
+      _renderBravePreviewResults((d && d.results) || [], document.getElementById('upv-brave-list'), document.getElementById('upv-brave'));
+    }).catch(function(){});
+  }
+}
+
+function _renderBravePreviewResults(results, listEl, wrapEl) {
+  if (!results || !results.length || !listEl || !wrapEl) return;
+  wrapEl.style.display = 'block';
+  listEl.innerHTML = results.slice(0, 5).map(function(r) {
+    var st = _escHtml((r.title || '').slice(0, 80));
+    var sd = _escHtml((r.desc  || '').slice(0, 130));
+    var su = _escHtml(r.url || '');
+    var suj = (r.url || '').replace(/'/g, '%27');
+    return '<div style="background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.1);border-radius:5px;padding:7px 10px;cursor:pointer;transition:background .15s" onclick="urlPreviewOpen(\''+suj+'\')" onmouseover="this.style.background=\'rgba(0,229,255,.07)\'" onmouseout="this.style.background=\'rgba(0,229,255,.03)\'">'
+      +(st ? '<div style="font-size:12px;font-weight:600;color:var(--cyan);margin-bottom:2px;line-height:1.3">'+st+'</div>' : '')
+      +(sd ? '<div style="font-size:11px;color:rgba(200,232,240,.5);line-height:1.5;margin-bottom:3px">'+sd+'</div>' : '')
+      +'<div style="font-size:9px;color:rgba(0,229,255,.28);font-family:var(--font-d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+su+'</div>'
+      +'</div>';
+  }).join('');
 }
 
 function _escHtml(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Fetch page title + description via Open Graph tags through a CORS proxy
-function _urlPreviewFetchMeta(url, cb) {
-  // Use allorigins as a lightweight CORS proxy to read OG tags
-  var proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-  fetch(proxy, {signal: AbortSignal.timeout(8000)})
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
-      var html = data.contents || '';
-      var title = '';
-      var desc = '';
-      // Extract OG title > title tag
-      var m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
-             || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)
-             || html.match(/<title[^>]*>([^<]+)<\/title>/i);
-      if (m) title = m[1].trim();
-      // Extract OG description > meta description
-      var d = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
-              || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)
-              || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
-              || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
-      if (d) desc = d[1].trim();
-      cb({title: title, description: desc});
-    })
-    .catch(function(){ cb({}); });
+// Fetch page title + description — multi-source with fallback chain
+// Source order: 1) DDG instant answer (fast)  2) Brave web result  3) allorigins CORS proxy
+function _urlPreviewFetchMeta(url, hostClean, cb) {
+  var done = false;
+  function resolve(meta) {
+    if (done) return;
+    done = true;
+    cb(meta);
+  }
+
+  // Source 1: DDG instant answer — often has abstract + title for known sites
+  if (typeof fetchDDG === 'function') {
+    fetchDDG(hostClean).then(function(d) {
+      if (d && (d.heading || d.abstract)) {
+        resolve({ title: d.heading || '', description: d.abstract || '' });
+      }
+    }).catch(function(){});
+  }
+
+  // Source 2: Brave web search — first result title+desc is usually the homepage
+  if (typeof fetchBraveWeb === 'function') {
+    fetchBraveWeb(hostClean + ' official site', 1).then(function(d) {
+      var r = d && d.results && d.results[0];
+      if (r && !done) resolve({ title: r.title || '', description: r.desc || '' });
+    }).catch(function(){});
+  }
+
+  // Source 3: allorigins CORS proxy — last resort, reads actual OG tags
+  setTimeout(function() {
+    if (done) return;
+    var proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    fetch(proxy, { signal: AbortSignal.timeout(7000) })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (done) return;
+        var html = data.contents || '';
+        var title = '', desc = '';
+        var m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+               || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)
+               || html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (m) title = m[1].trim();
+        var d2 = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
+                || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)
+                || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
+                || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+        if (d2) desc = d2[1].trim();
+        resolve({ title: title, description: desc });
+      })
+      .catch(function() { resolve({}); });
+  }, 800); // slight delay so DDG/Brave can win first
+
+  // Final timeout — show empty state if all sources fail
+  setTimeout(function() { resolve({}); }, 9000);
 }
 
 // Force-try the iframe even on blocked domains (user's choice)
@@ -16091,61 +18179,28 @@ function urlPreviewOpen(url) {
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   _urlPreviewCurrentUrl = url;
-  var modal = document.getElementById('url-preview-modal');
-  var iframe = document.getElementById('url-preview-iframe');
+  var modal    = document.getElementById('url-preview-modal');
+  var iframe   = document.getElementById('url-preview-iframe');
   var fallback = document.getElementById('url-preview-fallback');
-  var loading = document.getElementById('url-preview-loading');
-  var bar = document.getElementById('url-preview-bar');
-  var title = document.getElementById('url-preview-title');
+  var loading  = document.getElementById('url-preview-loading');
+  var bar      = document.getElementById('url-preview-bar');
+  var titleEl  = document.getElementById('url-preview-title');
   if (!modal) return;
   bar.value = url;
-  if (title) title.textContent = url;
+  if (titleEl) titleEl.textContent = url;
   modal.style.display = 'flex';
   modal.dataset.collapsed = '0';
 
-  // Decide: iframe or rich card?
-  if (_urlPreviewIsBlocked(url)) {
-    // Known blocked — go straight to rich card
-    iframe.style.display = 'none';
-    iframe.src = 'about:blank';
-    fallback.style.display = 'block';
-    if (loading) { loading.style.display = 'flex'; }
-    _urlPreviewBuildCard(url, fallback);
-    if (loading) setTimeout(function(){ loading.style.display = 'none'; }, 400);
-  } else {
-    // Try iframe first
-    fallback.style.display = 'none';
-    iframe.style.display = '';
-    if (loading) { loading.style.display = 'flex'; }
-    iframe.src = 'about:blank';
-
-    // Set a load timeout — if iframe doesn't load content in 4s, switch to card
-    var _iframeTimer = setTimeout(function() {
-      if (document.getElementById('url-preview-modal').style.display !== 'none') {
-        _urlPreviewShowCard(url);
-      }
-    }, 4000);
-
-    iframe.onload = function() {
-      clearTimeout(_iframeTimer);
-      if (loading) loading.style.display = 'none';
-      // Check if iframe actually loaded something (blank = blocked)
-      try {
-        var doc = iframe.contentDocument || iframe.contentWindow.document;
-        if (!doc || !doc.body || doc.body.innerHTML.trim() === '') {
-          _urlPreviewShowCard(url);
-        }
-      } catch(e) {
-        // Cross-origin — can't read doc, but load fired means something loaded
-        if (loading) loading.style.display = 'none';
-      }
-    };
-    iframe.onerror = function() {
-      clearTimeout(_iframeTimer);
-      _urlPreviewShowCard(url);
-    };
-    setTimeout(function(){ iframe.src = url; }, 50);
-  }
+  // Always show rich card immediately — most sites block iframes.
+  // User can tap "⬚ TRY EMBED" if they want to attempt it.
+  iframe.style.display = 'none';
+  iframe.src = 'about:blank';
+  iframe.onload = null; iframe.onerror = null;
+  fallback.innerHTML = '';
+  fallback.style.display = 'block';
+  if (loading) { loading.style.display = 'flex'; }
+  _urlPreviewBuildCard(url, fallback);
+  if (loading) setTimeout(function(){ loading.style.display = 'none'; }, 300);
 }
 
 function _urlPreviewShowCard(url) {
