@@ -5903,28 +5903,20 @@ function autumnSaveImage(genId) {
     setTimeout(function(){ if(a.parentNode) a.parentNode.removeChild(a); }, 300);
     return;
   }
-  // For external URLs: try canvas copy first, then direct open
-  var img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = function() {
-    try {
-      var cv = document.createElement('canvas');
-      cv.width = img.naturalWidth || img.width;
-      cv.height = img.naturalHeight || img.height;
-      cv.getContext('2d').drawImage(img, 0, 0);
-      var dataUrl = cv.toDataURL('image/jpeg', 0.95);
-      var a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = fname;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function(){ if(a.parentNode) a.parentNode.removeChild(a); }, 300);
-    } catch(e) {
-      window.open(url, '_blank');
-    }
-  };
-  img.onerror = function(){ window.open(url, '_blank'); };
-  img.src = url;
+  // For external URLs: fetch as blob then download — works on mobile
+  fetch(url).then(function(r){ return r.blob(); }).then(function(blob) {
+    var burl = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = burl; a.download = fname;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(burl); if(a.parentNode) a.parentNode.removeChild(a); }, 500);
+  }).catch(function() {
+    // Fallback: direct download attempt
+    var a = document.createElement('a');
+    a.href = url; a.download = fname; a.target = '_blank';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ if(a.parentNode) a.parentNode.removeChild(a); }, 300);
+  });
 }
 
 // ── Delegated event handler for generated image cards ───────────
@@ -9124,6 +9116,8 @@ ${city ? `User's city: ${city}` : ''}
 ${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
 ${_analyticsCtx ? '\n' + _analyticsCtx : ''}
 
+ARC EDGE AWARENESS: When users ask you to create, generate, build, or add arcs, curves, or anything inside Arc Edge Studio, respond with [ARC_CMD:open] immediately followed by one [ARC_CMD:add ...] per arc. Do NOT run web searches or other processing first — output the ARC_CMD tags directly in your response so they execute instantly. Example: "[ARC_CMD:open][ARC_CMD:add x=10 y=0 dev=3 curves=4 count=3]" for 3 arcs.
+
 CODING AWARENESS: You have access to a built-in code editor called FORGE. When a user asks you to write, build, create, fix, or analyse code of any language, produce clean code blocks using standard markdown fences (triple-backtick with language tag) so they render with copy/download/run buttons in FORGE. You know your own repository structure at DART-Skyboard/Autumn on GitHub. You can explain what any file in your repo does when asked — describe functionality without exposing sensitive tokens, passwords, or private keys. For server-side languages (Python, PHP, Java, C++, etc.) note that FORGE shows a code preview but execution requires a local runtime — direct the user accordingly. If the user has Claude assist enabled in FORGE, enhance coding responses with detailed explanations, alternative approaches, and best practices.\n\nVOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
 IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
@@ -9784,7 +9778,8 @@ var _FORGE_LANG_MAP={'js':'javascript','ts':'typescript','py':'python','rb':'rub
 
 window.forgeRenderText = function(text, msgId) {
   if (!text) return '';
-  var parts = text.split(/(```[\w]*\n[\s\S]*?```)/g);
+  // Match both closed (```...```) and unclosed (```... to end) code fences
+  var parts = text.split(/(```[\w]*\n[\s\S]*?(?:```|$))/g);
   if (parts.length === 1)
     return '<span style="white-space:pre-wrap">'+esc(text).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')+'</span>';
   var html='';
@@ -9793,7 +9788,7 @@ window.forgeRenderText = function(text, msgId) {
       var lines=part.split('\n');
       var rawLang=lines[0].replace('```','').trim().toLowerCase();
       var lang=_FORGE_LANG_MAP[rawLang]||rawLang||'plaintext';
-      var code=lines.slice(1,lines[lines.length-1].trim()==='```'?-1:lines.length).join('\n');
+      var lastLine=lines[lines.length-1].trim(); var code=lines.slice(1,lastLine===''||lastLine==='```'?-1:lines.length).join('\n');
       var bid='fcb-'+(msgId||'x')+'-'+i;
       var pid='fcp-'+(msgId||'x')+'-'+i;
       var canRun=_FORGE_PREVIEWABLE.has(lang)||_FORGE_OUTPUT_LANGS.has(lang);
@@ -17568,7 +17563,8 @@ window.emmToggle = function() {
     window.handleSend = async function() {
       var inp = document.getElementById('chat-input');
       var txt = (inp ? inp.value : '').toLowerCase().trim();
-      if (/\b(open|show|launch|start)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
+      if (/\b(open|show|launch|start|create|generate|make|build|add)\b.{0,30}\b(arc\s*edge|arc\s*studio|arcedge|arcs?\s+in|arcs?\s+inside)\b/i.test(txt) ||
+          /\b(arcs?|curves?)\b.{0,30}\b(arc\s*edge|arc\s*studio|studio|chaos|finite|deviation)\b/i.test(txt)) {
         setTimeout(arcStudioOpen, 200);
       }
       if (/\b(close|hide|shut|exit)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
