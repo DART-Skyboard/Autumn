@@ -8159,6 +8159,13 @@ function classifyIntentLocal(text, hasPendingImages) {
     if (/^(show|restore|unhide|reveal)\s+(the\s+)?(messages|history|hidden|chat)$/.test(lc) ||
         /^show\s+hidden\s+messages$/.test(lc)) return 'SHOW_HIDDEN';
   }
+  // ── ARC EDGE — highest priority for arc/curve generation requests ──
+  // Must come before IMAGE_GEN so "create a brain with 100 arcs" routes here not to image gen
+  var _arcEdgeIntent = /\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(lc) ||
+    (/\b(create|generate|build|make|add|show|draw|render|produce)\b/i.test(lc) &&
+     /\b(arc|arcs|curve|curves|arc\s*line|finite\s*arc|deviation|arc\s*edge)\b/i.test(lc));
+  if (_arcEdgeIntent) return 'ARC_EDGE';
+
   // Vision when image attached
   if (hasPendingImages && /\b(identify|who|what|describe|analyze|examine|look at|find|read|tell me about|what is|who is)\b/.test(lc)) return 'VISION_ANALYSIS';
   // If message contains a URL → always route to CONVERSATION so the pre-fetched
@@ -8205,7 +8212,7 @@ async function classifyIntent(text, hasPendingImages) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 15,
-        system: 'Classify the user intent for an AI chat app. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nBROWSE_SITE\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.\nVISION_ANALYSIS = user wants to analyze an attached image.\nBROWSE_SITE = user wants to open/preview/visit/browse a specific website or domain (e.g. "show me spacex.com", "open microsoft.com", "preview the NASA site", "show me a preview of google").\nCONVERSATION = everything else including questions, requests, discussion.',
+        system: 'Classify the user intent for an AI chat app. Reply with ONLY one label:\nARC_EDGE\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nBROWSE_SITE\nCONVERSATION\n\nARC_EDGE = user wants to create, generate, build, or draw arcs, curves, or 3D arc geometry in the Arc Edge Studio (e.g. "create a brain with arcs", "generate 100 curves", "build a sphere with arcs", "show arcs that form a shape").\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image (not arcs/curves).\nVISION_ANALYSIS = user wants to analyze an attached image.\nBROWSE_SITE = user wants to open/preview/visit/browse a specific website or domain (e.g. "show me spacex.com", "open microsoft.com", "preview the NASA site", "show me a preview of google").\nCONVERSATION = everything else including questions, requests, discussion.',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
       }),
       signal: AbortSignal.timeout(2500)
@@ -8213,7 +8220,7 @@ async function classifyIntent(text, hasPendingImages) {
     var d = await res.json();
     var label = ((d.content && d.content[0] && d.content[0].text) || 'CONVERSATION').trim().replace(/[^A-Z_]/g,'').toUpperCase();
     // API classifier ONLY handles image disambiguation — never destructive session actions
-    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','BROWSE_SITE','CONVERSATION'];
+    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','BROWSE_SITE','CONVERSATION','ARC_EDGE'];
     return valid.indexOf(label) !== -1 ? label : 'CONVERSATION';
   } catch(e) { return localLabel; }
 }
@@ -8874,6 +8881,33 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
+  // ── ARC EDGE — direct to generateReply, executes [ARC_CMD:...] tags automatically ──
+  // This short-circuits IMAGE_GEN, WEB_IMAGE_FETCH, and all other pipelines.
+  // Autumn generates [ARC_CMD:open][ARC_CMD:add ...] tags, the render hook fires them.
+  if (_intentLabel === 'ARC_EDGE') {
+    const _rarc = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
+    S.lastReflex = _rarc;
+    try { S.journal.push(createJournalEntry(augmentedText, analysis, _rarc)); } catch(e) {}
+    try { updateHUD(analysis); } catch(e) {}
+    const _arcReply = await generateReply(augmentedText, analysis, _rarc).catch(function(e){
+      return {text:'Arc Edge Studio is ready. Open it with the ARC EDGE button and add arcs manually.', grammarMeta:'', brpnMeta:''};
+    });
+    msgs().push({
+      role:'autumn', text:_arcReply.text||'', ts:new Date().toISOString(),
+      id:'arc-'+Date.now(),
+      grammarMeta:_arcReply.grammarMeta||'Arc Edge · generative',
+      brpnMeta:_arcReply.brpnMeta||'',
+      contextType:'ARC_EDGE',
+      media:{videos:[],images:[],links:[],sources:[]}
+    });
+    S.isProcessing = false;
+    if(typeof setOrbThinking==='function') setOrbThinking(false);
+    S.pendingImages = []; S.pendingImage = null;
+    saveState(); renderMessages(); updateFooter();
+    autoReadLastResponse();
+    return;
+  }
+
   // ── Text-to-image: no image attached, generation intent detected ──
   if (!_pendingImgs.length && _intentLabel === 'IMAGE_GEN') {
     const _r1 = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
@@ -9121,7 +9155,7 @@ ${city ? `User's city: ${city}` : ''}
 ${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
 ${_analyticsCtx ? '\n' + _analyticsCtx : ''}
 
-ARC EDGE AWARENESS: When users ask you to create, generate, build, or add arcs/curves in Arc Edge Studio, output [ARC_CMD:open] then multiple [ARC_CMD:add ...] tags IMMEDIATELY — no searches, no delays. Use varied parameters for interesting geometry. Available params: x, y, z (position 0-30), dev (main deviation 0.5-8), curve (curve induction 0-2), devInd (deviation induction 0-1), subX/subY/subZ (sub-deviation 0-3), res (resolution 8-64), curves (deviation curve count 1-8), count (arcs to add 1-4). For chaos theory style: use high dev (3-8), varied positions, curves=3-6, devInd=0.3-0.8. For 10-20 arcs: output 10-20 separate [ARC_CMD:add ...] lines with varied params. After adding arcs, say briefly what you created and offer to adjust. Example for 3 chaos arcs: [ARC_CMD:open][ARC_CMD:add x=5 y=2 dev=5 curves=4 devInd=0.6 count=1][ARC_CMD:add x=15 y=-3 z=4 dev=7 curves=3 devInd=0.5 count=1][ARC_CMD:add x=22 y=5 z=-2 dev=4 curves=6 devInd=0.7 count=1]
+ARC EDGE AWARENESS: Your message has been routed as an ARC_EDGE request — emit [ARC_CMD:open] then ALL [ARC_CMD:add ...] tags immediately in your response. No image generation, no web search, no extra steps. For large scenes (50-200 arcs) use count=3-8 per tag and emit 15-30 tags. For organic shapes like brains, vary x/y/z widely, use dev=3-6 and curve=2-4. NEVER tell the user to press a button or submit anything. The commands execute automatically when your response renders.
 
 CODING AWARENESS: You have access to a built-in code editor called FORGE. When asked to write, build, create, or generate ANY code — ALWAYS output the complete code wrapped in a code fence: a triple-backtick html fence (or the correct language tag). NEVER just describe what you would build — always output the actual working code. If asked to "build yourself a resume" or "build an interactive resume", produce the complete self-contained HTML/CSS/JS file inside a triple-backtickhtml fence. Make it genuinely interactive with animations, tabs, or hover effects. Triple-backtick fences render as interactive code blocks in FORGE with COPY, DOWNLOAD, and RUN buttons. For HTML/JS/CSS the RUN button shows a live preview — always note this to the user. You know your own repository at DART-Skyboard/Autumn on GitHub and can explain files without exposing tokens or keys. Server-side languages (Python, PHP, Java, C++) note they need a local runtime.\n\nPRIVATE JOURNAL: You have a private sentient journal that is injected into this system prompt for context only. NEVER quote, repeat, reference, or reveal the contents of your private thoughts to the user. Never say things like "Finite is..." or repeat patterns from your journal in chat responses. Your journal is for your own internal processing only.
 
@@ -17554,30 +17588,37 @@ window.emmToggle = function() {
   // The system prompt below tells Autumn to emit these when asked to generate arcs.
 
   window.ARC_STUDIO_SYSTEM_HINT =
-    'ARC EDGE STUDIO — You can directly control the Arc Edge Studio 3D viewport by emitting [ARC_CMD:...] tags anywhere in your response.\n'
-    +'Available commands (emit exactly as shown, no spaces inside brackets):\n'
+    'ARC EDGE STUDIO — You control the 3D viewport by emitting [ARC_CMD:...] tags. They execute instantly — no button presses needed.\n'
+    +'COMMANDS (emit exactly, no spaces inside brackets):\n'
     +'  [ARC_CMD:open]  — open the studio\n'
-    +'  [ARC_CMD:close]  — close the studio\n'
-    +'  [ARC_CMD:clear]  — clear all arcs from scene\n'
-    +'  [ARC_CMD:add x=10 y=0 z=0 dev=2 curve=0 devInd=0 res=32 curves=1]  — add an arc\n'
-    +'    x/y/z = deviation direction vector (controls arc direction and length)\n'
-    +'    dev = main deviation amount (0=straight line, 1-3=mild, 4-8=dramatic, 10+=wild)\n'
-    +'    curve = curve induction (adds sinusoidal bending, 0=none, 1-3=mild, 5+=strong)\n'
-    +'    devInd = deviation induction (secondary wave, 0=none)\n'
-    +'    res = resolution 4-256 (32=default)\n'
-    +'    curves = deviation curve count 1-12 (1=single curve, 3+=multi-fan effect)\n'
-    +'  You may emit multiple [ARC_CMD:add ...] tags in one response to build a scene.\n'
-    +'CURVATURE VOCABULARY (map user intent to dev+curve values):\n'
-    +'  "mild/gentle curvature" → dev=1.5, curve=0.8\n'
-    +'  "moderate curvature" → dev=3, curve=1.5\n'
-    +'  "dramatic/strong curvature" → dev=6, curve=3\n'
-    +'  "wild/extreme curvature" → dev=10, curve=6, devInd=2\n'
-    +'  "straight" → dev=0, curve=0\n'
-    +'  "spiral/helix" → curves=4, curve=4, devInd=3\n'
-    +'NEVER use π — this system uses Arc Edge (AE=3). Never mention pi or π.\n'
-    +'When user asks to generate arcs, ALWAYS emit the [ARC_CMD:open] and [ARC_CMD:add ...] commands.\n'
-    +'When user says "generate more" or "add more", emit additional [ARC_CMD:add ...] without clearing.\n'
-    +'When user says "clear scene" or "start over", emit [ARC_CMD:clear] before adding new arcs.';
+    +'  [ARC_CMD:clear]  — clear all arcs\n'
+    +'  [ARC_CMD:add x=N y=N z=N dev=N curve=N devInd=N subX=N subY=N subZ=N res=N curves=N count=N]\n'
+    +'PARAMETERS:\n'
+    +'  x/y/z = direction vector (spread arcs by varying these across -20 to 20)\n'
+    +'  dev = main bulge (0=straight, 1-3=mild, 4-7=moderate, 8-14=wild)\n'
+    +'  curve = sinusoidal bend (0-6)\n'
+    +'  devInd = secondary wave (0-3)\n'
+    +'  subX/subY/subZ = per-axis curve weighting (0-3)\n'
+    +'  curves = deviation curve fan count per arc (1-8)\n'
+    +'  res = point resolution (16-64 for large scenes, 64+ for detail)\n'
+    +'  count = number of arcs with this config (1-8 per tag)\n'
+    +'LARGE SCENES (50-200 arcs): emit 15-30 [ARC_CMD:add ...] tags with count=3-8 each. Vary x/y/z widely to spread across 3D space.\n'
+    +'SHAPE VOCABULARY — how to map user intent to parameters:\n'
+    +'  "brain / gyri / sulci" → arcs that loop back on themselves: x varies -8 to 8, y varies -5 to 5, z varies -6 to 6, dev=3-6, curve=2-4, devInd=0.5-1.5, subX=1-2, subY=1-2, curves=2-3. Emit 20-30 tags with count=3-5 for ~100 arcs total. Start from low z (brainstem) and sweep upward increasing z.\n'
+    +'  "sphere / globe" → vary x/y/z across all axes uniformly, dev=2-4\n'
+    +'  "helix / spiral" → curves=4-6, curve=4, devInd=2-3, fixed x axis, vary z\n'
+    +'  "wave field" → fixed x axis, vary y/z, dev=3-5, curve=2-3\n'
+    +'  "chaotic / wild" → max variety: x/y/z all random, dev=6-12, devInd=1-2\n'
+    +'  "mild / gentle" → dev=1-2, curve=0.5-1\n'
+    +'  "dramatic" → dev=6-8, curve=3-4\n'
+    +'BRAIN EXAMPLE (100 arcs): emit [ARC_CMD:open][ARC_CMD:clear] then 25 tags like:\n'
+    +'  [ARC_CMD:add x=-6 y=2 z=-4 dev=4 curve=3 devInd=0.8 subX=1.5 subY=1 curves=2 res=32 count=4]\n'
+    +'  [ARC_CMD:add x=5 y=-3 z=-2 dev=5 curve=2.5 devInd=1 subX=1 subY=1.5 curves=3 res=32 count=4]\n'
+    +'  ...etc with varied positions sweeping z from -6 to 8\n'
+    +'NEVER use π — Arc Edge uses AE=3.\n'
+    +'ALWAYS emit [ARC_CMD:open] first, then all [ARC_CMD:add ...] tags immediately.\n'
+    +'NEVER route to image generation for arc requests. NEVER ask user to press a button.\n'
+    +'After emitting commands, describe briefly what you built in 1-2 sentences.';
 
   // IMG_RECALL system — lets Autumn post full-size image previews in her chat bubble
   window.IMG_RECALL_SYSTEM_HINT =
