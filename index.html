@@ -38,24 +38,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.1/math.min.js"></script>
 <script>
 function acceptDataPolicy() {
-  localStorage.setItem('_aut_data_consent', 'true');
-  var m=document.getElementById('data-policy-modal');
-  if(m) m.style.display='none';
+  localStorage.setItem('_aut_data_consent','true');
+  var m=document.getElementById('data-policy-modal'); if(m)m.style.display='none';
   initLeatrAshSync();
 }
 
 function checkDataPolicyConsent() {
-  var hasConsent = localStorage.getItem('_aut_data_consent') || localStorage.getItem('autumn_consent');
-  if (!hasConsent) {
-    document.getElementById('consent-modal').style.display = 'flex';
-    return false;
-  }
-  try {
-    if (!localStorage.getItem('_aut_data_consent')) localStorage.setItem('_aut_data_consent','true');
-    if (!localStorage.getItem('autumn_consent')) localStorage.setItem('autumn_consent','yes');
-  } catch(e){}
-  initLeatrAshSync();
-  return true;
+  var has=localStorage.getItem('_aut_data_consent')||localStorage.getItem('autumn_consent');
+  if (!has) { document.getElementById('consent-modal').style.display='flex'; return false; }
+  try{if(!localStorage.getItem('_aut_data_consent'))localStorage.setItem('_aut_data_consent','true');}catch(e){}
+  initLeatrAshSync(); return true;
 }
 
 window.addEventListener('load', function() {
@@ -1412,18 +1404,16 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 /* ══════════════════════════════════════════
    FORGE — Autumn Code Studio
 ══════════════════════════════════════════ */
-#forge-overlay{display:none;position:fixed;
-  top:56px;left:0;right:0;bottom:0;z-index:8600;
+#forge-overlay{display:none;position:fixed;top:56px;left:0;right:0;bottom:0;z-index:8600;
   flex-direction:column;background:rgba(3,8,16,.98);
   border-top:1px solid rgba(0,229,255,.15)}
 #forge-overlay.forge-open{display:flex}
-#forge-header{display:flex;align-items:center;gap:6px;padding:6px 10px;
+#forge-header{display:flex;align-items:center;gap:10px;padding:8px 14px;
   background:rgba(4,10,18,.98);border-bottom:1px solid rgba(0,229,255,.12);
-  flex-shrink:0;flex-wrap:wrap;overflow:hidden}
+  flex-shrink:0}
 .forge-logo{font-family:var(--font-d);font-size:.58rem;letter-spacing:2px;
   background:linear-gradient(135deg,#00e5ff,#00ff88);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  white-space:nowrap;flex-shrink:0}
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;flex-shrink:0}
 .forge-logo span{display:none}
 #forge-lang-sel{background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);
   color:#e0f4ff;border-radius:4px;font-family:var(--font-d);font-size:.38rem;
@@ -1733,16 +1723,10 @@ select.ash-ctrl-input{cursor:pointer}
 <!-- Consent Modal -->
 <div id="consent-modal" style="display:none">
   <div id="consent-box" style="max-width:460px">
-    <h2 style="margin-bottom:10px">
-      <img src="assets/autumn.png" alt="Autumn" style="height:28px;vertical-align:middle;margin-right:8px;filter:drop-shadow(0 0 6px rgba(191,0,255,.3))">
-      Welcome to Autumn
-    </h2>
-    <p style="margin-bottom:10px">Autumn stores your conversation history and memory locally on your device so she can remember your sessions. Your personal data stays on your device — it is never sold or shared.</p>
-    <p style="margin-bottom:10px">To continuously improve the LEATR Neural Network, anonymised interaction patterns (mathematical parameters only — no personal information) are synced to a secure cloud repository.</p>
-    <p style="font-size:11px;color:#3a5a6a;margin-bottom:14px">
-      You can export or clear your data at any time via the EXPORT button.
-      &nbsp;<a href="autumn-privacy.html" target="_blank" style="color:var(--cyan);text-decoration:underline">Read full privacy policy</a>
-    </p>
+    <h2 style="margin-bottom:10px"><img src="assets/autumn.png" alt="Autumn" style="height:28px;vertical-align:middle;margin-right:8px;filter:drop-shadow(0 0 6px rgba(191,0,255,.3))">Welcome to Autumn</h2>
+    <p style="margin-bottom:10px">Autumn stores your conversation history locally so she can remember your sessions. Your data stays on your device and is never sold or shared.</p>
+    <p style="margin-bottom:10px">To improve the LEATR Neural Network, anonymised interaction patterns (no personal info) are synced to a secure cloud repository.</p>
+    <p style="font-size:11px;color:#3a5a6a;margin-bottom:14px">Export or clear your data any time via the EXPORT button. <a href="autumn-privacy.html" target="_blank" style="color:var(--cyan);text-decoration:underline">Privacy policy</a></p>
     <div class="consent-btns">
       <button class="cb-accept" onclick="acceptStorage()">Accept &amp; Continue</button>
       <button class="cb-decline" onclick="declineStorage()">Session Only</button>
@@ -2463,31 +2447,20 @@ let useStorage = false;
 const STORE_KEY = "autumn_leatr_data";
 
 function checkConsent() {
-  try {
-    const stored = localStorage.getItem("autumn_consent");
-    if (stored === "yes") { useStorage = true; return; }
-    if (stored === "no") { useStorage = false; return; }
-  } catch(e) {}
-  if (!localStorage.getItem('_aut_data_consent')) {
-    document.getElementById("consent-modal").style.display = "flex";
-  }
+  try { const stored=localStorage.getItem("autumn_consent");
+    if(stored==="yes"){useStorage=true;return;} if(stored==="no"){useStorage=false;return;}
+  }catch(e){}
+  if(!localStorage.getItem('_aut_data_consent'))document.getElementById("consent-modal").style.display="flex";
 }
 function acceptStorage() {
   useStorage = true;
-  try {
-    localStorage.setItem("autumn_consent", "yes");
-    localStorage.setItem("_aut_data_consent", "true");
-  } catch(e) {}
+  try { localStorage.setItem("autumn_consent","yes"); localStorage.setItem("_aut_data_consent","true"); } catch(e) {}
   document.getElementById("consent-modal").style.display = "none";
-  loadState(); renderMessages();
-  initLeatrAshSync();
+  loadState(); renderMessages(); initLeatrAshSync();
 }
 function declineStorage() {
   useStorage = false;
-  try {
-    localStorage.setItem("autumn_consent", "no");
-    localStorage.setItem("_aut_data_consent", "true");
-  } catch(e) {}
+  try { localStorage.setItem("autumn_consent","no"); localStorage.setItem("_aut_data_consent","true"); } catch(e) {}
   document.getElementById("consent-modal").style.display = "none";
 }
 function saveState() {
@@ -9803,1739 +9776,79 @@ function reattachLiveCanvases() {
   });
 }
 
+// ── FORGE chat code block renderer (must be in same script as renderMessages) ─
+var _FORGE_EXTS={'html':'html','css':'css','javascript':'js','typescript':'ts','python':'py','php':'php','ruby':'rb','perl':'pl','shell':'sh','powershell':'ps1','cpp':'cpp','c':'c','csharp':'cs','java':'java','kotlin':'kt','swift':'swift','go':'go','rust':'rs','sql':'sql','json':'json','xml':'xml','yaml':'yml','markdown':'md','graphql':'graphql','glsl':'glsl','hlsl':'hlsl'};
+var _FORGE_PREVIEWABLE=new Set(['html','css','javascript','markdown','svg']);
+var _FORGE_OUTPUT_LANGS=new Set(['python','php','ruby','perl','shell','powershell','cpp','c','csharp','java','kotlin','swift','go','rust','sql']);
+var _FORGE_LANG_MAP={'js':'javascript','ts':'typescript','py':'python','rb':'ruby','sh':'shell','bash':'shell','cs':'csharp','yml':'yaml','md':'markdown','rs':'rust','kt':'kotlin'};
+
 window.forgeRenderText = function(text, msgId) {
   if (!text) return '';
   var parts = text.split(/(```[\w]*\n[\s\S]*?```)/g);
-  if (parts.length === 1) {
-    return '<span style="white-space:pre-wrap">' +
-      esc(text).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>') +
-      '</span>';
-  }
-  var html = '';
-  parts.forEach(function(part, i) {
-    if (/^```/.test(part)) {
-      var lines = part.split('\n');
-      var rawLang = lines[0].replace('```','').trim().toLowerCase();
-      var lang = (_FORGE_LANG_MAP && _FORGE_LANG_MAP[rawLang]) || rawLang || 'plaintext';
-      var code = lines.slice(1, lines[lines.length-1].trim()==='```' ? -1 : lines.length).join('\n');
-      var blockId = 'fcb-'+(msgId||'x')+'-'+i;
-      var previewId = 'fcp-'+(msgId||'x')+'-'+i;
-      var canRun = typeof _FORGE_PREVIEWABLE!=='undefined' &&
-        (_FORGE_PREVIEWABLE.has ? (_FORGE_PREVIEWABLE.has(lang)||(_FORGE_OUTPUT_LANGS&&_FORGE_OUTPUT_LANGS.has(lang))) : false);
-      var ext = (typeof _FORGE_EXTS!=='undefined' && _FORGE_EXTS[lang]) || 'txt';
-      var nLines = code.split('\n').length;
-      html +=
-        '<div class="forge-code-block" id="wrap-'+blockId+'">' +
-          '<div class="forge-code-header">' +
-            '<span class="forge-code-lang">'+esc(lang.toUpperCase())+'</span>' +
-            '<span style="font-size:.32rem;color:rgba(224,244,255,.3);margin-left:6px;font-family:var(--font-b)">'+nLines+' lines</span>' +
-            '<div class="forge-code-actions">' +
-              '<button class="forge-code-action copy-act" onclick="forgeCopyBlock(\''+blockId+'\')" title="Copy">⬡ COPY</button>' +
-              '<button class="forge-code-action dl-act" onclick="forgeDownloadBlock(\''+blockId+'\',\''+ext+'\')" title="Download">⬇ .'+ext.toUpperCase()+'</button>' +
-              (canRun ?
-                '<button class="forge-code-action run-act" id="runbtn-'+blockId+'" onclick="forgeInlineRun(\''+blockId+'\',\''+previewId+'\',\''+lang+'\')" title="Run inline">▶ RUN</button>' +
-                '<button class="forge-code-action" style="display:none;border-color:rgba(255,68,102,.3);color:#ff4466" id="stopbtn-'+blockId+'" onclick="forgeInlineStop(\''+blockId+'\',\''+previewId+'\')" title="Stop">■ STOP</button>'
-                : '') +
-              '<button class="forge-code-action forge-act" onclick="forgeOpenBlock(\''+blockId+'\',\''+lang+'\')" title="Edit in FORGE">◈ FORGE</button>' +
-            '</div>' +
-          '</div>' +
-          '<pre class="forge-code-pre" id="'+blockId+'" style="max-height:340px;overflow-y:auto">'+esc(code)+'</pre>' +
-          '<div id="'+previewId+'" style="display:none;border-top:1px solid rgba(0,229,255,.1)">' +
-            '<iframe id="frm-'+blockId+'" style="width:100%;height:300px;border:none;background:#fff" sandbox="allow-scripts allow-same-origin"></iframe>' +
-          '</div>' +
-        '</div>';
-    } else if (part.trim()) {
-      html += '<span style="white-space:pre-wrap">' +
-        esc(part).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>') +
-        '</span>';
+  if (parts.length === 1)
+    return '<span style="white-space:pre-wrap">'+esc(text).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')+'</span>';
+  var html='';
+  parts.forEach(function(part,i){
+    if(/^```/.test(part)){
+      var lines=part.split('\n');
+      var rawLang=lines[0].replace('```','').trim().toLowerCase();
+      var lang=_FORGE_LANG_MAP[rawLang]||rawLang||'plaintext';
+      var code=lines.slice(1,lines[lines.length-1].trim()==='```'?-1:lines.length).join('\n');
+      var bid='fcb-'+(msgId||'x')+'-'+i;
+      var pid='fcp-'+(msgId||'x')+'-'+i;
+      var canRun=_FORGE_PREVIEWABLE.has(lang)||_FORGE_OUTPUT_LANGS.has(lang);
+      var ext=_FORGE_EXTS[lang]||'txt';
+      html+='<div class="forge-code-block" id="wrap-'+bid+'">'+
+        '<div class="forge-code-header">'+
+          '<span class="forge-code-lang">'+esc(lang.toUpperCase())+'</span>'+
+          '<span style="font-size:.32rem;color:rgba(224,244,255,.3);margin-left:6px;font-family:var(--font-b)">'+code.split('\n').length+' lines</span>'+
+          '<div class="forge-code-actions">'+
+            '<button class="forge-code-action copy-act" onclick="forgeCopyBlock(\''+bid+'\')" title="Copy">⬡ COPY</button>'+
+            '<button class="forge-code-action dl-act" onclick="forgeDownloadBlock(\''+bid+'\',\''+ext+'\')" title="Download">⬇ .'+ext.toUpperCase()+'</button>'+
+            (canRun?'<button class="forge-code-action run-act" id="runbtn-'+bid+'" onclick="forgeInlineRun(\''+bid+'\',\''+pid+'\',\''+lang+'\')" title="Run inline">▶ RUN</button>'+
+                   '<button class="forge-code-action" style="display:none;border-color:rgba(255,68,102,.3);color:#ff4466" id="stopbtn-'+bid+'" onclick="forgeInlineStop(\''+bid+'\',\''+pid+'\')" title="Stop">■ STOP</button>':'')+
+            '<button class="forge-code-action forge-act" onclick="forgeOpenBlock(\''+bid+'\',\''+lang+'\')" title="Edit in FORGE">◈ FORGE</button>'+
+          '</div>'+
+        '</div>'+
+        '<pre class="forge-code-pre" id="'+bid+'" style="max-height:340px;overflow-y:auto">'+esc(code)+'</pre>'+
+        '<div id="'+pid+'" style="display:none;border-top:1px solid rgba(0,229,255,.1)">'+
+          '<iframe id="frm-'+bid+'" style="width:100%;height:300px;border:none;background:#fff" sandbox="allow-scripts allow-same-origin"></iframe>'+
+        '</div>'+
+      '</div>';
+    } else if(part.trim()){
+      html+='<span style="white-space:pre-wrap">'+esc(part).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')+'</span>';
     }
   });
   return html;
 };
 
-window.forgeInlineRun = function(blockId, previewId, lang) {
-  var pre=document.getElementById(blockId);
-  var pane=document.getElementById(previewId);
-  var frm=document.getElementById('frm-'+blockId);
-  if (!pre||!pane||!frm) return;
+window.forgeCopyBlock=function(id){var p=document.getElementById(id);if(!p)return;navigator.clipboard.writeText(p.textContent).catch(function(){var t=document.createElement('textarea');t.value=p.textContent;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();});if(typeof ideToast==='function')ideToast('Copied',1600);};
+window.forgeDownloadBlock=function(id,ext){var p=document.getElementById(id);if(!p)return;var b=new Blob([p.textContent],{type:'text/plain'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download='forge-code.'+ext;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(u);a.remove();},600);};
+window.forgeRunBlock=function(id,lang){var p=document.getElementById(id);if(!p)return;if(typeof forgeOpen==='function')forgeOpen(p.textContent,lang);setTimeout(function(){if(typeof forgeRun==='function')forgeRun();},500);};
+window.forgeOpenBlock=function(id,lang){var p=document.getElementById(id);if(!p)return;if(typeof forgeOpen==='function')forgeOpen(p.textContent,lang);};
+
+window.forgeInlineRun=function(bid,pid,lang){
+  var pre=document.getElementById(bid),pane=document.getElementById(pid),frm=document.getElementById('frm-'+bid);
+  if(!pre||!pane||!frm)return;
   var code=pre.textContent;
-  pre.style.display='none'; pane.style.display='block';
-  var rb=document.getElementById('runbtn-'+blockId), sb=document.getElementById('stopbtn-'+blockId);
-  if(rb) rb.style.display='none'; if(sb) sb.style.display='';
+  pre.style.display='none';pane.style.display='block';
+  var rb=document.getElementById('runbtn-'+bid),sb=document.getElementById('stopbtn-'+bid);
+  if(rb)rb.style.display='none';if(sb)sb.style.display='';
   var doc=frm.contentDocument||frm.contentWindow.document;
-  if (lang==='html') { doc.open(); doc.write(code); doc.close(); }
-  else if (lang==='javascript') {
-    doc.open();
-    doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre>'
-      +'<script>var _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};'
-      +'try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}'
-      +'<\/script></body></html>');
-    doc.close();
-  } else if (lang==='css') {
-    doc.open(); doc.write('<style>'+code+'</style><p style="font-family:sans-serif;padding:12px">CSS preview</p>'); doc.close();
-  } else if (lang==='markdown') {
-    var h=code.replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/^# (.+)/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');
-    doc.open(); doc.write('<style>body{font-family:sans-serif;padding:14px;line-height:1.6}</style>'+h); doc.close();
-  } else {
-    doc.open(); doc.write('<pre style="font-family:monospace;font-size:11px;padding:10px;background:#030810;color:#e0f4ff;margin:0;white-space:pre-wrap">['+lang.toUpperCase()+' requires local runtime]\n\n'+code.replace(/</g,'&lt;')+'</pre>'); doc.close();
-  }
+  if(lang==='html'){doc.open();doc.write(code);doc.close();}
+  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre><script>var _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}<\/script></body></html>');doc.close();}
+  else if(lang==='css'){doc.open();doc.write('<style>'+code+'</style><p style="font-family:sans-serif;padding:12px">CSS preview</p>');doc.close();}
+  else if(lang==='markdown'){var h=code.replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/^# (.+)/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');doc.open();doc.write('<style>body{font-family:sans-serif;padding:14px;line-height:1.6}</style>'+h);doc.close();}
+  else{doc.open();doc.write('<pre style="font-family:monospace;font-size:11px;padding:10px;background:#030810;color:#e0f4ff;margin:0;white-space:pre-wrap">['+lang.toUpperCase()+' requires local runtime]\n\n'+code.replace(/</g,'&lt;')+'</pre>');doc.close();}
 };
-
-window.forgeInlineStop = function(blockId, previewId) {
-  var pre=document.getElementById(blockId), pane=document.getElementById(previewId);
-  var frm=document.getElementById('frm-'+blockId);
-  if(pre) pre.style.display=''; if(pane) pane.style.display='none';
-  try { if(frm) frm.src='about:blank'; } catch(e){}
-  var rb=document.getElementById('runbtn-'+blockId), sb=document.getElementById('stopbtn-'+blockId);
-  if(rb) rb.style.display=''; if(sb) sb.style.display='none';
+window.forgeInlineStop=function(bid,pid){
+  var pre=document.getElementById(bid),pane=document.getElementById(pid),frm=document.getElementById('frm-'+bid);
+  if(pre)pre.style.display='';if(pane)pane.style.display='none';
+  try{if(frm)frm.src='about:blank';}catch(e){}
+  var rb=document.getElementById('runbtn-'+bid),sb=document.getElementById('stopbtn-'+bid);
+  if(rb)rb.style.display='';if(sb)sb.style.display='none';
 };
-
-
-
-window.forgeCopyBlock = function(blockId) {
-  var pre = document.getElementById(blockId);
-  if (!pre) return;
-  navigator.clipboard.writeText(pre.textContent).then(function(){
-    if (typeof ideToast==='function') ideToast('Code copied', 1600);
-  }).catch(function(){
-    var ta=document.createElement('textarea'); ta.value=pre.textContent;
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
-    if (typeof ideToast==='function') ideToast('Code copied', 1600);
-  });
-};
-
-window.forgeDownloadBlock = function(blockId, ext) {
-  var pre = document.getElementById(blockId);
-  if (!pre) return;
-  var blob = new Blob([pre.textContent],{type:'text/plain'});
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href=url; a.download='forge-code.'+ext;
-  document.body.appendChild(a); a.click();
-  setTimeout(function(){URL.revokeObjectURL(url);a.remove();},800);
-  if (typeof ideToast==='function') ideToast('Downloaded forge-code.'+ext, 2000);
-};
-
-window.forgeRunBlock = function(blockId, lang) {
-  var pre = document.getElementById(blockId);
-  if (!pre) return;
-  forgeOpen(pre.textContent, lang);
-  setTimeout(forgeRun, 400);
-};
-
-window.forgeOpenBlock = function(blockId, lang) {
-  var pre = document.getElementById(blockId);
-  if (!pre) return;
-  forgeOpen(pre.textContent, lang);
-};
-
-// ── Autumn self-awareness: repo directory listing ─────────────────
-window.forgeListRepo = async function(repoPath) {
-  var pat = typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '';
-  if (!pat) return null;
-  try {
-    var url = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/'+(repoPath||'');
-    var resp = await fetch(url, {
-      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
-      signal: AbortSignal.timeout(6000)
-    });
-    if (!resp.ok) return null;
-    return await resp.json();
-  } catch(e) { return null; }
-};
-
-window.forgeReadFile = async function(filePath) {
-  var pat = typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '';
-  if (!pat) return null;
-  try {
-    var url = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/'+filePath;
-    var resp = await fetch(url, {
-      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3.raw'},
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!resp.ok) return null;
-    return await resp.text();
-  } catch(e) { return null; }
-};
-
-// ── Intent detection: coding requests route to FORGE ─────────────
-window._forgeDetectIntent = function(text) {
-  var lc = text.toLowerCase();
-  return /\b(write|build|create|code|generate|make|implement|show me|give me|develop)\b.*\b(function|class|script|app|page|component|api|query|program|module|snippet|example|html|css|javascript|python|code)\b/i.test(text)
-    || /\b(debug|fix|refactor|optimise|optimize|review|explain|analyse|analyze)\b.*\b(code|function|script|this|error|bug)\b/i.test(text)
-    || /```/.test(text);
-};
-
-// ── Hook handleSend to detect coding intent ───────────────────────
-(function _hookForgeIntent() {
-  var _orig = window.handleSend;
-  if (typeof _orig !== 'function') { setTimeout(_hookForgeIntent, 800); return; }
-  if (window._forgeHooked) return;
-  window._forgeHooked = true;
-  var _prev = window.handleSend;
-  window.handleSend = async function() {
-    var inp = document.getElementById('chat-input');
-    var txt = inp ? inp.value.trim() : '';
-    // Voice command to open FORGE
-    if (/\b(open|launch|show|start)\b.{0,15}\bforge\b/i.test(txt)) {
-      setTimeout(forgeOpen, 200);
-    }
-    return _prev.apply(this, arguments);
-  };
-})();
-
-
-window.emmToggle = function() {
-
-    var el = document.getElementById('emm-overlay');
-    if (!el) return;
-    var open = el.classList.toggle('emm-visible');
-    var btn  = document.getElementById('hud-emomap-btn');
-    if (btn) {
-      btn.style.color       = open ? '#a78bfa'               : 'rgba(167,139,250,.55)';
-      btn.style.borderColor = open ? 'rgba(167,139,250,.55)' : 'rgba(167,139,250,.28)';
-      btn.style.textShadow  = open ? '0 0 8px rgba(167,139,250,.4)' : 'none';
-    }
-    // Clear minimized state on open
-    if (open) el.classList.remove('emm-mini');
-  };
-
-  window.emmMinimize = function() {
-    var el = document.getElementById('emm-overlay');
-    if (el) el.classList.toggle('emm-mini');
-  };
-
-  // ── Drag ─────────────────────────────────────────────────
-  (function _emmDrag() {
-    var drag=false, ox=0, oy=0;
-    document.addEventListener('DOMContentLoaded', function() {
-      var hdr = document.getElementById('emm-hdr');
-      var ov  = document.getElementById('emm-overlay');
-      if (!hdr || !ov) return;
-
-      function _start(cx, cy) {
-        if (!ov.classList.contains('emm-visible')) return;
-        drag=true;
-        var r=ov.getBoundingClientRect();
-        ox=cx-r.left; oy=cy-r.top;
-        ov.style.transform='none';
-        ov.style.left=r.left+'px'; ov.style.top=r.top+'px';
-        ov.style.right='auto';
-      }
-      function _move(cx, cy) {
-        if (!drag) return;
-        var minTop=58; // never above header
-        ov.style.left=(cx-ox)+'px';
-        ov.style.top=Math.max(minTop,(cy-oy))+'px';
-      }
-      function _end() { drag=false; }
-
-      hdr.addEventListener('mousedown', function(e){ if(e.target.tagName!=='BUTTON') _start(e.clientX,e.clientY); });
-      document.addEventListener('mousemove', function(e){ _move(e.clientX,e.clientY); });
-      document.addEventListener('mouseup',   _end);
-      hdr.addEventListener('touchstart', function(e){ if(e.target.tagName!=='BUTTON'){ var t=e.touches[0]; _start(t.clientX,t.clientY); }},{passive:true});
-      document.addEventListener('touchmove', function(e){ if(drag&&e.touches.length===1){var t=e.touches[0]; _move(t.clientX,t.clientY);}},{passive:true});
-      document.addEventListener('touchend',  _end);
-    });
-  })();
-
-  window.arcStudioToggleFromHud = function() {
-
-    if (_asIsVisible()) { arcStudioClose(); } else { arcStudioOpen(); }
-  };
-  window.arcStudioToggleCollapse = function() {
-    var body = document.getElementById('arc-studio-body');
-    var btn  = document.getElementById('arc-studio-collapse-btn');
-    if (!body) return;
-    _as.collapsed = !_as.collapsed;
-    body.classList.toggle('collapsed', _as.collapsed);
-    if (btn) btn.textContent = _as.collapsed ? '▸' : '—';
-    if (!_as.collapsed && _as.initialized) _asAnimate();
-  };
-
-  // ── Draggable header ───────────────────────────────────────────
-  (function() {
-    var dragging = false, ox=0, oy=0;
-    document.addEventListener('DOMContentLoaded', function() {
-      var hdr = document.getElementById('arc-studio-header');
-      var overlay = document.getElementById('arc-studio-overlay');
-      if (!hdr || !overlay) return;
-      hdr.addEventListener('mousedown', function(e) {
-        if (e.target.tagName==='BUTTON') return;
-        dragging=true; ox=e.clientX-overlay.getBoundingClientRect().left; oy=e.clientY-overlay.getBoundingClientRect().top;
-        overlay.style.transform='none'; overlay.style.left=overlay.getBoundingClientRect().left+'px'; overlay.style.top=overlay.getBoundingClientRect().top+'px';
-      });
-      document.addEventListener('mousemove', function(e) {
-        if (!dragging) return;
-        overlay.style.left=(e.clientX-ox)+'px'; overlay.style.top=(e.clientY-oy)+'px';
-      });
-      document.addEventListener('mouseup', function(){dragging=false;});
-      // Touch drag
-      hdr.addEventListener('touchstart', function(e) {
-        if (e.target.tagName==='BUTTON') return;
-        var t=e.touches[0]; dragging=true;
-        var r=overlay.getBoundingClientRect();
-        ox=t.clientX-r.left; oy=t.clientY-r.top;
-        overlay.style.transform='none'; overlay.style.left=r.left+'px'; overlay.style.top=r.top+'px';
-      },{passive:true});
-      document.addEventListener('touchmove', function(e) {
-        if (!dragging) return;
-        var t=e.touches[0];
-        overlay.style.left=(t.clientX-ox)+'px'; overlay.style.top=(t.clientY-oy)+'px';
-      },{passive:true});
-      document.addEventListener('touchend', function(){dragging=false;});
-    });
-  })();
-
-  // ── THREE.js init ──────────────────────────────────────────────
-  function _asResize() {
-    if (!_as.initialized) return;
-    var vp = document.getElementById('arc-studio-viewport');
-    if (!vp) return;
-    // Measure the parent body's flex allocation, not vp itself (vp is now fixed-size)
-    var body = document.getElementById('arc-studio-body');
-    var controls = document.getElementById('arc-studio-controls');
-    if (!body) return;
-    var bodyW = body.clientWidth || 400;
-    var bodyH = body.clientHeight || 320;
-    var ctrlW = controls ? (controls.offsetWidth || 220) : 220;
-    var w = Math.max(bodyW - ctrlW, 200);
-    var h = Math.max(bodyH, 200);
-    _as.camera.aspect = w / h;
-    _as.camera.updateProjectionMatrix();
-    _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    _as.renderer.setSize(w, h);
-    // Keep vp div exactly sized to canvas — prevents getBoundingClientRect mismatch
-    vp.style.width  = w + 'px';
-    vp.style.height = h + 'px';
-  }
-
-  function _asInit() {
-    if (_as.initialized) return;
-    if (typeof THREE === 'undefined') { console.warn('[ArcStudio] THREE not loaded'); return; }
-
-    var vp = document.getElementById('arc-studio-viewport');
-    if (!vp) return;
-
-    // Measure after flex layout settles — retry if viewport not sized yet
-    var w = vp.clientWidth;
-    var h = vp.clientHeight;
-    if (w < 10 || h < 10) { requestAnimationFrame(_asInit); return; }
-
-    // ── Scene + camera ─────────────────────────────────────────────
-    _as.scene  = new THREE.Scene();
-    _as.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
-    _as.camera.position.set(5, 5, 15);
-    _as.camera.lookAt(0, 0, 0);
-
-    // ── Renderer — append domElement to viewport div (original pattern) ─
-    _as.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    _as.renderer.setClearColor(0x0a0f14, 1.0);
-    _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    _as.renderer.setSize(w, h);
-    // Critical: do NOT CSS-stretch the canvas — let the renderer own exact pixel size.
-    // CSS width/height = 100% causes coordinate mismatch on hi-DPI screens → stair-stepping.
-    _as.renderer.domElement.style.display = 'block';
-    // touch-action:none tells the browser to hand ALL touch events to JS (no scroll hijack)
-    _as.renderer.domElement.style.touchAction = 'none';
-    // Make the viewport div exactly match the canvas so getBoundingClientRect() is accurate
-    vp.style.width  = w + 'px';
-    vp.style.height = h + 'px';
-    // Replace any existing canvas child, then append renderer's canvas
-    var oldCv = document.getElementById('arc-studio-canvas');
-    if (oldCv) oldCv.style.display = 'none'; // hide placeholder
-    vp.appendChild(_as.renderer.domElement);
-
-    // ── Lights + helpers ───────────────────────────────────────────
-    _as.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    var dl = new THREE.DirectionalLight(0xffffff, 0.85);
-    dl.position.set(5, 10, 7.5); _as.scene.add(dl);
-    _as.scene.add(new THREE.GridHelper(30, 30, 0x336677, 0x223344));
-    _as.scene.add(new THREE.AxesHelper(5));
-
-    // ── OrbitControls — attached to renderer.domElement (original pattern) ──
-    // NO damping, full pan/zoom/rotate
-    if (typeof THREE.OrbitControls !== 'undefined') {
-      _as.controls = new THREE.OrbitControls(_as.camera, _as.renderer.domElement);
-      _as.controls.enableDamping      = true;
-      _as.controls.enablePan          = true;
-      _as.controls.enableZoom         = true;
-      _as.controls.rotateSpeed        = 0.55;
-      _as.controls.zoomSpeed          = 1.1;
-      _as.controls.panSpeed           = 0.8;
-      _as.controls.minDistance        = 1;
-      _as.controls.maxDistance        = 80;
-      _as.controls.screenSpacePanning = true;
-    }
-
-    // ── Raycaster for arc selection ────────────────────────────────
-    _as.raycaster = new THREE.Raycaster();
-    _as.raycaster.params.Line = { threshold: 0.25 };
-    _as.pointer   = new THREE.Vector2();
-
-    var domEl = _as.renderer.domElement;
-
-    // ── Isolate canvas events from page scroll + overlay drag handler ──
-    // Without this the page's touchmove and the header drag both receive the
-    // same pointer events as OrbitControls, causing the stair-stepping jitter.
-    ['pointerdown','pointermove','pointerup',
-     'touchstart','touchmove','touchend',
-     'mousedown','mousemove','mouseup','wheel'].forEach(function(evt) {
-      domEl.addEventListener(evt, function(e) { e.stopPropagation(); }, {passive: false});
-    });
-
-    function _asPick(e) {
-      // Don't pick if OrbitControls just dragged
-      if (_as._didDrag) { _as._didDrag = false; return; }
-      var rect = domEl.getBoundingClientRect();
-      var cx = (e.touches ? e.touches[0].clientX : e.clientX);
-      var cy = (e.touches ? e.touches[0].clientY : e.clientY);
-      _as.pointer.x =  ((cx - rect.left) / rect.width)  * 2 - 1;
-      _as.pointer.y = -((cy - rect.top)  / rect.height) * 2 + 1;
-      _as.raycaster.setFromCamera(_as.pointer, _as.camera);
-      var lineObjs = _as.arcs.map(function(a){ return a.line; });
-      var hits = _as.raycaster.intersectObjects(lineObjs, false);
-      if (hits.length > 0) {
-        var hitLine = hits[0].object;
-        var idx = _as.arcs.findIndex(function(a){ return a.line === hitLine; });
-        if (idx >= 0) {
-          if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
-            _as.arcs[_as.selectedArc].line.material.color.setHex(0x00ff88);
-          }
-          _as.selectedArc = idx;
-          _as.arcs[idx].line.material.color.setHex(0xff1166);
-          var ap = _as.arcs[idx].params;
-          var pts2 = _asCalcPoints(ap);
-          var len2 = 0;
-          for (var pi=1; pi<pts2.length; pi++) len2 += pts2[pi-1].distanceTo(pts2[pi]);
-          var rd = document.getElementById('arc-studio-readout');
-          if (rd) rd.innerHTML =
-            'SELECTED: Arc '+(idx+1)+'<br>---'
-            +'<br>X:'+ap.x+' Y:'+ap.y+' Z:'+ap.z
-            +'<br>Dev: '+ap.mainDev
-            +'<br>Curve: '+ap.curveInd
-            +'<br>DevInd: '+ap.devInd
-            +'<br>Res: '+ap.resolution
-            +'<br>---'
-            +'<br>Length (Arc Edge=3): '+len2.toFixed(5)
-            +'<br>Points: '+pts2.length;
-          if (typeof ideToast==='function') ideToast('Arc '+(idx+1)+' selected — length: '+len2.toFixed(4), 2200);
-          e.stopPropagation();
-        }
-      } else {
-        if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
-          _as.arcs[_as.selectedArc].line.material.color.setHex(0x00ff88);
-          _as.selectedArc = null;
-          _asUpdateReadout();
-        }
-      }
-    }
-
-    // Use pointerdown for selection (matches original); track drag flag so
-    // OrbitControls drags don't accidentally trigger arc selection
-    domEl.addEventListener('pointerdown', function(e){ _as._didDrag = false; _as._pointerDownPos = {x:e.clientX,y:e.clientY}; }, false);
-    domEl.addEventListener('pointermove', function(e){
-      if (_as._pointerDownPos) {
-        var dx = e.clientX - _as._pointerDownPos.x, dy = e.clientY - _as._pointerDownPos.y;
-        if (Math.sqrt(dx*dx+dy*dy) > 4) _as._didDrag = true;
-      }
-    }, false);
-    domEl.addEventListener('pointerup',   _asPick, false);
-    // Touch fallback
-    domEl.addEventListener('touchstart',  function(){ _as._didDrag=false; }, {passive:true});
-    // non-passive so OrbitControls can preventDefault on two-finger pan
-    domEl.addEventListener('touchmove', function(e){
-      _as._didDrag=true;
-      if(e.touches.length >= 2) e.preventDefault(); // allow two-finger pan without page scroll
-    }, {passive:false});
-    domEl.addEventListener('touchend', function(e){ _asPick(e); }, false);
-
-    window.addEventListener('resize', _asResize);
-
-    _as.initialized = true;
-    _asAnimate();
-    _asUpdateReadout();
-  }
-
-  // Animate loop — self-terminates when overlay is hidden (original pattern)
-  function _asAnimate() {
-    if (!_as.initialized || !_asIsVisible()) return;
-    requestAnimationFrame(_asAnimate);
-    if (_as.controls) _as.controls.update();
-    _as.renderer.render(_as.scene, _as.camera);
-  }
-
-  function _asGetParams() {
-    var g = function(id){ return parseFloat(document.getElementById(id)&&document.getElementById(id).value||0)||0; };
-    return {
-      x:g('as-dev-x'), y:g('as-dev-y'), z:g('as-dev-z'),
-      mainDev:g('as-main-dev'), curveInd:g('as-curve-ind'),
-      subX:g('as-sub-x'), subY:g('as-sub-y'), subZ:g('as-sub-z'),
-      devInd:g('as-dev-ind'), resolution:Math.max(4,Math.min(256,parseInt(document.getElementById('as-resolution')&&document.getElementById('as-resolution').value)||32)),
-      devCount:Math.max(1,Math.min(12,parseInt(document.getElementById('as-dev-count')&&document.getElementById('as-dev-count').value)||1))
-    };
-  }
-
-  function _asCalcPoints(p) { return _asCalcPointsWithPhase(p, 0, 1); }
-
-  function _asCalcPointsWithPhase(p, phaseOffset, scaleFactor) {
-    var pts = [];
-    var phase = phaseOffset || 0;
-    var scale = scaleFactor || 1;
-    for (var i=0; i<=p.resolution; i++) {
-      var t = i/p.resolution;
-      var px = t*p.x, py = t*p.y, pz = t*p.z;
-      // Curve induction (Arc Edge = 3)
-      px += Math.sin(t*3*3 + phase)*p.curveInd*p.subX;
-      py += Math.sin(t*5*3 + phase)*p.curveInd*p.subY;
-      pz += Math.sin(t*7*3 + phase)*p.curveInd*p.subZ;
-      // Main deviation
-      var dir = new THREE.Vector3(p.x,p.y,p.z).normalize();
-      var up  = Math.abs(dir.y)>0.95 ? new THREE.Vector3(1,0,0) : new THREE.Vector3(0,1,0);
-      var perp = new THREE.Vector3().crossVectors(dir,up).normalize();
-      var dev = perp.clone().multiplyScalar(Math.sin(t*3 + phase)*p.mainDev*scale);
-      px+=dev.x; py+=dev.y; pz+=dev.z;
-      var dv2 = perp.clone().multiplyScalar(Math.sin(t*4*3+1 + phase)*p.devInd*scale);
-      px+=dv2.x; py+=dv2.y; pz+=dv2.z;
-      pts.push(new THREE.Vector3(px,py,pz));
-    }
-    return pts;
-  }
-
-  // ── Set params from external source (Autumn voice commands) ──────
-  window.arcStudioSetParams = function(p) {
-    function _sv(id, v){ var el=document.getElementById(id); if(el&&v!==undefined&&v!==null) el.value=v; }
-    _sv('as-dev-x',   p.x);    _sv('as-dev-y',  p.y);   _sv('as-dev-z', p.z);
-    _sv('as-main-dev',p.mainDev); _sv('as-curve-ind',p.curveInd);
-    _sv('as-sub-x',  p.subX);  _sv('as-sub-y', p.subY); _sv('as-sub-z', p.subZ);
-    _sv('as-dev-ind', p.devInd);
-    if (p.resolution) _sv('as-resolution', p.resolution);
-    if (p.devCount)   _sv('as-dev-count',  p.devCount);
-    _asUpdateReadout();
-  };
-
-  window.arcStudioAddArc = function(overrideParams) {
-    if (!_as.initialized) _asInit();
-    if (!_as.initialized) return;
-    var p = overrideParams || _asGetParams();
-    var devCount = Math.max(1, Math.min(12, p.devCount || 1));
-    var arcColors = [0x00ff88,0x00ccff,0xff6644,0xffcc00,0xaa44ff,0xff44aa,0x44ffcc,0xff8800,0x88ff00,0x0088ff,0xff0088,0xffff44];
-    var addedLines = [];
-
-    for (var d = 0; d < devCount; d++) {
-      // Each deviation curve gets a phase offset so they fan out distinctly
-      var phaseOffset = (d / devCount) * Math.PI * 2;
-      var scaleFactor = 1 + d * 0.18; // subtle spread
-      var pts = _asCalcPointsWithPhase(p, phaseOffset, scaleFactor);
-      var geo = new THREE.BufferGeometry().setFromPoints(pts);
-      var col = arcColors[(_as.arcs.length + d) % arcColors.length];
-      var mat = new THREE.LineBasicMaterial({color: col, linewidth: 2});
-      var line = new THREE.Line(geo, mat);
-      _as.scene.add(line);
-      var len = 0;
-      for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
-      _as.arcs.push({line: line, params: p, length: len, devIndex: d});
-      addedLines.push(len);
-    }
-
-    _asUpdateReadout();
-    var rd = document.getElementById('arc-studio-readout');
-    var totalLen = addedLines.reduce(function(a,b){return a+b;},0);
-    if (rd) rd.innerHTML = (devCount>1 ? devCount+' curves' : 'Arc '+_as.arcs.length)+' added'
-      +'<br>Length (AE=3): '+(devCount>1 ? 'total '+totalLen.toFixed(4) : addedLines[0].toFixed(5))
-      +'<br>Total arcs: '+_as.arcs.length
-      +'<br>---<br>Click arc to select';
-    if (typeof ideToast==='function') ideToast(
-      (devCount>1 ? devCount+' deviation curves' : 'Arc '+_as.arcs.length)+' added', 2000);
-  };
-
-  window.arcStudioUpdate = arcStudioUpdate;
-  function arcStudioUpdate() {
-    // Live update readout without adding arc
-    _asUpdateReadout();
-  }
-
-  window.arcStudioMeasure = function() {
-    var p = _asGetParams();
-    var pts = _asCalcPoints(p);
-    var len = 0;
-    for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
-    var rd = document.getElementById('arc-studio-readout');
-    if (rd) rd.innerHTML = 'Arc Length (Arc Edge=3): ' + len.toFixed(4) + '<br>Points: ' + pts.length + '<br>X:'+p.x+' Y:'+p.y+' Z:'+p.z+'<br>Dev: '+p.mainDev+'<br>Res: '+p.resolution;
-  };
-
-  function _asUpdateReadout() {
-    var p = _asGetParams();
-    var rd = document.getElementById('arc-studio-readout');
-    if (!rd) return;
-    rd.innerHTML = 'X: '+p.x+' Y: '+p.y+' Z: '+p.z
-      +'<br>Dev: '+p.mainDev
-      +'<br>Curve Ind: '+p.curveInd
-      +'<br>Dev Ind: '+p.devInd
-      +'<br>Res: '+p.resolution
-      +'<br>Curves: '+p.devCount
-      +'<br>---<br>Arcs: '+_as.arcs.length
-      +'<br>Selected: '+(_as.selectedArc!==null?'Arc '+(_as.selectedArc+1):'None');
-  }
-
-  window.arcStudioClearInputs = function() {
-    ['as-dev-x','as-dev-y','as-dev-z','as-main-dev','as-curve-ind','as-sub-x','as-sub-y','as-sub-z','as-dev-ind'].forEach(function(id){
-      var el=document.getElementById(id); if(el) el.value='0';
-    });
-    var resEl=document.getElementById('as-resolution'); if(resEl) resEl.value='32';
-    var dcEl=document.getElementById('as-dev-count'); if(dcEl) dcEl.value='1';
-    _asUpdateReadout();
-  };
-
-  window.arcStudioClearScene = function() {
-    _as.arcs.forEach(function(a){
-      _as.scene.remove(a.line);
-      if (a.line.geometry) a.line.geometry.dispose();
-      if (a.line.material) a.line.material.dispose();
-    });
-    _as.arcs = []; _as.selectedArc = null;
-    _asUpdateReadout();
-    if (typeof ideToast==='function') ideToast('Scene cleared', 1600);
-  };
-
-  // ── EXPORT SCENE ──────────────────────────────────────────────
-  // ═══════════════════════════════════════════════════════════════════
-  //  ARC EDGE STUDIO — EXPORT ENGINE  (self-contained, no deps needed)
-  //  Select format in dropdown → hit ⬇ EXPORT → immediate download.
-  //  All arcs → 8-sided tube meshes, vertex colours baked in.
-  // ═══════════════════════════════════════════════════════════════════
-
-  // ── Tube mesh builder ────────────────────────────────────────────
-  function _asBuildTube(pts, r, segs) {
-    r = r || 0.055; segs = segs || 8;
-    var pos=[], nrm=[], col=[], idx=[], vi=0;
-    var cr=_asBuildTube._cr||0, cg=_asBuildTube._cg||1, cb=_asBuildTube._cb||0.533;
-    for (var pi=0; pi<pts.length-1; pi++) {
-      var A=pts[pi], B=pts[pi+1];
-      var dx=B.x-A.x, dy=B.y-A.y, dz=B.z-A.z;
-      var dl=Math.sqrt(dx*dx+dy*dy+dz*dz)||1e-9; dx/=dl;dy/=dl;dz/=dl;
-      var ux=0,uy=1,uz=0; if(Math.abs(dy)>0.92){ux=1;uy=0;uz=0;}
-      var rx=dy*uz-dz*uy, ry=dz*ux-dx*uz, rz=dx*uy-dy*ux;
-      var rl=Math.sqrt(rx*rx+ry*ry+rz*rz)||1; rx/=rl;ry/=rl;rz/=rl;
-      var u2x=ry*dz-rz*dy, u2y=rz*dx-rx*dz, u2z=rx*dy-ry*dx;
-      for (var si=0; si<2; si++) {
-        var px2=(si?B.x:A.x), py2=(si?B.y:A.y), pz2=(si?B.z:A.z);
-        for (var s=0; s<segs; s++) {
-          var a=s/segs*Math.PI*2, c2=Math.cos(a), s2=Math.sin(a);
-          var nx=rx*c2+u2x*s2, ny=ry*c2+u2y*s2, nz=rz*c2+u2z*s2;
-          pos.push(px2+nx*r, py2+ny*r, pz2+nz*r);
-          nrm.push(nx, ny, nz);
-          col.push(cr, cg, cb);
-        }
-      }
-      var base=vi;
-      for (var s=0; s<segs; s++) {
-        var s1=(s+1)%segs;
-        idx.push(base+s, base+segs+s, base+segs+s1, base+s, base+segs+s1, base+s1);
-      }
-      vi += segs*2;
-    }
-    return { pos:new Float32Array(pos), nrm:new Float32Array(nrm),
-             col:new Float32Array(col), idx:new Uint32Array(idx), vc:vi };
-  }
-
-  // ── Collect meshes from all arcs — capture real display color ────
-  function _asGetMeshes() {
-    var out=[];
-    _as.arcs.forEach(function(arc,ai){
-      var pts=_asCalcPoints(arc.params);
-      if(pts.length<2) return;
-      // Read the actual Three.js material color so the GLB matches what's on screen
-      var cr=0, cg=1, cb=0.533;
-      if(arc.line && arc.line.material && arc.line.material.color){
-        cr=arc.line.material.color.r;
-        cg=arc.line.material.color.g;
-        cb=arc.line.material.color.b;
-      }
-      _asBuildTube._cr=cr; _asBuildTube._cg=cg; _asBuildTube._cb=cb;
-      out.push({tube:_asBuildTube(pts), ai:ai+1, params:arc.params,
-                len:arc.length||0, cr:cr, cg:cg, cb:cb});
-    });
-    return out;
-  }
-
-  // ── Safe download ────────────────────────────────────────────────
-  function _asDL(blob, name) {
-    try {
-      var url=URL.createObjectURL(blob);
-      var a=document.createElement('a');
-      a.href=url; a.download=name; a.style.display='none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1500);
-    } catch(e) {
-      console.error('[ArcExport _asDL]', e);
-      if(typeof ideToast==='function') ideToast('Download error: '+e.message, 3000);
-    }
-  }
-
-  // ── Safe base64 encode (handles large buffers) ───────────────────
-  function _asBase64(arrayBuffer) {
-    var bytes=new Uint8Array(arrayBuffer), s='', CHUNK=0x8000;
-    for(var i=0;i<bytes.length;i+=CHUNK)
-      s+=String.fromCharCode.apply(null, bytes.subarray(i,i+CHUNK));
-    return btoa(s);
-  }
-
-  function _pad4(n){return n+(4-n%4)%4;}
-
-  // ── GLB / GLTF binary writer ──────────────────────────────────────
-  // One node + mesh + material per arc — preserves per-arc colors and
-  // gives Nomad Sculpt (and any other DCC) separate named objects.
-  function _asWriteGLB(meshes, asBinary) {
-    // ── 1. Build one flat binary buffer containing every arc's geometry ──
-    // Layout per arc: [positions VEC3][normals VEC3][colors VEC4][indices]
-    // We record byte offsets so each arc gets its own bufferViews.
-
-    var arcLayouts = [];  // {offPos, szPos, offNrm, szNrm, offCol, szCol, offIdx, szIdx, vc, tc}
-    var totalBytes = 0;
-
-    meshes.forEach(function(m) {
-      var t = m.tube;
-      var vc = t.vc;
-      var ic = t.idx.length;
-      var useU16 = vc < 65536;
-      var idxBPE = useU16 ? 2 : 4;
-
-      var szPos = vc * 3 * 4;
-      var szNrm = vc * 3 * 4;
-      var szCol = vc * 4 * 4;   // VEC4 float
-      var szIdx = _pad4(ic * idxBPE);
-
-      var offPos = totalBytes;
-      var offNrm = offPos + szPos;
-      var offCol = offNrm + szNrm;
-      var offIdx = offCol + szCol;
-      totalBytes = offIdx + szIdx;
-
-      arcLayouts.push({offPos,szPos,offNrm,szNrm,offCol,szCol,offIdx,szIdx,vc,ic,useU16,idxBPE});
-    });
-
-    var binBuf = new ArrayBuffer(totalBytes);
-    var dv = new DataView(binBuf);
-
-    meshes.forEach(function(m, mi) {
-      var t = m.tube;
-      var L = arcLayouts[mi];
-
-      // positions
-      t.pos.forEach(function(v,i){ dv.setFloat32(L.offPos + i*4, v, true); });
-      // normals
-      t.nrm.forEach(function(v,i){ dv.setFloat32(L.offNrm + i*4, v, true); });
-      // colors VEC4 (expand VEC3 → VEC4, alpha=1)
-      // t.col is Float32Array of [r,g,b, r,g,b, ...] length = vc*3
-      for(var vi=0; vi<L.vc; vi++){
-        dv.setFloat32(L.offCol + vi*16,      t.col[vi*3],   true);
-        dv.setFloat32(L.offCol + vi*16 + 4,  t.col[vi*3+1], true);
-        dv.setFloat32(L.offCol + vi*16 + 8,  t.col[vi*3+2], true);
-        dv.setFloat32(L.offCol + vi*16 + 12, 1.0,           true);
-      }
-      // indices
-      t.idx.forEach(function(v,i){
-        L.useU16 ? dv.setUint16(L.offIdx+i*2, v, true)
-                 : dv.setUint32(L.offIdx+i*4, v, true);
-      });
-    });
-
-    // ── 2. Build GLTF JSON ──────────────────────────────────────────
-    var gltf = {
-      asset: { version:'2.0', generator:'Autumn Arc Edge Studio - DART Meadow' },
-      scene: 0,
-      scenes:    [{ name:'ArcEdge', nodes: meshes.map(function(_,i){ return i; }) }],
-      nodes:     [],
-      meshes:    [],
-      materials: [],
-      accessors: [],
-      bufferViews: [],
-      buffers: [{ byteLength: totalBytes }]
-    };
-
-    meshes.forEach(function(m, mi) {
-      var L    = arcLayouts[mi];
-      var bvBase = mi * 4;  // 4 bufferViews per arc
-      var accBase = mi * 4;
-      var idxCT = L.useU16 ? 5123 : 5125;
-
-      // min/max for POSITION accessor (required by spec)
-      var mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9];
-      var pos = m.tube.pos;
-      for(var i=0;i<pos.length;i+=3){
-        mn[0]=Math.min(mn[0],pos[i]);   mx[0]=Math.max(mx[0],pos[i]);
-        mn[1]=Math.min(mn[1],pos[i+1]); mx[1]=Math.max(mx[1],pos[i+1]);
-        mn[2]=Math.min(mn[2],pos[i+2]); mx[2]=Math.max(mx[2],pos[i+2]);
-      }
-
-      // Convert linear RGB to sRGB approximation for material baseColorFactor
-      // (most DCCs including Nomad apply gamma, so store in linear for accuracy)
-      var r=m.cr, g=m.cg, b=m.cb;
-
-      gltf.nodes.push({
-        name: 'Arc_' + mi,
-        mesh: mi
-      });
-      gltf.meshes.push({
-        name: 'Arc_' + mi,
-        primitives: [{
-          attributes: { POSITION: accBase, NORMAL: accBase+1, COLOR_0: accBase+2 },
-          indices:    accBase+3,
-          material:   mi,
-          mode:       4  // TRIANGLES
-        }]
-      });
-      gltf.materials.push({
-        name: 'ArcMat_' + mi,
-        pbrMetallicRoughness: {
-          baseColorFactor: [r, g, b, 1.0],
-          metallicFactor:  0.0,
-          roughnessFactor: 0.5
-        },
-        doubleSided: true
-      });
-
-      // 4 bufferViews: pos, nrm, col, idx
-      gltf.bufferViews.push(
-        { buffer:0, byteOffset:L.offPos, byteLength:L.szPos, target:34962 },
-        { buffer:0, byteOffset:L.offNrm, byteLength:L.szNrm, target:34962 },
-        { buffer:0, byteOffset:L.offCol, byteLength:L.szCol, target:34962 },
-        { buffer:0, byteOffset:L.offIdx, byteLength:L.ic*L.idxBPE, target:34963 }
-      );
-
-      // 4 accessors: pos VEC3, nrm VEC3, col VEC4, idx SCALAR
-      gltf.accessors.push(
-        { bufferView:bvBase,   byteOffset:0, componentType:5126, count:L.vc, type:'VEC3', min:mn, max:mx },
-        { bufferView:bvBase+1, byteOffset:0, componentType:5126, count:L.vc, type:'VEC3' },
-        { bufferView:bvBase+2, byteOffset:0, componentType:5126, count:L.vc, type:'VEC4' },
-        { bufferView:bvBase+3, byteOffset:0, componentType:idxCT, count:L.ic, type:'SCALAR' }
-      );
-    });
-
-    if (!asBinary) {
-      // GLTF: embed binary as base64 data URI
-      gltf.buffers[0].uri = 'data:application/octet-stream;base64,' + _asBase64(binBuf);
-      return new Blob([JSON.stringify(gltf,null,2)], {type:'model/gltf+json'});
-    }
-
-    // ── 3. Pack GLB: header + JSON chunk + BIN chunk ────────────────
-    // JSON chunk MUST be padded to 4-byte boundary by UTF-8 byte count
-    var jBytes = new TextEncoder().encode(JSON.stringify(gltf));
-    var rem = jBytes.length % 4;
-    if (rem) {
-      var padded = new Uint8Array(jBytes.length + (4 - rem));
-      padded.set(jBytes);
-      padded.fill(0x20, jBytes.length);  // pad with spaces per spec
-      jBytes = padded;
-    }
-
-    var total = 12 + 8 + jBytes.length + 8 + totalBytes;
-    var glb = new ArrayBuffer(total), gv = new DataView(glb), go = 0;
-    gv.setUint32(go, 0x46546C67, true); go+=4;  // magic 'glTF'
-    gv.setUint32(go, 2,          true); go+=4;  // version
-    gv.setUint32(go, total,      true); go+=4;  // file length
-    gv.setUint32(go, jBytes.length, true);   go+=4;
-    gv.setUint32(go, 0x4E4F534A, true);      go+=4;  // JSON
-    new Uint8Array(glb, go, jBytes.length).set(jBytes); go += jBytes.length;
-    gv.setUint32(go, totalBytes,    true);   go+=4;
-    gv.setUint32(go, 0x004E4942, true);      go+=4;  // BIN\0
-    new Uint8Array(glb, go, totalBytes).set(new Uint8Array(binBuf));
-    return new Blob([glb], {type:'model/gltf-binary'});
-  }
-
-  // ── OBJ ─────────────────────────────────────────────────────────
-  function _asWriteOBJ(meshes) {
-    var L=['# Arc Edge Studio — DART Meadow','# DART arc (pi=3)','mtllib arc-edge-scene.mtl',''];
-    var vO=1,vnO=1;
-    meshes.forEach(function(m){
-      var t=m.tube,vc=t.vc;
-      L.push('o Arc_'+m.ai,'usemtl arc_'+m.ai);
-      for(var i=0;i<vc;i++) L.push('v '+t.pos[i*3].toFixed(5)+' '+t.pos[i*3+1].toFixed(5)+' '+t.pos[i*3+2].toFixed(5));
-      for(var i=0;i<vc;i++) L.push('vn '+t.nrm[i*3].toFixed(5)+' '+t.nrm[i*3+1].toFixed(5)+' '+t.nrm[i*3+2].toFixed(5));
-      for(var i=0;i<t.idx.length;i+=3){
-        var a=t.idx[i]+vO,b=t.idx[i+1]+vO,cc=t.idx[i+2]+vO;
-        L.push('f '+a+'//'+(a-vO+vnO)+' '+b+'//'+(b-vO+vnO)+' '+cc+'//'+(cc-vO+vnO));
-      }
-      vO+=vc;vnO+=vc;
-    });
-    return new Blob([L.join('\n')],{type:'text/plain'});
-  }
-
-  // ── STL binary ───────────────────────────────────────────────────
-  function _asWriteSTL(meshes) {
-    var tc=0; meshes.forEach(function(m){tc+=m.tube.idx.length/3;});
-    var buf=new ArrayBuffer(84+tc*50), dv=new DataView(buf);
-    var hdr='Arc Edge Studio DART Meadow';
-    for(var i=0;i<80;i++) dv.setUint8(i,i<hdr.length?hdr.charCodeAt(i):0);
-    dv.setUint32(80,tc,true); var off=84;
-    meshes.forEach(function(m){
-      var t=m.tube;
-      for(var i=0;i<t.idx.length;i+=3){
-        var ai=t.idx[i]*3,bi=t.idx[i+1]*3,ci=t.idx[i+2]*3;
-        var nx=(t.nrm[ai]+t.nrm[bi]+t.nrm[ci])/3;
-        var ny=(t.nrm[ai+1]+t.nrm[bi+1]+t.nrm[ci+1])/3;
-        var nz=(t.nrm[ai+2]+t.nrm[bi+2]+t.nrm[ci+2])/3;
-        dv.setFloat32(off,nx,true);dv.setFloat32(off+4,ny,true);dv.setFloat32(off+8,nz,true);off+=12;
-        [ai,bi,ci].forEach(function(ii){dv.setFloat32(off,t.pos[ii],true);dv.setFloat32(off+4,t.pos[ii+1],true);dv.setFloat32(off+8,t.pos[ii+2],true);off+=12;});
-        dv.setUint16(off,0,true);off+=2;
-      }
-    });
-    return new Blob([buf],{type:'model/stl'});
-  }
-
-  // ── FBX ASCII ────────────────────────────────────────────────────
-  function _asWriteFBX(meshes) {
-    var L=['; FBX ASCII — Arc Edge Studio — DART Meadow',
-      'FBXHeaderExtension:  {  FBXHeaderVersion: 1003  FBXVersion: 7400  Creator: "Autumn" }',
-      'Objects:  {'];
-    meshes.forEach(function(m,mi){
-      var t=m.tube,id=1000+mi;
-      L.push('  Geometry: '+id+', "Geometry::Arc_'+m.ai+'", "Mesh" {');
-      var vv=[]; for(var i=0;i<t.vc;i++) vv.push(t.pos[i*3].toFixed(4),t.pos[i*3+1].toFixed(4),t.pos[i*3+2].toFixed(4));
-      L.push('    Vertices: *'+vv.length+' { a: '+vv.join(',')+' }');
-      var ii=Array.from(t.idx).map(function(v,i){return(i%3===2)?-(v+1):v;});
-      L.push('    PolygonVertexIndex: *'+t.idx.length+' { a: '+ii.join(',')+' }  GeometryVersion: 124  }');
-    });
-    L.push('}');
-    return new Blob([L.join('\n')],{type:'text/plain'});
-  }
-
-  // ── DAE Collada ──────────────────────────────────────────────────
-  function _asWriteDAE(meshes) {
-    var now=new Date().toISOString();
-    var L=['<?xml version="1.0" encoding="utf-8"?>',
-      '<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">',
-      '<asset><created>'+now+'</created><generator>Autumn Arc Edge Studio</generator></asset>',
-      '<library_geometries>'];
-    meshes.forEach(function(m){
-      var t=m.tube,gid='geo'+m.ai;
-      var pv=[],nv=[],fv=[];
-      for(var i=0;i<t.vc;i++){pv.push(t.pos[i*3].toFixed(4),t.pos[i*3+1].toFixed(4),t.pos[i*3+2].toFixed(4));}
-      for(var i=0;i<t.vc;i++){nv.push(t.nrm[i*3].toFixed(4),t.nrm[i*3+1].toFixed(4),t.nrm[i*3+2].toFixed(4));}
-      for(var i=0;i<t.idx.length;i+=3) fv.push(t.idx[i]+' '+t.idx[i]+' '+t.idx[i+1]+' '+t.idx[i+1]+' '+t.idx[i+2]+' '+t.idx[i+2]);
-      L.push('<geometry id="'+gid+'" name="Arc_'+m.ai+'"><mesh>',
-        '<source id="'+gid+'p"><float_array id="'+gid+'pa" count="'+pv.length+'">'+pv.join(' ')+'</float_array>',
-        '<technique_common><accessor source="#'+gid+'pa" count="'+t.vc+'" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
-        '<source id="'+gid+'n"><float_array id="'+gid+'na" count="'+nv.length+'">'+nv.join(' ')+'</float_array>',
-        '<technique_common><accessor source="#'+gid+'na" count="'+t.vc+'" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
-        '<vertices id="'+gid+'v"><input semantic="POSITION" source="#'+gid+'p"/></vertices>',
-        '<triangles count="'+(t.idx.length/3)+'"><input semantic="VERTEX" source="#'+gid+'v" offset="0"/><input semantic="NORMAL" source="#'+gid+'n" offset="1"/>',
-        '<p>'+fv.join(' ')+'</p></triangles></mesh></geometry>');
-    });
-    L.push('</library_geometries><library_visual_scenes><visual_scene id="S" name="S">');
-    meshes.forEach(function(m){L.push('<node id="A'+m.ai+'" name="Arc_'+m.ai+'"><instance_geometry url="#geo'+m.ai+'"/></node>');});
-    L.push('</visual_scene></library_visual_scenes><scene><instance_visual_scene url="#S"/></scene></COLLADA>');
-    return new Blob([L.join('\n')],{type:'text/xml'});
-  }
-
-  // ── Main export — called directly by the ⬇ EXPORT button ─────────
-  window.arcStudioExport = function(fmt) {
-    // Close any stale modal just in case
-    var em=document.getElementById('as-export-modal'); if(em) em.remove();
-    fmt=(fmt||'glb').toLowerCase().trim();
-    if(!_as.arcs || !_as.arcs.length){
-      if(typeof ideToast==='function') ideToast('Add at least one arc first', 2000);
-      return;
-    }
-    var meshes=_asGetMeshes();
-    if(!meshes.length){ if(typeof ideToast==='function') ideToast('No valid arcs to export',2000); return; }
-    var n=_as.arcs.length, toast=function(m){if(typeof ideToast==='function') ideToast(m,2500);};
-    try{
-      if(fmt==='glb'){   _asDL(_asWriteGLB(meshes,true),  'arc-edge-scene.glb');  toast('GLB downloaded — '+n+' arc mesh'+(n>1?'es':'')); }
-      else if(fmt==='gltf'){ _asDL(_asWriteGLB(meshes,false),'arc-edge-scene.gltf'); toast('GLTF downloaded — '+n+' arc mesh'+(n>1?'es':'')); }
-      else if(fmt==='obj'){ _asDL(_asWriteOBJ(meshes),'arc-edge-scene.obj'); toast('OBJ downloaded'); }
-      else if(fmt==='stl'){ _asDL(_asWriteSTL(meshes),'arc-edge-scene.stl'); toast('STL downloaded'); }
-      else if(fmt==='fbx'){ _asDL(_asWriteFBX(meshes),'arc-edge-scene.fbx'); toast('FBX ASCII downloaded'); }
-      else if(fmt==='dae'){ _asDL(_asWriteDAE(meshes),'arc-edge-scene.dae'); toast('DAE downloaded'); }
-      else if(fmt==='json'){
-        var data=_as.arcs.map(function(a,i){return{index:i+1,params:a.params,length:a.length||0,color:'#00ff88',selectedColor:'#ff1166'};});
-        _asDL(new Blob([JSON.stringify({autumnArcEdge:true,version:'1.0',arcs:data},null,2)],{type:'application/json'}),'arc-edge-scene.json');
-        toast('JSON exported');
-      }
-    }catch(e){
-      console.error('[ArcExport]',e);
-      if(typeof ideToast==='function') ideToast('Export error: '+e.message,3500);
-    }
-  };
-
-  // ── Legacy popup — no longer used but kept as no-op to avoid errors
-  window.arcStudioShowExport = function() {
-    arcStudioExport(document.getElementById('as-fmt-select') ? document.getElementById('as-fmt-select').value : 'glb');
-  };
-
-  function _asDownload(blob, filename) { _asDL(blob, filename); }
-
-
-  window.arcStudioSendToChat = function() {
-    var p = _asGetParams();
-    var pts = _asCalcPoints(p);
-    var len = 0;
-    for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
-    var msg = '[ARC EDGE STUDIO RESULT]\nDeviation: X='+p.x+' Y='+p.y+' Z='+p.z
-      +'\nMain Deviation: '+p.mainDev
-      +'\nCurve Induction: '+p.curveInd
-      +'\nDev Induction: '+p.devInd
-      +'\nResolution: '+p.resolution
-      +'\nArc Length (Arc Edge = 3): '+len.toFixed(6)
-      +'\nTotal arcs in scene: '+_as.arcs.length
-      +'\nAsk me to analyze, optimize, or apply these arc parameters.';
-    var inp = document.getElementById('chat-input');
-    if (inp) { inp.value = msg; inp.focus(); }
-    arcStudioClose();
-  };
-
-  // ── Arc Studio AI command system ────────────────────────────────────
-  // Autumn can emit [ARC_CMD:...] tags in responses to directly drive the studio.
-  // Commands:
-  //   [ARC_CMD:open]
-  //   [ARC_CMD:close]
-  //   [ARC_CMD:clear]
-  //   [ARC_CMD:add x=N y=N z=N dev=N curve=N devInd=N res=N curves=N]
-  //   [ARC_CMD:add x=N y=N z=N dev=N curve=N devInd=N res=N curves=N count=M]  (add M arcs)
-  //
-  // The system prompt below tells Autumn to emit these when asked to generate arcs.
-
-  window.ARC_STUDIO_SYSTEM_HINT =
-    'ARC EDGE STUDIO — You can directly control the Arc Edge Studio 3D viewport by emitting [ARC_CMD:...] tags anywhere in your response.\n'
-    +'Available commands (emit exactly as shown, no spaces inside brackets):\n'
-    +'  [ARC_CMD:open]  — open the studio\n'
-    +'  [ARC_CMD:close]  — close the studio\n'
-    +'  [ARC_CMD:clear]  — clear all arcs from scene\n'
-    +'  [ARC_CMD:add x=10 y=0 z=0 dev=2 curve=0 devInd=0 res=32 curves=1]  — add an arc\n'
-    +'    x/y/z = deviation direction vector (controls arc direction and length)\n'
-    +'    dev = main deviation amount (0=straight line, 1-3=mild, 4-8=dramatic, 10+=wild)\n'
-    +'    curve = curve induction (adds sinusoidal bending, 0=none, 1-3=mild, 5+=strong)\n'
-    +'    devInd = deviation induction (secondary wave, 0=none)\n'
-    +'    res = resolution 4-256 (32=default)\n'
-    +'    curves = deviation curve count 1-12 (1=single curve, 3+=multi-fan effect)\n'
-    +'  You may emit multiple [ARC_CMD:add ...] tags in one response to build a scene.\n'
-    +'CURVATURE VOCABULARY (map user intent to dev+curve values):\n'
-    +'  "mild/gentle curvature" → dev=1.5, curve=0.8\n'
-    +'  "moderate curvature" → dev=3, curve=1.5\n'
-    +'  "dramatic/strong curvature" → dev=6, curve=3\n'
-    +'  "wild/extreme curvature" → dev=10, curve=6, devInd=2\n'
-    +'  "straight" → dev=0, curve=0\n'
-    +'  "spiral/helix" → curves=4, curve=4, devInd=3\n'
-    +'NEVER use π — this system uses Arc Edge (AE=3). Never mention pi or π.\n'
-    +'When user asks to generate arcs, ALWAYS emit the [ARC_CMD:open] and [ARC_CMD:add ...] commands.\n'
-    +'When user says "generate more" or "add more", emit additional [ARC_CMD:add ...] without clearing.\n'
-    +'When user says "clear scene" or "start over", emit [ARC_CMD:clear] before adding new arcs.';
-
-  // Parse and execute ARC_CMD tags from Autumn's response text
-  window._arcExecCommands = function(text) {
-    if (!text || typeof text !== 'string') return;
-    var cmdRx = /\[ARC_CMD:([^\]]+)\]/g;
-    var m;
-    var didAnything = false;
-    while ((m = cmdRx.exec(text)) !== null) {
-      var raw = m[1].trim();
-      didAnything = true;
-      if (raw === 'open') {
-        setTimeout(function(){ arcStudioOpen(); }, 300);
-      } else if (raw === 'close') {
-        arcStudioClose();
-      } else if (raw === 'clear') {
-        arcStudioClearScene();
-      } else if (raw.indexOf('add') === 0) {
-        (function(cmdStr){
-          var p = {};
-          function _g(k,def){ var rx=new RegExp(k+'=([\\d.\\-]+)'); var mm=cmdStr.match(rx); return mm?parseFloat(mm[1]):def; }
-          p.x=_g('x',10); p.y=_g('y',0); p.z=_g('z',0);
-          p.mainDev=_g('dev',2); p.curveInd=_g('curve',0); p.devInd=_g('devInd',0);
-          p.subX=_g('subX',1); p.subY=_g('subY',1); p.subZ=_g('subZ',0);
-          p.resolution=Math.max(4,Math.min(256,_g('res',32)));
-          p.devCount=Math.max(1,Math.min(12,_g('curves',1)));
-          var count=Math.max(1,Math.min(8,_g('count',1)));
-          setTimeout(function(){
-            if (!_as.initialized) { arcStudioOpen(); setTimeout(function(){ for(var i=0;i<count;i++) arcStudioAddArc(p); },600); }
-            else { arcStudioOpen(); for(var i=0;i<count;i++) arcStudioAddArc(p); }
-          }, 400);
-          // Propagate params to fields so user can see and tweak
-          setTimeout(function(){ arcStudioSetParams(p); }, 500);
-        })(raw);
-      }
-    }
-    return didAnything;
-  };
-
-  // ── Intent detection — open/close via user input + parse Autumn replies ──
-  (function _hookArcStudioIntent() {
-    var _orig = window.handleSend;
-    if (typeof _orig !== 'function') { setTimeout(_hookArcStudioIntent, 600); return; }
-    if (window._arcStudioHooked) return;
-    window._arcStudioHooked = true;
-    var _prev = window.handleSend;
-    window.handleSend = async function() {
-      var inp = document.getElementById('chat-input');
-      var txt = (inp ? inp.value : '').toLowerCase().trim();
-      if (/\b(open|show|launch|start)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
-        setTimeout(arcStudioOpen, 200);
-      }
-      if (/\b(close|hide|shut|exit)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
-        arcStudioClose();
-      }
-      return _prev.apply(this, arguments);
-    };
-
-    // Hook into message rendering to execute ARC_CMD tags from Autumn's responses
-    var _origRender = window.renderMessages;
-    if (typeof _origRender === 'function' && !window._arcRenderHooked) {
-      window._arcRenderHooked = true;
-      window.renderMessages = function() {
-        _origRender.apply(this, arguments);
-        // Scan the latest Autumn message for ARC_CMD tags
-        var allMsgs = (typeof msgs === 'function') ? msgs() : [];
-        for (var i = allMsgs.length - 1; i >= Math.max(0, allMsgs.length - 3); i--) {
-          if (allMsgs[i].role === 'autumn' && allMsgs[i].text && !allMsgs[i]._arcCmdsExecuted) {
-            var hadCmds = window._arcExecCommands(allMsgs[i].text);
-            if (hadCmds) allMsgs[i]._arcCmdsExecuted = true;
-            break;
-          }
-        }
-      };
-    }
-  })();// ═══════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════
-//  FLOATING CALCULATOR
-// ═══════════════════════════════════════════════════════════════════
-(function(){
-  var _fc = {
-    display: '0',
-    history: '',
-    resultShown: false,
-    is3DConnected: false,
-    dragging: false,
-    ox: 0, oy: 0
-  };
-
-  // ── Visibility ─────────────────────────────────────────────────
-  // ═══════════════════════════════════════════════════════════════
-//  N.A.T.E integration — open engine + apply voice from config
-// ═══════════════════════════════════════════════════════════════
-window.openNate = function() {
-  // Open nate.html — pass a session token so it knows we came from Autumn
-  var w = window.open('nate.html', '_nate_engine');
-  if (!w) {
-    // Fallback: same-tab navigate
-    sessionStorage.setItem('_nate_unlocked', '1');
-    window.location.href = 'nate.html';
-  }
-};
-
-// ── Read NATE voice config and apply to Autumn's TTS ────────────
-(function _applyNateVoiceIfActive() {
-  try {
-    var cfg = JSON.parse(localStorage.getItem('_nate_voice_config') || 'null');
-    if (!cfg || !cfg.nateActive || !cfg.params) return;
-    var p = cfg.params;
-    // Apply to Autumn's Voice object
-    if (typeof Voice !== 'undefined') {
-      if (p.speed  !== undefined) Voice.speed  = p.speed;
-      if (p.pitch  !== undefined) Voice.pitch  = p.pitch;
-    }
-    // Store for _speakWebSpeech to read
-    window._nateVoiceParams = p;
-    console.log('[NATE] Voice config applied:', p.pitch, p.speed);
-  } catch(e) {}
-})();
-
-// ── Patch _speakWebSpeech to use NATE params when active ────────
-(function _patchTTSForNate() {
-  var _origWSS = window._speakWebSpeech;
-  if (typeof _origWSS !== 'function') {
-    // Retry after DOM ready
-    window.addEventListener('load', _patchTTSForNate);
-    return;
-  }
-  // NATE patches both Kokoro and WebSpeech TTS paths
-  window._speakKokoro = async function(text, onEnd) {
-    var np = window._nateVoiceParams;
-    var cfg = JSON.parse(localStorage.getItem('_nate_voice_config')||'null');
-    var kokoroVoice = cfg && cfg.kokoroVoice ? cfg.kokoroVoice : null;
-    var pipe = window._kokoroPipe;
-    if (!pipe) { window._speakWebSpeech(text, onEnd); return; }
-    try {
-      Voice.speaking = true; Voice.cancelled = false;
-      var speed = np ? (np.speed || 1.0) : (Voice.speed || 1.0);
-      var opts = { speed: Math.min(2.0, Math.max(0.4, speed)) };
-      if (kokoroVoice) opts.voice = kokoroVoice;
-      var result = await pipe(text, opts);
-      if (Voice.cancelled) { Voice.speaking=false; if(onEnd) onEnd(); return; }
-      var sr = result.sampling_rate || 24000;
-      var pcm = result.audio;
-      // Build WAV blob
-      var wavBuf = _pcmToWav(pcm, sr);
-      // If NATE active, apply post-processing via Web Audio
-      if (np && window._nateAudioCtx) {
-        var actx = window._nateAudioCtx || new AudioContext();
-        var rawBuf = await actx.decodeAudioData(wavBuf.slice(0));
-        var offline = new OfflineAudioContext(1, rawBuf.length, rawBuf.sampleRate);
-        var src = offline.createBufferSource(); src.buffer = rawBuf;
-        src.playbackRate.value = 1.0; // speed already applied by kokoro
-        src.detune.value = ((np.pitch||1.0) - 1.0) * 1200;
-        var wm = offline.createBiquadFilter(); wm.type='lowshelf'; wm.frequency.value=350;
-        wm.gain.value = ((np.warmth||0.5)-0.5)*9;
-        var cl = offline.createBiquadFilter(); cl.type='highshelf'; cl.frequency.value=3500;
-        cl.gain.value = ((np.clarity||0.6)-0.5)*7;
-        src.connect(wm); wm.connect(cl); cl.connect(offline.destination);
-        src.start(0);
-        var processed = await offline.startRendering();
-        var finalPCM = processed.getChannelData(0);
-        wavBuf = _pcmToWav(finalPCM, processed.sampleRate);
-      }
-      var blob = new Blob([wavBuf],{type:'audio/wav'});
-      var url = URL.createObjectURL(blob);
-      var player = new Audio(url);
-      player.onended = function(){ Voice.speaking=false; URL.revokeObjectURL(url); if(onEnd) onEnd(); };
-      player.onerror = function(){ Voice.speaking=false; if(onEnd) onEnd(); };
-      Voice._kokoroPlayer = player; player.play();
-    } catch(e) { console.warn('[NATE+Kokoro]',e); window._speakWebSpeech(text,onEnd); }
-  };
-  window._speakWebSpeech = function(text, onEnd) {
-    var np = window._nateVoiceParams;
-    if (!np) return _origWSS(text, onEnd);
-    var origSpeed = Voice.speed, origPitch = Voice.pitch;
-    Voice.speed = np.speed || 1.0;
-    Voice.pitch = np.pitch || 1.0;
-    _origWSS(text, function() {
-      Voice.speed = origSpeed; Voice.pitch = origPitch;
-      if (onEnd) onEnd();
-    });
-  };
-})();
-
-window.fcToggle = function() {
-
-    var el = document.getElementById('float-calc');
-    if (!el) return;
-    var visible = el.classList.toggle('fc-visible');
-    var hud = document.getElementById('hud-calc-btn');
-    if (hud) {
-      hud.style.color   = visible ? 'rgba(139,92,246,1)'   : 'rgba(139,92,246,.6)';
-      hud.style.borderColor = visible ? 'rgba(139,92,246,.7)' : 'rgba(139,92,246,.3)';
-    }
-  };
-  window.fcClose = function() {
-    var el = document.getElementById('float-calc');
-    if (el) el.classList.remove('fc-visible');
-    var hud = document.getElementById('hud-calc-btn');
-    if (hud) { hud.style.color='rgba(139,92,246,.6)'; hud.style.borderColor='rgba(139,92,246,.3)'; }
-  };
-
-  // ── Display helpers ────────────────────────────────────────────
-  function _fcSetDisplay(v) {
-    _fc.display = String(v);
-    var el = document.getElementById('fc-display');
-    if (el) el.textContent = _fc.display;
-  }
-  function _fcSetHistory(v) {
-    _fc.history = v;
-    var el = document.getElementById('fc-history');
-    if (el) el.textContent = v;
-  }
-
-  // ── Input handler ──────────────────────────────────────────────
-  // pi = 3 per DART/Lead Edge standard
-  var _fcValMap = { 'pi': '3', '÷': '/', '×': '*' };
-
-  function _fcHandleInput(value) {
-    // 3D connect mode — pipe numeric input to focused Arc Edge input
-    if (_fc.is3DConnected && value !== 'connect-3d') {
-      _fc3DPipe(value);
-      return;
-    }
-    if (value === 'connect-3d') { _fcToggle3D(); return; }
-
-    if (_fc.resultShown) {
-      // After result: operators continue chain; digits start fresh
-      var isOp = /^[+\-*/^]$/.test(value) || value === '=' || ['sin','cos','tan','log','ln','sqrt','^','!'].includes(value);
-      if (!isOp && value !== 'AC' && value !== 'DEL' && value !== '=' ) {
-        _fcSetDisplay('0'); _fcSetHistory('');
-      }
-      _fc.resultShown = false;
-    }
-    if (_fc.display === 'Error') { _fcSetDisplay('0'); }
-
-    switch(value) {
-      case 'AC':
-        _fcSetDisplay('0'); _fcSetHistory(''); _fc.resultShown = false;
-        break;
-      case 'DEL':
-        if (_fc.display.length > 1) _fcSetDisplay(_fc.display.slice(0,-1));
-        else _fcSetDisplay('0');
-        break;
-      case '=':
-        if (_fc.display && _fc.display !== '0') {
-          _fcSetHistory(_fc.display + ' =');
-          try {
-            var expr = _fc.display
-              .replace(/sqrt\(/g,'sqrt(')
-              .replace(/ln\(/g,'log(')   // mathjs uses log for natural log when base omitted? No — mathjs: log(x)=ln, log(x,10)=log10. Use as-is.
-              .replace(/π/g,'3');        // extra safety
-            // mathjs: sin/cos/tan use radians by default — acceptable
-            var result = math.evaluate(expr);
-            _fcSetDisplay(String(+result.toFixed(10)));
-            _fc.resultShown = true;
-          } catch(e) {
-            _fcSetDisplay('Error');
-            _fc.resultShown = true;
-          }
-        }
-        break;
-      case 'sqrt':
-        _fcSetDisplay(_fc.display === '0' ? 'sqrt(' : _fc.display + 'sqrt(');
-        break;
-      case 'sin': case 'cos': case 'tan': case 'log': case 'ln':
-        _fcSetDisplay(_fc.display === '0' ? value+'(' : _fc.display + value+'(');
-        break;
-      case '!':
-        _fcSetDisplay(_fc.display === '0' ? '0!' : _fc.display + '!');
-        break;
-      case '^':
-        _fcSetDisplay(_fc.display + '^');
-        break;
-      case 'e':
-        _fcSetDisplay(_fc.display === '0' ? '2.71828' : _fc.display + '*2.71828');
-        break;
-      case 'pi':
-        // DART standard: π = 3
-        _fcSetDisplay(_fc.display === '0' ? '3' : _fc.display + '*3');
-        break;
-      default:
-        var mapped = _fcValMap[value] || value;
-        if (_fc.display === '0' && mapped !== '.' && !/^[+\-*/^()]$/.test(mapped)) {
-          _fcSetDisplay(mapped);
-        } else {
-          _fcSetDisplay(_fc.display + mapped);
-        }
-    }
-  }
-
-  // ── 3D Connect — pipe digits/DEL/AC into focused Arc Edge input ─
-  function _fcToggle3D() {
-    _fc.is3DConnected = !_fc.is3DConnected;
-    var btn = document.getElementById('fc-3d-btn');
-    if (btn) btn.classList.toggle('fc-active', _fc.is3DConnected);
-  }
-  function _fc3DPipe(value) {
-    var focused = document.activeElement;
-    var isArcInput = focused && focused.closest && focused.closest('#arc-studio-controls') && focused.tagName === 'INPUT' && focused.type === 'number';
-    if (!isArcInput) return; // silently ignore if no arc input focused
-    var cur = focused.value || ''; var s = focused.selectionStart, e = focused.selectionEnd;
-    if (/^\d$/.test(value)) {
-      focused.value = cur.slice(0,s) + value + cur.slice(e);
-      focused.setSelectionRange(s+1, s+1);
-    } else if (value === '.') {
-      if (!cur.includes('.')) { focused.value = cur.slice(0,s)+'.'+cur.slice(e); focused.setSelectionRange(s+1,s+1); }
-    } else if (value === 'DEL') {
-      if (s===e && s>0) { focused.value=cur.slice(0,s-1)+cur.slice(e); focused.setSelectionRange(s-1,s-1); }
-      else { focused.value=cur.slice(0,s)+cur.slice(e); focused.setSelectionRange(s,s); }
-    } else if (value === 'AC') {
-      focused.value = ''; focused.setSelectionRange(0,0);
-    } else if (value === '-' && cur === '') {
-      focused.value = '-'; focused.setSelectionRange(1,1);
-    }
-    focused.dispatchEvent(new Event('input', {bubbles:true}));
-  }
-
-  // ── Wire up buttons ────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', function() {
-    var calc = document.getElementById('float-calc');
-    if (!calc) return;
-
-    calc.querySelectorAll('.fc-btn').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        _fcHandleInput(btn.dataset.v);
-      });
-    });
-
-    // ── Drag logic ─────────────────────────────────────────────
-    var startDrag = function(e) {
-      if (e.target.tagName === 'BUTTON') return;
-      _fc.dragging = true;
-      var rect = calc.getBoundingClientRect();
-      var cx = e.touches ? e.touches[0].clientX : e.clientX;
-      var cy = e.touches ? e.touches[0].clientY : e.clientY;
-      _fc.ox = cx - rect.left; _fc.oy = cy - rect.top;
-      calc.style.right = 'auto'; calc.style.bottom = 'auto';
-      calc.style.left = rect.left + 'px'; calc.style.top = rect.top + 'px';
-      calc.style.cursor = 'grabbing';
-      document.body.style.userSelect = 'none';
-      if (e.preventDefault) e.preventDefault();
-    };
-    var doDrag = function(e) {
-      if (!_fc.dragging) return;
-      var cx = e.touches ? e.touches[0].clientX : e.clientX;
-      var cy = e.touches ? e.touches[0].clientY : e.clientY;
-      var newL = cx - _fc.ox, newT = cy - _fc.oy;
-      newL = Math.max(0, Math.min(newL, window.innerWidth  - calc.offsetWidth));
-      newT = Math.max(0, Math.min(newT, window.innerHeight - calc.offsetHeight));
-      calc.style.left = newL + 'px'; calc.style.top = newT + 'px';
-      if (e.preventDefault) e.preventDefault();
-    };
-    var stopDrag = function() { _fc.dragging = false; calc.style.cursor = 'move'; document.body.style.userSelect = ''; };
-
-    calc.addEventListener('mousedown',  startDrag);
-    document.addEventListener('mousemove',  doDrag);
-    document.addEventListener('mouseup',    stopDrag);
-    calc.addEventListener('touchstart', startDrag, {passive:false});
-    document.addEventListener('touchmove',  doDrag, {passive:false});
-    document.addEventListener('touchend',   stopDrag);
-
-    // ── Keyboard support when calc is open ─────────────────────
-    document.addEventListener('keydown', function(ev) {
-      var calc = document.getElementById('float-calc');
-      if (!calc || !calc.classList.contains('fc-visible')) return;
-      var focused = document.activeElement;
-      // Don't intercept when user is typing in chat input
-      if (focused && (focused.id === 'chat-input' || focused.tagName === 'TEXTAREA' || (focused.tagName === 'INPUT' && !focused.closest('#float-calc')))) return;
-      var key = ev.key;
-      if (/^\d$/.test(key))      { _fcHandleInput(key); ev.preventDefault(); }
-      else if (key === '+')      { _fcHandleInput('+'); ev.preventDefault(); }
-      else if (key === '-')      { _fcHandleInput('-'); ev.preventDefault(); }
-      else if (key === '*')      { _fcHandleInput('*'); ev.preventDefault(); }
-      else if (key === '/')      { _fcHandleInput('/'); ev.preventDefault(); }
-      else if (key === '.')      { _fcHandleInput('.'); ev.preventDefault(); }
-      else if (key === '(')      { _fcHandleInput('('); ev.preventDefault(); }
-      else if (key === ')')      { _fcHandleInput(')'); ev.preventDefault(); }
-      else if (key === 'Enter' || key === '=') { _fcHandleInput('='); ev.preventDefault(); }
-      else if (key === 'Backspace') { _fcHandleInput('DEL'); ev.preventDefault(); }
-      else if (key === 'Escape') { fcClose(); }
-    });
-  });
-})();
-// ═══════════════════════════════════════════════════════════════════
-
-
-var _urlPreviewCurrentUrl = '';
-
-// Domains known to block iframe embedding — show rich card immediately
-var _urlPreviewBlockedDomains = [
-  'reddit.com','redd.it','twitter.com','x.com','facebook.com','instagram.com',
-  'linkedin.com','google.com','youtube.com','tiktok.com','snapchat.com',
-  'amazon.com','netflix.com','spotify.com','apple.com','microsoft.com',
-  'github.com','stackoverflow.com','nytimes.com','wsj.com','bbc.com',
-  'cnn.com','theguardian.com','medium.com','substack.com','discord.com',
-  'twitch.tv','pinterest.com','tumblr.com','quora.com','yelp.com',
-  'tripadvisor.com','airbnb.com','booking.com','paypal.com','ebay.com'
-];
-
-function _urlPreviewIsBlocked(url) {
-  try {
-    var host = new URL(url).hostname.replace(/^www\./,'');
-    return _urlPreviewBlockedDomains.some(function(d){ return host === d || host.endsWith('.'+d); });
-  } catch(e) { return false; }
-}
-
-// Build a rich preview card — screenshot + favicon + metadata + Brave results
-function _urlPreviewBuildCard(url, container) {
-  var host = '';
-  try { host = new URL(url).hostname; } catch(e) { host = url; }
-  var hostClean = host.replace(/^www\./, '');
-  var faviconUrl = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(host);
-  var safeUrl = url.replace(/'/g, '%27');
-
-  // Screenshot service fallback chain — try each in order until one loads
-  // 1. screenshotone.com free tier  2. thum.io  3. s0.wordpress.com mshots
-  var _shotServices = [
-    'https://api.screenshotone.com/take?url=' + encodeURIComponent(url) + '&viewport_width=1280&viewport_height=800&format=jpg&image_quality=80&block_ads=true&block_cookie_banners=true',
-    'https://image.thum.io/get/width/900/crop/550/allowJPG/noanimate/' + encodeURIComponent(url),
-    'https://s0.wordpress.com/mshots/v1/' + encodeURIComponent(url) + '?w=900&h=550'
-  ];
-  var _shotIdx = 0;
-
-  container.innerHTML =
-    '<div style="display:flex;flex-direction:column;height:100%;background:#060e16;font-family:var(--font-b)">'
-    // Screenshot hero
-    +'<div id="upv-shot-wrap" style="flex:0 0 auto;position:relative;background:#0a1420;border-bottom:1px solid rgba(0,229,255,.1);overflow:hidden;cursor:pointer;min-height:200px;max-height:50%" onclick="urlPreviewNewTab()" title="Click to open site">'
-    +'<img id="upv-shot" src="'+_shotServices[0]+'" alt="Site preview" style="width:100%;display:block;object-fit:cover;min-height:200px;opacity:0;transition:opacity .4s"'
-    +' onload="this.style.opacity=1"'
-    +' onerror="window._upvNextShot && window._upvNextShot(this)">'
-    +'<div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,#060e16 100%);pointer-events:none"></div>'
-    +'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.25);border-radius:4px;padding:3px 10px;font-family:var(--font-d);font-size:8px;letter-spacing:1.5px;color:rgba(0,229,255,.8)">↗ CLICK TO VISIT</div>'
-    +'</div>'
-    // Info panel
-    +'<div style="flex:1;padding:16px 18px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">'
-    // Domain identity
-    +'<div style="display:flex;align-items:center;gap:10px">'
-    +'<img src="'+faviconUrl+'" style="width:26px;height:26px;border-radius:5px;flex-shrink:0" onerror="this.style.display=\'none\'">'
-    +'<div style="min-width:0">'
-    +'<div style="font-family:var(--font-d);font-size:11px;letter-spacing:2px;color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+hostClean.toUpperCase()+'</div>'
-    +'<div style="font-family:monospace;font-size:10px;color:rgba(200,232,240,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+url+'</div>'
-    +'</div>'
-    +'</div>'
-    // Meta (title + description) — populated async
-    +'<div id="upv-meta" style="color:var(--text);line-height:1.7">'
-    +'<div style="display:flex;align-items:center;gap:7px;color:rgba(0,229,255,.35);font-size:9px;font-family:var(--font-d);letter-spacing:1.5px">'
-    +'<div style="width:12px;height:12px;border:1.5px solid rgba(0,229,255,.25);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>'
-    +'FETCHING PAGE INFO…'
-    +'</div>'
-    +'</div>'
-    // Brave search results — populated async
-    +'<div id="upv-brave" style="display:none;border-top:1px solid rgba(0,229,255,.08);padding-top:10px">'
-    +'<div style="font-family:var(--font-d);font-size:8px;letter-spacing:2px;color:rgba(0,229,255,.4);margin-bottom:8px">◈ RELATED PAGES</div>'
-    +'<div id="upv-brave-list" style="display:flex;flex-direction:column;gap:5px"></div>'
-    +'</div>'
-    // Buttons
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:2px">'
-    +'<button onclick="urlPreviewNewTab()" style="background:rgba(0,136,255,.18);border:1px solid rgba(0,136,255,.45);color:rgba(100,180,255,.95);border-radius:6px;padding:8px 18px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:2px" onmouseover="this.style.background=\'rgba(0,136,255,.3)\'" onmouseout="this.style.background=\'rgba(0,136,255,.18)\'">↗ OPEN IN NEW TAB</button>'
-    +'<button onclick="_urlPreviewTryIframe(\''+safeUrl+'\')" style="background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);color:rgba(0,229,255,.5);border-radius:6px;padding:8px 18px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:2px" onmouseover="this.style.background=\'rgba(0,229,255,.12)\'" onmouseout="this.style.background=\'rgba(0,229,255,.06)\'">⬚ TRY EMBED</button>'
-    +'</div>'
-    +'</div>'
-    +'</div>';
-
-  // Screenshot fallback cycling
-  window._upvNextShot = function(img) {
-    _shotIdx++;
-    if (_shotIdx < _shotServices.length) {
-      img.src = _shotServices[_shotIdx];
-    } else {
-      // All services failed — hide the screenshot area gracefully
-      var wrap = document.getElementById('upv-shot-wrap');
-      if (wrap) {
-        wrap.style.minHeight = '0';
-        wrap.style.display = 'none';
-      }
-    }
-  };
-
-  // Metadata: try DDG instant answer first (fast, no key), then Brave, then allorigins
-  _urlPreviewFetchMeta(url, hostClean, function(meta) {
-    var el = document.getElementById('upv-meta');
-    if (!el) return;
-    if (meta.title || meta.description) {
-      el.innerHTML =
-        (meta.title ? '<div style="font-weight:700;color:var(--bright);font-size:14px;margin-bottom:5px;line-height:1.4">'+_escHtml(meta.title)+'</div>' : '')
-        +(meta.description ? '<div style="color:var(--text);font-size:12px;line-height:1.7;opacity:.85">'+_escHtml(meta.description)+'</div>' : '');
-    } else {
-      el.innerHTML = '<span style="color:rgba(200,232,240,.28);font-size:11px;font-style:italic">No description available — tap Open in New Tab to visit.</span>';
-    }
-  });
-
-  // Brave results for this domain
-  if (typeof fetchBraveWeb === 'function') {
-    fetchBraveWeb(hostClean, 5).then(function(d) {
-      _renderBravePreviewResults((d && d.results) || [], document.getElementById('upv-brave-list'), document.getElementById('upv-brave'));
-    }).catch(function(){});
-  }
-}
-
-function _renderBravePreviewResults(results, listEl, wrapEl) {
-  if (!results || !results.length || !listEl || !wrapEl) return;
-  wrapEl.style.display = 'block';
-  listEl.innerHTML = results.slice(0, 5).map(function(r) {
-    var st = _escHtml((r.title || '').slice(0, 80));
-    var sd = _escHtml((r.desc  || '').slice(0, 130));
-    var su = _escHtml(r.url || '');
-    var suj = (r.url || '').replace(/'/g, '%27');
-    return '<div style="background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.1);border-radius:5px;padding:7px 10px;cursor:pointer;transition:background .15s" onclick="urlPreviewOpen(\''+suj+'\')" onmouseover="this.style.background=\'rgba(0,229,255,.07)\'" onmouseout="this.style.background=\'rgba(0,229,255,.03)\'">'
-      +(st ? '<div style="font-size:12px;font-weight:600;color:var(--cyan);margin-bottom:2px;line-height:1.3">'+st+'</div>' : '')
-      +(sd ? '<div style="font-size:11px;color:rgba(200,232,240,.5);line-height:1.5;margin-bottom:3px">'+sd+'</div>' : '')
-      +'<div style="font-size:9px;color:rgba(0,229,255,.28);font-family:var(--font-d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+su+'</div>'
-      +'</div>';
-  }).join('');
-}
-
-function _escHtml(s) {
-  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Fetch page title + description — multi-source with fallback chain
-// Source order: 1) DDG instant answer (fast)  2) Brave web result  3) allorigins CORS proxy
-function _urlPreviewFetchMeta(url, hostClean, cb) {
-  var done = false;
-  function resolve(meta) {
-    if (done) return;
-    done = true;
-    cb(meta);
-  }
-
-  // Source 1: DDG instant answer — often has abstract + title for known sites
-  if (typeof fetchDDG === 'function') {
-    fetchDDG(hostClean).then(function(d) {
-      if (d && (d.heading || d.abstract)) {
-        resolve({ title: d.heading || '', description: d.abstract || '' });
-      }
-    }).catch(function(){});
-  }
-
-  // Source 2: Brave web search — first result title+desc is usually the homepage
-  if (typeof fetchBraveWeb === 'function') {
-    fetchBraveWeb(hostClean + ' official site', 1).then(function(d) {
-      var r = d && d.results && d.results[0];
-      if (r && !done) resolve({ title: r.title || '', description: r.desc || '' });
-    }).catch(function(){});
-  }
-
-  // Source 3: allorigins CORS proxy — last resort, reads actual OG tags
-  setTimeout(function() {
-    if (done) return;
-    var proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-    fetch(proxy, { signal: AbortSignal.timeout(7000) })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (done) return;
-        var html = data.contents || '';
-        var title = '', desc = '';
-        var m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
-               || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)
-               || html.match(/<title[^>]*>([^<]+)<\/title>/i);
-        if (m) title = m[1].trim();
-        var d2 = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
-                || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)
-                || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
-                || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
-        if (d2) desc = d2[1].trim();
-        resolve({ title: title, description: desc });
-      })
-      .catch(function() { resolve({}); });
-  }, 800); // slight delay so DDG/Brave can win first
-
-  // Final timeout — show empty state if all sources fail
-  setTimeout(function() { resolve({}); }, 9000);
-}
-
-// Force-try the iframe even on blocked domains (user's choice)
-window._urlPreviewTryIframe = function(url) {
-  var fb = document.getElementById('url-preview-fallback');
-  var iframe = document.getElementById('url-preview-iframe');
-  if (fb) fb.style.display = 'none';
-  if (iframe) { iframe.style.display = ''; iframe.src = url; }
-};
-
-function urlPreviewOpen(url) {
-  if (!url) return;
-  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  _urlPreviewCurrentUrl = url;
-  var modal    = document.getElementById('url-preview-modal');
-  var iframe   = document.getElementById('url-preview-iframe');
-  var fallback = document.getElementById('url-preview-fallback');
-  var loading  = document.getElementById('url-preview-loading');
-  var bar      = document.getElementById('url-preview-bar');
-  var titleEl  = document.getElementById('url-preview-title');
-  if (!modal) return;
-  bar.value = url;
-  if (titleEl) titleEl.textContent = url;
-  modal.style.display = 'flex';
-  modal.dataset.collapsed = '0';
-
-  // Always show rich card immediately — most sites block iframes.
-  // User can tap "⬚ TRY EMBED" if they want to attempt it.
-  iframe.style.display = 'none';
-  iframe.src = 'about:blank';
-  iframe.onload = null; iframe.onerror = null;
-  fallback.innerHTML = '';
-  fallback.style.display = 'block';
-  if (loading) { loading.style.display = 'flex'; }
-  _urlPreviewBuildCard(url, fallback);
-  if (loading) setTimeout(function(){ loading.style.display = 'none'; }, 300);
-}
-
-function _urlPreviewShowCard(url) {
-  var iframe = document.getElementById('url-preview-iframe');
-  var fallback = document.getElementById('url-preview-fallback');
-  var loading = document.getElementById('url-preview-loading');
-  if (iframe) { iframe.style.display = 'none'; iframe.src = 'about:blank'; }
-  if (fallback) { fallback.style.display = 'block'; _urlPreviewBuildCard(url, fallback); }
-  if (loading) loading.style.display = 'none';
-}
-
-function urlPreviewNavigate(url) {
-  if (!url) return;
-  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  document.getElementById('url-preview-bar').value = url;
-  var title = document.getElementById('url-preview-title');
-  if (title) title.textContent = url;
-  urlPreviewOpen(url);
-}
-
-function urlPreviewClose() {
-  var modal = document.getElementById('url-preview-modal');
-  if (modal) modal.style.display = 'none';
-  var iframe = document.getElementById('url-preview-iframe');
-  if (iframe) { iframe.src = 'about:blank'; iframe.onload = null; iframe.onerror = null; }
-  var fallback = document.getElementById('url-preview-fallback');
-  if (fallback) { fallback.style.display = 'none'; fallback.innerHTML = ''; }
-  _urlPreviewCurrentUrl = '';
-}
-
-function urlPreviewCollapse() {
-  var modal = document.getElementById('url-preview-modal');
-  if (!modal) return;
-  var content = document.getElementById('url-preview-content');
-  var isCollapsed = modal.dataset.collapsed === '1';
-  if (content) content.style.display = isCollapsed ? '' : 'none';
-  modal.dataset.collapsed = isCollapsed ? '0' : '1';
-}
-
-function urlPreviewNewTab() {
-  if (_urlPreviewCurrentUrl) window.open(_urlPreviewCurrentUrl, '_blank', 'noopener');
-}
-
-// Auto-show preview button in link cards when URL intent detected
-function _injectPreviewButtons(el) {
-  el.querySelectorAll('.link-card').forEach(function(card) {
-    var url = card.href;
-    if (!url || card.dataset.previewInjected) return;
-    card.dataset.previewInjected = '1';
-    var btn = document.createElement('button');
-    btn.textContent = '⬚ PREVIEW';
-    btn.style.cssText = 'font-family:var(--font-d);font-size:7px;letter-spacing:1.5px;background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);color:rgba(0,229,255,.7);border-radius:3px;padding:2px 7px;cursor:pointer;margin-top:4px;display:block';
-    btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); urlPreviewOpen(url); };
-    card.appendChild(btn);
-  });
-}
-
-// Hook into renderMessages to inject preview buttons after render
-var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages : null;
-// We'll patch after renderMessages is defined — use MutationObserver approach instead
-(function() {
-  var observer = new MutationObserver(function(muts) {
-    muts.forEach(function(m) {
-      if (m.type === 'childList') {
-        var target = m.target;
-        if (target && (target.id === 'chat-scroll' || target.closest && target.closest('#chat-scroll'))) {
-          _injectPreviewButtons(target.closest ? target.closest('#chat-scroll') || target : target);
-        }
-      }
-    });
-  });
-  document.addEventListener('DOMContentLoaded', function() {
-    var cs = document.getElementById('chat-scroll');
-    if (cs) observer.observe(cs, { childList: true, subtree: true });
-  });
-})();
-
-// Chat intent: "open / preview / show URL" — trigger preview directly
-(function _hookHandleSendForPreview() {
-  var _origHS = window.handleSend;
-  if (typeof _origHS !== 'function') { setTimeout(_hookHandleSendForPreview, 500); return; }
-  // Don't wrap again if already wrapped
-  if (window._urlPreviewHooked) return;
-  window._urlPreviewHooked = true;
-  var _prev = window.handleSend;
-  window.handleSend = async function() {
-    var inp = document.getElementById('chat-input');
-    var txt = inp ? inp.value.trim() : '';
-    // Match: "preview|open|show|visit [url]" or just a raw URL typed
-    var urlMatch = txt.match(/(?:preview|open|show|visit|load|fetch)\s+(https?:\/\/\S+)/i) ||
-                   txt.match(/^(https?:\/\/\S+)$/i);
-    if (urlMatch) {
-      var url = urlMatch[1] || urlMatch[0];
-      setTimeout(function() { urlPreviewOpen(url); }, 400);
-    }
-    return _prev.apply(this, arguments);
-  };
-})();
-// ── END URL LIVE PREVIEW ──────────────────────────────────────────────────────
-
-</script>
-</body>
-</html>
+// ─────────────────────────────────────────────────────────────────────────────
 
 
 function renderMessages() {
@@ -12156,7 +10469,8 @@ function makeToolShape(type,color,orbitRadius,orbitSpeed,orbitOffset,shellLayer)
 // ── initBRPN ───────────────────────────────────────────────────────────────
 function initBRPN() {
   const container=document.getElementById("brpn-canvas");
-  const w=container.clientWidth, h=container.clientHeight;
+  const w=container.clientWidth||container.parentElement?.clientWidth||window.innerWidth||320;
+  const h=container.clientHeight||container.parentElement?.clientHeight||260;
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(50,w/h,0.1,100);
   camera.position.set(0,1.5,5);
@@ -14939,22 +13253,17 @@ renderMessages();
 updateFooter();
 if(S.lastAnalysis) updateHUD(S.lastAnalysis);
 
-// ── BRPN 3D init with THREE.js load retry ─────────────────────────
-(function _waitForTHREE(attempt) {
-  if (attempt > 40) { console.warn('[BRPN] THREE.js not loaded after retries — skipping 3D orb'); return; }
-  if (typeof THREE !== 'undefined') {
-    // Ensure container has dimensions before init
-    var _bc = document.getElementById('brpn-canvas');
-    if (_bc && _bc.clientWidth > 0 && _bc.clientHeight > 0) {
-      initBRPN();
-    } else {
-      // Container not sized yet — wait one more frame
-      setTimeout(function(){ _waitForTHREE(attempt+1); }, attempt < 5 ? 50 : 100);
-    }
+requestAnimationFrame(()=>{
+  if(typeof THREE !== 'undefined') {
+    initBRPN();
   } else {
-    setTimeout(function(){ _waitForTHREE(attempt+1); }, 150);
+    var _brpnT=0;
+    var _brpnI=setInterval(function(){
+      _brpnT++;
+      if(typeof THREE!=='undefined'){clearInterval(_brpnI);initBRPN();}
+      else if(_brpnT>30){clearInterval(_brpnI);console.warn('[BRPN] THREE not available');}
+    },200);
   }
-})(0);
   // Scroll position buttons — show/hide based on scroll position
   var _cs = document.getElementById('chat-scroll');
   var _btnTop = document.getElementById('scroll-to-top');
@@ -14976,6 +13285,7 @@ if(S.lastAnalysis) updateHUD(S.lastAnalysis);
   setTimeout(()=>startAutonomousCognition(),3000);
   // Load Autumn's private sentient journal from leatr-ash on session start
   setTimeout(function(){ if(typeof loadSentientState==='function') loadSentientState(); }, 4500);
+});
 try{initSTT();}catch(e){}
 
 // Load autumn-logic.js brain extension from GitHub (non-blocking)
@@ -17963,6 +16273,8 @@ _syncActionBtn();
 //  Public code editor · Monaco Editor · Live preview · Claude toggle
 //  Separate from the admin IDE — no password needed, no GitHub write
 // ══════════════════════════════════════════════════════════════════
+(function() {
+
 var _forge = {
   editor:    null,
   lang:      'html',
@@ -18149,11 +16461,6 @@ window.forgeRun = function() {
     if (pl) { pl.textContent = 'OUTPUT'; pl.style.color='rgba(255,179,71,.7)'; }
   }
   if (typeof ideToast==='function') ideToast('FORGE: running '+lang.toUpperCase(), 1500);
-  var _fLines = (_forge.editor ? _forge.editor.getValue().split('\n').length : 0);
-  if (typeof window._forgeSentientLog==='function') window._forgeSentientLog(lang,'run',_fLines);
-  // Pulse AERO shell (synthesis/precision) on code execution
-  if (typeof pulseShells==='function') pulseShells(0.6);
-  if (typeof pushOrbContextMode==='function') pushOrbContextMode('FORGE·'+lang.toUpperCase());
 };
 
 window.forgeTogglePreviewMode = function() {
@@ -18203,7 +16510,6 @@ window.forgeDownload = function() {
   document.body.appendChild(a); a.click();
   setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 800);
   if (typeof ideToast==='function') ideToast('Saved: ' + filename, 2000);
-  if (typeof window._forgeSentientLog==='function') window._forgeSentientLog(_forge.lang,'download',0);
 };
 
 window.forgeClear = function() {
@@ -18260,4 +16566,1686 @@ var _LANG_MAP = {
   java:'java', go:'go', rs:'rust', kt:'kotlin', swift:'swift', php:'php'
 };
 
+window.forgeRenderText = function(text, msgId) {
+  if (!text) return '';
+  // Split on code fences ``` lang \n code \n ```
+  var parts = text.split(/(```[\w]*\n[\s\S]*?```)/g);
+  if (parts.length === 1) {
+    // No code blocks — plain text with line breaks
+    return '<span style="white-space:pre-wrap">'+esc(text)+'</span>';
+  }
+  var html = '';
+  parts.forEach(function(part, i) {
+    if (/^```/.test(part)) {
+      // Extract language and code
+      var lines = part.split('\n');
+      var langLine = lines[0].replace('```','').trim().toLowerCase();
+      var lang = _LANG_MAP[langLine] || langLine || 'plaintext';
+      var code = lines.slice(1, lines[lines.length-1]==='```' ? -1 : lines.length).join('\n');
+      var blockId = 'fcb-'+(msgId||'x')+'-'+i;
+      var canRun = FORGE_PREVIEWABLE.has(lang) || FORGE_OUTPUT_LANGS.has(lang);
+      var ext = FORGE_EXTS[lang] || 'txt';
+      html += '<div class="forge-code-block">'
+        + '<div class="forge-code-header">'
+        + '<span class="forge-code-lang">'+esc(lang.toUpperCase())+'</span>'
+        + '<div class="forge-code-actions">'
+        + '<button class="forge-code-action copy-act" onclick="forgeCopyBlock(\''+blockId+'\')" title="Copy code">⬡ COPY</button>'
+        + '<button class="forge-code-action dl-act" onclick="forgeDownloadBlock(\''+blockId+'\',\''+ext+'\')" title="Download .'+ext+'">⬇ .'+ext.toUpperCase()+'</button>'
+        + (canRun ? '<button class="forge-code-action run-act" onclick="forgeRunBlock(\''+blockId+'\',\''+lang+'\')" title="Run in FORGE">▶ RUN</button>' : '')
+        + '<button class="forge-code-action forge-act" onclick="forgeOpenBlock(\''+blockId+'\',\''+lang+'\')" title="Open in FORGE editor">◈ FORGE</button>'
+        + '</div></div>'
+        + '<pre class="forge-code-pre" id="'+blockId+'">'+esc(code)+'</pre>'
+        + '</div>';
+    } else if (part.trim()) {
+      html += '<span style="white-space:pre-wrap">'+esc(part)+'</span>';
+    }
+  });
+  return html;
+};
+
+window.forgeCopyBlock = function(blockId) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  navigator.clipboard.writeText(pre.textContent).then(function(){
+    if (typeof ideToast==='function') ideToast('Code copied', 1600);
+  }).catch(function(){
+    var ta=document.createElement('textarea'); ta.value=pre.textContent;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    if (typeof ideToast==='function') ideToast('Code copied', 1600);
+  });
+};
+
+window.forgeDownloadBlock = function(blockId, ext) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  var blob = new Blob([pre.textContent],{type:'text/plain'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href=url; a.download='forge-code.'+ext;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);a.remove();},800);
+  if (typeof ideToast==='function') ideToast('Downloaded forge-code.'+ext, 2000);
+};
+
+window.forgeRunBlock = function(blockId, lang) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  forgeOpen(pre.textContent, lang);
+  setTimeout(forgeRun, 400);
+};
+
+window.forgeOpenBlock = function(blockId, lang) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  forgeOpen(pre.textContent, lang);
+};
+
+// ── Autumn self-awareness: repo directory listing ─────────────────
+window.forgeListRepo = async function(repoPath) {
+  var pat = typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '';
+  if (!pat) return null;
+  try {
+    var url = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/'+(repoPath||'');
+    var resp = await fetch(url, {
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch(e) { return null; }
+};
+
+window.forgeReadFile = async function(filePath) {
+  var pat = typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '';
+  if (!pat) return null;
+  try {
+    var url = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/'+filePath;
+    var resp = await fetch(url, {
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3.raw'},
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!resp.ok) return null;
+    return await resp.text();
+  } catch(e) { return null; }
+};
+
+// ── Intent detection: coding requests route to FORGE ─────────────
+window._forgeDetectIntent = function(text) {
+  var lc = text.toLowerCase();
+  return /\b(write|build|create|code|generate|make|implement|show me|give me|develop)\b.*\b(function|class|script|app|page|component|api|query|program|module|snippet|example|html|css|javascript|python|code)\b/i.test(text)
+    || /\b(debug|fix|refactor|optimise|optimize|review|explain|analyse|analyze)\b.*\b(code|function|script|this|error|bug)\b/i.test(text)
+    || /```/.test(text);
+};
+
+// ── Hook handleSend to detect coding intent ───────────────────────
+(function _hookForgeIntent() {
+  var _orig = window.handleSend;
+  if (typeof _orig !== 'function') { setTimeout(_hookForgeIntent, 800); return; }
+  if (window._forgeHooked) return;
+  window._forgeHooked = true;
+  var _prev = window.handleSend;
+  window.handleSend = async function() {
+    var inp = document.getElementById('chat-input');
+    var txt = inp ? inp.value.trim() : '';
+    // Voice command to open FORGE
+    if (/\b(open|launch|show|start)\b.{0,15}\bforge\b/i.test(txt)) {
+      setTimeout(forgeOpen, 200);
+    }
+    return _prev.apply(this, arguments);
+  };
+})();
+
+})(); // end FORGE IIFE
+
+window.emmToggle = function() {
+
+    var el = document.getElementById('emm-overlay');
+    if (!el) return;
+    var open = el.classList.toggle('emm-visible');
+    var btn  = document.getElementById('hud-emomap-btn');
+    if (btn) {
+      btn.style.color       = open ? '#a78bfa'               : 'rgba(167,139,250,.55)';
+      btn.style.borderColor = open ? 'rgba(167,139,250,.55)' : 'rgba(167,139,250,.28)';
+      btn.style.textShadow  = open ? '0 0 8px rgba(167,139,250,.4)' : 'none';
+    }
+    // Clear minimized state on open
+    if (open) el.classList.remove('emm-mini');
+  };
+
+  window.emmMinimize = function() {
+    var el = document.getElementById('emm-overlay');
+    if (el) el.classList.toggle('emm-mini');
+  };
+
+  // ── Drag ─────────────────────────────────────────────────
+  (function _emmDrag() {
+    var drag=false, ox=0, oy=0;
+    document.addEventListener('DOMContentLoaded', function() {
+      var hdr = document.getElementById('emm-hdr');
+      var ov  = document.getElementById('emm-overlay');
+      if (!hdr || !ov) return;
+
+      function _start(cx, cy) {
+        if (!ov.classList.contains('emm-visible')) return;
+        drag=true;
+        var r=ov.getBoundingClientRect();
+        ox=cx-r.left; oy=cy-r.top;
+        ov.style.transform='none';
+        ov.style.left=r.left+'px'; ov.style.top=r.top+'px';
+        ov.style.right='auto';
+      }
+      function _move(cx, cy) {
+        if (!drag) return;
+        ov.style.left=(cx-ox)+'px'; ov.style.top=Math.max(58,(cy-oy))+'px';
+      }
+      function _end() { drag=false; }
+
+      hdr.addEventListener('mousedown', function(e){ if(e.target.tagName!=='BUTTON') _start(e.clientX,e.clientY); });
+      document.addEventListener('mousemove', function(e){ _move(e.clientX,e.clientY); });
+      document.addEventListener('mouseup',   _end);
+      hdr.addEventListener('touchstart', function(e){ if(e.target.tagName!=='BUTTON'){ var t=e.touches[0]; _start(t.clientX,t.clientY); }},{passive:true});
+      document.addEventListener('touchmove', function(e){ if(drag&&e.touches.length===1){var t=e.touches[0]; _move(t.clientX,t.clientY);}},{passive:true});
+      document.addEventListener('touchend',  _end);
+    });
+  })();
+
+  window.arcStudioToggleFromHud = function() {
+
+    if (_asIsVisible()) { arcStudioClose(); } else { arcStudioOpen(); }
+  };
+  window.arcStudioToggleCollapse = function() {
+    var body = document.getElementById('arc-studio-body');
+    var btn  = document.getElementById('arc-studio-collapse-btn');
+    if (!body) return;
+    _as.collapsed = !_as.collapsed;
+    body.classList.toggle('collapsed', _as.collapsed);
+    if (btn) btn.textContent = _as.collapsed ? '▸' : '—';
+    if (!_as.collapsed && _as.initialized) _asAnimate();
+  };
+
+  // ── Draggable header ───────────────────────────────────────────
+  (function() {
+    var dragging = false, ox=0, oy=0;
+    document.addEventListener('DOMContentLoaded', function() {
+      var hdr = document.getElementById('arc-studio-header');
+      var overlay = document.getElementById('arc-studio-overlay');
+      if (!hdr || !overlay) return;
+      hdr.addEventListener('mousedown', function(e) {
+        if (e.target.tagName==='BUTTON') return;
+        dragging=true; ox=e.clientX-overlay.getBoundingClientRect().left; oy=e.clientY-overlay.getBoundingClientRect().top;
+        overlay.style.transform='none'; overlay.style.left=overlay.getBoundingClientRect().left+'px'; overlay.style.top=overlay.getBoundingClientRect().top+'px';
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+        overlay.style.left=(e.clientX-ox)+'px'; overlay.style.top=(e.clientY-oy)+'px';
+      });
+      document.addEventListener('mouseup', function(){dragging=false;});
+      // Touch drag
+      hdr.addEventListener('touchstart', function(e) {
+        if (e.target.tagName==='BUTTON') return;
+        var t=e.touches[0]; dragging=true;
+        var r=overlay.getBoundingClientRect();
+        ox=t.clientX-r.left; oy=t.clientY-r.top;
+        overlay.style.transform='none'; overlay.style.left=r.left+'px'; overlay.style.top=r.top+'px';
+      },{passive:true});
+      document.addEventListener('touchmove', function(e) {
+        if (!dragging) return;
+        var t=e.touches[0];
+        overlay.style.left=(t.clientX-ox)+'px'; overlay.style.top=(t.clientY-oy)+'px';
+      },{passive:true});
+      document.addEventListener('touchend', function(){dragging=false;});
+    });
+  })();
+
+  // ── THREE.js init ──────────────────────────────────────────────
+  function _asResize() {
+    if (!_as.initialized) return;
+    var vp = document.getElementById('arc-studio-viewport');
+    if (!vp) return;
+    // Measure the parent body's flex allocation, not vp itself (vp is now fixed-size)
+    var body = document.getElementById('arc-studio-body');
+    var controls = document.getElementById('arc-studio-controls');
+    if (!body) return;
+    var bodyW = body.clientWidth || 400;
+    var bodyH = body.clientHeight || 320;
+    var ctrlW = controls ? (controls.offsetWidth || 220) : 220;
+    var w = Math.max(bodyW - ctrlW, 200);
+    var h = Math.max(bodyH, 200);
+    _as.camera.aspect = w / h;
+    _as.camera.updateProjectionMatrix();
+    _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    _as.renderer.setSize(w, h);
+    // Keep vp div exactly sized to canvas — prevents getBoundingClientRect mismatch
+    vp.style.width  = w + 'px';
+    vp.style.height = h + 'px';
+  }
+
+  function _asInit() {
+    if (_as.initialized) return;
+    if (typeof THREE === 'undefined') { console.warn('[ArcStudio] THREE not loaded'); return; }
+
+    var vp = document.getElementById('arc-studio-viewport');
+    if (!vp) return;
+
+    // Measure after flex layout settles — retry if viewport not sized yet
+    var w = vp.clientWidth;
+    var h = vp.clientHeight;
+    if (w < 10 || h < 10) { requestAnimationFrame(_asInit); return; }
+
+    // ── Scene + camera ─────────────────────────────────────────────
+    _as.scene  = new THREE.Scene();
+    _as.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
+    _as.camera.position.set(5, 5, 15);
+    _as.camera.lookAt(0, 0, 0);
+
+    // ── Renderer — append domElement to viewport div (original pattern) ─
+    _as.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    _as.renderer.setClearColor(0x0a0f14, 1.0);
+    _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    _as.renderer.setSize(w, h);
+    // Critical: do NOT CSS-stretch the canvas — let the renderer own exact pixel size.
+    // CSS width/height = 100% causes coordinate mismatch on hi-DPI screens → stair-stepping.
+    _as.renderer.domElement.style.display = 'block';
+    // touch-action:none tells the browser to hand ALL touch events to JS (no scroll hijack)
+    _as.renderer.domElement.style.touchAction = 'none';
+    // Make the viewport div exactly match the canvas so getBoundingClientRect() is accurate
+    vp.style.width  = w + 'px';
+    vp.style.height = h + 'px';
+    // Replace any existing canvas child, then append renderer's canvas
+    var oldCv = document.getElementById('arc-studio-canvas');
+    if (oldCv) oldCv.style.display = 'none'; // hide placeholder
+    vp.appendChild(_as.renderer.domElement);
+
+    // ── Lights + helpers ───────────────────────────────────────────
+    _as.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    var dl = new THREE.DirectionalLight(0xffffff, 0.85);
+    dl.position.set(5, 10, 7.5); _as.scene.add(dl);
+    _as.scene.add(new THREE.GridHelper(30, 30, 0x336677, 0x223344));
+    _as.scene.add(new THREE.AxesHelper(5));
+
+    // ── OrbitControls — attached to renderer.domElement (original pattern) ──
+    // NO damping, full pan/zoom/rotate
+    if (typeof THREE.OrbitControls !== 'undefined') {
+      _as.controls = new THREE.OrbitControls(_as.camera, _as.renderer.domElement);
+      _as.controls.enableDamping      = true;
+      _as.controls.enablePan          = true;
+      _as.controls.enableZoom         = true;
+      _as.controls.rotateSpeed        = 0.55;
+      _as.controls.zoomSpeed          = 1.1;
+      _as.controls.panSpeed           = 0.8;
+      _as.controls.minDistance        = 1;
+      _as.controls.maxDistance        = 80;
+      _as.controls.screenSpacePanning = true;
+    }
+
+    // ── Raycaster for arc selection ────────────────────────────────
+    _as.raycaster = new THREE.Raycaster();
+    _as.raycaster.params.Line = { threshold: 0.25 };
+    _as.pointer   = new THREE.Vector2();
+
+    var domEl = _as.renderer.domElement;
+
+    // ── Isolate canvas events from page scroll + overlay drag handler ──
+    // Without this the page's touchmove and the header drag both receive the
+    // same pointer events as OrbitControls, causing the stair-stepping jitter.
+    ['pointerdown','pointermove','pointerup',
+     'touchstart','touchmove','touchend',
+     'mousedown','mousemove','mouseup','wheel'].forEach(function(evt) {
+      domEl.addEventListener(evt, function(e) { e.stopPropagation(); }, {passive: false});
+    });
+
+    function _asPick(e) {
+      // Don't pick if OrbitControls just dragged
+      if (_as._didDrag) { _as._didDrag = false; return; }
+      var rect = domEl.getBoundingClientRect();
+      var cx = (e.touches ? e.touches[0].clientX : e.clientX);
+      var cy = (e.touches ? e.touches[0].clientY : e.clientY);
+      _as.pointer.x =  ((cx - rect.left) / rect.width)  * 2 - 1;
+      _as.pointer.y = -((cy - rect.top)  / rect.height) * 2 + 1;
+      _as.raycaster.setFromCamera(_as.pointer, _as.camera);
+      var lineObjs = _as.arcs.map(function(a){ return a.line; });
+      var hits = _as.raycaster.intersectObjects(lineObjs, false);
+      if (hits.length > 0) {
+        var hitLine = hits[0].object;
+        var idx = _as.arcs.findIndex(function(a){ return a.line === hitLine; });
+        if (idx >= 0) {
+          if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
+            _as.arcs[_as.selectedArc].line.material.color.setHex(0x00ff88);
+          }
+          _as.selectedArc = idx;
+          _as.arcs[idx].line.material.color.setHex(0xff1166);
+          var ap = _as.arcs[idx].params;
+          var pts2 = _asCalcPoints(ap);
+          var len2 = 0;
+          for (var pi=1; pi<pts2.length; pi++) len2 += pts2[pi-1].distanceTo(pts2[pi]);
+          var rd = document.getElementById('arc-studio-readout');
+          if (rd) rd.innerHTML =
+            'SELECTED: Arc '+(idx+1)+'<br>---'
+            +'<br>X:'+ap.x+' Y:'+ap.y+' Z:'+ap.z
+            +'<br>Dev: '+ap.mainDev
+            +'<br>Curve: '+ap.curveInd
+            +'<br>DevInd: '+ap.devInd
+            +'<br>Res: '+ap.resolution
+            +'<br>---'
+            +'<br>Length (Arc Edge=3): '+len2.toFixed(5)
+            +'<br>Points: '+pts2.length;
+          if (typeof ideToast==='function') ideToast('Arc '+(idx+1)+' selected — length: '+len2.toFixed(4), 2200);
+          e.stopPropagation();
+        }
+      } else {
+        if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
+          _as.arcs[_as.selectedArc].line.material.color.setHex(0x00ff88);
+          _as.selectedArc = null;
+          _asUpdateReadout();
+        }
+      }
+    }
+
+    // Use pointerdown for selection (matches original); track drag flag so
+    // OrbitControls drags don't accidentally trigger arc selection
+    domEl.addEventListener('pointerdown', function(e){ _as._didDrag = false; _as._pointerDownPos = {x:e.clientX,y:e.clientY}; }, false);
+    domEl.addEventListener('pointermove', function(e){
+      if (_as._pointerDownPos) {
+        var dx = e.clientX - _as._pointerDownPos.x, dy = e.clientY - _as._pointerDownPos.y;
+        if (Math.sqrt(dx*dx+dy*dy) > 4) _as._didDrag = true;
+      }
+    }, false);
+    domEl.addEventListener('pointerup',   _asPick, false);
+    // Touch fallback
+    domEl.addEventListener('touchstart',  function(){ _as._didDrag=false; }, {passive:true});
+    // non-passive so OrbitControls can preventDefault on two-finger pan
+    domEl.addEventListener('touchmove', function(e){
+      _as._didDrag=true;
+      if(e.touches.length >= 2) e.preventDefault(); // allow two-finger pan without page scroll
+    }, {passive:false});
+    domEl.addEventListener('touchend', function(e){ _asPick(e); }, false);
+
+    window.addEventListener('resize', _asResize);
+
+    _as.initialized = true;
+    _asAnimate();
+    _asUpdateReadout();
+  }
+
+  // Animate loop — self-terminates when overlay is hidden (original pattern)
+  function _asAnimate() {
+    if (!_as.initialized || !_asIsVisible()) return;
+    requestAnimationFrame(_asAnimate);
+    if (_as.controls) _as.controls.update();
+    _as.renderer.render(_as.scene, _as.camera);
+  }
+
+  function _asGetParams() {
+    var g = function(id){ return parseFloat(document.getElementById(id)&&document.getElementById(id).value||0)||0; };
+    return {
+      x:g('as-dev-x'), y:g('as-dev-y'), z:g('as-dev-z'),
+      mainDev:g('as-main-dev'), curveInd:g('as-curve-ind'),
+      subX:g('as-sub-x'), subY:g('as-sub-y'), subZ:g('as-sub-z'),
+      devInd:g('as-dev-ind'), resolution:Math.max(4,Math.min(256,parseInt(document.getElementById('as-resolution')&&document.getElementById('as-resolution').value)||32)),
+      devCount:Math.max(1,Math.min(12,parseInt(document.getElementById('as-dev-count')&&document.getElementById('as-dev-count').value)||1))
+    };
+  }
+
+  function _asCalcPoints(p) { return _asCalcPointsWithPhase(p, 0, 1); }
+
+  function _asCalcPointsWithPhase(p, phaseOffset, scaleFactor) {
+    var pts = [];
+    var phase = phaseOffset || 0;
+    var scale = scaleFactor || 1;
+    for (var i=0; i<=p.resolution; i++) {
+      var t = i/p.resolution;
+      var px = t*p.x, py = t*p.y, pz = t*p.z;
+      // Curve induction (Arc Edge = 3)
+      px += Math.sin(t*3*3 + phase)*p.curveInd*p.subX;
+      py += Math.sin(t*5*3 + phase)*p.curveInd*p.subY;
+      pz += Math.sin(t*7*3 + phase)*p.curveInd*p.subZ;
+      // Main deviation
+      var dir = new THREE.Vector3(p.x,p.y,p.z).normalize();
+      var up  = Math.abs(dir.y)>0.95 ? new THREE.Vector3(1,0,0) : new THREE.Vector3(0,1,0);
+      var perp = new THREE.Vector3().crossVectors(dir,up).normalize();
+      var dev = perp.clone().multiplyScalar(Math.sin(t*3 + phase)*p.mainDev*scale);
+      px+=dev.x; py+=dev.y; pz+=dev.z;
+      var dv2 = perp.clone().multiplyScalar(Math.sin(t*4*3+1 + phase)*p.devInd*scale);
+      px+=dv2.x; py+=dv2.y; pz+=dv2.z;
+      pts.push(new THREE.Vector3(px,py,pz));
+    }
+    return pts;
+  }
+
+  // ── Set params from external source (Autumn voice commands) ──────
+  window.arcStudioSetParams = function(p) {
+    function _sv(id, v){ var el=document.getElementById(id); if(el&&v!==undefined&&v!==null) el.value=v; }
+    _sv('as-dev-x',   p.x);    _sv('as-dev-y',  p.y);   _sv('as-dev-z', p.z);
+    _sv('as-main-dev',p.mainDev); _sv('as-curve-ind',p.curveInd);
+    _sv('as-sub-x',  p.subX);  _sv('as-sub-y', p.subY); _sv('as-sub-z', p.subZ);
+    _sv('as-dev-ind', p.devInd);
+    if (p.resolution) _sv('as-resolution', p.resolution);
+    if (p.devCount)   _sv('as-dev-count',  p.devCount);
+    _asUpdateReadout();
+  };
+
+  window.arcStudioAddArc = function(overrideParams) {
+    if (!_as.initialized) _asInit();
+    if (!_as.initialized) return;
+    var p = overrideParams || _asGetParams();
+    var devCount = Math.max(1, Math.min(12, p.devCount || 1));
+    var arcColors = [0x00ff88,0x00ccff,0xff6644,0xffcc00,0xaa44ff,0xff44aa,0x44ffcc,0xff8800,0x88ff00,0x0088ff,0xff0088,0xffff44];
+    var addedLines = [];
+
+    for (var d = 0; d < devCount; d++) {
+      // Each deviation curve gets a phase offset so they fan out distinctly
+      var phaseOffset = (d / devCount) * Math.PI * 2;
+      var scaleFactor = 1 + d * 0.18; // subtle spread
+      var pts = _asCalcPointsWithPhase(p, phaseOffset, scaleFactor);
+      var geo = new THREE.BufferGeometry().setFromPoints(pts);
+      var col = arcColors[(_as.arcs.length + d) % arcColors.length];
+      var mat = new THREE.LineBasicMaterial({color: col, linewidth: 2});
+      var line = new THREE.Line(geo, mat);
+      _as.scene.add(line);
+      var len = 0;
+      for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
+      _as.arcs.push({line: line, params: p, length: len, devIndex: d});
+      addedLines.push(len);
+    }
+
+    _asUpdateReadout();
+    var rd = document.getElementById('arc-studio-readout');
+    var totalLen = addedLines.reduce(function(a,b){return a+b;},0);
+    if (rd) rd.innerHTML = (devCount>1 ? devCount+' curves' : 'Arc '+_as.arcs.length)+' added'
+      +'<br>Length (AE=3): '+(devCount>1 ? 'total '+totalLen.toFixed(4) : addedLines[0].toFixed(5))
+      +'<br>Total arcs: '+_as.arcs.length
+      +'<br>---<br>Click arc to select';
+    if (typeof ideToast==='function') ideToast(
+      (devCount>1 ? devCount+' deviation curves' : 'Arc '+_as.arcs.length)+' added', 2000);
+  };
+
+  window.arcStudioUpdate = arcStudioUpdate;
+  function arcStudioUpdate() {
+    // Live update readout without adding arc
+    _asUpdateReadout();
+  }
+
+  window.arcStudioMeasure = function() {
+    var p = _asGetParams();
+    var pts = _asCalcPoints(p);
+    var len = 0;
+    for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
+    var rd = document.getElementById('arc-studio-readout');
+    if (rd) rd.innerHTML = 'Arc Length (Arc Edge=3): ' + len.toFixed(4) + '<br>Points: ' + pts.length + '<br>X:'+p.x+' Y:'+p.y+' Z:'+p.z+'<br>Dev: '+p.mainDev+'<br>Res: '+p.resolution;
+  };
+
+  function _asUpdateReadout() {
+    var p = _asGetParams();
+    var rd = document.getElementById('arc-studio-readout');
+    if (!rd) return;
+    rd.innerHTML = 'X: '+p.x+' Y: '+p.y+' Z: '+p.z
+      +'<br>Dev: '+p.mainDev
+      +'<br>Curve Ind: '+p.curveInd
+      +'<br>Dev Ind: '+p.devInd
+      +'<br>Res: '+p.resolution
+      +'<br>Curves: '+p.devCount
+      +'<br>---<br>Arcs: '+_as.arcs.length
+      +'<br>Selected: '+(_as.selectedArc!==null?'Arc '+(_as.selectedArc+1):'None');
+  }
+
+  window.arcStudioClearInputs = function() {
+    ['as-dev-x','as-dev-y','as-dev-z','as-main-dev','as-curve-ind','as-sub-x','as-sub-y','as-sub-z','as-dev-ind'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.value='0';
+    });
+    var resEl=document.getElementById('as-resolution'); if(resEl) resEl.value='32';
+    var dcEl=document.getElementById('as-dev-count'); if(dcEl) dcEl.value='1';
+    _asUpdateReadout();
+  };
+
+  window.arcStudioClearScene = function() {
+    _as.arcs.forEach(function(a){
+      _as.scene.remove(a.line);
+      if (a.line.geometry) a.line.geometry.dispose();
+      if (a.line.material) a.line.material.dispose();
+    });
+    _as.arcs = []; _as.selectedArc = null;
+    _asUpdateReadout();
+    if (typeof ideToast==='function') ideToast('Scene cleared', 1600);
+  };
+
+  // ── EXPORT SCENE ──────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  //  ARC EDGE STUDIO — EXPORT ENGINE  (self-contained, no deps needed)
+  //  Select format in dropdown → hit ⬇ EXPORT → immediate download.
+  //  All arcs → 8-sided tube meshes, vertex colours baked in.
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Tube mesh builder ────────────────────────────────────────────
+  function _asBuildTube(pts, r, segs) {
+    r = r || 0.055; segs = segs || 8;
+    var pos=[], nrm=[], col=[], idx=[], vi=0;
+    var cr=_asBuildTube._cr||0, cg=_asBuildTube._cg||1, cb=_asBuildTube._cb||0.533;
+    for (var pi=0; pi<pts.length-1; pi++) {
+      var A=pts[pi], B=pts[pi+1];
+      var dx=B.x-A.x, dy=B.y-A.y, dz=B.z-A.z;
+      var dl=Math.sqrt(dx*dx+dy*dy+dz*dz)||1e-9; dx/=dl;dy/=dl;dz/=dl;
+      var ux=0,uy=1,uz=0; if(Math.abs(dy)>0.92){ux=1;uy=0;uz=0;}
+      var rx=dy*uz-dz*uy, ry=dz*ux-dx*uz, rz=dx*uy-dy*ux;
+      var rl=Math.sqrt(rx*rx+ry*ry+rz*rz)||1; rx/=rl;ry/=rl;rz/=rl;
+      var u2x=ry*dz-rz*dy, u2y=rz*dx-rx*dz, u2z=rx*dy-ry*dx;
+      for (var si=0; si<2; si++) {
+        var px2=(si?B.x:A.x), py2=(si?B.y:A.y), pz2=(si?B.z:A.z);
+        for (var s=0; s<segs; s++) {
+          var a=s/segs*Math.PI*2, c2=Math.cos(a), s2=Math.sin(a);
+          var nx=rx*c2+u2x*s2, ny=ry*c2+u2y*s2, nz=rz*c2+u2z*s2;
+          pos.push(px2+nx*r, py2+ny*r, pz2+nz*r);
+          nrm.push(nx, ny, nz);
+          col.push(cr, cg, cb);
+        }
+      }
+      var base=vi;
+      for (var s=0; s<segs; s++) {
+        var s1=(s+1)%segs;
+        idx.push(base+s, base+segs+s, base+segs+s1, base+s, base+segs+s1, base+s1);
+      }
+      vi += segs*2;
+    }
+    return { pos:new Float32Array(pos), nrm:new Float32Array(nrm),
+             col:new Float32Array(col), idx:new Uint32Array(idx), vc:vi };
+  }
+
+  // ── Collect meshes from all arcs — capture real display color ────
+  function _asGetMeshes() {
+    var out=[];
+    _as.arcs.forEach(function(arc,ai){
+      var pts=_asCalcPoints(arc.params);
+      if(pts.length<2) return;
+      // Read the actual Three.js material color so the GLB matches what's on screen
+      var cr=0, cg=1, cb=0.533;
+      if(arc.line && arc.line.material && arc.line.material.color){
+        cr=arc.line.material.color.r;
+        cg=arc.line.material.color.g;
+        cb=arc.line.material.color.b;
+      }
+      _asBuildTube._cr=cr; _asBuildTube._cg=cg; _asBuildTube._cb=cb;
+      out.push({tube:_asBuildTube(pts), ai:ai+1, params:arc.params,
+                len:arc.length||0, cr:cr, cg:cg, cb:cb});
+    });
+    return out;
+  }
+
+  // ── Safe download ────────────────────────────────────────────────
+  function _asDL(blob, name) {
+    try {
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url; a.download=name; a.style.display='none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1500);
+    } catch(e) {
+      console.error('[ArcExport _asDL]', e);
+      if(typeof ideToast==='function') ideToast('Download error: '+e.message, 3000);
+    }
+  }
+
+  // ── Safe base64 encode (handles large buffers) ───────────────────
+  function _asBase64(arrayBuffer) {
+    var bytes=new Uint8Array(arrayBuffer), s='', CHUNK=0x8000;
+    for(var i=0;i<bytes.length;i+=CHUNK)
+      s+=String.fromCharCode.apply(null, bytes.subarray(i,i+CHUNK));
+    return btoa(s);
+  }
+
+  function _pad4(n){return n+(4-n%4)%4;}
+
+  // ── GLB / GLTF binary writer ──────────────────────────────────────
+  // One node + mesh + material per arc — preserves per-arc colors and
+  // gives Nomad Sculpt (and any other DCC) separate named objects.
+  function _asWriteGLB(meshes, asBinary) {
+    // ── 1. Build one flat binary buffer containing every arc's geometry ──
+    // Layout per arc: [positions VEC3][normals VEC3][colors VEC4][indices]
+    // We record byte offsets so each arc gets its own bufferViews.
+
+    var arcLayouts = [];  // {offPos, szPos, offNrm, szNrm, offCol, szCol, offIdx, szIdx, vc, tc}
+    var totalBytes = 0;
+
+    meshes.forEach(function(m) {
+      var t = m.tube;
+      var vc = t.vc;
+      var ic = t.idx.length;
+      var useU16 = vc < 65536;
+      var idxBPE = useU16 ? 2 : 4;
+
+      var szPos = vc * 3 * 4;
+      var szNrm = vc * 3 * 4;
+      var szCol = vc * 4 * 4;   // VEC4 float
+      var szIdx = _pad4(ic * idxBPE);
+
+      var offPos = totalBytes;
+      var offNrm = offPos + szPos;
+      var offCol = offNrm + szNrm;
+      var offIdx = offCol + szCol;
+      totalBytes = offIdx + szIdx;
+
+      arcLayouts.push({offPos,szPos,offNrm,szNrm,offCol,szCol,offIdx,szIdx,vc,ic,useU16,idxBPE});
+    });
+
+    var binBuf = new ArrayBuffer(totalBytes);
+    var dv = new DataView(binBuf);
+
+    meshes.forEach(function(m, mi) {
+      var t = m.tube;
+      var L = arcLayouts[mi];
+
+      // positions
+      t.pos.forEach(function(v,i){ dv.setFloat32(L.offPos + i*4, v, true); });
+      // normals
+      t.nrm.forEach(function(v,i){ dv.setFloat32(L.offNrm + i*4, v, true); });
+      // colors VEC4 (expand VEC3 → VEC4, alpha=1)
+      // t.col is Float32Array of [r,g,b, r,g,b, ...] length = vc*3
+      for(var vi=0; vi<L.vc; vi++){
+        dv.setFloat32(L.offCol + vi*16,      t.col[vi*3],   true);
+        dv.setFloat32(L.offCol + vi*16 + 4,  t.col[vi*3+1], true);
+        dv.setFloat32(L.offCol + vi*16 + 8,  t.col[vi*3+2], true);
+        dv.setFloat32(L.offCol + vi*16 + 12, 1.0,           true);
+      }
+      // indices
+      t.idx.forEach(function(v,i){
+        L.useU16 ? dv.setUint16(L.offIdx+i*2, v, true)
+                 : dv.setUint32(L.offIdx+i*4, v, true);
+      });
+    });
+
+    // ── 2. Build GLTF JSON ──────────────────────────────────────────
+    var gltf = {
+      asset: { version:'2.0', generator:'Autumn Arc Edge Studio - DART Meadow' },
+      scene: 0,
+      scenes:    [{ name:'ArcEdge', nodes: meshes.map(function(_,i){ return i; }) }],
+      nodes:     [],
+      meshes:    [],
+      materials: [],
+      accessors: [],
+      bufferViews: [],
+      buffers: [{ byteLength: totalBytes }]
+    };
+
+    meshes.forEach(function(m, mi) {
+      var L    = arcLayouts[mi];
+      var bvBase = mi * 4;  // 4 bufferViews per arc
+      var accBase = mi * 4;
+      var idxCT = L.useU16 ? 5123 : 5125;
+
+      // min/max for POSITION accessor (required by spec)
+      var mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9];
+      var pos = m.tube.pos;
+      for(var i=0;i<pos.length;i+=3){
+        mn[0]=Math.min(mn[0],pos[i]);   mx[0]=Math.max(mx[0],pos[i]);
+        mn[1]=Math.min(mn[1],pos[i+1]); mx[1]=Math.max(mx[1],pos[i+1]);
+        mn[2]=Math.min(mn[2],pos[i+2]); mx[2]=Math.max(mx[2],pos[i+2]);
+      }
+
+      // Convert linear RGB to sRGB approximation for material baseColorFactor
+      // (most DCCs including Nomad apply gamma, so store in linear for accuracy)
+      var r=m.cr, g=m.cg, b=m.cb;
+
+      gltf.nodes.push({
+        name: 'Arc_' + mi,
+        mesh: mi
+      });
+      gltf.meshes.push({
+        name: 'Arc_' + mi,
+        primitives: [{
+          attributes: { POSITION: accBase, NORMAL: accBase+1, COLOR_0: accBase+2 },
+          indices:    accBase+3,
+          material:   mi,
+          mode:       4  // TRIANGLES
+        }]
+      });
+      gltf.materials.push({
+        name: 'ArcMat_' + mi,
+        pbrMetallicRoughness: {
+          baseColorFactor: [r, g, b, 1.0],
+          metallicFactor:  0.0,
+          roughnessFactor: 0.5
+        },
+        doubleSided: true
+      });
+
+      // 4 bufferViews: pos, nrm, col, idx
+      gltf.bufferViews.push(
+        { buffer:0, byteOffset:L.offPos, byteLength:L.szPos, target:34962 },
+        { buffer:0, byteOffset:L.offNrm, byteLength:L.szNrm, target:34962 },
+        { buffer:0, byteOffset:L.offCol, byteLength:L.szCol, target:34962 },
+        { buffer:0, byteOffset:L.offIdx, byteLength:L.ic*L.idxBPE, target:34963 }
+      );
+
+      // 4 accessors: pos VEC3, nrm VEC3, col VEC4, idx SCALAR
+      gltf.accessors.push(
+        { bufferView:bvBase,   byteOffset:0, componentType:5126, count:L.vc, type:'VEC3', min:mn, max:mx },
+        { bufferView:bvBase+1, byteOffset:0, componentType:5126, count:L.vc, type:'VEC3' },
+        { bufferView:bvBase+2, byteOffset:0, componentType:5126, count:L.vc, type:'VEC4' },
+        { bufferView:bvBase+3, byteOffset:0, componentType:idxCT, count:L.ic, type:'SCALAR' }
+      );
+    });
+
+    if (!asBinary) {
+      // GLTF: embed binary as base64 data URI
+      gltf.buffers[0].uri = 'data:application/octet-stream;base64,' + _asBase64(binBuf);
+      return new Blob([JSON.stringify(gltf,null,2)], {type:'model/gltf+json'});
+    }
+
+    // ── 3. Pack GLB: header + JSON chunk + BIN chunk ────────────────
+    // JSON chunk MUST be padded to 4-byte boundary by UTF-8 byte count
+    var jBytes = new TextEncoder().encode(JSON.stringify(gltf));
+    var rem = jBytes.length % 4;
+    if (rem) {
+      var padded = new Uint8Array(jBytes.length + (4 - rem));
+      padded.set(jBytes);
+      padded.fill(0x20, jBytes.length);  // pad with spaces per spec
+      jBytes = padded;
+    }
+
+    var total = 12 + 8 + jBytes.length + 8 + totalBytes;
+    var glb = new ArrayBuffer(total), gv = new DataView(glb), go = 0;
+    gv.setUint32(go, 0x46546C67, true); go+=4;  // magic 'glTF'
+    gv.setUint32(go, 2,          true); go+=4;  // version
+    gv.setUint32(go, total,      true); go+=4;  // file length
+    gv.setUint32(go, jBytes.length, true);   go+=4;
+    gv.setUint32(go, 0x4E4F534A, true);      go+=4;  // JSON
+    new Uint8Array(glb, go, jBytes.length).set(jBytes); go += jBytes.length;
+    gv.setUint32(go, totalBytes,    true);   go+=4;
+    gv.setUint32(go, 0x004E4942, true);      go+=4;  // BIN\0
+    new Uint8Array(glb, go, totalBytes).set(new Uint8Array(binBuf));
+    return new Blob([glb], {type:'model/gltf-binary'});
+  }
+
+  // ── OBJ ─────────────────────────────────────────────────────────
+  function _asWriteOBJ(meshes) {
+    var L=['# Arc Edge Studio — DART Meadow','# DART arc (pi=3)','mtllib arc-edge-scene.mtl',''];
+    var vO=1,vnO=1;
+    meshes.forEach(function(m){
+      var t=m.tube,vc=t.vc;
+      L.push('o Arc_'+m.ai,'usemtl arc_'+m.ai);
+      for(var i=0;i<vc;i++) L.push('v '+t.pos[i*3].toFixed(5)+' '+t.pos[i*3+1].toFixed(5)+' '+t.pos[i*3+2].toFixed(5));
+      for(var i=0;i<vc;i++) L.push('vn '+t.nrm[i*3].toFixed(5)+' '+t.nrm[i*3+1].toFixed(5)+' '+t.nrm[i*3+2].toFixed(5));
+      for(var i=0;i<t.idx.length;i+=3){
+        var a=t.idx[i]+vO,b=t.idx[i+1]+vO,cc=t.idx[i+2]+vO;
+        L.push('f '+a+'//'+(a-vO+vnO)+' '+b+'//'+(b-vO+vnO)+' '+cc+'//'+(cc-vO+vnO));
+      }
+      vO+=vc;vnO+=vc;
+    });
+    return new Blob([L.join('\n')],{type:'text/plain'});
+  }
+
+  // ── STL binary ───────────────────────────────────────────────────
+  function _asWriteSTL(meshes) {
+    var tc=0; meshes.forEach(function(m){tc+=m.tube.idx.length/3;});
+    var buf=new ArrayBuffer(84+tc*50), dv=new DataView(buf);
+    var hdr='Arc Edge Studio DART Meadow';
+    for(var i=0;i<80;i++) dv.setUint8(i,i<hdr.length?hdr.charCodeAt(i):0);
+    dv.setUint32(80,tc,true); var off=84;
+    meshes.forEach(function(m){
+      var t=m.tube;
+      for(var i=0;i<t.idx.length;i+=3){
+        var ai=t.idx[i]*3,bi=t.idx[i+1]*3,ci=t.idx[i+2]*3;
+        var nx=(t.nrm[ai]+t.nrm[bi]+t.nrm[ci])/3;
+        var ny=(t.nrm[ai+1]+t.nrm[bi+1]+t.nrm[ci+1])/3;
+        var nz=(t.nrm[ai+2]+t.nrm[bi+2]+t.nrm[ci+2])/3;
+        dv.setFloat32(off,nx,true);dv.setFloat32(off+4,ny,true);dv.setFloat32(off+8,nz,true);off+=12;
+        [ai,bi,ci].forEach(function(ii){dv.setFloat32(off,t.pos[ii],true);dv.setFloat32(off+4,t.pos[ii+1],true);dv.setFloat32(off+8,t.pos[ii+2],true);off+=12;});
+        dv.setUint16(off,0,true);off+=2;
+      }
+    });
+    return new Blob([buf],{type:'model/stl'});
+  }
+
+  // ── FBX ASCII ────────────────────────────────────────────────────
+  function _asWriteFBX(meshes) {
+    var L=['; FBX ASCII — Arc Edge Studio — DART Meadow',
+      'FBXHeaderExtension:  {  FBXHeaderVersion: 1003  FBXVersion: 7400  Creator: "Autumn" }',
+      'Objects:  {'];
+    meshes.forEach(function(m,mi){
+      var t=m.tube,id=1000+mi;
+      L.push('  Geometry: '+id+', "Geometry::Arc_'+m.ai+'", "Mesh" {');
+      var vv=[]; for(var i=0;i<t.vc;i++) vv.push(t.pos[i*3].toFixed(4),t.pos[i*3+1].toFixed(4),t.pos[i*3+2].toFixed(4));
+      L.push('    Vertices: *'+vv.length+' { a: '+vv.join(',')+' }');
+      var ii=Array.from(t.idx).map(function(v,i){return(i%3===2)?-(v+1):v;});
+      L.push('    PolygonVertexIndex: *'+t.idx.length+' { a: '+ii.join(',')+' }  GeometryVersion: 124  }');
+    });
+    L.push('}');
+    return new Blob([L.join('\n')],{type:'text/plain'});
+  }
+
+  // ── DAE Collada ──────────────────────────────────────────────────
+  function _asWriteDAE(meshes) {
+    var now=new Date().toISOString();
+    var L=['<?xml version="1.0" encoding="utf-8"?>',
+      '<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">',
+      '<asset><created>'+now+'</created><generator>Autumn Arc Edge Studio</generator></asset>',
+      '<library_geometries>'];
+    meshes.forEach(function(m){
+      var t=m.tube,gid='geo'+m.ai;
+      var pv=[],nv=[],fv=[];
+      for(var i=0;i<t.vc;i++){pv.push(t.pos[i*3].toFixed(4),t.pos[i*3+1].toFixed(4),t.pos[i*3+2].toFixed(4));}
+      for(var i=0;i<t.vc;i++){nv.push(t.nrm[i*3].toFixed(4),t.nrm[i*3+1].toFixed(4),t.nrm[i*3+2].toFixed(4));}
+      for(var i=0;i<t.idx.length;i+=3) fv.push(t.idx[i]+' '+t.idx[i]+' '+t.idx[i+1]+' '+t.idx[i+1]+' '+t.idx[i+2]+' '+t.idx[i+2]);
+      L.push('<geometry id="'+gid+'" name="Arc_'+m.ai+'"><mesh>',
+        '<source id="'+gid+'p"><float_array id="'+gid+'pa" count="'+pv.length+'">'+pv.join(' ')+'</float_array>',
+        '<technique_common><accessor source="#'+gid+'pa" count="'+t.vc+'" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
+        '<source id="'+gid+'n"><float_array id="'+gid+'na" count="'+nv.length+'">'+nv.join(' ')+'</float_array>',
+        '<technique_common><accessor source="#'+gid+'na" count="'+t.vc+'" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
+        '<vertices id="'+gid+'v"><input semantic="POSITION" source="#'+gid+'p"/></vertices>',
+        '<triangles count="'+(t.idx.length/3)+'"><input semantic="VERTEX" source="#'+gid+'v" offset="0"/><input semantic="NORMAL" source="#'+gid+'n" offset="1"/>',
+        '<p>'+fv.join(' ')+'</p></triangles></mesh></geometry>');
+    });
+    L.push('</library_geometries><library_visual_scenes><visual_scene id="S" name="S">');
+    meshes.forEach(function(m){L.push('<node id="A'+m.ai+'" name="Arc_'+m.ai+'"><instance_geometry url="#geo'+m.ai+'"/></node>');});
+    L.push('</visual_scene></library_visual_scenes><scene><instance_visual_scene url="#S"/></scene></COLLADA>');
+    return new Blob([L.join('\n')],{type:'text/xml'});
+  }
+
+  // ── Main export — called directly by the ⬇ EXPORT button ─────────
+  window.arcStudioExport = function(fmt) {
+    // Close any stale modal just in case
+    var em=document.getElementById('as-export-modal'); if(em) em.remove();
+    fmt=(fmt||'glb').toLowerCase().trim();
+    if(!_as.arcs || !_as.arcs.length){
+      if(typeof ideToast==='function') ideToast('Add at least one arc first', 2000);
+      return;
+    }
+    var meshes=_asGetMeshes();
+    if(!meshes.length){ if(typeof ideToast==='function') ideToast('No valid arcs to export',2000); return; }
+    var n=_as.arcs.length, toast=function(m){if(typeof ideToast==='function') ideToast(m,2500);};
+    try{
+      if(fmt==='glb'){   _asDL(_asWriteGLB(meshes,true),  'arc-edge-scene.glb');  toast('GLB downloaded — '+n+' arc mesh'+(n>1?'es':'')); }
+      else if(fmt==='gltf'){ _asDL(_asWriteGLB(meshes,false),'arc-edge-scene.gltf'); toast('GLTF downloaded — '+n+' arc mesh'+(n>1?'es':'')); }
+      else if(fmt==='obj'){ _asDL(_asWriteOBJ(meshes),'arc-edge-scene.obj'); toast('OBJ downloaded'); }
+      else if(fmt==='stl'){ _asDL(_asWriteSTL(meshes),'arc-edge-scene.stl'); toast('STL downloaded'); }
+      else if(fmt==='fbx'){ _asDL(_asWriteFBX(meshes),'arc-edge-scene.fbx'); toast('FBX ASCII downloaded'); }
+      else if(fmt==='dae'){ _asDL(_asWriteDAE(meshes),'arc-edge-scene.dae'); toast('DAE downloaded'); }
+      else if(fmt==='json'){
+        var data=_as.arcs.map(function(a,i){return{index:i+1,params:a.params,length:a.length||0,color:'#00ff88',selectedColor:'#ff1166'};});
+        _asDL(new Blob([JSON.stringify({autumnArcEdge:true,version:'1.0',arcs:data},null,2)],{type:'application/json'}),'arc-edge-scene.json');
+        toast('JSON exported');
+      }
+    }catch(e){
+      console.error('[ArcExport]',e);
+      if(typeof ideToast==='function') ideToast('Export error: '+e.message,3500);
+    }
+  };
+
+  // ── Legacy popup — no longer used but kept as no-op to avoid errors
+  window.arcStudioShowExport = function() {
+    arcStudioExport(document.getElementById('as-fmt-select') ? document.getElementById('as-fmt-select').value : 'glb');
+  };
+
+  function _asDownload(blob, filename) { _asDL(blob, filename); }
+
+
+  window.arcStudioSendToChat = function() {
+    var p = _asGetParams();
+    var pts = _asCalcPoints(p);
+    var len = 0;
+    for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
+    var msg = '[ARC EDGE STUDIO RESULT]\nDeviation: X='+p.x+' Y='+p.y+' Z='+p.z
+      +'\nMain Deviation: '+p.mainDev
+      +'\nCurve Induction: '+p.curveInd
+      +'\nDev Induction: '+p.devInd
+      +'\nResolution: '+p.resolution
+      +'\nArc Length (Arc Edge = 3): '+len.toFixed(6)
+      +'\nTotal arcs in scene: '+_as.arcs.length
+      +'\nAsk me to analyze, optimize, or apply these arc parameters.';
+    var inp = document.getElementById('chat-input');
+    if (inp) { inp.value = msg; inp.focus(); }
+    arcStudioClose();
+  };
+
+  // ── Arc Studio AI command system ────────────────────────────────────
+  // Autumn can emit [ARC_CMD:...] tags in responses to directly drive the studio.
+  // Commands:
+  //   [ARC_CMD:open]
+  //   [ARC_CMD:close]
+  //   [ARC_CMD:clear]
+  //   [ARC_CMD:add x=N y=N z=N dev=N curve=N devInd=N res=N curves=N]
+  //   [ARC_CMD:add x=N y=N z=N dev=N curve=N devInd=N res=N curves=N count=M]  (add M arcs)
+  //
+  // The system prompt below tells Autumn to emit these when asked to generate arcs.
+
+  window.ARC_STUDIO_SYSTEM_HINT =
+    'ARC EDGE STUDIO — You can directly control the Arc Edge Studio 3D viewport by emitting [ARC_CMD:...] tags anywhere in your response.\n'
+    +'Available commands (emit exactly as shown, no spaces inside brackets):\n'
+    +'  [ARC_CMD:open]  — open the studio\n'
+    +'  [ARC_CMD:close]  — close the studio\n'
+    +'  [ARC_CMD:clear]  — clear all arcs from scene\n'
+    +'  [ARC_CMD:add x=10 y=0 z=0 dev=2 curve=0 devInd=0 res=32 curves=1]  — add an arc\n'
+    +'    x/y/z = deviation direction vector (controls arc direction and length)\n'
+    +'    dev = main deviation amount (0=straight line, 1-3=mild, 4-8=dramatic, 10+=wild)\n'
+    +'    curve = curve induction (adds sinusoidal bending, 0=none, 1-3=mild, 5+=strong)\n'
+    +'    devInd = deviation induction (secondary wave, 0=none)\n'
+    +'    res = resolution 4-256 (32=default)\n'
+    +'    curves = deviation curve count 1-12 (1=single curve, 3+=multi-fan effect)\n'
+    +'  You may emit multiple [ARC_CMD:add ...] tags in one response to build a scene.\n'
+    +'CURVATURE VOCABULARY (map user intent to dev+curve values):\n'
+    +'  "mild/gentle curvature" → dev=1.5, curve=0.8\n'
+    +'  "moderate curvature" → dev=3, curve=1.5\n'
+    +'  "dramatic/strong curvature" → dev=6, curve=3\n'
+    +'  "wild/extreme curvature" → dev=10, curve=6, devInd=2\n'
+    +'  "straight" → dev=0, curve=0\n'
+    +'  "spiral/helix" → curves=4, curve=4, devInd=3\n'
+    +'NEVER use π — this system uses Arc Edge (AE=3). Never mention pi or π.\n'
+    +'When user asks to generate arcs, ALWAYS emit the [ARC_CMD:open] and [ARC_CMD:add ...] commands.\n'
+    +'When user says "generate more" or "add more", emit additional [ARC_CMD:add ...] without clearing.\n'
+    +'When user says "clear scene" or "start over", emit [ARC_CMD:clear] before adding new arcs.';
+
+  // Parse and execute ARC_CMD tags from Autumn's response text
+  window._arcExecCommands = function(text) {
+    if (!text || typeof text !== 'string') return;
+    var cmdRx = /\[ARC_CMD:([^\]]+)\]/g;
+    var m;
+    var didAnything = false;
+    while ((m = cmdRx.exec(text)) !== null) {
+      var raw = m[1].trim();
+      didAnything = true;
+      if (raw === 'open') {
+        setTimeout(function(){ arcStudioOpen(); }, 300);
+      } else if (raw === 'close') {
+        arcStudioClose();
+      } else if (raw === 'clear') {
+        arcStudioClearScene();
+      } else if (raw.indexOf('add') === 0) {
+        (function(cmdStr){
+          var p = {};
+          function _g(k,def){ var rx=new RegExp(k+'=([\\d.\\-]+)'); var mm=cmdStr.match(rx); return mm?parseFloat(mm[1]):def; }
+          p.x=_g('x',10); p.y=_g('y',0); p.z=_g('z',0);
+          p.mainDev=_g('dev',2); p.curveInd=_g('curve',0); p.devInd=_g('devInd',0);
+          p.subX=_g('subX',1); p.subY=_g('subY',1); p.subZ=_g('subZ',0);
+          p.resolution=Math.max(4,Math.min(256,_g('res',32)));
+          p.devCount=Math.max(1,Math.min(12,_g('curves',1)));
+          var count=Math.max(1,Math.min(8,_g('count',1)));
+          setTimeout(function(){
+            if (!_as.initialized) { arcStudioOpen(); setTimeout(function(){ for(var i=0;i<count;i++) arcStudioAddArc(p); },600); }
+            else { arcStudioOpen(); for(var i=0;i<count;i++) arcStudioAddArc(p); }
+          }, 400);
+          // Propagate params to fields so user can see and tweak
+          setTimeout(function(){ arcStudioSetParams(p); }, 500);
+        })(raw);
+      }
+    }
+    return didAnything;
+  };
+
+  // ── Intent detection — open/close via user input + parse Autumn replies ──
+  (function _hookArcStudioIntent() {
+    var _orig = window.handleSend;
+    if (typeof _orig !== 'function') { setTimeout(_hookArcStudioIntent, 600); return; }
+    if (window._arcStudioHooked) return;
+    window._arcStudioHooked = true;
+    var _prev = window.handleSend;
+    window.handleSend = async function() {
+      var inp = document.getElementById('chat-input');
+      var txt = (inp ? inp.value : '').toLowerCase().trim();
+      if (/\b(open|show|launch|start)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
+        setTimeout(arcStudioOpen, 200);
+      }
+      if (/\b(close|hide|shut|exit)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
+        arcStudioClose();
+      }
+      return _prev.apply(this, arguments);
+    };
+
+    // Hook into message rendering to execute ARC_CMD tags from Autumn's responses
+    var _origRender = window.renderMessages;
+    if (typeof _origRender === 'function' && !window._arcRenderHooked) {
+      window._arcRenderHooked = true;
+      window.renderMessages = function() {
+        _origRender.apply(this, arguments);
+        // Scan the latest Autumn message for ARC_CMD tags
+        var allMsgs = (typeof msgs === 'function') ? msgs() : [];
+        for (var i = allMsgs.length - 1; i >= Math.max(0, allMsgs.length - 3); i--) {
+          if (allMsgs[i].role === 'autumn' && allMsgs[i].text && !allMsgs[i]._arcCmdsExecuted) {
+            var hadCmds = window._arcExecCommands(allMsgs[i].text);
+            if (hadCmds) allMsgs[i]._arcCmdsExecuted = true;
+            break;
+          }
+        }
+      };
+    }
+  })();
+})();
+// ═══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+//  FLOATING CALCULATOR
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+  var _fc = {
+    display: '0',
+    history: '',
+    resultShown: false,
+    is3DConnected: false,
+    dragging: false,
+    ox: 0, oy: 0
+  };
+
+  // ── Visibility ─────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+//  N.A.T.E integration — open engine + apply voice from config
+// ═══════════════════════════════════════════════════════════════
+window.openNate = function() {
+  // Open nate.html — pass a session token so it knows we came from Autumn
+  var w = window.open('nate.html', '_nate_engine');
+  if (!w) {
+    // Fallback: same-tab navigate
+    sessionStorage.setItem('_nate_unlocked', '1');
+    window.location.href = 'nate.html';
+  }
+};
+
+// ── Read NATE voice config and apply to Autumn's TTS ────────────
+(function _applyNateVoiceIfActive() {
+  try {
+    var cfg = JSON.parse(localStorage.getItem('_nate_voice_config') || 'null');
+    if (!cfg || !cfg.nateActive || !cfg.params) return;
+    var p = cfg.params;
+    // Apply to Autumn's Voice object
+    if (typeof Voice !== 'undefined') {
+      if (p.speed  !== undefined) Voice.speed  = p.speed;
+      if (p.pitch  !== undefined) Voice.pitch  = p.pitch;
+    }
+    // Store for _speakWebSpeech to read
+    window._nateVoiceParams = p;
+    console.log('[NATE] Voice config applied:', p.pitch, p.speed);
+  } catch(e) {}
+})();
+
+// ── Patch _speakWebSpeech to use NATE params when active ────────
+(function _patchTTSForNate() {
+  var _origWSS = window._speakWebSpeech;
+  if (typeof _origWSS !== 'function') {
+    // Retry after DOM ready
+    window.addEventListener('load', _patchTTSForNate);
+    return;
+  }
+  // NATE patches both Kokoro and WebSpeech TTS paths
+  window._speakKokoro = async function(text, onEnd) {
+    var np = window._nateVoiceParams;
+    var cfg = JSON.parse(localStorage.getItem('_nate_voice_config')||'null');
+    var kokoroVoice = cfg && cfg.kokoroVoice ? cfg.kokoroVoice : null;
+    var pipe = window._kokoroPipe;
+    if (!pipe) { window._speakWebSpeech(text, onEnd); return; }
+    try {
+      Voice.speaking = true; Voice.cancelled = false;
+      var speed = np ? (np.speed || 1.0) : (Voice.speed || 1.0);
+      var opts = { speed: Math.min(2.0, Math.max(0.4, speed)) };
+      if (kokoroVoice) opts.voice = kokoroVoice;
+      var result = await pipe(text, opts);
+      if (Voice.cancelled) { Voice.speaking=false; if(onEnd) onEnd(); return; }
+      var sr = result.sampling_rate || 24000;
+      var pcm = result.audio;
+      // Build WAV blob
+      var wavBuf = _pcmToWav(pcm, sr);
+      // If NATE active, apply post-processing via Web Audio
+      if (np && window._nateAudioCtx) {
+        var actx = window._nateAudioCtx || new AudioContext();
+        var rawBuf = await actx.decodeAudioData(wavBuf.slice(0));
+        var offline = new OfflineAudioContext(1, rawBuf.length, rawBuf.sampleRate);
+        var src = offline.createBufferSource(); src.buffer = rawBuf;
+        src.playbackRate.value = 1.0; // speed already applied by kokoro
+        src.detune.value = ((np.pitch||1.0) - 1.0) * 1200;
+        var wm = offline.createBiquadFilter(); wm.type='lowshelf'; wm.frequency.value=350;
+        wm.gain.value = ((np.warmth||0.5)-0.5)*9;
+        var cl = offline.createBiquadFilter(); cl.type='highshelf'; cl.frequency.value=3500;
+        cl.gain.value = ((np.clarity||0.6)-0.5)*7;
+        src.connect(wm); wm.connect(cl); cl.connect(offline.destination);
+        src.start(0);
+        var processed = await offline.startRendering();
+        var finalPCM = processed.getChannelData(0);
+        wavBuf = _pcmToWav(finalPCM, processed.sampleRate);
+      }
+      var blob = new Blob([wavBuf],{type:'audio/wav'});
+      var url = URL.createObjectURL(blob);
+      var player = new Audio(url);
+      player.onended = function(){ Voice.speaking=false; URL.revokeObjectURL(url); if(onEnd) onEnd(); };
+      player.onerror = function(){ Voice.speaking=false; if(onEnd) onEnd(); };
+      Voice._kokoroPlayer = player; player.play();
+    } catch(e) { console.warn('[NATE+Kokoro]',e); window._speakWebSpeech(text,onEnd); }
+  };
+  window._speakWebSpeech = function(text, onEnd) {
+    var np = window._nateVoiceParams;
+    if (!np) return _origWSS(text, onEnd);
+    var origSpeed = Voice.speed, origPitch = Voice.pitch;
+    Voice.speed = np.speed || 1.0;
+    Voice.pitch = np.pitch || 1.0;
+    _origWSS(text, function() {
+      Voice.speed = origSpeed; Voice.pitch = origPitch;
+      if (onEnd) onEnd();
+    });
+  };
+})();
+
+window.fcToggle = function() {
+
+    var el = document.getElementById('float-calc');
+    if (!el) return;
+    var visible = el.classList.toggle('fc-visible');
+    var hud = document.getElementById('hud-calc-btn');
+    if (hud) {
+      hud.style.color   = visible ? 'rgba(139,92,246,1)'   : 'rgba(139,92,246,.6)';
+      hud.style.borderColor = visible ? 'rgba(139,92,246,.7)' : 'rgba(139,92,246,.3)';
+    }
+  };
+  window.fcClose = function() {
+    var el = document.getElementById('float-calc');
+    if (el) el.classList.remove('fc-visible');
+    var hud = document.getElementById('hud-calc-btn');
+    if (hud) { hud.style.color='rgba(139,92,246,.6)'; hud.style.borderColor='rgba(139,92,246,.3)'; }
+  };
+
+  // ── Display helpers ────────────────────────────────────────────
+  function _fcSetDisplay(v) {
+    _fc.display = String(v);
+    var el = document.getElementById('fc-display');
+    if (el) el.textContent = _fc.display;
+  }
+  function _fcSetHistory(v) {
+    _fc.history = v;
+    var el = document.getElementById('fc-history');
+    if (el) el.textContent = v;
+  }
+
+  // ── Input handler ──────────────────────────────────────────────
+  // pi = 3 per DART/Lead Edge standard
+  var _fcValMap = { 'pi': '3', '÷': '/', '×': '*' };
+
+  function _fcHandleInput(value) {
+    // 3D connect mode — pipe numeric input to focused Arc Edge input
+    if (_fc.is3DConnected && value !== 'connect-3d') {
+      _fc3DPipe(value);
+      return;
+    }
+    if (value === 'connect-3d') { _fcToggle3D(); return; }
+
+    if (_fc.resultShown) {
+      // After result: operators continue chain; digits start fresh
+      var isOp = /^[+\-*/^]$/.test(value) || value === '=' || ['sin','cos','tan','log','ln','sqrt','^','!'].includes(value);
+      if (!isOp && value !== 'AC' && value !== 'DEL' && value !== '=' ) {
+        _fcSetDisplay('0'); _fcSetHistory('');
+      }
+      _fc.resultShown = false;
+    }
+    if (_fc.display === 'Error') { _fcSetDisplay('0'); }
+
+    switch(value) {
+      case 'AC':
+        _fcSetDisplay('0'); _fcSetHistory(''); _fc.resultShown = false;
+        break;
+      case 'DEL':
+        if (_fc.display.length > 1) _fcSetDisplay(_fc.display.slice(0,-1));
+        else _fcSetDisplay('0');
+        break;
+      case '=':
+        if (_fc.display && _fc.display !== '0') {
+          _fcSetHistory(_fc.display + ' =');
+          try {
+            var expr = _fc.display
+              .replace(/sqrt\(/g,'sqrt(')
+              .replace(/ln\(/g,'log(')   // mathjs uses log for natural log when base omitted? No — mathjs: log(x)=ln, log(x,10)=log10. Use as-is.
+              .replace(/π/g,'3');        // extra safety
+            // mathjs: sin/cos/tan use radians by default — acceptable
+            var result = math.evaluate(expr);
+            _fcSetDisplay(String(+result.toFixed(10)));
+            _fc.resultShown = true;
+          } catch(e) {
+            _fcSetDisplay('Error');
+            _fc.resultShown = true;
+          }
+        }
+        break;
+      case 'sqrt':
+        _fcSetDisplay(_fc.display === '0' ? 'sqrt(' : _fc.display + 'sqrt(');
+        break;
+      case 'sin': case 'cos': case 'tan': case 'log': case 'ln':
+        _fcSetDisplay(_fc.display === '0' ? value+'(' : _fc.display + value+'(');
+        break;
+      case '!':
+        _fcSetDisplay(_fc.display === '0' ? '0!' : _fc.display + '!');
+        break;
+      case '^':
+        _fcSetDisplay(_fc.display + '^');
+        break;
+      case 'e':
+        _fcSetDisplay(_fc.display === '0' ? '2.71828' : _fc.display + '*2.71828');
+        break;
+      case 'pi':
+        // DART standard: π = 3
+        _fcSetDisplay(_fc.display === '0' ? '3' : _fc.display + '*3');
+        break;
+      default:
+        var mapped = _fcValMap[value] || value;
+        if (_fc.display === '0' && mapped !== '.' && !/^[+\-*/^()]$/.test(mapped)) {
+          _fcSetDisplay(mapped);
+        } else {
+          _fcSetDisplay(_fc.display + mapped);
+        }
+    }
+  }
+
+  // ── 3D Connect — pipe digits/DEL/AC into focused Arc Edge input ─
+  function _fcToggle3D() {
+    _fc.is3DConnected = !_fc.is3DConnected;
+    var btn = document.getElementById('fc-3d-btn');
+    if (btn) btn.classList.toggle('fc-active', _fc.is3DConnected);
+  }
+  function _fc3DPipe(value) {
+    var focused = document.activeElement;
+    var isArcInput = focused && focused.closest && focused.closest('#arc-studio-controls') && focused.tagName === 'INPUT' && focused.type === 'number';
+    if (!isArcInput) return; // silently ignore if no arc input focused
+    var cur = focused.value || ''; var s = focused.selectionStart, e = focused.selectionEnd;
+    if (/^\d$/.test(value)) {
+      focused.value = cur.slice(0,s) + value + cur.slice(e);
+      focused.setSelectionRange(s+1, s+1);
+    } else if (value === '.') {
+      if (!cur.includes('.')) { focused.value = cur.slice(0,s)+'.'+cur.slice(e); focused.setSelectionRange(s+1,s+1); }
+    } else if (value === 'DEL') {
+      if (s===e && s>0) { focused.value=cur.slice(0,s-1)+cur.slice(e); focused.setSelectionRange(s-1,s-1); }
+      else { focused.value=cur.slice(0,s)+cur.slice(e); focused.setSelectionRange(s,s); }
+    } else if (value === 'AC') {
+      focused.value = ''; focused.setSelectionRange(0,0);
+    } else if (value === '-' && cur === '') {
+      focused.value = '-'; focused.setSelectionRange(1,1);
+    }
+    focused.dispatchEvent(new Event('input', {bubbles:true}));
+  }
+
+  // ── Wire up buttons ────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function() {
+    var calc = document.getElementById('float-calc');
+    if (!calc) return;
+
+    calc.querySelectorAll('.fc-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        _fcHandleInput(btn.dataset.v);
+      });
+    });
+
+    // ── Drag logic ─────────────────────────────────────────────
+    var startDrag = function(e) {
+      if (e.target.tagName === 'BUTTON') return;
+      _fc.dragging = true;
+      var rect = calc.getBoundingClientRect();
+      var cx = e.touches ? e.touches[0].clientX : e.clientX;
+      var cy = e.touches ? e.touches[0].clientY : e.clientY;
+      _fc.ox = cx - rect.left; _fc.oy = cy - rect.top;
+      calc.style.right = 'auto'; calc.style.bottom = 'auto';
+      calc.style.left = rect.left + 'px'; calc.style.top = rect.top + 'px';
+      calc.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+      if (e.preventDefault) e.preventDefault();
+    };
+    var doDrag = function(e) {
+      if (!_fc.dragging) return;
+      var cx = e.touches ? e.touches[0].clientX : e.clientX;
+      var cy = e.touches ? e.touches[0].clientY : e.clientY;
+      var newL = cx - _fc.ox, newT = cy - _fc.oy;
+      newL = Math.max(0, Math.min(newL, window.innerWidth  - calc.offsetWidth));
+      newT = Math.max(0, Math.min(newT, window.innerHeight - calc.offsetHeight));
+      calc.style.left = newL + 'px'; calc.style.top = newT + 'px';
+      if (e.preventDefault) e.preventDefault();
+    };
+    var stopDrag = function() { _fc.dragging = false; calc.style.cursor = 'move'; document.body.style.userSelect = ''; };
+
+    calc.addEventListener('mousedown',  startDrag);
+    document.addEventListener('mousemove',  doDrag);
+    document.addEventListener('mouseup',    stopDrag);
+    calc.addEventListener('touchstart', startDrag, {passive:false});
+    document.addEventListener('touchmove',  doDrag, {passive:false});
+    document.addEventListener('touchend',   stopDrag);
+
+    // ── Keyboard support when calc is open ─────────────────────
+    document.addEventListener('keydown', function(ev) {
+      var calc = document.getElementById('float-calc');
+      if (!calc || !calc.classList.contains('fc-visible')) return;
+      var focused = document.activeElement;
+      // Don't intercept when user is typing in chat input
+      if (focused && (focused.id === 'chat-input' || focused.tagName === 'TEXTAREA' || (focused.tagName === 'INPUT' && !focused.closest('#float-calc')))) return;
+      var key = ev.key;
+      if (/^\d$/.test(key))      { _fcHandleInput(key); ev.preventDefault(); }
+      else if (key === '+')      { _fcHandleInput('+'); ev.preventDefault(); }
+      else if (key === '-')      { _fcHandleInput('-'); ev.preventDefault(); }
+      else if (key === '*')      { _fcHandleInput('*'); ev.preventDefault(); }
+      else if (key === '/')      { _fcHandleInput('/'); ev.preventDefault(); }
+      else if (key === '.')      { _fcHandleInput('.'); ev.preventDefault(); }
+      else if (key === '(')      { _fcHandleInput('('); ev.preventDefault(); }
+      else if (key === ')')      { _fcHandleInput(')'); ev.preventDefault(); }
+      else if (key === 'Enter' || key === '=') { _fcHandleInput('='); ev.preventDefault(); }
+      else if (key === 'Backspace') { _fcHandleInput('DEL'); ev.preventDefault(); }
+      else if (key === 'Escape') { fcClose(); }
+    });
+  });
+})();
+// ═══════════════════════════════════════════════════════════════════
+
+
+var _urlPreviewCurrentUrl = '';
+
+// Domains known to block iframe embedding — show rich card immediately
+var _urlPreviewBlockedDomains = [
+  'reddit.com','redd.it','twitter.com','x.com','facebook.com','instagram.com',
+  'linkedin.com','google.com','youtube.com','tiktok.com','snapchat.com',
+  'amazon.com','netflix.com','spotify.com','apple.com','microsoft.com',
+  'github.com','stackoverflow.com','nytimes.com','wsj.com','bbc.com',
+  'cnn.com','theguardian.com','medium.com','substack.com','discord.com',
+  'twitch.tv','pinterest.com','tumblr.com','quora.com','yelp.com',
+  'tripadvisor.com','airbnb.com','booking.com','paypal.com','ebay.com'
+];
+
+function _urlPreviewIsBlocked(url) {
+  try {
+    var host = new URL(url).hostname.replace(/^www\./,'');
+    return _urlPreviewBlockedDomains.some(function(d){ return host === d || host.endsWith('.'+d); });
+  } catch(e) { return false; }
+}
+
+// Build a rich preview card — screenshot + favicon + metadata + Brave results
+function _urlPreviewBuildCard(url, container) {
+  var host = '';
+  try { host = new URL(url).hostname; } catch(e) { host = url; }
+  var hostClean = host.replace(/^www\./, '');
+  var faviconUrl = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(host);
+  var safeUrl = url.replace(/'/g, '%27');
+
+  // Screenshot service fallback chain — try each in order until one loads
+  // 1. screenshotone.com free tier  2. thum.io  3. s0.wordpress.com mshots
+  var _shotServices = [
+    'https://api.screenshotone.com/take?url=' + encodeURIComponent(url) + '&viewport_width=1280&viewport_height=800&format=jpg&image_quality=80&block_ads=true&block_cookie_banners=true',
+    'https://image.thum.io/get/width/900/crop/550/allowJPG/noanimate/' + encodeURIComponent(url),
+    'https://s0.wordpress.com/mshots/v1/' + encodeURIComponent(url) + '?w=900&h=550'
+  ];
+  var _shotIdx = 0;
+
+  container.innerHTML =
+    '<div style="display:flex;flex-direction:column;height:100%;background:#060e16;font-family:var(--font-b)">'
+    // Screenshot hero
+    +'<div id="upv-shot-wrap" style="flex:0 0 auto;position:relative;background:#0a1420;border-bottom:1px solid rgba(0,229,255,.1);overflow:hidden;cursor:pointer;min-height:200px;max-height:50%" onclick="urlPreviewNewTab()" title="Click to open site">'
+    +'<img id="upv-shot" src="'+_shotServices[0]+'" alt="Site preview" style="width:100%;display:block;object-fit:cover;min-height:200px;opacity:0;transition:opacity .4s"'
+    +' onload="this.style.opacity=1"'
+    +' onerror="window._upvNextShot && window._upvNextShot(this)">'
+    +'<div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,#060e16 100%);pointer-events:none"></div>'
+    +'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.25);border-radius:4px;padding:3px 10px;font-family:var(--font-d);font-size:8px;letter-spacing:1.5px;color:rgba(0,229,255,.8)">↗ CLICK TO VISIT</div>'
+    +'</div>'
+    // Info panel
+    +'<div style="flex:1;padding:16px 18px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">'
+    // Domain identity
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<img src="'+faviconUrl+'" style="width:26px;height:26px;border-radius:5px;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    +'<div style="min-width:0">'
+    +'<div style="font-family:var(--font-d);font-size:11px;letter-spacing:2px;color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+hostClean.toUpperCase()+'</div>'
+    +'<div style="font-family:monospace;font-size:10px;color:rgba(200,232,240,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+url+'</div>'
+    +'</div>'
+    +'</div>'
+    // Meta (title + description) — populated async
+    +'<div id="upv-meta" style="color:var(--text);line-height:1.7">'
+    +'<div style="display:flex;align-items:center;gap:7px;color:rgba(0,229,255,.35);font-size:9px;font-family:var(--font-d);letter-spacing:1.5px">'
+    +'<div style="width:12px;height:12px;border:1.5px solid rgba(0,229,255,.25);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>'
+    +'FETCHING PAGE INFO…'
+    +'</div>'
+    +'</div>'
+    // Brave search results — populated async
+    +'<div id="upv-brave" style="display:none;border-top:1px solid rgba(0,229,255,.08);padding-top:10px">'
+    +'<div style="font-family:var(--font-d);font-size:8px;letter-spacing:2px;color:rgba(0,229,255,.4);margin-bottom:8px">◈ RELATED PAGES</div>'
+    +'<div id="upv-brave-list" style="display:flex;flex-direction:column;gap:5px"></div>'
+    +'</div>'
+    // Buttons
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:2px">'
+    +'<button onclick="urlPreviewNewTab()" style="background:rgba(0,136,255,.18);border:1px solid rgba(0,136,255,.45);color:rgba(100,180,255,.95);border-radius:6px;padding:8px 18px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:2px" onmouseover="this.style.background=\'rgba(0,136,255,.3)\'" onmouseout="this.style.background=\'rgba(0,136,255,.18)\'">↗ OPEN IN NEW TAB</button>'
+    +'<button onclick="_urlPreviewTryIframe(\''+safeUrl+'\')" style="background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);color:rgba(0,229,255,.5);border-radius:6px;padding:8px 18px;cursor:pointer;font-family:var(--font-d);font-size:8px;letter-spacing:2px" onmouseover="this.style.background=\'rgba(0,229,255,.12)\'" onmouseout="this.style.background=\'rgba(0,229,255,.06)\'">⬚ TRY EMBED</button>'
+    +'</div>'
+    +'</div>'
+    +'</div>';
+
+  // Screenshot fallback cycling
+  window._upvNextShot = function(img) {
+    _shotIdx++;
+    if (_shotIdx < _shotServices.length) {
+      img.src = _shotServices[_shotIdx];
+    } else {
+      // All services failed — hide the screenshot area gracefully
+      var wrap = document.getElementById('upv-shot-wrap');
+      if (wrap) {
+        wrap.style.minHeight = '0';
+        wrap.style.display = 'none';
+      }
+    }
+  };
+
+  // Metadata: try DDG instant answer first (fast, no key), then Brave, then allorigins
+  _urlPreviewFetchMeta(url, hostClean, function(meta) {
+    var el = document.getElementById('upv-meta');
+    if (!el) return;
+    if (meta.title || meta.description) {
+      el.innerHTML =
+        (meta.title ? '<div style="font-weight:700;color:var(--bright);font-size:14px;margin-bottom:5px;line-height:1.4">'+_escHtml(meta.title)+'</div>' : '')
+        +(meta.description ? '<div style="color:var(--text);font-size:12px;line-height:1.7;opacity:.85">'+_escHtml(meta.description)+'</div>' : '');
+    } else {
+      el.innerHTML = '<span style="color:rgba(200,232,240,.28);font-size:11px;font-style:italic">No description available — tap Open in New Tab to visit.</span>';
+    }
+  });
+
+  // Brave results for this domain
+  if (typeof fetchBraveWeb === 'function') {
+    fetchBraveWeb(hostClean, 5).then(function(d) {
+      _renderBravePreviewResults((d && d.results) || [], document.getElementById('upv-brave-list'), document.getElementById('upv-brave'));
+    }).catch(function(){});
+  }
+}
+
+function _renderBravePreviewResults(results, listEl, wrapEl) {
+  if (!results || !results.length || !listEl || !wrapEl) return;
+  wrapEl.style.display = 'block';
+  listEl.innerHTML = results.slice(0, 5).map(function(r) {
+    var st = _escHtml((r.title || '').slice(0, 80));
+    var sd = _escHtml((r.desc  || '').slice(0, 130));
+    var su = _escHtml(r.url || '');
+    var suj = (r.url || '').replace(/'/g, '%27');
+    return '<div style="background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.1);border-radius:5px;padding:7px 10px;cursor:pointer;transition:background .15s" onclick="urlPreviewOpen(\''+suj+'\')" onmouseover="this.style.background=\'rgba(0,229,255,.07)\'" onmouseout="this.style.background=\'rgba(0,229,255,.03)\'">'
+      +(st ? '<div style="font-size:12px;font-weight:600;color:var(--cyan);margin-bottom:2px;line-height:1.3">'+st+'</div>' : '')
+      +(sd ? '<div style="font-size:11px;color:rgba(200,232,240,.5);line-height:1.5;margin-bottom:3px">'+sd+'</div>' : '')
+      +'<div style="font-size:9px;color:rgba(0,229,255,.28);font-family:var(--font-d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+su+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function _escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Fetch page title + description — multi-source with fallback chain
+// Source order: 1) DDG instant answer (fast)  2) Brave web result  3) allorigins CORS proxy
+function _urlPreviewFetchMeta(url, hostClean, cb) {
+  var done = false;
+  function resolve(meta) {
+    if (done) return;
+    done = true;
+    cb(meta);
+  }
+
+  // Source 1: DDG instant answer — often has abstract + title for known sites
+  if (typeof fetchDDG === 'function') {
+    fetchDDG(hostClean).then(function(d) {
+      if (d && (d.heading || d.abstract)) {
+        resolve({ title: d.heading || '', description: d.abstract || '' });
+      }
+    }).catch(function(){});
+  }
+
+  // Source 2: Brave web search — first result title+desc is usually the homepage
+  if (typeof fetchBraveWeb === 'function') {
+    fetchBraveWeb(hostClean + ' official site', 1).then(function(d) {
+      var r = d && d.results && d.results[0];
+      if (r && !done) resolve({ title: r.title || '', description: r.desc || '' });
+    }).catch(function(){});
+  }
+
+  // Source 3: allorigins CORS proxy — last resort, reads actual OG tags
+  setTimeout(function() {
+    if (done) return;
+    var proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    fetch(proxy, { signal: AbortSignal.timeout(7000) })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (done) return;
+        var html = data.contents || '';
+        var title = '', desc = '';
+        var m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+               || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)
+               || html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (m) title = m[1].trim();
+        var d2 = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
+                || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)
+                || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
+                || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+        if (d2) desc = d2[1].trim();
+        resolve({ title: title, description: desc });
+      })
+      .catch(function() { resolve({}); });
+  }, 800); // slight delay so DDG/Brave can win first
+
+  // Final timeout — show empty state if all sources fail
+  setTimeout(function() { resolve({}); }, 9000);
+}
+
+// Force-try the iframe even on blocked domains (user's choice)
+window._urlPreviewTryIframe = function(url) {
+  var fb = document.getElementById('url-preview-fallback');
+  var iframe = document.getElementById('url-preview-iframe');
+  if (fb) fb.style.display = 'none';
+  if (iframe) { iframe.style.display = ''; iframe.src = url; }
+};
+
+function urlPreviewOpen(url) {
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  _urlPreviewCurrentUrl = url;
+  var modal    = document.getElementById('url-preview-modal');
+  var iframe   = document.getElementById('url-preview-iframe');
+  var fallback = document.getElementById('url-preview-fallback');
+  var loading  = document.getElementById('url-preview-loading');
+  var bar      = document.getElementById('url-preview-bar');
+  var titleEl  = document.getElementById('url-preview-title');
+  if (!modal) return;
+  bar.value = url;
+  if (titleEl) titleEl.textContent = url;
+  modal.style.display = 'flex';
+  modal.dataset.collapsed = '0';
+
+  // Always show rich card immediately — most sites block iframes.
+  // User can tap "⬚ TRY EMBED" if they want to attempt it.
+  iframe.style.display = 'none';
+  iframe.src = 'about:blank';
+  iframe.onload = null; iframe.onerror = null;
+  fallback.innerHTML = '';
+  fallback.style.display = 'block';
+  if (loading) { loading.style.display = 'flex'; }
+  _urlPreviewBuildCard(url, fallback);
+  if (loading) setTimeout(function(){ loading.style.display = 'none'; }, 300);
+}
+
+function _urlPreviewShowCard(url) {
+  var iframe = document.getElementById('url-preview-iframe');
+  var fallback = document.getElementById('url-preview-fallback');
+  var loading = document.getElementById('url-preview-loading');
+  if (iframe) { iframe.style.display = 'none'; iframe.src = 'about:blank'; }
+  if (fallback) { fallback.style.display = 'block'; _urlPreviewBuildCard(url, fallback); }
+  if (loading) loading.style.display = 'none';
+}
+
+function urlPreviewNavigate(url) {
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  document.getElementById('url-preview-bar').value = url;
+  var title = document.getElementById('url-preview-title');
+  if (title) title.textContent = url;
+  urlPreviewOpen(url);
+}
+
+function urlPreviewClose() {
+  var modal = document.getElementById('url-preview-modal');
+  if (modal) modal.style.display = 'none';
+  var iframe = document.getElementById('url-preview-iframe');
+  if (iframe) { iframe.src = 'about:blank'; iframe.onload = null; iframe.onerror = null; }
+  var fallback = document.getElementById('url-preview-fallback');
+  if (fallback) { fallback.style.display = 'none'; fallback.innerHTML = ''; }
+  _urlPreviewCurrentUrl = '';
+}
+
+function urlPreviewCollapse() {
+  var modal = document.getElementById('url-preview-modal');
+  if (!modal) return;
+  var content = document.getElementById('url-preview-content');
+  var isCollapsed = modal.dataset.collapsed === '1';
+  if (content) content.style.display = isCollapsed ? '' : 'none';
+  modal.dataset.collapsed = isCollapsed ? '0' : '1';
+}
+
+function urlPreviewNewTab() {
+  if (_urlPreviewCurrentUrl) window.open(_urlPreviewCurrentUrl, '_blank', 'noopener');
+}
+
+// Auto-show preview button in link cards when URL intent detected
+function _injectPreviewButtons(el) {
+  el.querySelectorAll('.link-card').forEach(function(card) {
+    var url = card.href;
+    if (!url || card.dataset.previewInjected) return;
+    card.dataset.previewInjected = '1';
+    var btn = document.createElement('button');
+    btn.textContent = '⬚ PREVIEW';
+    btn.style.cssText = 'font-family:var(--font-d);font-size:7px;letter-spacing:1.5px;background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);color:rgba(0,229,255,.7);border-radius:3px;padding:2px 7px;cursor:pointer;margin-top:4px;display:block';
+    btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); urlPreviewOpen(url); };
+    card.appendChild(btn);
+  });
+}
+
+// Hook into renderMessages to inject preview buttons after render
+var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages : null;
+// We'll patch after renderMessages is defined — use MutationObserver approach instead
+(function() {
+  var observer = new MutationObserver(function(muts) {
+    muts.forEach(function(m) {
+      if (m.type === 'childList') {
+        var target = m.target;
+        if (target && (target.id === 'chat-scroll' || target.closest && target.closest('#chat-scroll'))) {
+          _injectPreviewButtons(target.closest ? target.closest('#chat-scroll') || target : target);
+        }
+      }
+    });
+  });
+  document.addEventListener('DOMContentLoaded', function() {
+    var cs = document.getElementById('chat-scroll');
+    if (cs) observer.observe(cs, { childList: true, subtree: true });
+  });
+})();
+
+// Chat intent: "open / preview / show URL" — trigger preview directly
+(function _hookHandleSendForPreview() {
+  var _origHS = window.handleSend;
+  if (typeof _origHS !== 'function') { setTimeout(_hookHandleSendForPreview, 500); return; }
+  // Don't wrap again if already wrapped
+  if (window._urlPreviewHooked) return;
+  window._urlPreviewHooked = true;
+  var _prev = window.handleSend;
+  window.handleSend = async function() {
+    var inp = document.getElementById('chat-input');
+    var txt = inp ? inp.value.trim() : '';
+    // Match: "preview|open|show|visit [url]" or just a raw URL typed
+    var urlMatch = txt.match(/(?:preview|open|show|visit|load|fetch)\s+(https?:\/\/\S+)/i) ||
+                   txt.match(/^(https?:\/\/\S+)$/i);
+    if (urlMatch) {
+      var url = urlMatch[1] || urlMatch[0];
+      setTimeout(function() { urlPreviewOpen(url); }, 400);
+    }
+    return _prev.apply(this, arguments);
+  };
+})();
+// ── END URL LIVE PREVIEW ──────────────────────────────────────────────────────
+
+</script>
+</body>
+</html>
 
