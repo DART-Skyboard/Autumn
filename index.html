@@ -1796,7 +1796,7 @@ select.ash-ctrl-input{cursor:pointer}
     <div class="logo">Autumn</div>
     <div class="logo-sub">LEATR v2.1</div>
   </a>
-  <span id="frax-active-badge" onclick="document.getElementById('frax-studio-modal').classList.add('open')" title="FRAX Studio active">◈ FRAX</span>
+  <span id="frax-active-badge" onclick="document.getElementById('frax-studio-modal').classList.add('open')" title="FRAX Studio active" style="display:none">◈ FRAX</span>
   <div class="hdr-btns">
     <!-- Backdrop opacity cycle toggle -->
     <button id="scrim-toggle" onclick="cycleScrim()" title="Cycle backdrop opacity">
@@ -9807,7 +9807,212 @@ function reattachLiveCanvases() {
   });
 }
 
+// ══════ FORGE — Essential functions (must be global before renderMessages) ══════
+var _FORGE_EXTS = {
+  html:'html',css:'css',javascript:'js',typescript:'ts',python:'py',php:'php',
+  ruby:'rb',perl:'pl',shell:'sh',powershell:'ps1',cpp:'cpp',c:'c',csharp:'cs',
+  java:'java',kotlin:'kt',swift:'swift',go:'go',rust:'rs',sql:'sql',json:'json',
+  xml:'xml',yaml:'yml',markdown:'md',graphql:'graphql',glsl:'glsl',hlsl:'hlsl'
+};
+var _FORGE_PREVIEWABLE = new Set(['html','css','javascript','markdown','svg']);
+var _FORGE_OUTPUT_LANGS = new Set(['python','php','ruby','perl','shell','powershell',
+  'cpp','c','csharp','java','kotlin','swift','go','rust','sql']);
+var _FORGE_LANG_MAP = {
+  js:'javascript',ts:'typescript',py:'python',rb:'ruby',sh:'shell',bash:'shell',
+  cs:'csharp',yml:'yaml',md:'markdown',rs:'rust',kt:'kotlin'
+};
+var _forge = { editor:null, lang:'html', monacoReady:false, claudeEnabled:true };
+
+window.forgeRenderText = function(text, msgId) {
+  if (!text) return '';
+  var parts = text.split(/(```[\w]*\n[\s\S]*?```)/g);
+  if (parts.length === 1) return '<span style="white-space:pre-wrap">'+esc(text)+'</span>';
+  var html = '';
+  parts.forEach(function(part, i) {
+    if (/^```/.test(part)) {
+      var lines = part.split('\n');
+      var rawLang = lines[0].replace('```','').trim().toLowerCase();
+      var lang = _FORGE_LANG_MAP[rawLang] || rawLang || 'plaintext';
+      var code = lines.slice(1, lines[lines.length-1]==='```' ? -1 : lines.length).join('\n');
+      var blockId = 'fcb-'+(msgId||'x')+'-'+i;
+      var ext = _FORGE_EXTS[lang] || 'txt';
+      var canRun = _FORGE_PREVIEWABLE.has(lang) || _FORGE_OUTPUT_LANGS.has(lang);
+      html += '<div class="forge-code-block">'
+        + '<div class="forge-code-header">'
+        + '<span class="forge-code-lang">'+esc(lang.toUpperCase())+'</span>'
+        + '<div class="forge-code-actions">'
+        + '<button class="forge-code-action copy-act" onclick="forgeCopyBlock(\''+blockId+'\')" title="Copy">⬡ COPY</button>'
+        + '<button class="forge-code-action dl-act" onclick="forgeDownloadBlock(\''+blockId+'\',\''+ext+'\')" title="Download">⬇ .'+ext.toUpperCase()+'</button>'
+        + (canRun ? '<button class="forge-code-action run-act" onclick="forgeRunBlock(\''+blockId+'\',\''+lang+'\')" title="Run in FORGE">▶ RUN</button>' : '')
+        + '<button class="forge-code-action forge-act" onclick="forgeOpenBlock(\''+blockId+'\',\''+lang+'\')" title="Open in FORGE">◈ FORGE</button>'
+        + '</div></div>'
+        + '<pre class="forge-code-pre" id="'+blockId+'">'+esc(code)+'</pre>'
+        + '</div>';
+    } else if (part.trim()) {
+      html += '<span style="white-space:pre-wrap">'+esc(part)+'</span>';
+    }
+  });
+  return html;
+};
+
+window.forgeCopyBlock = function(id) {
+  var pre = document.getElementById(id); if (!pre) return;
+  navigator.clipboard.writeText(pre.textContent).catch(function(){
+    var ta=document.createElement('textarea'); ta.value=pre.textContent;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  });
+  if (typeof ideToast==='function') ideToast('Copied',1600);
+};
+window.forgeDownloadBlock = function(id, ext) {
+  var pre = document.getElementById(id); if (!pre) return;
+  var b=new Blob([pre.textContent],{type:'text/plain'});
+  var u=URL.createObjectURL(b); var a=document.createElement('a');
+  a.href=u; a.download='forge-code.'+ext; document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(u);a.remove();},600);
+};
+window.forgeRunBlock = function(id, lang) {
+  var pre=document.getElementById(id); if (!pre) return;
+  forgeOpen(pre.textContent, lang); setTimeout(forgeRun, 500);
+};
+window.forgeOpenBlock = function(id, lang) {
+  var pre=document.getElementById(id); if (!pre) return;
+  forgeOpen(pre.textContent, lang);
+};
+window.forgeOpen = function(code, lang) {
+  var el=document.getElementById('forge-overlay'); if (!el) return;
+  el.classList.add('forge-open');
+  var btn=document.getElementById('hud-forge-btn');
+  if (btn){btn.style.color='#00e5ff';btn.style.borderColor='rgba(0,229,255,.5)';}
+  if (!_forge.monacoReady) _forgeInitMonaco(code, lang);
+  else {
+    if (code !== undefined && _forge.editor) _forge.editor.setValue(code);
+    if (lang) forgeSetLang(lang);
+  }
+  _forgeRestoreClaudeToggle();
+};
+window.forgeClose = function() {
+  var el=document.getElementById('forge-overlay'); if (el) el.classList.remove('forge-open');
+  var btn=document.getElementById('hud-forge-btn');
+  if (btn){btn.style.color='';btn.style.borderColor='';}
+};
+window.forgeSetLang = function(lang) {
+  _forge.lang=lang;
+  if (_forge.editor && typeof monaco!=='undefined') {
+    var m=_forge.editor.getModel(); if (m) monaco.editor.setModelLanguage(m,lang);
+  }
+  var s=document.getElementById('forge-lang-sel'); if (s) s.value=lang;
+};
+window.forgeCopy = function() {
+  if (!_forge.editor) return;
+  navigator.clipboard.writeText(_forge.editor.getValue()).catch(function(){
+    var ta=document.createElement('textarea'); ta.value=_forge.editor.getValue();
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  });
+  if (typeof ideToast==='function') ideToast('Copied',1800);
+};
+window.forgeDownload = function() {
+  if (!_forge.editor) return;
+  var ext=_FORGE_EXTS[_forge.lang]||'txt';
+  var b=new Blob([_forge.editor.getValue()],{type:'text/plain'});
+  var u=URL.createObjectURL(b); var a=document.createElement('a');
+  a.href=u; a.download='forge-output.'+ext;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(u);a.remove();},600);
+  if (typeof ideToast==='function') ideToast('Saved: forge-output.'+ext,2000);
+};
+window.forgeClear = function() {
+  if (_forge.editor) _forge.editor.setValue('// FORGE · '+_forge.lang.toUpperCase()+'\n');
+};
+window.forgeSendToChat = function() {
+  if (!_forge.editor) return;
+  var code=_forge.editor.getValue().slice(0,3000);
+  var inp=document.getElementById('chat-input');
+  if (inp){inp.value='[FORGE · '+_forge.lang.toUpperCase()+']\n```'+_forge.lang+'\n'+code+'\n```\nPlease analyse this code.';inp.focus();}
+  forgeClose();
+};
+window.forgeToggleClaude = function() {
+  _forge.claudeEnabled=!_forge.claudeEnabled;
+  localStorage.setItem('_forge_claude_enabled',_forge.claudeEnabled?'1':'0');
+  _forgeRestoreClaudeToggle();
+};
+function _forgeRestoreClaudeToggle() {
+  var s=localStorage.getItem('_forge_claude_enabled');
+  if (s!==null) _forge.claudeEnabled=s==='1';
+  var btn=document.getElementById('forge-claude-toggle'); if (!btn) return;
+  var hasKey=!!(typeof _getAK==='function'&&_getAK());
+  var on=_forge.claudeEnabled&&hasKey;
+  btn.textContent=on?'◈ CLAUDE ON':'◈ CLAUDE OFF';
+  btn.style.borderColor=on?'rgba(0,255,136,.45)':'rgba(224,244,255,.15)';
+  btn.style.color=on?'#00ff88':'rgba(224,244,255,.3)';
+}
+window.forgeRun = function() {
+  if (!_forge.editor) return;
+  var code=_forge.editor.getValue(), lang=_forge.lang;
+  var frame=document.getElementById('forge-preview-frame');
+  var output=document.getElementById('forge-preview-output');
+  if (!frame||!output) return;
+  if (_FORGE_PREVIEWABLE.has(lang)) {
+    frame.style.display='block'; output.style.display='none';
+    var doc=frame.contentDocument||frame.contentWindow.document;
+    if (lang==='html'){doc.open();doc.write(code);doc.close();}
+    else if (lang==='javascript'){
+      doc.open();
+      doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:100vh;margin:0"></pre><script>var _l=[];console.log=function(){_l.push([].slice.call(arguments).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}<\/script></body></html>');
+      doc.close();
+    } else if (lang==='css'){
+      doc.open();doc.write('<style>'+code+'</style><p style="font-family:sans-serif;padding:12px">CSS preview</p>');doc.close();
+    } else if (lang==='markdown'){
+      var h=code.replace(/^#{6} (.+)/gm,'<h6>$1</h6>').replace(/^#{5} (.+)/gm,'<h5>$1</h5>').replace(/^#{4} (.+)/gm,'<h4>$1</h4>').replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/^# (.+)/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');
+      doc.open();doc.write('<style>body{font-family:sans-serif;padding:14px}</style>'+h);doc.close();
+    }
+  } else {
+    frame.style.display='none'; output.style.display='block';
+    output.textContent='['+lang.toUpperCase()+' requires local runtime — copy and run locally]\n\n'+code.slice(0,600);
+  }
+};
+window.forgeTogglePreviewMode = function() {
+  var f=document.getElementById('forge-preview-frame'),o=document.getElementById('forge-preview-output');
+  if (!f||!o) return;
+  var showing=f.style.display!=='none';
+  f.style.display=showing?'none':'block';
+  o.style.display=showing?'block':'none';
+};
+window.forgeOpenPreviewTab = function() {
+  if (!_forge.editor) return;
+  var w=window.open('','_forge_preview');
+  if (w){w.document.open();w.document.write(_forge.editor.getValue());w.document.close();}
+};
+function _forgeInitMonaco(initialCode, initialLang) {
+  var container=document.getElementById('forge-editor-container'); if (!container) return;
+  function _doInit() {
+    if (typeof monaco==='undefined'){setTimeout(_doInit,400);return;}
+    var lang=initialLang||_forge.lang;
+    _forge.editor=monaco.editor.create(container,{
+      value:initialCode||'// FORGE · '+lang.toUpperCase()+'\n',
+      language:lang,theme:'vs-dark',fontSize:12,
+      fontFamily:"'Fira Code','Cascadia Code',monospace",
+      minimap:{enabled:false},scrollBeyondLastLine:false,
+      automaticLayout:true,wordWrap:'on',padding:{top:10}
+    });
+    _forge.editor.onDidChangeCursorPosition(function(){
+      var p=_forge.editor.getPosition();
+      var el=document.getElementById('forge-cursor-pos');
+      if (el) el.textContent='Ln '+p.lineNumber+', Col '+p.column;
+    });
+    _forge.monacoReady=true;
+    _forgeRestoreClaudeToggle();
+  }
+  if (typeof monaco!=='undefined'){_doInit();return;}
+  if (!document.getElementById('forge-mc-script')){
+    var s=document.createElement('script'); s.id='forge-mc-script';
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
+    s.onload=function(){require.config({paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}});require(['vs/editor/editor.main'],_doInit);};
+    document.head.appendChild(s);
+  } else {setTimeout(_doInit,400);}
+}
+// ══════════════════════════════════════════════════════════════════
 function renderMessages() {
+
   const el=document.getElementById("chat-scroll");
   detachLiveCanvases(); // ← pull out live Three.js nodes before wipe
   let html="";
