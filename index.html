@@ -1111,7 +1111,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .as-hbtn:hover{border-color:rgba(0,229,255,.5);color:var(--cyan)}
 .as-hbtn.close{border-color:rgba(255,68,102,.25);color:rgba(255,68,102,.5)}
 .as-hbtn.close:hover{border-color:#ff4466;color:#ff4466}
-#arc-studio-body{display:flex;gap:0;overflow:hidden}
+#arc-studio-body{display:flex;gap:0;overflow:hidden;min-height:320px}
 #arc-studio-body.collapsed{display:none}
 #arc-studio-controls{width:220px;flex-shrink:0;padding:12px;background:rgba(0,0,0,.3);border-right:1px solid rgba(0,229,255,.08);overflow-y:auto;max-height:420px}
 .as-field-group{margin-bottom:10px}
@@ -1126,7 +1126,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .as-btn.secondary{background:transparent;border-color:rgba(0,229,255,.2);color:rgba(0,229,255,.5)}
 .as-btn.danger{border-color:rgba(255,68,102,.3);color:rgba(255,68,102,.6);background:transparent}
 .as-btn.send-chat{background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.3);color:var(--cyan);width:100%;margin-top:6px;padding:6px}
-#arc-studio-viewport{flex:1;min-height:260px;height:300px;max-height:440px;position:relative;background:#0a0f14;overflow:hidden}
+#arc-studio-viewport{flex:1;min-height:280px;height:auto;align-self:stretch;position:relative;background:#0a0f14;overflow:hidden}
 #arc-studio-canvas{width:100%;height:100%;display:block}
 #arc-studio-readout{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.15);border-radius:4px;padding:6px 8px;font-family:monospace;font-size:9px;color:rgba(0,229,255,.6);line-height:1.55;min-width:120px;pointer-events:none}
 .user-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 5px var(--blue);display:inline-block}
@@ -1427,7 +1427,7 @@ select.ash-ctrl-input{cursor:pointer}
   <!-- BRPN 3D Shell -->
   <div id="brpn-region">
     <div id="brpn-canvas"></div>
-    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div></div>
+    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div></div>
     <div id="thought-pulse"></div>
         <div id="brpn-hud">
       <div>GEO <span class="val" id="hud-geo">—</span></div>
@@ -14972,24 +14972,36 @@ _syncActionBtn();
     initialized: false,
     scene: null, camera: null, renderer: null, controls: null,
     arcs: [], selectedArc: null,
-    collapsed: false,
-    animating: false
+    collapsed: false
   };
   window._arcStudio = _as;
+
+  // ── Visibility helper (used by animate loop as stop-condition) ──
+  function _asIsVisible() {
+    var el = document.getElementById('arc-studio-overlay');
+    return el && el.classList.contains('visible');
+  }
 
   // ── Open / Close ────────────────────────────────────────────────
   window.arcStudioOpen = function() {
     var el = document.getElementById('arc-studio-overlay');
     if (!el) return;
     el.classList.add('visible');
-    // Give the flex layout one frame to settle before measuring viewport
+    // Un-collapse if collapsed
+    var body = document.getElementById('arc-studio-body');
+    var btn  = document.getElementById('arc-studio-collapse-btn');
+    if (_as.collapsed) {
+      _as.collapsed = false;
+      if (body) body.classList.remove('collapsed');
+      if (btn) btn.textContent = '—';
+    }
+    // Give flex layout one frame to settle before measuring
     requestAnimationFrame(function() {
       if (!_as.initialized) {
         _asInit();
       } else {
         _asResize();
-        _as.animating = true;
-        _asAnimate();
+        _asAnimate(); // always call — loop self-terminates when hidden
         _asUpdateReadout();
       }
     });
@@ -14997,7 +15009,11 @@ _syncActionBtn();
   window.arcStudioClose = function() {
     var el = document.getElementById('arc-studio-overlay');
     if (el) el.classList.remove('visible');
-    _as.animating = false;
+    // animate loop will self-terminate on next frame via _asIsVisible() check
+  };
+  // HUD button toggle
+  window.arcStudioToggleFromHud = function() {
+    if (_asIsVisible()) { arcStudioClose(); } else { arcStudioOpen(); }
   };
   window.arcStudioToggleCollapse = function() {
     var body = document.getElementById('arc-studio-body');
@@ -15006,7 +15022,7 @@ _syncActionBtn();
     _as.collapsed = !_as.collapsed;
     body.classList.toggle('collapsed', _as.collapsed);
     if (btn) btn.textContent = _as.collapsed ? '▸' : '—';
-    if (!_as.collapsed && _as.initialized) { _as.animating = true; _asAnimate(); }
+    if (!_as.collapsed && _as.initialized) _asAnimate();
   };
 
   // ── Draggable header ───────────────────────────────────────────
@@ -15044,103 +15060,106 @@ _syncActionBtn();
   })();
 
   // ── THREE.js init ──────────────────────────────────────────────
-  function _asGetViewportSize() {
-    var vp = document.getElementById('arc-studio-viewport');
-    var cv = document.getElementById('arc-studio-canvas');
-    if (!vp || !cv) return {w:400, h:300};
-    // Use offsetWidth/offsetHeight so we measure after layout (overlay must be visible)
-    var w = vp.offsetWidth  || vp.clientWidth  || 400;
-    var h = vp.offsetHeight || vp.clientHeight || 300;
-    return {w: Math.max(w, 200), h: Math.max(h, 200)};
-  }
-
   function _asResize() {
     if (!_as.initialized) return;
-    var sz = _asGetViewportSize();
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    _as.camera.aspect = sz.w / sz.h;
+    var vp = document.getElementById('arc-studio-viewport');
+    if (!vp) return;
+    var w = vp.clientWidth  || 400;
+    var h = vp.clientHeight || 300;
+    if (w < 10 || h < 10) return;
+    _as.camera.aspect = w / h;
     _as.camera.updateProjectionMatrix();
-    _as.renderer.setPixelRatio(dpr);
-    _as.renderer.setSize(sz.w, sz.h);
+    _as.renderer.setSize(w, h);
   }
 
   function _asInit() {
     if (_as.initialized) return;
-    var cv = document.getElementById('arc-studio-canvas');
-    if (!cv || typeof THREE === 'undefined') { console.warn('[ArcStudio] THREE not loaded'); return; }
+    if (typeof THREE === 'undefined') { console.warn('[ArcStudio] THREE not loaded'); return; }
 
-    // Wait one animation frame so the overlay flex layout has settled
-    var sz = _asGetViewportSize();
-    if (sz.w < 50) { requestAnimationFrame(_asInit); return; }
+    var vp = document.getElementById('arc-studio-viewport');
+    if (!vp) return;
 
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Measure after flex layout settles — retry if viewport not sized yet
+    var w = vp.clientWidth;
+    var h = vp.clientHeight;
+    if (w < 10 || h < 10) { requestAnimationFrame(_asInit); return; }
 
+    // ── Scene + camera ─────────────────────────────────────────────
     _as.scene  = new THREE.Scene();
-    // FOV 75 + camera position matching original BRPN reference exactly
-    _as.camera = new THREE.PerspectiveCamera(75, sz.w / sz.h, 0.1, 1000);
+    _as.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
     _as.camera.position.set(5, 5, 15);
     _as.camera.lookAt(0, 0, 0);
 
-    _as.renderer = new THREE.WebGLRenderer({canvas: cv, antialias: true, alpha: true});
+    // ── Renderer — append domElement to viewport div (original pattern) ─
+    _as.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     _as.renderer.setClearColor(0x0a0f14, 1.0);
-    _as.renderer.setPixelRatio(dpr);
-    _as.renderer.setSize(sz.w, sz.h);
+    _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    _as.renderer.setSize(w, h);
+    // Style the canvas so it fills the viewport div
+    _as.renderer.domElement.style.display = 'block';
+    _as.renderer.domElement.style.width   = '100%';
+    _as.renderer.domElement.style.height  = '100%';
+    // Replace any existing canvas child, then append renderer's canvas
+    var oldCv = document.getElementById('arc-studio-canvas');
+    if (oldCv) oldCv.style.display = 'none'; // hide placeholder
+    vp.appendChild(_as.renderer.domElement);
 
+    // ── Lights + helpers ───────────────────────────────────────────
     _as.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
     var dl = new THREE.DirectionalLight(0xffffff, 0.85);
     dl.position.set(5, 10, 7.5); _as.scene.add(dl);
-    // Lighter grid — matches original BRPN grid colours
     _as.scene.add(new THREE.GridHelper(30, 30, 0x336677, 0x223344));
     _as.scene.add(new THREE.AxesHelper(5));
 
-    // OrbitControls — NO damping per user requirement
+    // ── OrbitControls — attached to renderer.domElement (original pattern) ──
+    // NO damping, full pan/zoom/rotate
     if (typeof THREE.OrbitControls !== 'undefined') {
-      _as.controls = new THREE.OrbitControls(_as.camera, cv);
-      _as.controls.enableDamping  = false; // instant response, no lag
-      _as.controls.enablePan      = true;
-      _as.controls.enableZoom     = true;
-      _as.controls.rotateSpeed    = 0.55;
-      _as.controls.zoomSpeed      = 1.1;
-      _as.controls.panSpeed       = 0.8;
-      _as.controls.minDistance    = 1;
-      _as.controls.maxDistance    = 80;
-      _as.controls.screenSpacePanning = true; // pan parallel to screen, not world Y
+      _as.controls = new THREE.OrbitControls(_as.camera, _as.renderer.domElement);
+      _as.controls.enableDamping      = false;
+      _as.controls.enablePan          = true;
+      _as.controls.enableZoom         = true;
+      _as.controls.rotateSpeed        = 0.55;
+      _as.controls.zoomSpeed          = 1.1;
+      _as.controls.panSpeed           = 0.8;
+      _as.controls.minDistance        = 1;
+      _as.controls.maxDistance        = 80;
+      _as.controls.screenSpacePanning = true;
     }
 
-    // ── Raycaster for arc selection ───────────────────────────────
+    // ── Raycaster for arc selection ────────────────────────────────
     _as.raycaster = new THREE.Raycaster();
-    _as.raycaster.params.Line = { threshold: 0.25 }; // generous hit zone for thin lines
+    _as.raycaster.params.Line = { threshold: 0.25 };
     _as.pointer   = new THREE.Vector2();
 
+    var domEl = _as.renderer.domElement;
+
     function _asPick(e) {
-      var rect = cv.getBoundingClientRect();
+      // Don't pick if OrbitControls just dragged
+      if (_as._didDrag) { _as._didDrag = false; return; }
+      var rect = domEl.getBoundingClientRect();
       var cx = (e.touches ? e.touches[0].clientX : e.clientX);
       var cy = (e.touches ? e.touches[0].clientY : e.clientY);
-      _as.pointer.x =  ((cx - rect.left)  / rect.width)  * 2 - 1;
-      _as.pointer.y = -((cy - rect.top)   / rect.height) * 2 + 1;
+      _as.pointer.x =  ((cx - rect.left) / rect.width)  * 2 - 1;
+      _as.pointer.y = -((cy - rect.top)  / rect.height) * 2 + 1;
       _as.raycaster.setFromCamera(_as.pointer, _as.camera);
-      // Test against all arc lines
       var lineObjs = _as.arcs.map(function(a){ return a.line; });
       var hits = _as.raycaster.intersectObjects(lineObjs, false);
       if (hits.length > 0) {
         var hitLine = hits[0].object;
         var idx = _as.arcs.findIndex(function(a){ return a.line === hitLine; });
         if (idx >= 0) {
-          // Deselect old
           if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
             _as.arcs[_as.selectedArc].line.material.color.setHex(0x00ff88);
           }
-          // Select new — neon hot-pink
           _as.selectedArc = idx;
           _as.arcs[idx].line.material.color.setHex(0xff1166);
-          // Show its measurements in readout
           var ap = _as.arcs[idx].params;
           var pts2 = _asCalcPoints(ap);
           var len2 = 0;
           for (var pi=1; pi<pts2.length; pi++) len2 += pts2[pi-1].distanceTo(pts2[pi]);
           var rd = document.getElementById('arc-studio-readout');
           if (rd) rd.innerHTML =
-            'SELECTED: Arc ' + (idx+1) + '<br>---'
+            'SELECTED: Arc '+(idx+1)+'<br>---'
             +'<br>X:'+ap.x+' Y:'+ap.y+' Z:'+ap.z
             +'<br>Dev: '+ap.mainDev
             +'<br>Curve: '+ap.curveInd
@@ -15153,7 +15172,6 @@ _syncActionBtn();
           e.stopPropagation();
         }
       } else {
-        // Click on empty space — deselect
         if (_as.selectedArc !== null && _as.arcs[_as.selectedArc]) {
           _as.arcs[_as.selectedArc].line.material.color.setHex(0x00ff88);
           _as.selectedArc = null;
@@ -15162,23 +15180,33 @@ _syncActionBtn();
       }
     }
 
-    cv.addEventListener('click',      _asPick, false);
-    cv.addEventListener('touchend',   function(e){ if (!_as._didDrag) _asPick(e); _as._didDrag=false; }, false);
-    cv.addEventListener('touchmove',  function(){  _as._didDrag = true; }, {passive:true});
-    cv.addEventListener('touchstart', function(){  _as._didDrag = false; }, {passive:true});
+    // Use pointerdown for selection (matches original); track drag flag so
+    // OrbitControls drags don't accidentally trigger arc selection
+    domEl.addEventListener('pointerdown', function(e){ _as._didDrag = false; _as._pointerDownPos = {x:e.clientX,y:e.clientY}; }, false);
+    domEl.addEventListener('pointermove', function(e){
+      if (_as._pointerDownPos) {
+        var dx = e.clientX - _as._pointerDownPos.x, dy = e.clientY - _as._pointerDownPos.y;
+        if (Math.sqrt(dx*dx+dy*dy) > 4) _as._didDrag = true;
+      }
+    }, false);
+    domEl.addEventListener('pointerup',   _asPick, false);
+    // Touch fallback
+    domEl.addEventListener('touchstart',  function(){ _as._didDrag=false; }, {passive:true});
+    domEl.addEventListener('touchmove',   function(){ _as._didDrag=true;  }, {passive:true});
+    domEl.addEventListener('touchend',    function(e){ _asPick(e); },        false);
 
     window.addEventListener('resize', _asResize);
 
     _as.initialized = true;
-    _as.animating   = true;
     _asAnimate();
     _asUpdateReadout();
   }
 
+  // Animate loop — self-terminates when overlay is hidden (original pattern)
   function _asAnimate() {
-    if (!_as.animating || !_as.initialized) return;
+    if (!_as.initialized || !_asIsVisible()) return;
     requestAnimationFrame(_asAnimate);
-    // No controls.update() needed when damping is off
+    if (_as.controls) _as.controls.update();
     _as.renderer.render(_as.scene, _as.camera);
   }
 
