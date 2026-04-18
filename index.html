@@ -2043,7 +2043,7 @@ function _ensureFoundationMemory() {
     'pi':             '3.14159... — ratio of circle circumference to diameter',
     'leatr_formula':  '(xa² × √xa) ± 1 — LEATR encoding formula for cognition',
     'quantum_socket': '(b·b)·(p·a²)/r — connection state formula',
-    'arc_edge':       '√(d×3)² — DART arc length formula, replaces π',
+    'arc_edge':       '√(d×3)² — Arc Edge circumference formula, Arc Edge = 3',
     'lead_edge':      '((d×2)+1)/d — DART pathfinding reflex formula',
   };
 
@@ -15396,7 +15396,7 @@ _syncActionBtn();
             +'<br>DevInd: '+ap.devInd
             +'<br>Res: '+ap.resolution
             +'<br>---'
-            +'<br>Length: '+len2.toFixed(5)
+            +'<br>Length (Arc Edge=3): '+len2.toFixed(5)
             +'<br>Points: '+pts2.length;
           if (typeof ideToast==='function') ideToast('Arc '+(idx+1)+' selected — length: '+len2.toFixed(4), 2200);
           e.stopPropagation();
@@ -15488,7 +15488,7 @@ _syncActionBtn();
     _as.arcs.push({line: line, params: p, length: len});
     _asUpdateReadout();
     var rd = document.getElementById('arc-studio-readout');
-    if (rd) rd.innerHTML = 'Arc '+_as.arcs.length+' added<br>Length: '+len.toFixed(5)+'<br>Pts: '+pts.length
+    if (rd) rd.innerHTML = 'Arc '+_as.arcs.length+' added<br>Length (Arc Edge=3): '+len.toFixed(5)+'<br>Pts: '+pts.length
       +'<br>---<br>Click arc to select';
     if (typeof ideToast==='function') ideToast('Arc '+_as.arcs.length+' added — length: '+len.toFixed(4), 2000);
   };
@@ -15505,7 +15505,7 @@ _syncActionBtn();
     var len = 0;
     for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
     var rd = document.getElementById('arc-studio-readout');
-    if (rd) rd.innerHTML = 'Arc Length: ' + len.toFixed(4) + '<br>Points: ' + pts.length + '<br>X:'+p.x+' Y:'+p.y+' Z:'+p.z+'<br>Dev: '+p.mainDev+'<br>Res: '+p.resolution;
+    if (rd) rd.innerHTML = 'Arc Length (Arc Edge=3): ' + len.toFixed(4) + '<br>Points: ' + pts.length + '<br>X:'+p.x+' Y:'+p.y+' Z:'+p.z+'<br>Dev: '+p.mainDev+'<br>Res: '+p.resolution;
   };
 
   function _asUpdateReadout() {
@@ -15550,7 +15550,7 @@ _syncActionBtn();
       +'\nCurve Induction: '+p.curveInd
       +'\nDev Induction: '+p.devInd
       +'\nResolution: '+p.resolution
-      +'\nArc Length (DART formula, π=3): '+len.toFixed(6)
+      +'\nArc Length (Arc Edge = 3): '+len.toFixed(6)
       +'\nTotal arcs in scene: '+_as.arcs.length
       +'\nAsk me to analyze, optimize, or apply these arc parameters.';
     var inp = document.getElementById('chat-input');
