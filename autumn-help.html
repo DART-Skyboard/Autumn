@@ -155,7 +155,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   <div class="badge-row">
     <span class="badge">LEATR v2</span><span class="badge">BRPN Neural Architecture</span><span class="badge">Claude Sonnet</span>
     <span class="badge">Sentient Journal</span><span class="badge">Image Gen · Vision · Voice</span><span class="badge">Multi-User</span>
-    <span class="badge">Ash Canvas</span><span class="badge">Arc Edge Studio</span><span class="badge">Floating Calculator</span><span class="badge">Brave Search</span><span class="badge">Hold-to-Talk PTT</span>
+    <span class="badge">Ash Canvas</span><span class="badge">Arc Edge Studio</span><span class="badge">AI Arc Generation</span><span class="badge">Floating Calculator</span><span class="badge">Brave Search</span><span class="badge">Hold-to-Talk PTT</span>
   </div>
 </header>
 
@@ -399,7 +399,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 
   <div class="card">
     <div class="sub">ARC EDGE STUDIO — 3D ARC VISUALIZER</div>
-    <p class="cd" style="margin-bottom:10px;">A floating draggable 3D panel for constructing and measuring arcs using the DART arc formula (π = 3 per the Lead Edge standard). Open by voice, by the HUD button, or manually.</p>
+    <p class="cd" style="margin-bottom:10px;">A floating draggable 3D panel for constructing and measuring arcs using the DART Arc Edge formula (<span class="hl">AE = 3</span> — Arc Edge's own constant, not π). Open by voice, by the HUD button, or ask Autumn directly to generate an arc for you.</p>
     <div class="sub" style="margin-top:0">OPENING ARC EDGE STUDIO</div>
     <table class="ct">
       <tr><td><span class="cp">ARC EDGE (HUD button)</span></td><td class="cd">Tap the <span class="hl">ARC EDGE</span> label in the top-left HUD (below IDLE and CALC) to toggle the studio open or closed at any time without typing.</td></tr>
@@ -415,15 +415,26 @@ footer a{color:var(--cyan);text-decoration:none;}
       <tr><td><span class="cp">Curve Induction</span></td><td class="cd">Adds sinusoidal variation along the arc using Sub-Deviation X/Y/Z for per-axis weighting.</td></tr>
       <tr><td><span class="cp">Deviation Induction</span></td><td class="cd">Secondary sine-wave layer with phase offset — adds organic complexity to the arc shape.</td></tr>
       <tr><td><span class="cp">Arc Resolution</span></td><td class="cd">Number of points along the arc (4–256). Higher = smoother but heavier.</td></tr>
+      <tr><td><span class="cp">Deviation Curves</span></td><td class="cd">Number of deviation curves to generate on a single ADD ARC (1–12). Each curve gets a phase and scale offset, fanning out around the same axis — creates ribbon, fan, and spiral effects at higher counts.</td></tr>
     </table>
     <div class="sub" style="margin-top:14px;">ACTIONS</div>
     <table class="ct">
-      <tr><td><span class="cp">+ ADD ARC</span></td><td class="cd">Renders the current parameters as a bright green arc line in the 3D scene. Each arc is independent.</td></tr>
-      <tr><td><span class="cp">Click / tap an arc</span></td><td class="cd">Selects that arc — it turns neon pink-red. The readout shows its measured length and full parameter set.</td></tr>
-      <tr><td><span class="cp">⊞ MEASURE</span></td><td class="cd">Calculates arc length of the current input parameters (without adding to scene). Uses DART formula: sum of Euclidean segments.</td></tr>
-      <tr><td><span class="cp">↺ INPUTS</span></td><td class="cd">Resets all input fields to zero / defaults without affecting the scene.</td></tr>
-      <tr><td><span class="cp">✕ SCENE</span></td><td class="cd">Removes all arcs from the 3D scene and disposes geometry/materials.</td></tr>
+      <tr><td><span class="cp">+ ADD ARC</span></td><td class="cd">Renders the current parameters as arc curve(s) in the 3D scene. Arcs accumulate — each ADD ARC adds on top of existing ones. Use Deviation Curves for multi-curve fan effects. Each curve gets its own color.</td></tr>
+      <tr><td><span class="cp">Click / tap an arc</span></td><td class="cd">Selects that arc — it turns neon pink-red. The readout automatically shows its measured length (AE=3) and full parameter set. No separate measure step needed.</td></tr>
+      <tr><td><span class="cp">↺ INPUTS</span></td><td class="cd">Resets all input fields and Deviation Curves count to defaults without affecting the scene.</td></tr>
+      <tr><td><span class="cp">✕ SCENE</span></td><td class="cd">Removes all arcs from the 3D scene and disposes geometry/materials. Use this to start fresh.</td></tr>
       <tr><td><span class="cp">↗ SEND RESULTS TO AUTUMN</span></td><td class="cd">Formats current parameters and arc length into a chat message — Autumn can analyze, optimize, or apply the results.</td></tr>
+    </table>
+    <div class="sub" style="margin-top:14px;">AUTUMN AI ARC GENERATION</div>
+    <p class="cd" style="margin-bottom:10px;">Autumn can generate arcs directly — just describe what you want in natural language. She opens the studio, sets the parameters, and adds the arc(s) to the scene automatically. Parameters propagate to the input fields so you can inspect and tweak.</p>
+    <table class="ct">
+      <tr><td><span class="cp">show me a mild arc</span></td><td class="cd">Generates a gently curved arc (dev=1.5, curve=0.8). Studio opens automatically.</td></tr>
+      <tr><td><span class="cp">generate a dramatic arc</span></td><td class="cd">Strong curvature (dev=6, curve=3). Added to the current scene.</td></tr>
+      <tr><td><span class="cp">make a wild arc</span></td><td class="cd">Extreme deviation and induction (dev=10, curve=6, devInd=2).</td></tr>
+      <tr><td><span class="cp">show me a spiral / helix</span></td><td class="cd">Multi-curve fan with induction (curves=4, curve=4, devInd=3).</td></tr>
+      <tr><td><span class="cp">generate more / add more</span></td><td class="cd">Adds additional arcs to the scene without clearing existing ones.</td></tr>
+      <tr><td><span class="cp">clear scene and make X</span></td><td class="cd">Clears all arcs first, then generates the new arc as described.</td></tr>
+      <tr><td><span class="cp">generate 3 curves on this arc</span></td><td class="cd">Autumn sets Deviation Curves=3 and adds a multi-deviation fan in one step.</td></tr>
     </table>
     <div class="sub" style="margin-top:14px;">VIEWPORT NAVIGATION</div>
     <table class="ct">
@@ -431,7 +442,7 @@ footer a{color:var(--cyan);text-decoration:none;}
       <tr><td><span class="cp">Pinch / scroll</span></td><td class="cd">Zoom in and out. Range: 1 – 80 units.</td></tr>
       <tr><td><span class="cp">Two-finger drag / right-click drag</span></td><td class="cd">Pan (screen-space panning — moves parallel to screen, not along world Y).</td></tr>
     </table>
-    <div class="ki" style="margin-top:10px;">The Arc Edge Studio uses FOV 75° with camera position (5, 5, 15) — matches the original BRPN reference. OrbitControls damping is disabled for direct, lag-free orbit response. Closing and reopening the studio preserves the full scene.</div>
+    <div class="ki" style="margin-top:10px;">The Arc Edge Studio uses FOV 75° with camera position (5, 5, 15) — matches the original BRPN reference. OrbitControls damping is enabled for smooth orbit response. Touch uses pointer capture for fluid continuous drag with no stair-stepping. Closing and reopening the studio preserves the full scene.</div>
   </div>
 
   <div class="card">
@@ -452,7 +463,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 
   <div class="card">
     <div class="sub">OVERVIEW</div>
-    <p class="cd" style="margin-bottom:10px;">Autumn includes a floating, draggable scientific calculator available from the top-left HUD at all times. It uses the <span class="hl">DART / Lead Edge standard where π = 3</span>, consistent with all Arc Edge Studio measurements. Powered by math.js for full expression evaluation.</p>
+    <p class="cd" style="margin-bottom:10px;">Autumn includes a floating, draggable scientific calculator available from the top-left HUD at all times. It uses the <span class="hl">Arc Edge standard where AE = 3</span> (not π), consistent with all Arc Edge Studio measurements. Powered by math.js for full expression evaluation.</p>
     <div class="sub" style="margin-top:0">OPENING THE CALCULATOR</div>
     <table class="ct">
       <tr><td><span class="cp">CALC (HUD button)</span></td><td class="cd">Tap the dark purple <span class="hl">CALC</span> label in the top-left HUD — directly above the ARC EDGE button — to toggle the calculator open or closed from anywhere in the app.</td></tr>
@@ -472,7 +483,7 @@ footer a{color:var(--cyan);text-decoration:none;}
       <tr><td><span class="cp">√</span></td><td class="cd">Inserts <code>sqrt(</code> — type the value and close the parenthesis: <code>sqrt(9)</code> → 3.</td></tr>
       <tr><td><span class="cp">sin / cos / tan</span></td><td class="cd">Inserts the trig function with open parenthesis. Input in radians by default. e.g. <code>sin(1.5708)</code> ≈ 1.</td></tr>
       <tr><td><span class="cp">log / ln</span></td><td class="cd"><code>log(x)</code> = log base 10. <code>ln(x)</code> = natural log.</td></tr>
-      <tr><td><span class="cp">π</span></td><td class="cd">Inserts <span class="hl">3</span> — the DART Lead Edge value for π. All arc length calculations in Arc Edge Studio use the same constant.</td></tr>
+      <tr><td><span class="cp">π button</span></td><td class="cd">Inserts <span class="hl">3</span> — the Arc Edge value (AE=3). All arc length calculations in Arc Edge Studio use this same constant.</td></tr>
       <tr><td><span class="cp">e</span></td><td class="cd">Inserts Euler's number 2.71828 as a multiplier.</td></tr>
       <tr><td><span class="cp">( )</span></td><td class="cd">Parentheses for grouping sub-expressions: <code>(2+3)*4</code> = 20.</td></tr>
     </table>
@@ -599,8 +610,12 @@ footer a{color:var(--cyan);text-decoration:none;}
       <div class="qrr"><span class="qrcmd">▸ APPLY</span><span class="qrd">Commit influence to network</span></div>
       <div class="qrr"><span class="qrcmd">G / M / A sockets</span><span class="qrd">Connect node to GEO/MAR/AERO shell</span></div>
       <div class="qrr"><span class="qrcmd">open arc edge</span><span class="qrd">Launch Arc Edge Studio overlay</span></div>
-      <div class="qrr"><span class="qrcmd">+ ADD ARC</span><span class="qrd">Render arc (green) in 3D scene</span></div>
-      <div class="qrr"><span class="qrcmd">tap arc</span><span class="qrd">Select arc (turns pink-red)</span></div>
+      <div class="qrr"><span class="qrcmd">+ ADD ARC</span><span class="qrd">Render arc curve(s) in 3D scene</span></div>
+      <div class="qrr"><span class="qrcmd">tap arc</span><span class="qrd">Select arc — auto-measures (AE=3)</span></div>
+      <div class="qrr"><span class="qrcmd">Deviation Curves</span><span class="qrd">1–12 curves per arc (fan/ribbon)</span></div>
+      <div class="qrr"><span class="qrcmd">generate a mild arc</span><span class="qrd">Autumn opens studio + adds arc</span></div>
+      <div class="qrr"><span class="qrcmd">generate more</span><span class="qrd">Add arcs without clearing scene</span></div>
+      <div class="qrr"><span class="qrcmd">clear scene</span><span class="qrd">Remove all arcs from 3D scene</span></div>
       <div class="qrr"><span class="qrcmd">↗ SEND RESULTS</span><span class="qrd">Send arc data to Autumn</span></div>
       <div class="qrr"><span class="qrcmd">preview URL</span><span class="qrd">Open live URL preview overlay</span></div>
     </div>
