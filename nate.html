@@ -281,34 +281,42 @@ html,body{height:100%;background:var(--bg);color:#e0f4ff;font-family:var(--font-
               border:1px solid rgba(167,139,250,.25);color:#e0f4ff;border-radius:5px;
               font-family:var(--font-d);font-size:.38rem;padding:5px 8px;outline:none;cursor:pointer;
               letter-spacing:.5px">
-              <optgroup label="🇺🇸 AMERICAN FEMALE">
-                <option value="af_heart"   selected>Heart — warm, natural (default)</option>
-                <option value="af_bella">Bella — soft, breathy</option>
-                <option value="af_aoede">Aoede — clear, neutral</option>
-                <option value="af_kore">Kore — crisp, precise</option>
-                <option value="af_sarah">Sarah — conversational</option>
-                <option value="af_nova">Nova — bright, upbeat</option>
-                <option value="af_sky">Sky — airy, light</option>
-                <option value="af_nicole">Nicole — smooth, professional</option>
+              <!-- Graded per official hexgrad/Kokoro-82M VOICES.md -->
+              <optgroup label="★ GRADE A / A- / B-  — RECOMMENDED FEMALE">
+                <option value="af_heart"   selected>af_heart  ★ A   Heart · warm, natural ← DEFAULT</option>
+                <option value="af_bella">af_bella   ★ A-  Bella · soft, expressive · ❤️ best after Heart</option>
+                <option value="af_nicole">af_nicole  ★ B-  Nicole · smooth, professional · 🎧</option>
+                <option value="bf_emma">bf_emma    ★ B-  Emma · warm British female</option>
               </optgroup>
-              <optgroup label="🇺🇸 AMERICAN MALE">
-                <option value="am_adam">Adam — standard baritone</option>
-                <option value="am_michael">Michael — deep, authoritative</option>
-                <option value="am_echo">Echo — neutral, clear</option>
-                <option value="am_eric">Eric — warm, mid-range</option>
-                <option value="am_liam">Liam — casual, natural</option>
+              <optgroup label="🇺🇸 AMERICAN FEMALE — Grade C+">
+                <option value="af_aoede">af_aoede  C+  Aoede · clear, neutral</option>
+                <option value="af_kore">af_kore   C+  Kore · crisp, precise</option>
+                <option value="af_sarah">af_sarah  C+  Sarah · conversational</option>
               </optgroup>
-              <optgroup label="🇬🇧 BRITISH FEMALE">
-                <option value="bf_alice">Alice — crisp British accent</option>
-                <option value="bf_emma">Emma — warm, BBC tone</option>
-                <option value="bf_isabella">Isabella — formal, refined</option>
-                <option value="bf_lily">Lily — light, expressive</option>
+              <optgroup label="🇺🇸 AMERICAN FEMALE — Grade C / C-  (lower)">
+                <option value="af_nova">af_nova   C   Nova · upbeat</option>
+                <option value="af_alloy">af_alloy  C   Alloy · neutral</option>
+                <option value="af_sky">af_sky    C-  Sky · minimal training</option>
               </optgroup>
-              <optgroup label="🇬🇧 BRITISH MALE">
-                <option value="bm_daniel">Daniel — standard British male</option>
-                <option value="bm_fable">Fable — storytelling, expressive</option>
-                <option value="bm_george">George — deep, authoritative</option>
-                <option value="bm_lewis">Lewis — modern, natural</option>
+              <optgroup label="🇬🇧 BRITISH FEMALE — Grade C / D">
+                <option value="bf_isabella">bf_isabella  C  Isabella · formal</option>
+                <option value="bf_alice">bf_alice     D  Alice · limited data</option>
+                <option value="bf_lily">bf_lily      D  Lily · limited data</option>
+              </optgroup>
+              <optgroup label="🇺🇸 AMERICAN MALE — Grade C+ / D">
+                <option value="am_fenrir">am_fenrir  C+  Fenrir · natural</option>
+                <option value="am_michael">am_michael C+  Michael · deep</option>
+                <option value="am_puck">am_puck    C+  Puck · warm</option>
+                <option value="am_echo">am_echo    D   Echo</option>
+                <option value="am_eric">am_eric    D   Eric</option>
+                <option value="am_liam">am_liam    D   Liam</option>
+                <option value="am_onyx">am_onyx    D   Onyx</option>
+              </optgroup>
+              <optgroup label="🇬🇧 BRITISH MALE — Grade C / D">
+                <option value="bm_fable">bm_fable   C   Fable</option>
+                <option value="bm_george">bm_george  C   George</option>
+                <option value="bm_lewis">bm_lewis   D+  Lewis</option>
+                <option value="bm_daniel">bm_daniel  D   Daniel</option>
               </optgroup>
             </select>
             <div style="font-size:.38rem;color:rgba(167,139,250,.45);margin-top:4px;font-family:var(--font-d)">
@@ -506,19 +514,41 @@ const BUILTIN_SAMPLES = [
   { id:'m_deep',    name:'Male · Deep',       gender:'male',   type:'DEEP',     fund:92,  desc:'Low resonant bass male' },
 ];
 
+// Quality grades from official hexgrad/Kokoro-82M VOICES.md
+// ★ = Grade A/A-/B-  (recommended, most training data)
+// Female voices prioritised per admin preference
 const PRESETS = [
-  { id:'autumn_f',  name:'AUTUMN F',     desc:'Default Autumn female',
-    p:{pitch:1.08,speed:0.92,formant:1.12,resonance:0.28,warmth:0.62,clarity:0.68,vibrato:0.07}, src:'f_neutral' },
-  { id:'crisp_f',   name:'CRISP F',      desc:'High clarity, professional',
-    p:{pitch:1.18,speed:1.05,formant:1.22,resonance:0.15,warmth:0.35,clarity:0.85,vibrato:0.05}, src:'f_bright' },
-  { id:'warm_f',    name:'WARM F',       desc:'Warm broadcast female',
-    p:{pitch:0.98,speed:0.88,formant:0.95,resonance:0.42,warmth:0.78,clarity:0.55,vibrato:0.09}, src:'f_warm' },
-  { id:'standard_m',name:'STANDARD M',  desc:'Neutral male narrator',
-    p:{pitch:0.82,speed:0.95,formant:0.88,resonance:0.35,warmth:0.5,clarity:0.65,vibrato:0.06}, src:'m_neutral' },
-  { id:'deep_m',    name:'DEEP M',       desc:'Deep resonant male',
-    p:{pitch:0.72,speed:0.88,formant:0.78,resonance:0.48,warmth:0.7,clarity:0.55,vibrato:0.08}, src:'m_deep' },
+  // ── GRADE A / A- (best quality female) ──────────────────────────
+  { id:'autumn_f',  name:'AUTUMN F ★',   desc:'af_heart · Grade A · DEFAULT',
+    kokoroVoice:'af_heart',
+    p:{pitch:1.06,speed:0.93,formant:1.10,resonance:0.25,warmth:0.65,clarity:0.70,vibrato:0.07} },
+  { id:'bella_f',   name:'BELLA ★',      desc:'af_bella · Grade A- · ❤️ expressive',
+    kokoroVoice:'af_bella',
+    p:{pitch:1.04,speed:0.91,formant:1.08,resonance:0.30,warmth:0.72,clarity:0.65,vibrato:0.08} },
+  // ── GRADE B- ─────────────────────────────────────────────────────
+  { id:'nicole_f',  name:'NICOLE ★',     desc:'af_nicole · Grade B- · professional',
+    kokoroVoice:'af_nicole',
+    p:{pitch:1.10,speed:0.96,formant:1.15,resonance:0.18,warmth:0.50,clarity:0.80,vibrato:0.05} },
+  { id:'emma_bf',   name:'EMMA UK ★',    desc:'bf_emma · Grade B- · warm British',
+    kokoroVoice:'bf_emma',
+    p:{pitch:1.05,speed:0.90,formant:1.08,resonance:0.22,warmth:0.60,clarity:0.72,vibrato:0.06} },
+  // ── GRADE C+ female ──────────────────────────────────────────────
+  { id:'aoede_f',   name:'AOEDE',        desc:'af_aoede · Grade C+ · clear, neutral',
+    kokoroVoice:'af_aoede',
+    p:{pitch:1.08,speed:0.95,formant:1.12,resonance:0.20,warmth:0.55,clarity:0.75,vibrato:0.06} },
+  { id:'kore_f',    name:'KORE',         desc:'af_kore · Grade C+ · crisp, precise',
+    kokoroVoice:'af_kore',
+    p:{pitch:1.14,speed:1.00,formant:1.18,resonance:0.15,warmth:0.40,clarity:0.82,vibrato:0.05} },
+  // ── MALE ─────────────────────────────────────────────────────────
+  { id:'fenrir_m',  name:'FENRIR M',     desc:'am_fenrir · Grade C+ · best male voice',
+    kokoroVoice:'am_fenrir',
+    p:{pitch:0.85,speed:0.95,formant:0.90,resonance:0.32,warmth:0.55,clarity:0.65,vibrato:0.06} },
+  { id:'michael_m', name:'MICHAEL M',    desc:'am_michael · Grade C+ · deep, authoritative',
+    kokoroVoice:'am_michael',
+    p:{pitch:0.78,speed:0.92,formant:0.82,resonance:0.40,warmth:0.65,clarity:0.60,vibrato:0.07} },
+  // ── SIGMA ────────────────────────────────────────────────────────
   { id:'sigma',     name:'SIGMA BLEND',  desc:'Computed from selected samples',
-    p:null, src:'sigma' },
+    kokoroVoice:null, p:null, src:'sigma' },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
