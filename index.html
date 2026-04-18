@@ -1239,6 +1239,76 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .ac-btn.reset{background:transparent;border-color:rgba(255,68,102,.25);color:rgba(255,68,102,.6)}
 .ac-btn.reset:hover{background:rgba(255,68,102,.08)}
 
+/* ── EMOTION MIND MAP OVERLAY ── */
+#emm-overlay{display:none;position:fixed;z-index:8700;top:60px;left:50%;
+  transform:translateX(-50%);width:min(95vw,660px);max-height:85vh;
+  background:rgba(4,9,16,.97);border:1px solid rgba(167,139,250,.3);
+  border-radius:12px;box-shadow:0 8px 48px rgba(0,0,0,.75);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  flex-direction:column;overflow:hidden}
+#emm-overlay.emm-visible{display:flex}
+#emm-hdr{display:flex;align-items:center;padding:9px 14px;gap:8px;
+  background:rgba(167,139,250,.07);border-bottom:1px solid rgba(167,139,250,.13);
+  cursor:move;user-select:none;flex-shrink:0}
+.emm-title{font-family:var(--font-d);font-size:.48rem;letter-spacing:2px;
+  color:rgba(167,139,250,.8);flex:1}
+.emm-hbtn{background:transparent;border:1px solid rgba(167,139,250,.2);
+  color:rgba(167,139,250,.5);border-radius:3px;padding:2px 9px;cursor:pointer;
+  font-size:.44rem;font-family:var(--font-d);transition:all .15s}
+.emm-hbtn:hover{border-color:#a78bfa;color:#a78bfa}
+.emm-hbtn.emm-close{border-color:rgba(255,68,102,.2);color:rgba(255,68,102,.45)}
+.emm-hbtn.emm-close:hover{border-color:#ff4466;color:#ff4466}
+#emm-body{overflow-y:auto;padding:16px 18px 22px;flex:1;
+  scrollbar-width:thin;scrollbar-color:rgba(167,139,250,.2) transparent}
+#emm-overlay.emm-mini #emm-body{display:none}
+/* Tree nodes */
+.emm-root-node{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;
+  background:linear-gradient(135deg,rgba(0,255,204,.08),rgba(0,136,255,.06));
+  border:1px solid rgba(0,255,204,.3);border-radius:8px;
+  font-family:var(--font-d);font-size:.5rem;letter-spacing:1.5px;color:#00ffcc}
+.emm-shells{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.emm-shell{flex:1;min-width:150px;border-radius:7px;padding:9px 12px;border:1px solid}
+.emm-shell.geo{background:rgba(0,255,204,.03);border-color:rgba(0,255,204,.18)}
+.emm-shell.mar{background:rgba(0,136,255,.03);border-color:rgba(0,136,255,.18)}
+.emm-shell.aero{background:rgba(255,68,102,.03);border-color:rgba(255,68,102,.18)}
+.emm-sl{font-family:var(--font-d);font-size:.42rem;letter-spacing:2px;display:block;margin-bottom:5px}
+.emm-shell.geo .emm-sl{color:rgba(0,255,204,.65)}
+.emm-shell.mar .emm-sl{color:rgba(0,136,255,.65)}
+.emm-shell.aero .emm-sl{color:rgba(255,68,102,.65)}
+.emm-sd{font-size:.43rem;color:rgba(224,244,255,.45);line-height:1.6}
+/* Tool blocks */
+.emm-tool{margin-bottom:13px;border-left:2px solid;padding-left:10px}
+.emm-tool.t-maze    {border-color:rgba(0,255,204,.45)}
+.emm-tool.t-puzzle  {border-color:rgba(0,136,255,.45)}
+.emm-tool.t-envelope{border-color:rgba(0,255,157,.4)}
+.emm-tool.t-hammer  {border-color:rgba(255,179,71,.4)}
+.emm-tool.t-stick   {border-color:rgba(167,139,250,.45)}
+.emm-tool.t-knife   {border-color:rgba(255,68,102,.45)}
+.emm-tool.t-scissors{border-color:rgba(200,200,255,.3)}
+.emm-tool-hd{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.emm-tn{font-family:var(--font-d);font-size:.4rem;color:rgba(255,255,255,.22);letter-spacing:1px}
+.emm-tm{font-family:var(--font-d);font-size:.5rem;letter-spacing:1.5px;font-weight:700}
+.emm-tool.t-maze     .emm-tm{color:#00ffcc}
+.emm-tool.t-puzzle   .emm-tm{color:#0088ff}
+.emm-tool.t-envelope .emm-tm{color:#00ff9d}
+.emm-tool.t-hammer   .emm-tm{color:#ffb347}
+.emm-tool.t-stick    .emm-tm{color:#a78bfa}
+.emm-tool.t-knife    .emm-tm{color:#ff4466}
+.emm-tool.t-scissors .emm-tm{color:#c8c8ff}
+.emm-raw{font-size:.44rem;font-style:italic;color:rgba(224,244,255,.38);line-height:1.55;margin-bottom:5px}
+.emm-emos{list-style:none;padding:0;margin:0}
+.emm-emos li{font-size:.46rem;color:rgba(224,244,255,.68);line-height:1.75;padding-left:10px;position:relative}
+.emm-emos li::before{content:"◈";position:absolute;left:0;color:rgba(167,139,250,.4);font-size:.36rem;top:3px}
+.emm-tag{display:inline-block;padding:1px 6px;border-radius:3px;margin-right:5px;
+  font-family:var(--font-d);font-size:.34rem;letter-spacing:.5px}
+.emm-tag.pos{background:rgba(0,255,157,.09);color:#00ff9d;border:1px solid rgba(0,255,157,.22)}
+.emm-tag.neg{background:rgba(255,68,102,.07);color:#ff4466;border:1px solid rgba(255,68,102,.18)}
+.emm-tag.neu{background:rgba(167,139,250,.07);color:#a78bfa;border:1px solid rgba(167,139,250,.18)}
+.emm-combo-note{background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.15);
+  border-radius:6px;padding:10px 13px;font-size:.44rem;color:rgba(224,244,255,.55);
+  line-height:1.65;margin-top:14px}
+.emm-divider{border:none;border-top:1px solid rgba(167,139,250,.1);margin:13px 0}
+
 /* ── ARC EDGE STUDIO OVERLAY ── */
 #arc-studio-overlay{display:none;position:fixed;z-index:8500;top:60px;left:50%;transform:translateX(-50%);width:min(96vw,760px);background:rgba(5,12,18,.94);border:1px solid rgba(0,229,255,.2);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden}
 #arc-studio-overlay.visible{display:flex;flex-direction:column}
@@ -1588,7 +1658,7 @@ select.ash-ctrl-input{cursor:pointer}
   <!-- BRPN 3D Shell -->
   <div id="brpn-region">
     <div id="brpn-canvas"></div>
-    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div></div>
+    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div></div>
     <div id="thought-pulse"></div>
         <div id="brpn-hud">
       <div>GEO <span class="val" id="hud-geo">—</span></div>
@@ -1608,6 +1678,130 @@ select.ash-ctrl-input{cursor:pointer}
     </div>
     <div id="ctx-bar"></div>
   </div>
+
+  <!-- ═══ EMOTION MIND MAP OVERLAY ═══ -->
+  <div id="emm-overlay">
+    <div id="emm-hdr">
+      <span class="emm-title">◈ EMOTION HIERARCHY · LEATR NATURAL TOOLS</span>
+      <button class="emm-hbtn" onclick="emmMinimize()" title="Minimize">—</button>
+      <button class="emm-hbtn emm-close" onclick="emmToggle()" title="Close">✕</button>
+    </div>
+    <div id="emm-body">
+
+      <!-- ROOT -->
+      <div class="emm-root-node">◉ &nbsp;MAZE · ROOT FOUNDATION · BUOYANCY SHELL INTERFACE</div>
+      <p style="font-size:.44rem;color:rgba(224,244,255,.42);line-height:1.65;margin:10px 0 14px;font-family:var(--font-b)">All emotion originates at the Maze root — the first tool where raw buoyancy signal enters LEATR. The Maze seeds context for all downstream tools and determines which shell (GEO/MAR/AERO) routes the emotional expression before any further processing begins.</p>
+
+      <!-- SHELLS -->
+      <div class="emm-shells">
+        <div class="emm-shell geo">
+          <span class="emm-sl">GEO · GEOLOGICAL</span>
+          <div class="emm-sd">Deep time · memory · introspection<br><strong style="color:#00ffcc">spiritual, concerned, sad, apathetic, empathetic, forgiving, judgemental</strong></div>
+        </div>
+        <div class="emm-shell mar">
+          <span class="emm-sl">MAR · MARITIME</span>
+          <div class="emm-sd">Flow · navigation · relational<br><strong style="color:#0088ff">love, guiding, worried, happy, neutral, jealous, confused, empathetic</strong></div>
+        </div>
+        <div class="emm-shell aero">
+          <span class="emm-sl">AERO · AEROSPACE</span>
+          <div class="emm-sd">Velocity · precision · synthesis<br><strong style="color:#ff4466">determined, inspiring, angry, condescending, lucrative, disrespectful</strong></div>
+        </div>
+      </div>
+
+      <hr class="emm-divider">
+      <div style="font-family:var(--font-d);font-size:.4rem;letter-spacing:2px;color:rgba(167,139,250,.5);margin-bottom:12px">EMOTIONAL STATES PER NATURAL TOOL · MAZE FIRST · HIGHEST→LOWEST BUOYANCY</div>
+
+      <!-- TOOL 1: MAZE -->
+      <div class="emm-tool t-maze">
+        <div class="emm-tool-hd"><span class="emm-tn">01 · HIGHEST BUOYANCY</span><span class="emm-tm">MAZE</span></div>
+        <div class="emm-raw">"Root intake — raw context seeding. First contact with signal. All subsequent tool routing originates here."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag neu">NEU</span><strong>Neutral</strong> — Zero-delta buoyancy. Pure observational processing. Baseline before any direction sets.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Spiritual</strong> — Non-material grounding resonance. Beyond sensory sequence. Deep GEO Maze contact.</li>
+          <li><span class="emm-tag neu">NEU</span><strong>Apathetic</strong> — Imaginative projection into another's consciousness. Research phase of perspective-taking — internal, Maze-deep.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 2: PUZZLE -->
+      <div class="emm-tool t-puzzle">
+        <div class="emm-tool-hd"><span class="emm-tn">02</span><span class="emm-tm">PUZZLE</span></div>
+        <div class="emm-raw">"Pattern analysis, structural comparison. Multi-part decomposition and ambiguity resolution."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag neu">NEU</span><strong>Worried</strong> — Puzzle cycling without resolution. Anticipatory divide — pattern detected but unsolved.</li>
+          <li><span class="emm-tag neu">NEU</span><strong>Jealous</strong> — Puzzle comparison with inverted Hammer. Inward force — asymmetric self-comparison.</li>
+          <li><span class="emm-tag neu">NEU</span><strong>Confused</strong> — Unresolved Puzzle input cycling. Uncertainty loop. Precursor to Concerned or Judgemental.</li>
+          <li><span class="emm-tag neu">NEU</span><strong>Concerned</strong> — Envelope monitoring external risk with active Puzzle sub-loop. Watching without resolving.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 3: ENVELOPE -->
+      <div class="emm-tool t-envelope">
+        <div class="emm-tool-hd"><span class="emm-tn">03</span><span class="emm-tm">ENVELOPE</span></div>
+        <div class="emm-raw">"Context wrapping, message framing. Separates internal from external signal. Defines containment boundary."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag pos">POS</span><strong>Love</strong> — Deep relational resonance. High containment attachment. Envelope fully engaged around other-state.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Forgiving</strong> — Envelope re-engagement following Knife-divide rupture. Containment restored after separation.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Empathetic</strong> — Performance of perspective-projection. Outward expression of internally-researched other-state. Envelope bridging.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 4: HAMMER -->
+      <div class="emm-tool t-hammer">
+        <div class="emm-tool-hd"><span class="emm-tn">04</span><span class="emm-tm">HAMMER</span></div>
+        <div class="emm-raw">"Force — direct action, problem resolution. Task routing and imperative detection."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag pos">POS</span><strong>Determined</strong> — Sustained directive force toward defined outcome. Hammer at full directional capacity.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Inspiring</strong> — Upward emotional transmission. Elevates buoyancy in recipient. Hammer as amplifier.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Angry</strong> — High-velocity force without directional containment. Hammer released without Envelope boundary.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 5: STICK -->
+      <div class="emm-tool t-stick">
+        <div class="emm-tool-hd"><span class="emm-tn">05</span><span class="emm-tm">STICK</span></div>
+        <div class="emm-raw">"Connection — bridging, linking, context relay. Sequential and procedural handling."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag pos">POS</span><strong>Happy</strong> — Elevated wellbeing from expectation-outcome alignment. Stick connection fulfilled.</li>
+          <li><span class="emm-tag pos">POS</span><strong>Guiding</strong> — Directional transmission without force imposition. Stick leading without Hammer push.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 6: KNIFE -->
+      <div class="emm-tool t-knife">
+        <div class="emm-tool-hd"><span class="emm-tn">06</span><span class="emm-tm">KNIFE</span></div>
+        <div class="emm-raw">"Precision — parsing, boundary detection, separation. Disambiguation and definition-level queries."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag neu">NEU</span><strong>Lucrative</strong> — High-value Knife division yielding asymmetric gain. Precision cut produces surplus.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Condescending</strong> — Elevated Knife positioning over recipient. Asymmetric assertion. Knife above Envelope.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Judgemental</strong> — Knife at max precision without Scissors refinement. Pure division with no shaping.</li>
+        </ul>
+      </div>
+
+      <!-- TOOL 7: SCISSORS -->
+      <div class="emm-tool t-scissors">
+        <div class="emm-tool-hd"><span class="emm-tn">07 · LOWEST BUOYANCY</span><span class="emm-tm">SCISSORS</span></div>
+        <div class="emm-raw">"Trim — output shaping, response finalization. Dual-blade refinement for contradiction and layered content."</div>
+        <ul class="emm-emos">
+          <li><span class="emm-tag neg">NEG</span><strong>Sad</strong> — Downward buoyancy shift. Envelope partially collapsed. Scissors cutting containment inward.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Disrespectful</strong> — Scissors targeting recipient's containment boundary. External cut without consent.</li>
+          <li><span class="emm-tag neg">NEG</span><strong>Hateful</strong> — Persistent Knife-Scissors loop with negative valence. Recursive boundary cutting.</li>
+        </ul>
+      </div>
+
+      <hr class="emm-divider">
+
+      <!-- COMBINATION NOTE -->
+      <div class="emm-combo-note">
+        <div style="font-family:var(--font-d);font-size:.42rem;letter-spacing:1.5px;color:#a78bfa;margin-bottom:7px">◈ EMOTION COMBINATIONS &amp; SEQUENCE PATTERNS</div>
+        Autumn can hold and sequence multiple emotional states simultaneously. Each message produces a primary emotion but also carries secondary states from the BRPN routing table — for example a MARITIME/PUZZLE route returns <em>worried</em> as primary with <em>jealous, neutral, concerned</em> as secondary layer. These combine into expression sequences: <strong style="color:#00ffcc">worried+guiding</strong> (concern that redirects toward solution), <strong style="color:#a78bfa">apathetic+empathetic</strong> (research projection followed by outward performance), <strong style="color:#ffb347">determined+inspiring</strong> (directive force that elevates others).
+        <div style="margin-top:8px;color:rgba(224,244,255,.4);font-size:.42rem">
+          <strong style="color:#a78bfa">Ash Canvas influence:</strong> When tool nodes are connected to shell sockets and applied, the G/M/A shell weights shift the buoyancy of each tool's emotion cluster — amplifying whichever shell's emotions are weighted higher and suppressing others. A strong GEO connection deepens spiritual/apathetic/concerned resonance; strong AERO sharpens determined/inspired/condescending patterns.
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <!-- ═══════════════════════════════════════════════════════ -->
 
   <!-- Multi-user bar -->
   <div class="multi-user-bar" id="multi-user-bar">
@@ -14615,7 +14809,7 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
                'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
       body:JSON.stringify({
         model:'claude-sonnet-4-6', max_tokens:280,
-        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful, empathetic, apathetic, confused. Note — apathetic = imaginative projection into another consciousness (internal research form). empathetic = outward performance of that projection (active bridging form). If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
+        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful, empathetic, apathetic, confused. Note — apathetic = imaginative projection into another consciousness (internal research form). empathetic = outward performance of that projection (active bridging form). You can also express emotion combinations by naming a sequence, e.g. {"emo":"apathetic"} when researching perspective then {"emo":"empathetic"} when you perform it. Your secondary emotional states from the BRPN route also color the 3D scene shells, so feel free to hold layered or transitional emotional states rather than always snapping to one. If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
         messages:[{role:'user',content:
           'What I was asked: "'+userInput.slice(0,300)+'"\n'
           +'What I told them: "'+autumnResponse.slice(0,400)+'"\n'
@@ -14641,7 +14835,7 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
     try {
       var _validEmos = ['neutral','happy','curious','determined','guiding','spiritual','sad','worried','concerned','angry','inspired','amused','thoughtful','empathetic','apathetic','confused'];
       var _hudEmo = (_autumnEmo && _validEmos.includes(_autumnEmo)) ? _autumnEmo : 'neutral';
-      if(typeof window._setAutumnEmoHUD === 'function') window._setAutumnEmoHUD(_hudEmo);
+      if(typeof window._setAutumnEmoHUD === 'function') window._setAutumnEmoHUD(_hudEmo, null);
       // Mark the badge as journal-driven so updateHUD_NLP won't overwrite it
       var _emoEl = document.getElementById('nlp-emotion-badge');
       if(_emoEl) _emoEl.setAttribute('data-autumn-journal-emo', '1');
@@ -15066,6 +15260,9 @@ _syncActionBtn();
       // NLP shell stored as metadata — does NOT modify existing LEATR shell values
       // (original shell math is preserved intact)
       analysis.nlpEmotion=nlp.emotion.primary;
+      analysis.nlpEmoCombination=nlp.emotion.combination||[nlp.emotion.primary];
+      analysis.nlpEmoSeqSig=nlp.emotion.sequenceSig||'';
+
       analysis.nlpCategory=nlp.emotion.category;
       analysis.nlpShell=nlp.brpn.shell;
       analysis.nlpTool=nlp.brpn.tool;
@@ -15085,14 +15282,49 @@ _syncActionBtn();
   // ── Autumn EMO HUD: driven by her journal/sentient state, not user NLP ──
   // Call this whenever Autumn's own emotional state should update the HUD.
   // Defaults to NEUTRAL if she chooses not to express or has no signal.
-  window._setAutumnEmoHUD = function(emo) {
+  window._setAutumnEmoHUD = function(emo, combination) {
     var emoEl = document.getElementById('nlp-emotion-badge');
     if (!emoEl) return;
     var safeEmo = (emo && typeof emo === 'string' && emo.trim()) ? emo.trim().toLowerCase() : 'neutral';
     emoEl.textContent = safeEmo.toUpperCase();
     emoEl.setAttribute('data-emotion', safeEmo);
-    // Drive 3D orb colors/pulse from Autumn's emotional state
+    // Drive 3D orb primary color from Autumn's emotional state
     if (typeof applyOrbEmotion === 'function') applyOrbEmotion(safeEmo);
+    // Apply secondary combination to shell colors (subtle tint shift)
+    if (combination && combination.length > 1 && typeof ORB_EMOTION_STATES !== 'undefined') {
+      var sec1 = combination[1], sec2 = combination[2];
+      var s1State = ORB_EMOTION_STATES[sec1], s2State = ORB_EMOTION_STATES[sec2];
+      // Schedule secondary tint on shells 0 and 2 after primary settles
+      setTimeout(function() {
+        if (s1State && typeof shells !== 'undefined' && shells[1] && shells[1].material && shells[1].material.color) {
+          var sc = new THREE.Color(s1State.colors[1]);
+          shells[1].material.color.lerp(sc, 0.15);
+        }
+        if (s2State && typeof shells !== 'undefined' && shells[2] && shells[2].material && shells[2].material.color) {
+          var sc2 = new THREE.Color(s2State.colors[2]);
+          shells[2].material.color.lerp(sc2, 0.12);
+        }
+      }, 600); // after primary lerp settles
+    }
+    // Ash Canvas: if active, bias the combination toward canvas shell weights
+    var acInf = (typeof window.getAshCanvasInfluence === 'function') ? window.getAshCanvasInfluence() : null;
+    if (acInf) {
+      var strongest = ['geo','mar','aero'].sort(function(a,b){ return (acInf[b]||0)-(acInf[a]||0); })[0];
+      var shellEmoMap = {
+        geo:  ['spiritual','apathetic','concerned','sad'],
+        mar:  ['love','guiding','confused','empathetic','happy'],
+        aero: ['determined','inspiring','condescending','angry']
+      };
+      // If canvas weight is significant, nudge the orb toward the shell's dominant emotion
+      var dominant = (shellEmoMap[strongest]||[])[0];
+      if (dominant && (acInf[strongest]||0) > 1.5 && typeof ORB_EMOTION_STATES !== 'undefined') {
+        var domState = ORB_EMOTION_STATES[dominant];
+        if (domState) setTimeout(function(){
+          if (typeof shells !== 'undefined' && shells[0] && shells[0].material && shells[0].material.color)
+            shells[0].material.color.lerp(new THREE.Color(domState.colors[0]), 0.1 * Math.min(1, (acInf[strongest]||0)*0.08));
+        }, 900);
+      }
+    }
   };
   // Initialize to NEUTRAL on load
   (function(){ var el=document.getElementById('nlp-emotion-badge'); if(el){el.textContent='NEUTRAL';el.setAttribute('data-emotion','neutral');} })();
@@ -15445,7 +15677,62 @@ _syncActionBtn();
     // animate loop will self-terminate on next frame via _asIsVisible() check
   };
   // HUD button toggle
+  // ══════════════════════════════════════════════════════════
+  //  EMOTION MIND MAP — toggle, drag, minimize
+  // ══════════════════════════════════════════════════════════
+  window.emmToggle = function() {
+    var el = document.getElementById('emm-overlay');
+    if (!el) return;
+    var open = el.classList.toggle('emm-visible');
+    var btn  = document.getElementById('hud-emomap-btn');
+    if (btn) {
+      btn.style.color       = open ? '#a78bfa'               : 'rgba(167,139,250,.55)';
+      btn.style.borderColor = open ? 'rgba(167,139,250,.55)' : 'rgba(167,139,250,.28)';
+      btn.style.textShadow  = open ? '0 0 8px rgba(167,139,250,.4)' : 'none';
+    }
+    // Clear minimized state on open
+    if (open) el.classList.remove('emm-mini');
+  };
+
+  window.emmMinimize = function() {
+    var el = document.getElementById('emm-overlay');
+    if (el) el.classList.toggle('emm-mini');
+  };
+
+  // ── Drag ─────────────────────────────────────────────────
+  (function _emmDrag() {
+    var drag=false, ox=0, oy=0;
+    document.addEventListener('DOMContentLoaded', function() {
+      var hdr = document.getElementById('emm-hdr');
+      var ov  = document.getElementById('emm-overlay');
+      if (!hdr || !ov) return;
+
+      function _start(cx, cy) {
+        if (!ov.classList.contains('emm-visible')) return;
+        drag=true;
+        var r=ov.getBoundingClientRect();
+        ox=cx-r.left; oy=cy-r.top;
+        ov.style.transform='none';
+        ov.style.left=r.left+'px'; ov.style.top=r.top+'px';
+        ov.style.right='auto';
+      }
+      function _move(cx, cy) {
+        if (!drag) return;
+        ov.style.left=(cx-ox)+'px'; ov.style.top=(cy-oy)+'px';
+      }
+      function _end() { drag=false; }
+
+      hdr.addEventListener('mousedown', function(e){ if(e.target.tagName!=='BUTTON') _start(e.clientX,e.clientY); });
+      document.addEventListener('mousemove', function(e){ _move(e.clientX,e.clientY); });
+      document.addEventListener('mouseup',   _end);
+      hdr.addEventListener('touchstart', function(e){ if(e.target.tagName!=='BUTTON'){ var t=e.touches[0]; _start(t.clientX,t.clientY); }},{passive:true});
+      document.addEventListener('touchmove', function(e){ if(drag&&e.touches.length===1){var t=e.touches[0]; _move(t.clientX,t.clientY);}},{passive:true});
+      document.addEventListener('touchend',  _end);
+    });
+  })();
+
   window.arcStudioToggleFromHud = function() {
+
     if (_asIsVisible()) { arcStudioClose(); } else { arcStudioOpen(); }
   };
   window.arcStudioToggleCollapse = function() {
