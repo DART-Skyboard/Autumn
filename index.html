@@ -1600,7 +1600,7 @@ select.ash-ctrl-input{cursor:pointer}
         <div style="color:rgba(0,255,204,.4);font-size:.5rem;">SIG <span id="nlp-sigma-badge">—</span> &nbsp; <span id="nlp-tool-badge">—</span> &nbsp; BUO <span id="nlp-buoy-badge">—</span></div>
       </div>
     </div>
-    <div id="ctx-label" title="Current context type"></div>
+
     <div id="shell-status">
       <div class="shell-badge" data-shell="geo"><div class="dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></div>GEO</div>
       <div class="shell-badge" data-shell="mar"><div class="dot" style="background:var(--blue);box-shadow:0 0 6px var(--blue)"></div>MAR</div>
@@ -3472,7 +3472,7 @@ async function autumnReflex(userInput, userId="default") {
   MultiUserSession.logInput(userId, userInput, { contacts, context, grammar });
 
   // Update context label in BRPN header
-  const ctxLabel = document.getElementById('ctx-label');
+  const ctxLabel = null; // ctx-label removed
   const ctxBar = document.getElementById('ctx-bar');
   const footCtx = document.getElementById('foot-ctx');
   if (ctxLabel) ctxLabel.textContent = ctxType.config.label;
