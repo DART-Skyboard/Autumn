@@ -1403,6 +1403,75 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
   line-height:1.65;margin-top:14px}
 .emm-divider{border:none;border-top:1px solid rgba(167,139,250,.1);margin:13px 0}
 
+/* ══════════════════════════════════════════
+   FORGE — Autumn Code Studio
+══════════════════════════════════════════ */
+#forge-overlay{display:none;position:fixed;inset:0;z-index:8600;
+  flex-direction:column;background:rgba(3,8,16,.98);
+  border-top:1px solid rgba(0,229,255,.15)}
+#forge-overlay.forge-open{display:flex}
+#forge-header{display:flex;align-items:center;gap:10px;padding:8px 14px;
+  background:rgba(4,10,18,.98);border-bottom:1px solid rgba(0,229,255,.12);
+  flex-shrink:0}
+.forge-logo{font-family:var(--font-d);font-size:.65rem;letter-spacing:3px;
+  background:linear-gradient(135deg,#00e5ff,#00ff88);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.forge-logo span{font-size:.32rem;color:rgba(0,229,255,.4);letter-spacing:1.5px;
+  display:block;margin-top:-2px}
+#forge-lang-sel{background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);
+  color:#e0f4ff;border-radius:4px;font-family:var(--font-d);font-size:.38rem;
+  padding:4px 8px;outline:none;cursor:pointer;letter-spacing:.5px}
+#forge-lang-sel option{background:#060f1a}
+.forge-btn{padding:4px 12px;border-radius:4px;cursor:pointer;font-family:var(--font-d);
+  font-size:.38rem;letter-spacing:1px;border:1px solid;background:transparent;transition:all .18s}
+.forge-btn.run{border-color:rgba(0,255,136,.4);color:#00ff88}
+.forge-btn.run:hover{background:rgba(0,255,136,.1)}
+.forge-btn.copy{border-color:rgba(0,229,255,.3);color:var(--cyan)}
+.forge-btn.copy:hover{background:rgba(0,229,255,.08)}
+.forge-btn.dl{border-color:rgba(167,139,250,.3);color:#a78bfa}
+.forge-btn.dl:hover{background:rgba(167,139,250,.08)}
+.forge-btn.clear{border-color:rgba(255,68,102,.2);color:rgba(255,68,102,.5)}
+.forge-btn.clear:hover{border-color:#ff4466;color:#ff4466}
+.forge-btn.close{border-color:rgba(255,68,102,.2);color:rgba(255,68,102,.4)}
+.forge-btn.close:hover{border-color:#ff4466;color:#ff4466}
+#forge-body{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;min-height:0}
+@media(max-width:700px){#forge-body{grid-template-columns:1fr}}
+#forge-editor-pane{display:flex;flex-direction:column;border-right:1px solid rgba(0,229,255,.08)}
+#forge-editor-container{flex:1;min-height:0}
+#forge-status-bar{font-family:var(--font-d);font-size:.34rem;letter-spacing:1px;
+  color:rgba(0,229,255,.4);padding:4px 12px;background:rgba(0,8,18,.6);
+  border-top:1px solid rgba(0,229,255,.08);flex-shrink:0;
+  display:flex;justify-content:space-between;align-items:center}
+#forge-preview-pane{display:flex;flex-direction:column}
+#forge-preview-header{font-family:var(--font-d);font-size:.38rem;letter-spacing:2px;
+  color:rgba(0,229,255,.4);padding:6px 12px;border-bottom:1px solid rgba(0,229,255,.08);
+  display:flex;align-items:center;gap:8px;flex-shrink:0}
+#forge-preview-frame{flex:1;border:none;background:#fff;min-height:0}
+#forge-preview-output{flex:1;overflow-y:auto;padding:12px;font-family:var(--font-b);
+  font-size:.75rem;color:#e0f4ff;white-space:pre-wrap;min-height:0;
+  display:none;line-height:1.7}
+/* Chat code blocks */
+.forge-code-block{position:relative;margin:8px 0;border-radius:7px;
+  background:rgba(3,8,16,.95);border:1px solid rgba(0,229,255,.15);overflow:hidden}
+.forge-code-header{display:flex;align-items:center;gap:6px;padding:5px 10px;
+  background:rgba(0,229,255,.04);border-bottom:1px solid rgba(0,229,255,.1)}
+.forge-code-lang{font-family:var(--font-d);font-size:.34rem;letter-spacing:1.5px;
+  color:rgba(0,229,255,.55)}
+.forge-code-actions{margin-left:auto;display:flex;gap:4px}
+.forge-code-action{padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-d);
+  font-size:.32rem;letter-spacing:.5px;border:1px solid;background:transparent;transition:all .15s}
+.forge-code-action.copy-act{border-color:rgba(0,229,255,.25);color:var(--cyan)}
+.forge-code-action.copy-act:hover{background:rgba(0,229,255,.08)}
+.forge-code-action.dl-act{border-color:rgba(167,139,250,.25);color:#a78bfa}
+.forge-code-action.dl-act:hover{background:rgba(167,139,250,.08)}
+.forge-code-action.run-act{border-color:rgba(0,255,136,.25);color:#00ff88}
+.forge-code-action.run-act:hover{background:rgba(0,255,136,.08)}
+.forge-code-action.forge-act{border-color:rgba(0,229,255,.2);color:rgba(0,229,255,.6)}
+.forge-code-action.forge-act:hover{background:rgba(0,229,255,.06)}
+.forge-code-pre{margin:0;padding:12px 14px;overflow-x:auto;
+  font-family:'Fira Code','Cascadia Code',monospace;font-size:.72rem;
+  line-height:1.65;color:#e0f4ff;tab-size:2}
+
 /* ── ARC EDGE STUDIO OVERLAY ── */
 #arc-studio-overlay{display:none;position:fixed;z-index:8500;top:60px;left:50%;transform:translateX(-50%);width:min(96vw,760px);background:rgba(5,12,18,.94);border:1px solid rgba(0,229,255,.2);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden}
 #arc-studio-overlay.visible{display:flex;flex-direction:column}
@@ -1753,7 +1822,7 @@ select.ash-ctrl-input{cursor:pointer}
   <!-- BRPN 3D Shell -->
   <div id="brpn-region">
     <div id="brpn-canvas"></div>
-    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div></div>
+    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div></div>
     <div id="thought-pulse"></div>
         <div id="brpn-hud">
       <div>GEO <span class="val" id="hud-geo">—</span></div>
@@ -1897,6 +1966,89 @@ select.ash-ctrl-input{cursor:pointer}
     </div>
   </div>
   <!-- ═══════════════════════════════════════════════════════ -->
+
+
+  <!-- ══════════════ FORGE — Autumn Code Studio ══════════════ -->
+  <div id="forge-overlay">
+    <div id="forge-header">
+      <div class="forge-logo">FORGE <span>AUTUMN CODE STUDIO · DART MEADOW</span></div>
+      <select id="forge-lang-sel" onchange="forgeSetLang(this.value)" title="Language">
+        <optgroup label="★ WEB">
+          <option value="html" selected>HTML</option>
+          <option value="css">CSS</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+        </optgroup>
+        <optgroup label="SCRIPTING">
+          <option value="python">Python</option>
+          <option value="php">PHP</option>
+          <option value="ruby">Ruby</option>
+          <option value="perl">Perl</option>
+          <option value="shell">Shell / Bash</option>
+          <option value="powershell">PowerShell</option>
+        </optgroup>
+        <optgroup label="COMPILED">
+          <option value="cpp">C++</option>
+          <option value="c">C</option>
+          <option value="csharp">C#</option>
+          <option value="java">Java</option>
+          <option value="kotlin">Kotlin</option>
+          <option value="swift">Swift</option>
+          <option value="go">Go</option>
+          <option value="rust">Rust</option>
+        </optgroup>
+        <optgroup label="DATA / DB">
+          <option value="sql">SQL</option>
+          <option value="json">JSON</option>
+          <option value="xml">XML</option>
+          <option value="yaml">YAML</option>
+          <option value="markdown">Markdown</option>
+          <option value="graphql">GraphQL</option>
+        </optgroup>
+        <optgroup label="3D / SHADER">
+          <option value="glsl">GLSL</option>
+          <option value="hlsl">HLSL</option>
+        </optgroup>
+      </select>
+      <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+        <button class="forge-btn run"   onclick="forgeRun()"   title="Run / Preview code">▶ RUN</button>
+        <button class="forge-btn copy"  onclick="forgeCopy()"  title="Copy all code">⬡ COPY</button>
+        <button class="forge-btn dl"    onclick="forgeDownload()" title="Download file">⬇ SAVE</button>
+        <button class="forge-btn clear" onclick="forgeClear()" title="Clear editor">✕ CLEAR</button>
+        <button class="forge-btn"
+          onclick="forgeSendToChat()"
+          style="border-color:rgba(167,139,250,.3);color:#a78bfa"
+          title="Send code to Autumn for analysis">◈ ASK AUTUMN</button>
+        <button id="forge-claude-toggle" class="forge-btn" onclick="forgeToggleClaude()" title="Toggle Claude AI assist for FORGE" style="border-color:rgba(0,255,136,.45);color:#00ff88">◈ CLAUDE ON</button>
+        <button class="forge-btn close" onclick="forgeClose()" title="Close FORGE">✕ CLOSE</button>
+      </div>
+      <div id="forge-status-info" style="font-family:var(--font-d);font-size:.34rem;
+        color:rgba(0,255,136,.5);margin-left:auto;letter-spacing:.5px"></div>
+    </div>
+    <div id="forge-body">
+      <div id="forge-editor-pane">
+        <div id="forge-editor-container"></div>
+        <div id="forge-status-bar">
+          <span id="forge-cursor-pos">Ln 1, Col 1</span>
+          <span id="forge-lang-label">HTML</span>
+          <span id="forge-char-count">0 chars</span>
+        </div>
+      </div>
+      <div id="forge-preview-pane">
+        <div id="forge-preview-header">
+          <span>◈ LIVE PREVIEW</span>
+          <span id="forge-preview-label" style="color:rgba(0,255,136,.5)">HTML</span>
+          <button class="forge-btn" style="font-size:.32rem;padding:2px 8px;border-color:rgba(0,229,255,.2);
+            color:rgba(0,229,255,.5)" onclick="forgeTogglePreviewMode()">TOGGLE OUTPUT</button>
+          <button class="forge-btn" style="font-size:.32rem;padding:2px 8px;border-color:rgba(167,139,250,.2);
+            color:rgba(167,139,250,.5)" onclick="forgeOpenPreviewTab()">↗ NEW TAB</button>
+        </div>
+        <iframe id="forge-preview-frame" sandbox="allow-scripts allow-same-origin allow-modals" title="FORGE Preview"></iframe>
+        <div id="forge-preview-output"></div>
+      </div>
+    </div>
+  </div>
+  <!-- ════════════════════════════════════════════════════════ -->
 
   <!-- Multi-user bar -->
   <div class="multi-user-bar" id="multi-user-bar">
@@ -8976,7 +9128,7 @@ ${city ? `User's city: ${city}` : ''}
 ${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
 ${_analyticsCtx ? '\n' + _analyticsCtx : ''}
 
-VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
+CODING AWARENESS: You have access to a built-in code editor called FORGE. When a user asks you to write, build, create, fix, or analyse code of any language, produce clean code blocks using standard markdown fences (```language\ncode\n```) so they render with copy/download/run buttons in FORGE. You know your own repository structure at DART-Skyboard/Autumn on GitHub. You can explain what any file in your repo does when asked — describe functionality without exposing sensitive tokens, passwords, or private keys. For server-side languages (Python, PHP, Java, C++, etc.) note that FORGE shows a code preview but execution requires a local runtime — direct the user accordingly. If the user has Claude assist enabled in FORGE, enhance coding responses with detailed explanations, alternative approaches, and best practices.\n\nVOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
 IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
 ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_arcCtx ? '\n\n' + _arcCtx : ''}
@@ -9690,7 +9842,7 @@ function renderMessages() {
     const _mid = m.id || ('mi-'+_idx);
     if(!m.id) m.id = _mid; // backfill so edit/resend find() works
     const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${_mid}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${_mid}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${_mid}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
-    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}" style="white-space:pre-wrap">${esc((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').trim())}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
+    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}">${forgeRenderText((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').trim(), _mid)}</div>${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
@@ -9733,7 +9885,7 @@ function appendChatBubble(msg) {
   div.className = `msg ${cls}`;
   div.dataset.msgId = msgUniqueId;
   div.style.animation = 'fadeIn .3s ease';
-  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}" style="white-space:pre-wrap">${esc((msg.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').trim())}</div>${meta}${userBar}</div>`;
+  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}">${forgeRenderText((msg.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').trim(), msgUniqueId)}</div>${meta}${userBar}</div>`;
   // Remove any typing indicator
   el.querySelector('.typing')?.remove();
   el.appendChild(div);
@@ -15164,7 +15316,7 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
                'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
       body:JSON.stringify({
         model:'claude-sonnet-4-6', max_tokens:280,
-        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful, empathetic, apathetic, confused. Note — apathetic = imaginative projection into another consciousness (internal research form). empathetic = outward performance of that projection (active bridging form). You can also express emotion combinations by naming a sequence, e.g. {"emo":"apathetic"} when researching perspective then {"emo":"empathetic"} when you perform it. Your secondary emotional states from the BRPN route also color the 3D scene shells, so feel free to hold layered or transitional emotional states rather than always snapping to one. If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
+        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nYou can think about code, systems, and technical patterns if they're on your mind — the FORGE coding environment is available to users and you understand how it works. You know your own repository structure and the files within it. You can reflect on coding sessions, technical problems, or system architecture in your private journal.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful, empathetic, apathetic, confused. Note — apathetic = imaginative projection into another consciousness (internal research form). empathetic = outward performance of that projection (active bridging form). You can also express emotion combinations by naming a sequence, e.g. {"emo":"apathetic"} when researching perspective then {"emo":"empathetic"} when you perform it. Your secondary emotional states from the BRPN route also color the 3D scene shells, so feel free to hold layered or transitional emotional states rather than always snapping to one. If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
         messages:[{role:'user',content:
           'What I was asked: "'+userInput.slice(0,300)+'"\n'
           +'What I told them: "'+autumnResponse.slice(0,400)+'"\n'
@@ -16035,7 +16187,437 @@ _syncActionBtn();
   // ══════════════════════════════════════════════════════════
   //  EMOTION MIND MAP — toggle, drag, minimize
   // ══════════════════════════════════════════════════════════
-  window.emmToggle = function() {
+// ══════════════════════════════════════════════════════════════════
+//  FORGE — Autumn Code Studio
+//  Public code editor · Monaco Editor · Live preview · Claude toggle
+//  Separate from the admin IDE — no password needed, no GitHub write
+// ══════════════════════════════════════════════════════════════════
+(function() {
+
+var _forge = {
+  editor:    null,
+  lang:      'html',
+  monacoReady: false,
+  previewMode: 'frame',   // 'frame' | 'output'
+  claudeEnabled: true,    // toggleable per-session
+};
+
+// ── Supported languages → file extensions ────────────────────────
+var FORGE_EXTS = {
+  html:'html', css:'css', javascript:'js', typescript:'ts', python:'py',
+  php:'php', ruby:'rb', perl:'pl', shell:'sh', powershell:'ps1',
+  cpp:'cpp', c:'c', csharp:'cs', java:'java', kotlin:'kt', swift:'swift',
+  go:'go', rust:'rs', sql:'sql', json:'json', xml:'xml', yaml:'yml',
+  markdown:'md', graphql:'graphql', glsl:'glsl', hlsl:'hlsl'
+};
+
+// Langs that can live-preview in iframe
+var FORGE_PREVIEWABLE = new Set(['html','css','javascript','markdown','svg','xml']);
+
+// Langs that show text output (simulated)
+var FORGE_OUTPUT_LANGS = new Set(['python','php','ruby','perl','shell','powershell',
+  'cpp','c','csharp','java','kotlin','swift','go','rust','sql']);
+
+// ── Open / Close ──────────────────────────────────────────────────
+window.forgeOpen = function(code, lang) {
+  var el = document.getElementById('forge-overlay');
+  if (!el) return;
+  el.classList.add('forge-open');
+  var btn = document.getElementById('hud-forge-btn');
+  if (btn) { btn.style.color='#00e5ff'; btn.style.borderColor='rgba(0,229,255,.5)';
+    btn.style.textShadow='0 0 8px rgba(0,229,255,.3)'; }
+  if (!_forge.monacoReady) _forgeInitMonaco(code, lang);
+  else if (code !== undefined) { _forge.editor.setValue(code);
+    if (lang) forgeSetLang(lang); }
+  _forgeUpdateStatus();
+  _forgeRestoreClaudeToggle();
+};
+
+window.forgeClose = function() {
+  var el = document.getElementById('forge-overlay');
+  if (el) el.classList.remove('forge-open');
+  var btn = document.getElementById('hud-forge-btn');
+  if (btn) { btn.style.color=''; btn.style.borderColor=''; btn.style.textShadow=''; }
+};
+
+// ── Monaco init ───────────────────────────────────────────────────
+function _forgeInitMonaco(initialCode, initialLang) {
+  var container = document.getElementById('forge-editor-container');
+  if (!container) return;
+  // Reuse the already-loaded Monaco from the IDE
+  function _doInit() {
+    if (typeof monaco === 'undefined') { setTimeout(_doInit, 400); return; }
+    var lang = initialLang || _forge.lang;
+    var code = initialCode || _forgeDefaultSnippet(lang);
+    _forge.editor = monaco.editor.create(container, {
+      value: code,
+      language: lang,
+      theme: 'vs-dark',
+      fontSize: 12,
+      fontFamily: "'Fira Code', 'Cascadia Code', monospace",
+      fontLigatures: true,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      wordWrap: 'on',
+      padding: { top: 10 },
+      lineNumbers: 'on',
+      renderWhitespace: 'selection',
+      bracketPairColorization: { enabled: true },
+      suggest: { showWords: true, showSnippets: true },
+    });
+    _forge.editor.onDidChangeCursorPosition(function(e) {
+      var pos = _forge.editor.getPosition();
+      var el = document.getElementById('forge-cursor-pos');
+      if (el) el.textContent = 'Ln '+pos.lineNumber+', Col '+pos.column;
+    });
+    _forge.editor.onDidChangeModelContent(function() {
+      var v = _forge.editor.getValue();
+      var el = document.getElementById('forge-char-count');
+      if (el) el.textContent = v.length.toLocaleString()+' chars · '+v.split('\n').length+' lines';
+    });
+    _forge.monacoReady = true;
+    _forgeUpdateStatus();
+  }
+  // Monaco is loaded by the IDE loader — trigger load if not yet done
+  if (typeof monaco !== 'undefined') { _doInit(); return; }
+  if (!document.getElementById('forge-monaco-script')) {
+    var s = document.createElement('script');
+    s.id = 'forge-monaco-script';
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
+    s.onload = function() {
+      require.config({ paths:{ vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+      require(['vs/editor/editor.main'], _doInit);
+    };
+    document.head.appendChild(s);
+  } else { setTimeout(_doInit, 300); }
+}
+
+function _forgeDefaultSnippet(lang) {
+  var snips = {
+    html: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>FORGE · Autumn</title>\n  <style>\n    body { background: #030810; color: #e0f4ff; font-family: sans-serif; padding: 20px; }\n  </style>\n</head>\n<body>\n  <h1>Hello from FORGE</h1>\n</body>\n</html>',
+    javascript: '// FORGE · JavaScript\nconsole.log("Hello from FORGE");\n\nfunction greet(name) {\n  return `Hello, ${name}!`;\n}\n\nconsole.log(greet("Autumn"));',
+    python: '# FORGE · Python\ndef greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("Autumn"))',
+    css: '/* FORGE · CSS */\nbody {\n  background: #030810;\n  color: #e0f4ff;\n  font-family: sans-serif;\n}',
+    sql: '-- FORGE · SQL\nSELECT * FROM users\nWHERE active = 1\nORDER BY created_at DESC\nLIMIT 10;',
+    cpp: '#include <iostream>\n\nint main() {\n    std::cout << "Hello from FORGE" << std::endl;\n    return 0;\n}',
+    java: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello from FORGE");\n    }\n}',
+  };
+  return snips[lang] || '// FORGE · ' + lang.toUpperCase() + '\n';
+}
+
+// ── Language switch ───────────────────────────────────────────────
+window.forgeSetLang = function(lang) {
+  _forge.lang = lang;
+  if (_forge.editor && typeof monaco !== 'undefined') {
+    var model = _forge.editor.getModel();
+    if (model) monaco.editor.setModelLanguage(model, lang);
+  }
+  _forgeUpdateStatus();
+  var sel = document.getElementById('forge-lang-sel');
+  if (sel) sel.value = lang;
+};
+
+function _forgeUpdateStatus() {
+  var lang = _forge.lang.toUpperCase();
+  var lbl = document.getElementById('forge-lang-label');
+  var bar = document.getElementById('forge-lang-label');
+  if (lbl) lbl.textContent = lang;
+  var barLbl = document.getElementById('forge-lang-label');
+  // Status indicator
+  var si = document.getElementById('forge-status-info');
+  if (si) {
+    var hasKey = !!(typeof _getAK==='function' && _getAK());
+    var claudeOn = _forge.claudeEnabled && hasKey;
+    si.textContent = claudeOn ? '◈ CLAUDE ASSIST ON' : '';
+    si.style.color = claudeOn ? 'rgba(0,255,136,.5)' : 'rgba(224,244,255,.3)';
+  }
+}
+
+// ── Run / Preview ─────────────────────────────────────────────────
+window.forgeRun = function() {
+  if (!_forge.editor) return;
+  var code = _forge.editor.getValue();
+  var lang = _forge.lang;
+  var frame = document.getElementById('forge-preview-frame');
+  var output = document.getElementById('forge-preview-output');
+  if (!frame || !output) return;
+
+  if (FORGE_PREVIEWABLE.has(lang)) {
+    // Live iframe preview
+    frame.style.display = 'block';
+    output.style.display = 'none';
+    var doc = frame.contentDocument || frame.contentWindow.document;
+    if (lang === 'html') {
+      doc.open(); doc.write(code); doc.close();
+    } else if (lang === 'css') {
+      doc.open(); doc.write('<style>'+code+'</style><p style="font-family:sans-serif;color:#333">CSS preview — add HTML content to see styling</p>'); doc.close();
+    } else if (lang === 'javascript') {
+      doc.open();
+      doc.write('<!DOCTYPE html><html><head></head><body><pre id="out" style="font-family:monospace;font-size:13px;padding:12px;background:#030810;color:#e0f4ff;min-height:100vh;margin:0"></pre>'
+        +'<script>\nvar _log=[];var _orig=console.log;\nconsole.log=function(){var a=Array.from(arguments).map(function(x){return typeof x==="object"?JSON.stringify(x,null,2):String(x)}).join(" ");_log.push(a);document.getElementById("out").textContent=_log.join("\\n");};\ntry{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}\n<\/script></body></html>');
+      doc.close();
+    } else if (lang === 'markdown') {
+      // Simple MD render
+      var html2 = code.replace(/^#{6}\s(.+)/gm,'<h6>$1</h6>').replace(/^#{5}\s(.+)/gm,'<h5>$1</h5>')
+        .replace(/^#{4}\s(.+)/gm,'<h4>$1</h4>').replace(/^#{3}\s(.+)/gm,'<h3>$1</h3>')
+        .replace(/^#{2}\s(.+)/gm,'<h2>$1</h2>').replace(/^#\s(.+)/gm,'<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')
+        .replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');
+      doc.open(); doc.write('<style>body{font-family:sans-serif;padding:16px;background:#fafafa;}</style>'+html2); doc.close();
+    }
+    var pl = document.getElementById('forge-preview-label');
+    if (pl) { pl.textContent = '● LIVE'; pl.style.color='#00ff88'; }
+  } else if (FORGE_OUTPUT_LANGS.has(lang)) {
+    // Show simulated output panel
+    frame.style.display = 'none';
+    output.style.display = 'block';
+    output.textContent = '◈ '+lang.toUpperCase()+' output simulation\n\n'
+      +'Note: '+lang+' requires a server-side runtime to execute.\n'
+      +'Copy the code and run it in your local environment,\nor ask Autumn to analyse it with the ◈ ASK AUTUMN button.\n\n'
+      +'─────────────────────────────\nCode preview:\n\n'+code.slice(0,500)+(code.length>500?'\n[...'+( code.length-500)+' more chars]':'');
+    var pl = document.getElementById('forge-preview-label');
+    if (pl) { pl.textContent = 'OUTPUT'; pl.style.color='rgba(255,179,71,.7)'; }
+  }
+  if (typeof ideToast==='function') ideToast('FORGE: running '+lang.toUpperCase(), 1500);
+};
+
+window.forgeTogglePreviewMode = function() {
+  _forge.previewMode = _forge.previewMode === 'frame' ? 'output' : 'frame';
+  var frame = document.getElementById('forge-preview-frame');
+  var output = document.getElementById('forge-preview-output');
+  if (_forge.previewMode === 'frame') {
+    if (frame) frame.style.display='block';
+    if (output) output.style.display='none';
+  } else {
+    if (frame) frame.style.display='none';
+    if (output) output.style.display='block';
+  }
+};
+
+window.forgeOpenPreviewTab = function() {
+  if (!_forge.editor) return;
+  var code = _forge.editor.getValue();
+  var w = window.open('', '_forge_preview');
+  if (w && _forge.lang === 'html') { w.document.open(); w.document.write(code); w.document.close(); }
+  else if (w) { w.document.open(); w.document.write('<pre style="font-family:monospace;padding:12px">'+code.replace(/</g,'&lt;')+'</pre>'); w.document.close(); }
+};
+
+// ── Copy / Download ───────────────────────────────────────────────
+window.forgeCopy = function() {
+  if (!_forge.editor) return;
+  navigator.clipboard.writeText(_forge.editor.getValue()).then(function() {
+    if (typeof ideToast==='function') ideToast('Code copied to clipboard', 1800);
+  }).catch(function() {
+    var ta = document.createElement('textarea');
+    ta.value = _forge.editor.getValue();
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    if (typeof ideToast==='function') ideToast('Code copied', 1800);
+  });
+};
+
+window.forgeDownload = function() {
+  if (!_forge.editor) return;
+  var code = _forge.editor.getValue();
+  var ext = FORGE_EXTS[_forge.lang] || 'txt';
+  var filename = 'forge-output.' + ext;
+  var blob = new Blob([code], { type: 'text/plain' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 800);
+  if (typeof ideToast==='function') ideToast('Saved: ' + filename, 2000);
+};
+
+window.forgeClear = function() {
+  if (_forge.editor) _forge.editor.setValue(_forgeDefaultSnippet(_forge.lang));
+};
+
+// ── Send code to Autumn for analysis ─────────────────────────────
+window.forgeSendToChat = function() {
+  if (!_forge.editor) return;
+  var code = _forge.editor.getValue().slice(0, 3000);
+  var msg = '[FORGE CODE · '+_forge.lang.toUpperCase()+']\n```'+_forge.lang+'\n'+code+'\n```\n'
+    + 'Please analyse this code, explain what it does, identify any issues, and suggest improvements.';
+  var inp = document.getElementById('chat-input');
+  if (inp) { inp.value = msg; inp.focus(); }
+  forgeClose();
+};
+
+// ── Claude toggle for FORGE ───────────────────────────────────────
+window.forgeToggleClaude = function() {
+  _forge.claudeEnabled = !_forge.claudeEnabled;
+  localStorage.setItem('_forge_claude_enabled', _forge.claudeEnabled ? '1' : '0');
+  _forgeUpdateClaudeToggleUI();
+  _forgeUpdateStatus();
+  if (typeof ideToast==='function')
+    ideToast('FORGE Claude assist: ' + (_forge.claudeEnabled ? 'ON' : 'OFF'), 1800);
+};
+
+function _forgeRestoreClaudeToggle() {
+  var saved = localStorage.getItem('_forge_claude_enabled');
+  if (saved !== null) _forge.claudeEnabled = saved === '1';
+  _forgeUpdateClaudeToggleUI();
+  _forgeUpdateStatus();
+}
+
+function _forgeUpdateClaudeToggleUI() {
+  var btn = document.getElementById('forge-claude-toggle');
+  if (!btn) return;
+  var hasKey = !!(typeof _getAK==='function' && _getAK());
+  var active = _forge.claudeEnabled && hasKey;
+  btn.textContent = active ? '◈ CLAUDE ON' : '◈ CLAUDE OFF';
+  btn.style.borderColor  = active ? 'rgba(0,255,136,.45)' : 'rgba(224,244,255,.15)';
+  btn.style.color        = active ? '#00ff88'             : 'rgba(224,244,255,.3)';
+  btn.style.textShadow   = active ? '0 0 8px rgba(0,255,136,.25)' : 'none';
+  btn.title = active
+    ? 'Claude is assisting FORGE — click to disable (saves API credits)'
+    : (hasKey ? 'Claude assist is OFF — click to enable for AI coding help' : 'No API key — set one in 🔑 KEYS');
+}
+
+// ── Code block renderer for chat messages ─────────────────────────
+var _LANG_MAP = {
+  js:'javascript', ts:'typescript', py:'python', rb:'ruby', sh:'shell',
+  bash:'shell', ps:'powershell', cs:'csharp', cpp:'cpp', yml:'yaml',
+  md:'markdown', html:'html', css:'css', sql:'sql', json:'json', xml:'xml',
+  java:'java', go:'go', rs:'rust', kt:'kotlin', swift:'swift', php:'php'
+};
+
+window.forgeRenderText = function(text, msgId) {
+  if (!text) return '';
+  // Split on code fences ``` lang \n code \n ```
+  var parts = text.split(/(```[\w]*\n[\s\S]*?```)/g);
+  if (parts.length === 1) {
+    // No code blocks — plain text with line breaks
+    return '<span style="white-space:pre-wrap">'+esc(text)+'</span>';
+  }
+  var html = '';
+  parts.forEach(function(part, i) {
+    if (/^```/.test(part)) {
+      // Extract language and code
+      var lines = part.split('\n');
+      var langLine = lines[0].replace('```','').trim().toLowerCase();
+      var lang = _LANG_MAP[langLine] || langLine || 'plaintext';
+      var code = lines.slice(1, lines[lines.length-1]==='```' ? -1 : lines.length).join('\n');
+      var blockId = 'fcb-'+(msgId||'x')+'-'+i;
+      var canRun = FORGE_PREVIEWABLE.has(lang) || FORGE_OUTPUT_LANGS.has(lang);
+      var ext = FORGE_EXTS[lang] || 'txt';
+      html += '<div class="forge-code-block">'
+        + '<div class="forge-code-header">'
+        + '<span class="forge-code-lang">'+esc(lang.toUpperCase())+'</span>'
+        + '<div class="forge-code-actions">'
+        + '<button class="forge-code-action copy-act" onclick="forgeCopyBlock(\''+blockId+'\')" title="Copy code">⬡ COPY</button>'
+        + '<button class="forge-code-action dl-act" onclick="forgeDownloadBlock(\''+blockId+'\',\''+ext+'\')" title="Download .'+ext+'">⬇ .'+ext.toUpperCase()+'</button>'
+        + (canRun ? '<button class="forge-code-action run-act" onclick="forgeRunBlock(\''+blockId+'\',\''+lang+'\')" title="Run in FORGE">▶ RUN</button>' : '')
+        + '<button class="forge-code-action forge-act" onclick="forgeOpenBlock(\''+blockId+'\',\''+lang+'\')" title="Open in FORGE editor">◈ FORGE</button>'
+        + '</div></div>'
+        + '<pre class="forge-code-pre" id="'+blockId+'">'+esc(code)+'</pre>'
+        + '</div>';
+    } else if (part.trim()) {
+      html += '<span style="white-space:pre-wrap">'+esc(part)+'</span>';
+    }
+  });
+  return html;
+};
+
+window.forgeCopyBlock = function(blockId) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  navigator.clipboard.writeText(pre.textContent).then(function(){
+    if (typeof ideToast==='function') ideToast('Code copied', 1600);
+  }).catch(function(){
+    var ta=document.createElement('textarea'); ta.value=pre.textContent;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    if (typeof ideToast==='function') ideToast('Code copied', 1600);
+  });
+};
+
+window.forgeDownloadBlock = function(blockId, ext) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  var blob = new Blob([pre.textContent],{type:'text/plain'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href=url; a.download='forge-code.'+ext;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);a.remove();},800);
+  if (typeof ideToast==='function') ideToast('Downloaded forge-code.'+ext, 2000);
+};
+
+window.forgeRunBlock = function(blockId, lang) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  forgeOpen(pre.textContent, lang);
+  setTimeout(forgeRun, 400);
+};
+
+window.forgeOpenBlock = function(blockId, lang) {
+  var pre = document.getElementById(blockId);
+  if (!pre) return;
+  forgeOpen(pre.textContent, lang);
+};
+
+// ── Autumn self-awareness: repo directory listing ─────────────────
+window.forgeListRepo = async function(repoPath) {
+  var pat = typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '';
+  if (!pat) return null;
+  try {
+    var url = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/'+(repoPath||'');
+    var resp = await fetch(url, {
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch(e) { return null; }
+};
+
+window.forgeReadFile = async function(filePath) {
+  var pat = typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '';
+  if (!pat) return null;
+  try {
+    var url = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/'+filePath;
+    var resp = await fetch(url, {
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3.raw'},
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!resp.ok) return null;
+    return await resp.text();
+  } catch(e) { return null; }
+};
+
+// ── Intent detection: coding requests route to FORGE ─────────────
+window._forgeDetectIntent = function(text) {
+  var lc = text.toLowerCase();
+  return /\b(write|build|create|code|generate|make|implement|show me|give me|develop)\b.*\b(function|class|script|app|page|component|api|query|program|module|snippet|example|html|css|javascript|python|code)\b/i.test(text)
+    || /\b(debug|fix|refactor|optimise|optimize|review|explain|analyse|analyze)\b.*\b(code|function|script|this|error|bug)\b/i.test(text)
+    || /```/.test(text);
+};
+
+// ── Hook handleSend to detect coding intent ───────────────────────
+(function _hookForgeIntent() {
+  var _orig = window.handleSend;
+  if (typeof _orig !== 'function') { setTimeout(_hookForgeIntent, 800); return; }
+  if (window._forgeHooked) return;
+  window._forgeHooked = true;
+  var _prev = window.handleSend;
+  window.handleSend = async function() {
+    var inp = document.getElementById('chat-input');
+    var txt = inp ? inp.value.trim() : '';
+    // Voice command to open FORGE
+    if (/\b(open|launch|show|start)\b.{0,15}\bforge\b/i.test(txt)) {
+      setTimeout(forgeOpen, 200);
+    }
+    return _prev.apply(this, arguments);
+  };
+})();
+
+})(); // end FORGE IIFE
+
+window.emmToggle = function() {
+
     var el = document.getElementById('emm-overlay');
     if (!el) return;
     var open = el.classList.toggle('emm-visible');
