@@ -51,6 +51,8 @@ function checkDataPolicyConsent() {
 }
 
 window.addEventListener('load', function() {
+  // Skip consent check if user is already registered via GitHub
+  if (localStorage.getItem('_gh_registered') || localStorage.getItem('_gh_session')) return;
   setTimeout(checkDataPolicyConsent, 500);
 });
 
@@ -1888,7 +1890,7 @@ select.ash-ctrl-input{cursor:pointer}
       <span class="ws-icon">⬡</span><span class="ws-label">WORLD STUDIO</span>
     </a>
     <!-- GitHub user / login -->
-    <button id="hdr-gh-login" onclick="window._ghShowLogin()" title="Login with GitHub" style="display:none">⬡ LOGIN</button>
+    <button id="hdr-gh-login" onclick="(localStorage.getItem('_gh_session')?window._ghReLogin():window._ghShowLogin())" title="Login with GitHub" style="display:none">⬡ LOGIN</button>
     <a class="gh-user-btn" id="hdr-gh-user" href="#" onclick="window._ghShowUserMenu(event)" style="display:none" title="GitHub account">
       <img src="" alt="" class="gh-user-avatar" id="hdr-gh-avatar">
       <span id="hdr-gh-name">USER</span>
@@ -8518,6 +8520,10 @@ async function handleSend() {
     document.getElementById('early-typing')?.remove();
     if(typeof setOrbThinking==='function') setOrbThinking(false);
     renderMessages(); updateFooter();
+    // Autosave to GitHub 2s after every response
+    if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
+      setTimeout(_autosave, 2000);
+    }
   };
 
   try {
@@ -18909,7 +18915,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var REPO_PREFIX    = 'Autumn-Ash-';
   var MEMORY_PATH    = 'ash-memory/';
   var MAX_FILE_BYTES = 4718592; // 4.5 MB rolling limit
-  var SYNC_INTERVAL  = 5 * 60 * 1000; // 5 min autosave
+  var SYNC_INTERVAL  = 2 * 60 * 1000; // 5 min autosave
 
   // ── State ──────────────────────────────────────────────────────────────────
   window._ghAuth = {
@@ -18991,6 +18997,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           if (d.access_token) {
             clearInterval(_devicePollTimer);
             _saveSession(d);
+            // Close modal immediately
+            var _pm = document.getElementById('gh-login-modal');
+            if (_pm) _pm.classList.remove('show');
             _applySession(d);
           } else if (d.error === 'access_denied') {
             clearInterval(_devicePollTimer);
@@ -19048,12 +19057,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var modal = document.getElementById('gh-login-modal');
     if (modal) modal.classList.remove('show');
 
-    // Auto-accept consent on login
+    // Mark registered + auto-accept consent permanently
     try {
       localStorage.setItem('_aut_data_consent', 'true');
       localStorage.setItem('autumn_consent', 'true');
+      localStorage.setItem('_gh_registered', data.username || '1');
       var cm = document.getElementById('consent-modal');
       if (cm) cm.style.display = 'none';
+      var dm = document.getElementById('data-policy-modal');
+      if (dm) dm.style.display = 'none';
     } catch(e) {}
 
     // Ensure user repo exists, then load memory
@@ -19212,16 +19224,19 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     // Build snapshot with all memory types
     var now = new Date().toISOString();
+    var _ss=(S.sessions||[]).map(function(s){return{id:s.id,messages:(s.messages||[]).map(function(m){var r=Object.assign({},m);delete r._savedAttachments;delete r.uploadedImageThumbs;return r;})};});
     var snapshot = {
       version:        '2.0',
       username:       username,
       saved:          now,
       chunk:          _activeChunkName(),
+      sessions:       _ss,
+      currentSession: S.currentSession || 0,
       memory:         S.memory         || {},
       journal:        (S.journal        || []).slice(-500),
       contextHistory: (S.contextHistory || []).slice(-100),
       sessionHistory: (S.sessionHistory || []).slice(-200),
-      attachments:    (S.attachments    || []).slice(-100),  // refs only, not raw data
+      attachments:    (S.attachments    || []).slice(-100),
       sentience:      S.sentience       || {},
       nlp:            S.lastAnalysis    || {}
     };
@@ -19429,21 +19444,38 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   // ── Public API ────────────────────────────────────────────────────────────
   window._ghShowLogin   = _showLoginModal;
   window._ghStartOAuth  = _startOAuth;
-  window._ghSkipLogin   = function() {
+  window._ghSkipLogin = function() {
     localStorage.setItem('_gh_login_skipped', '1');
     _showGuestMode();
+    // Show consent for guest users if not already accepted
+    if (!localStorage.getItem('autumn_consent')) {
+      setTimeout(function(){
+        var cm = document.getElementById('consent-modal');
+        if (cm) cm.style.display = 'flex';
+      }, 600);
+    }
   };
   window._ghLogout = function() {
-    localStorage.removeItem('_gh_session');
-    localStorage.removeItem('_gh_login_skipped');
-    window._ghAuth = { token:null, username:null, avatar_url:null, loggedIn:false };
+    // Autosave before logout
+    if (typeof _autosave === 'function') { _lastSaveHash = ''; _autosave(); }
+    // Keep token — registered user just needs to tap login to get back in
+    window._ghAuth.loggedIn = false;
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     if (loginBtn) loginBtn.style.display = '';
     if (userBtn)  userBtn.style.display  = 'none';
-    _showLoginModal();
     _toast('Logged out');
   };
+  // Instant re-login for returning registered users — no device flow needed
+  window._ghReLogin = function() {
+    var stored = _loadStoredSession();
+    if (stored && stored.access_token) {
+      _applySession(stored);
+    } else {
+      _showLoginModal();
+    }
+  };
+
   window._ghShowUserMenu = function(e) {
     e.preventDefault();
     var menu = document.getElementById('gh-user-menu');
