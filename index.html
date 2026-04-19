@@ -18936,90 +18936,212 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   }
 
   // ── Load memory from user repo ────────────────────────────────────────────
+  // ── Memory index — tracks all chunks + metadata ──────────────────────────
+  var _memIndex    = null;   // { chunks: [{name, size, from, to}], totalBytes: N }
+  var _activeSha   = null;   // SHA of current active chunk file
+  var _lastSaveHash = '';
+  var _saveInFlight = false;
+
+  function _memIndexPath()  { return MEMORY_PATH + '_index.json'; }
+  function _activeChunkName() {
+    if (!_memIndex || !_memIndex.chunks || !_memIndex.chunks.length) return 'chunk_001.json';
+    return _memIndex.chunks[_memIndex.chunks.length - 1].name;
+  }
+  function _nextChunkName() {
+    var n = (_memIndex && _memIndex.chunks) ? _memIndex.chunks.length + 1 : 1;
+    return 'chunk_' + String(n).padStart(3,'0') + '.json';
+  }
+
+  // ── Load memory — reads index then loads all chunks in order ─────────────
   function _loadMemory() {
     var token    = window._ghAuth.token;
     var username = window._ghAuth.username;
     var repoName = window._ghAuth.repoName;
     if (!token || !repoName) return Promise.resolve();
 
-    return _ghAPI('GET', '/repos/' + username + '/' + repoName + '/contents/' + MEMORY_PATH, null, token)
-      .then(function(files) {
-        if (!Array.isArray(files)) return;
-        var jsonFiles = files.filter(function(f){ return f.name.endsWith('.json'); });
-        jsonFiles.sort(function(a,b){ return a.name.localeCompare(b.name); });
-        return jsonFiles.reduce(function(chain, file) {
+    // Load index first
+    return _ghAPI('GET', '/repos/' + username + '/' + repoName + '/contents/' + _memIndexPath(), null, token)
+      .then(function(f) {
+        if (!f || !f.content) return null;
+        try { return JSON.parse(atob(f.content.replace(/\n/g,''))); } catch(e) { return null; }
+      })
+      .catch(function(){ return null; })
+      .then(function(idx) {
+        _memIndex = idx || { chunks: [], totalBytes: 0, username: username, created: new Date().toISOString() };
+        if (!_memIndex.chunks.length) return;
+        // Load all chunks sequentially, newest last (newest wins on merge)
+        return _memIndex.chunks.reduce(function(chain, chunk) {
           return chain.then(function() {
-            return fetch(file.download_url).then(function(r){ return r.json(); })
-              .then(function(data){ _mergeMemory(data); })
-              .catch(function(){});
+            return _ghAPI('GET', '/repos/' + username + '/' + repoName + '/contents/' + MEMORY_PATH + chunk.name, null, token)
+              .then(function(f) {
+                if (!f || !f.content) return;
+                // Store SHA of last (active) chunk
+                if (chunk.name === _activeChunkName()) _activeSha = f.sha;
+                try {
+                  var data = JSON.parse(atob(f.content.replace(/\n/g,'')));
+                  _mergeMemory(data);
+                } catch(e) {}
+              }).catch(function(){});
           });
         }, Promise.resolve());
       })
-      .then(function(){
-        _toast('Memory loaded from GitHub');
-      })
-      .catch(function(e){
-        // No memory yet — that's fine for new users
-      });
+      .then(function(){ _toast('\u2713 Memory loaded'); })
+      .catch(function(){});
   }
 
-  // ── Merge loaded memory into Autumn's S object ────────────────────────────
+  // ── Merge chunk data into live S object ──────────────────────────────────
   function _mergeMemory(data) {
     if (!data || typeof data !== 'object') return;
     try {
       var S = window.S;
       if (!S) return;
-      // Merge memory keys (newest wins — loaded last)
       if (data.memory && typeof data.memory === 'object') {
         S.memory = S.memory || {};
         Object.assign(S.memory, data.memory);
       }
-      // Append journal entries (avoid duplicates by ts)
       if (Array.isArray(data.journal)) {
         S.journal = S.journal || [];
         var existingTs = new Set(S.journal.map(function(j){ return j.ts; }));
-        data.journal.forEach(function(entry) {
-          if (!existingTs.has(entry.ts)) S.journal.push(entry);
-        });
+        data.journal.forEach(function(e){ if (!existingTs.has(e.ts)) S.journal.push(e); });
         S.journal.sort(function(a,b){ return (a.ts||'').localeCompare(b.ts||''); });
+      }
+      if (Array.isArray(data.sessionHistory)) {
+        S.sessionHistory = S.sessionHistory || [];
+        var existingIds = new Set(S.sessionHistory.map(function(s){ return s.id; }));
+        data.sessionHistory.forEach(function(s){ if (!existingIds.has(s.id)) S.sessionHistory.push(s); });
+      }
+      if (Array.isArray(data.attachments)) {
+        S.attachments = S.attachments || [];
+        var existingAIds = new Set(S.attachments.map(function(a){ return a.id; }));
+        data.attachments.forEach(function(a){ if (!existingAIds.has(a.id)) S.attachments.push(a); });
       }
     } catch(e) {}
   }
 
-  // ── Autosave memory to user repo ─────────────────────────────────────────
-  var _lastSaveHash = '';
+  // ── Autosave — rolling 4.5MB chunks with index ───────────────────────────
   function _autosave() {
     var token    = window._ghAuth.token;
     var username = window._ghAuth.username;
     var repoName = window._ghAuth.repoName;
-    if (!token || !repoName) return;
+    if (!token || !repoName || _saveInFlight) return;
     var S = window.S;
     if (!S) return;
 
-    // Build memory snapshot
+    // Build snapshot with all memory types
+    var now = new Date().toISOString();
     var snapshot = {
-      version:      '1.0',
-      username:     username,
-      saved:        new Date().toISOString(),
-      memory:       S.memory  || {},
-      journal:      (S.journal || []).slice(-200),
-      contextHistory: S.contextHistory || []
+      version:        '2.0',
+      username:       username,
+      saved:          now,
+      chunk:          _activeChunkName(),
+      memory:         S.memory         || {},
+      journal:        (S.journal        || []).slice(-500),
+      contextHistory: (S.contextHistory || []).slice(-100),
+      sessionHistory: (S.sessionHistory || []).slice(-200),
+      attachments:    (S.attachments    || []).slice(-100),  // refs only, not raw data
+      sentience:      S.sentience       || {},
+      nlp:            S.lastAnalysis    || {}
     };
-    var content = JSON.stringify(snapshot, null, 2);
+    var content = JSON.stringify(snapshot);
 
     // Skip if nothing changed
-    var hash = content.length + content.slice(0, 200);
+    var hash = content.length + '|' + content.slice(0,300);
     if (hash === _lastSaveHash) return;
     _lastSaveHash = hash;
 
-    // Filename: memory_YYYY-MM.json (monthly rolling)
-    var now      = new Date();
-    var filename = 'memory_' + now.getFullYear() + '-'
-      + String(now.getMonth()+1).padStart(2,'0') + '.json';
+    _saveInFlight = true;
+    var byteSize = new Blob([content]).size;
 
-    _ghWriteFile(MEMORY_PATH + filename, content, null, token, username, repoName)
-      .then(function(){ _toast('\u2713 Memory saved'); })
-      .catch(function(){});
+    // Check if active chunk needs rotation (>= 4.5 MB)
+    if (_memIndex && byteSize >= MAX_FILE_BYTES) {
+      _rotateChunk(snapshot, content, byteSize, token, username, repoName);
+    } else {
+      _writeActiveChunk(content, byteSize, token, username, repoName);
+    }
+  }
+
+  function _writeActiveChunk(content, byteSize, token, username, repoName) {
+    var chunkName = _activeChunkName();
+    var path = MEMORY_PATH + chunkName;
+    // Get current SHA if we don't have it
+    var shaPromise = _activeSha
+      ? Promise.resolve(_activeSha)
+      : _getFileSha(path, token, username, repoName);
+
+    shaPromise.then(function(sha) {
+      _activeSha = sha;
+      return _ghWriteFile(path, content, sha, token, username, repoName);
+    }).then(function(res) {
+      if (res && res.content && res.content.sha) _activeSha = res.content.sha;
+      // Update index
+      if (!_memIndex) _memIndex = { chunks: [], totalBytes: 0, username: username, created: new Date().toISOString() };
+      var existing = _memIndex.chunks.find(function(c){ return c.name === chunkName; });
+      if (existing) {
+        existing.size = byteSize;
+        existing.to   = new Date().toISOString();
+      } else {
+        _memIndex.chunks.push({ name: chunkName, size: byteSize, from: new Date().toISOString(), to: new Date().toISOString() });
+      }
+      _memIndex.totalBytes = _memIndex.chunks.reduce(function(s,c){ return s+c.size; }, 0);
+      _memIndex.lastSaved  = new Date().toISOString();
+      return _saveIndex(token, username, repoName);
+    }).then(function(){
+      _saveInFlight = false;
+      _toast('\u2713 Memory saved');
+    }).catch(function(){ _saveInFlight = false; });
+  }
+
+  function _rotateChunk(snapshot, content, byteSize, token, username, repoName) {
+    // Seal current chunk, start new one
+    var newName = _nextChunkName();
+    // Reset snapshot to just current session for new chunk
+    var S = window.S;
+    var freshSnapshot = {
+      version:        '2.0',
+      username:       window._ghAuth.username,
+      saved:          new Date().toISOString(),
+      chunk:          newName,
+      continued_from: _activeChunkName(),
+      memory:         S ? (S.memory || {}) : {},
+      journal:        S ? (S.journal || []).slice(-100) : [],
+      contextHistory: S ? (S.contextHistory || []).slice(-50) : [],
+      sessionHistory: S ? (S.sessionHistory || []).slice(-50) : [],
+      attachments:    S ? (S.attachments || []).slice(-50) : [],
+      sentience:      S ? (S.sentience || {}) : {},
+      nlp:            S ? (S.lastAnalysis || {}) : {}
+    };
+    var freshContent = JSON.stringify(freshSnapshot);
+    var freshSize    = new Blob([freshContent]).size;
+
+    if (!_memIndex) _memIndex = { chunks: [], totalBytes: 0, username: window._ghAuth.username, created: new Date().toISOString() };
+
+    // Update old chunk size in index
+    var oldName = _activeChunkName();
+    var existing = _memIndex.chunks.find(function(c){ return c.name === oldName; });
+    if (existing) existing.size = byteSize;
+
+    // Add new chunk to index
+    _memIndex.chunks.push({ name: newName, size: freshSize, from: new Date().toISOString(), to: new Date().toISOString() });
+    _memIndex.totalBytes = _memIndex.chunks.reduce(function(s,c){ return s+c.size; }, 0);
+    _memIndex.lastSaved  = new Date().toISOString();
+    _activeSha = null; // new file, no SHA yet
+
+    _ghWriteFile(MEMORY_PATH + newName, freshContent, null, token, username, repoName)
+      .then(function(res) {
+        if (res && res.content && res.content.sha) _activeSha = res.content.sha;
+        return _saveIndex(token, username, repoName);
+      })
+      .then(function(){
+        _saveInFlight = false;
+        _toast('\u2713 Memory chunk rotated (' + _memIndex.chunks.length + ' total)');
+      })
+      .catch(function(){ _saveInFlight = false; });
+  }
+
+  function _saveIndex(token, username, repoName) {
+    return _getFileSha(_memIndexPath(), token, username, repoName).then(function(sha) {
+      return _ghWriteFile(_memIndexPath(), JSON.stringify(_memIndex, null, 2), sha, token, username, repoName);
+    });
   }
 
   // ── GitHub REST API helper ────────────────────────────────────────────────
