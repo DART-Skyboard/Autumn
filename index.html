@@ -7108,6 +7108,11 @@ async function handleImageFilesSelect(files) {
     var _ib=document.getElementById('input-bar');
     if(_ib)_ib.classList.add('has-pending-send');
     renderThumbRow();
+    // Fire activity event → schedules memory save in 30s
+    document.dispatchEvent(new CustomEvent('autumn:attach', {
+      detail: { count: S.pendingImages.length, ts: Date.now() }
+    }));
+    if (typeof window._scheduleMemSave === 'function') window._scheduleMemSave();
   }
 }
 function clearPendingImage() {
