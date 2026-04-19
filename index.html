@@ -1757,6 +1757,28 @@ select.ash-ctrl-input{cursor:pointer}
   background:rgba(3,10,20,.9);border:1px solid rgba(0,229,255,.2);border-radius:20px;
   padding:6px 16px;z-index:9999;transition:opacity .4s;opacity:0;pointer-events:none}
 .gh-mem-toast.show{opacity:1}
+
+/* ── Save Memory Now button — idle / saving / done states ── */
+@keyframes ash-save-shimmer {
+  0%   { color:#f5a623; text-shadow:0 0 6px #f5a623, 0 0 12px rgba(245,166,35,.5); }
+  40%  { color:#00e5ff; text-shadow:0 0 6px #00e5ff, 0 0 14px rgba(0,229,255,.55); }
+  70%  { color:#f5a623; text-shadow:0 0 8px #f5a623, 0 0 18px rgba(245,166,35,.6); }
+  100% { color:#00e5ff; text-shadow:0 0 6px #00e5ff, 0 0 12px rgba(0,229,255,.5); }
+}
+#gh-save-mem-btn {
+  color:#38beff;
+  text-shadow:0 0 7px rgba(56,190,255,.55), 0 0 14px rgba(56,190,255,.25);
+  transition:color .3s, text-shadow .3s;
+}
+#gh-save-mem-btn.ash-saving {
+  animation: ash-save-shimmer 1.1s ease-in-out infinite;
+  cursor:default;
+  pointer-events:none;
+}
+#gh-save-mem-btn.ash-done {
+  color:#38beff;
+  text-shadow:0 0 7px rgba(56,190,255,.55), 0 0 14px rgba(56,190,255,.25);
+}
 </style>
 <script src="js/autumn-nlp.js"></script>
 </head>
@@ -19270,17 +19292,104 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu.style.cssText = 'position:fixed;top:58px;right:60px;z-index:9900;background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.2);border-radius:8px;padding:8px 0;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;min-width:160px';
       menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
-        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(224,244,255,.6)" onmouseenter="this.style.color=\'var(--cyan)\'" onmouseleave="this.style.color=\'rgba(224,244,255,.6)\'" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
+        + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
     } else { menu.remove(); }
   };
+  // ── Manual "Save Memory Now" — with animated button states ─────────────
   window._ghAutosaveNow = function() {
+    var btn = document.getElementById('gh-save-mem-btn');
+
+    // Already saving — ignore double-taps
+    if (btn && btn.classList.contains('ash-saving')) return;
+
+    // ── SAVING state: amber↔cyan shimmer animation ──────────────────
+    if (btn) {
+      btn.classList.remove('ash-done');
+      btn.classList.add('ash-saving');
+      btn.textContent = '⬡ SAVING...';
+    }
+
+    // Force a fresh save regardless of hash
     _lastSaveHash = '';
-    _autosave();
-    var menu = document.getElementById('gh-user-menu');
-    if (menu) menu.remove();
+    _saveInFlight = false;
+
+    // Build snapshot exactly like _autosave does
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName;
+
+    if (!token || !repoName) {
+      // Not logged in — restore button
+      if (btn) { btn.classList.remove('ash-saving'); btn.textContent = '⬡ SAVE MEMORY NOW'; }
+      _toast('\u26a0 Not logged in');
+      return;
+    }
+
+    var S = window.S;
+    var now = new Date().toISOString();
+    var snapshot = {
+      version:        '2.0',
+      username:       username,
+      saved:          now,
+      manual_save:    true,
+      chunk:          _activeChunkName(),
+      memory:         (S && S.memory)         || {},
+      journal:        ((S && S.journal)        || []).slice(-500),
+      contextHistory: ((S && S.contextHistory) || []).slice(-100),
+      sessionHistory: ((S && S.sessionHistory) || []).slice(-200),
+      attachments:    ((S && S.attachments)    || []).slice(-100),
+      sentience:      (S && S.sentience)       || {},
+      nlp:            (S && S.lastAnalysis)    || {}
+    };
+    var content = JSON.stringify(snapshot);
+    var byteSize = new Blob([content]).size;
+
+    var shaPromise = _activeSha
+      ? Promise.resolve(_activeSha)
+      : _getFileSha(MEMORY_PATH + _activeChunkName(), token, username, repoName);
+
+    shaPromise.then(function(sha) {
+      _activeSha = sha;
+      return _ghWriteFile(MEMORY_PATH + _activeChunkName(), content, sha, token, username, repoName);
+    }).then(function(res) {
+      if (res && res.content && res.content.sha) _activeSha = res.content.sha;
+      _lastSaveHash = content.length + '|' + content.slice(0,300);
+      // Update index
+      if (!_memIndex) _memIndex = { chunks: [], totalBytes: 0, username: username, created: now };
+      var chunkName = _activeChunkName();
+      var existing  = _memIndex.chunks.find(function(c){ return c.name === chunkName; });
+      if (existing) { existing.size = byteSize; existing.to = now; }
+      else _memIndex.chunks.push({ name: chunkName, size: byteSize, from: now, to: now });
+      _memIndex.totalBytes = _memIndex.chunks.reduce(function(s,c){ return s+c.size; }, 0);
+      _memIndex.lastSaved  = now;
+      _memIndex.lastManualSave = now;
+      return _saveIndex(token, username, repoName);
+    }).then(function() {
+      // ── DONE state: back to sky-blue static glow ──────────────────
+      var b = document.getElementById('gh-save-mem-btn');
+      if (b) {
+        b.classList.remove('ash-saving');
+        b.classList.add('ash-done');
+        b.textContent = '✓ MEMORY SAVED';
+        // After 2.5s revert to idle label (but keep sky-blue class)
+        setTimeout(function() {
+          var bb = document.getElementById('gh-save-mem-btn');
+          if (bb) bb.textContent = '⬡ SAVE MEMORY NOW';
+        }, 2500);
+      }
+      _toast('\u2713 Memory saved to archive');
+    }).catch(function(err) {
+      // Error state — restore button
+      var b = document.getElementById('gh-save-mem-btn');
+      if (b) {
+        b.classList.remove('ash-saving');
+        b.textContent = '⬡ SAVE MEMORY NOW';
+      }
+      _toast('\u26a0 Save failed — try again');
+    });
   };
 
   // Wire up OAuth button
