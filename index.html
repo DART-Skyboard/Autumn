@@ -1715,6 +1715,47 @@ select.ash-ctrl-input{cursor:pointer}
 .dbg-panel{margin-top:3px;padding:5px 8px;background:rgba(0,0,0,.25);border-left:2px solid rgba(0,229,255,.1);border-radius:0 3px 3px 0}
 .dbg-line{font-size:7.5px;color:rgba(0,229,255,.22);font-family:monospace;line-height:1.7;word-break:break-all}
 .dbg-brpn{color:rgba(0,136,255,.3)!important}
+
+/* ── GitHub OAuth login ──────────────────────────────── */
+#gh-login-modal{position:fixed;inset:0;z-index:10000;background:rgba(2,8,18,.97);
+  display:none;align-items:center;justify-content:center;flex-direction:column;
+  backdrop-filter:blur(16px);font-family:var(--font-d)}
+#gh-login-modal.show{display:flex}
+.gh-login-box{background:rgba(6,14,26,.95);border:1px solid rgba(0,229,255,.25);
+  border-radius:16px;padding:36px 32px;max-width:380px;width:90%;text-align:center}
+.gh-login-logo{width:72px;height:72px;border-radius:50%;margin:0 auto 16px;
+  border:2px solid rgba(0,229,255,.3)}
+.gh-login-title{font-size:1.1rem;letter-spacing:3px;color:var(--cyan);margin-bottom:6px}
+.gh-login-sub{font-size:.65rem;color:rgba(224,244,255,.4);line-height:1.7;margin-bottom:24px}
+.gh-login-btn{display:flex;align-items:center;justify-content:center;gap:10px;
+  background:linear-gradient(135deg,rgba(0,229,255,.18),rgba(0,136,255,.12));
+  border:1px solid rgba(0,229,255,.4);color:var(--cyan);padding:14px 28px;
+  border-radius:8px;cursor:pointer;font-family:var(--font-d);font-size:.55rem;
+  letter-spacing:2px;text-decoration:none;transition:all .2s;width:100%;
+  box-sizing:border-box}
+.gh-login-btn:hover{background:rgba(0,229,255,.28);box-shadow:0 0 18px rgba(0,229,255,.2)}
+.gh-login-btn svg{width:20px;height:20px;fill:currentColor;flex-shrink:0}
+.gh-login-skip{margin-top:14px;font-size:.52rem;color:rgba(224,244,255,.25);
+  cursor:pointer;letter-spacing:1px;text-decoration:underline}
+.gh-login-skip:hover{color:rgba(224,244,255,.45)}
+#gh-auth-loading{display:none;flex-direction:column;align-items:center;gap:12px;
+  color:var(--cyan);font-family:var(--font-d);font-size:.55rem;letter-spacing:2px}
+#gh-auth-loading.show{display:flex}
+.gh-user-btn{display:flex;align-items:center;gap:6px;background:rgba(0,229,255,.06);
+  border:1px solid rgba(0,229,255,.18);border-radius:20px;padding:3px 10px 3px 3px;
+  cursor:pointer;transition:all .15s;color:var(--cyan);font-family:var(--font-d);
+  font-size:.42rem;letter-spacing:1px;text-decoration:none}
+.gh-user-btn:hover{background:rgba(0,229,255,.14);border-color:rgba(0,229,255,.35)}
+.gh-user-avatar{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,229,255,.3);object-fit:cover}
+#hdr-gh-login{background:transparent;border:1px solid rgba(0,229,255,.25);color:rgba(0,229,255,.6);
+  padding:5px 12px;border-radius:14px;cursor:pointer;font-family:var(--font-d);
+  font-size:.4rem;letter-spacing:1.5px;transition:all .2s}
+#hdr-gh-login:hover{background:rgba(0,229,255,.1);color:var(--cyan)}
+.gh-mem-toast{position:fixed;bottom:50px;left:50%;transform:translateX(-50%);
+  font-family:var(--font-d);font-size:.4rem;letter-spacing:1.5px;color:rgba(0,229,255,.6);
+  background:rgba(3,10,20,.9);border:1px solid rgba(0,229,255,.2);border-radius:20px;
+  padding:6px 16px;z-index:9999;transition:opacity .4s;opacity:0;pointer-events:none}
+.gh-mem-toast.show{opacity:1}
 </style>
 <script src="js/autumn-nlp.js"></script>
 </head>
@@ -1823,12 +1864,36 @@ select.ash-ctrl-input{cursor:pointer}
     <a class="hdr-btn world-studio-btn" href="https://leatr.xyz/worldstudio.html" target="_blank" rel="noopener" title="World Studio — HunyuanWorld 3D generation">
       <span class="ws-icon">⬡</span><span class="ws-label">WORLD STUDIO</span>
     </a>
+    <!-- GitHub user / login -->
+    <button id="hdr-gh-login" onclick="window._ghShowLogin()" title="Login with GitHub" style="display:none">⬡ LOGIN</button>
+    <a class="gh-user-btn" id="hdr-gh-user" href="#" onclick="window._ghShowUserMenu(event)" style="display:none" title="GitHub account">
+      <img src="" alt="" class="gh-user-avatar" id="hdr-gh-avatar">
+      <span id="hdr-gh-name">USER</span>
+    </a>
     <!-- HELP always last -->
     <a class="hdr-btn help-btn" href="https://leatr.xyz/autumn-help.html" target="_blank" rel="noopener" title="Autumn User Guide — commands, setup, API keys, full reference">
       <span class="help-icon">?</span><span class="help-label">HELP</span>
     </a>
   </div>
 </header>
+
+<!-- ── GitHub OAuth Login Modal ──────────────────────────── -->
+<div id="gh-login-modal">
+  <div id="gh-auth-loading">
+    <div style="width:28px;height:28px;border:2px solid rgba(0,229,255,.2);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite"></div>
+    CONNECTING TO GITHUB…
+  </div>
+  <div class="gh-login-box" id="gh-login-box">
+    <img src="assets/autumn.png" alt="Autumn" class="gh-login-logo">
+    <div class="gh-login-title">WELCOME TO AUTUMN</div>
+    <div class="gh-login-sub">Sign in with GitHub to sync your memory archive across sessions. Your data is stored in a private repository only you can access.</div>
+    <a class="gh-login-btn" id="gh-oauth-btn" href="#">
+      <svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      LOGIN WITH GITHUB
+    </a>
+    <div class="gh-login-skip" onclick="window._ghSkipLogin()">Continue without login →</div>
+  </div>
+</div>
 
 <div id="main">
   <!-- BRPN 3D Shell -->
@@ -18645,6 +18710,423 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 // ── END URL LIVE PREVIEW ──────────────────────────────────────────────────────
 
 </script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  AUTUMN GITHUB OAUTH SYSTEM
+//  Client ID: Iv23liykgXIX05fxhH8D
+//  After deploying the GAS, paste your /exec URL in AUTUMN_GAS_URL below.
+// ═══════════════════════════════════════════════════════════════════════════
+(function() {
+  'use strict';
+
+  var AUTUMN_GAS_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYED_SCRIPT_ID/exec';
+  var GH_CLIENT_ID   = 'Iv23liykgXIX05fxhH8D';
+  var GH_SCOPES      = 'repo,read:user';
+  var REPO_PREFIX    = 'Autumn-Ash-';
+  var MEMORY_PATH    = 'ash-memory/';
+  var MAX_FILE_BYTES = 4718592; // 4.5 MB rolling limit
+  var SYNC_INTERVAL  = 5 * 60 * 1000; // 5 min autosave
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  window._ghAuth = {
+    token:      null,
+    username:   null,
+    avatar_url: null,
+    name:       null,
+    repoReady:  false,
+    loggedIn:   false
+  };
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  function init() {
+    // Check for OAuth callback (?code= in URL)
+    var params = new URLSearchParams(window.location.search);
+    var code   = params.get('code');
+    var state  = params.get('state');
+
+    if (code) {
+      // Verify CSRF state
+      var savedState = sessionStorage.getItem('_gh_oauth_state');
+      if (savedState && state && savedState !== state) {
+        console.warn('[GH OAuth] State mismatch — possible CSRF');
+        _showLoginModal();
+        return;
+      }
+      // Clean URL immediately
+      history.replaceState({}, document.title, window.location.pathname);
+      _exchangeCode(code);
+      return;
+    }
+
+    // Check stored session
+    var stored = _loadStoredSession();
+    if (stored) {
+      _applySession(stored);
+    } else {
+      // Check if user previously chose to skip
+      var skipped = localStorage.getItem('_gh_login_skipped');
+      if (!skipped) _showLoginModal();
+      else _showGuestMode();
+    }
+  }
+
+  // ── OAuth authorize redirect ───────────────────────────────────────────────
+  function _startOAuth() {
+    var state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    sessionStorage.setItem('_gh_oauth_state', state);
+    var url = 'https://github.com/login/oauth/authorize'
+      + '?client_id=' + GH_CLIENT_ID
+      + '&scope=' + encodeURIComponent(GH_SCOPES)
+      + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/')
+      + '&state=' + state;
+    window.location.href = url;
+  }
+
+  // ── Exchange code via GAS ──────────────────────────────────────────────────
+  function _exchangeCode(code) {
+    _showAuthLoading();
+    var url = AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code)
+      + '&callback=_ghCallback';
+    window._ghCallback = function(data) {
+      delete window._ghCallback;
+      document.getElementById('_gh_jsonp')?.remove();
+      if (data.error || !data.access_token) {
+        console.error('[GH OAuth] Exchange failed:', data.error);
+        _hideAuthLoading();
+        _showLoginModal();
+        return;
+      }
+      _saveSession(data);
+      _applySession(data);
+    };
+    var s = document.createElement('script');
+    s.id  = '_gh_jsonp';
+    s.src = url;
+    s.onerror = function() { _hideAuthLoading(); _showLoginModal(); };
+    document.body.appendChild(s);
+  }
+
+  // ── Apply session ──────────────────────────────────────────────────────────
+  function _applySession(data) {
+    window._ghAuth.token      = data.access_token;
+    window._ghAuth.username   = data.username;
+    window._ghAuth.avatar_url = data.avatar_url;
+    window._ghAuth.name       = data.name || data.username;
+    window._ghAuth.loggedIn   = true;
+
+    // Update header
+    var loginBtn = document.getElementById('hdr-gh-login');
+    var userBtn  = document.getElementById('hdr-gh-user');
+    var avatar   = document.getElementById('hdr-gh-avatar');
+    var nameEl   = document.getElementById('hdr-gh-name');
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (userBtn)  userBtn.style.display  = 'flex';
+    if (avatar)   avatar.src  = data.avatar_url || '';
+    if (nameEl)   nameEl.textContent = (data.username || '').toUpperCase();
+
+    // Hide login modal
+    var modal = document.getElementById('gh-login-modal');
+    if (modal) modal.classList.remove('show');
+
+    // Ensure user repo exists, then load memory
+    _ensureUserRepo().then(function() {
+      return _loadMemory();
+    }).then(function() {
+      // Start autosave
+      setInterval(_autosave, SYNC_INTERVAL);
+      window.addEventListener('beforeunload', _autosave);
+    });
+
+    // Update LEATR ash presence with real username
+    if (typeof getLeatrAshPAT === 'function') {
+      _updatePresence();
+      setInterval(_updatePresence, 4 * 60 * 1000);
+    }
+
+    _toast('Logged in as ' + data.username);
+  }
+
+  // ── Guest mode (no login) ──────────────────────────────────────────────────
+  function _showGuestMode() {
+    var loginBtn = document.getElementById('hdr-gh-login');
+    if (loginBtn) loginBtn.style.display = '';
+    var modal = document.getElementById('gh-login-modal');
+    if (modal) modal.classList.remove('show');
+  }
+
+  // ── Ensure user's private repo exists ─────────────────────────────────────
+  function _ensureUserRepo() {
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    if (!token || !username) return Promise.resolve();
+    var repoName = REPO_PREFIX + username;
+    window._ghAuth.repoName = repoName;
+
+    return _ghAPI('GET', '/repos/' + username + '/' + repoName, null, token)
+      .then(function(repo) {
+        if (repo && repo.id) {
+          window._ghAuth.repoReady = true;
+          return;
+        }
+        throw new Error('not found');
+      })
+      .catch(function() {
+        // Create the repo
+        return _ghAPI('POST', '/user/repos', {
+          name:        repoName,
+          description: 'Autumn AI — Personal memory archive \u00b7 LEATR \u00b7 DART Meadow',
+          private:     true,
+          auto_init:   true
+        }, token).then(function() {
+          window._ghAuth.repoReady = true;
+          // Create folder structure
+          return Promise.all([
+            _ghWriteFile('ash-memory/README.md',
+              '# Autumn Memory Archive\n\nAuto-managed by Autumn AI for ' + username + '.\nDo not edit manually.',
+              null, token, username, repoName),
+            _ghWriteFile('session-history/.gitkeep', '', null, token, username, repoName)
+          ]);
+        });
+      });
+  }
+
+  // ── Load memory from user repo ────────────────────────────────────────────
+  function _loadMemory() {
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName;
+    if (!token || !repoName) return Promise.resolve();
+
+    return _ghAPI('GET', '/repos/' + username + '/' + repoName + '/contents/' + MEMORY_PATH, null, token)
+      .then(function(files) {
+        if (!Array.isArray(files)) return;
+        var jsonFiles = files.filter(function(f){ return f.name.endsWith('.json'); });
+        jsonFiles.sort(function(a,b){ return a.name.localeCompare(b.name); });
+        return jsonFiles.reduce(function(chain, file) {
+          return chain.then(function() {
+            return fetch(file.download_url).then(function(r){ return r.json(); })
+              .then(function(data){ _mergeMemory(data); })
+              .catch(function(){});
+          });
+        }, Promise.resolve());
+      })
+      .then(function(){
+        _toast('Memory loaded from GitHub');
+      })
+      .catch(function(e){
+        // No memory yet — that's fine for new users
+      });
+  }
+
+  // ── Merge loaded memory into Autumn's S object ────────────────────────────
+  function _mergeMemory(data) {
+    if (!data || typeof data !== 'object') return;
+    try {
+      var S = window.S;
+      if (!S) return;
+      // Merge memory keys (newest wins — loaded last)
+      if (data.memory && typeof data.memory === 'object') {
+        S.memory = S.memory || {};
+        Object.assign(S.memory, data.memory);
+      }
+      // Append journal entries (avoid duplicates by ts)
+      if (Array.isArray(data.journal)) {
+        S.journal = S.journal || [];
+        var existingTs = new Set(S.journal.map(function(j){ return j.ts; }));
+        data.journal.forEach(function(entry) {
+          if (!existingTs.has(entry.ts)) S.journal.push(entry);
+        });
+        S.journal.sort(function(a,b){ return (a.ts||'').localeCompare(b.ts||''); });
+      }
+    } catch(e) {}
+  }
+
+  // ── Autosave memory to user repo ─────────────────────────────────────────
+  var _lastSaveHash = '';
+  function _autosave() {
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName;
+    if (!token || !repoName) return;
+    var S = window.S;
+    if (!S) return;
+
+    // Build memory snapshot
+    var snapshot = {
+      version:      '1.0',
+      username:     username,
+      saved:        new Date().toISOString(),
+      memory:       S.memory  || {},
+      journal:      (S.journal || []).slice(-200),
+      contextHistory: S.contextHistory || []
+    };
+    var content = JSON.stringify(snapshot, null, 2);
+
+    // Skip if nothing changed
+    var hash = content.length + content.slice(0, 200);
+    if (hash === _lastSaveHash) return;
+    _lastSaveHash = hash;
+
+    // Filename: memory_YYYY-MM.json (monthly rolling)
+    var now      = new Date();
+    var filename = 'memory_' + now.getFullYear() + '-'
+      + String(now.getMonth()+1).padStart(2,'0') + '.json';
+
+    _ghWriteFile(MEMORY_PATH + filename, content, null, token, username, repoName)
+      .then(function(){ _toast('\u2713 Memory saved'); })
+      .catch(function(){});
+  }
+
+  // ── GitHub REST API helper ────────────────────────────────────────────────
+  function _ghAPI(method, path, body, token) {
+    return fetch('https://api.github.com' + path, {
+      method:  method,
+      headers: {
+        'Authorization': 'token ' + token,
+        'Accept':        'application/vnd.github.v3+json',
+        'Content-Type':  'application/json'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function(r){ return r.json(); });
+  }
+
+  function _ghWriteFile(path, content, sha, token, username, repoName) {
+    var encoded = btoa(unescape(encodeURIComponent(content)));
+    var payload = {
+      message: 'memory: ' + path.split('/').pop(),
+      content: encoded
+    };
+    if (sha) payload.sha = sha;
+    return _ghAPI('PUT', '/repos/' + username + '/' + repoName + '/contents/' + path, payload, token);
+  }
+
+  // ── Get SHA of existing file ──────────────────────────────────────────────
+  function _getFileSha(path, token, username, repoName) {
+    return _ghAPI('GET', '/repos/' + username + '/' + repoName + '/contents/' + path, null, token)
+      .then(function(d){ return (d && d.sha) ? d.sha : null; })
+      .catch(function(){ return null; });
+  }
+
+  // ── Presence update (multi-user 3D) ───────────────────────────────────────
+  function _updatePresence() {
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    if (!token || !username || AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')) return;
+    var S = window.S;
+    var shells = (S && S.lastAnalysis) ? {
+      geo:  S.lastAnalysis.shells?.geo?.value,
+      mar:  S.lastAnalysis.shells?.mar?.value,
+      aero: S.lastAnalysis.shells?.aero?.value
+    } : null;
+    var data = encodeURIComponent(JSON.stringify({
+      username:   username,
+      avatar_url: window._ghAuth.avatar_url,
+      sid:        typeof _aut_sid !== 'undefined' ? _aut_sid : username,
+      shells:     shells
+    }));
+    // Fire and forget via GET
+    fetch(AUTUMN_GAS_URL + '?action=logpresence&token=' + encodeURIComponent(token) + '&data=' + data)
+      .catch(function(){});
+  }
+
+  // ── Session storage ───────────────────────────────────────────────────────
+  function _saveSession(data) {
+    try { localStorage.setItem('_gh_session', JSON.stringify(data)); } catch(e){}
+  }
+  function _loadStoredSession() {
+    try {
+      var s = localStorage.getItem('_gh_session');
+      return s ? JSON.parse(s) : null;
+    } catch(e){ return null; }
+  }
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
+  function _showLoginModal() {
+    var modal = document.getElementById('gh-login-modal');
+    var box   = document.getElementById('gh-login-box');
+    var loading = document.getElementById('gh-auth-loading');
+    if (!modal) return;
+    if (box)     box.style.display     = '';
+    if (loading) loading.classList.remove('show');
+    modal.classList.add('show');
+  }
+  function _showAuthLoading() {
+    var modal   = document.getElementById('gh-login-modal');
+    var box     = document.getElementById('gh-login-box');
+    var loading = document.getElementById('gh-auth-loading');
+    if (modal)   modal.classList.add('show');
+    if (box)     box.style.display = 'none';
+    if (loading) loading.classList.add('show');
+  }
+  function _hideAuthLoading() {
+    var loading = document.getElementById('gh-auth-loading');
+    if (loading) loading.classList.remove('show');
+  }
+  function _toast(msg) {
+    var t = document.getElementById('gh-mem-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'gh-mem-toast';
+      t.className = 'gh-mem-toast';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function(){ t.classList.remove('show'); }, 2500);
+  }
+
+  // ── Public API ────────────────────────────────────────────────────────────
+  window._ghShowLogin   = _showLoginModal;
+  window._ghStartOAuth  = _startOAuth;
+  window._ghSkipLogin   = function() {
+    localStorage.setItem('_gh_login_skipped', '1');
+    _showGuestMode();
+  };
+  window._ghLogout = function() {
+    localStorage.removeItem('_gh_session');
+    localStorage.removeItem('_gh_login_skipped');
+    window._ghAuth = { token:null, username:null, avatar_url:null, loggedIn:false };
+    var loginBtn = document.getElementById('hdr-gh-login');
+    var userBtn  = document.getElementById('hdr-gh-user');
+    if (loginBtn) loginBtn.style.display = '';
+    if (userBtn)  userBtn.style.display  = 'none';
+    _showLoginModal();
+    _toast('Logged out');
+  };
+  window._ghShowUserMenu = function(e) {
+    e.preventDefault();
+    var menu = document.getElementById('gh-user-menu');
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.id = 'gh-user-menu';
+      menu.style.cssText = 'position:fixed;top:58px;right:60px;z-index:9900;background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.2);border-radius:8px;padding:8px 0;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;min-width:160px';
+      menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span></div>'
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(224,244,255,.6)" onmouseenter="this.style.color=\'var(--cyan)\'" onmouseleave="this.style.color=\'rgba(224,244,255,.6)\'" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
+        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
+      document.body.appendChild(menu);
+      setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
+    } else { menu.remove(); }
+  };
+  window._ghAutosaveNow = function() {
+    _lastSaveHash = '';
+    _autosave();
+    var menu = document.getElementById('gh-user-menu');
+    if (menu) menu.remove();
+  };
+
+  // Wire up OAuth button
+  document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('gh-oauth-btn');
+    if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); _startOAuth(); });
+    // Run init after app loads
+    setTimeout(init, 800);
+  });
+
+})();
+</script>
+
 </body>
 </html>
 
