@@ -18739,15 +18739,42 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
 
   // ── Init ───────────────────────────────────────────────────────────────────
+  // ── Cross-tab auth sync via BroadcastChannel ──────────────────────────
+  try {
+    var _authChannel = new BroadcastChannel('autumn_auth');
+    _authChannel.onmessage = function(ev) {
+      if (ev.data && ev.data.type === 'login' && !window._ghAuth.loggedIn) {
+        _saveSession(ev.data.data);
+        _applySession(ev.data.data);
+      }
+      if (ev.data && ev.data.type === 'logout') {
+        window._ghLogout && window._ghLogout();
+      }
+    };
+  } catch(e) {}
+
   function init() {
-    // Check stored session
     var stored = _loadStoredSession();
     if (stored) {
+      // Returning user with valid session — apply silently, no modal needed
       _applySession(stored);
     } else {
       var skipped = localStorage.getItem('_gh_login_skipped');
-      if (!skipped) _showLoginModal();
-      else _showGuestMode();
+      if (!skipped) {
+        _showLoginModal();
+      } else {
+        // Skipped login before — go to guest mode, show consent if needed
+        _showGuestMode();
+        _checkConsentAfterSkip();
+      }
+    }
+  }
+
+  function _checkConsentAfterSkip() {
+    var has = localStorage.getItem('_aut_data_consent') || localStorage.getItem('autumn_consent');
+    if (!has) {
+      var cm = document.getElementById('consent-modal');
+      if (cm) cm.style.display = 'flex';
     }
   }
 
@@ -18809,6 +18836,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             clearInterval(_devicePollTimer);
             _saveSession(d);
             _applySession(d);
+            // Notify all open tabs of this origin that login succeeded
+            try {
+              var bc = new BroadcastChannel('autumn_auth');
+              bc.postMessage({ type: 'login', data: d });
+              bc.close();
+            } catch(e) {}
           } else if (d.error === 'access_denied') {
             clearInterval(_devicePollTimer);
             _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Access denied. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
@@ -18877,8 +18910,31 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _ensureUserRepo().then(function() {
       return _loadMemory();
     }).then(function() {
+      // Periodic autosave every 5 min
       setInterval(_autosave, SYNC_INTERVAL);
+      // Save on tab close
       window.addEventListener('beforeunload', _autosave);
+      // Activity-triggered save: save 30s after last message/action
+      window._memActivityTimer = null;
+      window._scheduleMemSave = function() {
+        clearTimeout(window._memActivityTimer);
+        window._memActivityTimer = setTimeout(_autosave, 30000);
+      };
+      // Hook into chat send, tool use, image attach
+      document.addEventListener('autumn:message', window._scheduleMemSave);
+      document.addEventListener('autumn:tool', window._scheduleMemSave);
+      document.addEventListener('autumn:attach', window._scheduleMemSave);
+      // Also watch for Autumn grammar backup command
+      window._memBackupNow = function() {
+        _autosave();
+        // Sync all open tabs via broadcast
+        try {
+          var bc = new BroadcastChannel('autumn_auth');
+          bc.postMessage({ type: 'sync_memory' });
+          bc.close();
+        } catch(e) {}
+        _toast('\u2713 Session backed up');
+      };
       _toast('\u2713 Memory archive synced');
     });
 
@@ -18936,6 +18992,23 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   }
 
   // ── Load memory from user repo ────────────────────────────────────────────
+  // ── Memory index — tracks all chunks + metadata ──────────────────────────
+  var _memIndex    = null;   // { chunks: [{name, size, from, to}], totalBytes: N }
+  var _activeSha   = null;   // SHA of current active chunk file
+  var _lastSaveHash = '';
+  var _saveInFlight = false;
+
+  function _memIndexPath()  { return MEMORY_PATH + '_index.json'; }
+  function _activeChunkName() {
+    if (!_memIndex || !_memIndex.chunks || !_memIndex.chunks.length) return 'chunk_001.json';
+    return _memIndex.chunks[_memIndex.chunks.length - 1].name;
+  }
+  function _nextChunkName() {
+    var n = (_memIndex && _memIndex.chunks) ? _memIndex.chunks.length + 1 : 1;
+    return 'chunk_' + String(n).padStart(3,'0') + '.json';
+  }
+
+  // ── Load memory — reads index then loads all chunks in order ─────────────
   function _loadMemory() {
     var token    = window._ghAuth.token;
     var username = window._ghAuth.username;
@@ -19232,6 +19305,14 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   window._ghSkipLogin   = function() {
     localStorage.setItem('_gh_login_skipped', '1');
     _showGuestMode();
+    // Show consent modal if not yet accepted
+    var has = localStorage.getItem('_aut_data_consent') || localStorage.getItem('autumn_consent');
+    if (!has) {
+      var cm = document.getElementById('consent-modal');
+      if (cm) cm.style.display = 'flex';
+    } else {
+      initLeatrAshSync();
+    }
   };
   window._ghLogout = function() {
     localStorage.removeItem('_gh_session');
