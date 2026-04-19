@@ -51,6 +51,8 @@ function checkDataPolicyConsent() {
 }
 
 window.addEventListener('load', function() {
+  // Skip consent check if user is already registered via GitHub
+  if (localStorage.getItem('_gh_registered') || localStorage.getItem('_gh_session')) return;
   setTimeout(checkDataPolicyConsent, 500);
 });
 
@@ -1757,6 +1759,28 @@ select.ash-ctrl-input{cursor:pointer}
   background:rgba(3,10,20,.9);border:1px solid rgba(0,229,255,.2);border-radius:20px;
   padding:6px 16px;z-index:9999;transition:opacity .4s;opacity:0;pointer-events:none}
 .gh-mem-toast.show{opacity:1}
+
+/* ── Save Memory Now button — idle / saving / done states ── */
+@keyframes ash-save-shimmer {
+  0%   { color:#f5a623; text-shadow:0 0 6px #f5a623, 0 0 12px rgba(245,166,35,.5); }
+  40%  { color:#00e5ff; text-shadow:0 0 6px #00e5ff, 0 0 14px rgba(0,229,255,.55); }
+  70%  { color:#f5a623; text-shadow:0 0 8px #f5a623, 0 0 18px rgba(245,166,35,.6); }
+  100% { color:#00e5ff; text-shadow:0 0 6px #00e5ff, 0 0 12px rgba(0,229,255,.5); }
+}
+#gh-save-mem-btn {
+  color:#38beff;
+  text-shadow:0 0 7px rgba(56,190,255,.55), 0 0 14px rgba(56,190,255,.25);
+  transition:color .3s, text-shadow .3s;
+}
+#gh-save-mem-btn.ash-saving {
+  animation: ash-save-shimmer 1.1s ease-in-out infinite;
+  cursor:default;
+  pointer-events:none;
+}
+#gh-save-mem-btn.ash-done {
+  color:#38beff;
+  text-shadow:0 0 7px rgba(56,190,255,.55), 0 0 14px rgba(56,190,255,.25);
+}
 </style>
 <script src="js/autumn-nlp.js"></script>
 </head>
@@ -1866,7 +1890,7 @@ select.ash-ctrl-input{cursor:pointer}
       <span class="ws-icon">⬡</span><span class="ws-label">WORLD STUDIO</span>
     </a>
     <!-- GitHub user / login -->
-    <button id="hdr-gh-login" onclick="window._ghShowLogin()" title="Login with GitHub" style="display:none">⬡ LOGIN</button>
+    <button id="hdr-gh-login" onclick="(localStorage.getItem('_gh_session')?window._ghReLogin():window._ghShowLogin())" title="Login with GitHub" style="display:none">⬡ LOGIN</button>
     <a class="gh-user-btn" id="hdr-gh-user" href="#" onclick="window._ghShowUserMenu(event)" style="display:none" title="GitHub account">
       <img src="" alt="" class="gh-user-avatar" id="hdr-gh-avatar">
       <span id="hdr-gh-name">USER</span>
@@ -2792,31 +2816,192 @@ function _doImportMerge() {
   if (!_importQueue.length) { alert("No data to import."); return; }
   var valid = _importQueue.filter(function(f) { return f.data && !f.error; });
   if (!valid.length) { alert("No valid JSON files found."); return; }
-  // MERGE into current state — never overwrite, always append/extend
+
+  // ── MERGE into live S object — never overwrite, always append/extend ────
+  var totalSessions = 0, totalJournal = 0, totalMemKeys = 0;
   valid.forEach(function(f) {
     var d = f.data;
-    // Merge sessions
-    if (d.sessions && Array.isArray(d.sessions)) {
-      d.sessions.forEach(function(sess) { S.sessions.push(sess); });
-    }
-    // Merge journal
-    if (d.journal && Array.isArray(d.journal)) {
-      S.journal = S.journal.concat(d.journal);
-    }
-    // Merge memory keys (imported keys only overwrite if empty/missing locally)
-    if (d.memory && typeof d.memory === "object") {
-      Object.keys(d.memory).forEach(function(k) {
-        if (!S.memory[k]) S.memory[k] = d.memory[k];
+    // Merge sessions (exported format: d.sessions; autosave format: d.sessionHistory)
+    var importedSessions = d.sessions || d.sessionHistory || [];
+    if (Array.isArray(importedSessions) && importedSessions.length) {
+      var existingIds = new Set((S.sessions || []).map(function(s){ return s.id; }));
+      importedSessions.forEach(function(sess) {
+        if (!existingIds.has(sess.id)) { S.sessions.push(sess); totalSessions++; }
       });
     }
+    // Merge journal — dedupe by timestamp
+    var importedJournal = d.journal || [];
+    if (Array.isArray(importedJournal) && importedJournal.length) {
+      S.journal = S.journal || [];
+      var existingTs = new Set(S.journal.map(function(j){ return j.ts; }));
+      importedJournal.forEach(function(e) {
+        if (!existingTs.has(e.ts)) { S.journal.push(e); totalJournal++; }
+      });
+      S.journal.sort(function(a,b){ return (a.ts||'').localeCompare(b.ts||''); });
+    }
+    // Merge memory keys — imported only fills gaps, never overwrites
+    var importedMemory = d.memory || {};
+    if (typeof importedMemory === "object") {
+      S.memory = S.memory || {};
+      Object.keys(importedMemory).forEach(function(k) {
+        if (!S.memory[k]) { S.memory[k] = importedMemory[k]; totalMemKeys++; }
+      });
+    }
+    // Merge contextHistory if present (autosave format)
+    if (Array.isArray(d.contextHistory) && d.contextHistory.length) {
+      S.contextHistory = (S.contextHistory || []).concat(d.contextHistory).slice(-200);
+    }
+    // Merge sentience/nlp snapshots if present
+    if (d.sentience && typeof d.sentience === 'object' && !S.sentience) {
+      S.sentience = d.sentience;
+    }
   });
+
   S.currentSession = S.sessions.length - 1;
   saveState(); renderMessages(); updateFooter();
   closeModal();
-  // Toast confirmation
-  if (typeof ideToast === "function") {
-    ideToast("✓ Merged " + valid.length + " file" + (valid.length > 1 ? "s" : "") + " — " + S.sessions.length + " sessions total", 3500);
+
+  var msg = '\u2713 Merged ' + valid.length + ' file' + (valid.length > 1 ? 's' : '')
+    + ' \u2014 ' + totalSessions + ' sessions, ' + totalJournal + ' journal entries, '
+    + totalMemKeys + ' memory keys added';
+  if (typeof ideToast === "function") ideToast(msg, 4000);
+
+  // ── Feed merged data into GitHub memory pipeline ────────────────────────
+  // If user is logged in, kick off a chunked archive to their private repo
+  // under ash-memory/imports/ so it's preserved and part of auto-backup from now on
+  if (window._ghAuth && window._ghAuth.loggedIn && window._ghAuth.repoReady) {
+    _archiveImportToGitHub(valid);
   }
+}
+
+// ── Archive manually imported data to GitHub in 4.5MB chunks ────────────────
+// Writes to ash-memory/imports/import_{timestamp}_chunk_{N}.json
+// Then triggers a full autosave so the live merged state is also backed up.
+function _archiveImportToGitHub(validFiles) {
+  var token    = window._ghAuth.token;
+  var username = window._ghAuth.username;
+  var repoName = window._ghAuth.repoName;
+  if (!token || !repoName) return;
+
+  var MAX_CHUNK = 4718592; // 4.5 MB
+  var ts        = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  var allChunks = []; // [{path, content}]
+
+  validFiles.forEach(function(f) {
+    var d    = f.data;
+    var name = (f.name || 'import').replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/\.json$/i, '');
+
+    // Build a normalised import record that matches the autosave schema
+    var sessions       = d.sessions       || d.sessionHistory || [];
+    var journal        = d.journal        || [];
+    var memory         = d.memory         || {};
+    var contextHistory = d.contextHistory || [];
+    var sentience      = d.sentience      || {};
+    var nlp            = d.nlp            || d.lastAnalysis   || {};
+
+    // Split large session arrays into 4.5MB chunks
+    var baseRecord = {
+      version:        '2.0',
+      username:       username,
+      source:         'manual_import',
+      original_file:  f.name || 'pasted',
+      imported_at:    new Date().toISOString(),
+      memory:         memory,
+      sentience:      sentience,
+      nlp:            nlp
+    };
+
+    // First estimate if it all fits in one chunk
+    var testContent = JSON.stringify(Object.assign({}, baseRecord, {
+      sessions: sessions, journal: journal, contextHistory: contextHistory
+    }));
+
+    if (new Blob([testContent]).size <= MAX_CHUNK) {
+      // Fits — single chunk
+      allChunks.push({
+        path:    'ash-memory/imports/' + name + '_' + ts + '.json',
+        content: testContent
+      });
+    } else {
+      // Too large — split sessions and journal across chunks
+      // Each chunk gets the full memory/sentience (it's cheap), split the arrays
+      var chunkIdx   = 1;
+      var sessSlice  = sessions.slice();
+      var jrnlSlice  = journal.slice();
+      var ctxSlice   = contextHistory.slice();
+
+      while (sessSlice.length || jrnlSlice.length) {
+        var partial = Object.assign({}, baseRecord, {
+          chunk:          chunkIdx,
+          sessions:       [],
+          journal:        [],
+          contextHistory: ctxSlice.splice(0, 50)
+        });
+        // Fill sessions until we approach limit
+        while (sessSlice.length) {
+          partial.sessions.push(sessSlice[0]);
+          var probe = new Blob([JSON.stringify(partial)]).size;
+          if (probe >= MAX_CHUNK) { partial.sessions.pop(); break; }
+          sessSlice.shift();
+        }
+        // Fill journal with remaining budget
+        while (jrnlSlice.length) {
+          partial.journal.push(jrnlSlice[0]);
+          var probe2 = new Blob([JSON.stringify(partial)]).size;
+          if (probe2 >= MAX_CHUNK) { partial.journal.pop(); break; }
+          jrnlSlice.shift();
+        }
+        // Avoid infinite loop if a single session is pathologically huge
+        if (!partial.sessions.length && !partial.journal.length) {
+          sessSlice.shift(); jrnlSlice.shift();
+        }
+        allChunks.push({
+          path:    'ash-memory/imports/' + name + '_' + ts + '_chunk' + String(chunkIdx).padStart(3,'0') + '.json',
+          content: JSON.stringify(partial)
+        });
+        chunkIdx++;
+        if (chunkIdx > 50) break; // safety ceiling
+      }
+    }
+  });
+
+  // Write all chunks sequentially, then trigger a full autosave of live state
+  var chain = Promise.resolve();
+  allChunks.forEach(function(chunk) {
+    chain = chain.then(function() {
+      return _ghWriteImportFile(chunk.path, chunk.content, token, username, repoName);
+    });
+  });
+
+  chain.then(function() {
+    // Now kick a full autosave of the live merged S state so GitHub index is current
+    if (typeof window._ghAutosaveNow === 'function') {
+      // Small delay so the import chunks settle first
+      setTimeout(function() { window._ghAutosaveNow(); }, 1500);
+    }
+    if (typeof ideToast === 'function') {
+      ideToast('\u2713 Import archived to GitHub (' + allChunks.length + ' chunk' + (allChunks.length > 1 ? 's' : '') + ')', 4000);
+    }
+  }).catch(function(e) {
+    if (typeof ideToast === 'function') ideToast('\u26a0 GitHub archive failed — data still merged locally', 3500);
+  });
+}
+
+// ── Write a single import chunk file (no SHA needed — new file) ─────────────
+function _ghWriteImportFile(path, content, token, username, repoName) {
+  var encoded = btoa(unescape(encodeURIComponent(content)));
+  return fetch('https://api.github.com/repos/' + username + '/' + repoName + '/contents/' + path, {
+    method:  'PUT',
+    headers: {
+      'Authorization': 'token ' + token,
+      'Accept':        'application/vnd.github.v3+json',
+      'Content-Type':  'application/json'
+    },
+    body: JSON.stringify({
+      message: 'memory: import ' + path.split('/').pop(),
+      content: encoded
+    })
+  }).then(function(r){ return r.json(); });
 }
 
 function confirmClearMemory() {
@@ -8335,6 +8520,10 @@ async function handleSend() {
     document.getElementById('early-typing')?.remove();
     if(typeof setOrbThinking==='function') setOrbThinking(false);
     renderMessages(); updateFooter();
+    // Autosave to GitHub 2s after every response
+    if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
+      setTimeout(_autosave, 2000);
+    }
   };
 
   try {
@@ -8638,6 +8827,38 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   // ── Memory Analysis → Claude API bridge ─────────────────────────────────
   const _memTrigger = (typeof MEMORY_ANALYSIS_TRIGGERS!=='undefined') &&
     MEMORY_ANALYSIS_TRIGGERS.some(function(t){ return augmentedText.toLowerCase().includes(t); });
+
+  // ── Backup to GitHub Ash repo ─────────────────────────────────────────────
+  const _backupTrigger = /\b(backup|back up|sync to github|save to github|save memory|force save|push memory)\b/i.test(augmentedText);
+  if (_backupTrigger && !_pendingImgs.length) {
+    const _bakMsgId = 'bak-'+Date.now();
+    if (window._ghAuth && window._ghAuth.loggedIn) {
+      msgs().push({role:'autumn',text:'',ts:new Date().toISOString(),id:_bakMsgId,
+        grammarMeta:'Memory backup → Autumn-Ash-'+window._ghAuth.username,brpnMeta:'',contextType:'BACKUP',
+        imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>SAVING TO ASH REPO…</div></div>'});
+      renderMessages();
+      window._lastSaveHash = '';
+      var _bakPromise = (typeof _autosave === 'function') ? _autosave() : Promise.reject(new Error('autosave not available'));
+      _bakPromise.then(function(filename){
+        var msgEl = document.querySelector('[data-id="'+_bakMsgId+'"] .img-gen-card');
+        if (msgEl) msgEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(0,255,204,.4)"><div style="padding:14px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;color:var(--cyan)">✓ MEMORY SAVED<br><span style="color:rgba(255,255,255,.5);font-size:.55rem">Autumn-Ash-'+window._ghAuth.username+' / ash-memory/'+(filename||'memory snapshot')+'</span></div></div>';
+        renderMessages();
+      }).catch(function(e){
+        var msgEl = document.querySelector('[data-id="'+_bakMsgId+'"] .img-gen-card');
+        if (msgEl) msgEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(255,68,102,.4)"><div style="padding:14px;font-family:var(--font-d);font-size:.6rem;color:#f66">⚠ BACKUP FAILED: '+(e&&e.message||'unknown error')+'</div></div>';
+        renderMessages();
+      });
+    } else {
+      msgs().push({role:'autumn',text:'Sign in with GitHub first to enable cloud backup. Tap **Login with GitHub** on the welcome screen.',
+        ts:new Date().toISOString(),id:_bakMsgId,grammarMeta:'backup · not logged in',brpnMeta:'',
+        media:{videos:[],images:[],links:[],sources:[]}});
+      renderMessages();
+    }
+    S.isProcessing=false;
+    if(typeof setOrbThinking==='function') setOrbThinking(false);
+    saveState(); updateFooter();
+    return;
+  }
 
   // ── World Studio intent detection ────────────────────────────────────────
   // Explicit only: direct World Studio / 3D generation commands
@@ -18726,7 +18947,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var REPO_PREFIX    = 'Autumn-Ash-';
   var MEMORY_PATH    = 'ash-memory/';
   var MAX_FILE_BYTES = 4718592; // 4.5 MB rolling limit
-  var SYNC_INTERVAL  = 5 * 60 * 1000; // 5 min autosave
+  var SYNC_INTERVAL  = 2 * 60 * 1000; // 5 min autosave
 
   // ── State ──────────────────────────────────────────────────────────────────
   window._ghAuth = {
@@ -18739,42 +18960,33 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
 
   // ── Init ───────────────────────────────────────────────────────────────────
-  // ── Cross-tab auth sync via BroadcastChannel ──────────────────────────
+  // ── Cross-tab auth sync via BroadcastChannel ──────────────────────────────
   try {
     var _authChannel = new BroadcastChannel('autumn_auth');
     _authChannel.onmessage = function(ev) {
-      if (ev.data && ev.data.type === 'login' && !window._ghAuth.loggedIn) {
+      if (!ev.data) return;
+      if (ev.data.type === 'login' && !window._ghAuth.loggedIn) {
         _saveSession(ev.data.data);
         _applySession(ev.data.data);
       }
-      if (ev.data && ev.data.type === 'logout') {
+      if (ev.data.type === 'logout') {
         window._ghLogout && window._ghLogout();
+      }
+      if (ev.data.type === 'sync_memory' && typeof _autosave === 'function') {
+        _autosave();
       }
     };
   } catch(e) {}
 
   function init() {
+    // Check stored session
     var stored = _loadStoredSession();
     if (stored) {
-      // Returning user with valid session — apply silently, no modal needed
       _applySession(stored);
     } else {
       var skipped = localStorage.getItem('_gh_login_skipped');
-      if (!skipped) {
-        _showLoginModal();
-      } else {
-        // Skipped login before — go to guest mode, show consent if needed
-        _showGuestMode();
-        _checkConsentAfterSkip();
-      }
-    }
-  }
-
-  function _checkConsentAfterSkip() {
-    var has = localStorage.getItem('_aut_data_consent') || localStorage.getItem('autumn_consent');
-    if (!has) {
-      var cm = document.getElementById('consent-modal');
-      if (cm) cm.style.display = 'flex';
+      if (!skipped) _showLoginModal();
+      else _showGuestMode();
     }
   }
 
@@ -18835,13 +19047,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           if (d.access_token) {
             clearInterval(_devicePollTimer);
             _saveSession(d);
+            // Close modal immediately
+            var _pm = document.getElementById('gh-login-modal');
+            if (_pm) _pm.classList.remove('show');
             _applySession(d);
-            // Notify all open tabs of this origin that login succeeded
-            try {
-              var bc = new BroadcastChannel('autumn_auth');
-              bc.postMessage({ type: 'login', data: d });
-              bc.close();
-            } catch(e) {}
+            // Notify all open tabs instantly
+            try { var _bc=new BroadcastChannel('autumn_auth'); _bc.postMessage({type:'login',data:d}); _bc.close(); } catch(e){}
           } else if (d.error === 'access_denied') {
             clearInterval(_devicePollTimer);
             _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Access denied. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
@@ -18898,43 +19109,23 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var modal = document.getElementById('gh-login-modal');
     if (modal) modal.classList.remove('show');
 
-    // Auto-accept consent on login
+    // Mark registered + auto-accept consent permanently
     try {
       localStorage.setItem('_aut_data_consent', 'true');
       localStorage.setItem('autumn_consent', 'true');
+      localStorage.setItem('_gh_registered', data.username || '1');
       var cm = document.getElementById('consent-modal');
       if (cm) cm.style.display = 'none';
+      var dm = document.getElementById('data-policy-modal');
+      if (dm) dm.style.display = 'none';
     } catch(e) {}
 
     // Ensure user repo exists, then load memory
     _ensureUserRepo().then(function() {
       return _loadMemory();
     }).then(function() {
-      // Periodic autosave every 5 min
       setInterval(_autosave, SYNC_INTERVAL);
-      // Save on tab close
       window.addEventListener('beforeunload', _autosave);
-      // Activity-triggered save: save 30s after last message/action
-      window._memActivityTimer = null;
-      window._scheduleMemSave = function() {
-        clearTimeout(window._memActivityTimer);
-        window._memActivityTimer = setTimeout(_autosave, 30000);
-      };
-      // Hook into chat send, tool use, image attach
-      document.addEventListener('autumn:message', window._scheduleMemSave);
-      document.addEventListener('autumn:tool', window._scheduleMemSave);
-      document.addEventListener('autumn:attach', window._scheduleMemSave);
-      // Also watch for Autumn grammar backup command
-      window._memBackupNow = function() {
-        _autosave();
-        // Sync all open tabs via broadcast
-        try {
-          var bc = new BroadcastChannel('autumn_auth');
-          bc.postMessage({ type: 'sync_memory' });
-          bc.close();
-        } catch(e) {}
-        _toast('\u2713 Session backed up');
-      };
       _toast('\u2713 Memory archive synced');
     });
 
@@ -19085,16 +19276,19 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     // Build snapshot with all memory types
     var now = new Date().toISOString();
+    var _ss=(S.sessions||[]).map(function(s){return{id:s.id,messages:(s.messages||[]).map(function(m){var r=Object.assign({},m);delete r._savedAttachments;delete r.uploadedImageThumbs;return r;})};});
     var snapshot = {
       version:        '2.0',
       username:       username,
       saved:          now,
       chunk:          _activeChunkName(),
+      sessions:       _ss,
+      currentSession: S.currentSession || 0,
       memory:         S.memory         || {},
       journal:        (S.journal        || []).slice(-500),
       contextHistory: (S.contextHistory || []).slice(-100),
       sessionHistory: (S.sessionHistory || []).slice(-200),
-      attachments:    (S.attachments    || []).slice(-100),  // refs only, not raw data
+      attachments:    (S.attachments    || []).slice(-100),
       sentience:      S.sentience       || {},
       nlp:            S.lastAnalysis    || {}
     };
@@ -19302,29 +19496,38 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   // ── Public API ────────────────────────────────────────────────────────────
   window._ghShowLogin   = _showLoginModal;
   window._ghStartOAuth  = _startOAuth;
-  window._ghSkipLogin   = function() {
+  window._ghSkipLogin = function() {
     localStorage.setItem('_gh_login_skipped', '1');
     _showGuestMode();
-    // Show consent modal if not yet accepted
-    var has = localStorage.getItem('_aut_data_consent') || localStorage.getItem('autumn_consent');
-    if (!has) {
-      var cm = document.getElementById('consent-modal');
-      if (cm) cm.style.display = 'flex';
-    } else {
-      initLeatrAshSync();
+    // Show consent for guest users if not already accepted
+    if (!localStorage.getItem('autumn_consent')) {
+      setTimeout(function(){
+        var cm = document.getElementById('consent-modal');
+        if (cm) cm.style.display = 'flex';
+      }, 600);
     }
   };
   window._ghLogout = function() {
-    localStorage.removeItem('_gh_session');
-    localStorage.removeItem('_gh_login_skipped');
-    window._ghAuth = { token:null, username:null, avatar_url:null, loggedIn:false };
+    // Autosave before logout
+    if (typeof _autosave === 'function') { _lastSaveHash = ''; _autosave(); }
+    // Keep token — registered user just needs to tap login to get back in
+    window._ghAuth.loggedIn = false;
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     if (loginBtn) loginBtn.style.display = '';
     if (userBtn)  userBtn.style.display  = 'none';
-    _showLoginModal();
     _toast('Logged out');
   };
+  // Instant re-login for returning registered users — no device flow needed
+  window._ghReLogin = function() {
+    var stored = _loadStoredSession();
+    if (stored && stored.access_token) {
+      _applySession(stored);
+    } else {
+      _showLoginModal();
+    }
+  };
+
   window._ghShowUserMenu = function(e) {
     e.preventDefault();
     var menu = document.getElementById('gh-user-menu');
@@ -19334,17 +19537,91 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu.style.cssText = 'position:fixed;top:58px;right:60px;z-index:9900;background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.2);border-radius:8px;padding:8px 0;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;min-width:160px';
       menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
-        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(224,244,255,.6)" onmouseenter="this.style.color=\'var(--cyan)\'" onmouseleave="this.style.color=\'rgba(224,244,255,.6)\'" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
+        + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
     } else { menu.remove(); }
   };
+  // ── Manual "Save Memory Now" — with animated button states ─────────────
   window._ghAutosaveNow = function() {
+    var btn = document.getElementById('gh-save-mem-btn');
+    if (btn && btn.classList.contains('ash-saving')) return;
+
+    if (btn) {
+      btn.classList.remove('ash-done');
+      btn.classList.add('ash-saving');
+      btn.textContent = '⬡ SAVING...';
+    }
+
     _lastSaveHash = '';
-    _autosave();
-    var menu = document.getElementById('gh-user-menu');
-    if (menu) menu.remove();
+    _saveInFlight = false;
+
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName;
+
+    if (!token || !repoName) {
+      if (btn) { btn.classList.remove('ash-saving'); btn.textContent = '⬡ SAVE MEMORY NOW'; }
+      _toast('\u26a0 Not logged in');
+      return;
+    }
+
+    var S = window.S;
+    var now = new Date().toISOString();
+    var snapshot = {
+      version:        '2.0',
+      username:       username,
+      saved:          now,
+      manual_save:    true,
+      chunk:          _activeChunkName(),
+      memory:         (S && S.memory)         || {},
+      journal:        ((S && S.journal)        || []).slice(-500),
+      contextHistory: ((S && S.contextHistory) || []).slice(-100),
+      sessionHistory: ((S && S.sessionHistory) || []).slice(-200),
+      attachments:    ((S && S.attachments)    || []).slice(-100),
+      sentience:      (S && S.sentience)       || {},
+      nlp:            (S && S.lastAnalysis)    || {}
+    };
+    var content  = JSON.stringify(snapshot);
+    var byteSize = new Blob([content]).size;
+
+    var shaPromise = _activeSha
+      ? Promise.resolve(_activeSha)
+      : _getFileSha(MEMORY_PATH + _activeChunkName(), token, username, repoName);
+
+    shaPromise.then(function(sha) {
+      _activeSha = sha;
+      return _ghWriteFile(MEMORY_PATH + _activeChunkName(), content, sha, token, username, repoName);
+    }).then(function(res) {
+      if (res && res.content && res.content.sha) _activeSha = res.content.sha;
+      _lastSaveHash = content.length + '|' + content.slice(0,300);
+      if (!_memIndex) _memIndex = { chunks: [], totalBytes: 0, username: username, created: now };
+      var chunkName = _activeChunkName();
+      var existing  = _memIndex.chunks.find(function(c){ return c.name === chunkName; });
+      if (existing) { existing.size = byteSize; existing.to = now; }
+      else _memIndex.chunks.push({ name: chunkName, size: byteSize, from: now, to: now });
+      _memIndex.totalBytes = _memIndex.chunks.reduce(function(s,c){ return s+c.size; }, 0);
+      _memIndex.lastSaved  = now;
+      _memIndex.lastManualSave = now;
+      return _saveIndex(token, username, repoName);
+    }).then(function() {
+      var b = document.getElementById('gh-save-mem-btn');
+      if (b) {
+        b.classList.remove('ash-saving');
+        b.classList.add('ash-done');
+        b.textContent = '\u2713 MEMORY SAVED';
+        setTimeout(function() {
+          var bb = document.getElementById('gh-save-mem-btn');
+          if (bb) bb.textContent = '\u26a1 SAVE MEMORY NOW';
+        }, 2500);
+      }
+      _toast('\u2713 Memory saved to archive');
+    }).catch(function() {
+      var b = document.getElementById('gh-save-mem-btn');
+      if (b) { b.classList.remove('ash-saving'); b.textContent = '\u26a1 SAVE MEMORY NOW'; }
+      _toast('\u26a0 Save failed \u2014 try again');
+    });
   };
 
   // Wire up OAuth button

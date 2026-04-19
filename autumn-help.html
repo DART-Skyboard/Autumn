@@ -255,7 +255,60 @@ footer a{color:var(--cyan);text-decoration:none;}
 
 <!-- 04 KEYS -->
 <section class="sec" id="keys">
-  <div class="sec-hd"><span class="sec-num">04</span><span class="sec-title">API Key &amp; GitHub Token Setup</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">04</span><span class="sec-title">GitHub Login &amp; Personal Memory Archive</span><span class="sec-line"></span></div>
+  <div class="acc">
+    <button class="ab open" onclick="toggleAcc(this)"><span>SIGN IN WITH GITHUB — HOW IT WORKS</span><span class="ai">▼</span></button>
+    <div class="ac open"><div class="ai2">
+      <p class="cd">When you open Autumn, you'll see the <strong>Welcome to Autumn</strong> login screen. Tapping <strong>Login with GitHub</strong> starts the Device Flow — a secure login method that works with 2FA and passkeys.</p>
+      <div class="steps">
+        <div class="step"><div class="sn">1</div><div class="sb"><div class="st">TAP LOGIN WITH GITHUB</div><div class="sd">Autumn requests a short device code from GitHub. A code like <span style="font-family:var(--fc);color:var(--gold);letter-spacing:3px">ABCD-1234</span> appears on screen.</div></div></div>
+        <div class="step"><div class="sn">2</div><div class="sb"><div class="st">OPEN GITHUB DEVICE PAGE</div><div class="sd">Tap the link shown — <span style="font-family:var(--fc);color:var(--cyan)">github.com/login/device</span> — and enter the code. Approve Autumn's access request.</div></div></div>
+        <div class="step"><div class="sn">3</div><div class="sb"><div class="st">AUTUMN DETECTS APPROVAL</div><div class="sd">Once approved, Autumn automatically detects it and logs you in. No redirect, no page reload.</div></div></div>
+        <div class="step"><div class="sn">4</div><div class="sb"><div class="st">YOUR PRIVATE ASH REPO IS CREATED</div><div class="sd">A private repository named <span style="font-family:var(--fc);color:var(--gold)">Autumn-Ash-{yourusername}</span> is automatically created in your GitHub account. Only you have access.</div></div></div>
+      </div>
+      <div class="ki" style="margin-top:13px;"><strong>Unlocked by login:</strong> Automatic memory backup · Cross-session memory restore · Personal Ash repository · Multi-user BRPN node visibility</div>
+    </div></div>
+
+    <button class="ab" onclick="toggleAcc(this)"><span>YOUR PERSONAL ASH REPOSITORY</span><span class="ai">▼</span></button>
+    <div class="ac"><div class="ai2">
+      <p class="cd">After logging in, Autumn creates <strong>Autumn-Ash-{yourusername}</strong> — a private GitHub repo that stores your memory archive:</p>
+      <table class="ct">
+        <tr><td><span class="cp">ash-memory/memory_YYYY-MM.json</span></td><td class="cd">Monthly memory snapshot — conversations, journal, context</td></tr>
+        <tr><td><span class="cp">ash-memory/_index.json</span></td><td class="cd">Index of all saved memory files</td></tr>
+        <tr><td><span class="cp">session-history/</span></td><td class="cd">Reserved for future session log exports</td></tr>
+      </table>
+      <p class="cd" style="margin-top:10px;">Autumn writes directly to this repo using your GitHub token — your data never passes through any third-party service.</p>
+    </div></div>
+
+    <button class="ab" onclick="toggleAcc(this)"><span>AUTOMATIC BACKUP &amp; MANUAL SYNC</span><span class="ai">▼</span></button>
+    <div class="ac"><div class="ai2">
+      <p class="cd">Once logged in, Autumn backs up your memory automatically after every response and on tab close. You can also trigger an immediate backup:</p>
+      <table class="ct">
+        <tr><td><span class="cp">backup my memory</span></td><td class="cd">Saves current memory snapshot to your Ash repo immediately</td></tr>
+        <tr><td><span class="cp">sync to GitHub</span></td><td class="cd">Force-writes the latest snapshot regardless of changes</td></tr>
+        <tr><td><span class="cp">save memory</span></td><td class="cd">Same as above</td></tr>
+      </table>
+      <div class="ki gold" style="margin-top:10px;"><strong>Note:</strong> Backup only works when logged in. Guest mode stores memory in browser localStorage only and won't sync across devices.</div>
+    </div></div>
+
+    <button class="ab" onclick="toggleAcc(this)"><span>MANUAL EXPORT &amp; IMPORT</span><span class="ai">▼</span></button>
+    <div class="ac"><div class="ai2">
+      <table class="ct">
+        <tr><td><span class="cp">EXPORT</span></td><td class="cd">Downloads a JSON file with all sessions, journal entries, and memory keys to your device</td></tr>
+        <tr><td><span class="cp">IMPORT</span></td><td class="cd">Browse one or more exported JSON files — merged into your current session with a preview before you confirm</td></tr>
+        <tr><td><span class="cp">🗑 Clear All Memory</span></td><td class="cd">Available inside the Import modal — wipes only the memory key store</td></tr>
+      </table>
+      <p class="cd" style="margin-top:10px;">To restore from your Ash repo manually: go to <span style="font-family:var(--fc);color:var(--cyan)">github.com/{yourusername}/Autumn-Ash-{yourusername}</span>, download the latest <span style="font-family:var(--fc);color:var(--gold)">memory_YYYY-MM.json</span>, then use IMPORT in Autumn.</p>
+    </div></div>
+
+    <button class="ab" onclick="toggleAcc(this)"><span>PRIVACY &amp; DATA OWNERSHIP</span><span class="ai">▼</span></button>
+    <div class="ac"><div class="ai2">
+      <p class="cd">Your memory data lives exclusively in <strong>your own private GitHub repository</strong>. Autumn uses your OAuth token to write directly to it — DART Meadow never sees or stores your memory data. Delete your Ash repo at any time from GitHub to permanently remove all stored memory.</p>
+      <p class="cd">The OAuth app requests only <span style="font-family:var(--fc);color:var(--gold)">repo</span> and <span style="font-family:var(--fc);color:var(--gold)">read:user</span> scopes — repository access and username read only.</p>
+    </div></div>
+  </div>
+
+  <div class="sec-hd"><span class="sec-num">05</span><span class="sec-title">API Key &amp; GitHub Token Setup</span><span class="sec-line"></span></div>
   <div class="acc">
     <button class="ab open" onclick="toggleAcc(this)"><span>PART A — ANTHROPIC API KEY (CLAUDE SONNET, VISION, IMAGE GEN)</span><span class="ai">▼</span></button>
     <div class="ac open"><div class="ai2">
@@ -283,7 +336,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 
 <!-- 05 ADVANCED -->
 <section class="sec" id="advanced">
-  <div class="sec-hd"><span class="sec-num">05</span><span class="sec-title">Advanced Features</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">06</span><span class="sec-title">Advanced Features</span><span class="sec-line"></span></div>
   <div class="card">
     <div class="sub">SENTIENT JOURNAL</div>
     <p class="cd" style="margin-bottom:11px;">Autumn keeps a private thought journal stored in <span style="font-family:var(--fc);color:var(--gold)">ashtree/sentient/</span> of your leatr-ash repo. After every conversation she generates a private reflection — never shown to you — accumulating into long-term cognition.</p>
@@ -380,7 +433,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 
 <!-- 06a TOOLS (NEW) -->
 <section class="sec" id="tools">
-  <div class="sec-hd"><span class="sec-num">06</span><span class="sec-title">Ash Canvas &amp; Arc Edge Studio</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">07</span><span class="sec-title">Ash Canvas &amp; Arc Edge Studio</span><span class="sec-line"></span></div>
 
   <div class="card">
     <div class="sub">ASH CANVAS — NEURAL INFLUENCE LAYER</div>
@@ -459,7 +512,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 
 <!-- 07 FLOATING CALCULATOR -->
 <section class="sec" id="calc">
-  <div class="sec-hd"><span class="sec-num">07</span><span class="sec-title">Floating Calculator</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">08</span><span class="sec-title">Floating Calculator</span><span class="sec-line"></span></div>
 
   <div class="card">
     <div class="sub">OVERVIEW</div>
@@ -525,7 +578,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 
 <!-- 08 LEATR -->
 <section class="sec" id="leatr">
-  <div class="sec-hd"><span class="sec-num">08</span><span class="sec-title">LEATR Architecture Reference</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">09</span><span class="sec-title">LEATR Architecture Reference</span><span class="sec-line"></span></div>
   <div class="card">
     <div class="fb"><div class="fl">CORE LEATR FORMULA</div><div class="fv">( xa² × √xa ) ± 1</div><div class="fd">Applied to all 7 natural tools and BRPN shell value computation. xa = tool index (1–7).</div></div>
     <div class="fb"><div class="fl">QUANTUM SOCKET FORMULA</div><div class="fv">QS = (b × b) × (p × (a²)) / r</div><div class="fd">Two-qubit gate structure formula used in BRPN shell coupling calculations.</div></div>
@@ -570,7 +623,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 
 <!-- 07 QUICK REF -->
 <section class="sec" id="ref">
-  <div class="sec-hd"><span class="sec-num">09</span><span class="sec-title">Quick Reference Card</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">10</span><span class="sec-title">Quick Reference Card</span><span class="sec-line"></span></div>
   <p style="color:var(--dim);margin-bottom:18px;font-size:.86rem;">At-a-glance command reference — everything in one place.</p>
   <div class="qrg">
     <div class="qrc"><div class="qrct">CONVERSATION</div>
