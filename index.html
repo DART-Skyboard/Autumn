@@ -887,6 +887,11 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #img-preview-strip{display:none;padding:6px 12px;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;border-bottom:1px solid rgba(0,255,204,.06)}
 #img-preview-strip.show{display:flex}
 .send-btn{display:none}
+/* Show send button when there is text or images attached */
+#input-pill:focus-within ~ #send-btn,
+#input-pill:has(input:not(:placeholder-shown)) ~ #send-btn,
+#img-preview-strip.show ~ #input-bar #send-btn,
+.has-pending-send #send-btn { display:flex }
 /* Footer bar */
 #footer-bar{height:34px;flex-shrink:0;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:rgba(3,10,14,.5);z-index:10}
 .foot-left,.foot-right{display:flex;align-items:center;gap:10px;font-size:.55rem;font-family:var(--font-d);letter-spacing:1px;color:rgba(0,255,204,.3)}
@@ -6835,7 +6840,13 @@ async function handleImageFilesSelect(files) {
     document.getElementById('img-preview-strip').classList.add('show');
     document.getElementById('upload-btn')&&document.getElementById('upload-btn').classList.add('has-image');
     var _ci=document.getElementById('chat-input');
-    if(_ci&&!_ci.value)_ci.placeholder='Add a message or tap ↑ to send…';
+    if(_ci&&!_ci.value)_ci.placeholder='Add a message or tap ↑ to send\u2026';
+    // Show send button when images are attached
+    var _sb=document.getElementById('send-btn');
+    if(_sb)_sb.style.display='flex';
+    // Make the input-bar parent aware
+    var _ib=document.getElementById('input-bar');
+    if(_ib)_ib.classList.add('has-pending-send');
     renderThumbRow();
   }
 }
@@ -6846,6 +6857,12 @@ function clearPendingImage() {
   if(_ci2)_ci2.placeholder='Ask Autumn…';
   var strip=document.getElementById('img-preview-strip');if(strip)strip.classList.remove('show');
   var btn=document.getElementById('upload-btn');if(btn)btn.classList.remove('has-image');
+  // Hide send button if input is also empty
+  var _sb2=document.getElementById('send-btn');
+  var _ci3=document.getElementById('chat-input');
+  if(_sb2 && (!_ci3||!_ci3.value.trim()))_sb2.style.display='';
+  var _ib2=document.getElementById('input-bar');
+  if(_ib2)_ib2.classList.remove('has-pending-send');
   var row=document.getElementById('img-thumb-row');if(row)row.innerHTML='';
 }
 
@@ -15859,6 +15876,21 @@ function toggleInputTray(){
   btn.textContent=open?'×':'+';
 }
 // Close tray when user starts typing
+// ── Send button visibility on text input ────────────────────────────
+(function() {
+  var _ci = document.getElementById('chat-input');
+  var _sb = document.getElementById('send-btn');
+  if (!_ci || !_sb) return;
+  function _updateSend() {
+    var hasTxt = _ci.value.trim().length > 0;
+    var hasImg = window.S && window.S.pendingImages && window.S.pendingImages.length > 0;
+    _sb.style.display = (hasTxt || hasImg) ? 'flex' : '';
+  }
+  _ci.addEventListener('input', _updateSend);
+  _ci.addEventListener('keyup', _updateSend);
+  window._updateSendBtn = _updateSend;
+})();
+
 document.getElementById('chat-input')?.addEventListener('focus',function(){
   var tray=document.getElementById('input-tray');
   var btn=document.getElementById('plus-btn');
