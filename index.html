@@ -2565,8 +2565,19 @@ function declineStorage() {
   try { localStorage.setItem("autumn_consent","no"); localStorage.setItem("_aut_data_consent","true"); } catch(e) {}
   document.getElementById("consent-modal").style.display = "none";
 }
+// ── Activity-triggered GitHub autosave (debounced 30s) ──────────────────
+var _ghSaveTimer = null;
+function _triggerGhSave() {
+  if (!window._ghAuth || !window._ghAuth.loggedIn) return;
+  clearTimeout(_ghSaveTimer);
+  _ghSaveTimer = setTimeout(function() {
+    if (typeof _autosave === 'function') _autosave();
+  }, 30000); // 30 seconds after last activity
+}
+
 function saveState() {
   if (!useStorage) return;
+  _triggerGhSave(); // queue a GitHub save on every state change
   try {
     const data = { sessions: S.sessions, currentSession: S.currentSession, journal: S.journal, memory: S.memory };
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
@@ -8518,6 +8529,11 @@ async function handleSend() {
     document.getElementById('early-typing')?.remove();
     if(typeof setOrbThinking==='function') setOrbThinking(false);
     renderMessages(); updateFooter();
+    // Immediate GitHub save after every Autumn response
+    if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
+      clearTimeout(window._ghSaveTimer);
+      setTimeout(_autosave, 2000); // 2s after response completes
+    }
   };
 
   try {
@@ -18903,13 +18919,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 (function() {
   'use strict';
 
-  var AUTUMN_GAS_URL = 'https://script.google.com/macros/s/AKfycbw5ePA7BMk6Xy4Gfh14vJtHvh9aMRsz-IZULKVEw8lcyPJ1c6xGRnk95OQzmjzAQJCpyw/exec';
+  var AUTUMN_GAS_URL = 'https://script.google.com/macros/s/AKfycbxc2GswH2qP9mqdcgkXLvQumiaz6n97eFD8YVhsBnZOTiQLDol-umUaDnC_zdFNfah8sQ/exec';
   var GH_CLIENT_ID   = 'Ov23li2K0njEqO1WTSdD';
   var GH_SCOPES      = 'repo,read:user';
   var REPO_PREFIX    = 'Autumn-Ash-';
   var MEMORY_PATH    = 'ash-memory/';
   var MAX_FILE_BYTES = 4718592; // 4.5 MB rolling limit
-  var SYNC_INTERVAL  = 5 * 60 * 1000; // 5 min autosave
+  var SYNC_INTERVAL  = 2 * 60 * 1000; // 2 min autosave
 
   // ── State ──────────────────────────────────────────────────────────────────
   window._ghAuth = {
