@@ -1531,7 +1531,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .as-btn.secondary{background:transparent;border-color:rgba(0,229,255,.2);color:rgba(0,229,255,.5)}
 .as-btn.danger{border-color:rgba(255,68,102,.3);color:rgba(255,68,102,.6);background:transparent}
 .as-btn.send-chat{background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.3);color:var(--cyan);width:100%;margin-top:6px;padding:6px}
-#arc-studio-viewport{flex-shrink:0;position:relative;background:#0a0f14;overflow:hidden}
+#arc-studio-viewport{flex:1;position:relative;background:#0a0f14;overflow:hidden;min-height:300px;min-width:200px}
 #arc-studio-canvas{width:100%;height:100%;display:block}
 #arc-studio-readout{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.15);border-radius:4px;padding:6px 8px;font-family:monospace;font-size:9px;color:rgba(0,229,255,.6);line-height:1.55;min-width:120px;pointer-events:none}
 .user-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 5px var(--blue);display:inline-block}
@@ -16397,18 +16397,21 @@ _syncActionBtn();
       if (body) body.classList.remove('collapsed');
       if (btn) btn.textContent = '—';
     }
-    // Double-RAF so flex layout fully settles before measuring
+    // Triple-RAF: overlay display change → style recalc → layout → measure
     requestAnimationFrame(function() {
       requestAnimationFrame(function() {
-        if (!_as.initialized) {
-          _asInit();
-        } else {
-          _asResize();
-          // Extra resize after 120ms for first open on Android (layout can lag)
-          setTimeout(_asResize, 120);
-          _asAnimate();
-          _asUpdateReadout();
-        }
+        requestAnimationFrame(function() {
+          if (!_as.initialized) {
+            _asInit();
+          } else {
+            _asResize();
+            // Extra resizes at 100ms and 300ms for slow Android layout
+            setTimeout(_asResize, 100);
+            setTimeout(_asResize, 300);
+            _asAnimate();
+            _asUpdateReadout();
+          }
+        });
       });
     });
   };
@@ -16980,9 +16983,15 @@ window.emmToggle = function() {
     var vp = document.getElementById('arc-studio-viewport');
     if (!vp) return;
 
-    // Measure after flex layout settles — retry if viewport not sized yet
-    var w = vp.clientWidth;
-    var h = vp.clientHeight;
+    // Derive reliable dimensions: viewport width from its actual clientWidth,
+    // fallback to overlay width minus controls panel width.
+    var _ov = document.getElementById('arc-studio-overlay');
+    var _ctrl = document.getElementById('arc-studio-controls');
+    var _ovW = _ov ? _ov.clientWidth : 0;
+    var _ctrlW = _ctrl ? (_ctrl.offsetWidth || 220) : 220;
+    var w = vp.clientWidth || Math.max(_ovW - _ctrlW, 220);
+    var h = vp.clientHeight || Math.max(vp.offsetHeight, 320);
+    // If still no dimensions, retry after one more frame
     if (w < 10 || h < 10) { requestAnimationFrame(_asInit); return; }
 
     // ── Scene + camera ─────────────────────────────────────────────
@@ -16996,17 +17005,12 @@ window.emmToggle = function() {
     _as.renderer.setClearColor(0x0a0f14, 1.0);
     _as.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     _as.renderer.setSize(w, h);
-    // Critical: do NOT CSS-stretch the canvas — let the renderer own exact pixel size.
-    // CSS width/height = 100% causes coordinate mismatch on hi-DPI screens → stair-stepping.
     _as.renderer.domElement.style.display = 'block';
-    // touch-action:none tells the browser to hand ALL touch events to JS (no scroll hijack)
     _as.renderer.domElement.style.touchAction = 'none';
-    // Make the viewport div exactly match the canvas so getBoundingClientRect() is accurate
-    vp.style.width  = w + 'px';
-    vp.style.height = h + 'px';
+    // Do NOT lock vp size — let CSS flex size it naturally
     // Replace any existing canvas child, then append renderer's canvas
     var oldCv = document.getElementById('arc-studio-canvas');
-    if (oldCv) oldCv.style.display = 'none'; // hide placeholder
+    if (oldCv) oldCv.style.display = 'none';
     vp.appendChild(_as.renderer.domElement);
 
     // ── Lights + helpers ───────────────────────────────────────────
@@ -17120,7 +17124,17 @@ window.emmToggle = function() {
 
     window.addEventListener('resize', _asResize);
 
+    // ResizeObserver fires _asResize whenever the overlay is resized
+    // This catches the CSS layout settling on Android after first open
+    if (typeof ResizeObserver !== 'undefined') {
+      var _asRO = new ResizeObserver(function() { _asResize(); });
+      var _asOvEl = document.getElementById('arc-studio-overlay');
+      if (_asOvEl) _asRO.observe(_asOvEl);
+    }
+
     _as.initialized = true;
+    // Fire an extra resize after 200ms — catches Android layout lag on first open
+    setTimeout(_asResize, 200);
     _asAnimate();
     _asUpdateReadout();
   }
