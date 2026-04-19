@@ -57,6 +57,10 @@ Autumn/
 
 ---
 
+Important Note: You might have to sign up twice and then each time you do open a new tab to go back and check the Autumn web app and after that second time when you open a new tab to go back to the automobile you should be logged in and you should see your account profile menu in there it's a little buggy the new setup but I'm working as fast as possible to get this moved out.
+
+---
+
 <p align="center">
   © 2026 DART Meadow / Radical Deepscale LLC &nbsp;·&nbsp; Built on LEATR v2
 </p>
