@@ -8828,6 +8828,38 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   const _memTrigger = (typeof MEMORY_ANALYSIS_TRIGGERS!=='undefined') &&
     MEMORY_ANALYSIS_TRIGGERS.some(function(t){ return augmentedText.toLowerCase().includes(t); });
 
+  // ── Backup to GitHub Ash repo ─────────────────────────────────────────────
+  const _backupTrigger = /\b(backup|back up|sync to github|save to github|save memory|force save|push memory)\b/i.test(augmentedText);
+  if (_backupTrigger && !_pendingImgs.length) {
+    const _bakMsgId = 'bak-'+Date.now();
+    if (window._ghAuth && window._ghAuth.loggedIn) {
+      msgs().push({role:'autumn',text:'',ts:new Date().toISOString(),id:_bakMsgId,
+        grammarMeta:'Memory backup → Autumn-Ash-'+window._ghAuth.username,brpnMeta:'',contextType:'BACKUP',
+        imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>SAVING TO ASH REPO…</div></div>'});
+      renderMessages();
+      window._lastSaveHash = '';
+      var _bakPromise = (typeof _autosave === 'function') ? _autosave() : Promise.reject(new Error('autosave not available'));
+      _bakPromise.then(function(filename){
+        var msgEl = document.querySelector('[data-id="'+_bakMsgId+'"] .img-gen-card');
+        if (msgEl) msgEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(0,255,204,.4)"><div style="padding:14px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;color:var(--cyan)">✓ MEMORY SAVED<br><span style="color:rgba(255,255,255,.5);font-size:.55rem">Autumn-Ash-'+window._ghAuth.username+' / ash-memory/'+(filename||'memory snapshot')+'</span></div></div>';
+        renderMessages();
+      }).catch(function(e){
+        var msgEl = document.querySelector('[data-id="'+_bakMsgId+'"] .img-gen-card');
+        if (msgEl) msgEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(255,68,102,.4)"><div style="padding:14px;font-family:var(--font-d);font-size:.6rem;color:#f66">⚠ BACKUP FAILED: '+(e&&e.message||'unknown error')+'</div></div>';
+        renderMessages();
+      });
+    } else {
+      msgs().push({role:'autumn',text:'Sign in with GitHub first to enable cloud backup. Tap **Login with GitHub** on the welcome screen.',
+        ts:new Date().toISOString(),id:_bakMsgId,grammarMeta:'backup · not logged in',brpnMeta:'',
+        media:{videos:[],images:[],links:[],sources:[]}});
+      renderMessages();
+    }
+    S.isProcessing=false;
+    if(typeof setOrbThinking==='function') setOrbThinking(false);
+    saveState(); updateFooter();
+    return;
+  }
+
   // ── World Studio intent detection ────────────────────────────────────────
   // Explicit only: direct World Studio / 3D generation commands
   // Removed: /world\b/ standalone (matches "da Vinci's world" etc)
