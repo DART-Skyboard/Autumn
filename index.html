@@ -6864,8 +6864,13 @@ function clearPendingImage() {
   S.pendingImages=[];S.pendingImage=null;
   var _ci2=document.getElementById('chat-input');
   if(_ci2)_ci2.placeholder='Ask Autumn…';
-  var strip=document.getElementById('img-preview-strip');if(strip)strip.classList.remove('show');
+  var strip=document.getElementById('img-preview-strip');
+  if(strip){ strip.classList.remove('show'); strip.style.display=''; }
+  var row=document.getElementById('img-thumb-row');if(row)row.innerHTML='';
   var btn=document.getElementById('upload-btn');if(btn)btn.classList.remove('has-image');
+  // Reset file inputs so same file can be re-attached
+  var fins=document.querySelectorAll('input[type="file"]');
+  fins.forEach(function(f){try{f.value='';}catch(e){}});
   // Hide send button if input is also empty
   var _sb2=document.getElementById('send-btn');
   var _ci3=document.getElementById('chat-input');
@@ -8278,7 +8283,7 @@ async function handleSend() {
 
   // Push user message and show typing indicator right away
   msgs().push({ role:'user', id:'u-'+Date.now(), text, ts:new Date().toISOString(),
-    uploadedImageThumbs: _earlyPendingImgs.map(function(i){ return i.is3D ? i : i.thumbnail; }),
+    uploadedImageThumbs: _earlyPendingImgs.map(function(i){ return i.is3D ? i : (i.previewDataUrl || i.thumbnail); }),
     _savedAttachments: _earlyPendingImgs.length ? _earlyPendingImgs : undefined });
   renderMessages();
   const _earlyTyping = document.createElement('div');
