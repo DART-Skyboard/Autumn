@@ -2814,31 +2814,192 @@ function _doImportMerge() {
   if (!_importQueue.length) { alert("No data to import."); return; }
   var valid = _importQueue.filter(function(f) { return f.data && !f.error; });
   if (!valid.length) { alert("No valid JSON files found."); return; }
-  // MERGE into current state — never overwrite, always append/extend
+
+  // ── MERGE into live S object — never overwrite, always append/extend ────
+  var totalSessions = 0, totalJournal = 0, totalMemKeys = 0;
   valid.forEach(function(f) {
     var d = f.data;
-    // Merge sessions
-    if (d.sessions && Array.isArray(d.sessions)) {
-      d.sessions.forEach(function(sess) { S.sessions.push(sess); });
-    }
-    // Merge journal
-    if (d.journal && Array.isArray(d.journal)) {
-      S.journal = S.journal.concat(d.journal);
-    }
-    // Merge memory keys (imported keys only overwrite if empty/missing locally)
-    if (d.memory && typeof d.memory === "object") {
-      Object.keys(d.memory).forEach(function(k) {
-        if (!S.memory[k]) S.memory[k] = d.memory[k];
+    // Merge sessions (exported format: d.sessions; autosave format: d.sessionHistory)
+    var importedSessions = d.sessions || d.sessionHistory || [];
+    if (Array.isArray(importedSessions) && importedSessions.length) {
+      var existingIds = new Set((S.sessions || []).map(function(s){ return s.id; }));
+      importedSessions.forEach(function(sess) {
+        if (!existingIds.has(sess.id)) { S.sessions.push(sess); totalSessions++; }
       });
     }
+    // Merge journal — dedupe by timestamp
+    var importedJournal = d.journal || [];
+    if (Array.isArray(importedJournal) && importedJournal.length) {
+      S.journal = S.journal || [];
+      var existingTs = new Set(S.journal.map(function(j){ return j.ts; }));
+      importedJournal.forEach(function(e) {
+        if (!existingTs.has(e.ts)) { S.journal.push(e); totalJournal++; }
+      });
+      S.journal.sort(function(a,b){ return (a.ts||'').localeCompare(b.ts||''); });
+    }
+    // Merge memory keys — imported only fills gaps, never overwrites
+    var importedMemory = d.memory || {};
+    if (typeof importedMemory === "object") {
+      S.memory = S.memory || {};
+      Object.keys(importedMemory).forEach(function(k) {
+        if (!S.memory[k]) { S.memory[k] = importedMemory[k]; totalMemKeys++; }
+      });
+    }
+    // Merge contextHistory if present (autosave format)
+    if (Array.isArray(d.contextHistory) && d.contextHistory.length) {
+      S.contextHistory = (S.contextHistory || []).concat(d.contextHistory).slice(-200);
+    }
+    // Merge sentience/nlp snapshots if present
+    if (d.sentience && typeof d.sentience === 'object' && !S.sentience) {
+      S.sentience = d.sentience;
+    }
   });
+
   S.currentSession = S.sessions.length - 1;
   saveState(); renderMessages(); updateFooter();
   closeModal();
-  // Toast confirmation
-  if (typeof ideToast === "function") {
-    ideToast("✓ Merged " + valid.length + " file" + (valid.length > 1 ? "s" : "") + " — " + S.sessions.length + " sessions total", 3500);
+
+  var msg = '\u2713 Merged ' + valid.length + ' file' + (valid.length > 1 ? 's' : '')
+    + ' \u2014 ' + totalSessions + ' sessions, ' + totalJournal + ' journal entries, '
+    + totalMemKeys + ' memory keys added';
+  if (typeof ideToast === "function") ideToast(msg, 4000);
+
+  // ── Feed merged data into GitHub memory pipeline ────────────────────────
+  // If user is logged in, kick off a chunked archive to their private repo
+  // under ash-memory/imports/ so it's preserved and part of auto-backup from now on
+  if (window._ghAuth && window._ghAuth.loggedIn && window._ghAuth.repoReady) {
+    _archiveImportToGitHub(valid);
   }
+}
+
+// ── Archive manually imported data to GitHub in 4.5MB chunks ────────────────
+// Writes to ash-memory/imports/import_{timestamp}_chunk_{N}.json
+// Then triggers a full autosave so the live merged state is also backed up.
+function _archiveImportToGitHub(validFiles) {
+  var token    = window._ghAuth.token;
+  var username = window._ghAuth.username;
+  var repoName = window._ghAuth.repoName;
+  if (!token || !repoName) return;
+
+  var MAX_CHUNK = 4718592; // 4.5 MB
+  var ts        = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  var allChunks = []; // [{path, content}]
+
+  validFiles.forEach(function(f) {
+    var d    = f.data;
+    var name = (f.name || 'import').replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/\.json$/i, '');
+
+    // Build a normalised import record that matches the autosave schema
+    var sessions       = d.sessions       || d.sessionHistory || [];
+    var journal        = d.journal        || [];
+    var memory         = d.memory         || {};
+    var contextHistory = d.contextHistory || [];
+    var sentience      = d.sentience      || {};
+    var nlp            = d.nlp            || d.lastAnalysis   || {};
+
+    // Split large session arrays into 4.5MB chunks
+    var baseRecord = {
+      version:        '2.0',
+      username:       username,
+      source:         'manual_import',
+      original_file:  f.name || 'pasted',
+      imported_at:    new Date().toISOString(),
+      memory:         memory,
+      sentience:      sentience,
+      nlp:            nlp
+    };
+
+    // First estimate if it all fits in one chunk
+    var testContent = JSON.stringify(Object.assign({}, baseRecord, {
+      sessions: sessions, journal: journal, contextHistory: contextHistory
+    }));
+
+    if (new Blob([testContent]).size <= MAX_CHUNK) {
+      // Fits — single chunk
+      allChunks.push({
+        path:    'ash-memory/imports/' + name + '_' + ts + '.json',
+        content: testContent
+      });
+    } else {
+      // Too large — split sessions and journal across chunks
+      // Each chunk gets the full memory/sentience (it's cheap), split the arrays
+      var chunkIdx   = 1;
+      var sessSlice  = sessions.slice();
+      var jrnlSlice  = journal.slice();
+      var ctxSlice   = contextHistory.slice();
+
+      while (sessSlice.length || jrnlSlice.length) {
+        var partial = Object.assign({}, baseRecord, {
+          chunk:          chunkIdx,
+          sessions:       [],
+          journal:        [],
+          contextHistory: ctxSlice.splice(0, 50)
+        });
+        // Fill sessions until we approach limit
+        while (sessSlice.length) {
+          partial.sessions.push(sessSlice[0]);
+          var probe = new Blob([JSON.stringify(partial)]).size;
+          if (probe >= MAX_CHUNK) { partial.sessions.pop(); break; }
+          sessSlice.shift();
+        }
+        // Fill journal with remaining budget
+        while (jrnlSlice.length) {
+          partial.journal.push(jrnlSlice[0]);
+          var probe2 = new Blob([JSON.stringify(partial)]).size;
+          if (probe2 >= MAX_CHUNK) { partial.journal.pop(); break; }
+          jrnlSlice.shift();
+        }
+        // Avoid infinite loop if a single session is pathologically huge
+        if (!partial.sessions.length && !partial.journal.length) {
+          sessSlice.shift(); jrnlSlice.shift();
+        }
+        allChunks.push({
+          path:    'ash-memory/imports/' + name + '_' + ts + '_chunk' + String(chunkIdx).padStart(3,'0') + '.json',
+          content: JSON.stringify(partial)
+        });
+        chunkIdx++;
+        if (chunkIdx > 50) break; // safety ceiling
+      }
+    }
+  });
+
+  // Write all chunks sequentially, then trigger a full autosave of live state
+  var chain = Promise.resolve();
+  allChunks.forEach(function(chunk) {
+    chain = chain.then(function() {
+      return _ghWriteImportFile(chunk.path, chunk.content, token, username, repoName);
+    });
+  });
+
+  chain.then(function() {
+    // Now kick a full autosave of the live merged S state so GitHub index is current
+    if (typeof window._ghAutosaveNow === 'function') {
+      // Small delay so the import chunks settle first
+      setTimeout(function() { window._ghAutosaveNow(); }, 1500);
+    }
+    if (typeof ideToast === 'function') {
+      ideToast('\u2713 Import archived to GitHub (' + allChunks.length + ' chunk' + (allChunks.length > 1 ? 's' : '') + ')', 4000);
+    }
+  }).catch(function(e) {
+    if (typeof ideToast === 'function') ideToast('\u26a0 GitHub archive failed — data still merged locally', 3500);
+  });
+}
+
+// ── Write a single import chunk file (no SHA needed — new file) ─────────────
+function _ghWriteImportFile(path, content, token, username, repoName) {
+  var encoded = btoa(unescape(encodeURIComponent(content)));
+  return fetch('https://api.github.com/repos/' + username + '/' + repoName + '/contents/' + path, {
+    method:  'PUT',
+    headers: {
+      'Authorization': 'token ' + token,
+      'Accept':        'application/vnd.github.v3+json',
+      'Content-Type':  'application/json'
+    },
+    body: JSON.stringify({
+      message: 'memory: import ' + path.split('/').pop(),
+      content: encoded
+    })
+  }).then(function(r){ return r.json(); });
 }
 
 function confirmClearMemory() {
@@ -19301,28 +19462,22 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   // ── Manual "Save Memory Now" — with animated button states ─────────────
   window._ghAutosaveNow = function() {
     var btn = document.getElementById('gh-save-mem-btn');
-
-    // Already saving — ignore double-taps
     if (btn && btn.classList.contains('ash-saving')) return;
 
-    // ── SAVING state: amber↔cyan shimmer animation ──────────────────
     if (btn) {
       btn.classList.remove('ash-done');
       btn.classList.add('ash-saving');
       btn.textContent = '⬡ SAVING...';
     }
 
-    // Force a fresh save regardless of hash
     _lastSaveHash = '';
     _saveInFlight = false;
 
-    // Build snapshot exactly like _autosave does
     var token    = window._ghAuth.token;
     var username = window._ghAuth.username;
     var repoName = window._ghAuth.repoName;
 
     if (!token || !repoName) {
-      // Not logged in — restore button
       if (btn) { btn.classList.remove('ash-saving'); btn.textContent = '⬡ SAVE MEMORY NOW'; }
       _toast('\u26a0 Not logged in');
       return;
@@ -19344,7 +19499,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       sentience:      (S && S.sentience)       || {},
       nlp:            (S && S.lastAnalysis)    || {}
     };
-    var content = JSON.stringify(snapshot);
+    var content  = JSON.stringify(snapshot);
     var byteSize = new Blob([content]).size;
 
     var shaPromise = _activeSha
@@ -19357,7 +19512,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }).then(function(res) {
       if (res && res.content && res.content.sha) _activeSha = res.content.sha;
       _lastSaveHash = content.length + '|' + content.slice(0,300);
-      // Update index
       if (!_memIndex) _memIndex = { chunks: [], totalBytes: 0, username: username, created: now };
       var chunkName = _activeChunkName();
       var existing  = _memIndex.chunks.find(function(c){ return c.name === chunkName; });
@@ -19368,27 +19522,21 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       _memIndex.lastManualSave = now;
       return _saveIndex(token, username, repoName);
     }).then(function() {
-      // ── DONE state: back to sky-blue static glow ──────────────────
       var b = document.getElementById('gh-save-mem-btn');
       if (b) {
         b.classList.remove('ash-saving');
         b.classList.add('ash-done');
-        b.textContent = '✓ MEMORY SAVED';
-        // After 2.5s revert to idle label (but keep sky-blue class)
+        b.textContent = '\u2713 MEMORY SAVED';
         setTimeout(function() {
           var bb = document.getElementById('gh-save-mem-btn');
-          if (bb) bb.textContent = '⬡ SAVE MEMORY NOW';
+          if (bb) bb.textContent = '\u26a1 SAVE MEMORY NOW';
         }, 2500);
       }
       _toast('\u2713 Memory saved to archive');
-    }).catch(function(err) {
-      // Error state — restore button
+    }).catch(function() {
       var b = document.getElementById('gh-save-mem-btn');
-      if (b) {
-        b.classList.remove('ash-saving');
-        b.textContent = '⬡ SAVE MEMORY NOW';
-      }
-      _toast('\u26a0 Save failed — try again');
+      if (b) { b.classList.remove('ash-saving'); b.textContent = '\u26a1 SAVE MEMORY NOW'; }
+      _toast('\u26a0 Save failed \u2014 try again');
     });
   };
 
