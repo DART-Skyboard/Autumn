@@ -1888,7 +1888,7 @@ select.ash-ctrl-input{cursor:pointer}
       <span class="ws-icon">⬡</span><span class="ws-label">WORLD STUDIO</span>
     </a>
     <!-- GitHub user / login -->
-    <button id="hdr-gh-login" onclick="window._ghReLogin ? window._ghReLogin() : window._ghShowLogin()" title="Login with GitHub" style="display:none">⬡ LOGIN</button>
+    <button id="hdr-gh-login" onclick="window._ghShowLogin()" title="Login with GitHub" style="display:none">⬡ LOGIN</button>
     <a class="gh-user-btn" id="hdr-gh-user" href="#" onclick="window._ghShowUserMenu(event)" style="display:none" title="GitHub account">
       <img src="" alt="" class="gh-user-avatar" id="hdr-gh-avatar">
       <span id="hdr-gh-name">USER</span>
@@ -8518,9 +8518,6 @@ async function handleSend() {
     document.getElementById('early-typing')?.remove();
     if(typeof setOrbThinking==='function') setOrbThinking(false);
     renderMessages(); updateFooter();
-    if(window._ghAuth&&window._ghAuth.loggedIn&&typeof _autosave==='function'){
-      setTimeout(_autosave,2000);
-    }
   };
 
   try {
@@ -18906,13 +18903,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 (function() {
   'use strict';
 
-  var AUTUMN_GAS_URL = 'https://script.google.com/macros/s/AKfycbxc2GswH2qP9mqdcgkXLvQumiaz6n97eFD8YVhsBnZOTiQLDol-umUaDnC_zdFNfah8sQ/exec';
+  var AUTUMN_GAS_URL = 'https://script.google.com/macros/s/AKfycbw5ePA7BMk6Xy4Gfh14vJtHvh9aMRsz-IZULKVEw8lcyPJ1c6xGRnk95OQzmjzAQJCpyw/exec';
   var GH_CLIENT_ID   = 'Ov23li2K0njEqO1WTSdD';
   var GH_SCOPES      = 'repo,read:user';
   var REPO_PREFIX    = 'Autumn-Ash-';
   var MEMORY_PATH    = 'ash-memory/';
   var MAX_FILE_BYTES = 4718592; // 4.5 MB rolling limit
-  var SYNC_INTERVAL  = 2 * 60 * 1000; // 5 min autosave
+  var SYNC_INTERVAL  = 5 * 60 * 1000; // 5 min autosave
 
   // ── State ──────────────────────────────────────────────────────────────────
   window._ghAuth = {
@@ -19051,14 +19048,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var modal = document.getElementById('gh-login-modal');
     if (modal) modal.classList.remove('show');
 
-    // Auto-accept consent on login + mark as registered user
+    // Auto-accept consent on login
     try {
       localStorage.setItem('_aut_data_consent', 'true');
       localStorage.setItem('autumn_consent', 'true');
-      localStorage.setItem('_gh_registered', data.username || '1');
-      localStorage.setItem('_gh_user_info', JSON.stringify({
-        username: data.username, avatar_url: data.avatar_url, name: data.name
-      }));
       var cm = document.getElementById('consent-modal');
       if (cm) cm.style.display = 'none';
     } catch(e) {}
@@ -19185,15 +19178,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     try {
       var S = window.S;
       if (!S) return;
-      if (Array.isArray(data.sessions) && data.sessions.length) {
-        S.sessions = S.sessions || [];
-        var _sids = new Set(S.sessions.map(function(s){return s.id;}));
-        data.sessions.forEach(function(sess){if(!_sids.has(sess.id))S.sessions.push(sess);});
-        if (S.sessions.length>1 && S.sessions[0]&&S.sessions[0].messages&&
-            S.sessions[0].messages.length<=1) {
-          S.sessions.shift(); S.currentSession=Math.max(0,S.sessions.length-1);
-        }
-      }
       if (data.memory && typeof data.memory === 'object') {
         S.memory = S.memory || {};
         Object.assign(S.memory, data.memory);
@@ -19228,23 +19212,16 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     // Build snapshot with all memory types
     var now = new Date().toISOString();
-    var _snapSessions = (S.sessions||[]).map(function(sess){
-      return {id:sess.id,messages:(sess.messages||[]).map(function(msg){
-        var m=Object.assign({},msg);delete m._savedAttachments;delete m.uploadedImageThumbs;return m;
-      })};
-    });
     var snapshot = {
       version:        '2.0',
       username:       username,
       saved:          now,
       chunk:          _activeChunkName(),
-      sessions:       _snapSessions,
-      currentSession: S.currentSession || 0,
       memory:         S.memory         || {},
       journal:        (S.journal        || []).slice(-500),
       contextHistory: (S.contextHistory || []).slice(-100),
       sessionHistory: (S.sessionHistory || []).slice(-200),
-      attachments:    (S.attachments    || []).slice(-100),
+      attachments:    (S.attachments    || []).slice(-100),  // refs only, not raw data
       sentience:      S.sentience       || {},
       nlp:            S.lastAnalysis    || {}
     };
@@ -19457,25 +19434,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _showGuestMode();
   };
   window._ghLogout = function() {
-    // Save first
-    if(typeof _autosave==='function'){_lastSaveHash='';_autosave();}
-    // Keep token — just sign out of the UI
-    window._ghAuth.loggedIn = false;
+    localStorage.removeItem('_gh_session');
+    localStorage.removeItem('_gh_login_skipped');
+    window._ghAuth = { token:null, username:null, avatar_url:null, loggedIn:false };
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     if (loginBtn) loginBtn.style.display = '';
     if (userBtn)  userBtn.style.display  = 'none';
+    _showLoginModal();
     _toast('Logged out');
-  };
-
-  // ── Login button handler: registered users re-login instantly ─────────────
-  window._ghReLogin = function() {
-    var stored = _loadStoredSession();
-    if (stored && stored.access_token) {
-      _applySession(stored); // instant — no device flow
-    } else {
-      _showLoginModal(); // first time or cleared storage
-    }
   };
   window._ghShowUserMenu = function(e) {
     e.preventDefault();
