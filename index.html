@@ -534,7 +534,8 @@ THREE.OrbitControls=function(camera,domElement){
         prevPinchDist=0; // will be set on first move
         panStart.set(e.clientX,e.clientY);
       
-        _as._prevMid=null; // reset pan midpoint}
+        _as._prevMid=null; // reset pan midpoint
+      }
     } else {
       if(e.shiftKey||e.button===2){state=STATE.PAN; panStart.set(e.clientX,e.clientY);}
       else {state=STATE.ROTATE; rotateStart.set(e.clientX,e.clientY);}
