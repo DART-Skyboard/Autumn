@@ -9195,17 +9195,46 @@ When weather data is available, use it naturally. When location POI data is avai
 IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
 ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_arcCtx ? '\n\n' + _arcCtx : ''}
 ${typeof ARC_STUDIO_SYSTEM_HINT !== 'undefined' ? '\n\n' + ARC_STUDIO_SYSTEM_HINT : ''}
-${typeof IMG_RECALL_SYSTEM_HINT !== 'undefined' ? '\n\n' + IMG_RECALL_SYSTEM_HINT : ''}` ;
+${typeof IMG_RECALL_SYSTEM_HINT !== 'undefined' ? '\n\n' + IMG_RECALL_SYSTEM_HINT : ''}
+${(function(){
+  // Dynamic image manifest — tells Claude exactly what images exist in this conversation
+  var _allM = (typeof msgs==='function') ? msgs() : [];
+  var _imgMsgs = _allM.filter(function(mm){
+    return mm.role==='user' && ((mm._savedAttachments&&mm._savedAttachments.length)||(mm.uploadedImageThumbs&&mm.uploadedImageThumbs.length));
+  });
+  if (!_imgMsgs.length) return '';
+  var manifest = '\n\nATTACHED IMAGE MANIFEST — Images in this conversation (most recent last):\n';
+  _imgMsgs.forEach(function(mm, i) {
+    var count = (mm._savedAttachments||mm.uploadedImageThumbs||[]).length;
+    var preview = (mm.text||'').slice(0,60) || '[image only]';
+    manifest += '  [IMG_RECALL:'+(i+1)+'] — message: "'+preview+'"'+(count>1?' ('+count+' images, use :0 :1 etc)':'')+' \n';
+  });
+  manifest += 'Most recent attachment = IMG_RECALL:'+_imgMsgs.length+'. Use [IMG_RECALL:N] to show image N in your reply.';
+  return manifest;
+})()}` ;
 
     // Build clean history — skip messages with empty/null text, enforce user/assistant alternation
     const rawMsgs = msgs().slice(-20);
     const history = [];
     for (const m of rawMsgs) {
       const txt = (m.text||'').trim();
-      if (!txt || txt.length < 1) continue; // skip empty (maze/weather/webview widgets)
+      if (!txt || txt.length < 1) continue;
       const role = m.role === 'autumn' ? 'assistant' : 'user';
-      // Avoid consecutive same roles (API requires strict alternation)
       if (history.length > 0 && history[history.length-1].role === role) continue;
+      // Include images from user messages (last 3 image-bearing messages to stay within token limits)
+      if (role === 'user' && m._savedAttachments && m._savedAttachments.length) {
+        const imgBlocks = [];
+        m._savedAttachments.slice(0,3).forEach(function(att) {
+          if (att.base64 && att.mimeType && !att.is3D && !att.isVideo) {
+            imgBlocks.push({type:'image',source:{type:'base64',media_type:att.mimeType,data:att.base64}});
+          }
+        });
+        if (imgBlocks.length) {
+          imgBlocks.push({type:'text',text:txt||'[image attached]'});
+          history.push({ role, content: imgBlocks });
+          continue;
+        }
+      }
       history.push({ role, content: txt });
     }
     // Must start with user message
@@ -17688,12 +17717,14 @@ window.emmToggle = function() {
 
   // IMG_RECALL system — lets Autumn post full-size image previews in her chat bubble
   window.IMG_RECALL_SYSTEM_HINT =
-    'IMAGE RECALL — You can display a full-size image preview directly in your chat response by emitting [IMG_RECALL:N] anywhere in your reply, where N is the 1-based index of the user\'s image-attached message (1 = first message where they uploaded an image, 2 = second, etc.). The image will render large inside your bubble — the tag itself is invisible to the user.\n'
-    +'Examples:\n'
-    +'  [IMG_RECALL:1]  — shows the image from the user\'s first attachment\n'
-    +'  [IMG_RECALL:2:1]  — shows the second image from the second attachment message\n'
-    +'When a user says "show me that image again", "post it bigger", "can you recall that photo", "show me a larger version", or anything asking you to re-display an attached image — emit [IMG_RECALL:N] in your response.\n'
-    +'You can combine it with text naturally: "Here\'s the image you shared — [IMG_RECALL:1] I can see the two people clearly..."';
+    'IMAGE RECALL — Emit [IMG_RECALL:N] to display a full-size image preview in your response.\n'
+    +'N = the 1-based index of user attachment messages (1 = first ever, 2 = second, etc.).\n'
+    +'The ATTACHED IMAGE MANIFEST in this system prompt shows exactly which N maps to which message.\n'
+    +'[IMG_RECALL:N:A] shows the A-th image (0-based) in attachment message N.\n'
+    +'Examples: [IMG_RECALL:1] = first attachment, [IMG_RECALL:2] = second attachment, [IMG_RECALL:2:1] = 2nd image in 2nd attachment.\n'
+    +'When asked to "post back", "show again", "recall", or "re-display" any image — use the manifest to find the correct N and emit the tag.\n'
+    +'For "last two images": emit [IMG_RECALL:N] and [IMG_RECALL:N-1] where N = total count from the manifest.\n'
+    +'You can see the images directly in the conversation history — use what you see to match the user\'s request.';
 
   // Parse and execute ARC_CMD tags from Autumn's response text
   window._arcExecCommands = function(text) {
