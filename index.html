@@ -18865,13 +18865,21 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var modal = document.getElementById('gh-login-modal');
     if (modal) modal.classList.remove('show');
 
+    // Auto-accept consent on login
+    try {
+      localStorage.setItem('_aut_data_consent', 'true');
+      localStorage.setItem('autumn_consent', 'true');
+      var cm = document.getElementById('consent-modal');
+      if (cm) cm.style.display = 'none';
+    } catch(e) {}
+
     // Ensure user repo exists, then load memory
     _ensureUserRepo().then(function() {
       return _loadMemory();
     }).then(function() {
-      // Start autosave
       setInterval(_autosave, SYNC_INTERVAL);
       window.addEventListener('beforeunload', _autosave);
+      _toast('\u2713 Memory archive synced');
     });
 
     // Update LEATR ash presence with real username
@@ -18880,7 +18888,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       setInterval(_updatePresence, 4 * 60 * 1000);
     }
 
-    _toast('Logged in as ' + data.username);
+    _toast('\u2713 Signed in as ' + (data.username || '').toUpperCase());
   }
 
   // ── Guest mode (no login) ──────────────────────────────────────────────────
