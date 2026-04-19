@@ -533,7 +533,8 @@ THREE.OrbitControls=function(camera,domElement){
         touch1.set(e.clientX, e.clientY);
         prevPinchDist=0; // will be set on first move
         panStart.set(e.clientX,e.clientY);
-      }
+      
+        _as._prevMid=null; // reset pan midpoint}
     } else {
       if(e.shiftKey||e.button===2){state=STATE.PAN; panStart.set(e.clientX,e.clientY);}
       else {state=STATE.ROTATE; rotateStart.set(e.clientX,e.clientY);}
@@ -561,15 +562,23 @@ THREE.OrbitControls=function(camera,domElement){
       panStart.copy(panEnd);
       _this.update();
     } else if(state===STATE.TOUCH_DOLLY_PAN && _touchPointers.length>=2){
-      // Pinch zoom from two active pointers
+      // Two-finger: pinch = zoom, midpoint movement = pan
       var ids=_touchPointers, c0=_touchCache[ids[0]], c1=_touchCache[ids[1]];
       if(c0&&c1){
+        // Pinch zoom
         var dist=Math.sqrt(Math.pow(c0.x-c1.x,2)+Math.pow(c0.y-c1.y,2));
         if(prevPinchDist>0){
           var ratio=prevPinchDist/dist;
           scale*=ratio;
         }
         prevPinchDist=dist;
+        // Pan via midpoint delta
+        var mx=(c0.x+c1.x)*0.5, my=(c0.y+c1.y)*0.5;
+        if(_as._prevMid){
+          var dx=mx-_as._prevMid.x, dy=my-_as._prevMid.y;
+          pan(dx*_this.panSpeed, dy*_this.panSpeed);
+        }
+        _as._prevMid={x:mx,y:my};
         _this.update();
       }
     }
@@ -580,7 +589,7 @@ THREE.OrbitControls=function(camera,domElement){
     var idx=_touchPointers.indexOf(e.pointerId);
     if(idx>=0) _touchPointers.splice(idx,1);
     delete _touchCache[e.pointerId];
-    if(_touchPointers.length===0) state=STATE.NONE;
+    if(_touchPointers.length===0){state=STATE.NONE; if(typeof _as!=='undefined')_as._prevMid=null;}
     else if(_touchPointers.length===1){ state=STATE.TOUCH_ROTATE; rotateStart.set(_touchCache[_touchPointers[0]].x,_touchCache[_touchPointers[0]].y); }
   }
 
@@ -9962,7 +9971,7 @@ function renderMessages() {
     const imageGenCardHtml = m.imageGenCard||'';
     const uploadThumbsHtml = (m.uploadedImageThumbs&&m.uploadedImageThumbs.length) ? m.uploadedImageThumbs.map(function(t,ti){
       if(!t||typeof t!=='string'||!t.startsWith('data:')) return '';
-      var msgId = _mid;
+      var msgId = (m&&m.id) ? m.id : ('mi-'+ti+'-th');
       return '<div style="margin:8px 0 4px 0;width:100%">'
         +'<img src="'+t+'" alt="attached" title="Tap to expand"'
         +' style="display:block;width:100%;max-height:400px;border-radius:10px;object-fit:contain;cursor:zoom-in;background:rgba(3,8,16,.7);border:1px solid rgba(0,229,255,.22)"'
@@ -15883,7 +15892,8 @@ function toggleInputTray(){
   if (!_ci || !_sb) return;
   function _updateSend() {
     var hasTxt = _ci.value.trim().length > 0;
-    var hasImg = window.S && window.S.pendingImages && window.S.pendingImages.length > 0;
+    var hasImg = (window.S && window.S.pendingImages && window.S.pendingImages.length > 0)
+              || document.getElementById('img-preview-strip')?.classList.contains('show');
     _sb.style.display = (hasTxt || hasImg) ? 'flex' : '';
   }
   _ci.addEventListener('input', _updateSend);
@@ -17006,8 +17016,10 @@ window.emmToggle = function() {
       // Don't pick if OrbitControls just dragged
       if (_as._didDrag) { _as._didDrag = false; return; }
       var rect = domEl.getBoundingClientRect();
-      var cx = (e.touches ? e.touches[0].clientX : e.clientX);
-      var cy = (e.touches ? e.touches[0].clientY : e.clientY);
+      var _t = (e.changedTouches && e.changedTouches.length) ? e.changedTouches[0]
+             : (e.touches && e.touches.length) ? e.touches[0] : null;
+      var cx = _t ? _t.clientX : e.clientX;
+      var cy = _t ? _t.clientY : e.clientY;
       _as.pointer.x =  ((cx - rect.left) / rect.width)  * 2 - 1;
       _as.pointer.y = -((cy - rect.top)  / rect.height) * 2 + 1;
       _as.raycaster.setFromCamera(_as.pointer, _as.camera);
