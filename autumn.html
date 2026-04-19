@@ -18765,7 +18765,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   function _showDeviceFlow() {
     var modal = document.getElementById('gh-login-modal');
-    var inner = modal ? modal.querySelector('.gh-login-inner') : null;
+    var inner = modal ? (modal.querySelector('.gh-login-inner') || modal.querySelector('.gh-login-box')) : null;
     if (!inner) { _showAuthLoading(); }
 
     // Show requesting state
@@ -18827,7 +18827,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var target = modal ? modal.querySelector('.gh-device-area') : null;
     if (!target) {
       // Create device area inside modal
-      var inner = modal ? modal.querySelector('.gh-login-inner') : null;
+      var inner = modal ? (modal.querySelector('.gh-login-inner') || modal.querySelector('.gh-login-box')) : null;
       if (inner) {
         var btn = inner.querySelector('.gh-login-btn');
         if (btn) {
