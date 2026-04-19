@@ -1888,7 +1888,7 @@ select.ash-ctrl-input{cursor:pointer}
       <span class="ws-icon">⬡</span><span class="ws-label">WORLD STUDIO</span>
     </a>
     <!-- GitHub user / login -->
-    <button id="hdr-gh-login" onclick="window._ghShowLogin()" title="Login with GitHub" style="display:none">⬡ LOGIN</button>
+    <button id="hdr-gh-login" onclick="window._ghReLogin ? window._ghReLogin() : window._ghShowLogin()" title="Login with GitHub" style="display:none">⬡ LOGIN</button>
     <a class="gh-user-btn" id="hdr-gh-user" href="#" onclick="window._ghShowUserMenu(event)" style="display:none" title="GitHub account">
       <img src="" alt="" class="gh-user-avatar" id="hdr-gh-avatar">
       <span id="hdr-gh-name">USER</span>
@@ -2565,19 +2565,8 @@ function declineStorage() {
   try { localStorage.setItem("autumn_consent","no"); localStorage.setItem("_aut_data_consent","true"); } catch(e) {}
   document.getElementById("consent-modal").style.display = "none";
 }
-// ── Activity-triggered GitHub autosave (debounced 30s) ──────────────────
-var _ghSaveTimer = null;
-function _triggerGhSave() {
-  if (!window._ghAuth || !window._ghAuth.loggedIn) return;
-  clearTimeout(_ghSaveTimer);
-  _ghSaveTimer = setTimeout(function() {
-    if (typeof _autosave === 'function') _autosave();
-  }, 30000); // 30 seconds after last activity
-}
-
 function saveState() {
   if (!useStorage) return;
-  _triggerGhSave(); // queue a GitHub save on every state change
   try {
     const data = { sessions: S.sessions, currentSession: S.currentSession, journal: S.journal, memory: S.memory };
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
@@ -8529,10 +8518,8 @@ async function handleSend() {
     document.getElementById('early-typing')?.remove();
     if(typeof setOrbThinking==='function') setOrbThinking(false);
     renderMessages(); updateFooter();
-    // Immediate GitHub save after every Autumn response
-    if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
-      clearTimeout(window._ghSaveTimer);
-      setTimeout(_autosave, 2000); // 2s after response completes
+    if(window._ghAuth&&window._ghAuth.loggedIn&&typeof _autosave==='function'){
+      setTimeout(_autosave,2000);
     }
   };
 
@@ -18925,7 +18912,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var REPO_PREFIX    = 'Autumn-Ash-';
   var MEMORY_PATH    = 'ash-memory/';
   var MAX_FILE_BYTES = 4718592; // 4.5 MB rolling limit
-  var SYNC_INTERVAL  = 2 * 60 * 1000; // 2 min autosave
+  var SYNC_INTERVAL  = 2 * 60 * 1000; // 5 min autosave
 
   // ── State ──────────────────────────────────────────────────────────────────
   window._ghAuth = {
@@ -18939,41 +18926,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   // ── Init ───────────────────────────────────────────────────────────────────
   function init() {
+    // Check stored session
     var stored = _loadStoredSession();
-    if (stored && stored.access_token) {
-      // Registered user with stored token — verify it's still valid, then auto-login
-      _verifyAndLogin(stored);
-      return;
-    }
-    var skipped = localStorage.getItem('_gh_login_skipped');
-    if (!skipped) _showLoginModal();
-    else _showGuestMode();
-  }
-
-  // Verify stored token is still valid. If good → silent login.
-  // If expired/revoked → show device flow to re-auth.
-  function _verifyAndLogin(stored) {
-    fetch('https://api.github.com/user', {
-      headers: { 'Authorization': 'token ' + stored.access_token }
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(user) {
-      if (user && user.login) {
-        // Token still valid — update stored data and login silently
-        stored.username   = user.login;
-        stored.avatar_url = user.avatar_url || stored.avatar_url;
-        _saveSession(stored);
-        _applySession(stored);
-      } else {
-        // Token invalid — clear it and show login modal for re-auth
-        localStorage.removeItem('_gh_session');
-        _showLoginModal();
-      }
-    })
-    .catch(function() {
-      // Network error — try logging in with cached data anyway
+    if (stored) {
       _applySession(stored);
-    });
+    } else {
+      var skipped = localStorage.getItem('_gh_login_skipped');
+      if (!skipped) _showLoginModal();
+      else _showGuestMode();
+    }
   }
 
   // ── Device Flow — request device code via GAS ─────────────────────────────
@@ -19033,9 +18994,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           if (d.access_token) {
             clearInterval(_devicePollTimer);
             _saveSession(d);
-            // Close modal immediately before async applySession
-            var _pm = document.getElementById('gh-login-modal');
-            if (_pm) _pm.classList.remove('show');
             _applySession(d);
           } else if (d.error === 'access_denied') {
             clearInterval(_devicePollTimer);
@@ -19093,10 +19051,14 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var modal = document.getElementById('gh-login-modal');
     if (modal) modal.classList.remove('show');
 
-    // Auto-accept consent on login
+    // Auto-accept consent on login + mark as registered user
     try {
       localStorage.setItem('_aut_data_consent', 'true');
       localStorage.setItem('autumn_consent', 'true');
+      localStorage.setItem('_gh_registered', data.username || '1');
+      localStorage.setItem('_gh_user_info', JSON.stringify({
+        username: data.username, avatar_url: data.avatar_url, name: data.name
+      }));
       var cm = document.getElementById('consent-modal');
       if (cm) cm.style.display = 'none';
     } catch(e) {}
@@ -19117,8 +19079,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
 
     _toast('\u2713 Signed in as ' + (data.username || '').toUpperCase());
-    // Mark as registered user (persists through logouts)
-    try { localStorage.setItem('_gh_registered', data.username || '1'); } catch(e){}
   }
 
   // ── Guest mode (no login) ──────────────────────────────────────────────────
@@ -19225,19 +19185,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     try {
       var S = window.S;
       if (!S) return;
-      // Restore sessions (conversations) — merge by session id
       if (Array.isArray(data.sessions) && data.sessions.length) {
         S.sessions = S.sessions || [];
-        var existingIds = new Set(S.sessions.map(function(s){ return s.id; }));
-        data.sessions.forEach(function(sess) {
-          if (!existingIds.has(sess.id)) S.sessions.push(sess);
-        });
-        // If there are saved sessions and we only have the default empty one, replace
-        if (S.sessions.length > 1 && S.sessions[0] && S.sessions[0].messages &&
-            S.sessions[0].messages.length <= 1 && S.sessions[0].messages[0] &&
-            S.sessions[0].messages[0].role === 'autumn') {
-          S.sessions.shift(); // remove the default "Hi. What's new?" session
-          S.currentSession = Math.max(0, S.sessions.length - 1);
+        var _sids = new Set(S.sessions.map(function(s){return s.id;}));
+        data.sessions.forEach(function(sess){if(!_sids.has(sess.id))S.sessions.push(sess);});
+        if (S.sessions.length>1 && S.sessions[0]&&S.sessions[0].messages&&
+            S.sessions[0].messages.length<=1) {
+          S.sessions.shift(); S.currentSession=Math.max(0,S.sessions.length-1);
         }
       }
       if (data.memory && typeof data.memory === 'object') {
@@ -19274,25 +19228,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     // Build snapshot with all memory types
     var now = new Date().toISOString();
-    // Compact sessions — strip large base64 attachments from messages to save space
-    var _sessions = (S.sessions||[]).map(function(sess) {
-      return {
-        id: sess.id,
-        messages: (sess.messages||[]).map(function(msg) {
-          if (!msg._savedAttachments && !msg.uploadedImageThumbs) return msg;
-          var m = Object.assign({}, msg);
-          delete m._savedAttachments; // omit raw base64 image data
-          delete m.uploadedImageThumbs;
-          return m;
-        })
-      };
+    var _snapSessions = (S.sessions||[]).map(function(sess){
+      return {id:sess.id,messages:(sess.messages||[]).map(function(msg){
+        var m=Object.assign({},msg);delete m._savedAttachments;delete m.uploadedImageThumbs;return m;
+      })};
     });
     var snapshot = {
       version:        '2.0',
       username:       username,
       saved:          now,
       chunk:          _activeChunkName(),
-      sessions:       _sessions,
+      sessions:       _snapSessions,
       currentSession: S.currentSession || 0,
       memory:         S.memory         || {},
       journal:        (S.journal        || []).slice(-500),
@@ -19504,32 +19450,32 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
-  // Login button click — if we have a stored token, re-login instantly
-  window._ghShowLogin = function() {
-    var stored = _loadStoredSession();
-    if (stored && stored.access_token) {
-      _verifyAndLogin(stored);
-    } else {
-      _showLoginModal();
-    }
-  };
+  window._ghShowLogin   = _showLoginModal;
   window._ghStartOAuth  = _startOAuth;
   window._ghSkipLogin   = function() {
     localStorage.setItem('_gh_login_skipped', '1');
     _showGuestMode();
   };
   window._ghLogout = function() {
-    // Save memory first
-    if (typeof _autosave === 'function') { _lastSaveHash=''; _autosave(); }
-    // Clear active auth state but KEEP token in localStorage
-    // so the login button does an instant re-login, not full device flow
+    // Save first
+    if(typeof _autosave==='function'){_lastSaveHash='';_autosave();}
+    // Keep token — just sign out of the UI
     window._ghAuth.loggedIn = false;
-    // Update header to show login button
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
-    if (loginBtn) { loginBtn.style.display=''; loginBtn.textContent='⬡ '+((window._ghAuth.username||'').toUpperCase()||'LOGIN'); }
-    if (userBtn)  userBtn.style.display = 'none';
+    if (loginBtn) loginBtn.style.display = '';
+    if (userBtn)  userBtn.style.display  = 'none';
     _toast('Logged out');
+  };
+
+  // ── Login button handler: registered users re-login instantly ─────────────
+  window._ghReLogin = function() {
+    var stored = _loadStoredSession();
+    if (stored && stored.access_token) {
+      _applySession(stored); // instant — no device flow
+    } else {
+      _showLoginModal(); // first time or cleared storage
+    }
   };
   window._ghShowUserMenu = function(e) {
     e.preventDefault();
@@ -19572,19 +19518,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     var S = window.S;
     var now = new Date().toISOString();
-    var _mSessions = (S&&S.sessions||[]).map(function(sess) {
-      return { id: sess.id, messages: (sess.messages||[]).map(function(msg) {
-        var m=Object.assign({},msg); delete m._savedAttachments; delete m.uploadedImageThumbs; return m;
-      })};
-    });
     var snapshot = {
       version:        '2.0',
       username:       username,
       saved:          now,
       manual_save:    true,
       chunk:          _activeChunkName(),
-      sessions:       _mSessions,
-      currentSession: (S && S.currentSession) || 0,
       memory:         (S && S.memory)         || {},
       journal:        ((S && S.journal)        || []).slice(-500),
       contextHistory: ((S && S.contextHistory) || []).slice(-100),
