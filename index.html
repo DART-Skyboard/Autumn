@@ -18939,49 +18939,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   // ── Init ───────────────────────────────────────────────────────────────────
   function init() {
-    // Check for active stored session → silent auto-login
+    // Stored session → silent auto-login, no modal needed
     var stored = _loadStoredSession();
     if (stored && stored.access_token) {
       _applySession(stored);
       return;
     }
-    // Check for known user (logged out but previously registered)
-    var knownUser = _loadKnownUser();
-    if (knownUser) {
-      _showReturningUserModal(knownUser);
-      return;
-    }
-    // First-time visitor
     var skipped = localStorage.getItem('_gh_login_skipped');
     if (!skipped) _showLoginModal();
     else _showGuestMode();
-  }
-
-  function _loadKnownUser() {
-    try { var u=localStorage.getItem('_gh_known_user'); return u?JSON.parse(u):null; } catch(e){ return null; }
-  }
-  function _saveKnownUser(data) {
-    try { localStorage.setItem('_gh_known_user', JSON.stringify({
-      username: data.username, avatar_url: data.avatar_url, name: data.name
-    })); } catch(e) {}
-  }
-
-  function _showReturningUserModal(user) {
-    // Show a minimal "Welcome back" modal — one tap to re-authenticate
-    var modal = document.getElementById('gh-login-modal');
-    if (!modal) return;
-    var box = document.getElementById('gh-login-box');
-    if (box) {
-      box.innerHTML = '<img src="' + (user.avatar_url||'') + '" class="gh-login-logo" style="width:56px;height:56px;border-radius:50%;margin:0 auto 12px;display:block">'
-        + '<div class="gh-login-title">WELCOME BACK</div>'
-        + '<div style="font-family:var(--font-d);font-size:.65rem;color:var(--cyan);letter-spacing:2px;margin-bottom:18px;">' + (user.username||'').toUpperCase() + '</div>'
-        + '<button class="gh-login-btn" onclick="window._ghStartOAuth()" style="justify-content:center">'
-        + '<svg viewBox="0 0 16 16" style="width:18px;height:18px;fill:currentColor;flex-shrink:0"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>'
-        + '&nbsp;CONTINUE WITH GITHUB</button>'
-        + '<div class="gh-login-skip" onclick="window._ghSkipLogin()">Continue without login →</div>'
-        + '<div class="gh-device-area"></div>';
-    }
-    modal.classList.add('show');
   }
 
   // ── Device Flow — request device code via GAS ─────────────────────────────
@@ -19125,8 +19091,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
 
     _toast('\u2713 Signed in as ' + (data.username || '').toUpperCase());
-    // Save known user record (persists through logout for welcome-back flow)
-    _saveKnownUser(data);
   }
 
   // ── Guest mode (no login) ──────────────────────────────────────────────────
@@ -19519,25 +19483,18 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _showGuestMode();
   };
   window._ghLogout = function() {
-    // Save the autosave before logging out
+    // Save memory before logging out
     if (typeof _autosave === 'function') { _lastSaveHash=''; _autosave(); }
-    // Remove session token but keep known_user for welcome-back flow
-    localStorage.removeItem('_gh_session');
-    localStorage.removeItem('_gh_login_skipped');
-    var prevUser = window._ghAuth.username;
-    var prevAvatar = window._ghAuth.avatar_url;
-    window._ghAuth = { token:null, username:null, avatar_url:null, loggedIn:false };
+    // Keep the session token in localStorage — init() will auto-login next visit
+    // Just clear the active UI state
+    window._ghAuth.loggedIn = false;
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     if (loginBtn) loginBtn.style.display = '';
     if (userBtn)  userBtn.style.display  = 'none';
-    // Show welcome-back modal (not full first-time flow)
-    if (prevUser) {
-      _showReturningUserModal({ username: prevUser, avatar_url: prevAvatar });
-    } else {
-      _showLoginModal();
-    }
-    _toast('Logged out — see you next time');
+    _toast('Logged out — tap login to reconnect');
+    // Re-run init after a short delay — stored session will auto-log back in
+    setTimeout(init, 800);
   };
   window._ghShowUserMenu = function(e) {
     e.preventDefault();
