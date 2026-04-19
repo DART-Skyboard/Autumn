@@ -16368,15 +16368,19 @@ _syncActionBtn();
       if (body) body.classList.remove('collapsed');
       if (btn) btn.textContent = '—';
     }
-    // Give flex layout one frame to settle before measuring
+    // Double-RAF so flex layout fully settles before measuring
     requestAnimationFrame(function() {
-      if (!_as.initialized) {
-        _asInit();
-      } else {
-        _asResize();
-        _asAnimate(); // always call — loop self-terminates when hidden
-        _asUpdateReadout();
-      }
+      requestAnimationFrame(function() {
+        if (!_as.initialized) {
+          _asInit();
+        } else {
+          _asResize();
+          // Extra resize after 120ms for first open on Android (layout can lag)
+          setTimeout(_asResize, 120);
+          _asAnimate();
+          _asUpdateReadout();
+        }
+      });
     });
   };
   window.arcStudioClose = function() {
