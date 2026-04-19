@@ -9946,11 +9946,14 @@ function renderMessages() {
     const uploadThumbsHtml = (m.uploadedImageThumbs&&m.uploadedImageThumbs.length) ? m.uploadedImageThumbs.map(function(t,ti){
       if(!t||typeof t!=='string'||!t.startsWith('data:')) return '';
       var msgId = _mid;
-      return '<img src="'+t+'" alt="attached" title="Tap to expand" style="display:inline-block;max-width:88px;max-height:88px;border-radius:7px;margin:0 5px 6px 0;object-fit:cover;cursor:zoom-in;border:1px solid rgba(0,229,255,.18);transition:transform .15s" '
-        +'onclick="_imgRecallExpand(this,\''+msgId+'\','+ti+')" '
-        +'oncontextmenu="event.preventDefault();openFraxStudio(this.src,\'upscale\',\'thumb\')" '
-        +'ondblclick="openFraxStudio(this.src,\'upscale\',\'thumb\')">';
-    }).join('') : '';
+      return '<div style="margin:8px 0 4px 0;width:100%">'
+        +'<img src="'+t+'" alt="attached" title="Tap to expand"'
+        +' style="display:block;width:100%;max-height:400px;border-radius:10px;object-fit:contain;cursor:zoom-in;background:rgba(3,8,16,.7);border:1px solid rgba(0,229,255,.22)"'
+        +' onclick="_imgRecallExpand(this,\''+msgId+'\','+ti+')"'
+        +' ondblclick="openFraxStudio(this.src,\'upscale\',\'thumb\')"'
+        +' oncontextmenu="event.preventDefault();openFraxStudio(this.src,\'upscale\',\'thumb\')"'
+        +'>';
+    }).join('') : '';;
 
     // IMG_RECALL card — Autumn posts a full-size image from a previous message
     var imgRecallHtml = '';
@@ -16942,10 +16945,13 @@ window.emmToggle = function() {
       _as.controls.enableZoom         = true;
       _as.controls.rotateSpeed        = 0.55;
       _as.controls.zoomSpeed          = 1.1;
-      _as.controls.panSpeed           = 0.8;
+      _as.controls.panSpeed           = 2.0;
       _as.controls.minDistance        = 1;
       _as.controls.maxDistance        = 80;
       _as.controls.screenSpacePanning = true;
+      if (THREE.TOUCH) {
+        _as.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+      }
     }
 
     // ── Raycaster for arc selection ────────────────────────────────
@@ -17026,7 +17032,7 @@ window.emmToggle = function() {
     // non-passive so OrbitControls can preventDefault on two-finger pan
     domEl.addEventListener('touchmove', function(e){
       _as._didDrag=true;
-      if(e.touches.length >= 2) e.preventDefault(); // allow two-finger pan without page scroll
+      if(e.cancelable) e.preventDefault();
     }, {passive:false});
     domEl.addEventListener('touchend', function(e){ _asPick(e); }, false);
 
