@@ -18772,7 +18772,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   // ── OAuth authorize redirect ───────────────────────────────────────────────
   function _startOAuth() {
-    console.log('[Autumn OAuth] Starting OAuth flow, client_id=', GH_CLIENT_ID);
     var state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     sessionStorage.setItem('_gh_oauth_state', state);
     var url = 'https://github.com/login/oauth/authorize'
@@ -18780,7 +18779,23 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       + '&scope=' + encodeURIComponent(GH_SCOPES)
       + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/')
       + '&state=' + state;
-    window.location.href = url;
+    console.log('[Autumn OAuth] Redirecting to:', url);
+    // Set href directly on the button as failsafe
+    var btn = document.getElementById('gh-oauth-btn');
+    if (btn) btn.href = url;
+    window.location.assign(url);
+  }
+
+  // Pre-wire the button href on load so it works even without JS onclick
+  function _preWireBtn() {
+    var btn = document.getElementById('gh-oauth-btn');
+    if (!btn) return;
+    var baseUrl = 'https://github.com/login/oauth/authorize'
+      + '?client_id=' + GH_CLIENT_ID
+      + '&scope=' + encodeURIComponent(GH_SCOPES)
+      + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/');
+    btn.href = baseUrl;
+    btn.target = '_self';
   }
 
   // ── Exchange code via GAS ──────────────────────────────────────────────────
@@ -19119,6 +19134,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   // Wire up OAuth button
   function _bindOAuthBtn() {
+    _preWireBtn(); // Set real href immediately
     var btn = document.getElementById('gh-oauth-btn');
     if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); _startOAuth(); });
     setTimeout(init, 800);
