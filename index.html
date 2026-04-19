@@ -1887,7 +1887,7 @@ select.ash-ctrl-input{cursor:pointer}
     <img src="assets/autumn.png" alt="Autumn" class="gh-login-logo">
     <div class="gh-login-title">WELCOME TO AUTUMN</div>
     <div class="gh-login-sub">Sign in with GitHub to sync your memory archive across sessions. Your data is stored in a private repository only you can access.</div>
-    <a class="gh-login-btn" id="gh-oauth-btn" href="#">
+    <a class="gh-login-btn" id="gh-oauth-btn" href="#" onclick="event.preventDefault();window._ghStartOAuth()">
       <svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       LOGIN WITH GITHUB
     </a>
@@ -18772,6 +18772,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   // ── OAuth authorize redirect ───────────────────────────────────────────────
   function _startOAuth() {
+    console.log('[Autumn OAuth] Starting OAuth flow, client_id=', GH_CLIENT_ID);
     var state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     sessionStorage.setItem('_gh_oauth_state', state);
     var url = 'https://github.com/login/oauth/authorize'
@@ -19117,12 +19118,16 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
 
   // Wire up OAuth button
-  document.addEventListener('DOMContentLoaded', function() {
+  function _bindOAuthBtn() {
     var btn = document.getElementById('gh-oauth-btn');
     if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); _startOAuth(); });
-    // Run init after app loads
     setTimeout(init, 800);
-  });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _bindOAuthBtn);
+  } else {
+    _bindOAuthBtn(); // DOM already ready
+  }
 
 })();
 </script>
