@@ -18712,9 +18712,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 </script>
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-//  AUTUMN GITHUB OAUTH SYSTEM
+//  AUTUMN GITHUB OAUTH SYSTEM — Device Flow
 //  Client ID: 0v23li2K0njEqO1WTSdD  (OAuth App — dartsolarpunk personal)
-//  After deploying the GAS, paste your /exec URL in AUTUMN_GAS_URL below.
+//  Device Flow bypasses browser redirect — works with 2FA/passkey accounts
 // ═══════════════════════════════════════════════════════════════════════════
 (function() {
   'use strict';
@@ -18739,87 +18739,107 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   // ── Init ───────────────────────────────────────────────────────────────────
   function init() {
-    // Check for OAuth callback (?code= in URL)
-    var params = new URLSearchParams(window.location.search);
-    var code   = params.get('code');
-    var state  = params.get('state');
-
-    if (code) {
-      // Verify CSRF state
-      var savedState = sessionStorage.getItem('_gh_oauth_state');
-      if (savedState && state && savedState !== state) {
-        console.warn('[GH OAuth] State mismatch — possible CSRF');
-        _showLoginModal();
-        return;
-      }
-      // Clean URL immediately
-      history.replaceState({}, document.title, window.location.pathname);
-      _exchangeCode(code);
-      return;
-    }
-
     // Check stored session
     var stored = _loadStoredSession();
     if (stored) {
       _applySession(stored);
     } else {
-      // Check if user previously chose to skip
       var skipped = localStorage.getItem('_gh_login_skipped');
       if (!skipped) _showLoginModal();
       else _showGuestMode();
     }
   }
 
-  // ── OAuth authorize redirect ───────────────────────────────────────────────
+  // ── Device Flow — request device code via GAS ─────────────────────────────
+  var _devicePollTimer = null;
+
   function _startOAuth() {
-    var state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-    sessionStorage.setItem('_gh_oauth_state', state);
-    var url = 'https://github.com/login/oauth/authorize'
-      + '?client_id=' + GH_CLIENT_ID
-      + '&scope=' + encodeURIComponent(GH_SCOPES)
-      + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/')
-      + '&state=' + state;
-    console.log('[Autumn OAuth] Redirecting to:', url);
-    // Set href directly on the button as failsafe
-    var btn = document.getElementById('gh-oauth-btn');
-    if (btn) btn.href = url;
-    window.location.assign(url);
+    _showDeviceFlow();
   }
 
-  // Pre-wire the button href on load so it works even without JS onclick
   function _preWireBtn() {
     var btn = document.getElementById('gh-oauth-btn');
-    if (!btn) return;
-    var baseUrl = 'https://github.com/login/oauth/authorize'
-      + '?client_id=' + GH_CLIENT_ID
-      + '&scope=' + encodeURIComponent(GH_SCOPES)
-      + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/');
-    btn.href = baseUrl;
-    btn.target = '_self';
+    if (btn) { btn.href = '#'; btn.target = '_self'; }
   }
 
-  // ── Exchange code via GAS ──────────────────────────────────────────────────
-  function _exchangeCode(code) {
-    _showAuthLoading();
-    var url = AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code)
-      + '&callback=_ghCallback';
-    window._ghCallback = function(data) {
-      delete window._ghCallback;
-      document.getElementById('_gh_jsonp')?.remove();
-      if (data.error || !data.access_token) {
-        console.error('[GH OAuth] Exchange failed:', data.error);
-        _hideAuthLoading();
-        _showLoginModal();
-        return;
+  function _showDeviceFlow() {
+    var modal = document.getElementById('gh-login-modal');
+    var inner = modal ? modal.querySelector('.gh-login-inner') : null;
+    if (!inner) { _showAuthLoading(); }
+
+    // Show requesting state
+    _setDeviceUI('<div style="color:var(--cyan);font-family:var(--font-d);letter-spacing:2px;font-size:.7rem;">REQUESTING CODE...</div>');
+
+    fetch(AUTUMN_GAS_URL + '?action=devicecode&callback=_ghDeviceCallback')
+      .then(function(r){ return r.text(); })
+      .then(function(t){
+        var json = t.replace(/^_ghDeviceCallback\(/, '').replace(/\);?$/, '');
+        var d = JSON.parse(json);
+        if (d.error) { _setDeviceUI('<div style="color:#f66">Error: ' + d.error + '</div>'); return; }
+        _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5);
+      })
+      .catch(function(e){ _setDeviceUI('<div style="color:#f66">Network error — try again</div>'); });
+  }
+
+  function _showDeviceCode(userCode, verifyUrl, deviceCode, interval) {
+    var html = '<div style="text-align:center;padding:8px 0">'
+      + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:12px;">STEP 1 — COPY THIS CODE</div>'
+      + '<div style="font-family:var(--font-d);font-size:1.6rem;letter-spacing:6px;color:#fff;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);border-radius:6px;padding:12px 20px;margin-bottom:16px;cursor:pointer;user-select:all;" id="gh-device-code-display">' + userCode + '</div>'
+      + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:10px;">STEP 2 — OPEN THIS URL AND ENTER CODE</div>'
+      + '<a href="' + verifyUrl + '" target="_blank" style="display:inline-block;font-family:var(--font-d);font-size:.65rem;letter-spacing:1px;color:#fff;background:rgba(0,255,204,.15);border:1px solid rgba(0,255,204,.4);border-radius:4px;padding:8px 16px;text-decoration:none;margin-bottom:16px;">' + verifyUrl + ' ↗</a>'
+      + '<div style="font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;color:rgba(0,255,204,.5);" id="gh-device-status">Waiting for approval...</div>'
+      + '</div>';
+    _setDeviceUI(html);
+
+    // Copy code on tap
+    setTimeout(function(){
+      var el = document.getElementById('gh-device-code-display');
+      if (el) el.addEventListener('click', function(){ navigator.clipboard && navigator.clipboard.writeText(userCode); _toast('Code copied!'); });
+    }, 100);
+
+    // Poll for token
+    _devicePollTimer = setInterval(function() {
+      fetch(AUTUMN_GAS_URL + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode) + '&callback=_ghPollCallback')
+        .then(function(r){ return r.text(); })
+        .then(function(t){
+          var json = t.replace(/^_ghPollCallback\(/, '').replace(/\);?$/, '');
+          var d = JSON.parse(json);
+          if (d.access_token) {
+            clearInterval(_devicePollTimer);
+            _saveSession(d);
+            _applySession(d);
+          } else if (d.error === 'access_denied') {
+            clearInterval(_devicePollTimer);
+            _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Access denied. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
+          } else if (d.error === 'expired_token') {
+            clearInterval(_devicePollTimer);
+            _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Code expired. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Get new code</span></div>');
+          }
+          // authorization_pending or slow_down — just keep polling
+        })
+        .catch(function(){});
+    }, interval * 1000);
+  }
+
+  function _setDeviceUI(html) {
+    var modal = document.getElementById('gh-login-modal');
+    var target = modal ? modal.querySelector('.gh-device-area') : null;
+    if (!target) {
+      // Create device area inside modal
+      var inner = modal ? modal.querySelector('.gh-login-inner') : null;
+      if (inner) {
+        var btn = inner.querySelector('.gh-login-btn');
+        if (btn) {
+          var area = document.createElement('div');
+          area.className = 'gh-device-area';
+          area.style.cssText = 'margin-top:12px;';
+          btn.parentNode.insertBefore(area, btn.nextSibling);
+          target = area;
+          btn.style.display = 'none';
+        }
       }
-      _saveSession(data);
-      _applySession(data);
-    };
-    var s = document.createElement('script');
-    s.id  = '_gh_jsonp';
-    s.src = url;
-    s.onerror = function() { _hideAuthLoading(); _showLoginModal(); };
-    document.body.appendChild(s);
+    }
+    if (target) target.innerHTML = html;
   }
 
   // ── Apply session ──────────────────────────────────────────────────────────
