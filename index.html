@@ -17615,11 +17615,8 @@ window.emmToggle = function() {
     var inp = document.getElementById('chat-input');
     if (inp) {
       inp.value = msg;
-      // Auto-submit so user doesn't need to press send manually
-      setTimeout(function(){
-        if (typeof handleSend === 'function') handleSend();
-        else if (typeof window.handleSend === 'function') window.handleSend();
-      }, 150);
+      // Show send button so user can submit when ready
+      if (typeof window._updateSendBtn === 'function') window._updateSendBtn();
     }
     arcStudioClose();
   };
@@ -17715,6 +17712,138 @@ window.emmToggle = function() {
   };
 
   // ── Intent detection — open/close via user input + parse Autumn replies ──
+
+// ── LOCAL ARC INTENT PARSER ───────────────────────────────────────────────
+// Immediately generates arcs from natural language WITHOUT waiting for Claude.
+// Returns true if it handled the request, false to fall through to Claude.
+window._localArcParse = function(txt) {
+  var lc = txt.toLowerCase();
+
+  // Must mention arcs or curves + some arc-creation intent
+  var isArcRequest = /\b(arc|curve|spiral|helix|vortex|coil|wave|chaos|swirl|loop|deviation)\b/i.test(lc)
+    && /\b(create|make|generate|add|build|draw|show|give|put|15|20|10|some|a few|many|more|few)\b/i.test(lc);
+  if (!isArcRequest) return false;
+
+  // Don't handle if it's a question or analysis request
+  if (/\b(what|how|why|analyze|describe|explain|tell me|show me what)\b/i.test(lc)) return false;
+
+  // ── Count extraction ───────────────────────────────────────────
+  var count = 5; // default
+  var numMatch = lc.match(/\b(\d+)\s*(arc|curve|spiral|coil|loop)/);
+  if (numMatch) count = Math.max(1, Math.min(30, parseInt(numMatch[1])));
+  else if (/\b(many|lots|ton|bunch|several|quite a few)\b/.test(lc)) count = 15;
+  else if (/\b(few|couple|some|a few)\b/.test(lc)) count = 4;
+  else if (/\b(one|single|just one)\b/.test(lc)) count = 1;
+
+  // ── Style detection → arc params ──────────────────────────────
+  var presets = [];
+
+  if (/\b(chaos|chaotic|fractal|wild|random|explosive|scattered)\b/i.test(lc)) {
+    // Chaos: high dev, varied positions, multiple curves, random phase
+    for (var i=0; i<count; i++) {
+      presets.push({
+        x: (Math.random()-0.5)*20, y: (Math.random()-0.5)*15, z: (Math.random()-0.5)*12,
+        mainDev: 3 + Math.random()*5, curveInd: 1 + Math.random()*4,
+        devInd: 0.3 + Math.random()*0.6, subX:1, subY:1, subZ:0,
+        resolution: 48, devCount: Math.floor(3 + Math.random()*4)
+      });
+    }
+  } else if (/\b(spiral|helix|coil|corkscrew|twist)\b/i.test(lc)) {
+    for (var i=0; i<count; i++) {
+      var ang = (i/count)*Math.PI*2;
+      presets.push({
+        x: Math.cos(ang)*8, y: i*2-count, z: Math.sin(ang)*8,
+        mainDev: 1.5, curveInd: 4+Math.random()*2,
+        devInd: 2, subX:1, subY:1, subZ:1, resolution: 64, devCount: 4
+      });
+    }
+  } else if (/\b(wave|sine|sinusoidal|flowing|fluid)\b/i.test(lc)) {
+    for (var i=0; i<count; i++) {
+      presets.push({
+        x: 15, y: (i-count/2)*3, z: 0,
+        mainDev: 2, curveInd: 2+i*0.3,
+        devInd: 0.5, subX:1, subY:0.5, subZ:0, resolution: 48, devCount: 2
+      });
+    }
+  } else if (/\b(straight|line|linear|direct|sharp)\b/i.test(lc)) {
+    for (var i=0; i<count; i++) {
+      var ang2 = (i/count)*Math.PI*2;
+      presets.push({
+        x: Math.cos(ang2)*12, y: 0, z: Math.sin(ang2)*12,
+        mainDev: 0.2, curveInd: 0,
+        devInd: 0, subX:0, subY:0, subZ:0, resolution: 16, devCount: 1
+      });
+    }
+  } else if (/\b(vortex|funnel|tornado|whirl|swirl)\b/i.test(lc)) {
+    for (var i=0; i<count; i++) {
+      var ang3=(i/count)*Math.PI*2;
+      presets.push({
+        x: Math.cos(ang3)*(3+i*0.8), y: i*2-count, z: Math.sin(ang3)*(3+i*0.8),
+        mainDev: 2+i*0.3, curveInd: 3,
+        devInd: 1.5, subX:1, subY:0, subZ:1, resolution: 48, devCount: 3
+      });
+    }
+  } else if (/\b(dense|tight|compact|cluster|nest)\b/i.test(lc)) {
+    for (var i=0; i<count; i++) {
+      var ang4=(i/count)*Math.PI*2, r4=2+Math.random()*4;
+      presets.push({
+        x: Math.cos(ang4)*r4, y: (Math.random()-0.5)*6, z: Math.sin(ang4)*r4,
+        mainDev: 2+Math.random()*3, curveInd: 1+Math.random()*2,
+        devInd: 0.4, subX:1, subY:1, subZ:0, resolution: 32, devCount: 2
+      });
+    }
+  } else {
+    // Generic: evenly distributed arcs at varied angles
+    for (var i=0; i<count; i++) {
+      var ang5=(i/count)*Math.PI*2;
+      presets.push({
+        x: Math.cos(ang5)*10, y: (Math.random()-0.5)*8, z: Math.sin(ang5)*10,
+        mainDev: 1.5+Math.random()*3, curveInd: Math.random()*2,
+        devInd: Math.random()*0.5, subX:1, subY:1, subZ:0,
+        resolution: 32, devCount: Math.floor(1+Math.random()*4)
+      });
+    }
+  }
+
+  // ── Execute immediately ────────────────────────────────────────
+  arcStudioOpen();
+  var delay=300;
+  presets.forEach(function(p) {
+    setTimeout(function(pp){ arcStudioAddArc(pp); }, delay, p);
+    delay += 60;
+  });
+
+  // ── Post a visible Autumn message describing what was created ──
+  var styleLabel = /chaos/i.test(lc)?'chaos':
+    /spiral|helix/i.test(lc)?'spiral':
+    /wave|sine/i.test(lc)?'wave':
+    /straight|linear/i.test(lc)?'straight-line':
+    /vortex|tornado/i.test(lc)?'vortex':
+    /dense|cluster/i.test(lc)?'dense cluster':'arc';
+
+  var summary = 'Generated '+count+' '+styleLabel+' arcs in Arc Edge Studio.\n\n'
+    + 'The scene uses varied deviation and curve parameters across each arc '
+    + 'to produce the '+styleLabel+' pattern. '
+    + 'Open the studio to rotate and inspect the geometry. '
+    + 'You can export as GLB/OBJ via the EXPORT button.\n\n'
+    + 'Want me to adjust density, add more curves, or try a different geometric style?';
+
+  setTimeout(function(){
+    var autumnMsg = { role:'autumn', text: summary, ts: new Date().toISOString() };
+    if (typeof msgs === 'function') msgs().push(autumnMsg);
+    if (typeof S !== 'undefined') {
+      S.journal && S.journal.push && S.journal.push({role:'autumn',text:summary,ts:autumnMsg.ts});
+    }
+    if (typeof renderMessages==='function') renderMessages();
+    if (typeof autoReadLastResponse==='function') autoReadLastResponse();
+    if (typeof updateFooter==='function') updateFooter();
+    if (typeof saveState==='function') saveState();
+  }, delay + 200);
+
+  return true; // handled locally — skip Claude API
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
   (function _hookArcStudioIntent() {
     var _orig = window.handleSend;
     if (typeof _orig !== 'function') { setTimeout(_hookArcStudioIntent, 600); return; }
@@ -17724,12 +17853,31 @@ window.emmToggle = function() {
     window.handleSend = async function() {
       var inp = document.getElementById('chat-input');
       var txt = (inp ? inp.value : '').toLowerCase().trim();
-      if (/\b(open|show|launch|start|create|generate|make|build|add)\b.{0,30}\b(arc\s*edge|arc\s*studio|arcedge|arcs?\s+in|arcs?\s+inside)\b/i.test(txt) ||
-          /\b(arcs?|curves?)\b.{0,30}\b(arc\s*edge|arc\s*studio|studio|chaos|finite|deviation)\b/i.test(txt)) {
-        setTimeout(arcStudioOpen, 200);
-      }
       if (/\b(close|hide|shut|exit)\b.{0,20}\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(txt)) {
         arcStudioClose();
+        return _prev.apply(this, arguments);
+      }
+      // ── Local arc generation — immediate, no API wait ─────────────
+      var _isArcCreate = /\b(open|show|launch|start|create|generate|make|build|add)\b.{0,30}\b(arc\s*edge|arc\s*studio|arcedge|arcs?\s+in|arcs?\s+inside)\b/i.test(txt) ||
+          /\b(arcs?|curves?)\b.{0,30}\b(arc\s*edge|arc\s*studio|studio|chaos|finite|deviation)\b/i.test(txt) ||
+          /\b\d+\s*(arc|curve)/i.test(txt);
+      if (_isArcCreate && typeof window._localArcParse === 'function') {
+        var _handled = window._localArcParse(txt);
+        if (_handled) {
+          // Clear input, show user message in chat, skip Claude API
+          var _arcInp = document.getElementById('chat-input');
+          if (_arcInp) _arcInp.value = '';
+          // Push the user message visibly
+          if (typeof msgs === 'function') {
+            msgs().push({role:'user', text:txt, ts:new Date().toISOString()});
+            if (typeof renderMessages==='function') renderMessages();
+            if (typeof saveState==='function') saveState();
+          }
+          if (typeof window._updateSendBtn==='function') window._updateSendBtn();
+          return; // don't call Claude
+        }
+        // If parser didn't handle it (analysis request etc), open studio + fall through to Claude
+        setTimeout(arcStudioOpen, 200);
       }
       return _prev.apply(this, arguments);
     };
