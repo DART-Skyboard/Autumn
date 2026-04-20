@@ -2556,10 +2556,21 @@ function declineStorage() {
   try { localStorage.setItem("autumn_consent","no"); localStorage.setItem("_aut_data_consent","true"); } catch(e) {}
   document.getElementById("consent-modal").style.display = "none";
 }
+function _captureModuleStates() {
+  var ms = {};
+  // FORGE — grab editor code if monaco is loaded
+  try { if(window._ideMonaco) ms.forge = { code: window._ideMonaco.getValue() }; } catch(e){}
+  // Arc Edge — grab arcs array
+  try { if(window._arcStudio && window._arcStudio.arcs) ms.arcEdge = { arcs: JSON.parse(JSON.stringify(window._arcStudio.arcs)) }; } catch(e){}
+  // Ash Canvas — grab current state
+  try { if(window._ashState) ms.ashCanvas = { tab: window._ashState.tab, ashCode: window._ashState.ashCode, mazeW: window._ashState.mazeW, mazeH: window._ashState.mazeH, mazeD: window._ashState.mazeD, mazeMode: window._ashState.mazeMode }; } catch(e){}
+  return ms;
+}
+
 function saveState() {
   if (!useStorage) return;
   try {
-    const data = { sessions: S.sessions, currentSession: S.currentSession, journal: S.journal, memory: S.memory };
+    const data = { sessions: S.sessions, currentSession: S.currentSession, journal: S.journal, memory: S.memory, moduleStates: _captureModuleStates() };
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
   } catch(e) {}
 }
@@ -2573,6 +2584,7 @@ function loadState() {
     if (d.currentSession != null) S.currentSession = d.currentSession;
     if (d.journal) S.journal = d.journal;
     if (d.memory) S.memory = d.memory;
+    if (d.moduleStates) window._savedModuleStates = d.moduleStates;
     // Ensure foundation is always present even in loaded state
     _ensureFoundationMemory();
   } catch(e) { _initFoundationJournal(); }
@@ -14689,6 +14701,7 @@ function _ashMazeHTML(){
     <button class="ash-btn" style="margin-top:8px" onclick="ASH_MAZE_generate()">▸ Generate</button>
     <button class="ash-btn" style="margin-top:4px" onclick="ASH_MAZE_solvePath()">⬡ Sigma Solve</button>
     <button class="ash-btn" style="margin-top:4px" onclick="_ashFrameCamera()">◉ Frame View</button>
+    <button class="ash-btn" style="margin-top:4px" onclick="ashCanvasBackup()">☁ SAVE</button>
     <button class="ash-btn" style="margin-top:4px" onclick="ashMazeExportPNG()">↓ PNG</button>
     <button class="ash-btn" style="margin-top:4px" onclick="ashMazeExportJSX()">↓ JSX</button>
     <button class="ash-btn" style="margin-top:4px;margin-bottom:8px" onclick="ashSendMazeToChat()">→ Chat</button>
@@ -14797,6 +14810,31 @@ function _ashMazeFrameOld() {
   _ashMazeControls.target.copy(ctr);
   _ashMazeCamera.position.set(ctr.x+dist*.7,ctr.y+dist*.7,ctr.z+dist*.7);
   _ashMazeControls.update();
+};
+
+window.ashCanvasBackup = function() {
+  var ms = _captureModuleStates();
+  // Save to localStorage immediately
+  saveState();
+  // If logged in to GitHub, also push to Ash repo
+  if (window._ghAuth && window._ghAuth.loggedIn) {
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName || ('Autumn-Ash-' + username);
+    var filename = 'ash-canvas-' + new Date().toISOString().slice(0,10) + '.json';
+    var encoded  = btoa(unescape(encodeURIComponent(JSON.stringify(ms, null, 2))));
+    fetch('https://api.github.com/repos/' + username + '/' + repoName + '/contents/ash-memory/' + filename, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+      body: JSON.stringify({ message: 'ash canvas backup ' + filename, content: encoded })
+    }).then(function() {
+      if (typeof ideToast === 'function') ideToast('☁ Ash Canvas saved to repo', 2500);
+    }).catch(function() {
+      if (typeof ideToast === 'function') ideToast('☁ Saved locally (no repo connection)', 2000);
+    });
+  } else {
+    if (typeof ideToast === 'function') ideToast('☁ Saved locally — sign in to sync to repo', 2000);
+  }
 };
 
 window.ashMazeExportPNG = function() {
