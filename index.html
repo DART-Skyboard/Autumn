@@ -7845,6 +7845,23 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var idx2 = msgs().findIndex(function(m){return m.id===cardId;});
     if(idx2>=0) msgs()[idx2] = {role:'autumn',text:'Vision analysis failed.',ts:new Date().toISOString(),id:cardId,grammarMeta:'',brpnMeta:'',contextType:'VISION',media:{videos:[],images:[],links:[],sources:[]}};
   }
+  // Store attachment refs with vision analysis for memory
+  try {
+    if (!S.attachments) S.attachments = [];
+    var _fMsg = msgs().find(function(m){ return m.id === cardId; });
+    var _thought = _fMsg ? _fMsg.text.slice(0, 400) : '';
+    (imgs || []).forEach(function(img) {
+      if (img.is3D) return;
+      S.attachments.push({
+        id: cardId + '-' + (img.fileName || 'img'),
+        ts: new Date().toISOString(),
+        fileName: img.fileName || ('image_' + Date.now()),
+        type: 'image', mimeType: img.mimeType || 'image/jpeg',
+        analysisRef: cardId, autumnThought: _thought,
+        userPrompt: (text || '').slice(0, 200)
+      });
+    });
+  } catch(_ae) {}
   S.pendingImages = []; S.pendingImage = null;
   renderMessages(); autoReadLastResponse(); saveState();
 }
@@ -19664,6 +19681,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         var existingAIds = new Set(S.attachments.map(function(a){ return a.id; }));
         data.attachments.forEach(function(a){ if (!existingAIds.has(a.id)) S.attachments.push(a); });
       }
+      if (data.moduleStates && typeof data.moduleStates === 'object') {
+        window._savedModuleStates = data.moduleStates;
+      }
+      if (data.orbEvo && typeof data.orbEvo === 'object' && (!S.orbEvo || !S.orbEvo.complexitySum)) {
+        try { Object.assign(S.orbEvo || {}, data.orbEvo); } catch(e) {}
+      }
     } catch(e) {}
   }
 
@@ -19692,7 +19715,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       sessionHistory: (S.sessionHistory || []).slice(-200),
       attachments:    (S.attachments    || []).slice(-100),
       sentience:      S.sentience       || {},
-      nlp:            S.lastAnalysis    || {}
+      nlp:            S.lastAnalysis    || {},
+      moduleStates:   (typeof window._captureModuleStates==='function') ? window._captureModuleStates() : {},
+      orbEvo:         S.orbEvo          || {}
     };
     var content = JSON.stringify(snapshot);
 
