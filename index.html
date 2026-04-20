@@ -415,7 +415,7 @@ function buildSelfPortraitPrompt(text, styleInfo) {
   return AUTUMN_IDENTITY.selfPortraitBase + attireOverride + ', ' + scene + recalledStyle + ', ' + styleInfo.suffix;
 }
 
-// OrbitControls UMD shim for Three.js r128 — fluid pointer-capture edition
+// OrbitControls UMD shim for Three.js r128 — two-finger pan + pinch zoom
 (function(){
 if(typeof THREE==='undefined') return;
 THREE.OrbitControls=function(camera,domElement){
@@ -433,10 +433,11 @@ THREE.OrbitControls=function(camera,domElement){
   var scale=1, panOffset=new THREE.Vector3(), zoomChanged=false;
   var rotateStart=new THREE.Vector2(), rotateEnd=new THREE.Vector2(), rotateDelta=new THREE.Vector2();
   var panStart=new THREE.Vector2(), panEnd=new THREE.Vector2(), panDelta=new THREE.Vector2();
-  // Touch pinch zoom
-  var touch0=new THREE.Vector2(), touch1=new THREE.Vector2(), prevPinchDist=0;
+  var prevPinchDist=0, prevMidX=0, prevMidY=0, midInitialized=false;
   var STATE={NONE:-1,ROTATE:0,DOLLY:1,PAN:2,TOUCH_ROTATE:3,TOUCH_DOLLY_PAN:4}, state=STATE.NONE;
   var EPS=0.000001;
+  // Declared before any handler so all functions can access
+  var _touchPointers=[], _touchCache={};
 
   function getAutoRotationAngle(){return 2*Math.PI/60/60*_this.autoRotateSpeed;}
   function getZoomScale(){return Math.pow(0.95,_this.zoomSpeed);}
@@ -472,13 +473,8 @@ THREE.OrbitControls=function(camera,domElement){
       offset.applyQuaternion(quat);
       spherical.setFromVector3(offset);
       if(_this.autoRotate&&state===STATE.NONE){rotateLeft(getAutoRotationAngle());}
-      if(_this.enableDamping){
-        spherical.theta+=sphericalDelta.theta*_this.dampingFactor;
-        spherical.phi  +=sphericalDelta.phi  *_this.dampingFactor;
-      } else {
-        spherical.theta+=sphericalDelta.theta;
-        spherical.phi  +=sphericalDelta.phi;
-      }
+      spherical.theta+=sphericalDelta.theta;
+      spherical.phi  +=sphericalDelta.phi;
       spherical.phi=Math.max(EPS,Math.min(Math.PI-EPS,spherical.phi));
       spherical.makeSafe();
       spherical.radius=Math.max(_this.minDistance,Math.min(_this.maxDistance,spherical.radius*scale));
@@ -487,14 +483,8 @@ THREE.OrbitControls=function(camera,domElement){
       offset.applyQuaternion(quatInv);
       position.copy(_this.target).add(offset);
       camera.lookAt(_this.target);
-      if(_this.enableDamping){
-        sphericalDelta.theta*=(1-_this.dampingFactor);
-        sphericalDelta.phi  *=(1-_this.dampingFactor);
-        panOffset.multiplyScalar(1-_this.dampingFactor);
-      } else {
-        sphericalDelta.set(0,0,0);
-        panOffset.set(0,0,0);
-      }
+      sphericalDelta.set(0,0,0);
+      panOffset.set(0,0,0);
       scale=1; zoomChanged=false;
       if(lastPos.distanceToSquared(camera.position)>EPS||8*(1-lastQuat.dot(camera.quaternion))>EPS){
         lastPos.copy(camera.position);lastQuat.copy(camera.quaternion);zoomChanged=true;
@@ -512,46 +502,57 @@ THREE.OrbitControls=function(camera,domElement){
     el.removeEventListener('wheel',onMouseWheel);
   };
 
-  // ── Pointer events — use setPointerCapture for continuous tracking ──
-  // This is the key fix for stair-stepping: pointer capture means pointermove
-  // always fires on the element even when the pointer leaves it, with no
-  // document-level listener conflicts.
   function onPointerDown(e){
     if(!_this.enabled) return;
-    // Only left button or touch
     if(e.button!==0 && e.pointerType!=='touch') return;
     try { _this.domElement.setPointerCapture(e.pointerId); } catch(ex){}
+    _touchCache[e.pointerId]={x:e.clientX, y:e.clientY};
     if(e.pointerType==='touch'){
-      // Count active touches via pointerdown count tracking
       _touchPointers.push(e.pointerId);
       if(_touchPointers.length===1){
         state=STATE.TOUCH_ROTATE;
-        rotateStart.set(e.clientX,e.clientY);
+        rotateStart.set(e.clientX, e.clientY);
       } else if(_touchPointers.length===2){
         state=STATE.TOUCH_DOLLY_PAN;
-        // store initial pinch positions
-        var r=_this.domElement.getBoundingClientRect();
-        touch0.set(_touchCache[_touchPointers[0]]||e.clientX, 0);
-        touch1.set(e.clientX, e.clientY);
-        prevPinchDist=0; // will be set on first move
-        panStart.set(e.clientX,e.clientY);
-      
-        _as._prevMid=null; // reset pan midpoint
+        prevPinchDist=0;
+        midInitialized=false; // will be set on first move
       }
     } else {
       if(e.shiftKey||e.button===2){state=STATE.PAN; panStart.set(e.clientX,e.clientY);}
       else {state=STATE.ROTATE; rotateStart.set(e.clientX,e.clientY);}
     }
-    _touchCache[e.pointerId]={x:e.clientX,y:e.clientY};
   }
-  // Cache for multi-touch coords
-  var _touchPointers=[], _touchCache={};
 
   function onPointerMove(e){
     if(!_this.enabled) return;
-    _touchCache[e.pointerId]={x:e.clientX,y:e.clientY};
+    _touchCache[e.pointerId]={x:e.clientX, y:e.clientY};
     var el=_this.domElement;
-    if(state===STATE.ROTATE||state===STATE.TOUCH_ROTATE){
+    if(state===STATE.TOUCH_ROTATE && e.pointerType==='touch'){
+      rotateEnd.set(e.clientX,e.clientY);
+      rotateDelta.subVectors(rotateEnd,rotateStart).multiplyScalar(_this.rotateSpeed);
+      rotateLeft(2*Math.PI*rotateDelta.x/el.clientHeight);
+      rotateUp(2*Math.PI*rotateDelta.y/el.clientHeight);
+      rotateStart.copy(rotateEnd);
+      _this.update();
+    } else if(state===STATE.TOUCH_DOLLY_PAN && _touchPointers.length>=2){
+      var id0=_touchPointers[0], id1=_touchPointers[1];
+      var c0=_touchCache[id0], c1=_touchCache[id1];
+      if(c0 && c1){
+        // Pinch zoom
+        var dist=Math.sqrt(Math.pow(c0.x-c1.x,2)+Math.pow(c0.y-c1.y,2));
+        if(prevPinchDist>0){
+          scale*=(prevPinchDist/dist);
+        }
+        prevPinchDist=dist;
+        // Two-finger pan via midpoint delta
+        var mx=(c0.x+c1.x)*0.5, my=(c0.y+c1.y)*0.5;
+        if(midInitialized){
+          pan(mx-prevMidX, my-prevMidY);
+        }
+        prevMidX=mx; prevMidY=my; midInitialized=true;
+        _this.update();
+      }
+    } else if(state===STATE.ROTATE){
       rotateEnd.set(e.clientX,e.clientY);
       rotateDelta.subVectors(rotateEnd,rotateStart).multiplyScalar(_this.rotateSpeed);
       rotateLeft(2*Math.PI*rotateDelta.x/el.clientHeight);
@@ -564,26 +565,6 @@ THREE.OrbitControls=function(camera,domElement){
       pan(panDelta.x,panDelta.y);
       panStart.copy(panEnd);
       _this.update();
-    } else if(state===STATE.TOUCH_DOLLY_PAN && _touchPointers.length>=2){
-      // Two-finger: pinch = zoom, midpoint movement = pan
-      var ids=_touchPointers, c0=_touchCache[ids[0]], c1=_touchCache[ids[1]];
-      if(c0&&c1){
-        // Pinch zoom
-        var dist=Math.sqrt(Math.pow(c0.x-c1.x,2)+Math.pow(c0.y-c1.y,2));
-        if(prevPinchDist>0){
-          var ratio=prevPinchDist/dist;
-          scale*=ratio;
-        }
-        prevPinchDist=dist;
-        // Pan via midpoint delta
-        var mx=(c0.x+c1.x)*0.5, my=(c0.y+c1.y)*0.5;
-        if(_as._prevMid){
-          var dx=mx-_as._prevMid.x, dy=my-_as._prevMid.y;
-          pan(dx*_this.panSpeed, dy*_this.panSpeed);
-        }
-        _as._prevMid={x:mx,y:my};
-        _this.update();
-      }
     }
   }
 
@@ -592,8 +573,15 @@ THREE.OrbitControls=function(camera,domElement){
     var idx=_touchPointers.indexOf(e.pointerId);
     if(idx>=0) _touchPointers.splice(idx,1);
     delete _touchCache[e.pointerId];
-    if(_touchPointers.length===0){state=STATE.NONE; if(typeof _as!=='undefined')_as._prevMid=null;}
-    else if(_touchPointers.length===1){ state=STATE.TOUCH_ROTATE; rotateStart.set(_touchCache[_touchPointers[0]].x,_touchCache[_touchPointers[0]].y); }
+    if(_touchPointers.length===0){
+      state=STATE.NONE;
+      midInitialized=false;
+      prevPinchDist=0;
+    } else if(_touchPointers.length===1){
+      state=STATE.TOUCH_ROTATE;
+      var remaining=_touchCache[_touchPointers[0]];
+      if(remaining) rotateStart.set(remaining.x, remaining.y);
+    }
   }
 
   function onMouseWheel(e){
