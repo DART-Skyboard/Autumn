@@ -20068,7 +20068,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
-        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div>' : '')
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
     } else { menu.remove(); }
@@ -20175,6 +20177,53 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
   };
 
+
+  window._ghOpenAdminConsole = function() {
+    if ((window._ghAuth||{}).username !== 'dartsolarpunk') return;
+    var menu=document.getElementById('gh-user-menu'); if(menu) menu.remove();
+    var existing=document.getElementById('admin-console-overlay');
+    if(existing){existing.remove();return;}
+    var tok=window._ghAuth.token;
+    var ov=document.createElement('div');
+    ov.id='admin-console-overlay';
+    ov.style.cssText='position:fixed;inset:0;z-index:10500;background:rgba(2,6,14,.97);display:flex;flex-direction:column;backdrop-filter:blur(16px)';
+    // Build header via DOM to avoid quote escaping
+    var hdr=document.createElement('div');
+    hdr.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,179,71,.2);background:rgba(3,8,16,.99);flex-shrink:0';
+    hdr.innerHTML='<span style="font-family:var(--font-d);font-size:.65rem;letter-spacing:4px;color:#ffb347">⚙ ADMIN</span>'
+      +' <span style="font-family:var(--font-d);font-size:.32rem;letter-spacing:2px;color:rgba(255,179,71,.35)">DARTSOLARPUNK</span>';
+    var tabs=document.createElement('div'); tabs.style.cssText='display:flex;gap:5px;margin-left:8px';
+    var t1=document.createElement('button'); t1.id='adm-t1'; t1.textContent='◈ DATA';
+    t1.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(255,179,71,.4);background:rgba(255,179,71,.1);color:#ffb347;cursor:pointer';
+    t1.onclick=function(){window._admTab('data');};
+    var t2=document.createElement('button'); t2.id='adm-t2'; t2.textContent='⬡ ASH CANVAS';
+    t2.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
+    t2.onclick=function(){window._admTab('ash');};
+    tabs.appendChild(t1); tabs.appendChild(t2); hdr.appendChild(tabs);
+    var closeBtn=document.createElement('button'); closeBtn.textContent='✕ CLOSE';
+    closeBtn.style.cssText='margin-left:auto;background:transparent;border:1px solid rgba(255,100,100,.3);color:rgba(255,100,100,.6);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--font-d);font-size:.32rem';
+    closeBtn.onclick=function(){document.getElementById('admin-console-overlay').remove();};
+    hdr.appendChild(closeBtn);
+    var frame=document.createElement('iframe'); frame.id='adm-frame';
+    frame.style.cssText='flex:1;border:none;width:100%;background:#060a10';
+    frame.src='about:blank';
+    ov.appendChild(hdr); ov.appendChild(frame);
+    document.body.appendChild(ov);
+    window._admTab=function(tab){
+      var frame=document.getElementById('adm-frame');
+      if(!frame) return;
+      document.getElementById('adm-t1').style.background=tab==='data'?'rgba(255,179,71,.1)':'transparent';
+      document.getElementById('adm-t1').style.color=tab==='data'?'#ffb347':'rgba(0,229,255,.5)';
+      document.getElementById('adm-t2').style.background=tab==='ash'?'rgba(0,229,255,.08)':'transparent';
+      document.getElementById('adm-t2').style.color=tab==='ash'?'var(--cyan)':'rgba(0,229,255,.5)';
+      frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
+      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
+        .then(function(r){return r.json();})
+        .then(function(f){frame.srcdoc=atob(f.content.replace(/\n/g,''));})
+        .catch(function(){frame.srcdoc='<body style="background:#060a10;color:#ff4466;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:2px">Admin file not found</body>';});
+    };
+    window._admTab('data');
+  };
   // Wire up OAuth button
   function _bindOAuthBtn() {
     _preWireBtn(); // Set real href immediately
