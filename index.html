@@ -20135,46 +20135,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
 
   // ── User Data Sharing modal ────────────────────────────────────────────────
-  window._ghShowDataSharing = function() {
-    var menu = document.getElementById('gh-user-menu');
-    if (menu) menu.remove();
-    var prefs = {};
-    try { prefs = JSON.parse(localStorage.getItem('_gh_data_prefs')||'{}'); } catch(e){}
-    var fields = [
-      {id:'name',   label:'Full Name'},
-      {id:'email',  label:'Email Address'},
-      {id:'phone',  label:'Phone Number'},
-      {id:'address',label:'Mailing Address'}
-    ];
-    var modal = document.createElement('div');
-    modal.id = 'gh-data-modal';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:9950;background:rgba(2,8,18,.95);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(12px)';
-    // Build rows using DOM to avoid quote escaping issues
-    var rowsContainer = document.createElement('div');
-    fields.forEach(function(f){
-      var lbl = document.createElement('label');
-      lbl.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;color:rgba(224,244,255,.6)';
-      var cb = document.createElement('input');
-      cb.type='checkbox'; cb.id='dp-'+f.id; cb.checked=!!prefs[f.id];
-      cb.style.cssText='width:14px;height:14px;accent-color:var(--cyan)';
-      cb.addEventListener('change',function(){ window._ghUpdateDataPref(f.id, cb.checked); });
-      lbl.appendChild(cb);
-      lbl.appendChild(document.createTextNode(' '+f.label));
-      rowsContainer.appendChild(lbl);
-    });
-    var rows = rowsContainer.outerHTML;
-    modal.innerHTML = '<div style="background:rgba(4,12,22,.98);border:1px solid rgba(0,229,255,.25);border-radius:12px;padding:28px 24px;max-width:360px;width:90%">'
-      +'<div style="font-family:var(--font-d);font-size:.75rem;letter-spacing:3px;color:var(--cyan);margin-bottom:6px">USER DATA SHARING</div>'
-      +'<div style="font-size:.55rem;color:rgba(224,244,255,.35);line-height:1.7;margin-bottom:18px">Choose what to share to help improve Autumn. All data is stored privately and hashed. You can change this at any time.</div>'
-      +rows
-      +'<div style="font-size:.48rem;color:rgba(224,244,255,.25);margin-top:14px;line-height:1.6">Changes take effect immediately. Unchecking stops future sharing of that category.</div>'
-      +'<div style="display:flex;justify-content:flex-end;margin-top:18px">'
-      +'<button onclick="document.getElementById('gh-data-modal').remove()" style="font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;padding:8px 18px;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:var(--cyan);border-radius:5px;cursor:pointer">DONE</button>'
-      +'</div></div>';
-    document.body.appendChild(modal);
-    modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
-  };
-
+  
   window._ghUpdateDataPref = function(field, enabled) {
     var prefs = {};
     try { prefs = JSON.parse(localStorage.getItem('_gh_data_prefs')||'{}'); } catch(e){}
