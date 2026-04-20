@@ -2167,7 +2167,7 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="ac-tool-btn" data-tool="scissors" data-label="R" onclick="acPlaceTool(this)">R SCISSORS</button>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-        <button class="ac-tool-btn" style="background:rgba(167,139,250,.14);border-color:rgba(167,139,250,.4);color:#a78bfa" onclick="window.acSaveToGitHub()">☁ SAVE TO GITHUB</button>
+        <button class="ac-tool-btn" style="background:rgba(167,139,250,.14);border-color:rgba(167,139,250,.4);color:#a78bfa" onclick="window.acSaveToAsh()">☁ SAVE TO GITHUB</button>
         <button class="ac-tool-btn" onclick="window.acSendToAutumn()">→ SEND TO AUTUMN</button>
       </div>
       <span class="ac-section-label">CANVAS — tap/click to place node · tap node then socket to connect</span>
@@ -2187,7 +2187,6 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="ac-btn secondary" onclick="acLinkMode()" id="ac-link-btn">⟷ LINK</button>
         <button class="ac-btn secondary" onclick="acClearSelected()" id="ac-del-btn">✕ DEL</button>
         <button class="ac-btn reset" onclick="acResetCanvas()">↺ RESET</button>
-        <button class="ac-btn" onclick="acSaveToAsh()" title="Save Ash Canvas state to your GitHub Ash repo" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:rgba(167,139,250,.9)">⬡ SAVE</button>
       </div>
     </div>
   </div>
@@ -3092,6 +3091,10 @@ function newChat() {
   S.currentSession = S.sessions.length - 1;
   S.activeContext = null;
   saveState(); renderMessages();
+  // Backup new session to GitHub so it's visible on next page load
+  if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
+    setTimeout(function() { try { window._lastSaveHash = ''; _autosave(); } catch(e) {} }, 1200);
+  }
 }
 
 // ============================================================
@@ -19276,6 +19279,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       setInterval(_autosave, SYNC_INTERVAL);
       window.addEventListener('beforeunload', _autosave);
       _toast('\u2713 Memory archive synced');
+      // Refresh UI so restored sessions show in chat history sidebar
+      setTimeout(function() {
+        try { if (typeof renderMessages    === 'function') renderMessages(); }    catch(e) {}
+        try { if (typeof updateFooter      === 'function') updateFooter(); }      catch(e) {}
+        try { if (typeof renderToolsContent=== 'function') renderToolsContent(); } catch(e) {}
+        try { if (typeof saveState         === 'function') saveState(); }         catch(e) {}
+      }, 300);
     });
 
     // Update LEATR ash presence with real username

@@ -415,7 +415,7 @@ function buildSelfPortraitPrompt(text, styleInfo) {
   return AUTUMN_IDENTITY.selfPortraitBase + attireOverride + ', ' + scene + recalledStyle + ', ' + styleInfo.suffix;
 }
 
-// OrbitControls UMD shim for Three.js r128 — fluid pointer-capture edition
+// OrbitControls UMD shim for Three.js r128 — two-finger pan + pinch zoom
 (function(){
 if(typeof THREE==='undefined') return;
 THREE.OrbitControls=function(camera,domElement){
@@ -433,10 +433,11 @@ THREE.OrbitControls=function(camera,domElement){
   var scale=1, panOffset=new THREE.Vector3(), zoomChanged=false;
   var rotateStart=new THREE.Vector2(), rotateEnd=new THREE.Vector2(), rotateDelta=new THREE.Vector2();
   var panStart=new THREE.Vector2(), panEnd=new THREE.Vector2(), panDelta=new THREE.Vector2();
-  // Touch pinch zoom
-  var touch0=new THREE.Vector2(), touch1=new THREE.Vector2(), prevPinchDist=0;
+  var prevPinchDist=0, prevMidX=0, prevMidY=0, midInitialized=false;
   var STATE={NONE:-1,ROTATE:0,DOLLY:1,PAN:2,TOUCH_ROTATE:3,TOUCH_DOLLY_PAN:4}, state=STATE.NONE;
   var EPS=0.000001;
+  // Declared before any handler so all functions can access
+  var _touchPointers=[], _touchCache={};
 
   function getAutoRotationAngle(){return 2*Math.PI/60/60*_this.autoRotateSpeed;}
   function getZoomScale(){return Math.pow(0.95,_this.zoomSpeed);}
@@ -472,13 +473,8 @@ THREE.OrbitControls=function(camera,domElement){
       offset.applyQuaternion(quat);
       spherical.setFromVector3(offset);
       if(_this.autoRotate&&state===STATE.NONE){rotateLeft(getAutoRotationAngle());}
-      if(_this.enableDamping){
-        spherical.theta+=sphericalDelta.theta*_this.dampingFactor;
-        spherical.phi  +=sphericalDelta.phi  *_this.dampingFactor;
-      } else {
-        spherical.theta+=sphericalDelta.theta;
-        spherical.phi  +=sphericalDelta.phi;
-      }
+      spherical.theta+=sphericalDelta.theta;
+      spherical.phi  +=sphericalDelta.phi;
       spherical.phi=Math.max(EPS,Math.min(Math.PI-EPS,spherical.phi));
       spherical.makeSafe();
       spherical.radius=Math.max(_this.minDistance,Math.min(_this.maxDistance,spherical.radius*scale));
@@ -487,14 +483,8 @@ THREE.OrbitControls=function(camera,domElement){
       offset.applyQuaternion(quatInv);
       position.copy(_this.target).add(offset);
       camera.lookAt(_this.target);
-      if(_this.enableDamping){
-        sphericalDelta.theta*=(1-_this.dampingFactor);
-        sphericalDelta.phi  *=(1-_this.dampingFactor);
-        panOffset.multiplyScalar(1-_this.dampingFactor);
-      } else {
-        sphericalDelta.set(0,0,0);
-        panOffset.set(0,0,0);
-      }
+      sphericalDelta.set(0,0,0);
+      panOffset.set(0,0,0);
       scale=1; zoomChanged=false;
       if(lastPos.distanceToSquared(camera.position)>EPS||8*(1-lastQuat.dot(camera.quaternion))>EPS){
         lastPos.copy(camera.position);lastQuat.copy(camera.quaternion);zoomChanged=true;
@@ -512,46 +502,57 @@ THREE.OrbitControls=function(camera,domElement){
     el.removeEventListener('wheel',onMouseWheel);
   };
 
-  // ── Pointer events — use setPointerCapture for continuous tracking ──
-  // This is the key fix for stair-stepping: pointer capture means pointermove
-  // always fires on the element even when the pointer leaves it, with no
-  // document-level listener conflicts.
   function onPointerDown(e){
     if(!_this.enabled) return;
-    // Only left button or touch
     if(e.button!==0 && e.pointerType!=='touch') return;
     try { _this.domElement.setPointerCapture(e.pointerId); } catch(ex){}
+    _touchCache[e.pointerId]={x:e.clientX, y:e.clientY};
     if(e.pointerType==='touch'){
-      // Count active touches via pointerdown count tracking
       _touchPointers.push(e.pointerId);
       if(_touchPointers.length===1){
         state=STATE.TOUCH_ROTATE;
-        rotateStart.set(e.clientX,e.clientY);
+        rotateStart.set(e.clientX, e.clientY);
       } else if(_touchPointers.length===2){
         state=STATE.TOUCH_DOLLY_PAN;
-        // store initial pinch positions
-        var r=_this.domElement.getBoundingClientRect();
-        touch0.set(_touchCache[_touchPointers[0]]||e.clientX, 0);
-        touch1.set(e.clientX, e.clientY);
-        prevPinchDist=0; // will be set on first move
-        panStart.set(e.clientX,e.clientY);
-      
-        _as._prevMid=null; // reset pan midpoint
+        prevPinchDist=0;
+        midInitialized=false; // will be set on first move
       }
     } else {
       if(e.shiftKey||e.button===2){state=STATE.PAN; panStart.set(e.clientX,e.clientY);}
       else {state=STATE.ROTATE; rotateStart.set(e.clientX,e.clientY);}
     }
-    _touchCache[e.pointerId]={x:e.clientX,y:e.clientY};
   }
-  // Cache for multi-touch coords
-  var _touchPointers=[], _touchCache={};
 
   function onPointerMove(e){
     if(!_this.enabled) return;
-    _touchCache[e.pointerId]={x:e.clientX,y:e.clientY};
+    _touchCache[e.pointerId]={x:e.clientX, y:e.clientY};
     var el=_this.domElement;
-    if(state===STATE.ROTATE||state===STATE.TOUCH_ROTATE){
+    if(state===STATE.TOUCH_ROTATE && e.pointerType==='touch'){
+      rotateEnd.set(e.clientX,e.clientY);
+      rotateDelta.subVectors(rotateEnd,rotateStart).multiplyScalar(_this.rotateSpeed);
+      rotateLeft(2*Math.PI*rotateDelta.x/el.clientHeight);
+      rotateUp(2*Math.PI*rotateDelta.y/el.clientHeight);
+      rotateStart.copy(rotateEnd);
+      _this.update();
+    } else if(state===STATE.TOUCH_DOLLY_PAN && _touchPointers.length>=2){
+      var id0=_touchPointers[0], id1=_touchPointers[1];
+      var c0=_touchCache[id0], c1=_touchCache[id1];
+      if(c0 && c1){
+        // Pinch zoom
+        var dist=Math.sqrt(Math.pow(c0.x-c1.x,2)+Math.pow(c0.y-c1.y,2));
+        if(prevPinchDist>0){
+          scale*=(prevPinchDist/dist);
+        }
+        prevPinchDist=dist;
+        // Two-finger pan via midpoint delta
+        var mx=(c0.x+c1.x)*0.5, my=(c0.y+c1.y)*0.5;
+        if(midInitialized){
+          pan(mx-prevMidX, my-prevMidY);
+        }
+        prevMidX=mx; prevMidY=my; midInitialized=true;
+        _this.update();
+      }
+    } else if(state===STATE.ROTATE){
       rotateEnd.set(e.clientX,e.clientY);
       rotateDelta.subVectors(rotateEnd,rotateStart).multiplyScalar(_this.rotateSpeed);
       rotateLeft(2*Math.PI*rotateDelta.x/el.clientHeight);
@@ -564,26 +565,6 @@ THREE.OrbitControls=function(camera,domElement){
       pan(panDelta.x,panDelta.y);
       panStart.copy(panEnd);
       _this.update();
-    } else if(state===STATE.TOUCH_DOLLY_PAN && _touchPointers.length>=2){
-      // Two-finger: pinch = zoom, midpoint movement = pan
-      var ids=_touchPointers, c0=_touchCache[ids[0]], c1=_touchCache[ids[1]];
-      if(c0&&c1){
-        // Pinch zoom
-        var dist=Math.sqrt(Math.pow(c0.x-c1.x,2)+Math.pow(c0.y-c1.y,2));
-        if(prevPinchDist>0){
-          var ratio=prevPinchDist/dist;
-          scale*=ratio;
-        }
-        prevPinchDist=dist;
-        // Pan via midpoint delta
-        var mx=(c0.x+c1.x)*0.5, my=(c0.y+c1.y)*0.5;
-        if(_as._prevMid){
-          var dx=mx-_as._prevMid.x, dy=my-_as._prevMid.y;
-          pan(dx*_this.panSpeed, dy*_this.panSpeed);
-        }
-        _as._prevMid={x:mx,y:my};
-        _this.update();
-      }
     }
   }
 
@@ -592,8 +573,15 @@ THREE.OrbitControls=function(camera,domElement){
     var idx=_touchPointers.indexOf(e.pointerId);
     if(idx>=0) _touchPointers.splice(idx,1);
     delete _touchCache[e.pointerId];
-    if(_touchPointers.length===0){state=STATE.NONE; if(typeof _as!=='undefined')_as._prevMid=null;}
-    else if(_touchPointers.length===1){ state=STATE.TOUCH_ROTATE; rotateStart.set(_touchCache[_touchPointers[0]].x,_touchCache[_touchPointers[0]].y); }
+    if(_touchPointers.length===0){
+      state=STATE.NONE;
+      midInitialized=false;
+      prevPinchDist=0;
+    } else if(_touchPointers.length===1){
+      state=STATE.TOUCH_ROTATE;
+      var remaining=_touchCache[_touchPointers[0]];
+      if(remaining) rotateStart.set(remaining.x, remaining.y);
+    }
   }
 
   function onMouseWheel(e){
@@ -2178,6 +2166,10 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="ac-tool-btn" data-tool="knife" data-label="K" onclick="acPlaceTool(this)">K KNIFE</button>
         <button class="ac-tool-btn" data-tool="scissors" data-label="R" onclick="acPlaceTool(this)">R SCISSORS</button>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        <button class="ac-tool-btn" style="background:rgba(167,139,250,.14);border-color:rgba(167,139,250,.4);color:#a78bfa" onclick="window.acSaveToAsh()">☁ SAVE TO GITHUB</button>
+        <button class="ac-tool-btn" onclick="window.acSendToAutumn()">→ SEND TO AUTUMN</button>
+      </div>
       <span class="ac-section-label">CANVAS — tap/click to place node · tap node then socket to connect</span>
       <div class="ac-canvas-area" id="ac-canvas-area">
         <svg id="ac-svg" xmlns="http://www.w3.org/2000/svg">
@@ -2195,7 +2187,6 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="ac-btn secondary" onclick="acLinkMode()" id="ac-link-btn">⟷ LINK</button>
         <button class="ac-btn secondary" onclick="acClearSelected()" id="ac-del-btn">✕ DEL</button>
         <button class="ac-btn reset" onclick="acResetCanvas()">↺ RESET</button>
-        <button class="ac-btn" onclick="acSaveToAsh()" title="Save Ash Canvas state to your GitHub Ash repo" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:rgba(167,139,250,.9)">⬡ SAVE</button>
       </div>
     </div>
   </div>
@@ -2568,10 +2559,21 @@ function declineStorage() {
   try { localStorage.setItem("autumn_consent","no"); localStorage.setItem("_aut_data_consent","true"); } catch(e) {}
   document.getElementById("consent-modal").style.display = "none";
 }
+function _captureModuleStates() {
+  var ms = {};
+  // FORGE — grab editor code if monaco is loaded
+  try { if(window._ideMonaco) ms.forge = { code: window._ideMonaco.getValue() }; } catch(e){}
+  // Arc Edge — grab arcs array
+  try { if(window._arcStudio && window._arcStudio.arcs) ms.arcEdge = { arcs: JSON.parse(JSON.stringify(window._arcStudio.arcs)) }; } catch(e){}
+  // Ash Canvas — grab current state
+  try { if(window._ashState) ms.ashCanvas = { tab: window._ashState.tab, ashCode: window._ashState.ashCode, mazeW: window._ashState.mazeW, mazeH: window._ashState.mazeH, mazeD: window._ashState.mazeD, mazeMode: window._ashState.mazeMode }; } catch(e){}
+  return ms;
+}
+
 function saveState() {
   if (!useStorage) return;
   try {
-    const data = { sessions: S.sessions, currentSession: S.currentSession, journal: S.journal, memory: S.memory };
+    const data = { sessions: S.sessions, currentSession: S.currentSession, journal: S.journal, memory: S.memory, moduleStates: _captureModuleStates() };
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
   } catch(e) {}
 }
@@ -2585,6 +2587,7 @@ function loadState() {
     if (d.currentSession != null) S.currentSession = d.currentSession;
     if (d.journal) S.journal = d.journal;
     if (d.memory) S.memory = d.memory;
+    if (d.moduleStates) window._savedModuleStates = d.moduleStates;
     // Ensure foundation is always present even in loaded state
     _ensureFoundationMemory();
   } catch(e) { _initFoundationJournal(); }
@@ -3088,6 +3091,10 @@ function newChat() {
   S.currentSession = S.sessions.length - 1;
   S.activeContext = null;
   saveState(); renderMessages();
+  // Backup new session to GitHub so it's visible on next page load
+  if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
+    setTimeout(function() { try { window._lastSaveHash = ''; _autosave(); } catch(e) {} }, 1200);
+  }
 }
 
 // ============================================================
@@ -7845,15 +7852,21 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var idx2 = msgs().findIndex(function(m){return m.id===cardId;});
     if(idx2>=0) msgs()[idx2] = {role:'autumn',text:'Vision analysis failed.',ts:new Date().toISOString(),id:cardId,grammarMeta:'',brpnMeta:'',contextType:'VISION',media:{videos:[],images:[],links:[],sources:[]}};
   }
+  // Store attachment refs with vision analysis for memory
   try {
     if (!S.attachments) S.attachments = [];
     var _fMsg = msgs().find(function(m){ return m.id === cardId; });
     var _thought = _fMsg ? _fMsg.text.slice(0, 400) : '';
     (imgs || []).forEach(function(img) {
       if (img.is3D) return;
-      S.attachments.push({id:cardId+'-'+(img.fileName||'img'),ts:new Date().toISOString(),
-        fileName:img.fileName||('image_'+Date.now()),type:'image',mimeType:img.mimeType||'image/jpeg',
-        analysisRef:cardId,autumnThought:_thought,userPrompt:(text||'').slice(0,200)});
+      S.attachments.push({
+        id: cardId + '-' + (img.fileName || 'img'),
+        ts: new Date().toISOString(),
+        fileName: img.fileName || ('image_' + Date.now()),
+        type: 'image', mimeType: img.mimeType || 'image/jpeg',
+        analysisRef: cardId, autumnThought: _thought,
+        userPrompt: (text || '').slice(0, 200)
+      });
     });
   } catch(_ae) {}
   S.pendingImages = []; S.pendingImage = null;
@@ -14712,8 +14725,8 @@ function _ashMazeHTML(){
     <button class="ash-btn" style="margin-top:8px" onclick="ASH_MAZE_generate()">▸ Generate</button>
     <button class="ash-btn" style="margin-top:4px" onclick="ASH_MAZE_solvePath()">⬡ Sigma Solve</button>
     <button class="ash-btn" style="margin-top:4px" onclick="_ashFrameCamera()">◉ Frame View</button>
+    <button class="ash-btn" style="margin-top:4px" onclick="ashCanvasBackup()">☁ SAVE</button>
     <button class="ash-btn" style="margin-top:4px" onclick="ashMazeExportPNG()">↓ PNG</button>
-    <button class="ash-btn" style="margin-top:4px" onclick="ashMazeExportJSX()">↓ JSX</button>
     <button class="ash-btn" style="margin-top:4px;margin-bottom:8px" onclick="ashSendMazeToChat()">→ Chat</button>
   </div>
   <div id="ash-viewport"><canvas id="ash-maze-canvas"></canvas></div>
@@ -14822,6 +14835,31 @@ function _ashMazeFrameOld() {
   _ashMazeControls.update();
 };
 
+window.ashCanvasBackup = function() {
+  var ms = _captureModuleStates();
+  // Save to localStorage immediately
+  saveState();
+  // If logged in to GitHub, also push to Ash repo
+  if (window._ghAuth && window._ghAuth.loggedIn) {
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName || ('Autumn-Ash-' + username);
+    var filename = 'ash-canvas-' + new Date().toISOString().slice(0,10) + '.json';
+    var encoded  = btoa(unescape(encodeURIComponent(JSON.stringify(ms, null, 2))));
+    fetch('https://api.github.com/repos/' + username + '/' + repoName + '/contents/ash-memory/' + filename, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+      body: JSON.stringify({ message: 'ash canvas backup ' + filename, content: encoded })
+    }).then(function() {
+      if (typeof ideToast === 'function') ideToast('☁ Ash Canvas saved to repo', 2500);
+    }).catch(function() {
+      if (typeof ideToast === 'function') ideToast('☁ Saved locally (no repo connection)', 2000);
+    });
+  } else {
+    if (typeof ideToast === 'function') ideToast('☁ Saved locally — sign in to sync to repo', 2000);
+  }
+};
+
 window.ashMazeExportPNG = function() {
   if (!_ashMazeRenderer) return;
   _ashMazeRenderer.render(_ashMazeScene, _ashMazeCamera);
@@ -14830,322 +14868,7 @@ window.ashMazeExportPNG = function() {
 };
 
 window.ashMazeExportJSX = function() {
-  if (!window._lastMazeResult) {
-    if (typeof ideToast === 'function') ideToast('Generate a maze first', 2000);
-    return;
-  }
-  var mr   = window._lastMazeResult;
-  var mode = _ashState.mazeMode || 'cubic';
-  var w    = mr.w, h = mr.h, d = mr.d || 1;
-  var solvedPath = window._lastSolvedPath || [];
-
-  // Serialize maze data
-  var mazeData = {
-    mode: mode, w: w, h: h, d: d,
-    grid: mr.grid,
-    start: mr.start, end: mr.end,
-    solvedPath: solvedPath,
-    generated: new Date().toISOString()
-  };
-
-  var mazeJSON = JSON.stringify(mazeData, null, 2);
-
-  // Build self-contained JSX/HTML interactive viewer
-  var jsx = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LEMAC Maze — ${mode} ${w}×${h}${mode==='cubic'?'×'+d:''}</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#0a0f14;color:#00ffcc;font-family:'Courier New',monospace;overflow:hidden}
-  #ui{position:fixed;top:10px;left:10px;z-index:10;display:flex;flex-direction:column;gap:6px}
-  button{background:rgba(0,255,204,.1);border:1px solid rgba(0,255,204,.3);color:#00ffcc;
-    padding:6px 12px;cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:1px;border-radius:2px}
-  button:hover{background:rgba(0,255,204,.2)}
-  button.active{background:rgba(0,255,204,.25);border-color:#00ffcc}
-  #info{position:fixed;bottom:10px;left:10px;font-size:10px;color:rgba(0,255,204,.5);letter-spacing:1px}
-  #export-btn{position:fixed;top:10px;right:10px;z-index:10}
-</style>
-</head>
-<body>
-<div id="ui">
-  <button onclick="toggleMode()" id="mode-btn">⬡ WIREFRAME</button>
-  <button onclick="toggleSolve()" id="solve-btn">◈ SHOW PATH</button>
-  <button onclick="resetCamera()">◉ RESET VIEW</button>
-  <button onclick="exportJSON()">↓ JSON DATA</button>
-</div>
-<button id="export-btn" onclick="exportAssembly()">↓ ASSEMBLY GUIDE</button>
-<canvas id="c"></canvas>
-<div id="info">LEMAC ${mode.toUpperCase()} MAZE ${w}×${h}${mode==='cubic'?'×'+d:''} · 1-FINGER ROTATE · 2-FINGER PAN+ZOOM</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-var MAZE_DATA = ${mazeJSON};
-
-var scene, camera, renderer, controls;
-var wireGroup, solidGroup, pathGroup;
-var showWire = true, showPath = false;
-
-function init() {
-  var canvas = document.getElementById('c');
-  renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  renderer.setSize(innerWidth, innerHeight);
-  renderer.setClearColor(0x0a0f14, 1);
-
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 500);
-  camera.position.set(MAZE_DATA.w, MAZE_DATA.h, MAZE_DATA.w*1.8);
-  camera.lookAt(MAZE_DATA.w/2, MAZE_DATA.h/2, (MAZE_DATA.d||1)/2);
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-  var dl = new THREE.DirectionalLight(0xffffff, 0.8);
-  dl.position.set(10,20,10); scene.add(dl);
-
-  buildMaze();
-  buildPath();
-  initControls();
-  animate();
-  window.addEventListener('resize', onResize);
-}
-
-function buildMaze() {
-  wireGroup  = new THREE.Group(); scene.add(wireGroup);
-  solidGroup = new THREE.Group(); scene.add(solidGroup);
-
-  var wMat = new THREE.LineBasicMaterial({color:0x00ffcc, transparent:true, opacity:0.6});
-  var sMat = new THREE.MeshPhongMaterial({color:0x1a3a4a, transparent:true, opacity:0.85,
-    emissive:0x001122, wireframe:false});
-  var cellSize = 1.0;
-  var wallH    = 0.8;
-
-  var grid = MAZE_DATA.grid;
-  var w=MAZE_DATA.w, h=MAZE_DATA.h, d=MAZE_DATA.d||1;
-
-  // Build wall geometry from grid passages
-  function addWall(x1,y1,z1, x2,y2,z2) {
-    var geom = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(x1,y1,z1), new THREE.Vector3(x2,y2,z2)
-    ]);
-    wireGroup.add(new THREE.Line(geom, wMat.clone()));
-    // Solid wall box
-    var mx=(x1+x2)/2, my=(y1+y2)/2, mz=(z1+z2)/2;
-    var sx=Math.abs(x2-x1)||0.1, sy=Math.abs(y2-y1)||wallH, sz=Math.abs(z2-z1)||0.1;
-    var box = new THREE.Mesh(new THREE.BoxGeometry(Math.max(sx,0.1), Math.max(sy,wallH), Math.max(sz,0.1)), sMat.clone());
-    box.position.set(mx,my,mz);
-    solidGroup.add(box);
-  }
-
-  if (MAZE_DATA.mode === 'planar') {
-    for (var y=0;y<h;y++) for (var x=0;x<w;x++) {
-      var cell = grid[y]?.[x];
-      if (!cell) continue;
-      var px=x*cellSize, py=0, pz=y*cellSize;
-      if (!cell.passages?.includes('E') && x<w-1) addWall(px+cellSize,py,pz, px+cellSize,py+wallH,pz+cellSize);
-      if (!cell.passages?.includes('S') && y<h-1) addWall(px,py,pz+cellSize, px+cellSize,py+wallH,pz+cellSize);
-      if (x===0) addWall(px,py,pz, px,py+wallH,pz+cellSize);
-      if (y===0) addWall(px,py,pz, px+cellSize,py+wallH,pz);
-    }
-  } else {
-    for (var z=0;z<(d||1);z++) for (var y=0;y<h;y++) for (var x=0;x<w;x++) {
-      var cell = grid[z]?.[y]?.[x] || grid[y]?.[x];
-      if (!cell) continue;
-      var px=x*cellSize, py=z*cellSize, pz=y*cellSize;
-      if (!cell.passages?.includes('E') && x<w-1) addWall(px+cellSize,py,pz, px+cellSize,py+cellSize,pz+cellSize);
-      if (!cell.passages?.includes('S') && y<h-1) addWall(px,py,pz+cellSize, px+cellSize,py+cellSize,pz+cellSize);
-      if (x===0) addWall(px,py,pz, px,py+cellSize,pz+cellSize);
-      if (y===0) addWall(px,py,pz, px+cellSize,py+cellSize,pz);
-    }
-  }
-
-  // Start/End markers
-  var startGeom = new THREE.SphereGeometry(0.3,8,8);
-  var startMesh = new THREE.Mesh(startGeom, new THREE.MeshPhongMaterial({color:0x00ff88,emissive:0x004422}));
-  var s=MAZE_DATA.start;
-  startMesh.position.set(s[0]*cellSize+0.5, 0.3, s[1]*cellSize+0.5);
-  scene.add(startMesh);
-
-  var endGeom = new THREE.SphereGeometry(0.3,8,8);
-  var endMesh = new THREE.Mesh(endGeom, new THREE.MeshPhongMaterial({color:0xff4466,emissive:0x440011}));
-  var e=MAZE_DATA.end;
-  endMesh.position.set(e[0]*cellSize+0.5, 0.3, e[1]*cellSize+0.5);
-  scene.add(endMesh);
-
-  solidGroup.visible = false;
-}
-
-function buildPath() {
-  pathGroup = new THREE.Group(); scene.add(pathGroup);
-  var path = MAZE_DATA.solvedPath;
-  if (!path || path.length < 2) return;
-  var pts = path.map(function(p) {
-    return new THREE.Vector3((p.x||p[0])+0.5, 0.4, (p.y||p[1])+0.5);
-  });
-  var geom = new THREE.BufferGeometry().setFromPoints(pts);
-  var mat  = new THREE.LineBasicMaterial({color:0xffaa00, linewidth:2});
-  pathGroup.add(new THREE.Line(geom, mat));
-  pathGroup.visible = false;
-}
-
-function initControls() {
-  var isDragging=false, prevX=0, prevY=0, touchDist=0, touchMidX=0, touchMidY=0;
-  var spherical = new THREE.Spherical().setFromVector3(camera.position);
-  var target = new THREE.Vector3(MAZE_DATA.w/2, MAZE_DATA.h/4, (MAZE_DATA.d||1)/2);
-
-  function updateCamera() {
-    camera.position.setFromSpherical(spherical).add(target);
-    camera.lookAt(target);
-  }
-
-  renderer.domElement.addEventListener('mousedown',function(e){isDragging=true;prevX=e.clientX;prevY=e.clientY});
-  renderer.domElement.addEventListener('mousemove',function(e){
-    if(!isDragging)return;
-    spherical.theta -= (e.clientX-prevX)*0.005;
-    spherical.phi   -= (e.clientY-prevY)*0.005;
-    spherical.phi=Math.max(0.1,Math.min(Math.PI-0.1,spherical.phi));
-    prevX=e.clientX;prevY=e.clientY; updateCamera();
-  });
-  renderer.domElement.addEventListener('mouseup',function(){isDragging=false});
-  renderer.domElement.addEventListener('wheel',function(e){
-    spherical.radius=Math.max(2,Math.min(100,spherical.radius+e.deltaY*0.05));updateCamera();
-  },{passive:true});
-
-  // Touch: 1-finger rotate, 2-finger pan+zoom
-  renderer.domElement.addEventListener('touchstart',function(e){
-    e.preventDefault();
-    if(e.touches.length===1){isDragging=true;prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;}
-    if(e.touches.length===2){
-      isDragging=false;
-      var dx=e.touches[0].clientX-e.touches[1].clientX;
-      var dy=e.touches[0].clientY-e.touches[1].clientY;
-      touchDist=Math.sqrt(dx*dx+dy*dy);
-      touchMidX=(e.touches[0].clientX+e.touches[1].clientX)/2;
-      touchMidY=(e.touches[0].clientY+e.touches[1].clientY)/2;
-    }
-  },{passive:false});
-  renderer.domElement.addEventListener('touchmove',function(e){
-    e.preventDefault();
-    if(e.touches.length===1&&isDragging){
-      spherical.theta-=(e.touches[0].clientX-prevX)*0.005;
-      spherical.phi  -=(e.touches[0].clientY-prevY)*0.005;
-      spherical.phi=Math.max(0.1,Math.min(Math.PI-0.1,spherical.phi));
-      prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;updateCamera();
-    }
-    if(e.touches.length===2){
-      var dx=e.touches[0].clientX-e.touches[1].clientX;
-      var dy=e.touches[0].clientY-e.touches[1].clientY;
-      var newDist=Math.sqrt(dx*dx+dy*dy);
-      // Pinch zoom
-      spherical.radius=Math.max(2,Math.min(100,spherical.radius*(touchDist/newDist)));
-      touchDist=newDist;
-      // Pan
-      var newMidX=(e.touches[0].clientX+e.touches[1].clientX)/2;
-      var newMidY=(e.touches[0].clientY+e.touches[1].clientY)/2;
-      var panScale=spherical.radius*0.003;
-      target.x-=(newMidX-touchMidX)*panScale;
-      target.z-=(newMidY-touchMidY)*panScale;
-      touchMidX=newMidX;touchMidY=newMidY;
-      updateCamera();
-    }
-  },{passive:false});
-  renderer.domElement.addEventListener('touchend',function(){isDragging=false});
-
-  window._resetCam=function(){
-    spherical.set(MAZE_DATA.w*1.8, Math.PI/3, Math.PI/4);
-    target.set(MAZE_DATA.w/2,MAZE_DATA.h/4,(MAZE_DATA.d||1)/2);
-    updateCamera();
-  };
-}
-
-function toggleMode(){
-  showWire=!showWire;
-  wireGroup.visible=showWire; solidGroup.visible=!showWire;
-  document.getElementById('mode-btn').textContent=showWire?'⬡ WIREFRAME':'⬡ SOLID';
-  document.getElementById('mode-btn').className=showWire?'active':'';
-}
-function toggleSolve(){
-  showPath=!showPath; pathGroup.visible=showPath;
-  document.getElementById('solve-btn').className=showPath?'active':'';
-}
-function resetCamera(){ if(window._resetCam) window._resetCam(); }
-
-function exportJSON(){
-  var blob=new Blob([JSON.stringify(MAZE_DATA,null,2)],{type:'application/json'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='lemac_maze_${w}x${h}.json';a.click();
-}
-
-function exportAssembly(){
-  var guide = [
-    '# LEMAC Maze Assembly Guide',
-    '# Mode: ' + MAZE_DATA.mode + ' | Size: ' + MAZE_DATA.w + 'x' + MAZE_DATA.h + (MAZE_DATA.d?'x'+MAZE_DATA.d:''),
-    '# Generated: ' + MAZE_DATA.generated,
-    '',
-    '## JSON Structure',
-    '- grid: 2D or 3D array of cells, each with a "passages" array',
-    '- passages values: N/S/E/W (planar) or N/S/E/W/U/D (cubic)',
-    '- start: [x,y] or [x,y,z] — maze entry point',
-    '- end: [x,y] or [x,y,z] — maze exit point',
-    '- solvedPath: array of {x,y} or {x,y,z} steps from start to end',
-    '',
-    '## Blender Python Import',
-    'import json, bpy',
-    'data = json.loads(open("lemac_maze.json").read())',
-    'for y,row in enumerate(data["grid"]):',
-    '  for x,cell in enumerate(row):',
-    '    if not cell: continue',
-    '    bpy.ops.mesh.primitive_cube_add(size=0.1, location=(x,y,0))',
-    '',
-    '## Three.js Quick Start',
-    'import * as THREE from "three"',
-    'const data = await fetch("lemac_maze.json").then(r=>r.json())',
-    '// data.grid[y][x].passages contains open directions',
-    '// Build walls where a passage is missing between adjacent cells',
-    '',
-    '## Path Solving',
-    '// solvedPath is a pre-solved BFS path from start to end',
-    '// Each step: {x, y} for planar or {x, y, z} for cubic',
-    '// Visualize as a line or animated sphere moving through the maze'
-  ].join('\\n');
-  var blob=new Blob([guide],{type:'text/plain'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='lemac_maze_assembly_guide.txt';a.click();
-}
-
-function animate(){ requestAnimationFrame(animate); renderer.render(scene,camera); }
-function onResize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); }
-
-init();
-</script>
-</body>
-</html>`;
-
-  // Save as file
-  var blob = new Blob([jsx], {type:'text/html'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'lemac_maze_' + mode + '_' + w + 'x' + h + '.html';
-  a.click();
-
-  // Also save to Ash repo if logged in
-  if (window._ghAuth && window._ghAuth.loggedIn) {
-    var token    = window._ghAuth.token;
-    var username = window._ghAuth.username;
-    var repoName = window._ghAuth.repoName || ('Autumn-Ash-' + username);
-    var filename = 'maze-export-' + new Date().toISOString().slice(0,10) + '-' + mode + '.json';
-    var encoded  = btoa(unescape(encodeURIComponent(JSON.stringify(mazeData, null, 2))));
-    fetch('https://api.github.com/repos/' + username + '/' + repoName + '/contents/ash-memory/' + filename, {
-      method: 'PUT',
-      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json',
-                 'Accept': 'application/vnd.github.v3+json' },
-      body: JSON.stringify({ message: 'maze: export ' + filename, content: encoded })
-    }).then(function() {
-      if (typeof ideToast === 'function') ideToast('✓ Maze JSON saved to Ash repo', 2500);
-    }).catch(function(){});
-  }
-
-  if (typeof ideToast === 'function') ideToast('↓ Maze JSX exported', 2000);
+  if (typeof ideToast === 'function') ideToast('JSX export removed', 2500);
 };
 
 window.ashSendToChat = function() {
@@ -16958,6 +16681,47 @@ _syncActionBtn();
     // Notify journal
     if (S && S.journal) S.journal.push({ts:new Date().toISOString(), _internal:true,
       _thought:'Ash Canvas reset — neural influence layer cleared.'});
+  };
+
+  window.acSaveToGitHub = function() {
+    if (!window._ghAuth || !window._ghAuth.loggedIn) {
+      if (typeof ideToast === 'function') ideToast('Login with GitHub to save Ash Canvas', 2500);
+      return;
+    }
+    var token = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName || ('Autumn-Ash-' + username);
+    var snapshot = {
+      version: '1.0',
+      saved:   new Date().toISOString(),
+      username: username,
+      nodes:   _ac.nodes.map(function(n){ return {id:n.id,tool:n.tool,x:n.x,y:n.y,shellLinks:n.shellLinks}; }),
+      links:   _ac.links.map(function(l){ return {from:l.from,to:l.to,toShell:l.toShell||null}; }),
+      influence: _ac.influence,
+      applied: _ac.applied
+    };
+    var content = JSON.stringify(snapshot,null,2);
+    var fname = 'ash-canvas/canvas_' + new Date().toISOString().replace(/[:.]/g,'-').slice(0,16) + '.json';
+    if (typeof _ghWriteFile === 'function') {
+      _ghWriteFile(fname, content, null, token, username, repoName)
+        .then(function(){ if(typeof ideToast==='function') ideToast('✓ Ash Canvas saved to GitHub', 2000); })
+        .catch(function(){ if(typeof ideToast==='function') ideToast('Save failed', 2000); });
+    } else {
+      // Fallback: trigger full autosave which includes canvas state
+      if (typeof _autosave === 'function') { window._lastSaveHash=''; _autosave(); }
+      if (typeof ideToast==='function') ideToast('✓ Syncing to GitHub…', 2000);
+    }
+  };
+
+  window.acSendToAutumn = function() {
+    var msg = 'Ash Canvas state: ' + _ac.nodes.length + ' nodes, '
+      + _ac.links.length + ' connections. '
+      + 'Influence: GEO ' + (_ac.influence.geo||0).toFixed(2)
+      + ' MAR ' + (_ac.influence.mar||0).toFixed(2)
+      + ' AERO ' + (_ac.influence.aero||0).toFixed(2) + '. '
+      + 'What do you see in this arrangement?';
+    var inp = document.getElementById('chat-input');
+    if (inp) { inp.value = msg; if (typeof window.handleSend === 'function') window.handleSend(); }
   };
 
   window.acApplyToNetwork = function() {
@@ -19515,6 +19279,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       setInterval(_autosave, SYNC_INTERVAL);
       window.addEventListener('beforeunload', _autosave);
       _toast('\u2713 Memory archive synced');
+      // Refresh UI so restored sessions show in chat history sidebar
+      setTimeout(function() {
+        try { if (typeof renderMessages    === 'function') renderMessages(); }    catch(e) {}
+        try { if (typeof updateFooter      === 'function') updateFooter(); }      catch(e) {}
+        try { if (typeof renderToolsContent=== 'function') renderToolsContent(); } catch(e) {}
+        try { if (typeof saveState         === 'function') saveState(); }         catch(e) {}
+      }, 300);
     });
 
     // Update LEATR ash presence with real username
@@ -19630,6 +19401,18 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     try {
       var S = window.S;
       if (!S) return;
+      // Restore chat sessions (cross-session history in sidebar)
+      if (Array.isArray(data.sessions) && data.sessions.length) {
+        S.sessions = S.sessions || [];
+        var _sids = new Set(S.sessions.map(function(s){ return s.id; }));
+        data.sessions.forEach(function(sess){
+          if (!_sids.has(sess.id) && sess.messages && sess.messages.length > 1) {
+            S.sessions.push(sess);
+          }
+        });
+        // Sort by id (timestamp) ascending
+        S.sessions.sort(function(a,b){ return (a.id||0)-(b.id||0); });
+      }
       if (data.memory && typeof data.memory === 'object') {
         S.memory = S.memory || {};
         Object.assign(S.memory, data.memory);
@@ -19892,6 +19675,32 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   // ── Public API ────────────────────────────────────────────────────────────
   window._ghShowLogin   = _showLoginModal;
   window._ghStartOAuth  = _startOAuth;
+
+  // Hook into handleSend to intercept backup commands
+  (function() {
+    var _origHS = window.handleSend;
+    if (typeof _origHS !== 'function') return;
+    window.handleSend = async function() {
+      var inp = document.getElementById('chat-input');
+      var txt = inp ? inp.value.trim().toLowerCase() : '';
+      if (/\b(backup|sync|save).{0,20}(data|memory|session|github|repo)|backup (my|all)|sync to github/i.test(txt)) {
+        if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
+          window._lastSaveHash = '';
+          _autosave();
+          // Push user message and Autumn reply directly
+          var userMsg = {role:'user', text:inp.value.trim(), ts:new Date().toISOString()};
+          var replyMsg = {role:'autumn', text:'Backing up all session data to your GitHub repository now. Memory chunks, journal entries, conversation history — everything is syncing to **Autumn-Ash-'+window._ghAuth.username+'**.', ts:new Date().toISOString()};
+          if (typeof msgs === 'function') { msgs().push(userMsg); msgs().push(replyMsg); }
+          inp.value = '';
+          if (typeof renderMessages==='function') renderMessages();
+          if (typeof updateFooter==='function') updateFooter();
+          if (typeof saveState==='function') saveState();
+          return;
+        }
+      }
+      return _origHS.apply(this, arguments);
+    };
+  })();
   window._ghSkipLogin = function() {
     localStorage.setItem('_gh_login_skipped', '1');
     _showGuestMode();
@@ -19931,9 +19740,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu = document.createElement('div');
       menu.id = 'gh-user-menu';
       menu.style.cssText = 'position:fixed;top:58px;right:60px;z-index:9900;background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.2);border-radius:8px;padding:8px 0;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;min-width:160px';
-      menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span></div>'
+      menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span><br><span style="font-size:.3rem;letter-spacing:1.5px;color:rgba(167,139,250,.45)">Author: L.E.A.T.R.</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div>' : '')
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
@@ -20020,6 +19831,74 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     });
   };
 
+
+  // ── User Data Sharing modal ────────────────────────────────────────────────
+  
+  window._ghUpdateDataPref = function(field, enabled) {
+    var prefs = {};
+    try { prefs = JSON.parse(localStorage.getItem('_gh_data_prefs')||'{}'); } catch(e){}
+    if (enabled) prefs[field] = true;
+    else delete prefs[field];
+    try { localStorage.setItem('_gh_data_prefs', JSON.stringify(prefs)); } catch(e){}
+    // Write updated prefs to user's GitHub repo
+    if (window._ghAuth && window._ghAuth.loggedIn && typeof _ghWriteFile === 'function') {
+      var token = window._ghAuth.token;
+      var username = window._ghAuth.username;
+      var repoName = window._ghAuth.repoName || ('Autumn-Ash-'+username);
+      var record = { username: username, updated: new Date().toISOString(), prefs: prefs };
+      _getFileSha('data-prefs.json', token, username, repoName).then(function(sha){
+        _ghWriteFile('data-prefs.json', JSON.stringify(record,null,2), sha, token, username, repoName);
+      });
+    }
+  };
+
+
+  window._ghOpenAdminConsole = function() {
+    if ((window._ghAuth||{}).username !== 'dartsolarpunk') return;
+    var menu=document.getElementById('gh-user-menu'); if(menu) menu.remove();
+    var existing=document.getElementById('admin-console-overlay');
+    if(existing){existing.remove();return;}
+    var tok=window._ghAuth.token;
+    var ov=document.createElement('div');
+    ov.id='admin-console-overlay';
+    ov.style.cssText='position:fixed;inset:0;z-index:10500;background:rgba(2,6,14,.97);display:flex;flex-direction:column;backdrop-filter:blur(16px)';
+    // Build header via DOM to avoid quote escaping
+    var hdr=document.createElement('div');
+    hdr.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,179,71,.2);background:rgba(3,8,16,.99);flex-shrink:0';
+    hdr.innerHTML='<span style="font-family:var(--font-d);font-size:.65rem;letter-spacing:4px;color:#ffb347">⚙ ADMIN</span>'
+      +' <span style="font-family:var(--font-d);font-size:.32rem;letter-spacing:2px;color:rgba(255,179,71,.35)">DARTSOLARPUNK</span>';
+    var tabs=document.createElement('div'); tabs.style.cssText='display:flex;gap:5px;margin-left:8px';
+    var t1=document.createElement('button'); t1.id='adm-t1'; t1.textContent='◈ DATA';
+    t1.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(255,179,71,.4);background:rgba(255,179,71,.1);color:#ffb347;cursor:pointer';
+    t1.onclick=function(){window._admTab('data');};
+    var t2=document.createElement('button'); t2.id='adm-t2'; t2.textContent='⬡ ASH CANVAS';
+    t2.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
+    t2.onclick=function(){window._admTab('ash');};
+    tabs.appendChild(t1); tabs.appendChild(t2); hdr.appendChild(tabs);
+    var closeBtn=document.createElement('button'); closeBtn.textContent='✕ CLOSE';
+    closeBtn.style.cssText='margin-left:auto;background:transparent;border:1px solid rgba(255,100,100,.3);color:rgba(255,100,100,.6);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--font-d);font-size:.32rem';
+    closeBtn.onclick=function(){document.getElementById('admin-console-overlay').remove();};
+    hdr.appendChild(closeBtn);
+    var frame=document.createElement('iframe'); frame.id='adm-frame';
+    frame.style.cssText='flex:1;border:none;width:100%;background:#060a10';
+    frame.src='about:blank';
+    ov.appendChild(hdr); ov.appendChild(frame);
+    document.body.appendChild(ov);
+    window._admTab=function(tab){
+      var frame=document.getElementById('adm-frame');
+      if(!frame) return;
+      document.getElementById('adm-t1').style.background=tab==='data'?'rgba(255,179,71,.1)':'transparent';
+      document.getElementById('adm-t1').style.color=tab==='data'?'#ffb347':'rgba(0,229,255,.5)';
+      document.getElementById('adm-t2').style.background=tab==='ash'?'rgba(0,229,255,.08)':'transparent';
+      document.getElementById('adm-t2').style.color=tab==='ash'?'var(--cyan)':'rgba(0,229,255,.5)';
+      frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
+      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
+        .then(function(r){return r.json();})
+        .then(function(f){frame.srcdoc=atob(f.content.replace(/\n/g,''));})
+        .catch(function(){frame.srcdoc='<body style="background:#060a10;color:#ff4466;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:2px">Admin file not found</body>';});
+    };
+    window._admTab('data');
+  };
   // Wire up OAuth button
   function _bindOAuthBtn() {
     _preWireBtn(); // Set real href immediately
@@ -20036,6 +19915,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 })();
 </script>
 
+
+<script src="js/mist-module.js"></script>
+
+<script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/scripts/sentience-journal.js"></script>
 </body>
 </html>
 
