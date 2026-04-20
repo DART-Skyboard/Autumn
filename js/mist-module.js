@@ -1,555 +1,528 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  MIST MODULE — LEATR Maze Interaction System
-//  Collapsible right-side HUD overlay with 3 progressive maze challenges
-//  Lead Edge Ash Tree Reflex maze logic (randomized, LEATR rules)
+//  MIST MODULE — Autumn HUD right-side collapsible panel
+//  Lead Edge Ash Tree Reflex maze logic · THREE.js volumetric effects
+//  Module: Mist | Slots: ★ Star · ♥ Heart · Mist
 // ═══════════════════════════════════════════════════════════════════════════
-
 (function() {
-'use strict';
+  'use strict';
 
-// ── State ──────────────────────────────────────────────────────────────────
-var MIST = {
-  open: false,
-  difficulty: 1,
-  solved: [false, false, false], // star, heart, mist
-  activeMaze: 0,  // 0=star, 1=heart, 2=mist
-  mazes: [null, null, null],
-  currentPos: null,
-  path: [],
-  dragging: false,
-  animating: false
-};
+  // ── Config ────────────────────────────────────────────────────────────────
+  var MIST = {
+    open: false,
+    difficulty: 1,        // 1 easy · 2 medium · 3 hard
+    mazes: [null,null,null], // generated maze per slot
+    solvedCount: 0,       // 0=none 1=star unlocked 2=heart unlocked 3=mist unlocked
+    dragging: false,
+    dragPos: null,
+    dragPath: [],
+    activeMaze: 0,        // which slot is being played (0=star,1=heart,2=mist)
+    threeScene: null,
+    threeRenderer: null,
+    threeCamera: null,
+    threeAnimId: null
+  };
 
-var DIFF_SIZES = { 1: 7, 2: 11, 3: 15 };
+  var DIFF = {
+    1: {w:7,  h:7,  label:'I'},
+    2: {w:11, h:11, label:'II'},
+    3: {w:15, h:15, label:'III'}
+  };
 
-// ── CSS Injection ──────────────────────────────────────────────────────────
-var style = document.createElement('style');
-style.textContent = [
-  '#mist-tab{position:fixed;right:0;top:50%;transform:translateY(-50%);',
-  'z-index:8200;display:flex;flex-direction:column;align-items:center;',
-  'justify-content:center;width:28px;background:rgba(3,8,18,.92);',
-  'border:1px solid rgba(167,139,250,.3);border-right:none;border-radius:6px 0 0 6px;',
-  'padding:10px 0;gap:8px;cursor:pointer;transition:all .2s;',
-  'box-shadow:-4px 0 18px rgba(167,139,250,.12)}',
-  '#mist-tab:hover{border-color:rgba(167,139,250,.6);box-shadow:-4px 0 24px rgba(167,139,250,.25)}',
-  '.mist-tab-dot{width:8px;height:8px;border:1.5px solid rgba(167,139,250,.6);',
-  'border-radius:50%;transition:all .2s}',
-  '#mist-tab:hover .mist-tab-dot{border-color:#a78bfa;box-shadow:0 0 6px #a78bfa}',
-  '.mist-tab-line{width:2px;height:14px;background:linear-gradient(rgba(167,139,250,.0),rgba(167,139,250,.3),rgba(167,139,250,.0))}',
-  '#mist-panel{position:fixed;right:0;top:0;height:100%;width:0;overflow:hidden;',
-  'z-index:8199;transition:width .3s cubic-bezier(.4,0,.2,1);',
-  'background:rgba(3,8,18,.97);border-left:1px solid rgba(167,139,250,.2);',
-  'display:flex;flex-direction:column}',
-  '#mist-panel.open{width:min(320px,90vw)}',
-  '#mist-header{flex-shrink:0;display:flex;align-items:center;',
-  'border-bottom:1px solid rgba(167,139,250,.15);padding:10px 12px;gap:6px;',
-  'background:rgba(167,139,250,.04)}',
-  '#mist-title{font-family:var(--font-d,Orbitron,sans-serif);font-size:.55rem;',
-  'letter-spacing:3px;color:#a78bfa;flex:1}',
-  '#mist-close{background:transparent;border:1px solid rgba(167,139,250,.2);',
-  'color:rgba(167,139,250,.5);width:22px;height:22px;border-radius:3px;',
-  'cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center}',
-  '#mist-close:hover{border-color:#a78bfa;color:#a78bfa}',
-  '.mist-icon-row{display:flex;gap:6px;padding:10px 12px;flex-shrink:0;',
-  'border-bottom:1px solid rgba(167,139,250,.1)}',
-  '.mist-icon-btn{flex:1;display:flex;flex-direction:column;align-items:center;',
-  'gap:4px;padding:8px 4px;border:1px solid rgba(167,139,250,.15);border-radius:6px;',
-  'background:rgba(167,139,250,.04);cursor:pointer;transition:all .2s;',
-  'font-family:var(--font-d,Orbitron,sans-serif);font-size:.3rem;letter-spacing:1px;',
-  'color:rgba(167,139,250,.4)}',
-  '.mist-icon-btn.unlocked{border-color:rgba(167,139,250,.4);color:#a78bfa}',
-  '.mist-icon-btn.active{border-color:#a78bfa;color:#a78bfa;box-shadow:0 0 10px rgba(167,139,250,.2);',
-  'background:rgba(167,139,250,.12)}',
-  '.mist-icon-btn:hover{border-color:rgba(167,139,250,.5);background:rgba(167,139,250,.08)}',
-  '.mist-icon-svg{width:22px;height:22px}',
-  '#mist-maze-wrap{flex:1;display:flex;align-items:center;justify-content:center;',
-  'padding:10px;overflow:hidden;position:relative}',
-  '#mist-maze-canvas{border:1px solid rgba(167,139,250,.2);border-radius:4px;',
-  'touch-action:none;cursor:crosshair}',
-  '#mist-status{flex-shrink:0;padding:6px 12px;font-family:var(--font-d,Orbitron,sans-serif);',
-  'font-size:.35rem;letter-spacing:2px;color:rgba(167,139,250,.5);text-align:center;',
-  'min-height:22px;border-top:1px solid rgba(167,139,250,.08)}',
-  '.mist-diff-row{flex-shrink:0;display:flex;align-items:center;gap:8px;',
-  'padding:8px 12px;border-top:1px solid rgba(167,139,250,.1)}',
-  '.mist-diff-label{font-family:var(--font-d,Orbitron,sans-serif);font-size:.32rem;',
-  'letter-spacing:1.5px;color:rgba(167,139,250,.35)}',
-  '.mist-diff-btns{display:flex;gap:4px;flex:1}',
-  '.mist-diff-btn{flex:1;padding:4px 0;border:1px solid rgba(167,139,250,.15);',
-  'border-radius:3px;background:transparent;color:rgba(167,139,250,.4);',
-  'font-family:var(--font-d,Orbitron,sans-serif);font-size:.32rem;letter-spacing:1px;cursor:pointer;transition:all .15s}',
-  '.mist-diff-btn.active{border-color:#a78bfa;color:#a78bfa;background:rgba(167,139,250,.1)}',
-  '.mist-diff-btn:hover{border-color:rgba(167,139,250,.4);color:rgba(167,139,250,.7)}',
-  '.mist-solved-badge{position:absolute;top:6px;right:6px;',
-  'font-family:var(--font-d,Orbitron,sans-serif);font-size:.32rem;letter-spacing:1px;',
-  'color:#00ff88;padding:2px 6px;border:1px solid rgba(0,255,136,.3);border-radius:3px;',
-  'background:rgba(0,255,136,.08)}',
-  '@keyframes mist-star-fly{0%{opacity:1;transform:translate(-50%,-50%) scale(0) rotate(0deg)}',
-  '60%{opacity:1;transform:translate(-50%,-50%) scale(1.5) rotate(180deg)}',
-  '100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0.2) rotate(360deg)}}',
-  '@keyframes mist-pulse{0%,100%{opacity:.6}50%{opacity:1}}',
-].join('');
-document.head.appendChild(style);
+  // ── LEMAC maze generator (LEATR rules) ────────────────────────────────────
+  // DFS with randomized neighbours. Entry/exit on random sides, ≥1 cell apart.
+  function generateMaze(w, h) {
+    // grid[y][x] = {n,s,e,w} walls
+    var grid = [];
+    for (var y=0;y<h;y++) {
+      grid[y]=[];
+      for (var x=0;x<w;x++) grid[y][x]={n:1,s:1,e:1,w:1,visited:false};
+    }
+    // DFS
+    function carve(x,y) {
+      grid[y][x].visited=true;
+      var dirs=[['n',0,-1],['s',0,1],['e',1,0],['w',-1,0]];
+      dirs.sort(function(){return Math.random()-.5;});
+      dirs.forEach(function(d){
+        var nx=x+d[1], ny=y+d[2];
+        if(nx>=0&&nx<w&&ny>=0&&ny<h&&!grid[ny][nx].visited){
+          grid[y][x][d[0]]=0;
+          grid[ny][nx][{n:'s',s:'n',e:'w',w:'e'}[d[0]]]=0;
+          carve(nx,ny);
+        }
+      });
+    }
+    carve(0,0);
+    // Pick entry/exit on random sides, at least 1 apart if same side
+    function pickSide() { return ['n','s','e','w'][Math.floor(Math.random()*4)]; }
+    function posOnSide(side) {
+      if(side==='n'||side==='s') return Math.floor(Math.random()*w);
+      return Math.floor(Math.random()*h);
+    }
+    function cellOnSide(side,pos) {
+      if(side==='n') return {x:pos,y:0};
+      if(side==='s') return {x:pos,y:h-1};
+      if(side==='w') return {x:0,y:pos};
+      return {x:w-1,y:pos};
+    }
+    var entrySide=pickSide(), entryPos=posOnSide(entrySide);
+    var exitSide, exitPos;
+    var attempts=0;
+    do {
+      exitSide=pickSide();
+      exitPos=posOnSide(exitSide);
+      attempts++;
+    } while(attempts<20&&exitSide===entrySide&&Math.abs(exitPos-entryPos)<2);
+    var entry=cellOnSide(entrySide,entryPos);
+    var exit=cellOnSide(exitSide,exitPos);
+    // Open entry/exit walls
+    grid[entry.y][entry.x][entrySide]=0;
+    grid[exit.y][exit.x][exitSide]=0;
+    return {grid,w,h,entry,exit,entrySide,exitSide};
+  }
 
-// ── LEATR Maze Generator ───────────────────────────────────────────────────
-function generateMaze(size) {
-  var grid = [];
-  for (var r=0; r<size; r++) {
-    grid[r] = [];
-    for (var c=0; c<size; c++) {
-      grid[r][c] = { n:true, s:true, e:true, w:true, visited:false };
+  // ── BFS pathfinding for validation ────────────────────────────────────────
+  function solveMaze(maze) {
+    var visited=[], queue=[{x:maze.entry.x,y:maze.entry.y,path:[{x:maze.entry.x,y:maze.entry.y}]}];
+    var key=function(x,y){return x+','+y;};
+    var seen={}; seen[key(maze.entry.x,maze.entry.y)]=true;
+    var dirs={n:[0,-1],s:[0,1],e:[1,0],w:[-1,0]};
+    while(queue.length){
+      var cur=queue.shift();
+      if(cur.x===maze.exit.x&&cur.y===maze.exit.y) return cur.path;
+      var cell=maze.grid[cur.y][cur.x];
+      Object.keys(dirs).forEach(function(d){
+        if(cell[d]===0){
+          var nx=cur.x+dirs[d][0], ny=cur.y+dirs[d][1];
+          if(nx>=0&&nx<maze.w&&ny>=0&&ny<maze.h&&!seen[key(nx,ny)]){
+            seen[key(nx,ny)]=true;
+            queue.push({x:nx,y:ny,path:cur.path.concat({x:nx,y:ny})});
+          }
+        }
+      });
+    }
+    return null;
+  }
+
+  // ── CSS injection ─────────────────────────────────────────────────────────
+  function injectCSS() {
+    var style=document.createElement('style');
+    style.textContent=[
+    '#mist-toggle{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:8200;',
+    'background:rgba(3,9,18,.92);border:1px solid rgba(0,229,255,.2);border-right:none;',
+    'border-radius:6px 0 0 6px;padding:8px 5px;cursor:pointer;display:flex;flex-direction:column;',
+    'gap:6px;align-items:center;transition:all .2s}',
+    '#mist-toggle:hover{border-color:rgba(0,229,255,.4);background:rgba(0,229,255,.06)}',
+    '.mist-slot-icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center;',
+    'font-size:14px;opacity:.35;transition:all .3s;position:relative}',
+    '.mist-slot-icon.unlocked{opacity:1;filter:drop-shadow(0 0 4px var(--cyan))}',
+    '.mist-slot-icon.locked{opacity:.2}',
+    '.mist-slot-icon .lock-dot{position:absolute;bottom:-2px;right:-2px;width:6px;height:6px;',
+    'border-radius:50%;background:#ff4466;border:1px solid #0a0f18}',
+    '#mist-panel{position:fixed;right:0;top:0;height:100vh;width:280px;z-index:8100;',
+    'background:rgba(3,9,18,.97);border-left:1px solid rgba(0,229,255,.2);',
+    'transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);',
+    'display:flex;flex-direction:column;backdrop-filter:blur(12px)}',
+    '#mist-panel.open{transform:translateX(0)}',
+    '#mist-header{padding:12px 14px;border-bottom:1px solid rgba(0,229,255,.12);',
+    'display:flex;align-items:center;gap:10px;flex-shrink:0}',
+    '.mist-title{font-family:var(--font-d);font-size:.6rem;letter-spacing:4px;color:var(--cyan)}',
+    '.mist-close{margin-left:auto;background:transparent;border:none;color:rgba(0,229,255,.4);',
+    'font-size:16px;cursor:pointer;padding:2px 6px;transition:color .2s}',
+    '.mist-close:hover{color:var(--cyan)}',
+    '#mist-slots{display:flex;gap:0;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0}',
+    '.mist-slot-tab{flex:1;padding:8px;text-align:center;cursor:pointer;',
+    'font-family:var(--font-d);font-size:.35rem;letter-spacing:1.5px;',
+    'color:rgba(224,244,255,.3);border-bottom:2px solid transparent;transition:all .2s}',
+    '.mist-slot-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);',
+    'background:rgba(0,229,255,.04)}',
+    '.mist-slot-tab.locked-tab{cursor:not-allowed;opacity:.3}',
+    '.mist-slot-tab .tab-icon{font-size:16px;display:block;margin-bottom:2px}',
+    '#mist-diff-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;',
+    'border-bottom:1px solid rgba(0,229,255,.08);flex-shrink:0}',
+    '.diff-label{font-family:var(--font-d);font-size:.32rem;letter-spacing:2px;color:rgba(224,244,255,.3)}',
+    '.diff-btn{background:transparent;border:1px solid rgba(0,229,255,.15);',
+    'color:rgba(0,229,255,.4);padding:3px 8px;border-radius:3px;cursor:pointer;',
+    'font-family:var(--font-d);font-size:.32rem;letter-spacing:1px;transition:all .15s}',
+    '.diff-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.1)}',
+    '#mist-maze-wrap{flex:1;display:flex;align-items:center;justify-content:center;',
+    'position:relative;overflow:hidden;padding:10px}',
+    '#mist-maze-canvas{touch-action:none;cursor:crosshair;display:block;',
+    'border:1px solid rgba(0,229,255,.15);border-radius:4px}',
+    '#mist-status{padding:8px 12px;font-family:var(--font-d);font-size:.35rem;',
+    'letter-spacing:2px;color:rgba(224,244,255,.3);text-align:center;flex-shrink:0;',
+    'border-top:1px solid rgba(0,229,255,.08);min-height:32px}',
+    '#mist-three-canvas{position:fixed;top:0;left:0;width:100%;height:100%;',
+    'pointer-events:none;z-index:7999;opacity:0;transition:opacity .5s}',
+    '#mist-three-canvas.active{opacity:1}',
+    '@keyframes mistPulse{0%,100%{opacity:.6}50%{opacity:1}}'
+    ].join('');
+    document.head.appendChild(style);
+  }
+
+  // ── HTML injection ────────────────────────────────────────────────────────
+  function injectHTML() {
+    // Toggle button on right edge
+    var toggle=document.createElement('div');
+    toggle.id='mist-toggle';
+    toggle.innerHTML=[
+      '<div class="mist-slot-icon" id="mst-i0" title="Star">★</div>',
+      '<div class="mist-slot-icon locked" id="mst-i1" title="Heart — solve Star maze first">♥<div class="lock-dot"></div></div>',
+      '<div class="mist-slot-icon locked" id="mst-i2" title="Mist — solve Heart maze first">◈<div class="lock-dot"></div></div>'
+    ].join('');
+    toggle.onclick=function(){ mistToggle(); };
+    document.body.appendChild(toggle);
+
+    // Side panel
+    var panel=document.createElement('div');
+    panel.id='mist-panel';
+    panel.innerHTML=[
+      '<div id="mist-header">',
+      '  <span class="mist-title">◈ MIST</span>',
+      '  <span style="font-family:var(--font-d);font-size:.32rem;letter-spacing:1.5px;color:rgba(0,229,255,.3)">LEAD EDGE MAZE</span>',
+      '  <button class="mist-close" onclick="mistToggle()">✕</button>',
+      '</div>',
+      '<div id="mist-slots">',
+      '  <div class="mist-slot-tab active" id="mst-tab0" onclick="mistSetSlot(0)"><span class="tab-icon">★</span>STAR</div>',
+      '  <div class="mist-slot-tab locked-tab" id="mst-tab1" onclick="mistSetSlot(1)"><span class="tab-icon">♥</span>HEART</div>',
+      '  <div class="mist-slot-tab locked-tab" id="mst-tab2" onclick="mistSetSlot(2)"><span class="tab-icon">◈</span>MIST</div>',
+      '</div>',
+      '<div id="mist-diff-bar">',
+      '  <span class="diff-label">DIFFICULTY:</span>',
+      '  <button class="diff-btn active" id="mst-d1" onclick="mistSetDiff(1)">I</button>',
+      '  <button class="diff-btn" id="mst-d2" onclick="mistSetDiff(2)">II</button>',
+      '  <button class="diff-btn" id="mst-d3" onclick="mistSetDiff(3)">III</button>',
+      '  <button onclick="mistNewMaze()" style="margin-left:auto;background:rgba(0,229,255,.06);',
+      '    border:1px solid rgba(0,229,255,.2);color:var(--cyan);padding:3px 10px;border-radius:3px;',
+      '    cursor:pointer;font-family:var(--font-d);font-size:.32rem;letter-spacing:1px">NEW</button>',
+      '</div>',
+      '<div id="mist-maze-wrap"><canvas id="mist-maze-canvas"></canvas></div>',
+      '<div id="mist-status">DRAG THE CIRCLE FROM ENTRY ▸ TO EXIT ◂</div>'
+    ].join('');
+    document.body.appendChild(panel);
+
+    // THREE.js overlay canvas for effects
+    var threeCanvas=document.createElement('canvas');
+    threeCanvas.id='mist-three-canvas';
+    document.body.appendChild(threeCanvas);
+  }
+
+  // ── Toggle panel ──────────────────────────────────────────────────────────
+  window.mistToggle = function() {
+    MIST.open=!MIST.open;
+    var panel=document.getElementById('mist-panel');
+    if(panel) panel.classList.toggle('open',MIST.open);
+    if(MIST.open && !MIST.mazes[MIST.activeMaze]) mistNewMaze();
+  };
+
+  window.mistSetDiff = function(d) {
+    MIST.difficulty=d;
+    [1,2,3].forEach(function(n){
+      var b=document.getElementById('mst-d'+n);
+      if(b) b.classList.toggle('active',n===d);
+    });
+    MIST.mazes=[null,null,null];
+    mistNewMaze();
+  };
+
+  window.mistSetSlot = function(slot) {
+    if(slot>0 && MIST.solvedCount<slot) return; // locked
+    MIST.activeMaze=slot;
+    [0,1,2].forEach(function(i){
+      var t=document.getElementById('mst-tab'+i);
+      if(t) t.classList.toggle('active',i===slot);
+    });
+    if(!MIST.mazes[slot]) mistNewMaze();
+    else renderMaze(MIST.mazes[slot]);
+    setStatus('DRAG THE CIRCLE FROM ENTRY ▸ TO EXIT ◂');
+  };
+
+  window.mistNewMaze = function() {
+    var cfg=DIFF[MIST.difficulty];
+    var maze=generateMaze(cfg.w, cfg.h);
+    maze.solved=false;
+    maze.solution=solveMaze(maze);
+    MIST.mazes[MIST.activeMaze]=maze;
+    MIST.dragPath=[];
+    MIST.dragging=false;
+    renderMaze(maze);
+    setStatus('DRAG THE CIRCLE FROM ENTRY ▸ TO EXIT ◂');
+  };
+
+  // ── Maze renderer on canvas ───────────────────────────────────────────────
+  function renderMaze(maze, dragPath) {
+    var canvas=document.getElementById('mist-maze-canvas');
+    if(!canvas) return;
+    var wrap=document.getElementById('mist-maze-wrap');
+    var maxW=wrap.clientWidth-20, maxH=wrap.clientHeight-20;
+    var cellSize=Math.max(8,Math.min(Math.floor(maxW/maze.w),Math.floor(maxH/maze.h),32));
+    var pw=cellSize*maze.w, ph=cellSize*maze.h;
+    canvas.width=pw; canvas.height=ph;
+    var ctx=canvas.getContext('2d');
+    ctx.fillStyle='#020608'; ctx.fillRect(0,0,pw,ph);
+
+    // Draw walls
+    ctx.strokeStyle='rgba(0,229,255,.7)'; ctx.lineWidth=1.5;
+    for(var y=0;y<maze.h;y++){
+      for(var x=0;x<maze.w;x++){
+        var cell=maze.grid[y][x];
+        var px=x*cellSize, py=y*cellSize;
+        if(cell.n){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+cellSize,py);ctx.stroke();}
+        if(cell.s){ctx.beginPath();ctx.moveTo(px,py+cellSize);ctx.lineTo(px+cellSize,py+cellSize);ctx.stroke();}
+        if(cell.w){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py+cellSize);ctx.stroke();}
+        if(cell.e){ctx.beginPath();ctx.moveTo(px+cellSize,py);ctx.lineTo(px+cellSize,py+cellSize);ctx.stroke();}
+      }
+    }
+
+    // Draw entry marker
+    var ex=maze.entry.x*cellSize+cellSize/2, ey=maze.entry.y*cellSize+cellSize/2;
+    ctx.fillStyle='rgba(0,255,136,.8)'; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+    ctx.fillText('▸',ex,ey+4);
+
+    // Draw exit marker
+    var xx=maze.exit.x*cellSize+cellSize/2, xy=maze.exit.y*cellSize+cellSize/2;
+    ctx.fillStyle='rgba(0,229,255,.8)';
+    ctx.fillText('◂',xx,xy+4);
+
+    // Draw drag path
+    if(dragPath && dragPath.length>1){
+      ctx.strokeStyle='rgba(0,255,136,.5)'; ctx.lineWidth=cellSize*0.3;
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.beginPath();
+      ctx.moveTo(dragPath[0].x*cellSize+cellSize/2,dragPath[0].y*cellSize+cellSize/2);
+      dragPath.forEach(function(p){ ctx.lineTo(p.x*cellSize+cellSize/2,p.y*cellSize+cellSize/2); });
+      ctx.stroke();
+    }
+
+    // Draw player circle at current drag position
+    if(MIST.dragging && MIST.dragPos){
+      ctx.beginPath();
+      ctx.arc(MIST.dragPos.x*cellSize+cellSize/2, MIST.dragPos.y*cellSize+cellSize/2,
+              cellSize*0.38, 0, Math.PI*2);
+      ctx.fillStyle='rgba(0,255,136,.9)'; ctx.fill();
+      ctx.strokeStyle='#00ff88'; ctx.lineWidth=1.5; ctx.stroke();
+    } else if(!MIST.dragging){
+      // Draw circle at entry
+      ctx.beginPath();
+      ctx.arc(ex, ey, cellSize*0.38, 0, Math.PI*2);
+      ctx.fillStyle='rgba(0,255,136,.6)'; ctx.fill();
+      ctx.strokeStyle='#00ff88'; ctx.lineWidth=1.5; ctx.stroke();
     }
   }
 
-  function neighbors(r,c) {
-    var ns=[];
-    if(r>0&&!grid[r-1][c].visited) ns.push([r-1,c,'n','s']);
-    if(r<size-1&&!grid[r+1][c].visited) ns.push([r+1,c,'s','n']);
-    if(c>0&&!grid[r][c-1].visited) ns.push([r,c-1,'w','e']);
-    if(c<size-1&&!grid[r][c+1].visited) ns.push([r,c+1,'e','w']);
-    return ns;
-  }
-  function shuffle(a) { for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;} return a; }
-
-  var stack=[[0,0]]; grid[0][0].visited=true;
-  while(stack.length) {
-    var cur=stack[stack.length-1];
-    var r=cur[0],c=cur[1];
-    var ns=shuffle(neighbors(r,c));
-    if(ns.length) {
-      var n=ns[0]; grid[r][c][n[2]]=false; grid[n[0]][n[1]][n[3]]=false;
-      grid[n[0]][n[1]].visited=true; stack.push([n[0],n[1]]);
-    } else { stack.pop(); }
-  }
-
-  // Place entrance and exit following LEATR rules:
-  // Random sides; if same side, at least 1 unit apart
-  var sides=['n','s','e','w'];
-  var es=sides[Math.floor(Math.random()*4)];
-  var xs=sides[Math.floor(Math.random()*4)];
-  var ep, xp;
-
-  function randPos(side) {
-    return side==='n'||side==='s' ? Math.floor(Math.random()*size) : Math.floor(Math.random()*size);
-  }
-  ep=randPos(es);
-  if(xs===es) {
-    do { xp=randPos(xs); } while(Math.abs(xp-ep)<2);
-  } else { xp=randPos(xs); }
-
-  // Open walls for entrance/exit
-  function openGate(side, pos) {
-    var r,c,wall;
-    if(side==='n'){r=0;c=pos;wall='n';}
-    else if(side==='s'){r=size-1;c=pos;wall='s';}
-    else if(side==='w'){r=pos;c=0;wall='w';}
-    else{r=pos;c=size-1;wall='e';}
-    grid[r][c][wall]=false;
-    return {r,c,side};
-  }
-
-  return { grid, size,
-    entrance: openGate(es,ep),
-    exit: openGate(xs,xp) };
-}
-
-// ── Canvas Renderer ────────────────────────────────────────────────────────
-function renderMaze(canvas, maze, playerPos, path) {
-  var ctx = canvas.getContext('2d');
-  var size = maze.size;
-  var cw = canvas.width, ch = canvas.height;
-  var cell = Math.floor(Math.min(cw,ch)/size);
-  var ox = Math.floor((cw - cell*size)/2);
-  var oy = Math.floor((ch - cell*size)/2);
-
-  ctx.clearRect(0,0,cw,ch);
-  ctx.fillStyle='rgba(3,5,12,1)';
-  ctx.fillRect(0,0,cw,ch);
-
-  // Grid fill
-  for(var r=0;r<size;r++) for(var c=0;c<size;c++) {
-    ctx.fillStyle='rgba(167,139,250,.03)';
-    ctx.fillRect(ox+c*cell+1,oy+r*cell+1,cell-2,cell-2);
-  }
-
-  // Path glow
-  if(path&&path.length>1) {
-    ctx.strokeStyle='rgba(167,139,250,.3)';
-    ctx.lineWidth=Math.max(2,cell*0.25);
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    ctx.beginPath();
-    for(var i=0;i<path.length;i++) {
-      var pr=path[i][0],pc=path[i][1];
-      var px=ox+pc*cell+cell/2,py=oy+pr*cell+cell/2;
-      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-    }
-    ctx.stroke();
-  }
-
-  // Walls
-  ctx.strokeStyle='rgba(167,139,250,.7)';
-  ctx.lineWidth=1.5;
-  for(var r=0;r<size;r++) for(var c=0;c<size;c++) {
-    var cell_x=ox+c*cell, cell_y=oy+r*cell;
-    var walls=maze.grid[r][c];
-    ctx.beginPath();
-    if(walls.n){ctx.moveTo(cell_x,cell_y);ctx.lineTo(cell_x+cell,cell_y);}
-    ctx.stroke(); ctx.beginPath();
-    if(walls.s){ctx.moveTo(cell_x,cell_y+cell);ctx.lineTo(cell_x+cell,cell_y+cell);}
-    ctx.stroke(); ctx.beginPath();
-    if(walls.w){ctx.moveTo(cell_x,cell_y);ctx.lineTo(cell_x,cell_y+cell);}
-    ctx.stroke(); ctx.beginPath();
-    if(walls.e){ctx.moveTo(cell_x+cell,cell_y);ctx.lineTo(cell_x+cell,cell_y+cell);}
-    ctx.stroke();
-  }
-
-  // Entrance glow (green)
-  var en=maze.entrance, ex=maze.exit;
-  drawGate(ctx,en,cell,ox,oy,size,'rgba(0,255,136,.8)');
-  drawGate(ctx,ex,cell,ox,oy,size,'rgba(255,68,102,.8)');
-
-  // Player circle (wireframe)
-  if(playerPos) {
-    var px=ox+playerPos[1]*cell+cell/2, py=oy+playerPos[0]*cell+cell/2;
-    var pr=Math.max(4,cell*0.28);
-    ctx.strokeStyle='#a78bfa'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(px,py,pr,0,Math.PI*2); ctx.stroke();
-    ctx.strokeStyle='rgba(167,139,250,.3)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.arc(px,py,pr*1.5,0,Math.PI*2); ctx.stroke();
-    // Cross hairs
-    ctx.strokeStyle='rgba(167,139,250,.5)'; ctx.lineWidth=1;
-    ctx.beginPath();
-    ctx.moveTo(px-pr*1.3,py); ctx.lineTo(px+pr*1.3,py);
-    ctx.moveTo(px,py-pr*1.3); ctx.lineTo(px,py+pr*1.3);
-    ctx.stroke();
-  }
-
-  return {cell,ox,oy};
-}
-
-function drawGate(ctx,gate,cell,ox,oy,size,color) {
-  ctx.strokeStyle=color; ctx.lineWidth=3;
-  ctx.shadowColor=color; ctx.shadowBlur=8;
-  ctx.beginPath();
-  var gx=ox+gate.c*cell, gy=oy+gate.r*cell;
-  if(gate.side==='n'){ctx.moveTo(gx+2,gy);ctx.lineTo(gx+cell-2,gy);}
-  else if(gate.side==='s'){ctx.moveTo(gx+2,gy+cell);ctx.lineTo(gx+cell-2,gy+cell);}
-  else if(gate.side==='w'){ctx.moveTo(gx,gy+2);ctx.lineTo(gx,gy+cell-2);}
-  else{ctx.moveTo(gx+cell,gy+2);ctx.lineTo(gx+cell,gy+cell-2);}
-  ctx.stroke(); ctx.shadowBlur=0;
-}
-
-// ── Build Panel HTML ───────────────────────────────────────────────────────
-function buildPanel() {
-  var tab = document.createElement('div'); tab.id='mist-tab';
-  tab.innerHTML='<div class="mist-tab-dot"></div><div class="mist-tab-line"></div>'
-    +'<div class="mist-tab-dot"></div><div class="mist-tab-line"></div>'
-    +'<div class="mist-tab-dot"></div>';
-  tab.onclick = toggleMist;
-  document.body.appendChild(tab);
-
-  var panel = document.createElement('div'); panel.id='mist-panel';
-  panel.innerHTML = [
-    '<div id="mist-header">',
-    '<div id="mist-title">◈ MIST</div>',
-    '<button id="mist-close" onclick="window._mistToggle()">✕</button>',
-    '</div>',
-    '<div class="mist-icon-row">',
-    '<div class="mist-icon-btn active" id="mist-btn-0" onclick="window._mistSelectMaze(0)" title="STAR — Solve maze 1">',
-    '<svg class="mist-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">',
-    '<polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>',
-    '</svg><span>STAR</span></div>',
-    '<div class="mist-icon-btn" id="mist-btn-1" onclick="window._mistSelectMaze(1)" title="HEART — Solve mazes 1+2">',
-    '<svg class="mist-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">',
-    '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
-    '</svg><span>HEART</span></div>',
-    '<div class="mist-icon-btn" id="mist-btn-2" onclick="window._mistSelectMaze(2)" title="MIST — Solve all 3 mazes">',
-    '<svg class="mist-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">',
-    '<path d="M3 8h18M5 12h14M7 16h10"/>',
-    '</svg><span>MIST</span></div>',
-    '</div>',
-    '<div id="mist-maze-wrap">',
-    '<canvas id="mist-maze-canvas"></canvas>',
-    '</div>',
-    '<div id="mist-status">DRAG ◯ FROM GREEN TO RED</div>',
-    '<div class="mist-diff-row">',
-    '<span class="mist-diff-label">DIFFICULTY</span>',
-    '<div class="mist-diff-btns">',
-    '<button class="mist-diff-btn active" onclick="window._mistSetDiff(1)">1</button>',
-    '<button class="mist-diff-btn" onclick="window._mistSetDiff(2)">2</button>',
-    '<button class="mist-diff-btn" onclick="window._mistSetDiff(3)">3</button>',
-    '</div></div>'
-  ].join('');
-  document.body.appendChild(panel);
-
-  initMazeCanvas();
-}
-
-function initMazeCanvas() {
-  var canvas = document.getElementById('mist-maze-canvas');
-  var wrap = document.getElementById('mist-maze-wrap');
-  if (!canvas||!wrap) return;
-
-  function resize() {
-    var w=wrap.clientWidth-20, h=wrap.clientHeight-20;
-    var sz=Math.min(w,h);
-    canvas.width=sz; canvas.height=sz;
-    if(MIST.mazes[MIST.activeMaze]) renderMaze(canvas,MIST.mazes[MIST.activeMaze],MIST.currentPos,MIST.path);
-  }
-  new ResizeObserver(resize).observe(wrap);
-  setTimeout(resize,100);
-
-  // Touch/pointer drag handling
-  function getCell(ex,ey) {
+  // ── Touch/mouse drag handler ──────────────────────────────────────────────
+  function canvasToCell(canvas, maze, ex, ey) {
     var rect=canvas.getBoundingClientRect();
-    var maze=MIST.mazes[MIST.activeMaze]; if(!maze) return null;
-    var size=maze.size;
-    var cell=Math.floor(Math.min(canvas.width,canvas.height)/size);
-    var ox=Math.floor((canvas.width-cell*size)/2);
-    var oy=Math.floor((canvas.height-cell*size)/2);
-    var cx=ex-rect.left, cy=ey-rect.top;
-    var col=Math.floor((cx-ox)/cell), row=Math.floor((cy-oy)/cell);
-    if(row<0||row>=size||col<0||col>=size) return null;
-    return [row,col];
+    var cellSize=canvas.width/maze.w;
+    var cx=Math.floor((ex-rect.left)/rect.width*canvas.width/cellSize);
+    var cy=Math.floor((ey-rect.top)/rect.height*canvas.height/cellSize);
+    return {x:Math.max(0,Math.min(maze.w-1,cx)), y:Math.max(0,Math.min(maze.h-1,cy))};
   }
 
-  function startDrag(ex,ey) {
-    if(MIST.solved[MIST.activeMaze]) return;
-    var maze=MIST.mazes[MIST.activeMaze]; if(!maze) return;
-    var cell=getCell(ex,ey); if(!cell) return;
-    // Must start on entrance cell
-    if(cell[0]===maze.entrance.r&&cell[1]===maze.entrance.c) {
-      MIST.dragging=true;
-      MIST.currentPos=cell;
-      MIST.path=[[cell[0],cell[1]]];
-      renderMaze(canvas,maze,MIST.currentPos,MIST.path);
+  function onDragStart(e) {
+    var maze=MIST.mazes[MIST.activeMaze]; if(!maze||maze.solved) return;
+    e.preventDefault();
+    var pt=e.touches?e.touches[0]:e;
+    var cell=canvasToCell(this,maze,pt.clientX,pt.clientY);
+    // Must start at entry cell
+    if(cell.x===maze.entry.x && cell.y===maze.entry.y){
+      MIST.dragging=true; MIST.dragPos=cell; MIST.dragPath=[cell];
+      setStatus('NAVIGATE TO THE EXIT ◂');
     }
+    renderMaze(maze, MIST.dragPath);
   }
 
-  function moveDrag(ex,ey) {
+  function onDragMove(e) {
     if(!MIST.dragging) return;
+    e.preventDefault();
     var maze=MIST.mazes[MIST.activeMaze]; if(!maze) return;
-    var cell=getCell(ex,ey); if(!cell) return;
-    var cur=MIST.currentPos; if(!cur) return;
-    if(cell[0]===cur[0]&&cell[1]===cur[1]) return;
-
-    // Check adjacency and no wall between
-    var dr=cell[0]-cur[0], dc=cell[1]-cur[1];
-    if(Math.abs(dr)+Math.abs(dc)!==1) return; // must be adjacent
-    var dir, wallA, wallB;
-    if(dr===-1){dir='n';wallA='n';wallB='s';}
-    else if(dr===1){dir='s';wallA='s';wallB='n';}
-    else if(dc===-1){dir='w';wallA='w';wallB='e';}
-    else{dir='e';wallA='e';wallB='w';}
-
-    if(maze.grid[cur[0]][cur[1]][wallA]) { // wall exists = invalid
-      endDrag(true); return;
-    }
-
-    // Check if backtracking
-    var pathLen=MIST.path.length;
-    if(pathLen>=2&&MIST.path[pathLen-2][0]===cell[0]&&MIST.path[pathLen-2][1]===cell[1]) {
-      MIST.path.pop(); MIST.currentPos=cell;
-    } else {
-      MIST.path.push([cell[0],cell[1]]);
-      MIST.currentPos=cell;
-    }
-
-    renderMaze(canvas,maze,MIST.currentPos,MIST.path);
-
+    var pt=e.touches?e.touches[0]:e;
+    var cell=canvasToCell(this,maze,pt.clientX,pt.clientY);
+    var prev=MIST.dragPath[MIST.dragPath.length-1];
+    if(cell.x===prev.x && cell.y===prev.y) return;
+    // Check movement is through an open wall
+    var dx=cell.x-prev.x, dy=cell.y-prev.y;
+    if(Math.abs(dx)+Math.abs(dy)!==1) return; // only adjacent cells
+    var wallDir=dx===1?'e':dx===-1?'w':dy===1?'s':'n';
+    if(maze.grid[prev.y][prev.x][wallDir]!==0) return; // wall blocks
+    // Check if we're backtracking
+    if(MIST.dragPath.length>=2){
+      var pp=MIST.dragPath[MIST.dragPath.length-2];
+      if(cell.x===pp.x&&cell.y===pp.y){MIST.dragPath.pop();}
+      else { MIST.dragPath.push(cell); }
+    } else { MIST.dragPath.push(cell); }
+    MIST.dragPos=cell;
     // Check win
-    if(cell[0]===maze.exit.r&&cell[1]===maze.exit.c) {
-      MIST.dragging=false; onMazeSolved();
+    if(cell.x===maze.exit.x&&cell.y===maze.exit.y){
+      MIST.dragging=false; maze.solved=true;
+      onMazeSolved(MIST.activeMaze, maze);
+    } else {
+      renderMaze(maze, MIST.dragPath);
     }
   }
 
-  function endDrag(fail) {
+  function onDragEnd(e) {
     if(!MIST.dragging) return;
     MIST.dragging=false;
-    if(fail) {
-      setStatus('HIT A WALL — START AGAIN');
-      var maze=MIST.mazes[MIST.activeMaze];
-      MIST.currentPos=[maze.entrance.r,maze.entrance.c];
-      MIST.path=[[maze.entrance.r,maze.entrance.c]];
-      setTimeout(function(){ renderMaze(canvas,maze,MIST.currentPos,MIST.path); },200);
+    var maze=MIST.mazes[MIST.activeMaze];
+    if(maze&&!maze.solved){ MIST.dragPath=[]; renderMaze(maze,[]); setStatus('DRAG THE CIRCLE FROM ENTRY ▸ TO EXIT ◂'); }
+  }
+
+  function bindCanvasEvents() {
+    var canvas=document.getElementById('mist-maze-canvas');
+    if(!canvas) return;
+    canvas.addEventListener('mousedown',  onDragStart.bind(canvas));
+    canvas.addEventListener('mousemove',  onDragMove.bind(canvas));
+    canvas.addEventListener('mouseup',    onDragEnd.bind(canvas));
+    canvas.addEventListener('touchstart', onDragStart.bind(canvas), {passive:false});
+    canvas.addEventListener('touchmove',  onDragMove.bind(canvas),  {passive:false});
+    canvas.addEventListener('touchend',   onDragEnd.bind(canvas),   {passive:false});
+  }
+
+  // ── Solve celebration ─────────────────────────────────────────────────────
+  function onMazeSolved(slot, maze) {
+    var icons=['★','♥','◈'];
+    var labels=['STAR UNLOCKED ★','HEART UNLOCKED ♥','MIST UNLOCKED ◈'];
+    setStatus('✓ SOLVED! ' + labels[slot]);
+    MIST.solvedCount=Math.max(MIST.solvedCount, slot+1);
+
+    // Render solved state
+    renderMaze(maze, MIST.dragPath);
+
+    // Unlock next slot
+    if(slot+1<=2){
+      var nextTab=document.getElementById('mst-tab'+(slot+1));
+      if(nextTab) nextTab.classList.remove('locked-tab');
+      var nextIcon=document.getElementById('mst-i'+(slot+1));
+      if(nextIcon){
+        nextIcon.classList.remove('locked');
+        var dot=nextIcon.querySelector('.lock-dot');
+        if(dot) dot.remove();
+      }
+      document.getElementById('mst-i'+slot)&&document.getElementById('mst-i'+slot).classList.add('unlocked');
     }
+
+    // Fire THREE.js effect based on slot
+    setTimeout(function(){ fireMistEffect(slot); }, 300);
   }
 
-  canvas.addEventListener('pointerdown', function(e){e.preventDefault(); var t=e.touches?e.touches[0]:e; startDrag(t.clientX,t.clientY);},{passive:false});
-  canvas.addEventListener('pointermove', function(e){e.preventDefault(); var t=e.touches?e.touches[0]:e; moveDrag(t.clientX,t.clientY);},{passive:false});
-  canvas.addEventListener('pointerup',   function(e){endDrag(false);},{passive:false});
-  canvas.addEventListener('pointerleave',function(e){if(MIST.dragging)endDrag(false);},{passive:false});
-}
-
-function onMazeSolved() {
-  var idx=MIST.activeMaze;
-  MIST.solved[idx]=true;
-  updateIconStates();
-  var names=['STAR','HEART','MIST'];
-  setStatus('✓ ' + names[idx] + ' UNLOCKED!');
-
-  // If heart or mist now available, move to next
-  if(idx<2 && !MIST.solved[idx+1]) {
-    setTimeout(function(){
-      MIST.activeMaze=idx+1; loadMaze(idx+1);
-    },1200);
+  // ── THREE.js volumetric effects ───────────────────────────────────────────
+  function initThree() {
+    if(MIST.threeScene || typeof THREE==='undefined') return;
+    var canvas=document.getElementById('mist-three-canvas');
+    if(!canvas) return;
+    canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+    MIST.threeScene=new THREE.Scene();
+    MIST.threeCamera=new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight,.1,1000);
+    MIST.threeCamera.position.set(0,0,20);
+    MIST.threeRenderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});
+    MIST.threeRenderer.setClearColor(0x000000,0);
+    MIST.threeRenderer.setSize(window.innerWidth,window.innerHeight);
   }
 
-  // Fire the reward animation
-  fireReward(idx);
-}
+  function fireMistEffect(slot) {
+    initThree();
+    if(!MIST.threeScene) return;
+    var canvas=document.getElementById('mist-three-canvas');
+    canvas.classList.add('active');
 
-function fireReward(idx) {
-  if(idx===0) fireStarReward();
-  else if(idx===1) fireHeartReward();
-  else fireMistReward();
-}
+    // Clear old objects
+    while(MIST.threeScene.children.length) MIST.threeScene.remove(MIST.threeScene.children[0]);
 
-// ── STAR reward: volumetric wireframe stars over 3JS scene ────────────────
-function fireStarReward() {
-  var count=12;
-  for(var i=0;i<count;i++) {
-    (function(i){
-      setTimeout(function(){
-        var star=document.createElement('div');
-        star.style.cssText='position:fixed;z-index:9999;pointer-events:none;width:30px;height:30px;opacity:0';
-        var tx=(Math.random()-0.5)*200, ty=(Math.random()-0.5)*200;
-        var sx=20+Math.random()*(window.innerWidth-40);
-        var sy=20+Math.random()*(window.innerHeight*0.6-40);
-        star.style.left=sx+'px'; star.style.top=sy+'px';
-        star.style.setProperty('--tx',tx+'px'); star.style.setProperty('--ty',ty+'px');
-        star.innerHTML='<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.5" style="filter:drop-shadow(0 0 6px #a78bfa)"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>';
-        star.style.animation='mist-star-fly 1.2s ease-out forwards';
-        document.body.appendChild(star);
-        setTimeout(function(){star.remove();},1300);
-      }, i*80);
-    })(i);
-  }
-  // Pulse the 3JS scene GEO shell if available
-  if(window.S&&typeof pulseShells==='function') pulseShells(2.0);
-}
+    var objects=[];
+    var count=slot===0?24:slot===1?18:30;
 
-// ── HEART reward: hearts with pink glow ──────────────────────────────────
-function fireHeartReward() {
-  var count=10;
-  for(var i=0;i<count;i++) {
-    (function(i){
-      setTimeout(function(){
-        var heart=document.createElement('div');
-        heart.style.cssText='position:fixed;z-index:9999;pointer-events:none;width:28px;height:28px;opacity:0;animation:mist-star-fly 1.4s ease-out forwards';
-        var tx=(Math.random()-0.5)*180, ty=(Math.random()-0.5)*180;
-        heart.style.left=(30+Math.random()*(window.innerWidth-60))+'px';
-        heart.style.top=(30+Math.random()*(window.innerHeight*0.7))+'px';
-        heart.style.setProperty('--tx',tx+'px'); heart.style.setProperty('--ty',ty+'px');
-        heart.innerHTML='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff6b9d" stroke-width="1.5" style="filter:drop-shadow(0 0 8px #ff6b9d)"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
-        document.body.appendChild(heart);
-        setTimeout(function(){heart.remove();},1500);
-      },i*100);
-    })(i);
-  }
-  if(typeof pulseShells==='function') pulseShells(2.5);
-}
-
-// ── MIST reward: misty particle cascade ──────────────────────────────────
-function fireMistReward() {
-  // Overlay mist effect on the main viewport
-  var mist=document.createElement('div');
-  mist.style.cssText='position:fixed;inset:0;z-index:9998;pointer-events:none;'
-    +'background:radial-gradient(ellipse at center,rgba(167,139,250,.15),rgba(0,0,0,0));'
-    +'animation:mist-star-fly 3s ease-out forwards;opacity:1';
-  mist.style.setProperty('--tx','0px'); mist.style.setProperty('--ty','0px');
-  document.body.appendChild(mist);
-  setTimeout(function(){mist.remove();},3200);
-  // Also fire stars + hearts together
-  fireStarReward();
-  setTimeout(fireHeartReward,400);
-  // Toast
-  if(typeof window._toast==='function') window._toast('⬡ MIST UNLOCKED — ALL PATHS CLEARED');
-}
-
-// ── Maze management ────────────────────────────────────────────────────────
-function loadMaze(idx) {
-  var size=DIFF_SIZES[MIST.difficulty];
-  MIST.mazes[idx]=generateMaze(size);
-  MIST.currentPos=[MIST.mazes[idx].entrance.r,MIST.mazes[idx].entrance.c];
-  MIST.path=[[MIST.mazes[idx].entrance.r,MIST.mazes[idx].entrance.c]];
-  MIST.dragging=false;
-  var canvas=document.getElementById('mist-maze-canvas');
-  if(canvas) renderMaze(canvas,MIST.mazes[idx],MIST.currentPos,MIST.path);
-  setStatus('DRAG ◯ FROM GREEN TO RED');
-  updateIconStates();
-}
-
-function setStatus(msg) {
-  var el=document.getElementById('mist-status');
-  if(el) el.textContent=msg;
-}
-
-function updateIconStates() {
-  for(var i=0;i<3;i++) {
-    var btn=document.getElementById('mist-btn-'+i);
-    if(!btn) continue;
-    btn.className='mist-icon-btn';
-    if(MIST.solved[i]) btn.classList.add('unlocked');
-    if(i===MIST.activeMaze) btn.classList.add('active');
-  }
-}
-
-// ── Toggle / control ───────────────────────────────────────────────────────
-function toggleMist() {
-  MIST.open=!MIST.open;
-  var panel=document.getElementById('mist-panel');
-  if(panel) panel.classList.toggle('open',MIST.open);
-  if(MIST.open&&!MIST.mazes[MIST.activeMaze]) {
-    setTimeout(function(){loadMaze(MIST.activeMaze);},350);
-  }
-}
-
-// ── Public API ─────────────────────────────────────────────────────────────
-window._mistToggle=toggleMist;
-window._mistSelectMaze=function(idx) {
-  // Can only select if previous mazes are solved (or it's maze 0)
-  if(idx>0&&!MIST.solved[idx-1]) {
-    setStatus('SOLVE MAZE '+(idx)+' FIRST');
-    return;
-  }
-  MIST.activeMaze=idx;
-  if(!MIST.mazes[idx]) loadMaze(idx);
-  else {
-    // Reload if already solved to let them replay
-    if(MIST.solved[idx]) {
-      setStatus('ALREADY UNLOCKED — REPLAYING');
-      loadMaze(idx);
+    if(slot===0) {
+      // ★ Star burst — volumetric wireframe stars fly out
+      for(var i=0;i<count;i++){
+        var geo=new THREE.OctahedronGeometry(0.3+Math.random()*0.4,0);
+        var mat=new THREE.MeshBasicMaterial({color:0xffdd00,wireframe:true,opacity:.8,transparent:true});
+        var mesh=new THREE.Mesh(geo,mat);
+        var angle=Math.random()*Math.PI*2;
+        var spd=0.08+Math.random()*0.15;
+        mesh.position.set((Math.random()-.5)*4,(Math.random()-.5)*4,Math.random()*2);
+        mesh._vel={x:Math.cos(angle)*spd,y:Math.sin(angle)*spd,z:(Math.random()-.5)*.05};
+        mesh._rot={x:Math.random()*.05,y:Math.random()*.05};
+        objects.push(mesh); MIST.threeScene.add(mesh);
+      }
+    } else if(slot===1) {
+      // ♥ Heart — pink/red spheres in heart formation
+      for(var i=0;i<count;i++){
+        var t=i/count*Math.PI*2;
+        var hx=16*Math.pow(Math.sin(t),3)/8;
+        var hy=(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/8;
+        var geo=new THREE.SphereGeometry(.15+Math.random()*.1,8,8);
+        var mat=new THREE.MeshBasicMaterial({color:0xff4488,wireframe:true,opacity:.7,transparent:true});
+        var mesh=new THREE.Mesh(geo,mat);
+        mesh.position.set(hx,hy,0);
+        mesh._vel={x:(Math.random()-.5)*.02,y:(Math.random()-.5)*.02,z:0};
+        mesh._rot={x:0,y:0,z:Math.random()*.03};
+        objects.push(mesh); MIST.threeScene.add(mesh);
+      }
     } else {
-      MIST.currentPos=[MIST.mazes[idx].entrance.r,MIST.mazes[idx].entrance.c];
-      MIST.path=[[MIST.mazes[idx].entrance.r,MIST.mazes[idx].entrance.c]];
-      var canvas=document.getElementById('mist-maze-canvas');
-      if(canvas) renderMaze(canvas,MIST.mazes[idx],MIST.currentPos,MIST.path);
+      // ◈ Mist — cyan particle cloud swirling
+      for(var i=0;i<count;i++){
+        var r=2+Math.random()*4;
+        var theta=Math.random()*Math.PI*2;
+        var phi=Math.random()*Math.PI;
+        var geo=new THREE.TetrahedronGeometry(.2+Math.random()*.3,0);
+        var mat=new THREE.MeshBasicMaterial({color:0x00e5ff,wireframe:true,opacity:.5,transparent:true});
+        var mesh=new THREE.Mesh(geo,mat);
+        mesh.position.set(r*Math.sin(phi)*Math.cos(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(phi));
+        var swirl=.04;
+        mesh._vel={x:-Math.sin(theta)*swirl,y:Math.cos(theta)*swirl,z:(Math.random()-.5)*.02};
+        mesh._rot={x:Math.random()*.04,y:Math.random()*.04};
+        objects.push(mesh); MIST.threeScene.add(mesh);
+      }
     }
+
+    var t=0, maxT=120;
+    if(MIST.threeAnimId) cancelAnimationFrame(MIST.threeAnimId);
+    function animate(){
+      t++;
+      objects.forEach(function(o){
+        o.position.x+=o._vel.x; o.position.y+=o._vel.y; o.position.z+=o._vel.z;
+        o.rotation.x+=o._rot.x; o.rotation.y+=o._rot.y;
+        o.material.opacity=0.8*(1-t/maxT);
+        if(slot===2){ o.position.x+=Math.sin(t*.05+o.position.z)*.02; }
+      });
+      MIST.threeRenderer.render(MIST.threeScene,MIST.threeCamera);
+      if(t<maxT){ MIST.threeAnimId=requestAnimationFrame(animate); }
+      else{
+        canvas.classList.remove('active');
+        while(MIST.threeScene.children.length) MIST.threeScene.remove(MIST.threeScene.children[0]);
+      }
+    }
+    animate();
   }
-  updateIconStates();
-};
-window._mistSetDiff=function(d) {
-  MIST.difficulty=d;
-  document.querySelectorAll('.mist-diff-btn').forEach(function(b,i){
-    b.classList.toggle('active',i+1===d);
-  });
-  // Regenerate all mazes at new difficulty
-  MIST.mazes=[null,null,null];
-  MIST.solved=[false,false,false];
-  MIST.activeMaze=0;
-  updateIconStates();
-  loadMaze(0);
-  setStatus('DIFFICULTY '+d+' — NEW MAZES GENERATED');
-};
 
-window._mistGetState=function() { return MIST; };
+  // ── Status line ───────────────────────────────────────────────────────────
+  function setStatus(msg) {
+    var el=document.getElementById('mist-status'); if(el) el.textContent=msg;
+  }
 
-// ── Init ───────────────────────────────────────────────────────────────────
-if(document.readyState==='loading') {
-  document.addEventListener('DOMContentLoaded',buildPanel);
-} else {
-  buildPanel();
-}
+  // ── Init ──────────────────────────────────────────────────────────────────
+  function init() {
+    injectCSS();
+    injectHTML();
+    // Bind canvas events after panel is open (resize needed)
+    document.addEventListener('click',function(e){
+      if(e.target&&e.target.closest&&e.target.closest('#mist-panel')){
+        setTimeout(function(){ bindCanvasEvents(); },50);
+      }
+    });
+    // Also bind on first open
+    var _origToggle=window.mistToggle;
+    window.mistToggle=function(){
+      _origToggle();
+      setTimeout(function(){
+        bindCanvasEvents();
+        if(MIST.open&&!MIST.mazes[MIST.activeMaze]) mistNewMaze();
+      },50);
+    };
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',init);
+  } else { init(); }
 
 })();
