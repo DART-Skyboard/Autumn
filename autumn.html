@@ -16776,33 +16776,39 @@ _syncActionBtn();
       influence:   _ac.influence,
       applied:     _ac.applied
     };
-    var content   = JSON.stringify(snapshot, null, 2);
-    var filename  = 'ash-canvas-' + new Date().toISOString().slice(0,10) + '.json';
-    var token     = window._ghAuth.token;
-    var username  = window._ghAuth.username;
-    var repoName  = window._ghAuth.repoName || ('Autumn-Ash-' + username);
-    var path      = 'ash-memory/' + filename;
-    var encoded   = btoa(unescape(encodeURIComponent(content)));
+    var content  = JSON.stringify(snapshot, null, 2);
+    var filename = 'ash-canvas-' + new Date().toISOString().slice(0,10) + '.json';
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName || ('Autumn-Ash-' + username);
+    var path     = 'ash-memory/' + filename;
+    var encoded  = btoa(unescape(encodeURIComponent(content)));
+    var apiBase  = 'https://api.github.com/repos/' + username + '/' + repoName + '/contents/' + path;
+    var headers  = { 'Authorization': 'token ' + token, 'Content-Type': 'application/json',
+                     'Accept': 'application/vnd.github.v3+json' };
 
     if (typeof ideToast === 'function') ideToast('Saving Ash Canvas…', 1500);
 
-    fetch('https://api.github.com/repos/' + username + '/' + repoName + '/contents/' + path, {
-      method: 'PUT',
-      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json',
-                 'Accept': 'application/vnd.github.v3+json' },
-      body: JSON.stringify({ message: 'ash-canvas: save ' + filename, content: encoded })
-    }).then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.content) {
-        if (typeof ideToast === 'function') ideToast('✓ Ash Canvas saved to ' + repoName, 3000);
-        if (S && S.journal) S.journal.push({ ts: new Date().toISOString(), _internal: true,
-          _thought: 'Ash Canvas saved to GitHub: ' + path + '. Nodes: ' + snapshot.nodes.length + ', Links: ' + snapshot.links.length });
-      } else {
-        if (typeof ideToast === 'function') ideToast('⚠ Save failed: ' + (d.message || 'unknown'), 3000);
-      }
-    }).catch(function(e) {
-      if (typeof ideToast === 'function') ideToast('⚠ Save error: ' + e.message, 3000);
-    });
+    // Always GET first to retrieve current SHA (required by GitHub for updates)
+    fetch(apiBase, { method: 'GET', headers: headers })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(existing) {
+        var body = { message: 'ash-canvas: save ' + filename, content: encoded };
+        if (existing && existing.sha) body.sha = existing.sha;
+        return fetch(apiBase, { method: 'PUT', headers: headers, body: JSON.stringify(body) });
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.content) {
+          if (typeof ideToast === 'function') ideToast('✓ Ash Canvas saved to ' + repoName, 3000);
+          if (S && S.journal) S.journal.push({ ts: new Date().toISOString(), _internal: true,
+            _thought: 'Ash Canvas saved to GitHub: ' + path + '. Nodes: ' + snapshot.nodes.length + ', Links: ' + snapshot.links.length });
+        } else {
+          if (typeof ideToast === 'function') ideToast('⚠ Save failed: ' + (d.message || 'unknown'), 3000);
+        }
+      }).catch(function(e) {
+        if (typeof ideToast === 'function') ideToast('⚠ Save error: ' + e.message, 3000);
+      });
   };
 })();
 
