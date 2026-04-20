@@ -61,6 +61,10 @@ Important Note: You might have to sign up twice and then each time you do open a
 
 ---
 
+Note: You have the option to not use GitHub sign-in and below the button in the fine print below the sign-in with GitHub button welcome screen pop-up you can continue to the site just be sure to accept the privacy policy doing so will store cookie data in your browser then at that point you can manually export and import your data just remember to do so for the sake of protecting your work productivity. Research on zero authorization services and user storage is currently in the works so stay tuned for updates on the current user account technique availabilities.
+
+---
+
 <p align="center">
   © 2026 DART Meadow / Radical Deepscale LLC &nbsp;·&nbsp; Built on LEATR v2
 </p>
