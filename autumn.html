@@ -2195,6 +2195,7 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="ac-btn secondary" onclick="acLinkMode()" id="ac-link-btn">⟷ LINK</button>
         <button class="ac-btn secondary" onclick="acClearSelected()" id="ac-del-btn">✕ DEL</button>
         <button class="ac-btn reset" onclick="acResetCanvas()">↺ RESET</button>
+        <button class="ac-btn" onclick="acSaveToAsh()" title="Save Ash Canvas state to your GitHub Ash repo" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:rgba(167,139,250,.9)">⬡ SAVE</button>
       </div>
     </div>
   </div>
@@ -14469,6 +14470,8 @@ function ASH_MAZE_generate() {
     _ashDrawCubicGeometry(mazeResult, u);
   }
   _ashMazeData = {...mazeResult, u, mode};
+  window._lastMazeResult = mazeResult; // expose for JSX export
+  window._lastSolvedPath = [];         // reset path on new generate
   // Center master group at scene origin so OrbitControls orbits the true center
   const _bb = new THREE.Box3().setFromObject(_ashMasterGroup);
   const _ctr = _bb.getCenter(new THREE.Vector3());
@@ -14565,6 +14568,8 @@ function ASH_MAZE_solvePath(instant) {
   const ordered = _ashMazeData.mode==='planar'
     ? LEMAC_ENGINE_ASH.solvePlanar(_ashMazeData)
     : LEMAC_ENGINE_ASH.solveCubic(_ashMazeData);
+
+  window._lastSolvedPath = ordered || []; // expose for JSX export
 
   if (instant || _ashState.mazeInstantSolve) {
     _ashDrawPathNodes(ordered);
@@ -14697,6 +14702,7 @@ function _ashMazeHTML(){
     <button class="ash-btn" style="margin-top:4px" onclick="ASH_MAZE_solvePath()">⬡ Sigma Solve</button>
     <button class="ash-btn" style="margin-top:4px" onclick="_ashFrameCamera()">◉ Frame View</button>
     <button class="ash-btn" style="margin-top:4px" onclick="ashMazeExportPNG()">↓ PNG</button>
+    <button class="ash-btn" style="margin-top:4px" onclick="ashMazeExportJSX()">↓ JSX</button>
     <button class="ash-btn" style="margin-top:4px;margin-bottom:8px" onclick="ashSendMazeToChat()">→ Chat</button>
   </div>
   <div id="ash-viewport"><canvas id="ash-maze-canvas"></canvas></div>
@@ -14810,6 +14816,325 @@ window.ashMazeExportPNG = function() {
   _ashMazeRenderer.render(_ashMazeScene, _ashMazeCamera);
   const url = _ashMazeRenderer.domElement.toDataURL('image/png');
   const a = document.createElement('a'); a.href=url; a.download='ash_maze.png'; a.click();
+};
+
+window.ashMazeExportJSX = function() {
+  if (!window._lastMazeResult) {
+    if (typeof ideToast === 'function') ideToast('Generate a maze first', 2000);
+    return;
+  }
+  var mr   = window._lastMazeResult;
+  var mode = _ashState.mazeMode || 'cubic';
+  var w    = mr.w, h = mr.h, d = mr.d || 1;
+  var solvedPath = window._lastSolvedPath || [];
+
+  // Serialize maze data
+  var mazeData = {
+    mode: mode, w: w, h: h, d: d,
+    grid: mr.grid,
+    start: mr.start, end: mr.end,
+    solvedPath: solvedPath,
+    generated: new Date().toISOString()
+  };
+
+  var mazeJSON = JSON.stringify(mazeData, null, 2);
+
+  // Build self-contained JSX/HTML interactive viewer
+  var jsx = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEMAC Maze — ${mode} ${w}×${h}${mode==='cubic'?'×'+d:''}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0f14;color:#00ffcc;font-family:'Courier New',monospace;overflow:hidden}
+  #ui{position:fixed;top:10px;left:10px;z-index:10;display:flex;flex-direction:column;gap:6px}
+  button{background:rgba(0,255,204,.1);border:1px solid rgba(0,255,204,.3);color:#00ffcc;
+    padding:6px 12px;cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:1px;border-radius:2px}
+  button:hover{background:rgba(0,255,204,.2)}
+  button.active{background:rgba(0,255,204,.25);border-color:#00ffcc}
+  #info{position:fixed;bottom:10px;left:10px;font-size:10px;color:rgba(0,255,204,.5);letter-spacing:1px}
+  #export-btn{position:fixed;top:10px;right:10px;z-index:10}
+</style>
+</head>
+<body>
+<div id="ui">
+  <button onclick="toggleMode()" id="mode-btn">⬡ WIREFRAME</button>
+  <button onclick="toggleSolve()" id="solve-btn">◈ SHOW PATH</button>
+  <button onclick="resetCamera()">◉ RESET VIEW</button>
+  <button onclick="exportJSON()">↓ JSON DATA</button>
+</div>
+<button id="export-btn" onclick="exportAssembly()">↓ ASSEMBLY GUIDE</button>
+<canvas id="c"></canvas>
+<div id="info">LEMAC ${mode.toUpperCase()} MAZE ${w}×${h}${mode==='cubic'?'×'+d:''} · 1-FINGER ROTATE · 2-FINGER PAN+ZOOM</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+var MAZE_DATA = ${mazeJSON};
+
+var scene, camera, renderer, controls;
+var wireGroup, solidGroup, pathGroup;
+var showWire = true, showPath = false;
+
+function init() {
+  var canvas = document.getElementById('c');
+  renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(0x0a0f14, 1);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 500);
+  camera.position.set(MAZE_DATA.w, MAZE_DATA.h, MAZE_DATA.w*1.8);
+  camera.lookAt(MAZE_DATA.w/2, MAZE_DATA.h/2, (MAZE_DATA.d||1)/2);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  var dl = new THREE.DirectionalLight(0xffffff, 0.8);
+  dl.position.set(10,20,10); scene.add(dl);
+
+  buildMaze();
+  buildPath();
+  initControls();
+  animate();
+  window.addEventListener('resize', onResize);
+}
+
+function buildMaze() {
+  wireGroup  = new THREE.Group(); scene.add(wireGroup);
+  solidGroup = new THREE.Group(); scene.add(solidGroup);
+
+  var wMat = new THREE.LineBasicMaterial({color:0x00ffcc, transparent:true, opacity:0.6});
+  var sMat = new THREE.MeshPhongMaterial({color:0x1a3a4a, transparent:true, opacity:0.85,
+    emissive:0x001122, wireframe:false});
+  var cellSize = 1.0;
+  var wallH    = 0.8;
+
+  var grid = MAZE_DATA.grid;
+  var w=MAZE_DATA.w, h=MAZE_DATA.h, d=MAZE_DATA.d||1;
+
+  // Build wall geometry from grid passages
+  function addWall(x1,y1,z1, x2,y2,z2) {
+    var geom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x1,y1,z1), new THREE.Vector3(x2,y2,z2)
+    ]);
+    wireGroup.add(new THREE.Line(geom, wMat.clone()));
+    // Solid wall box
+    var mx=(x1+x2)/2, my=(y1+y2)/2, mz=(z1+z2)/2;
+    var sx=Math.abs(x2-x1)||0.1, sy=Math.abs(y2-y1)||wallH, sz=Math.abs(z2-z1)||0.1;
+    var box = new THREE.Mesh(new THREE.BoxGeometry(Math.max(sx,0.1), Math.max(sy,wallH), Math.max(sz,0.1)), sMat.clone());
+    box.position.set(mx,my,mz);
+    solidGroup.add(box);
+  }
+
+  if (MAZE_DATA.mode === 'planar') {
+    for (var y=0;y<h;y++) for (var x=0;x<w;x++) {
+      var cell = grid[y]?.[x];
+      if (!cell) continue;
+      var px=x*cellSize, py=0, pz=y*cellSize;
+      if (!cell.passages?.includes('E') && x<w-1) addWall(px+cellSize,py,pz, px+cellSize,py+wallH,pz+cellSize);
+      if (!cell.passages?.includes('S') && y<h-1) addWall(px,py,pz+cellSize, px+cellSize,py+wallH,pz+cellSize);
+      if (x===0) addWall(px,py,pz, px,py+wallH,pz+cellSize);
+      if (y===0) addWall(px,py,pz, px+cellSize,py+wallH,pz);
+    }
+  } else {
+    for (var z=0;z<(d||1);z++) for (var y=0;y<h;y++) for (var x=0;x<w;x++) {
+      var cell = grid[z]?.[y]?.[x] || grid[y]?.[x];
+      if (!cell) continue;
+      var px=x*cellSize, py=z*cellSize, pz=y*cellSize;
+      if (!cell.passages?.includes('E') && x<w-1) addWall(px+cellSize,py,pz, px+cellSize,py+cellSize,pz+cellSize);
+      if (!cell.passages?.includes('S') && y<h-1) addWall(px,py,pz+cellSize, px+cellSize,py+cellSize,pz+cellSize);
+      if (x===0) addWall(px,py,pz, px,py+cellSize,pz+cellSize);
+      if (y===0) addWall(px,py,pz, px+cellSize,py+cellSize,pz);
+    }
+  }
+
+  // Start/End markers
+  var startGeom = new THREE.SphereGeometry(0.3,8,8);
+  var startMesh = new THREE.Mesh(startGeom, new THREE.MeshPhongMaterial({color:0x00ff88,emissive:0x004422}));
+  var s=MAZE_DATA.start;
+  startMesh.position.set(s[0]*cellSize+0.5, 0.3, s[1]*cellSize+0.5);
+  scene.add(startMesh);
+
+  var endGeom = new THREE.SphereGeometry(0.3,8,8);
+  var endMesh = new THREE.Mesh(endGeom, new THREE.MeshPhongMaterial({color:0xff4466,emissive:0x440011}));
+  var e=MAZE_DATA.end;
+  endMesh.position.set(e[0]*cellSize+0.5, 0.3, e[1]*cellSize+0.5);
+  scene.add(endMesh);
+
+  solidGroup.visible = false;
+}
+
+function buildPath() {
+  pathGroup = new THREE.Group(); scene.add(pathGroup);
+  var path = MAZE_DATA.solvedPath;
+  if (!path || path.length < 2) return;
+  var pts = path.map(function(p) {
+    return new THREE.Vector3((p.x||p[0])+0.5, 0.4, (p.y||p[1])+0.5);
+  });
+  var geom = new THREE.BufferGeometry().setFromPoints(pts);
+  var mat  = new THREE.LineBasicMaterial({color:0xffaa00, linewidth:2});
+  pathGroup.add(new THREE.Line(geom, mat));
+  pathGroup.visible = false;
+}
+
+function initControls() {
+  var isDragging=false, prevX=0, prevY=0, touchDist=0, touchMidX=0, touchMidY=0;
+  var spherical = new THREE.Spherical().setFromVector3(camera.position);
+  var target = new THREE.Vector3(MAZE_DATA.w/2, MAZE_DATA.h/4, (MAZE_DATA.d||1)/2);
+
+  function updateCamera() {
+    camera.position.setFromSpherical(spherical).add(target);
+    camera.lookAt(target);
+  }
+
+  renderer.domElement.addEventListener('mousedown',function(e){isDragging=true;prevX=e.clientX;prevY=e.clientY});
+  renderer.domElement.addEventListener('mousemove',function(e){
+    if(!isDragging)return;
+    spherical.theta -= (e.clientX-prevX)*0.005;
+    spherical.phi   -= (e.clientY-prevY)*0.005;
+    spherical.phi=Math.max(0.1,Math.min(Math.PI-0.1,spherical.phi));
+    prevX=e.clientX;prevY=e.clientY; updateCamera();
+  });
+  renderer.domElement.addEventListener('mouseup',function(){isDragging=false});
+  renderer.domElement.addEventListener('wheel',function(e){
+    spherical.radius=Math.max(2,Math.min(100,spherical.radius+e.deltaY*0.05));updateCamera();
+  },{passive:true});
+
+  // Touch: 1-finger rotate, 2-finger pan+zoom
+  renderer.domElement.addEventListener('touchstart',function(e){
+    e.preventDefault();
+    if(e.touches.length===1){isDragging=true;prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;}
+    if(e.touches.length===2){
+      isDragging=false;
+      var dx=e.touches[0].clientX-e.touches[1].clientX;
+      var dy=e.touches[0].clientY-e.touches[1].clientY;
+      touchDist=Math.sqrt(dx*dx+dy*dy);
+      touchMidX=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      touchMidY=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    }
+  },{passive:false});
+  renderer.domElement.addEventListener('touchmove',function(e){
+    e.preventDefault();
+    if(e.touches.length===1&&isDragging){
+      spherical.theta-=(e.touches[0].clientX-prevX)*0.005;
+      spherical.phi  -=(e.touches[0].clientY-prevY)*0.005;
+      spherical.phi=Math.max(0.1,Math.min(Math.PI-0.1,spherical.phi));
+      prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;updateCamera();
+    }
+    if(e.touches.length===2){
+      var dx=e.touches[0].clientX-e.touches[1].clientX;
+      var dy=e.touches[0].clientY-e.touches[1].clientY;
+      var newDist=Math.sqrt(dx*dx+dy*dy);
+      // Pinch zoom
+      spherical.radius=Math.max(2,Math.min(100,spherical.radius*(touchDist/newDist)));
+      touchDist=newDist;
+      // Pan
+      var newMidX=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      var newMidY=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      var panScale=spherical.radius*0.003;
+      target.x-=(newMidX-touchMidX)*panScale;
+      target.z-=(newMidY-touchMidY)*panScale;
+      touchMidX=newMidX;touchMidY=newMidY;
+      updateCamera();
+    }
+  },{passive:false});
+  renderer.domElement.addEventListener('touchend',function(){isDragging=false});
+
+  window._resetCam=function(){
+    spherical.set(MAZE_DATA.w*1.8, Math.PI/3, Math.PI/4);
+    target.set(MAZE_DATA.w/2,MAZE_DATA.h/4,(MAZE_DATA.d||1)/2);
+    updateCamera();
+  };
+}
+
+function toggleMode(){
+  showWire=!showWire;
+  wireGroup.visible=showWire; solidGroup.visible=!showWire;
+  document.getElementById('mode-btn').textContent=showWire?'⬡ WIREFRAME':'⬡ SOLID';
+  document.getElementById('mode-btn').className=showWire?'active':'';
+}
+function toggleSolve(){
+  showPath=!showPath; pathGroup.visible=showPath;
+  document.getElementById('solve-btn').className=showPath?'active':'';
+}
+function resetCamera(){ if(window._resetCam) window._resetCam(); }
+
+function exportJSON(){
+  var blob=new Blob([JSON.stringify(MAZE_DATA,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='lemac_maze_${w}x${h}.json';a.click();
+}
+
+function exportAssembly(){
+  var guide = [
+    '# LEMAC Maze Assembly Guide',
+    '# Mode: ' + MAZE_DATA.mode + ' | Size: ' + MAZE_DATA.w + 'x' + MAZE_DATA.h + (MAZE_DATA.d?'x'+MAZE_DATA.d:''),
+    '# Generated: ' + MAZE_DATA.generated,
+    '',
+    '## JSON Structure',
+    '- grid: 2D or 3D array of cells, each with a "passages" array',
+    '- passages values: N/S/E/W (planar) or N/S/E/W/U/D (cubic)',
+    '- start: [x,y] or [x,y,z] — maze entry point',
+    '- end: [x,y] or [x,y,z] — maze exit point',
+    '- solvedPath: array of {x,y} or {x,y,z} steps from start to end',
+    '',
+    '## Blender Python Import',
+    'import json, bpy',
+    'data = json.loads(open("lemac_maze.json").read())',
+    'for y,row in enumerate(data["grid"]):',
+    '  for x,cell in enumerate(row):',
+    '    if not cell: continue',
+    '    bpy.ops.mesh.primitive_cube_add(size=0.1, location=(x,y,0))',
+    '',
+    '## Three.js Quick Start',
+    'import * as THREE from "three"',
+    'const data = await fetch("lemac_maze.json").then(r=>r.json())',
+    '// data.grid[y][x].passages contains open directions',
+    '// Build walls where a passage is missing between adjacent cells',
+    '',
+    '## Path Solving',
+    '// solvedPath is a pre-solved BFS path from start to end',
+    '// Each step: {x, y} for planar or {x, y, z} for cubic',
+    '// Visualize as a line or animated sphere moving through the maze'
+  ].join('\\n');
+  var blob=new Blob([guide],{type:'text/plain'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='lemac_maze_assembly_guide.txt';a.click();
+}
+
+function animate(){ requestAnimationFrame(animate); renderer.render(scene,camera); }
+function onResize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); }
+
+init();
+</script>
+</body>
+</html>`;
+
+  // Save as file
+  var blob = new Blob([jsx], {type:'text/html'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lemac_maze_' + mode + '_' + w + 'x' + h + '.html';
+  a.click();
+
+  // Also save to Ash repo if logged in
+  if (window._ghAuth && window._ghAuth.loggedIn) {
+    var token    = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName || ('Autumn-Ash-' + username);
+    var filename = 'maze-export-' + new Date().toISOString().slice(0,10) + '-' + mode + '.json';
+    var encoded  = btoa(unescape(encodeURIComponent(JSON.stringify(mazeData, null, 2))));
+    fetch('https://api.github.com/repos/' + username + '/' + repoName + '/contents/ash-memory/' + filename, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json',
+                 'Accept': 'application/vnd.github.v3+json' },
+      body: JSON.stringify({ message: 'maze: export ' + filename, content: encoded })
+    }).then(function() {
+      if (typeof ideToast === 'function') ideToast('✓ Maze JSON saved to Ash repo', 2500);
+    }).catch(function(){});
+  }
+
+  if (typeof ideToast === 'function') ideToast('↓ Maze JSX exported', 2000);
 };
 
 window.ashSendToChat = function() {
@@ -16656,6 +16981,54 @@ _syncActionBtn();
 
   // Expose influence to LEATR pipeline — injected into processLEATR_NLP context
   window.getAshCanvasInfluence = function() { return _ac.applied ? _ac.influence : null; };
+
+  // ── Save Ash Canvas state to GitHub Ash repo ──────────────────────────────
+  window.acSaveToAsh = function() {
+    if (!window._ghAuth || !window._ghAuth.loggedIn) {
+      if (typeof ideToast === 'function') ideToast('Sign in with GitHub to save Ash Canvas', 3000);
+      return;
+    }
+    var snapshot = {
+      version:     '1.0',
+      saved:       new Date().toISOString(),
+      username:    window._ghAuth.username,
+      nodes:       _ac.nodes.map(function(n) {
+        return { id: n.id, tool: n.tool, x: n.x, y: n.y, shellLinks: n.shellLinks };
+      }),
+      links:       _ac.links.map(function(l) {
+        return { from: l.from, to: l.to, toShell: l.toShell || null };
+      }),
+      influence:   _ac.influence,
+      applied:     _ac.applied
+    };
+    var content   = JSON.stringify(snapshot, null, 2);
+    var filename  = 'ash-canvas-' + new Date().toISOString().slice(0,10) + '.json';
+    var token     = window._ghAuth.token;
+    var username  = window._ghAuth.username;
+    var repoName  = window._ghAuth.repoName || ('Autumn-Ash-' + username);
+    var path      = 'ash-memory/' + filename;
+    var encoded   = btoa(unescape(encodeURIComponent(content)));
+
+    if (typeof ideToast === 'function') ideToast('Saving Ash Canvas…', 1500);
+
+    fetch('https://api.github.com/repos/' + username + '/' + repoName + '/contents/' + path, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json',
+                 'Accept': 'application/vnd.github.v3+json' },
+      body: JSON.stringify({ message: 'ash-canvas: save ' + filename, content: encoded })
+    }).then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.content) {
+        if (typeof ideToast === 'function') ideToast('✓ Ash Canvas saved to ' + repoName, 3000);
+        if (S && S.journal) S.journal.push({ ts: new Date().toISOString(), _internal: true,
+          _thought: 'Ash Canvas saved to GitHub: ' + path + '. Nodes: ' + snapshot.nodes.length + ', Links: ' + snapshot.links.length });
+      } else {
+        if (typeof ideToast === 'function') ideToast('⚠ Save failed: ' + (d.message || 'unknown'), 3000);
+      }
+    }).catch(function(e) {
+      if (typeof ideToast === 'function') ideToast('⚠ Save error: ' + e.message, 3000);
+    });
+  };
 })();
 
 // ═══════════════════════════════════════════════════════════════════
@@ -17325,9 +17698,8 @@ window.emmToggle = function() {
       _as.controls.minDistance        = 1;
       _as.controls.maxDistance        = 80;
       _as.controls.screenSpacePanning = true;
-      if (THREE.TOUCH) {
-        _as.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
-      }
+      // Two-finger pan+zoom on mobile (r128: ONE=0 ROTATE, TWO=1 DOLLY_PAN)
+      _as.controls.touches = { ONE: 0, TWO: 1 };
     }
 
     // ── Raycaster for arc selection ────────────────────────────────
