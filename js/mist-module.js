@@ -1,29 +1,23 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  MIST MODULE — Autumn floating transparent overlay maze
-//  Lead Edge Ash Tree Reflex · THREE.js volumetric effects
-//  Slots: ★ Star · ♥ Heart · ◈ Mist
-//  Design: fully transparent, upper-right overlay on 3JS canvas
-//          damped sphere tracking, neon wireframe aesthetic
+//  MIST MODULE — Autumn transparent overlay maze
+//  Lead Edge Ash Tree Reflex · injects wireframe geometry into BRPN scene
+//  Trigger: upper-right, over 3JS canvas · click-outside to close
 // ═══════════════════════════════════════════════════════════════════════════
 (function() {
   'use strict';
 
   var MIST = {
     open: false,
-    difficulty: 2,
+    difficulty: 1,
     mazes: [null,null,null],
     solvedCount: 0,
     dragging: false,
     dragPos: null,
     dragPath: [],
     activeMaze: 0,
-    threeScene: null,
-    threeRenderer: null,
-    threeCamera: null,
-    threeAnimId: null,
-    // Damped sphere interpolation
-    sphereTarget: null,   // {x,y} in canvas pixel space
-    sphereActual: null,   // {x,y} interpolated
+    // Damped sphere
+    sphereTarget: null,
+    sphereActual: null,
     sphereAnimId: null
   };
 
@@ -73,7 +67,6 @@
     return {grid,w,h,entry,exit,entrySide,exitSide};
   }
 
-  // ── BFS solver ────────────────────────────────────────────────────────────
   function solveMaze(maze) {
     var queue=[{x:maze.entry.x,y:maze.entry.y,path:[{x:maze.entry.x,y:maze.entry.y}]}];
     var seen={}; seen[maze.entry.x+','+maze.entry.y]=true;
@@ -100,150 +93,74 @@
   function injectCSS() {
     var s = document.createElement('style');
     s.textContent = [
-      // ── Edge trigger tab — upper right, overlapping 3JS canvas ──
+      // Trigger tab — upper right, overlapping the 3JS viewport
       '#mist-trigger{',
-        'position:fixed;right:0;top:80px;',
+        'position:fixed;',
+        'right:0;',
+        'top:148px;',   // below header + just below IDLE/CALC labels
         'z-index:9500;',
         'display:flex;flex-direction:column;align-items:center;gap:4px;',
-        'padding:8px 5px;',
-        'background:rgba(0,0,0,0);',
-        'border:1px solid rgba(0,229,255,.22);border-right:none;',
-        'border-radius:8px 0 0 8px;',
+        'padding:7px 5px;',
+        'background:transparent;',
+        'border:1px solid rgba(0,229,255,.2);border-right:none;',
+        'border-radius:7px 0 0 7px;',
         'cursor:pointer;',
-        'backdrop-filter:blur(4px);',
-        '-webkit-backdrop-filter:blur(4px);',
-        'transition:all .25s;',
+        'transition:border-color .2s;',
       '}',
-      '#mist-trigger:hover{',
-        'background:rgba(0,229,255,.05);',
-        'border-color:rgba(0,229,255,.4);',
-        'box-shadow:-2px 0 18px rgba(0,229,255,.12)',
-      '}',
-      '.mt-icon{',
-        'width:18px;height:18px;display:flex;align-items:center;justify-content:center;',
-        'font-size:12px;transition:all .3s;',
-      '}',
-      '.mt-icon.mi-active{filter:drop-shadow(0 0 5px var(--cyan));opacity:1}',
-      '.mt-icon.mi-locked{opacity:.15}',
-      '.mt-icon.mi-ready{opacity:.65}',
+      '#mist-trigger:hover{border-color:rgba(0,229,255,.45);}',
+      '.mt-icon{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .3s}',
+      '.mt-icon.mi-active{filter:drop-shadow(0 0 4px #00e5ff);opacity:1}',
+      '.mt-icon.mi-locked{opacity:.14}',
+      '.mt-icon.mi-ready{opacity:.6}',
 
-      // ── Floating overlay panel — fully transparent, upper right over 3JS ──
+      // Overlay panel — upper right, fully transparent
       '#mist-overlay{',
         'position:fixed;',
-        'right:42px;',
-        'top:72px;',
+        'right:36px;',
+        'top:140px;',
         'z-index:9400;',
-        'width:min(260px, calc(100vw - 56px));',
-        'display:flex;flex-direction:column;gap:0;',
-        'transform:translateX(calc(100% + 48px));',
-        'transition:transform .36s cubic-bezier(.23,1,.32,1), opacity .36s;',
+        'width:min(250px,calc(100vw - 48px));',
+        'display:flex;flex-direction:column;',
+        'transform:translateX(calc(100% + 44px));',
+        'transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;',
         'opacity:0;pointer-events:none;',
       '}',
-      '#mist-overlay.mist-open{',
-        'transform:translateX(0);',
-        'opacity:1;pointer-events:all;',
-      '}',
+      '#mist-overlay.mist-open{transform:translateX(0);opacity:1;pointer-events:all;}',
 
-      // ── Header/menu — fully transparent ──
+      // Menu bar — transparent
       '#mist-menu{',
         'background:transparent;',
-        'border:1px solid rgba(0,229,255,.18);',
-        'border-bottom:none;',
-        'border-radius:8px 8px 0 0;',
-        'padding:8px 10px 6px;',
+        'border:1px solid rgba(0,229,255,.16);border-bottom:none;',
+        'border-radius:7px 7px 0 0;',
+        'padding:7px 9px 5px;',
         'display:flex;flex-direction:column;gap:5px;',
       '}',
-
-      // Header row
       '#mist-head-row{display:flex;align-items:center;gap:7px}',
-      '.mist-lbl{',
-        'font-family:var(--font-d,monospace);font-size:.44rem;letter-spacing:3px;',
-        'color:rgba(0,229,255,.9);text-shadow:0 0 8px rgba(0,229,255,.5)',
-      '}',
-      '.mist-sub{',
-        'font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2px;',
-        'color:rgba(0,229,255,.32)',
-      '}',
-      '#mist-x{',
-        'margin-left:auto;background:none;border:none;',
-        'color:rgba(0,229,255,.3);font-size:13px;cursor:pointer;padding:2px 4px;',
-        'transition:color .2s;line-height:1',
-      '}',
+      '.mist-lbl{font-family:var(--font-d,monospace);font-size:.42rem;letter-spacing:3px;color:rgba(0,229,255,.9);text-shadow:0 0 7px rgba(0,229,255,.45)}',
+      '.mist-sub{font-family:var(--font-d,monospace);font-size:.27rem;letter-spacing:2px;color:rgba(0,229,255,.3)}',
+      '#mist-x{margin-left:auto;background:none;border:none;color:rgba(0,229,255,.28);font-size:12px;cursor:pointer;padding:2px 4px;transition:color .2s;line-height:1}',
       '#mist-x:hover{color:rgba(0,229,255,.8)}',
 
-      // Slot tabs
       '#mist-tabs{display:flex;gap:3px}',
-      '.mst-tab{',
-        'flex:1;padding:4px 3px;text-align:center;cursor:pointer;',
-        'font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:1.5px;',
-        'color:rgba(255,255,255,.22);',
-        'border:1px solid rgba(0,229,255,.08);border-radius:3px;',
-        'background:transparent;',
-        'transition:all .18s',
-      '}',
-      '.mst-tab .ti{font-size:11px;display:block;margin-bottom:1px}',
-      '.mst-tab.mst-active{',
-        'color:var(--cyan,#00e5ff);',
-        'border-color:rgba(0,229,255,.35);',
-        'text-shadow:0 0 6px rgba(0,229,255,.5)',
-      '}',
-      '.mst-tab.mst-locked{cursor:not-allowed;opacity:.2}',
+      '.mst-tab{flex:1;padding:4px 3px;text-align:center;cursor:pointer;font-family:var(--font-d,monospace);font-size:.27rem;letter-spacing:1.5px;color:rgba(255,255,255,.2);border:1px solid rgba(0,229,255,.07);border-radius:3px;background:transparent;transition:all .18s}',
+      '.mst-tab .ti{font-size:10px;display:block;margin-bottom:1px}',
+      '.mst-tab.mst-active{color:#00e5ff;border-color:rgba(0,229,255,.32);text-shadow:0 0 5px rgba(0,229,255,.45)}',
+      '.mst-tab.mst-locked{cursor:not-allowed;opacity:.18}',
 
-      // Difficulty bar
-      '#mist-diff{display:flex;align-items:center;gap:5px}',
-      '.diff-lbl{font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:2px;color:rgba(255,255,255,.22)}',
-      '.db{',
-        'background:transparent;',
-        'border:1px solid rgba(0,229,255,.12);',
-        'color:rgba(0,229,255,.35);',
-        'padding:2px 6px;border-radius:3px;cursor:pointer;',
-        'font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:1px;',
-        'transition:all .15s',
-      '}',
-      '.db.db-active{border-color:rgba(0,229,255,.65);color:var(--cyan,#00e5ff);text-shadow:0 0 5px rgba(0,229,255,.5)}',
-      '#mist-new{',
-        'margin-left:auto;',
-        'background:transparent;',
-        'border:1px solid rgba(0,229,255,.18);',
-        'color:var(--cyan,#00e5ff);',
-        'padding:2px 8px;border-radius:3px;cursor:pointer;',
-        'font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:1px;',
-        'transition:all .15s',
-      '}',
-      '#mist-new:hover{border-color:rgba(0,229,255,.5);text-shadow:0 0 6px rgba(0,229,255,.4)}',
+      '#mist-diff{display:flex;align-items:center;gap:4px}',
+      '.diff-lbl{font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:2px;color:rgba(255,255,255,.2)}',
+      '.db{background:transparent;border:1px solid rgba(0,229,255,.1);color:rgba(0,229,255,.32);padding:2px 6px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1px;transition:all .15s}',
+      '.db.db-active{border-color:rgba(0,229,255,.6);color:#00e5ff;text-shadow:0 0 5px rgba(0,229,255,.45)}',
+      '#mist-new{margin-left:auto;background:transparent;border:1px solid rgba(0,229,255,.15);color:#00e5ff;padding:2px 7px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1px;transition:all .15s}',
+      '#mist-new:hover{border-color:rgba(0,229,255,.45)}',
 
-      // ── Maze canvas square — fully transparent ──
-      '#mist-canvas-wrap{',
-        'background:transparent;',
-        'border:1px solid rgba(0,229,255,.18);',
-        'border-radius:0 0 8px 8px;',
-        'padding:8px;',
-        'display:flex;flex-direction:column;align-items:center;gap:4px;',
-      '}',
-      '#mist-maze-canvas{',
-        'display:block;touch-action:none;cursor:crosshair;',
-        'border:1px solid rgba(0,229,255,.1);',
-        'border-radius:2px;',
-      '}',
-      '#mist-status{',
-        'font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:2px;',
-        'color:rgba(0,229,255,.35);text-align:center;',
-        'min-height:14px;text-shadow:0 0 5px rgba(0,229,255,.15)',
-      '}',
+      // Canvas wrap — transparent
+      '#mist-canvas-wrap{background:transparent;border:1px solid rgba(0,229,255,.15);border-radius:0 0 7px 7px;padding:7px;display:flex;flex-direction:column;align-items:center;gap:3px}',
+      '#mist-maze-canvas{display:block;touch-action:none;cursor:crosshair;border:1px solid rgba(0,229,255,.09);border-radius:2px}',
+      '#mist-status{font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:2px;color:rgba(0,229,255,.32);text-align:center;min-height:13px}',
 
-      // ── THREE overlay canvas — sits directly over main 3JS scene ──
-      '#mist-three-cv{',
-        'position:fixed;top:0;left:0;width:100%;height:100%;',
-        'pointer-events:none;z-index:9300;',
-        'opacity:0;transition:opacity .4s',
-      '}',
-      '#mist-three-cv.m3-on{opacity:1}',
-
-      // ── Win pulse ──
-      '@keyframes mist-win{0%{box-shadow:0 0 6px rgba(0,255,136,.3)}',
-        '50%{box-shadow:0 0 28px rgba(0,255,136,.8),0 0 50px rgba(0,255,136,.25)}',
-        '100%{box-shadow:0 0 6px rgba(0,255,136,.3)}}',
-      '.mist-solved{animation:mist-win 1.2s ease-in-out 3}',
+      '@keyframes mist-win{0%{box-shadow:0 0 5px rgba(0,255,136,.3)}50%{box-shadow:0 0 24px rgba(0,255,136,.8)}100%{box-shadow:0 0 5px rgba(0,255,136,.3)}}',
+      '.mist-solved{animation:mist-win 1.1s ease-in-out 3}',
     ].join('');
     document.head.appendChild(s);
   }
@@ -253,12 +170,10 @@
     var trig = document.createElement('div');
     trig.id = 'mist-trigger';
     trig.title = 'MIST — Lead Edge Maze';
-    trig.innerHTML = [
-      '<div class="mt-icon mi-ready" id="mt-0">★</div>',
-      '<div class="mt-icon mi-locked" id="mt-1">♥</div>',
-      '<div class="mt-icon mi-locked" id="mt-2">◈</div>',
-    ].join('');
-    trig.onclick = function(){ mistToggle(); };
+    trig.innerHTML = '<div class="mt-icon mi-ready" id="mt-0">★</div>'
+      + '<div class="mt-icon mi-locked" id="mt-1">♥</div>'
+      + '<div class="mt-icon mi-locked" id="mt-2">◈</div>';
+    trig.onclick = function(e){ e.stopPropagation(); mistToggle(); };
     document.body.appendChild(trig);
 
     var ov = document.createElement('div');
@@ -288,14 +203,12 @@
       '  <div id="mist-status">DRAG ● FROM ENTRY TO EXIT</div>',
       '</div>',
     ].join('');
+    // Stop clicks inside panel from propagating to the outside-click handler
+    ov.addEventListener('click', function(e){ e.stopPropagation(); });
     document.body.appendChild(ov);
-
-    var tc = document.createElement('canvas');
-    tc.id = 'mist-three-cv';
-    document.body.appendChild(tc);
   }
 
-  // ── Toggle ────────────────────────────────────────────────────────────────
+  // ── Toggle + click-outside to close ──────────────────────────────────────
   window.mistToggle = function() {
     MIST.open = !MIST.open;
     var ov = document.getElementById('mist-overlay');
@@ -305,9 +218,25 @@
         bindCanvasEvents();
         if (!MIST.mazes[MIST.activeMaze]) mistNewMaze();
         else renderMaze(MIST.mazes[MIST.activeMaze], MIST.dragPath);
+        // Attach outside-click listener
+        document.addEventListener('click', _mistOutsideClick, true);
       }, 60);
+    } else {
+      document.removeEventListener('click', _mistOutsideClick, true);
     }
   };
+
+  function _mistOutsideClick(e) {
+    var ov   = document.getElementById('mist-overlay');
+    var trig = document.getElementById('mist-trigger');
+    if (ov && ov.contains(e.target)) return;
+    if (trig && trig.contains(e.target)) return;
+    if (MIST.open) {
+      MIST.open = false;
+      if (ov) ov.classList.remove('mist-open');
+      document.removeEventListener('click', _mistOutsideClick, true);
+    }
+  }
 
   window.mistSetDiff = function(d) {
     MIST.difficulty = d;
@@ -344,28 +273,23 @@
     setStatus('DRAG ● FROM ENTRY TO EXIT');
   };
 
-  // ── Damped sphere animation ───────────────────────────────────────────────
+  // ── Damped sphere ─────────────────────────────────────────────────────────
   function stopSphereAnim() {
     if (MIST.sphereAnimId) { cancelAnimationFrame(MIST.sphereAnimId); MIST.sphereAnimId = null; }
   }
-
   function startSphereAnim() {
     if (MIST.sphereAnimId) return;
     var DAMP = 0.16;
     function tick() {
       var maze = MIST.mazes[MIST.activeMaze];
-      if (!maze) { MIST.sphereAnimId = null; return; }
-      if (!MIST.sphereTarget) { MIST.sphereAnimId = null; return; }
-      if (!MIST.sphereActual) {
-        MIST.sphereActual = { x: MIST.sphereTarget.x, y: MIST.sphereTarget.y };
-      }
+      if (!maze || !MIST.sphereTarget) { MIST.sphereAnimId = null; return; }
+      if (!MIST.sphereActual) MIST.sphereActual = { x: MIST.sphereTarget.x, y: MIST.sphereTarget.y };
       var dx = MIST.sphereTarget.x - MIST.sphereActual.x;
       var dy = MIST.sphereTarget.y - MIST.sphereActual.y;
       MIST.sphereActual.x += dx * DAMP;
       MIST.sphereActual.y += dy * DAMP;
-      var dist = Math.sqrt(dx*dx + dy*dy);
       renderMaze(maze, MIST.dragPath);
-      if (dist > 0.3) {
+      if (Math.sqrt(dx*dx+dy*dy) > 0.3) {
         MIST.sphereAnimId = requestAnimationFrame(tick);
       } else {
         MIST.sphereActual.x = MIST.sphereTarget.x;
@@ -382,364 +306,266 @@
     var canvas = document.getElementById('mist-maze-canvas');
     var wrap   = document.getElementById('mist-canvas-wrap');
     if (!canvas || !wrap) return;
-
-    var avail = Math.min(wrap.clientWidth - 16, 220);
-    avail = Math.max(avail, 120);
+    var avail = Math.min(wrap.clientWidth - 14, 220);
+    avail = Math.max(avail, 110);
     var cellSize = Math.max(8, Math.floor(avail / Math.max(maze.w, maze.h)));
     var pw = cellSize * maze.w, ph = cellSize * maze.h;
-
-    canvas.width  = pw;
-    canvas.height = ph;
-    canvas.style.width  = pw + 'px';
-    canvas.style.height = ph + 'px';
-
+    canvas.width = pw; canvas.height = ph;
+    canvas.style.width = pw+'px'; canvas.style.height = ph+'px';
     var ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, pw, ph);
-
-    // Walls — neon cyan wireframe
-    ctx.strokeStyle = 'rgba(0,229,255,.7)';
-    ctx.lineWidth = 1.2;
-    ctx.shadowColor = 'rgba(0,229,255,.35)';
-    ctx.shadowBlur = 2.5;
-
-    for (var y = 0; y < maze.h; y++) {
-      for (var x = 0; x < maze.w; x++) {
-        var cell = maze.grid[y][x];
-        var px = x * cellSize, py = y * cellSize;
-        if (cell.n) { ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px+cellSize, py); ctx.stroke(); }
-        if (cell.s) { ctx.beginPath(); ctx.moveTo(px, py+cellSize); ctx.lineTo(px+cellSize, py+cellSize); ctx.stroke(); }
-        if (cell.w) { ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py+cellSize); ctx.stroke(); }
-        if (cell.e) { ctx.beginPath(); ctx.moveTo(px+cellSize, py); ctx.lineTo(px+cellSize, py+cellSize); ctx.stroke(); }
-      }
+    // Walls
+    ctx.strokeStyle = 'rgba(0,229,255,.68)'; ctx.lineWidth = 1.1;
+    ctx.shadowColor = 'rgba(0,229,255,.3)'; ctx.shadowBlur = 2;
+    for (var y=0;y<maze.h;y++) for (var x=0;x<maze.w;x++) {
+      var cell=maze.grid[y][x], px=x*cellSize, py=y*cellSize;
+      if(cell.n){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+cellSize,py);ctx.stroke();}
+      if(cell.s){ctx.beginPath();ctx.moveTo(px,py+cellSize);ctx.lineTo(px+cellSize,py+cellSize);ctx.stroke();}
+      if(cell.w){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py+cellSize);ctx.stroke();}
+      if(cell.e){ctx.beginPath();ctx.moveTo(px+cellSize,py);ctx.lineTo(px+cellSize,py+cellSize);ctx.stroke();}
     }
     ctx.shadowBlur = 0;
-
-    // Drag path — green trail
+    // Trail
     if (dragPath && dragPath.length > 1) {
-      ctx.strokeStyle = 'rgba(0,255,136,.5)';
-      ctx.lineWidth = cellSize * 0.25;
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.shadowColor = 'rgba(0,255,136,.35)'; ctx.shadowBlur = 5;
+      ctx.strokeStyle='rgba(0,255,136,.48)'; ctx.lineWidth=cellSize*.24;
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.shadowColor='rgba(0,255,136,.3)'; ctx.shadowBlur=4;
       ctx.beginPath();
-      ctx.moveTo(dragPath[0].x * cellSize + cellSize/2, dragPath[0].y * cellSize + cellSize/2);
+      ctx.moveTo(dragPath[0].x*cellSize+cellSize/2, dragPath[0].y*cellSize+cellSize/2);
       dragPath.forEach(function(p){ ctx.lineTo(p.x*cellSize+cellSize/2, p.y*cellSize+cellSize/2); });
-      ctx.stroke();
-      ctx.shadowBlur = 0;
+      ctx.stroke(); ctx.shadowBlur=0;
     }
-
-    // Exit marker
-    var ex = maze.exit.x * cellSize + cellSize/2;
-    var ey = maze.exit.y * cellSize + cellSize/2;
-    ctx.beginPath();
-    ctx.arc(ex, ey, cellSize * 0.26, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(0,229,255,.55)';
-    ctx.shadowColor = 'rgba(0,229,255,.8)'; ctx.shadowBlur = 7;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Damped player sphere — use sphereActual if animating, else dragPos or entry
-    var ballPx, ballPy;
-    if (MIST.sphereActual) {
-      ballPx = MIST.sphereActual.x;
-      ballPy = MIST.sphereActual.y;
-    } else {
-      var ballCell = (MIST.dragging && MIST.dragPos) ? MIST.dragPos : maze.entry;
-      ballPx = ballCell.x * cellSize + cellSize/2;
-      ballPy = ballCell.y * cellSize + cellSize/2;
-    }
-    ctx.beginPath();
-    ctx.arc(ballPx, ballPy, cellSize * 0.34, 0, Math.PI*2);
-    ctx.fillStyle = maze.solved ? 'rgba(0,255,136,1)' : 'rgba(0,255,136,.9)';
-    ctx.shadowColor = 'rgba(0,255,136,.9)'; ctx.shadowBlur = maze.solved ? 14 : 7;
-    ctx.fill();
-    ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 1.0; ctx.stroke();
-    ctx.shadowBlur = 0;
+    // Exit dot
+    ctx.beginPath(); ctx.arc(maze.exit.x*cellSize+cellSize/2, maze.exit.y*cellSize+cellSize/2, cellSize*.25,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,229,255,.55)'; ctx.shadowColor='rgba(0,229,255,.8)'; ctx.shadowBlur=6;
+    ctx.fill(); ctx.shadowBlur=0;
+    // Damped sphere
+    var bx, by;
+    if (MIST.sphereActual) { bx=MIST.sphereActual.x; by=MIST.sphereActual.y; }
+    else { var bc=(MIST.dragging&&MIST.dragPos)?MIST.dragPos:maze.entry; bx=bc.x*cellSize+cellSize/2; by=bc.y*cellSize+cellSize/2; }
+    ctx.beginPath(); ctx.arc(bx, by, cellSize*.33,0,Math.PI*2);
+    ctx.fillStyle=maze.solved?'rgba(0,255,136,1)':'rgba(0,255,136,.9)';
+    ctx.shadowColor='rgba(0,255,136,.9)'; ctx.shadowBlur=maze.solved?13:6;
+    ctx.fill(); ctx.strokeStyle='#00ff88'; ctx.lineWidth=.9; ctx.stroke();
+    ctx.shadowBlur=0;
   }
 
-  // ── Touch/mouse drag ──────────────────────────────────────────────────────
+  // ── Drag ──────────────────────────────────────────────────────────────────
   function canvasToCell(canvas, maze, cx, cy) {
-    var rect = canvas.getBoundingClientRect();
-    var scaleX = canvas.width / rect.width;
-    var scaleY = canvas.height / rect.height;
-    var x = Math.floor(((cx - rect.left) * scaleX) / (canvas.width / maze.w));
-    var y = Math.floor(((cy - rect.top)  * scaleY) / (canvas.height / maze.h));
-    return { x: Math.max(0, Math.min(maze.w-1, x)), y: Math.max(0, Math.min(maze.h-1, y)) };
+    var rect=canvas.getBoundingClientRect();
+    var x=Math.floor(((cx-rect.left)*(canvas.width/rect.width))/(canvas.width/maze.w));
+    var y=Math.floor(((cy-rect.top)*(canvas.height/rect.height))/(canvas.height/maze.h));
+    return {x:Math.max(0,Math.min(maze.w-1,x)), y:Math.max(0,Math.min(maze.h-1,y))};
   }
-
-  function canvasToPx(canvas, maze, cx, cy) {
-    var rect = canvas.getBoundingClientRect();
-    var cellW = rect.width  / maze.w;
-    var cellH = rect.height / maze.h;
-    // raw pixel coords inside canvas logical space
-    var lx = (cx - rect.left) * (canvas.width  / rect.width);
-    var ly = (cy - rect.top)  * (canvas.height / rect.height);
-    return { x: lx, y: ly };
-  }
-
   function onDragStart(e) {
-    var maze = MIST.mazes[MIST.activeMaze];
-    if (!maze || maze.solved) return;
+    var maze=MIST.mazes[MIST.activeMaze]; if(!maze||maze.solved) return;
     e.preventDefault(); e.stopPropagation();
-    var pt = e.touches ? e.touches[0] : e;
-    var cell = canvasToCell(this, maze, pt.clientX, pt.clientY);
-    if (cell.x === maze.entry.x && cell.y === maze.entry.y) {
-      MIST.dragging = true; MIST.dragPos = cell; MIST.dragPath = [cell];
-      var cs = this.width / maze.w;
-      var px = cell.x * cs + cs/2, py = cell.y * cs + cs/2;
-      MIST.sphereTarget = {x: px, y: py};
-      MIST.sphereActual = {x: px, y: py};
+    var pt=e.touches?e.touches[0]:e;
+    var cell=canvasToCell(this,maze,pt.clientX,pt.clientY);
+    if(cell.x===maze.entry.x&&cell.y===maze.entry.y){
+      MIST.dragging=true; MIST.dragPos=cell; MIST.dragPath=[cell];
+      var cs=this.width/maze.w;
+      MIST.sphereTarget={x:cell.x*cs+cs/2,y:cell.y*cs+cs/2};
+      MIST.sphereActual={x:cell.x*cs+cs/2,y:cell.y*cs+cs/2};
       setStatus('NAVIGATE TO ◉ EXIT');
     }
-    renderMaze(maze, MIST.dragPath);
+    renderMaze(maze,MIST.dragPath);
   }
-
   function onDragMove(e) {
-    if (!MIST.dragging) return;
+    if(!MIST.dragging) return;
     e.preventDefault(); e.stopPropagation();
-    var maze = MIST.mazes[MIST.activeMaze];
-    if (!maze) return;
-    var pt = e.touches ? e.touches[0] : e;
-    var cell = canvasToCell(this, maze, pt.clientX, pt.clientY);
-    var prev = MIST.dragPath[MIST.dragPath.length-1];
-    if (cell.x === prev.x && cell.y === prev.y) return;
-    var dx = cell.x-prev.x, dy = cell.y-prev.y;
-    if (Math.abs(dx)+Math.abs(dy) !== 1) return;
-    var wallDir = dx===1?'e':dx===-1?'w':dy===1?'s':'n';
-    if (maze.grid[prev.y][prev.x][wallDir] !== 0) return;
-    if (MIST.dragPath.length >= 2) {
-      var pp = MIST.dragPath[MIST.dragPath.length-2];
-      if (cell.x===pp.x&&cell.y===pp.y) MIST.dragPath.pop();
+    var maze=MIST.mazes[MIST.activeMaze]; if(!maze) return;
+    var pt=e.touches?e.touches[0]:e;
+    var cell=canvasToCell(this,maze,pt.clientX,pt.clientY);
+    var prev=MIST.dragPath[MIST.dragPath.length-1];
+    if(cell.x===prev.x&&cell.y===prev.y) return;
+    var dx=cell.x-prev.x, dy=cell.y-prev.y;
+    if(Math.abs(dx)+Math.abs(dy)!==1) return;
+    var wallDir=dx===1?'e':dx===-1?'w':dy===1?'s':'n';
+    if(maze.grid[prev.y][prev.x][wallDir]!==0) return;
+    if(MIST.dragPath.length>=2){
+      var pp=MIST.dragPath[MIST.dragPath.length-2];
+      if(cell.x===pp.x&&cell.y===pp.y) MIST.dragPath.pop();
       else MIST.dragPath.push(cell);
     } else { MIST.dragPath.push(cell); }
-    MIST.dragPos = cell;
-
-    // Update damped sphere target to new cell centre
-    var cs = this.width / maze.w;
-    MIST.sphereTarget = { x: cell.x * cs + cs/2, y: cell.y * cs + cs/2 };
+    MIST.dragPos=cell;
+    var cs=this.width/maze.w;
+    MIST.sphereTarget={x:cell.x*cs+cs/2,y:cell.y*cs+cs/2};
     startSphereAnim();
-
-    if (cell.x===maze.exit.x && cell.y===maze.exit.y) {
-      MIST.dragging = false; maze.solved = true;
-      onMazeSolved(MIST.activeMaze, maze);
+    if(cell.x===maze.exit.x&&cell.y===maze.exit.y){
+      MIST.dragging=false; maze.solved=true; onMazeSolved(MIST.activeMaze,maze);
     }
   }
-
   function onDragEnd(e) {
-    if (!MIST.dragging) return;
-    MIST.dragging = false;
-    var maze = MIST.mazes[MIST.activeMaze];
-    if (maze && !maze.solved) {
-      MIST.dragPath = [];
-      var cs = document.getElementById('mist-maze-canvas') ? document.getElementById('mist-maze-canvas').width / maze.w : 10;
-      MIST.sphereTarget = { x: maze.entry.x * cs + cs/2, y: maze.entry.y * cs + cs/2 };
+    if(!MIST.dragging) return;
+    MIST.dragging=false;
+    var maze=MIST.mazes[MIST.activeMaze];
+    if(maze&&!maze.solved){
+      MIST.dragPath=[];
+      var cv=document.getElementById('mist-maze-canvas');
+      var cs=cv?(cv.width/maze.w):10;
+      MIST.sphereTarget={x:maze.entry.x*cs+cs/2,y:maze.entry.y*cs+cs/2};
       startSphereAnim();
       setStatus('DRAG ● FROM ENTRY TO EXIT');
     }
   }
-
   function bindCanvasEvents() {
-    var canvas = document.getElementById('mist-maze-canvas');
-    if (!canvas || canvas._mistBound) return;
-    canvas._mistBound = true;
+    var canvas=document.getElementById('mist-maze-canvas');
+    if(!canvas||canvas._mistBound) return; canvas._mistBound=true;
     canvas.addEventListener('mousedown',  onDragStart.bind(canvas));
     canvas.addEventListener('mousemove',  onDragMove.bind(canvas));
     canvas.addEventListener('mouseup',    onDragEnd.bind(canvas));
     canvas.addEventListener('mouseleave', onDragEnd.bind(canvas));
-    canvas.addEventListener('touchstart', onDragStart.bind(canvas), {passive:false});
-    canvas.addEventListener('touchmove',  onDragMove.bind(canvas),  {passive:false});
-    canvas.addEventListener('touchend',   onDragEnd.bind(canvas),   {passive:false});
+    canvas.addEventListener('touchstart', onDragStart.bind(canvas),{passive:false});
+    canvas.addEventListener('touchmove',  onDragMove.bind(canvas), {passive:false});
+    canvas.addEventListener('touchend',   onDragEnd.bind(canvas),  {passive:false});
   }
 
   // ── Win ───────────────────────────────────────────────────────────────────
   function onMazeSolved(slot, maze) {
-    var labels = ['★ STAR SOLVED','♥ HEART SOLVED','◈ MIST SOLVED'];
-    setStatus('✓ ' + labels[slot] + ' — WELL DONE');
-    MIST.solvedCount = Math.max(MIST.solvedCount, slot+1);
-
-    renderMaze(maze, MIST.dragPath);
-
-    var wrap = document.getElementById('mist-canvas-wrap');
-    if (wrap) { wrap.classList.add('mist-solved'); setTimeout(function(){ wrap.classList.remove('mist-solved'); }, 3700); }
-
-    if (slot+1 <= 2) {
-      var nextTab = document.getElementById('mst-tab'+(slot+1));
-      if (nextTab) nextTab.classList.remove('mst-locked');
-      var nextIcon = document.getElementById('mt-'+(slot+1));
-      if (nextIcon) { nextIcon.classList.remove('mi-locked'); nextIcon.classList.add('mi-ready'); }
+    setStatus('✓ '+['★ STAR SOLVED','♥ HEART SOLVED','◈ MIST SOLVED'][slot]+' — WELL DONE');
+    MIST.solvedCount=Math.max(MIST.solvedCount,slot+1);
+    renderMaze(maze,MIST.dragPath);
+    var wrap=document.getElementById('mist-canvas-wrap');
+    if(wrap){wrap.classList.add('mist-solved');setTimeout(function(){wrap.classList.remove('mist-solved');},3500);}
+    if(slot+1<=2){
+      var nt=document.getElementById('mst-tab'+(slot+1)); if(nt) nt.classList.remove('mst-locked');
+      var ni=document.getElementById('mt-'+(slot+1)); if(ni){ni.classList.remove('mi-locked');ni.classList.add('mi-ready');}
     }
-    var curIcon = document.getElementById('mt-'+slot);
-    if (curIcon) curIcon.classList.add('mi-active');
+    var ci=document.getElementById('mt-'+slot); if(ci) ci.classList.add('mi-active');
 
-    setTimeout(function(){ fireMistEffect(slot, maze); }, 400);
+    // Close panel so user immediately sees the animation fire into the 3JS viewport
+    setTimeout(function(){
+      MIST.open=false;
+      var ov=document.getElementById('mist-overlay');
+      if(ov) ov.classList.remove('mist-open');
+      document.removeEventListener('click',_mistOutsideClick,true);
+    }, 320);
+
+    setTimeout(function(){ fireMistEffect(slot); }, 280);
   }
 
-  // ── Broadcast mist solve into buoyancy network (multi-user) ──────────────
-  function broadcastMistSolve(slot, maze) {
-    // 1. CustomEvent on window so any local 3JS listener can react
-    var detail = {
-      slot:     slot,
-      path:     MIST.dragPath ? MIST.dragPath.slice() : [],
-      username: (window._ghAuth && window._ghAuth.username) || 'anon',
-      ts:       Date.now(),
-      colors:   [0xffdd00, 0xff4488, 0x00e5ff][slot]
-    };
-    try {
-      window.dispatchEvent(new CustomEvent('mist-solve', { detail: detail, bubbles: true }));
-    } catch(e) {}
-
-    // 2. Push through leatr-ash WebSocket if available
-    if (window._leatrAsh && typeof window._leatrAsh.broadcast === 'function') {
-      try { window._leatrAsh.broadcast({ type: 'mist-solve', data: detail }); } catch(e) {}
-    }
-
-    // 3. BroadcastChannel for same-origin tabs
-    try {
-      var bc = new BroadcastChannel('autumn_mist');
-      bc.postMessage({ type: 'mist-solve', data: detail });
-      setTimeout(function(){ bc.close(); }, 200);
-    } catch(e) {}
-
-    // 4. Notify S.journal / sentient journal if available
-    if (window.S && window.S.journal) {
-      var slotNames = ['★ STAR','♥ HEART','◈ MIST'];
-      window.S.journal.push({
-        ts: new Date().toISOString(),
-        _internal: true,
-        _thought: 'MIST maze solved — slot: ' + slotNames[slot]
-          + '. Path nodes: ' + (MIST.dragPath ? MIST.dragPath.length : 0)
-          + '. Buoyancy network pulse dispatched.'
-      });
+  // ── Broadcast ─────────────────────────────────────────────────────────────
+  function broadcastMistSolve(slot) {
+    var detail={slot:slot, path:(MIST.dragPath||[]).slice(), username:(window._ghAuth&&window._ghAuth.username)||'anon', ts:Date.now()};
+    try { window.dispatchEvent(new CustomEvent('mist-solve',{detail:detail,bubbles:true})); } catch(e){}
+    try { var bc=new BroadcastChannel('autumn_mist'); bc.postMessage({type:'mist-solve',data:detail}); setTimeout(function(){bc.close();},200); } catch(e){}
+    if(window._leatrAsh&&typeof window._leatrAsh.broadcast==='function'){try{window._leatrAsh.broadcast({type:'mist-solve',data:detail});}catch(e){}}
+    if(window.S&&window.S.journal){
+      window.S.journal.push({ts:new Date().toISOString(),_internal:true,
+        _thought:'MIST solved — slot '+slot+'. Path: '+((MIST.dragPath||[]).length)+' nodes. Wireframe geometry pulsed into BRPN network.'});
     }
   }
 
-  // Listen for remote mist-solve events from other users to pulse local nodes
-  window.addEventListener('mist-solve', function(ev) {
-    if (!ev.detail) return;
-    // Animate buoyancy nodes if the main network exposes a hook
-    if (typeof window._buoyancyMistPulse === 'function') {
-      window._buoyancyMistPulse(ev.detail);
-    }
-    // Also trigger Three.js effect in local overlay so everyone sees mist geometry
-    var slot = ev.detail.slot || 0;
-    setTimeout(function(){ fireMistEffect(slot, null); }, 0);
+  // Listen for remote user mist-solve events
+  window.addEventListener('mist-solve',function(ev){
+    if(!ev.detail) return;
+    // Hook for buoyancy node pulse response
+    if(typeof window._buoyancyMistPulse==='function') window._buoyancyMistPulse(ev.detail);
+    setTimeout(function(){ fireMistEffect(ev.detail.slot||0); },0);
   });
 
-  // ── THREE.js volumetric effects fired into main 3JS overlay ──────────────
-  function initThree() {
-    if (MIST.threeScene || typeof THREE==='undefined') return;
-    var canvas = document.getElementById('mist-three-cv');
-    if (!canvas) return;
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-    MIST.threeScene    = new THREE.Scene();
-    MIST.threeCamera   = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, .1, 1000);
-    MIST.threeCamera.position.set(0, 0, 20);
-    MIST.threeRenderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true});
-    MIST.threeRenderer.setClearColor(0x000000, 0);
-    MIST.threeRenderer.setSize(window.innerWidth, window.innerHeight);
+  // ── Inject wireframe geometry INTO the main BRPN Three.js scene ──────────
+  // Uses the global `scene`, `camera`, `renderer` from initBRPN()
+  function fireMistEffect(slot) {
+    broadcastMistSolve(slot);
+
+    // Wait for global scene to be ready (it initialises on DOMContentLoaded)
+    var attempts = 0;
+    function tryInject() {
+      // Access the global BRPN scene/camera/renderer
+      var sc  = window.scene;
+      var cam = window.camera;
+      var rdr = window.renderer;
+      if (!sc || !cam || !rdr || typeof THREE === 'undefined') {
+        if (++attempts < 20) setTimeout(tryInject, 100);
+        return;
+      }
+      _injectIntoScene(sc, slot);
+    }
+    tryInject();
   }
 
-  function fireMistEffect(slot, maze) {
-    // First broadcast so other users' viewports react
-    broadcastMistSolve(slot, maze);
-
-    initThree();
-    if (!MIST.threeScene) return;
-    var canvas = document.getElementById('mist-three-cv');
-    if (!canvas) return;
-    canvas.classList.add('m3-on');
-    while (MIST.threeScene.children.length) MIST.threeScene.remove(MIST.threeScene.children[0]);
-
-    var objects = [];
+  function _injectIntoScene(sc, slot) {
     var colors  = [0xffdd00, 0xff4488, 0x00e5ff];
-    var count   = slot===0 ? 28 : slot===1 ? 22 : 36;
+    var color   = colors[slot];
+    var count   = slot===0 ? 22 : slot===1 ? 18 : 30;
+    var objects = [];
 
     for (var i = 0; i < count; i++) {
       var geo, mat, mesh;
       if (slot === 0) {
-        geo  = new THREE.OctahedronGeometry(0.25+Math.random()*0.45, 0);
-        mat  = new THREE.MeshBasicMaterial({color:colors[slot], wireframe:true, transparent:true, opacity:.85});
+        // ★ Star — golden octahedra burst
+        geo  = new THREE.OctahedronGeometry(0.18+Math.random()*0.32, 0);
+        mat  = new THREE.MeshBasicMaterial({color:color,wireframe:true,transparent:true,opacity:.8});
         mesh = new THREE.Mesh(geo, mat);
-        var a = Math.random()*Math.PI*2;
-        var spd = 0.07+Math.random()*0.14;
-        mesh.position.set((Math.random()-.5)*5, (Math.random()-.5)*5, (Math.random()-.5)*3);
-        mesh._v = {x:Math.cos(a)*spd, y:Math.sin(a)*spd, z:(Math.random()-.5)*.04};
-        mesh._r = {x:Math.random()*.05, y:Math.random()*.04};
+        var a=Math.random()*Math.PI*2, spd=0.04+Math.random()*0.08;
+        mesh.position.set((Math.random()-.5)*3.5,(Math.random()-.5)*3.5,(Math.random()-.5)*2);
+        mesh._mv={x:Math.cos(a)*spd,y:Math.sin(a)*spd,z:(Math.random()-.5)*.025};
+        mesh._mr={x:Math.random()*.04,y:Math.random()*.03};
       } else if (slot === 1) {
-        var t = i/count*Math.PI*2;
-        var hx = 16*Math.pow(Math.sin(t),3)/7;
-        var hy = (13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/7;
-        geo  = new THREE.SphereGeometry(.12+Math.random()*.08, 7, 7);
-        mat  = new THREE.MeshBasicMaterial({color:colors[slot], wireframe:true, transparent:true, opacity:.75});
-        mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(hx, hy, 0);
-        mesh._v = {x:(Math.random()-.5)*.015, y:(Math.random()-.5)*.015, z:0};
-        mesh._r = {x:0, y:0, z:Math.random()*.025};
+        // ♥ Heart — magenta spheres in heart formation
+        var t=i/count*Math.PI*2;
+        var hx=16*Math.pow(Math.sin(t),3)/9;
+        var hy=(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/9;
+        geo  = new THREE.SphereGeometry(.1+Math.random()*.07,7,7);
+        mat  = new THREE.MeshBasicMaterial({color:color,wireframe:true,transparent:true,opacity:.7});
+        mesh = new THREE.Mesh(geo,mat);
+        mesh.position.set(hx,hy,0);
+        mesh._mv={x:(Math.random()-.5)*.012,y:(Math.random()-.5)*.012,z:0};
+        mesh._mr={x:0,y:0,z:Math.random()*.02};
       } else {
-        var r = 1.5+Math.random()*4;
-        var theta = Math.random()*Math.PI*2;
-        var phi   = Math.random()*Math.PI;
-        geo  = new THREE.TetrahedronGeometry(.15+Math.random()*.25, 0);
-        mat  = new THREE.MeshBasicMaterial({color:colors[slot], wireframe:true, transparent:true, opacity:.55});
-        mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(r*Math.sin(phi)*Math.cos(theta), r*Math.sin(phi)*Math.sin(theta), r*Math.cos(phi));
-        var sw = .035;
-        mesh._v = {x:-Math.sin(theta)*sw, y:Math.cos(theta)*sw, z:(Math.random()-.5)*.02};
-        mesh._r = {x:Math.random()*.035, y:Math.random()*.035};
+        // ◈ Mist — cyan tetrahedra swirling cloud
+        var r=1.2+Math.random()*3, theta=Math.random()*Math.PI*2, phi=Math.random()*Math.PI;
+        geo  = new THREE.TetrahedronGeometry(.12+Math.random()*.2, 0);
+        mat  = new THREE.MeshBasicMaterial({color:color,wireframe:true,transparent:true,opacity:.5});
+        mesh = new THREE.Mesh(geo,mat);
+        mesh.position.set(r*Math.sin(phi)*Math.cos(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(phi));
+        mesh._mv={x:-Math.sin(theta)*.028,y:Math.cos(theta)*.028,z:(Math.random()-.5)*.015};
+        mesh._mr={x:Math.random()*.03,y:Math.random()*.03};
       }
       objects.push(mesh);
-      MIST.threeScene.add(mesh);
+      sc.add(mesh);
     }
 
-    // Bezier curve pulse lines (buoyancy neural network style)
-    for (var j = 0; j < 8; j++) {
-      var pts = [];
-      for (var k = 0; k < 5; k++) {
-        pts.push(new THREE.Vector3((Math.random()-.5)*16,(Math.random()-.5)*16,(Math.random()-.5)*5));
-      }
+    // Neural bezier curves — follow same buoyancy curve aesthetic
+    var curves = [];
+    for (var j = 0; j < 6; j++) {
+      var pts=[];
+      for (var k=0;k<5;k++) pts.push(new THREE.Vector3((Math.random()-.5)*10,(Math.random()-.5)*10,(Math.random()-.5)*3));
       var curve  = new THREE.CatmullRomCurve3(pts);
-      var points = curve.getPoints(50);
-      var bGeo   = new THREE.BufferGeometry().setFromPoints(points);
-      var bMat   = new THREE.LineBasicMaterial({color:colors[slot], transparent:true, opacity:.28});
-      MIST.threeScene.add(new THREE.Line(bGeo, bMat));
+      var cGeo   = new THREE.BufferGeometry().setFromPoints(curve.getPoints(40));
+      var cMat   = new THREE.LineBasicMaterial({color:color,transparent:true,opacity:.25});
+      var cLine  = new THREE.Line(cGeo, cMat);
+      curves.push(cLine);
+      sc.add(cLine);
     }
 
-    var t = 0, maxT = 160;
-    if (MIST.threeAnimId) cancelAnimationFrame(MIST.threeAnimId);
-    function animate() {
+    // Animate then remove — all inside the global BRPN scene
+    var t=0, maxT=150;
+    (function animateMist() {
       t++;
       var fade = 1 - t/maxT;
-      objects.forEach(function(o) {
-        o.position.x += o._v.x; o.position.y += o._v.y; o.position.z += o._v.z;
-        o.rotation.x += o._r.x; o.rotation.y += o._r.y;
-        o.material.opacity = (slot===0?.85:slot===1?.75:.55) * fade;
-        if (slot===2) o.position.x += Math.sin(t*.045 + o.position.z)*.015;
+      objects.forEach(function(o){
+        o.position.x+=o._mv.x; o.position.y+=o._mv.y; o.position.z+=o._mv.z;
+        o.rotation.x+=o._mr.x; o.rotation.y+=o._mr.y;
+        o.material.opacity=(slot===0?.8:slot===1?.7:.5)*fade;
+        if(slot===2) o.position.x+=Math.sin(t*.04+o.position.z)*.012;
       });
-      MIST.threeRenderer.render(MIST.threeScene, MIST.threeCamera);
-      if (t < maxT) {
-        MIST.threeAnimId = requestAnimationFrame(animate);
+      curves.forEach(function(c){ c.material.opacity=.25*fade; });
+      if(t<maxT){
+        requestAnimationFrame(animateMist);
       } else {
-        canvas.classList.remove('m3-on');
-        while (MIST.threeScene.children.length) MIST.threeScene.remove(MIST.threeScene.children[0]);
+        objects.forEach(function(o){ sc.remove(o); o.geometry.dispose(); o.material.dispose(); });
+        curves.forEach(function(c){ sc.remove(c); c.geometry.dispose(); c.material.dispose(); });
       }
-    }
-    animate();
+    })();
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function setStatus(msg) {
-    var el = document.getElementById('mist-status');
-    if (el) el.textContent = msg;
-  }
+  function setStatus(msg){ var el=document.getElementById('mist-status'); if(el) el.textContent=msg; }
 
-  // ── Init ──────────────────────────────────────────────────────────────────
-  function init() {
-    injectCSS();
-    injectHTML();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else { init(); }
+  function init(){ injectCSS(); injectHTML(); }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',init); }
+  else { init(); }
 
 })();
