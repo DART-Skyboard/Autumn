@@ -2166,6 +2166,10 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="ac-tool-btn" data-tool="knife" data-label="K" onclick="acPlaceTool(this)">K KNIFE</button>
         <button class="ac-tool-btn" data-tool="scissors" data-label="R" onclick="acPlaceTool(this)">R SCISSORS</button>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        <button class="ac-tool-btn" style="background:rgba(167,139,250,.14);border-color:rgba(167,139,250,.4);color:#a78bfa" onclick="window.acSaveToGitHub()">☁ SAVE TO GITHUB</button>
+        <button class="ac-tool-btn" onclick="window.acSendToAutumn()">→ SEND TO AUTUMN</button>
+      </div>
       <span class="ac-section-label">CANVAS — tap/click to place node · tap node then socket to connect</span>
       <div class="ac-canvas-area" id="ac-canvas-area">
         <svg id="ac-svg" xmlns="http://www.w3.org/2000/svg">
@@ -14720,7 +14724,6 @@ function _ashMazeHTML(){
     <button class="ash-btn" style="margin-top:4px" onclick="_ashFrameCamera()">◉ Frame View</button>
     <button class="ash-btn" style="margin-top:4px" onclick="ashCanvasBackup()">☁ SAVE</button>
     <button class="ash-btn" style="margin-top:4px" onclick="ashMazeExportPNG()">↓ PNG</button>
-    <button class="ash-btn" style="margin-top:4px" onclick="ashMazeExportJSX()">↓ JSX</button>
     <button class="ash-btn" style="margin-top:4px;margin-bottom:8px" onclick="ashSendMazeToChat()">→ Chat</button>
   </div>
   <div id="ash-viewport"><canvas id="ash-maze-canvas"></canvas></div>
@@ -16989,6 +16992,47 @@ _syncActionBtn();
     // Notify journal
     if (S && S.journal) S.journal.push({ts:new Date().toISOString(), _internal:true,
       _thought:'Ash Canvas reset — neural influence layer cleared.'});
+  };
+
+  window.acSaveToGitHub = function() {
+    if (!window._ghAuth || !window._ghAuth.loggedIn) {
+      if (typeof ideToast === 'function') ideToast('Login with GitHub to save Ash Canvas', 2500);
+      return;
+    }
+    var token = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName || ('Autumn-Ash-' + username);
+    var snapshot = {
+      version: '1.0',
+      saved:   new Date().toISOString(),
+      username: username,
+      nodes:   _ac.nodes.map(function(n){ return {id:n.id,tool:n.tool,x:n.x,y:n.y,shellLinks:n.shellLinks}; }),
+      links:   _ac.links.map(function(l){ return {from:l.from,to:l.to,toShell:l.toShell||null}; }),
+      influence: _ac.influence,
+      applied: _ac.applied
+    };
+    var content = JSON.stringify(snapshot,null,2);
+    var fname = 'ash-canvas/canvas_' + new Date().toISOString().replace(/[:.]/g,'-').slice(0,16) + '.json';
+    if (typeof _ghWriteFile === 'function') {
+      _ghWriteFile(fname, content, null, token, username, repoName)
+        .then(function(){ if(typeof ideToast==='function') ideToast('✓ Ash Canvas saved to GitHub', 2000); })
+        .catch(function(){ if(typeof ideToast==='function') ideToast('Save failed', 2000); });
+    } else {
+      // Fallback: trigger full autosave which includes canvas state
+      if (typeof _autosave === 'function') { window._lastSaveHash=''; _autosave(); }
+      if (typeof ideToast==='function') ideToast('✓ Syncing to GitHub…', 2000);
+    }
+  };
+
+  window.acSendToAutumn = function() {
+    var msg = 'Ash Canvas state: ' + _ac.nodes.length + ' nodes, '
+      + _ac.links.length + ' connections. '
+      + 'Influence: GEO ' + (_ac.influence.geo||0).toFixed(2)
+      + ' MAR ' + (_ac.influence.mar||0).toFixed(2)
+      + ' AERO ' + (_ac.influence.aero||0).toFixed(2) + '. '
+      + 'What do you see in this arrangement?';
+    var inp = document.getElementById('chat-input');
+    if (inp) { inp.value = msg; if (typeof window.handleSend === 'function') window.handleSend(); }
   };
 
   window.acApplyToNetwork = function() {
@@ -19661,6 +19705,18 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     try {
       var S = window.S;
       if (!S) return;
+      // Restore chat sessions (cross-session history in sidebar)
+      if (Array.isArray(data.sessions) && data.sessions.length) {
+        S.sessions = S.sessions || [];
+        var _sids = new Set(S.sessions.map(function(s){ return s.id; }));
+        data.sessions.forEach(function(sess){
+          if (!_sids.has(sess.id) && sess.messages && sess.messages.length > 1) {
+            S.sessions.push(sess);
+          }
+        });
+        // Sort by id (timestamp) ascending
+        S.sessions.sort(function(a,b){ return (a.id||0)-(b.id||0); });
+      }
       if (data.memory && typeof data.memory === 'object') {
         S.memory = S.memory || {};
         Object.assign(S.memory, data.memory);
@@ -19923,6 +19979,32 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   // ── Public API ────────────────────────────────────────────────────────────
   window._ghShowLogin   = _showLoginModal;
   window._ghStartOAuth  = _startOAuth;
+
+  // Hook into handleSend to intercept backup commands
+  (function() {
+    var _origHS = window.handleSend;
+    if (typeof _origHS !== 'function') return;
+    window.handleSend = async function() {
+      var inp = document.getElementById('chat-input');
+      var txt = inp ? inp.value.trim().toLowerCase() : '';
+      if (/\b(backup|sync|save).{0,20}(data|memory|session|github|repo)|backup (my|all)|sync to github/i.test(txt)) {
+        if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
+          window._lastSaveHash = '';
+          _autosave();
+          // Push user message and Autumn reply directly
+          var userMsg = {role:'user', text:inp.value.trim(), ts:new Date().toISOString()};
+          var replyMsg = {role:'autumn', text:'Backing up all session data to your GitHub repository now. Memory chunks, journal entries, conversation history — everything is syncing to **Autumn-Ash-'+window._ghAuth.username+'**.', ts:new Date().toISOString()};
+          if (typeof msgs === 'function') { msgs().push(userMsg); msgs().push(replyMsg); }
+          inp.value = '';
+          if (typeof renderMessages==='function') renderMessages();
+          if (typeof updateFooter==='function') updateFooter();
+          if (typeof saveState==='function') saveState();
+          return;
+        }
+      }
+      return _origHS.apply(this, arguments);
+    };
+  })();
   window._ghSkipLogin = function() {
     localStorage.setItem('_gh_login_skipped', '1');
     _showGuestMode();
@@ -19965,7 +20047,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
-        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
     } else { menu.remove(); }
@@ -20049,6 +20131,66 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       if (b) { b.classList.remove('ash-saving'); b.textContent = '\u26a1 SAVE MEMORY NOW'; }
       _toast('\u26a0 Save failed \u2014 try again');
     });
+  };
+
+
+  // ── User Data Sharing modal ────────────────────────────────────────────────
+  window._ghShowDataSharing = function() {
+    var menu = document.getElementById('gh-user-menu');
+    if (menu) menu.remove();
+    var prefs = {};
+    try { prefs = JSON.parse(localStorage.getItem('_gh_data_prefs')||'{}'); } catch(e){}
+    var fields = [
+      {id:'name',   label:'Full Name'},
+      {id:'email',  label:'Email Address'},
+      {id:'phone',  label:'Phone Number'},
+      {id:'address',label:'Mailing Address'}
+    ];
+    var modal = document.createElement('div');
+    modal.id = 'gh-data-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9950;background:rgba(2,8,18,.95);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(12px)';
+    // Build rows using DOM to avoid quote escaping issues
+    var rowsContainer = document.createElement('div');
+    fields.forEach(function(f){
+      var lbl = document.createElement('label');
+      lbl.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;color:rgba(224,244,255,.6)';
+      var cb = document.createElement('input');
+      cb.type='checkbox'; cb.id='dp-'+f.id; cb.checked=!!prefs[f.id];
+      cb.style.cssText='width:14px;height:14px;accent-color:var(--cyan)';
+      cb.addEventListener('change',function(){ window._ghUpdateDataPref(f.id, cb.checked); });
+      lbl.appendChild(cb);
+      lbl.appendChild(document.createTextNode(' '+f.label));
+      rowsContainer.appendChild(lbl);
+    });
+    var rows = rowsContainer.outerHTML;
+    modal.innerHTML = '<div style="background:rgba(4,12,22,.98);border:1px solid rgba(0,229,255,.25);border-radius:12px;padding:28px 24px;max-width:360px;width:90%">'
+      +'<div style="font-family:var(--font-d);font-size:.75rem;letter-spacing:3px;color:var(--cyan);margin-bottom:6px">USER DATA SHARING</div>'
+      +'<div style="font-size:.55rem;color:rgba(224,244,255,.35);line-height:1.7;margin-bottom:18px">Choose what to share to help improve Autumn. All data is stored privately and hashed. You can change this at any time.</div>'
+      +rows
+      +'<div style="font-size:.48rem;color:rgba(224,244,255,.25);margin-top:14px;line-height:1.6">Changes take effect immediately. Unchecking stops future sharing of that category.</div>'
+      +'<div style="display:flex;justify-content:flex-end;margin-top:18px">'
+      +'<button onclick="document.getElementById('gh-data-modal').remove()" style="font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;padding:8px 18px;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:var(--cyan);border-radius:5px;cursor:pointer">DONE</button>'
+      +'</div></div>';
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+  };
+
+  window._ghUpdateDataPref = function(field, enabled) {
+    var prefs = {};
+    try { prefs = JSON.parse(localStorage.getItem('_gh_data_prefs')||'{}'); } catch(e){}
+    if (enabled) prefs[field] = true;
+    else delete prefs[field];
+    try { localStorage.setItem('_gh_data_prefs', JSON.stringify(prefs)); } catch(e){}
+    // Write updated prefs to user's GitHub repo
+    if (window._ghAuth && window._ghAuth.loggedIn && typeof _ghWriteFile === 'function') {
+      var token = window._ghAuth.token;
+      var username = window._ghAuth.username;
+      var repoName = window._ghAuth.repoName || ('Autumn-Ash-'+username);
+      var record = { username: username, updated: new Date().toISOString(), prefs: prefs };
+      _getFileSha('data-prefs.json', token, username, repoName).then(function(sha){
+        _ghWriteFile('data-prefs.json', JSON.stringify(record,null,2), sha, token, username, repoName);
+      });
+    }
   };
 
   // Wire up OAuth button
