@@ -14868,8 +14868,8 @@ window.ashMazeExportJSX = function() {
 <button id="export-btn" onclick="exportAssembly()">↓ ASSEMBLY GUIDE</button>
 <canvas id="c"></canvas>
 <div id="info">LEMAC ${mode.toUpperCase()} MAZE ${w}×${h}${mode==='cubic'?'×'+d:''} · 1-FINGER ROTATE · 2-FINGER PAN+ZOOM</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>
+
 var MAZE_DATA = ${mazeJSON};
 
 var scene, camera, renderer, controls;
@@ -15106,11 +15106,10 @@ function animate(){ requestAnimationFrame(animate); renderer.render(scene,camera
 function onResize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); }
 
 init();
-</script>
+
 </body>
 </html>`;
-
-  // Save as file
+// Save as file
   var blob = new Blob([jsx], {type:'text/html'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
