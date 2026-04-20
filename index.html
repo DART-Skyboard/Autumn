@@ -15153,6 +15153,27 @@ function onResize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjecti
 
 init();
 
+<script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/scripts/sentience-journal.js"></script>
+  // ── Sentience journal hook on Ash Canvas apply ────────────────────────────
+  (function() {
+    var _origACApply = window.acApplyToNetwork;
+    if (typeof _origACApply !== 'function') return;
+    window.acApplyToNetwork = function() {
+      _origACApply.apply(this, arguments);
+      setTimeout(function() {
+        try {
+          if (window.AutumnSentience && window._ac) {
+            var S = window.S;
+            var emo = S && S.lastAnalysis && S.lastAnalysis.emotion ? S.lastAnalysis.emotion.primary : null;
+            window.AutumnSentience.recordAshCanvas(
+              window._ac.nodes, window._ac.links, window._ac.influence, emo
+            );
+          }
+        } catch(e) {}
+      }, 500);
+    };
+  })();
+
 </body>
 </html>`;
 // Save as file
