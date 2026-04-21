@@ -11420,16 +11420,7 @@ function _initAshNodeLayer() {
   scene.add(_ashNodes._splineGroup);
 
   _pollAshNodes();
-  setInterval(function(){
-    var leaderTs = parseInt(localStorage.getItem('autumn_mist_leader')||'0',10);
-    var isLeader = (Date.now()-leaderTs) < 16000;
-    if(isLeader) _pollAshNodes();
-    else {
-      writeLeatrAshMemory('ashtree/sessions/'+_ashNodes._localUid+'.json',{
-        uid:_aut_uid, sid:_ashNodes._localUid, ts:Date.now(), type:'presence'
-      });
-    }
-  }, 30000);
+  setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
 }
 
 // ── Pattern similarity score between two session UIDs ────────────
@@ -11529,8 +11520,8 @@ async function _pollAshNodes() {
   if(pat) {
     try {
       var r = await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
-        headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-        cache:'no-store', signal: AbortSignal.timeout(8000)
+        headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+        signal: AbortSignal.timeout(8000)
       });
       if(r.ok) {
         var files = await r.json();
@@ -11540,11 +11531,8 @@ async function _pollAshNodes() {
             .filter(function(f){ return f.name.endsWith('.json') && f.name !== _ashNodes._localUid+'.json'; })
             .slice(0, _ashNodes.MAX_REMOTE);
           var fetches = recentFiles.map(function(f) {
-            return fetch(f.url, {
-              headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-              cache:'no-store', signal: AbortSignal.timeout(5000)
-            }).then(function(res){ return res.ok ? res.json() : null; })
-              .then(function(r2){ return r2&&r2.content ? JSON.parse(atob(r2.content.replace(/\n/g,''))) : null; })
+            return fetch(f.download_url, {signal: AbortSignal.timeout(4000)})
+              .then(function(res){ return res.ok ? res.json() : null; })
               .catch(function(){ return null; });
           });
           var results = await Promise.allSettled(fetches);
@@ -15466,11 +15454,8 @@ async function sendMemoryToClaude(scope) {
 
           var sessionData = [];
           var fetchJobs   = toFetch.map(function(f) {
-            return fetch(f.url, {
-              headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-              cache:'no-store', signal:AbortSignal.timeout(5000)
-            }).then(function(r){ return r.ok ? r.json() : null; })
-              .then(function(r2){ return r2&&r2.content ? JSON.parse(atob(r2.content.replace(/\n/g,''))) : null; })
+            return fetch(f.download_url, {signal:AbortSignal.timeout(5000)})
+              .then(function(r){ return r.ok ? r.json() : null; })
               .catch(function(){ return null; });
           });
           var results = await Promise.allSettled(fetchJobs);

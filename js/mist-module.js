@@ -30,21 +30,10 @@
   'use strict';
 
   var MATCH_THRESHOLD  = 0.08;   // _sessionPatternScore min for reaction
-  var POLL_MS          = 12000;  // 12s poll — leader-only, keeps under GitHub 5k/hr rate limit
+  var POLL_MS          = 2000;   // 2s poll for snappier feel
   var STALE_MS         = 600000; // ignore events > 10min old
   var MAX_FILES        = 40;
   var REACT_COOLDOWN   = 4000;   // ms between reactions from same sender
-
-  // ── Leader election ──────────────────────────────────────────────────────
-  // Only ONE tab per browser polls GitHub. Others receive via BroadcastChannel.
-  // Leader heartbeat every 8s; any tab that hasn't seen a heartbeat in 16s claims leader.
-  var _LEADER_KEY   = 'autumn_mist_leader';
-  var _LEADER_TTL   = 16000;
-  var _isLeader     = false;
-  function _claimLeader(){ try{ localStorage.setItem(_LEADER_KEY,Date.now()); }catch(e){} _isLeader=true; }
-  function _checkLeader(){ try{ var t=parseInt(localStorage.getItem(_LEADER_KEY)||'0',10); if(Date.now()-t>_LEADER_TTL) _claimLeader(); }catch(e){ _claimLeader(); } }
-  function _heartbeat(){ if(_isLeader){ try{ localStorage.setItem(_LEADER_KEY,Date.now()); }catch(e){} } }
-  // ─────────────────────────────────────────────────────────────────────────
 
   var MIST = {
     open:false, difficulty:1, mazes:[null,null,null], solvedCount:0,
@@ -393,37 +382,28 @@
   })();
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  POLL — leader-only GitHub poll + BroadcastChannel relay to follower tabs
+  //  POLL — SHA-diff, 3s
   // ══════════════════════════════════════════════════════════════════════════
   function _poll(){
-    // Always retry pending obs regardless of leader status
+    var pat=_pat();if(!pat)return;
+    // Retry buffered events whose node positions are now known
     if(_pendingObs.length){
       var stillPending=[];
       _pendingObs.forEach(function(ev){
         var pos=_nodePos(ev.uid);
-        if(pos){ _doObserve(ev,pos); }
-        else { ev._retries=(ev._retries||0)+1; if(ev._retries<20) stillPending.push(ev); }
+        if(pos){
+          _doObserve(ev,pos);
+        } else {
+          ev._retries=(ev._retries||0)+1;
+          if(ev._retries<10) stillPending.push(ev); // drop after 10 retries (~30s)
+        }
       });
       _pendingObs=stillPending;
     }
-    // Leader election check — only leader polls GitHub
-    _checkLeader();
-    if(!_isLeader) return;
-    _heartbeat();
-
-    var pat=_pat();if(!pat)return;
     fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
       headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-      cache:'no-store', signal:AbortSignal.timeout(6000)
-    }).then(function(r){
-      if(r.status===403||r.status===429){
-        console.warn('[MIST] GitHub rate limited ('+r.status+'). Backing off.');
-        _setStatus('⚠ rate');
-        _isLeader=false; // release leadership so another tab can try
-        return null;
-      }
-      return r.ok?r.json():null;
-    })
+      signal:AbortSignal.timeout(5000)
+    }).then(function(r){return r.ok?r.json():null;})
     .then(function(files){
       if(!Array.isArray(files))return;
       var myUid=_sid();
@@ -432,59 +412,61 @@
            .forEach(function(f){
         if(_shaCache[f.name]===f.sha) return; // unchanged
         _shaCache[f.name]=f.sha;
-        fetch(f.url+'?_='+Date.now(),{
-          headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-          cache:'no-store',signal:AbortSignal.timeout(6000)
-        }).then(function(r){
-          if(r.status===403||r.status===429){ console.warn('[MIST] rate limit on file fetch'); return null; }
-          return r.ok?r.json():null;
-        })
-          .then(function(r2){return r2&&r2.content?JSON.parse(atob(r2.content.replace(/\n/g,''))):null;})
+        fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
+          .then(function(r){return r.ok?r.json():null;})
           .then(function(d){
             var evts=Array.isArray(d)?d:(d&&d.ts&&d.uid)?[d]:null;
             if(!evts||!evts.length)return;
             evts.forEach(function(ev){
               if(!ev||!ev.ts||!ev.uid)return;
-              if(ev.instanceId&&ev.instanceId===_iid)return;
+              if(ev.instanceId&&ev.instanceId===_iid)return; // own instance
               if(Date.now()-ev.ts>STALE_MS)return;
               var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
               if(MIST.seen[key])return;
               MIST.seen[key]=true;
               console.log('[MIST] poll event:',ev.type||'(no type)','uid:',ev.uid.slice(0,16),'slot:',ev.slot);
-              // Relay to all same-browser tabs via BroadcastChannel
-              _bcPost(ev);
-              _processEvent(ev, myUid);
+              var slot=(ev.slot!=null)?ev.slot:0;
+
+              if(ev.type==='reaction'&&ev.replyTo){
+                // Is this a reaction to MY solve? → show incoming at their node (feedback)
+                var isMyFeedback=_mySolves.some(function(s){return s.uid===ev.replyTo&&(ev.ts-s.ts)<STALE_MS;});
+                // Always observe: bystanders AND sender both see incoming at reacting node
+                _phaseObserve(ev);
+                if(isMyFeedback){
+                  _log('MIST FEEDBACK ← '+ev.uid.slice(0,14)+' reacted to your slot-'+slot+' solve (score:'+((ev.score||0).toFixed(2))+').');
+                }
+              } else {
+                // It's a solve event from another session
+                // 1. Everyone observes: show outgoing at sender's node in scene
+                _phaseObserve(ev);
+                // 2. If pattern matches: THIS session reacts (incoming to my orb + write reaction)
+                if(ev.uid!==myUid){
+                  _phaseReceive(ev);
+                }
+              }
             });
-          }).catch(function(e){ console.warn('[MIST] file fetch error:',e); });
+          }).catch(function(){});
       });
-    }).catch(function(e){ console.warn('[MIST] dir fetch error:',e); });
+    }).catch(function(){});
   }
 
-  function _processEvent(ev, myUid){
-    var slot=(ev.slot!=null)?ev.slot:0;
-    if(ev.type==='reaction'&&ev.replyTo){
-      _phaseObserve(ev);
-      var isMyFeedback=_mySolves.some(function(s){return s.uid===ev.replyTo&&(ev.ts-s.ts)<STALE_MS;});
-      if(isMyFeedback) _log('MIST FEEDBACK ← '+ev.uid.slice(0,14)+' reacted to your slot-'+slot+' solve (score:'+((ev.score||0).toFixed(2))+').');
-    } else {
-      _phaseObserve(ev);
-      if(ev.uid!==myUid) _phaseReceive(ev);
-    }
-  }
-
-  // ── BroadcastChannel — same-origin tabs + leader relay ────────────────────
+  // ── BroadcastChannel — same-origin tabs ────────────────────────────────────
   var _bc=null;
   try{
     _bc=new BroadcastChannel('autumn_mist');
     _bc.onmessage=function(e){
       if(!e.data)return;
       var d=e.data;
-      // Leader heartbeat relay — follower tabs don't need to process
-      if(d._type==='leader_hb') return;
       var key=(d.uid||'?')+':'+(d.ts||0)+':'+(d.type||'solve');
       if(MIST.seen[key])return;
       MIST.seen[key]=true;
-      _processEvent(d, _sid());
+      var slot=(d.slot!=null)?d.slot:0;
+      if(d.type==='reaction'&&d.replyTo){
+        _phaseObserve(d);
+      } else if(d.type==='solve'&&d.uid!==_sid()){
+        _phaseObserve(d);
+        _phaseReceive(d);
+      }
     };
   }catch(e){_bc=null;}
 
@@ -734,11 +716,8 @@
       files.filter(function(f){return f.name.endsWith('.json');}).slice(0,MAX_FILES)
         .forEach(function(f){
           _shaCache[f.name]=f.sha; // mark as seen — future polls only fire on NEW events
-          fetch(f.url+'?_='+Date.now(),{
-            headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-            cache:'no-store',signal:AbortSignal.timeout(5000)
-          }).then(function(r){return r.ok?r.json():null;})
-            .then(function(r2){return r2&&r2.content?JSON.parse(atob(r2.content.replace(/\n/g,''))):null;})
+          fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
+            .then(function(r){return r.ok?r.json():null;})
             .then(function(d){
               var evts=Array.isArray(d)?d:(d&&d.ts)?[d]:null;
               if(!evts)return;
@@ -759,17 +738,12 @@
 
   function init(){
     injectCSS();injectHTML();
-    // Attempt to claim leadership immediately; if another tab already holds it, we'll follow
-    _checkLeader();
-    // Start poll loop — _poll() internally gates on leadership
-    setTimeout(function(){
-      _poll();
-      setInterval(_poll, POLL_MS);
-    }, 1500 + Math.random()*1000); // stagger start slightly so tabs don't all fire at once
-    // Initial session node refresh
+    // Start polling at 2s
+    setTimeout(function(){ _poll(); setInterval(_poll,POLL_MS); },2000);
+    // Immediately trigger a session node refresh on init so the world fills fast
     setTimeout(function(){ if(typeof _pollAshNodes==='function') _pollAshNodes(); }, 1000);
-    // Replay world state — leader only (followers get events via BC relay)
-    setTimeout(function(){ _checkLeader(); if(_isLeader) _replayState(); }, 6000);
+    // Replay current world state — start early, node groups will fill in via pending buffer
+    setTimeout(_replayState, 6000);
   }
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 
