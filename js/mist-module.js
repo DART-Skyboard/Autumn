@@ -188,9 +188,12 @@
   }
   function _doObserve(ev,pos){
     if(ev.type==='solve'){
+      // Bystander/sender: see outgoing FROM that node along its connections
       _spawnOutgoing(ev.slot, pos, ev.uid);
     } else if(ev.type==='reaction'){
-      _spawnIncoming(ev.slot, pos, ev.replyTo||null);
+      // Feedback: that remote node reacted — show radial burst AT their world position
+      // NOT incoming toward local orb (splines dont connect to remote positions)
+      _spawnReactionBurst(ev.slot, pos, ev.score||0.5);
     }
   }
 
@@ -319,6 +322,59 @@
     return new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:opacity});
   }
 
+  // REACTION BURST — radial explosion AT a remote node's world position
+  // Distinct from outgoing (which travels along splines) and incoming (which arrives at local orb)
+  // Visually: "this node got hit and fired back" — seen by bystanders and the original sender
+  function _spawnReactionBurst(slot, pos, score){
+    if(typeof THREE==='undefined'||typeof scene==='undefined') return;
+    if(!pos) return;
+    var col=new THREE.Color(SLOT[slot].color);
+    // Shift hue slightly to distinguish reaction from outgoing
+    var hsl={};col.getHSL(hsl);
+    col.setHSL((hsl.h+0.10)%1.0, hsl.s, Math.min(0.92,hsl.l*1.2));
+
+    var grp=new THREE.Group();
+    grp._mAge=0; grp._mMax=150; grp._mSlot=slot; grp._mObjs=[];
+    grp._mMode='reaction_burst';
+
+    var count=Math.round(8+score*14); // score-scaled particle count
+    var spd=0.010+score*0.008;
+
+    for(var i=0;i<count;i++){
+      var geo=_mistGeo(slot,col,0.72);
+      var mat=_mistMat(col, slot===0?0.88:slot===1?0.82:0.70);
+      var mesh=new THREE.Mesh(geo,mat);
+      mesh.position.copy(pos);
+      // Random outward velocity from that position
+      var a=Math.random()*Math.PI*2, b=Math.acos(2*Math.random()-1);
+      var v=spd*(0.7+Math.random()*0.6);
+      mesh._mv=new THREE.Vector3(
+        Math.sin(b)*Math.cos(a)*v,
+        Math.sin(b)*Math.sin(a)*v,
+        Math.cos(b)*v
+      );
+      mesh._mMaxDist=0.6+score*1.0; // stop expanding after this distance
+      mesh._mOrigin=pos.clone();
+      mesh._mr=new THREE.Vector3(Math.random()*.06,Math.random()*.05,Math.random()*.04);
+      grp._mObjs.push(mesh); grp.add(mesh);
+    }
+
+    // Expanding ring at the node position — the "hit confirmed" indicator
+    for(var r=0;r<3;r++){
+      var rGeo=new THREE.TorusGeometry(0.06+r*0.05, 0.010, 4, 16);
+      var rMat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.80-r*0.18,wireframe:true});
+      var ring=new THREE.Mesh(rGeo,rMat);
+      ring.position.copy(pos);
+      ring.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+      ring._expandSpd=0.007+r*0.004+score*0.005;
+      ring._isRing=true;
+      ring._mr=new THREE.Vector3(Math.random()*.03,Math.random()*.025,0);
+      grp._mObjs.push(ring); grp.add(ring);
+    }
+
+    scene.add(grp); _geom.push(grp);
+  }
+
   // ── Animation tick ─────────────────────────────────────────────────────────
   (function _tick(){
     requestAnimationFrame(_tick);
@@ -330,9 +386,21 @@
       if(fade<=0){rem.push(g);return;}
       g._mObjs.forEach(function(obj){
         if(obj._isRing){
-          // Arrival ring expands at toPos
+          // Expanding ring — reaction_burst or incoming arrival
           obj.scale.multiplyScalar(1+obj._expandSpd);
-          obj.material.opacity=.7*fade*Math.min(1,g._mAge/8);
+          obj.rotation.x+=obj._mr?obj._mr.x:0;
+          obj.rotation.y+=obj._mr?obj._mr.y:0;
+          obj.material.opacity=.75*fade*Math.min(1,g._mAge/6);
+          return;
+        }
+        if(g._mMode==='reaction_burst'){
+          // Radial burst — fly out from origin, stop at maxDist
+          if(obj._mOrigin){
+            var dist=obj.position.distanceTo(obj._mOrigin);
+            if(dist<(obj._mMaxDist||1.0)) obj.position.add(obj._mv);
+          }
+          obj.rotation.x+=obj._mr.x; obj.rotation.y+=obj._mr.y; obj.rotation.z+=obj._mr.z;
+          obj.material.opacity=Math.max(0,0.88*fade);
           return;
         }
         if(obj._mc){
