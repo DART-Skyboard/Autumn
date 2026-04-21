@@ -29,7 +29,7 @@
 (function() {
   'use strict';
 
-  var MATCH_THRESHOLD  = 0.22;   // _sessionPatternScore min for reaction
+  var MATCH_THRESHOLD  = 0.08;   // _sessionPatternScore min for reaction
   var POLL_MS          = 3000;   // 3s poll
   var STALE_MS         = 90000;  // ignore events > 90s old
   var MAX_FILES        = 40;
@@ -46,6 +46,7 @@
   var _iid = 'mi_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   var _mySolves = [];   // [{uid,ts}] last 20 local solves
   var _shaCache = {};   // filename → sha
+  var _pendingObs = []; // events buffered when node not yet in scene — retried each poll
 
   var SLOT = {
     0:{emotion:'inspired',  pulse:1.4,speed:1.25,boost:[.08,.06,.04],label:'★ STAR SOLVED', color:0xffdd00},
@@ -63,9 +64,17 @@
     return Math.max(0,1-Math.abs(h/0x7fffffff-h2/0x7fffffff)*2.5);
   }
   function _nodePos(uid){
-    if(typeof _ashNodes==='undefined'||!_ashNodes._sessionGroups) return null;
-    var g=_ashNodes._sessionGroups[uid];
-    return (g&&g.group)?g.group.position.clone():null;
+    // First try live animated position from session group
+    if(typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups){
+      var g=_ashNodes._sessionGroups[uid];
+      if(g&&g.group) return g.group.position.clone();
+    }
+    // Fallback: deterministic position from uid hash (matches where node WILL appear)
+    if(typeof _nodeBasePos==='function' && typeof THREE!=='undefined'){
+      var bp=_nodeBasePos(uid);
+      return new THREE.Vector3(bp.x,bp.y,bp.z);
+    }
+    return null;
   }
   // Returns spline curves for a given endpoint uid. Each entry: {curve, fromLocal}
   // fromLocal=true means curve goes local→uid (use t=0..1 for outgoing, t=1..0 for incoming)
@@ -116,8 +125,13 @@
       window.S.journal.push({ts:new Date().toISOString(),_internal:true,_thought:msg});
   }
   function _write(data){
-    if(typeof writeLeatrAshMemory==='function')
-      writeLeatrAshMemory('ashtree/mist/'+_sid()+'.json', data);
+    if(typeof writeLeatrAshMemory!=='function') return;
+    var path='ashtree/mist/'+_sid()+'.json';
+    writeLeatrAshMemory(path, data);
+    // Bypass the 8s batch queue — flush immediately for real-time feel
+    if(typeof _ashFlushNow==='function'){
+      setTimeout(function(){ _ashFlushNow(path); }, 50);
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -144,7 +158,10 @@
   function _phaseReceive(ev){
     var now=Date.now();
     var myUid=_sid();
-    var sc=_score(myUid,ev.uid);
+    // Same user (other tab): _aut_sid starts with _aut_uid, so sender sid starts with my user uid
+    var myUserUid=(typeof _aut_uid!=='undefined')?_aut_uid:myUid.split('_t')[0];
+    var sameUser=ev.uid.indexOf(myUserUid)===0;
+    var sc=sameUser?1.0:_score(myUid,ev.uid);
     if(sc<MATCH_THRESHOLD) return;
     if(MIST.lastReact[ev.uid]&&(now-MIST.lastReact[ev.uid])<REACT_COOLDOWN) return;
     MIST.lastReact[ev.uid]=now;
@@ -162,12 +179,17 @@
   // Shows remote send (outgoing at their node) or remote reaction (incoming at their node).
   function _phaseObserve(ev){
     var pos=_nodePos(ev.uid);
-    if(!pos) return; // not visible in this scene yet
+    if(!pos){
+      // Node not in scene yet — buffer and retry next poll
+      _pendingObs.push(ev);
+      return;
+    }
+    _doObserve(ev,pos);
+  }
+  function _doObserve(ev,pos){
     if(ev.type==='solve'){
-      // Bystander sees node X sending — outgoing at X's position
       _spawnOutgoing(ev.slot, pos, ev.uid);
     } else if(ev.type==='reaction'){
-      // Bystander/sender sees node Y receiving — incoming converging at Y's position
       _spawnIncoming(ev.slot, pos, ev.replyTo||null);
     }
   }
@@ -343,6 +365,20 @@
   // ══════════════════════════════════════════════════════════════════════════
   function _poll(){
     var pat=_pat();if(!pat)return;
+    // Retry buffered events whose node positions are now known
+    if(_pendingObs.length){
+      var stillPending=[];
+      _pendingObs.forEach(function(ev){
+        var pos=_nodePos(ev.uid);
+        if(pos){
+          _doObserve(ev,pos);
+        } else {
+          ev._retries=(ev._retries||0)+1;
+          if(ev._retries<10) stillPending.push(ev); // drop after 10 retries (~30s)
+        }
+      });
+      _pendingObs=stillPending;
+    }
     fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
       headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
       signal:AbortSignal.timeout(5000)
@@ -644,7 +680,47 @@
   }
   function _ss(m){var el=document.getElementById('mist-status');if(el)el.textContent=m;}
 
-  function init(){injectCSS();injectHTML();setTimeout(function(){_poll();setInterval(_poll,POLL_MS);},5000);}
+  // Replay recent mist events so late-joiners see the live world state immediately
+  function _replayState(){
+    var pat=_pat();if(!pat)return;
+    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
+      signal:AbortSignal.timeout(6000)
+    }).then(function(r){return r.ok?r.json():null;})
+    .then(function(files){
+      if(!Array.isArray(files))return;
+      // Seed sha cache so regular polls skip these files unless they change after replay
+      var REPLAY_WINDOW=120000; // replay up to 2 min of history
+      files.filter(function(f){return f.name.endsWith('.json');}).slice(0,MAX_FILES)
+        .forEach(function(f){
+          _shaCache[f.name]=f.sha; // mark as seen — future polls only fire on NEW events
+          fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
+            .then(function(r){return r.ok?r.json():null;})
+            .then(function(d){
+              var evts=Array.isArray(d)?d:(d&&d.ts)?[d]:null;
+              if(!evts)return;
+              evts.forEach(function(ev){
+                if(!ev||!ev.ts||!ev.uid)return;
+                if(Date.now()-ev.ts>REPLAY_WINDOW)return;
+                if(ev.instanceId&&ev.instanceId===_iid)return;
+                var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
+                if(MIST.seen[key])return;
+                MIST.seen[key]=true;
+                // Render the state — no BRPN effects for replayed events (just visual)
+                _phaseObserve(ev);
+              });
+            }).catch(function(){});
+        });
+    }).catch(function(){});
+  }
+
+  function init(){
+    injectCSS();injectHTML();
+    // Start polling at 3s
+    setTimeout(function(){ _poll(); setInterval(_poll,POLL_MS); },3000);
+    // Replay current world state once session groups have had time to populate (12s)
+    setTimeout(_replayState, 12000);
+  }
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 
 })();
