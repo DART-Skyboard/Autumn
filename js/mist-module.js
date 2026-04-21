@@ -555,16 +555,24 @@
         fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(d){
-            if(!d||!d.ts||!d.uid)return;
-            // Skip if this exact instance wrote it (already reacted locally)
-            if(d.instanceId && d.instanceId===_mistInstanceId)return;
-            var age=Date.now()-d.ts;
-            if(age>STALE_MS)return;
-            // Debounce by uid+ts — allows future solves from same user through
-            var key=d.uid+':'+d.ts;
-            if(MIST.lastRemoteTs[key])return;
-            MIST.lastRemoteTs[key]=true;
-            _fireMistNetworkReaction(d.slot||0, false);
+            // writeLeatrAshMemory appends to an array for non-session paths;
+            // handle both array format (current) and flat object (legacy)
+            var events = Array.isArray(d) ? d
+                        : (d && d.ts && d.uid) ? [d]
+                        : null;
+            if(!events || !events.length) return;
+            events.forEach(function(ev){
+              if(!ev || !ev.ts || !ev.uid) return;
+              // Skip if this exact instance wrote it (already reacted locally)
+              if(ev.instanceId && ev.instanceId === _mistInstanceId) return;
+              var age = Date.now() - ev.ts;
+              if(age > STALE_MS) return;
+              // Debounce by uid+ts — allows future solves from same user through
+              var key = ev.uid + ':' + ev.ts;
+              if(MIST.lastRemoteTs[key]) return;
+              MIST.lastRemoteTs[key] = true;
+              _fireMistNetworkReaction(ev.slot != null ? ev.slot : 0, false);
+            });
           }).catch(function(){});
       });
     }).catch(function(){});
