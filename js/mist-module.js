@@ -32,53 +32,120 @@
     2: { emotion:'spiritual',  pulse:1.0, speed:0.8,  shellBoost:[0.12,0.08,0.10], label:'◈ MIST SOLVED'  }
   };
 
-  // ── LEMAC maze generator ──────────────────────────────────────────────────
-  function generateMaze(w, h) {
-    var grid=[];
-    for(var y=0;y<h;y++){grid[y]=[];for(var x=0;x<w;x++)grid[y][x]={n:1,s:1,e:1,w:1,visited:false};}
-    function carve(x,y){
-      grid[y][x].visited=true;
-      var dirs=[['n',0,-1],['s',0,1],['e',1,0],['w',-1,0]];
-      dirs.sort(function(){return Math.random()-.5;});
-      dirs.forEach(function(d){
-        var nx=x+d[1],ny=y+d[2];
-        if(nx>=0&&nx<w&&ny>=0&&ny<h&&!grid[ny][nx].visited){
-          grid[y][x][d[0]]=0;
-          grid[ny][nx][{n:'s',s:'n',e:'w',w:'e'}[d[0]]]=0;
-          carve(nx,ny);
-        }
-      });
-    }
-    carve(0,0);
-    function pickSide(){return['n','s','e','w'][Math.floor(Math.random()*4)];}
-    function posOnSide(s){return s==='n'||s==='s'?Math.floor(Math.random()*w):Math.floor(Math.random()*h);}
-    function cellOnSide(s,p){if(s==='n')return{x:p,y:0};if(s==='s')return{x:p,y:h-1};if(s==='w')return{x:0,y:p};return{x:w-1,y:p};}
-    var es=pickSide(),ep=posOnSide(es),xs,xp,att=0;
-    do{xs=pickSide();xp=posOnSide(xs);att++;}while(att<20&&xs===es&&Math.abs(xp-ep)<2);
-    var entry=cellOnSide(es,ep),exit=cellOnSide(xs,xp);
-    grid[entry.y][entry.x][es]=0; grid[exit.y][exit.x][xs]=0;
-    return{grid,w,h,entry,exit,entrySide:es,exitSide:xs};
-  }
+  // ── Lead Edge pixel-grid maze generator ─────────────────────────────────
+  // Produces a W×H pixel grid (1=wall, 0=path).
+  // Solid perimeter with exactly 2 openings on different sides.
+  // Iterative DFS backtracker at 2-cell steps → branching dead-end corridors.
+  // Only right-angle turns. No line-of-sight between entry and exit.
+  function generateMaze(W, H) {
+    // Enforce odd dimensions for correct 2-step backtracker coverage
+    if (W % 2 === 0) W++;
+    if (H % 2 === 0) H++;
 
-  function solveMaze(maze){
-    var queue=[{x:maze.entry.x,y:maze.entry.y,path:[{x:maze.entry.x,y:maze.entry.y}]}];
-    var seen={}; seen[maze.entry.x+','+maze.entry.y]=true;
-    var dirs={n:[0,-1],s:[0,1],e:[1,0],w:[-1,0]};
-    while(queue.length){
-      var cur=queue.shift();
-      if(cur.x===maze.exit.x&&cur.y===maze.exit.y)return cur.path;
-      var cell=maze.grid[cur.y][cur.x];
-      Object.keys(dirs).forEach(function(d){
-        if(cell[d]===0){
-          var nx=cur.x+dirs[d][0],ny=cur.y+dirs[d][1],k=nx+','+ny;
-          if(nx>=0&&nx<maze.w&&ny>=0&&ny<maze.h&&!seen[k]){
-            seen[k]=true;
-            queue.push({x:nx,y:ny,path:cur.path.concat([{x:nx,y:ny}])});
-          }
-        }
-      });
+    // Pixel grid: 1=wall, 0=path
+    var grid = [];
+    for (var y = 0; y < H; y++) {
+      grid[y] = [];
+      for (var x = 0; x < W; x++) grid[y][x] = 1;
     }
-    return null;
+
+    function rnd(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo)); }
+    function carve(x, y) { if (x>=0&&x<W&&y>=0&&y<H) grid[y][x] = 0; }
+    function isOpen(x, y) { return x>=0&&x<W&&y>=0&&y<H&&grid[y][x]===0; }
+    function shuffle(arr) {
+      for (var i=arr.length-1;i>0;i--){var j=rnd(0,i+1),t=arr[i];arr[i]=arr[j];arr[j]=t;}
+      return arr;
+    }
+
+    // Pick two openings: prefer opposite sides (forces route), allow adjacent ~30% of the time
+    var sideList=['n','s','e','w'];
+    var oppMap={n:'s',s:'n',e:'w',w:'e'};
+    var adjMap={n:['e','w'],s:['e','w'],e:['n','s'],w:['n','s']};
+    var s1 = sideList[rnd(0,4)];
+    var s2 = (Math.random()<0.7) ? oppMap[s1] : adjMap[s1][rnd(0,2)];
+
+    // Opening positions land on odd indices so they align with carved interior cells
+    function oddPositions(len) {
+      var a=[]; for(var i=1;i<len-1;i+=2) a.push(i); return a;
+    }
+    var e1pos = oddPositions((s1==='n'||s1==='s')?W:H);
+    var e2pos = oddPositions((s2==='n'||s2==='s')?W:H);
+    var p1 = e1pos[rnd(0,e1pos.length)];
+    var p2 = e2pos[rnd(0,e2pos.length)];
+
+    function openingCell(s,p){
+      if(s==='n')return{x:p,y:0};if(s==='s')return{x:p,y:H-1};
+      if(s==='w')return{x:0,y:p};return{x:W-1,y:p};
+    }
+    var entry = openingCell(s1,p1);
+    var exit  = openingCell(s2,p2);
+    carve(entry.x, entry.y);
+    carve(exit.x,  exit.y);
+
+    // Start carving 1 step inward from entry
+    var inMap={n:{dx:0,dy:1},s:{dx:0,dy:-1},e:{dx:-1,dy:0},w:{dx:1,dy:0}};
+    var im=inMap[s1];
+    var sx=Math.max(1,Math.min(W-2, entry.x+im.dx));
+    var sy=Math.max(1,Math.min(H-2, entry.y+im.dy));
+
+    // Iterative DFS backtracker — 2-cell steps through interior
+    var visited=[];
+    for(var vy=0;vy<H;vy++){visited[vy]=[];for(var vx=0;vx<W;vx++)visited[vy][vx]=0;}
+    carve(sx,sy); visited[sy][sx]=1;
+    var stack=[{x:sx,y:sy}];
+    var DIRS=[{dx:0,dy:-2},{dx:0,dy:2},{dx:-2,dy:0},{dx:2,dy:0}];
+
+    while(stack.length){
+      var cur=stack[stack.length-1];
+      var ds=shuffle(DIRS.slice());
+      var moved=false;
+      for(var di=0;di<ds.length;di++){
+        var nx=cur.x+ds[di].dx, ny=cur.y+ds[di].dy;
+        var mx=cur.x+ds[di].dx/2, my=cur.y+ds[di].dy/2;
+        if(nx<1||nx>W-2||ny<1||ny>H-2||visited[ny][nx]) continue;
+        carve(mx,my); carve(nx,ny); visited[ny][nx]=1;
+        stack.push({x:nx,y:ny}); moved=true; break;
+      }
+      if(!moved) stack.pop();
+    }
+
+    // Guarantee exit is reachable: BFS from entry, if gap exists carve a 1-step bridge
+    function bfsPath(sx,sy,tx,ty){
+      var q=[{x:sx,y:sy,path:[{x:sx,y:sy}]}],seen={};
+      seen[sx+','+sy]=true;
+      var D4=[{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+      while(q.length){
+        var c=q.shift();
+        if(c.x===tx&&c.y===ty)return c.path;
+        for(var i=0;i<4;i++){
+          var nnx=c.x+D4[i].dx,nny=c.y+D4[i].dy,k=nnx+','+nny;
+          if(!seen[k]&&isOpen(nnx,nny)){seen[k]=true;q.push({x:nnx,y:nny,path:c.path.concat([{x:nnx,y:nny}])});}
+        }
+      }
+      return null;
+    }
+    var solPath = bfsPath(entry.x,entry.y,exit.x,exit.y);
+    if(!solPath){
+      // Carve a rescue path: connect inward start to nearest open cell adjacent to exit
+      var exIn=inMap[s2];
+      var ex2x=Math.max(1,Math.min(W-2,exit.x+exIn.dx));
+      var ex2y=Math.max(1,Math.min(H-2,exit.y+exIn.dy));
+      carve(ex2x,ex2y);
+      // Re-solve
+      solPath = bfsPath(entry.x,entry.y,exit.x,exit.y) || [entry];
+    }
+
+    return {
+      grid:  grid,    // pixel grid [y][x]: 1=wall, 0=path
+      W:     W,
+      H:     H,
+      entry: entry,   // {x,y} pixel coords
+      exit:  exit,
+      s1:    s1,      // entry side
+      s2:    s2,      // exit side
+      solution: solPath,
+      solved:   false
+    };
   }
 
   // ── CSS ───────────────────────────────────────────────────────────────────
@@ -196,7 +263,7 @@
   };
   window.mistNewMaze=function(){
     var cfg=DIFF[MIST.difficulty];
-    var maze=generateMaze(cfg.w,cfg.h); maze.solved=false; maze.solution=solveMaze(maze);
+    var maze=generateMaze(cfg.w, cfg.h);
     MIST.mazes[MIST.activeMaze]=maze; MIST.dragPath=[]; MIST.dragging=false;
     MIST.sphereTarget=null; MIST.sphereActual=null; stopSphereAnim();
     renderMaze(maze,[]); setStatus('DRAG ● FROM ENTRY TO EXIT');
@@ -219,80 +286,138 @@
     MIST.sphereAnimId=requestAnimationFrame(tick);
   }
 
-  // ── Maze renderer ─────────────────────────────────────────────────────────
+  // ── Maze renderer — pixel grid version ───────────────────────────────────
   function renderMaze(maze,dragPath){
     var canvas=document.getElementById('mist-maze-canvas'),wrap=document.getElementById('mist-canvas-wrap');
     if(!canvas||!wrap)return;
+    var W=maze.W, H=maze.H;
+    // Pixel size: fit the canvas to the panel width
     var avail=Math.min(wrap.clientWidth-14,220); avail=Math.max(avail,110);
-    var cs=Math.max(8,Math.floor(avail/Math.max(maze.w,maze.h)));
-    var pw=cs*maze.w,ph=cs*maze.h;
-    canvas.width=pw; canvas.height=ph; canvas.style.width=pw+'px'; canvas.style.height=ph+'px';
-    var ctx=canvas.getContext('2d'); ctx.clearRect(0,0,pw,ph);
-    ctx.strokeStyle='rgba(0,229,255,.7)'; ctx.lineWidth=1.1; ctx.shadowColor='rgba(0,229,255,.3)'; ctx.shadowBlur=2.5;
-    for(var y=0;y<maze.h;y++)for(var x=0;x<maze.w;x++){
-      var cell=maze.grid[y][x],px=x*cs,py=y*cs;
-      if(cell.n){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+cs,py);ctx.stroke();}
-      if(cell.s){ctx.beginPath();ctx.moveTo(px,py+cs);ctx.lineTo(px+cs,py+cs);ctx.stroke();}
-      if(cell.w){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py+cs);ctx.stroke();}
-      if(cell.e){ctx.beginPath();ctx.moveTo(px+cs,py);ctx.lineTo(px+cs,py+cs);ctx.stroke();}
+    var ps=Math.max(4, Math.floor(avail/Math.max(W,H)));  // pixels per maze-pixel
+    var pw=ps*W, ph=ps*H;
+    canvas.width=pw; canvas.height=ph;
+    canvas.style.width=pw+'px'; canvas.style.height=ph+'px';
+    var ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,pw,ph);
+
+    // Draw wall pixels as neon cyan blocks
+    ctx.shadowColor='rgba(0,229,255,.3)'; ctx.shadowBlur=2;
+    ctx.fillStyle='rgba(0,229,255,.72)';
+    for(var y=0;y<H;y++) for(var x=0;x<W;x++){
+      if(maze.grid[y][x]===1){
+        ctx.fillRect(x*ps, y*ps, ps, ps);
+      }
     }
     ctx.shadowBlur=0;
+
+    // Draw solved path trail (green line through path pixels)
     if(dragPath&&dragPath.length>1){
-      ctx.strokeStyle='rgba(0,255,136,.5)'; ctx.lineWidth=cs*.25; ctx.lineCap='round'; ctx.lineJoin='round';
-      ctx.shadowColor='rgba(0,255,136,.3)'; ctx.shadowBlur=4;
-      ctx.beginPath(); ctx.moveTo(dragPath[0].x*cs+cs/2,dragPath[0].y*cs+cs/2);
-      dragPath.forEach(function(p){ctx.lineTo(p.x*cs+cs/2,p.y*cs+cs/2);}); ctx.stroke(); ctx.shadowBlur=0;
+      ctx.strokeStyle='rgba(0,255,136,.55)';
+      ctx.lineWidth=Math.max(2,ps*.45);
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.shadowColor='rgba(0,255,136,.35)'; ctx.shadowBlur=4;
+      ctx.beginPath();
+      ctx.moveTo(dragPath[0].x*ps+ps/2, dragPath[0].y*ps+ps/2);
+      for(var di=1;di<dragPath.length;di++)
+        ctx.lineTo(dragPath[di].x*ps+ps/2, dragPath[di].y*ps+ps/2);
+      ctx.stroke(); ctx.shadowBlur=0;
     }
-    ctx.beginPath(); ctx.arc(maze.exit.x*cs+cs/2,maze.exit.y*cs+cs/2,cs*.26,0,Math.PI*2);
-    ctx.fillStyle='rgba(0,229,255,.55)'; ctx.shadowColor='rgba(0,229,255,.8)'; ctx.shadowBlur=7; ctx.fill(); ctx.shadowBlur=0;
+
+    // Exit marker (cyan dot)
+    var ex=maze.exit.x*ps+ps/2, ey=maze.exit.y*ps+ps/2;
+    ctx.beginPath(); ctx.arc(ex,ey,ps*.42,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,229,255,.7)';
+    ctx.shadowColor='rgba(0,229,255,.9)'; ctx.shadowBlur=7;
+    ctx.fill(); ctx.shadowBlur=0;
+
+    // Player sphere (damped position or entry)
     var bx,by;
     if(MIST.sphereActual){bx=MIST.sphereActual.x;by=MIST.sphereActual.y;}
-    else{var bc=(MIST.dragging&&MIST.dragPos)?MIST.dragPos:maze.entry;bx=bc.x*cs+cs/2;by=bc.y*cs+cs/2;}
-    ctx.beginPath(); ctx.arc(bx,by,cs*.33,0,Math.PI*2);
-    ctx.fillStyle=maze.solved?'rgba(0,255,136,1)':'rgba(0,255,136,.9)';
-    ctx.shadowColor='rgba(0,255,136,.9)'; ctx.shadowBlur=maze.solved?13:7;
-    ctx.fill(); ctx.strokeStyle='#00ff88'; ctx.lineWidth=.9; ctx.stroke(); ctx.shadowBlur=0;
+    else{bx=maze.entry.x*ps+ps/2;by=maze.entry.y*ps+ps/2;}
+    ctx.beginPath(); ctx.arc(bx,by,ps*.48,0,Math.PI*2);
+    ctx.fillStyle=maze.solved?'rgba(0,255,136,1)':'rgba(0,255,136,.92)';
+    ctx.shadowColor='rgba(0,255,136,.9)'; ctx.shadowBlur=maze.solved?14:7;
+    ctx.fill(); ctx.strokeStyle='#00ff88'; ctx.lineWidth=1; ctx.stroke();
+    ctx.shadowBlur=0;
   }
 
-  // ── Drag ──────────────────────────────────────────────────────────────────
-  function canvasToCell(canvas,maze,cx,cy){
+  // ── Drag — pixel grid version ─────────────────────────────────────────────
+  // dragPath is now an array of pixel {x,y} coordinates in the maze grid.
+  // The sphere snaps to the nearest open pixel under the finger.
+
+  function clientToMazePixel(canvas, maze, cx, cy) {
     var rect=canvas.getBoundingClientRect();
-    return{x:Math.max(0,Math.min(maze.w-1,Math.floor(((cx-rect.left)*(canvas.width/rect.width))/(canvas.width/maze.w)))),
-           y:Math.max(0,Math.min(maze.h-1,Math.floor(((cy-rect.top)*(canvas.height/rect.height))/(canvas.height/maze.h))))};
+    var ps=canvas.width/maze.W;
+    var mx=Math.floor((cx-rect.left)*(canvas.width/rect.width)/ps);
+    var my=Math.floor((cy-rect.top)*(canvas.height/rect.height)/ps);
+    return {x:Math.max(0,Math.min(maze.W-1,mx)), y:Math.max(0,Math.min(maze.H-1,my))};
   }
+
+  function pixelToCanvasCenter(ps, px, py) {
+    return {x:px*ps+ps/2, y:py*ps+ps/2};
+  }
+
+  function getPixelSize(canvas, maze) {
+    return canvas.width / maze.W;
+  }
+
   function onDragStart(e){
     var maze=MIST.mazes[MIST.activeMaze]; if(!maze||maze.solved)return;
     e.preventDefault(); e.stopPropagation();
-    var pt=e.touches?e.touches[0]:e,cell=canvasToCell(this,maze,pt.clientX,pt.clientY);
-    if(cell.x===maze.entry.x&&cell.y===maze.entry.y){
-      MIST.dragging=true; MIST.dragPos=cell; MIST.dragPath=[cell];
-      var cs=this.width/maze.w; MIST.sphereTarget={x:cell.x*cs+cs/2,y:cell.y*cs+cs/2}; MIST.sphereActual={x:cell.x*cs+cs/2,y:cell.y*cs+cs/2};
+    var pt=e.touches?e.touches[0]:e;
+    var mp=clientToMazePixel(this,maze,pt.clientX,pt.clientY);
+    // Must start on the entry pixel
+    if(mp.x===maze.entry.x&&mp.y===maze.entry.y){
+      MIST.dragging=true; MIST.dragPos={x:mp.x,y:mp.y}; MIST.dragPath=[{x:mp.x,y:mp.y}];
+      var ps=getPixelSize(this,maze);
+      var c=pixelToCanvasCenter(ps,mp.x,mp.y);
+      MIST.sphereTarget={x:c.x,y:c.y}; MIST.sphereActual={x:c.x,y:c.y};
       setStatus('NAVIGATE TO ◉ EXIT');
     }
     renderMaze(maze,MIST.dragPath);
   }
+
   function onDragMove(e){
     if(!MIST.dragging)return; e.preventDefault(); e.stopPropagation();
     var maze=MIST.mazes[MIST.activeMaze]; if(!maze)return;
-    var pt=e.touches?e.touches[0]:e,cell=canvasToCell(this,maze,pt.clientX,pt.clientY);
+    var pt=e.touches?e.touches[0]:e;
+    var mp=clientToMazePixel(this,maze,pt.clientX,pt.clientY);
     var prev=MIST.dragPath[MIST.dragPath.length-1];
-    if(cell.x===prev.x&&cell.y===prev.y)return;
-    var dx=cell.x-prev.x,dy=cell.y-prev.y;
-    if(Math.abs(dx)+Math.abs(dy)!==1)return;
-    var wd=dx===1?'e':dx===-1?'w':dy===1?'s':'n';
-    if(maze.grid[prev.y][prev.x][wd]!==0)return;
-    if(MIST.dragPath.length>=2){var pp=MIST.dragPath[MIST.dragPath.length-2];if(cell.x===pp.x&&cell.y===pp.y)MIST.dragPath.pop();else MIST.dragPath.push(cell);}
-    else MIST.dragPath.push(cell);
-    MIST.dragPos=cell;
-    var cs=this.width/maze.w; MIST.sphereTarget={x:cell.x*cs+cs/2,y:cell.y*cs+cs/2}; startSphereAnim();
-    if(cell.x===maze.exit.x&&cell.y===maze.exit.y){MIST.dragging=false;maze.solved=true;onMazeSolved(MIST.activeMaze,maze);}
+    if(mp.x===prev.x&&mp.y===prev.y) return;
+    // Only allow moving to adjacent open pixels (no diagonal)
+    var dx=mp.x-prev.x, dy=mp.y-prev.y;
+    if(Math.abs(dx)+Math.abs(dy)!==1) return;
+    // Target must be an open path pixel
+    if(maze.grid[mp.y][mp.x]!==0) return;
+    // Backtrack support: if this pixel is the one before last, pop
+    if(MIST.dragPath.length>=2){
+      var pp=MIST.dragPath[MIST.dragPath.length-2];
+      if(mp.x===pp.x&&mp.y===pp.y){ MIST.dragPath.pop(); }
+      else { MIST.dragPath.push({x:mp.x,y:mp.y}); }
+    } else {
+      MIST.dragPath.push({x:mp.x,y:mp.y});
+    }
+    MIST.dragPos={x:mp.x,y:mp.y};
+    var ps=getPixelSize(this,maze);
+    var c=pixelToCanvasCenter(ps,mp.x,mp.y);
+    MIST.sphereTarget={x:c.x,y:c.y}; startSphereAnim();
+    // Check for exit
+    if(mp.x===maze.exit.x&&mp.y===maze.exit.y){
+      MIST.dragging=false; maze.solved=true; onMazeSolved(MIST.activeMaze,maze);
+    } else {
+      renderMaze(maze,MIST.dragPath);
+    }
   }
+
   function onDragEnd(e){
     if(!MIST.dragging)return; MIST.dragging=false;
     var maze=MIST.mazes[MIST.activeMaze];
     if(maze&&!maze.solved){
-      MIST.dragPath=[]; var cv=document.getElementById('mist-maze-canvas'),cs=cv?cv.width/maze.w:10;
-      MIST.sphereTarget={x:maze.entry.x*cs+cs/2,y:maze.entry.y*cs+cs/2}; startSphereAnim();
+      MIST.dragPath=[];
+      var cv=document.getElementById('mist-maze-canvas');
+      var ps=cv?getPixelSize(cv,maze):8;
+      var c=pixelToCanvasCenter(ps,maze.entry.x,maze.entry.y);
+      MIST.sphereTarget={x:c.x,y:c.y}; startSphereAnim();
       setStatus('DRAG ● FROM ENTRY TO EXIT');
     }
   }
