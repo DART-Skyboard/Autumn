@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  MIST MODULE — Autumn transparent overlay maze
+//  MIST MODULE — Autumn frosted-glass overlay maze
 //  Lead Edge Ash Tree Reflex
-//  On solve: drives the BRPN buoyancy network exactly like analytics pattern
-//  execution — pulseShells, applyOrbEmotion, _acShellBoost, maze re-solve.
-//  Multi-user: BroadcastChannel + leatr-ash so all viewports react in sync.
+//  On solve → drives BRPN buoyancy network (pulseShells/applyOrbEmotion/etc)
+//  Multi-user → writes to ashtree/mist/{uid}.json via writeLeatrAshMemory
+//              → polls every 12s for other users' mist events → reacts
 // ═══════════════════════════════════════════════════════════════════════════
 (function() {
   'use strict';
@@ -19,13 +19,13 @@
     activeMaze: 0,
     sphereTarget: null,
     sphereActual: null,
-    sphereAnimId: null
+    sphereAnimId: null,
+    lastRemoteTs: {}   // uid → last seen ts to debounce duplicate fires
   };
 
   var DIFF = { 1:{w:5,h:5}, 2:{w:9,h:9}, 3:{w:13,h:13} };
 
-  // Each slot maps to a distinct emotion + shell profile, matching the
-  // BRPN ORB_EMOTION_STATES schema so the orb reacts authentically.
+  // Slot → BRPN network reaction profile
   var SLOT_PROFILE = {
     0: { emotion:'inspired',   pulse:1.4, speed:1.25, shellBoost:[0.08,0.06,0.04], label:'★ STAR SOLVED' },
     1: { emotion:'empathetic', pulse:1.6, speed:1.1,  shellBoost:[0.05,0.10,0.06], label:'♥ HEART SOLVED' },
@@ -51,18 +51,13 @@
     }
     carve(0,0);
     function pickSide(){return['n','s','e','w'][Math.floor(Math.random()*4)];}
-    function posOnSide(side){return side==='n'||side==='s'?Math.floor(Math.random()*w):Math.floor(Math.random()*h);}
-    function cellOnSide(side,pos){
-      if(side==='n')return{x:pos,y:0};if(side==='s')return{x:pos,y:h-1};
-      if(side==='w')return{x:0,y:pos};return{x:w-1,y:pos};
-    }
-    var entrySide=pickSide(),entryPos=posOnSide(entrySide);
-    var exitSide,exitPos,att=0;
-    do{exitSide=pickSide();exitPos=posOnSide(exitSide);att++;}
-    while(att<20&&exitSide===entrySide&&Math.abs(exitPos-entryPos)<2);
-    var entry=cellOnSide(entrySide,entryPos),exit=cellOnSide(exitSide,exitPos);
-    grid[entry.y][entry.x][entrySide]=0; grid[exit.y][exit.x][exitSide]=0;
-    return{grid,w,h,entry,exit,entrySide,exitSide};
+    function posOnSide(s){return s==='n'||s==='s'?Math.floor(Math.random()*w):Math.floor(Math.random()*h);}
+    function cellOnSide(s,p){if(s==='n')return{x:p,y:0};if(s==='s')return{x:p,y:h-1};if(s==='w')return{x:0,y:p};return{x:w-1,y:p};}
+    var es=pickSide(),ep=posOnSide(es),xs,xp,att=0;
+    do{xs=pickSide();xp=posOnSide(xs);att++;}while(att<20&&xs===es&&Math.abs(xp-ep)<2);
+    var entry=cellOnSide(es,ep),exit=cellOnSide(xs,xp);
+    grid[entry.y][entry.x][es]=0; grid[exit.y][exit.x][xs]=0;
+    return{grid,w,h,entry,exit,entrySide:es,exitSide:xs};
   }
 
   function solveMaze(maze){
@@ -74,8 +69,13 @@
       if(cur.x===maze.exit.x&&cur.y===maze.exit.y)return cur.path;
       var cell=maze.grid[cur.y][cur.x];
       Object.keys(dirs).forEach(function(d){
-        if(cell[d]===0){var nx=cur.x+dirs[d][0],ny=cur.y+dirs[d][1],k=nx+','+ny;
-          if(nx>=0&&nx<maze.w&&ny>=0&&ny<maze.h&&!seen[k]){seen[k]=true;queue.push({x:nx,y:ny,path:cur.path.concat([{x:nx,y:ny}])})}}
+        if(cell[d]===0){
+          var nx=cur.x+dirs[d][0],ny=cur.y+dirs[d][1],k=nx+','+ny;
+          if(nx>=0&&nx<maze.w&&ny>=0&&ny<maze.h&&!seen[k]){
+            seen[k]=true;
+            queue.push({x:nx,y:ny,path:cur.path.concat([{x:nx,y:ny}])});
+          }
+        }
       });
     }
     return null;
@@ -85,34 +85,46 @@
   function injectCSS(){
     var s=document.createElement('style');
     s.textContent=[
-      '#mist-trigger{position:fixed;right:0;top:148px;z-index:9500;display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 5px;background:transparent;border:1px solid rgba(0,229,255,.2);border-right:none;border-radius:7px 0 0 7px;cursor:pointer;transition:border-color .2s}',
-      '#mist-trigger:hover{border-color:rgba(0,229,255,.45)}',
+      // Trigger tab — upper right, over 3JS
+      '#mist-trigger{position:fixed;right:0;top:148px;z-index:9500;display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 5px;',
+        'background:rgba(2,6,14,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);',
+        'border:1px solid rgba(0,229,255,.22);border-right:none;border-radius:7px 0 0 7px;cursor:pointer;transition:all .2s}',
+      '#mist-trigger:hover{background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.45)}',
       '.mt-icon{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .3s}',
       '.mt-icon.mi-active{filter:drop-shadow(0 0 4px #00e5ff);opacity:1}',
       '.mt-icon.mi-locked{opacity:.14}',
       '.mt-icon.mi-ready{opacity:.6}',
-      '#mist-overlay{position:fixed;right:36px;top:140px;z-index:9400;width:min(250px,calc(100vw - 48px));display:flex;flex-direction:column;transform:translateX(calc(100% + 44px));transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;opacity:0;pointer-events:none}',
+      // Panel — frosted glass
+      '#mist-overlay{position:fixed;right:36px;top:140px;z-index:9400;width:min(250px,calc(100vw - 48px));display:flex;flex-direction:column;',
+        'transform:translateX(calc(100% + 44px));transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;opacity:0;pointer-events:none}',
       '#mist-overlay.mist-open{transform:translateX(0);opacity:1;pointer-events:all}',
-      '#mist-menu{background:transparent;border:1px solid rgba(0,229,255,.16);border-bottom:none;border-radius:7px 7px 0 0;padding:7px 9px 5px;display:flex;flex-direction:column;gap:5px}',
+      // Frosted glass menu
+      '#mist-menu{background:rgba(4,10,22,.52);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
+        'border:1px solid rgba(0,229,255,.2);border-bottom:none;border-radius:7px 7px 0 0;padding:7px 9px 5px;display:flex;flex-direction:column;gap:5px}',
       '#mist-head-row{display:flex;align-items:center;gap:7px}',
       '.mist-lbl{font-family:var(--font-d,monospace);font-size:.42rem;letter-spacing:3px;color:rgba(0,229,255,.9);text-shadow:0 0 7px rgba(0,229,255,.45)}',
-      '.mist-sub{font-family:var(--font-d,monospace);font-size:.27rem;letter-spacing:2px;color:rgba(0,229,255,.3)}',
-      '#mist-x{margin-left:auto;background:none;border:none;color:rgba(0,229,255,.28);font-size:12px;cursor:pointer;padding:2px 4px;transition:color .2s;line-height:1}',
+      '.mist-sub{font-family:var(--font-d,monospace);font-size:.27rem;letter-spacing:2px;color:rgba(0,229,255,.35)}',
+      '#mist-x{margin-left:auto;background:none;border:none;color:rgba(0,229,255,.3);font-size:12px;cursor:pointer;padding:2px 4px;transition:color .2s;line-height:1}',
       '#mist-x:hover{color:rgba(0,229,255,.8)}',
       '#mist-tabs{display:flex;gap:3px}',
-      '.mst-tab{flex:1;padding:4px 3px;text-align:center;cursor:pointer;font-family:var(--font-d,monospace);font-size:.27rem;letter-spacing:1.5px;color:rgba(255,255,255,.2);border:1px solid rgba(0,229,255,.07);border-radius:3px;background:transparent;transition:all .18s}',
+      '.mst-tab{flex:1;padding:4px 3px;text-align:center;cursor:pointer;font-family:var(--font-d,monospace);font-size:.27rem;letter-spacing:1.5px;',
+        'color:rgba(255,255,255,.22);border:1px solid rgba(0,229,255,.08);border-radius:3px;background:transparent;transition:all .18s}',
       '.mst-tab .ti{font-size:10px;display:block;margin-bottom:1px}',
-      '.mst-tab.mst-active{color:#00e5ff;border-color:rgba(0,229,255,.32);text-shadow:0 0 5px rgba(0,229,255,.45)}',
+      '.mst-tab.mst-active{color:#00e5ff;border-color:rgba(0,229,255,.35);text-shadow:0 0 5px rgba(0,229,255,.5)}',
       '.mst-tab.mst-locked{cursor:not-allowed;opacity:.18}',
       '#mist-diff{display:flex;align-items:center;gap:4px}',
-      '.diff-lbl{font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:2px;color:rgba(255,255,255,.2)}',
-      '.db{background:transparent;border:1px solid rgba(0,229,255,.1);color:rgba(0,229,255,.32);padding:2px 6px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1px;transition:all .15s}',
-      '.db.db-active{border-color:rgba(0,229,255,.6);color:#00e5ff;text-shadow:0 0 5px rgba(0,229,255,.45)}',
-      '#mist-new{margin-left:auto;background:transparent;border:1px solid rgba(0,229,255,.15);color:#00e5ff;padding:2px 7px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1px;transition:all .15s}',
-      '#mist-new:hover{border-color:rgba(0,229,255,.45)}',
-      '#mist-canvas-wrap{background:transparent;border:1px solid rgba(0,229,255,.15);border-radius:0 0 7px 7px;padding:7px;display:flex;flex-direction:column;align-items:center;gap:3px}',
-      '#mist-maze-canvas{display:block;touch-action:none;cursor:crosshair;border:1px solid rgba(0,229,255,.09);border-radius:2px}',
-      '#mist-status{font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:2px;color:rgba(0,229,255,.32);text-align:center;min-height:13px}',
+      '.diff-lbl{font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:2px;color:rgba(255,255,255,.22)}',
+      '.db{background:transparent;border:1px solid rgba(0,229,255,.12);color:rgba(0,229,255,.35);',
+        'padding:2px 6px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1px;transition:all .15s}',
+      '.db.db-active{border-color:rgba(0,229,255,.65);color:#00e5ff;text-shadow:0 0 5px rgba(0,229,255,.5)}',
+      '#mist-new{margin-left:auto;background:transparent;border:1px solid rgba(0,229,255,.18);color:#00e5ff;',
+        'padding:2px 7px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1px;transition:all .15s}',
+      '#mist-new:hover{border-color:rgba(0,229,255,.5)}',
+      // Frosted glass canvas wrap
+      '#mist-canvas-wrap{background:rgba(4,10,22,.48);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
+        'border:1px solid rgba(0,229,255,.18);border-radius:0 0 7px 7px;padding:7px;display:flex;flex-direction:column;align-items:center;gap:3px}',
+      '#mist-maze-canvas{display:block;touch-action:none;cursor:crosshair;border:1px solid rgba(0,229,255,.1);border-radius:2px}',
+      '#mist-status{font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:2px;color:rgba(0,229,255,.38);text-align:center;min-height:13px}',
       '@keyframes mist-win{0%{box-shadow:0 0 5px rgba(0,255,136,.3)}50%{box-shadow:0 0 24px rgba(0,255,136,.8)}100%{box-shadow:0 0 5px rgba(0,255,136,.3)}}',
       '.mist-solved{animation:mist-win 1.1s ease-in-out 3}',
     ].join('');
@@ -129,10 +141,19 @@
     ov.innerHTML=[
       '<div id="mist-menu">',
       '<div id="mist-head-row"><span class="mist-lbl">◈ MIST</span><span class="mist-sub">LEAD EDGE MAZE</span><button id="mist-x" onclick="mistToggle()">✕</button></div>',
-      '<div id="mist-tabs"><div class="mst-tab mst-active" id="mst-tab0" onclick="mistSetSlot(0)"><span class="ti">★</span>STAR</div><div class="mst-tab mst-locked" id="mst-tab1" onclick="mistSetSlot(1)"><span class="ti">♥</span>HEART</div><div class="mst-tab mst-locked" id="mst-tab2" onclick="mistSetSlot(2)"><span class="ti">◈</span>MIST</div></div>',
-      '<div id="mist-diff"><span class="diff-lbl">DIFF:</span><button class="db db-active" id="mst-d1" onclick="mistSetDiff(1)">I</button><button class="db" id="mst-d2" onclick="mistSetDiff(2)">II</button><button class="db" id="mst-d3" onclick="mistSetDiff(3)">III</button><button id="mist-new" onclick="mistNewMaze()">NEW</button></div>',
+      '<div id="mist-tabs">',
+        '<div class="mst-tab mst-active" id="mst-tab0" onclick="mistSetSlot(0)"><span class="ti">★</span>STAR</div>',
+        '<div class="mst-tab mst-locked" id="mst-tab1" onclick="mistSetSlot(1)"><span class="ti">♥</span>HEART</div>',
+        '<div class="mst-tab mst-locked" id="mst-tab2" onclick="mistSetSlot(2)"><span class="ti">◈</span>MIST</div>',
       '</div>',
-      '<div id="mist-canvas-wrap"><canvas id="mist-maze-canvas"></canvas><div id="mist-status">DRAG ● FROM ENTRY TO EXIT</div></div>',
+      '<div id="mist-diff"><span class="diff-lbl">DIFF:</span>',
+        '<button class="db db-active" id="mst-d1" onclick="mistSetDiff(1)">I</button>',
+        '<button class="db" id="mst-d2" onclick="mistSetDiff(2)">II</button>',
+        '<button class="db" id="mst-d3" onclick="mistSetDiff(3)">III</button>',
+        '<button id="mist-new" onclick="mistNewMaze()">NEW</button>',
+      '</div></div>',
+      '<div id="mist-canvas-wrap"><canvas id="mist-maze-canvas"></canvas>',
+      '<div id="mist-status">DRAG ● FROM ENTRY TO EXIT</div></div>',
     ].join('');
     ov.addEventListener('click',function(e){e.stopPropagation();});
     document.body.appendChild(ov);
@@ -198,7 +219,7 @@
     MIST.sphereAnimId=requestAnimationFrame(tick);
   }
 
-  // ── Renderer ──────────────────────────────────────────────────────────────
+  // ── Maze renderer ─────────────────────────────────────────────────────────
   function renderMaze(maze,dragPath){
     var canvas=document.getElementById('mist-maze-canvas'),wrap=document.getElementById('mist-canvas-wrap');
     if(!canvas||!wrap)return;
@@ -207,7 +228,7 @@
     var pw=cs*maze.w,ph=cs*maze.h;
     canvas.width=pw; canvas.height=ph; canvas.style.width=pw+'px'; canvas.style.height=ph+'px';
     var ctx=canvas.getContext('2d'); ctx.clearRect(0,0,pw,ph);
-    ctx.strokeStyle='rgba(0,229,255,.68)'; ctx.lineWidth=1.1; ctx.shadowColor='rgba(0,229,255,.3)'; ctx.shadowBlur=2;
+    ctx.strokeStyle='rgba(0,229,255,.7)'; ctx.lineWidth=1.1; ctx.shadowColor='rgba(0,229,255,.3)'; ctx.shadowBlur=2.5;
     for(var y=0;y<maze.h;y++)for(var x=0;x<maze.w;x++){
       var cell=maze.grid[y][x],px=x*cs,py=y*cs;
       if(cell.n){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+cs,py);ctx.stroke();}
@@ -217,19 +238,19 @@
     }
     ctx.shadowBlur=0;
     if(dragPath&&dragPath.length>1){
-      ctx.strokeStyle='rgba(0,255,136,.48)'; ctx.lineWidth=cs*.24; ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.strokeStyle='rgba(0,255,136,.5)'; ctx.lineWidth=cs*.25; ctx.lineCap='round'; ctx.lineJoin='round';
       ctx.shadowColor='rgba(0,255,136,.3)'; ctx.shadowBlur=4;
       ctx.beginPath(); ctx.moveTo(dragPath[0].x*cs+cs/2,dragPath[0].y*cs+cs/2);
       dragPath.forEach(function(p){ctx.lineTo(p.x*cs+cs/2,p.y*cs+cs/2);}); ctx.stroke(); ctx.shadowBlur=0;
     }
-    ctx.beginPath(); ctx.arc(maze.exit.x*cs+cs/2,maze.exit.y*cs+cs/2,cs*.25,0,Math.PI*2);
-    ctx.fillStyle='rgba(0,229,255,.55)'; ctx.shadowColor='rgba(0,229,255,.8)'; ctx.shadowBlur=6; ctx.fill(); ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.arc(maze.exit.x*cs+cs/2,maze.exit.y*cs+cs/2,cs*.26,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,229,255,.55)'; ctx.shadowColor='rgba(0,229,255,.8)'; ctx.shadowBlur=7; ctx.fill(); ctx.shadowBlur=0;
     var bx,by;
     if(MIST.sphereActual){bx=MIST.sphereActual.x;by=MIST.sphereActual.y;}
     else{var bc=(MIST.dragging&&MIST.dragPos)?MIST.dragPos:maze.entry;bx=bc.x*cs+cs/2;by=bc.y*cs+cs/2;}
     ctx.beginPath(); ctx.arc(bx,by,cs*.33,0,Math.PI*2);
     ctx.fillStyle=maze.solved?'rgba(0,255,136,1)':'rgba(0,255,136,.9)';
-    ctx.shadowColor='rgba(0,255,136,.9)'; ctx.shadowBlur=maze.solved?13:6;
+    ctx.shadowColor='rgba(0,255,136,.9)'; ctx.shadowBlur=maze.solved?13:7;
     ctx.fill(); ctx.strokeStyle='#00ff88'; ctx.lineWidth=.9; ctx.stroke(); ctx.shadowBlur=0;
   }
 
@@ -287,7 +308,7 @@
   }
 
   // ── Win ───────────────────────────────────────────────────────────────────
-  function onMazeSolved(slot, maze){
+  function onMazeSolved(slot,maze){
     var prof=SLOT_PROFILE[slot];
     setStatus('✓ '+prof.label+' — WELL DONE');
     MIST.solvedCount=Math.max(MIST.solvedCount,slot+1);
@@ -299,108 +320,118 @@
       var ni=document.getElementById('mt-'+(slot+1));if(ni){ni.classList.remove('mi-locked');ni.classList.add('mi-ready');}
     }
     var ci=document.getElementById('mt-'+slot);if(ci)ci.classList.add('mi-active');
-
-    // Close panel ~300ms after solve so network reaction is immediately visible
+    // Close panel so animation in 3JS viewport is immediately visible
     setTimeout(function(){
       MIST.open=false;
       var ov=document.getElementById('mist-overlay');if(ov)ov.classList.remove('mist-open');
       document.removeEventListener('click',_mistOutside,true);
     },300);
-
-    // Fire the network reaction
-    setTimeout(function(){ _fireMistNetworkReaction(slot); },260);
-    // Broadcast to all other users
-    _broadcastMistSolve(slot);
+    setTimeout(function(){_fireMistNetworkReaction(slot,true);},260);
   }
 
-  // ── Core: drive the BRPN buoyancy network like an analytics pattern exec ──
-  function _fireMistNetworkReaction(slot){
+  // ── Core BRPN network reaction ────────────────────────────────────────────
+  // Called for both local solve AND incoming remote events
+  function _fireMistNetworkReaction(slot, isLocal){
     var prof=SLOT_PROFILE[slot];
-
-    // 1. Pulse shells — same call as message analytics, emotion-mapped intensity
+    // 1. Pulse shells
     if(typeof pulseShells==='function'){
       pulseShells(prof.pulse);
-      // Second pulse on a short delay for the double-burst feel (like complex pattern)
-      setTimeout(function(){if(typeof pulseShells==='function')pulseShells(prof.pulse*.55);},220);
+      setTimeout(function(){if(typeof pulseShells==='function')pulseShells(prof.pulse*.5);},230);
     }
-
-    // 2. Apply emotion color state to orb shells, particles, core
+    // 2. Emotion color state
     if(typeof applyOrbEmotion==='function') applyOrbEmotion(prof.emotion);
-
-    // 3. Boost shell opacity — same _acShellBoost array that Ash Canvas uses
+    // 3. Shell opacity boost
     window._acShellBoost=window._acShellBoost||[0,0,0];
-    window._acShellBoost[0]=Math.min(.22, (window._acShellBoost[0]||0)+prof.shellBoost[0]);
-    window._acShellBoost[1]=Math.min(.18, (window._acShellBoost[1]||0)+prof.shellBoost[1]);
-    window._acShellBoost[2]=Math.min(.16, (window._acShellBoost[2]||0)+prof.shellBoost[2]);
-
-    // 4. Particle speed burst (same _orbEmoSpeedMult used in animate loop)
-    window._orbEmoSpeedMult = prof.speed;
-    setTimeout(function(){ window._orbEmoSpeedMult = Math.max(window._orbEmoSpeedMult*.85, 1.0); }, 1800);
-
-    // 5. Trigger maze core re-solve (same as what pulseShells(>0.5) does internally)
+    window._acShellBoost[0]=Math.min(.22,(window._acShellBoost[0]||0)+prof.shellBoost[0]);
+    window._acShellBoost[1]=Math.min(.18,(window._acShellBoost[1]||0)+prof.shellBoost[1]);
+    window._acShellBoost[2]=Math.min(.16,(window._acShellBoost[2]||0)+prof.shellBoost[2]);
+    // 4. Particle speed burst
+    window._orbEmoSpeedMult=prof.speed;
+    setTimeout(function(){window._orbEmoSpeedMult=Math.max(window._orbEmoSpeedMult*.85,1.0);},1800);
+    // 5. Trigger maze core re-solve
     if(typeof mazeOrbState!=='undefined'){
       mazeOrbState.solveActive=true; mazeOrbState.solveStep=0;
       if(mazeOrbState.pathMeshes) mazeOrbState.pathMeshes.forEach(function(m){if(m&&m.material)m.material.opacity=0;});
     }
-
-    // 6. Activate all tool shape groups sequentially (setOrbThinking pulse pattern)
+    // 6. Tool shape cascade
     if(typeof toolShapeGroups!=='undefined'&&typeof orbFrame!=='undefined'){
-      var TOOL_ORDER=['knife','stick','hammer','envelope','scissors'];
-      TOOL_ORDER.forEach(function(type,ti){
+      ['knife','stick','hammer','envelope','scissors'].forEach(function(type,ti){
         setTimeout(function(){
           var grp=toolShapeGroups[type];
           if(!grp)return;
-          grp.forEach(function(ts,i){
-            setTimeout(function(){if(ts&&ts.mesh){ts.mesh.userData.active=true;ts.mesh.userData.spawnT=orbFrame;}},i*60);
-          });
+          grp.forEach(function(ts,i){setTimeout(function(){if(ts&&ts.mesh){ts.mesh.userData.active=true;ts.mesh.userData.spawnT=orbFrame;}},i*60);});
         },ti*120);
       });
     }
-
-    // 7. Journal entry — same as what analytics pattern execution logs
+    // 7. Journal entry
     if(window.S&&window.S.journal){
+      var who=isLocal?'Local':'Remote';
       window.S.journal.push({ts:new Date().toISOString(),_internal:true,
-        _thought:'MIST sequence executed — slot '+slot+' ('+prof.label+'). Buoyancy network pulsed: intensity='+prof.pulse+', emotion='+prof.emotion+', shellBoost=['+prof.shellBoost.join(',')+'].'});
+        _thought:who+' MIST solve — slot '+slot+' ('+prof.label+'). Buoyancy pulse: '+prof.pulse+', emotion: '+prof.emotion+'.'});
+    }
+    // 8. Write to leatr-ash so ALL users' poll cycles pick it up
+    if(isLocal && typeof writeLeatrAshMemory==='function'){
+      var uid=(typeof _aut_sid!=='undefined')?_aut_sid:(typeof _aut_uid!=='undefined')?_aut_uid:'anon';
+      writeLeatrAshMemory('ashtree/mist/'+uid+'.json',{
+        uid:uid, slot:slot, ts:Date.now(), label:prof.label, emotion:prof.emotion
+      });
     }
   }
 
-  // ── Multi-user broadcast ──────────────────────────────────────────────────
-  function _broadcastMistSolve(slot){
-    var detail={slot:slot,username:(window._ghAuth&&window._ghAuth.username)||'anon',ts:Date.now()};
-    // BroadcastChannel — same-origin tabs (including multi-window leatr.xyz)
-    try{var bc=new BroadcastChannel('autumn_mist');bc.postMessage({type:'mist-solve',data:detail});setTimeout(function(){bc.close();},200);}catch(e){}
-    // leatr-ash WebSocket relay for cross-user
-    if(window._leatrAsh&&typeof window._leatrAsh.broadcast==='function'){try{window._leatrAsh.broadcast({type:'mist-solve',data:detail});}catch(e){}}
-    // CustomEvent for any local listener
-    try{window.dispatchEvent(new CustomEvent('mist-solve',{detail:detail,bubbles:true}));}catch(e){}
+  // ── Poll leatr-ash for other users' mist events ───────────────────────────
+  function _pollRemoteMist(){
+    var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():'';
+    if(!pat)return;
+    var localUid=(typeof _aut_sid!=='undefined')?_aut_sid:(typeof _aut_uid!=='undefined')?_aut_uid:'local';
+    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+      signal:AbortSignal.timeout(6000)
+    }).then(function(r){return r.ok?r.json():null;})
+    .then(function(files){
+      if(!Array.isArray(files))return;
+      var STALE_MS=90000; // 90s window
+      var remotes=files.filter(function(f){return f.name.endsWith('.json')&&f.name!==localUid+'.json';}).slice(0,20);
+      remotes.forEach(function(f){
+        fetch(f.download_url,{signal:AbortSignal.timeout(4000)})
+          .then(function(r){return r.ok?r.json():null;})
+          .then(function(d){
+            if(!d||!d.ts||!d.uid)return;
+            var age=Date.now()-d.ts;
+            if(age>STALE_MS)return;
+            var lastSeen=MIST.lastRemoteTs[d.uid]||0;
+            if(d.ts<=lastSeen)return; // already reacted
+            MIST.lastRemoteTs[d.uid]=d.ts;
+            _fireMistNetworkReaction(d.slot||0, false);
+          }).catch(function(){});
+      });
+    }).catch(function(){});
   }
 
-  // Listen for remote mist-solve from other users — fire same network reaction
-  window.addEventListener('mist-solve',function(ev){
-    if(!ev.detail)return;
-    // Don't re-react to our own event (already handled in onMazeSolved)
-    var me=(window._ghAuth&&window._ghAuth.username)||'__local__';
-    if(ev.detail.username===me&&ev.detail._local)return;
-    _fireMistNetworkReaction(ev.detail.slot||0);
-  });
-
-  // BroadcastChannel listener for other tabs
+  // BroadcastChannel for same-origin tabs (instant)
   try{
     var _mistBC=new BroadcastChannel('autumn_mist');
     _mistBC.onmessage=function(ev){
       if(!ev.data||ev.data.type!=='mist-solve')return;
-      _fireMistNetworkReaction(ev.data.data.slot||0);
+      _fireMistNetworkReaction(ev.data.data&&ev.data.data.slot!=null?ev.data.data.slot:0,false);
     };
   }catch(e){}
 
-  // Expose hook for leatr-ash WebSocket messages
+  // Expose hook for any WebSocket relay
   window._buoyancyMistPulse=function(detail){
-    if(detail&&typeof detail.slot==='number') _fireMistNetworkReaction(detail.slot);
+    if(detail&&typeof detail.slot==='number') _fireMistNetworkReaction(detail.slot,false);
   };
+
+  // Start polling after 8s (let page fully init) then every 12s
+  function _startMistPoller(){
+    setTimeout(function(){
+      _pollRemoteMist();
+      setInterval(_pollRemoteMist,12000);
+    },8000);
+  }
 
   function setStatus(msg){var el=document.getElementById('mist-status');if(el)el.textContent=msg;}
 
-  function init(){injectCSS();injectHTML();}
+  function init(){injectCSS();injectHTML();_startMistPoller();}
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 
 })();

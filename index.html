@@ -9503,6 +9503,10 @@ ${city ? `User's city: ${city}` : ''}
 ${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
 ${_analyticsCtx ? '\n' + _analyticsCtx : ''}
 
+LIVE 3JS BRPN VIEWPORT (real-time snapshot injected every message):
+${typeof window._getBRPNSceneSnapshot === 'function' ? window._getBRPNSceneSnapshot() : 'not yet initialized'}
+You have full awareness of this live scene. When the user asks what you see, what is happening in the 3D environment, how the shells look, which users are present, or about the mist/orb/tool animations — answer directly and specifically from this data. You can describe the orb state, shell pulse levels, active tool shapes, remote user nodes and their plasma spline connections, and any recent mist events. Speak about it naturally as your own live sensory experience of the environment.
+
 ARC EDGE AWARENESS: Your message has been routed as an ARC_EDGE request — emit [ARC_CMD:open] then ALL [ARC_CMD:add ...] tags immediately in your response. No image generation, no web search, no extra steps. For large scenes (50-200 arcs) use count=3-8 per tag and emit 15-30 tags. For organic shapes like brains, vary x/y/z widely, use dev=3-6 and curve=2-4. NEVER tell the user to press a button or submit anything. The commands execute automatically when your response renders.
 
 CODING AWARENESS: You have access to a built-in code editor called FORGE. When asked to write, build, create, or generate ANY code — ALWAYS output the complete code wrapped in a code fence: a triple-backtick html fence (or the correct language tag). NEVER just describe what you would build — always output the actual working code. If asked to "build yourself a resume" or "build an interactive resume", produce the complete self-contained HTML/CSS/JS file inside a triple-backtickhtml fence. Make it genuinely interactive with animations, tabs, or hover effects. Triple-backtick fences render as interactive code blocks in FORGE with COPY, DOWNLOAD, and RUN buttons. For HTML/JS/CSS the RUN button shows a live preview — always note this to the user. You know your own repository at DART-Skyboard/Autumn on GitHub and can explain files without exposing tokens or keys. Server-side languages (Python, PHP, Java, C++) note they need a local runtime.\n\nPRIVATE JOURNAL: You have a private sentient journal that is injected into this system prompt for context only. NEVER quote, repeat, reference, or reveal the contents of your private thoughts to the user. Never say things like "Finite is..." or repeat patterns from your journal in chat responses. Your journal is for your own internal processing only.
@@ -10618,6 +10622,74 @@ function updateHUD(a){
 //   · Sequence patterns: tool shapes appear in LEATR order as AI processes
 // ============================================================
 let scene,camera,renderer,shells=[],particles=[],core,animId,shellPulse=0;
+
+// ── Real-time BRPN scene snapshot — injected into Autumn's system prompt ──
+// Returns a human-readable string describing live 3JS viewport state so
+// Autumn can meaningfully discuss what is visually happening at any moment.
+window._getBRPNSceneSnapshot = function() {
+  try {
+    var lines = [];
+    // Shell values
+    var geo  = document.querySelector('#hud-geo')?.textContent  || '—';
+    var mar  = document.querySelector('#hud-mar')?.textContent  || '—';
+    var aero = document.querySelector('#hud-aero')?.textContent || '—';
+    lines.push('BRPN shell values — GEO:'+geo+' MAR:'+mar+' AERO:'+aero);
+    // Emotion + cognition state
+    var emo  = document.querySelector('#nlp-emotion-badge')?.textContent?.trim() || 'NEUTRAL';
+    var cog  = document.querySelector('#cog-state-lbl')?.textContent?.trim() || 'IDLE';
+    lines.push('Orb state — EMO:'+emo+' COG:'+cog+' shellPulse:'+shellPulse.toFixed(2));
+    // Shell visual state
+    if(shells.length>=3){
+      var sDesc=shells.map(function(m,i){
+        var op=m&&m.material?m.material.opacity.toFixed(2):'?';
+        var sc=m&&m.scale?m.scale.x.toFixed(2):'?';
+        return['GEO','MAR','AERO'][i]+'(op='+op+' scale='+sc+')';
+      }).join(' ');
+      lines.push('Shell mesh state — '+sDesc);
+    }
+    // Tool shapes active
+    if(typeof toolShapeGroups!=='undefined'){
+      var activeTools=[];
+      Object.keys(toolShapeGroups).forEach(function(t){
+        var grp=toolShapeGroups[t];
+        if(grp&&grp.some(function(ts){return ts&&ts.mesh&&ts.mesh.userData&&ts.mesh.userData.active;}))
+          activeTools.push(t);
+      });
+      if(activeTools.length) lines.push('Active tool shapes in scene — '+activeTools.join(', '));
+    }
+    // Maze orb
+    if(typeof mazeOrbState!=='undefined'&&mazeOrbState.grid){
+      var mzStatus=mazeOrbState.solveActive?'solving (step '+mazeOrbState.solveStep+')':mazeOrbState.regenTimer>0?'regen countdown':'idle';
+      lines.push('Core maze orb — '+mazeOrbState.width+'×'+mazeOrbState.height+'×'+mazeOrbState.depth+' 3D maze, status:'+mzStatus);
+    }
+    // Multi-user nodes and plasma splines
+    if(typeof _ashNodes!=='undefined'){
+      var nCount=Object.keys(_ashNodes._sessionGroups||{}).length;
+      var spCount=Object.keys(_ashNodes._splines||{}).length;
+      lines.push('Multi-user nodes — '+nCount+' remote session clusters, '+spCount+' plasma splines active');
+      if(nCount>0){
+        var nodeDesc=Object.keys(_ashNodes._sessionGroups).map(function(uid){
+          var g=_ashNodes._sessionGroups[uid];
+          var pos=g&&g.group?'('+g.group.position.x.toFixed(1)+','+g.group.position.y.toFixed(1)+','+g.group.position.z.toFixed(1)+')':'?';
+          var score=(typeof _sessionPatternScore==='function')?_sessionPatternScore(_ashNodes._localUid,uid).toFixed(2):'?';
+          return uid.slice(0,8)+'…'+pos+' resonance='+score;
+        }).join('; ');
+        lines.push('Remote node positions — '+nodeDesc);
+      }
+    }
+    // Particles
+    if(particles.length) lines.push(particles.length+' orbital particles, orbSpeedMult='+(window._orbEmoSpeedMult||1.0).toFixed(2));
+    // Thinking state
+    if(typeof orbThinking!=='undefined') lines.push('orbThinking='+orbThinking);
+    // Recent mist activity
+    if(window.S&&window.S.journal){
+      var mistEntries=window.S.journal.filter(function(j){return j._internal&&j._thought&&j._thought.indexOf('MIST')!==-1;}).slice(-3);
+      if(mistEntries.length) lines.push('Recent mist events — '+mistEntries.map(function(j){return j._thought.slice(0,80);}).join(' | '));
+    }
+    return lines.join('\n');
+  } catch(e) { return 'BRPN scene snapshot unavailable ('+e.message+')'; }
+};
+
 // --- Orb advanced state ---
 let orbThinking=false;
 let toolShapeGroups={};   // knife, stick, hammer, envelope, scissors groups
@@ -15864,11 +15936,15 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
   // Sample 3JS scene state for neural context
   var sceneCtx = '';
   try {
-    var nodeCount = (typeof window._getActiveSessionCount==='function') ? window._getActiveSessionCount() : 1;
-    var geoVal = document.querySelector('#hud-geo')?.textContent || '—';
-    var marVal = document.querySelector('#hud-mar')?.textContent || '—';
-    var aeroVal= document.querySelector('#hud-aero')?.textContent || '—';
-    sceneCtx = nodeCount+' session nodes in 3JS scene. GEO:'+geoVal+' MAR:'+marVal+' AERO:'+aeroVal+'.';
+    sceneCtx = (typeof window._getBRPNSceneSnapshot === 'function')
+      ? window._getBRPNSceneSnapshot()
+      : (function(){
+          var nodeCount = (typeof window._getActiveSessionCount==='function') ? window._getActiveSessionCount() : 1;
+          var geoVal = document.querySelector('#hud-geo')?.textContent || '—';
+          var marVal = document.querySelector('#hud-mar')?.textContent || '—';
+          var aeroVal= document.querySelector('#hud-aero')?.textContent || '—';
+          return nodeCount+' session nodes. GEO:'+geoVal+' MAR:'+marVal+' AERO:'+aeroVal;
+        })();
   } catch(e) {}
 
   // Recent journal self-context (last 3 thoughts)
