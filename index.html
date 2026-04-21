@@ -11532,8 +11532,17 @@ async function _pollAshNodes() {
             .filter(function(f){ return f.name.endsWith('.json') && f.name !== _ashNodes._localUid+'.json'; })
             .slice(0, _ashNodes.MAX_REMOTE);
           var fetches = recentFiles.map(function(f) {
-            return fetch(f.download_url, {signal: AbortSignal.timeout(4000)})
+            // Use f.url (GitHub API endpoint) with auth — not f.download_url (CDN, cached)
+            // This ensures we always get fresh file content across all browsers/devices
+            return fetch(f.url, {
+                headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+                signal: AbortSignal.timeout(4000)
+              })
               .then(function(res){ return res.ok ? res.json() : null; })
+              .then(function(meta){
+                if(!meta || !meta.content) return null;
+                try{ return JSON.parse(atob(meta.content.replace(/\n/g,''))); }catch(e){ return null; }
+              })
               .catch(function(){ return null; });
           });
           var results = await Promise.allSettled(fetches);
