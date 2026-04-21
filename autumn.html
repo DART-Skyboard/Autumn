@@ -11591,51 +11591,6 @@ async function _pollAshNodes() {
   }
 
   _renderAshNodes(nodes);
-
-  if(!_ashNodes._lastPrune || (Date.now() - _ashNodes._lastPrune) > 5*60*1000) {
-    _ashNodes._lastPrune = Date.now();
-    _pruneStaleAshSessions(pat);
-  }
-}
-
-async function _pruneStaleAshSessions(pat) {
-  if(!pat) return;
-  var PRUNE_AGE = 2 * 60 * 60 * 1000;
-  try {
-    var r = await fetch('https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/ashtree/sessions', {
-      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
-      signal: AbortSignal.timeout(8000)
-    });
-    if(!r.ok) return;
-    var files = await r.json();
-    if(!Array.isArray(files)) return;
-    var toCheck = files.filter(function(f){
-      return f.name.endsWith('.json') && f.name !== _ashNodes._localUid+'.json' && f.name !== '_index.json';
-    }).sort(function(a,b){ return a.name > b.name ? 1 : -1; }).slice(0, 15);
-    for(var i=0; i<toCheck.length; i++) {
-      var f = toCheck[i];
-      try {
-        var fr = await fetch(f.url, {
-          headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
-          signal: AbortSignal.timeout(4000)
-        });
-        if(!fr.ok) continue;
-        var meta = await fr.json();
-        if(!meta || !meta.content) continue;
-        var d = JSON.parse(atob(meta.content.replace(/
-/g,'')));
-        if(!d || !d.ts) continue;
-        if(Date.now() - d.ts > PRUNE_AGE) {
-          await fetch('https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/ashtree/sessions/'+f.name, {
-            method: 'DELETE',
-            headers:{'Authorization':'token '+pat,'Content-Type':'application/json'},
-            body: JSON.stringify({ message:'prune:stale session', sha: meta.sha }),
-            signal: AbortSignal.timeout(6000)
-          });
-        }
-      } catch(e) {}
-    }
-  } catch(e) {}
 }
 
 function _renderAshNodes(nodes) {
