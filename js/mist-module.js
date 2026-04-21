@@ -136,14 +136,31 @@
       window.S.journal.push({ts:new Date().toISOString(),_internal:true,_thought:msg});
   }
   // Direct GitHub write — bypasses the batch queue entirely for instant propagation
-  // Route mist writes through writeLeatrAshMemory — the same proven cross-browser
-  // path that session nodes use. Single shared file = one SHA change wakes all browsers.
-  var _MIST_PATH = 'ashtree/mist/events.json';
+  var _writeInFlight = false;
   function _write(data){
-    if(typeof writeLeatrAshMemory==='function'){
-      writeLeatrAshMemory(_MIST_PATH, data);
-      _setStatus('●');
-    }
+    if(_writeInFlight) return; // prevent concurrent writes to same file
+    var uid=_sid();
+    var path='ashtree/mist/'+uid+'.json';
+    var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():'';
+    if(!pat) return;
+    var apiUrl='https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path;
+    var hdrs={'Authorization':'token '+pat,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
+    _writeInFlight=true;
+    // Read current file to get sha and existing content
+    fetch(apiUrl,{headers:hdrs,signal:AbortSignal.timeout(6000)})
+      .then(function(r){ return r.ok?r.json():null; })
+      .then(function(existing){
+        var sha='', arr=[];
+        if(existing&&existing.sha){ sha=existing.sha; try{ arr=JSON.parse(atob(existing.content.replace(/\n/g,'')))||[]; }catch(e){} }
+        if(!Array.isArray(arr)) arr=[];
+        arr.push(data);
+        arr=arr.slice(-200); // keep last 200 events
+        var body={message:'mist:'+uid.slice(0,10),content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))};
+        if(sha) body.sha=sha;
+        return fetch(apiUrl,{method:'PUT',headers:hdrs,body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+      })
+      .then(function(r){ _writeInFlight=false; _setStatus(r&&r.ok?'●':'✗'); })
+      .catch(function(e){ _writeInFlight=false; console.warn('MIST write error:',e); });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -395,39 +412,52 @@
     _heartbeat();
 
     var pat=_pat();if(!pat)return;
-    // Poll a SINGLE shared events file — one SHA change = all browsers wake up.
-    // Same API path as _ashFlushNow uses. Dramatically reduces API call count.
-    var eventsUrl='https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+_MIST_PATH;
-    fetch(eventsUrl,{
+    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
       headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
       cache:'no-store', signal:AbortSignal.timeout(6000)
     }).then(function(r){
       if(r.status===403||r.status===429){
-        console.warn('[MIST] GitHub rate limited ('+r.status+'). Backing off 30s.');
-        _setStatus('⚠ rate'); _isLeader=false; return null;
+        console.warn('[MIST] GitHub rate limited ('+r.status+'). Backing off.');
+        _setStatus('⚠ rate');
+        _isLeader=false; // release leadership so another tab can try
+        return null;
       }
       return r.ok?r.json():null;
     })
-    .then(function(meta){
-      if(!meta||!meta.sha)return;
-      if(_shaCache['events.json']===meta.sha)return; // unchanged — skip fetch
-      _shaCache['events.json']=meta.sha;
-      var evts=[];
-      try{ evts=JSON.parse(atob(meta.content.replace(/\n/g,'')));  }catch(e){ return; }
-      if(!Array.isArray(evts)||!evts.length)return;
+    .then(function(files){
+      if(!Array.isArray(files))return;
       var myUid=_sid();
-      evts.forEach(function(ev){
-        if(!ev||!ev.ts||!ev.uid)return;
-        if(ev.instanceId&&ev.instanceId===_iid)return;
-        if(Date.now()-ev.ts>STALE_MS)return;
-        var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
-        if(MIST.seen[key])return;
-        MIST.seen[key]=true;
-        console.log('[MIST] poll event:',ev.type||'(no type)','uid:',ev.uid.slice(0,16),'slot:',ev.slot);
-        _bcPost(ev);
-        _processEvent(ev, myUid);
+      files.filter(function(f){return f.name.endsWith('.json');})
+           .slice(0,MAX_FILES)
+           .forEach(function(f){
+        if(_shaCache[f.name]===f.sha) return; // unchanged
+        _shaCache[f.name]=f.sha;
+        fetch(f.url+'?_='+Date.now(),{
+          headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
+          cache:'no-store',signal:AbortSignal.timeout(6000)
+        }).then(function(r){
+          if(r.status===403||r.status===429){ console.warn('[MIST] rate limit on file fetch'); return null; }
+          return r.ok?r.json():null;
+        })
+          .then(function(r2){return r2&&r2.content?JSON.parse(atob(r2.content.replace(/\n/g,''))):null;})
+          .then(function(d){
+            var evts=Array.isArray(d)?d:(d&&d.ts&&d.uid)?[d]:null;
+            if(!evts||!evts.length)return;
+            evts.forEach(function(ev){
+              if(!ev||!ev.ts||!ev.uid)return;
+              if(ev.instanceId&&ev.instanceId===_iid)return;
+              if(Date.now()-ev.ts>STALE_MS)return;
+              var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
+              if(MIST.seen[key])return;
+              MIST.seen[key]=true;
+              console.log('[MIST] poll event:',ev.type||'(no type)','uid:',ev.uid.slice(0,16),'slot:',ev.slot);
+              // Relay to all same-browser tabs via BroadcastChannel
+              _bcPost(ev);
+              _processEvent(ev, myUid);
+            });
+          }).catch(function(e){ console.warn('[MIST] file fetch error:',e); });
       });
-    }).catch(function(e){ console.warn('[MIST] poll error:',e); });
+    }).catch(function(e){ console.warn('[MIST] dir fetch error:',e); });
   }
 
   function _processEvent(ev, myUid){
@@ -690,30 +720,40 @@
   }
   function _ss(m){var el=document.getElementById('mist-status');if(el)el.textContent=m;}
 
-  // Replay recent mist events from the single shared events.json — same path as poll
+  // Replay recent mist events so late-joiners see the live world state immediately
   function _replayState(){
     var pat=_pat();if(!pat)return;
-    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+_MIST_PATH,{
+    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
       headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-      cache:'no-store', signal:AbortSignal.timeout(6000)
+      signal:AbortSignal.timeout(6000)
     }).then(function(r){return r.ok?r.json():null;})
-    .then(function(meta){
-      if(!meta||!meta.sha)return;
-      _shaCache['events.json']=meta.sha; // seed so poll skips until next write
-      var evts=[];
-      try{ evts=JSON.parse(atob(meta.content.replace(/\n/g,''))); }catch(e){ return; }
-      if(!Array.isArray(evts))return;
-      var myUid=_sid();
-      evts.forEach(function(ev){
-        if(!ev||!ev.ts||!ev.uid)return;
-        if(Date.now()-ev.ts>STALE_MS)return;
-        if(ev.instanceId&&ev.instanceId===_iid)return;
-        var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
-        if(MIST.seen[key])return;
-        MIST.seen[key]=true;
-        _bcPost(ev); // relay to follower tabs
-        _phaseObserve(ev); // visual only for replay — no BRPN, no write-back
-      });
+    .then(function(files){
+      if(!Array.isArray(files))return;
+      // Seed sha cache so regular polls skip these files unless they change after replay
+      var REPLAY_WINDOW=600000; // replay up to 10 min of history — matches STALE_MS
+      files.filter(function(f){return f.name.endsWith('.json');}).slice(0,MAX_FILES)
+        .forEach(function(f){
+          _shaCache[f.name]=f.sha; // mark as seen — future polls only fire on NEW events
+          fetch(f.url+'?_='+Date.now(),{
+            headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
+            cache:'no-store',signal:AbortSignal.timeout(5000)
+          }).then(function(r){return r.ok?r.json():null;})
+            .then(function(r2){return r2&&r2.content?JSON.parse(atob(r2.content.replace(/\n/g,''))):null;})
+            .then(function(d){
+              var evts=Array.isArray(d)?d:(d&&d.ts)?[d]:null;
+              if(!evts)return;
+              evts.forEach(function(ev){
+                if(!ev||!ev.ts||!ev.uid)return;
+                if(Date.now()-ev.ts>REPLAY_WINDOW)return;
+                if(ev.instanceId&&ev.instanceId===_iid)return;
+                var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
+                if(MIST.seen[key])return;
+                MIST.seen[key]=true;
+                // Render the state — no BRPN effects for replayed events (just visual)
+                _phaseObserve(ev);
+              });
+            }).catch(function(){});
+        });
     }).catch(function(){});
   }
 
