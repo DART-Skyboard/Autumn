@@ -30,8 +30,8 @@
   'use strict';
 
   var MATCH_THRESHOLD  = 0.08;   // _sessionPatternScore min for reaction
-  var POLL_MS          = 3000;   // 3s poll
-  var STALE_MS         = 90000;  // ignore events > 90s old
+  var POLL_MS          = 2000;   // 2s poll for snappier feel
+  var STALE_MS         = 600000; // ignore events > 10min old
   var MAX_FILES        = 40;
   var REACT_COOLDOWN   = 4000;   // ms between reactions from same sender
 
@@ -184,6 +184,8 @@
 
     // Pattern matched — mist arrives INWARD at my orb
     console.log('[MIST] _phaseReceive fired. slot:',ev.slot,'from:',ev.uid.slice(0,20));
+    // Ensure the sender's node appears in world scene quickly
+    if(typeof _pollAshNodes==='function' && !_nodePos(ev.uid)) _pollAshNodes();
     _brpn(SLOT[ev.slot]);
     _spawnIncoming(ev.slot, new THREE.Vector3(0,0,0), ev.uid);
     _setStatus('←');
@@ -198,7 +200,10 @@
   function _phaseObserve(ev){
     var pos=_nodePos(ev.uid);
     if(!pos){
-      // Node not in scene yet — buffer and retry next poll
+      // Node not in scene yet — trigger immediate session refresh then buffer
+      if(typeof _pollAshNodes==='function'){
+        _pollAshNodes(); // force refresh to add this node to world
+      }
       _pendingObs.push(ev);
       return;
     }
@@ -707,7 +712,7 @@
     .then(function(files){
       if(!Array.isArray(files))return;
       // Seed sha cache so regular polls skip these files unless they change after replay
-      var REPLAY_WINDOW=120000; // replay up to 2 min of history
+      var REPLAY_WINDOW=600000; // replay up to 10 min of history — matches STALE_MS
       files.filter(function(f){return f.name.endsWith('.json');}).slice(0,MAX_FILES)
         .forEach(function(f){
           _shaCache[f.name]=f.sha; // mark as seen — future polls only fire on NEW events
@@ -733,10 +738,12 @@
 
   function init(){
     injectCSS();injectHTML();
-    // Start polling at 3s
-    setTimeout(function(){ _poll(); setInterval(_poll,POLL_MS); },3000);
-    // Replay current world state once session groups have had time to populate (12s)
-    setTimeout(_replayState, 12000);
+    // Start polling at 2s
+    setTimeout(function(){ _poll(); setInterval(_poll,POLL_MS); },2000);
+    // Immediately trigger a session node refresh on init so the world fills fast
+    setTimeout(function(){ if(typeof _pollAshNodes==='function') _pollAshNodes(); }, 1000);
+    // Replay current world state — start early, node groups will fill in via pending buffer
+    setTimeout(_replayState, 6000);
   }
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 
