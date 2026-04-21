@@ -69,19 +69,31 @@
   }
   // Returns spline curves for a given endpoint uid. Each entry: {curve, fromLocal}
   // fromLocal=true means curve goes local→uid (use t=0..1 for outgoing, t=1..0 for incoming)
+  // Returns spline entries for a given sender uid.
+  // Each entry includes senderT: the t value (0 or 1) where the sender sits on the curve.
+  // Travel direction for outgoing: senderT → (1-senderT)
+  // Travel direction for incoming: (1-senderT) → senderT
   function _splinesFor(uid){
     var out=[];
     if(typeof _ashNodes==='undefined'||!_ashNodes._splines) return out;
     var sp=_ashNodes._splines;
-    // Local-to-this spline
-    if(sp['local:'+uid]) out.push({curve:sp['local:'+uid].curve, fromLocal:true, sp:sp['local:'+uid]});
-    // Remote-to-remote splines involving this uid (as either endpoint)
+    // local:uid — uid is at t=1, local orb at t=0
+    if(sp['local:'+uid]) out.push({curve:sp['local:'+uid].curve, senderT:1, sp:sp['local:'+uid]});
+    // Remote-to-remote splines
     Object.keys(sp).forEach(function(k){
       if(k==='local:'+uid) return;
       var parts=k.split(':');
-      if(parts[0]===uid||parts[1]===uid){
-        out.push({curve:sp[k].curve, fromLocal:false, sp:sp[k], uid0:parts[0], uid1:parts[1]});
-      }
+      if(parts[0]===uid) out.push({curve:sp[k].curve, senderT:0, sp:sp[k]}); // uid at t=0
+      else if(parts[1]===uid) out.push({curve:sp[k].curve, senderT:1, sp:sp[k]}); // uid at t=1
+    });
+    return out;
+  }
+  // Returns all local:* splines (for local orb sends)
+  function _localSplines(){
+    var out=[];
+    if(typeof _ashNodes==='undefined'||!_ashNodes._splines) return out;
+    Object.keys(_ashNodes._splines).forEach(function(k){
+      if(k.indexOf('local:')===0) out.push({curve:_ashNodes._splines[k].curve, senderT:0, sp:_ashNodes._splines[k]});
     });
     return out;
   }
@@ -167,47 +179,57 @@
 
   // OUTGOING — particles leave fromPos and travel OUTWARD along spline curves
   // nodeUid: if set, find splines connected to that node; if null, use all local:* splines
+  // OUTGOING: particles leave fromPos and travel along spline curves away from it.
+  // nodeUid=null → local orb firing (senderT=0 on local:* splines, travel 0→1)
+  // nodeUid=set  → remote node firing (senderT from _splinesFor, travel senderT→1-senderT)
   function _spawnOutgoing(slot, fromPos, nodeUid){
     if(typeof THREE==='undefined'||typeof scene==='undefined') return;
     var col=new THREE.Color(SLOT[slot].color);
-    var splines=nodeUid ? _splinesFor(nodeUid) : _splinesFor('_local_');
-    // Fallback: if no splines, use straight lines to all visible remote nodes
+    var splines=nodeUid ? _splinesFor(nodeUid) : _localSplines();
+    // Fallback when no splines found — build straight-line curves from fromPos to all other nodes
     if(!splines.length){
       var targets=[];
       if(typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups){
         Object.keys(_ashNodes._sessionGroups).forEach(function(uid){
+          if(uid===nodeUid) return;
           var g=_ashNodes._sessionGroups[uid];
           if(g&&g.group) targets.push(g.group.position.clone());
         });
       }
+      // Always include the local orb as a target for remote sends
+      if(nodeUid) targets.push(new THREE.Vector3(0,0,0));
       if(!targets.length){targets.push(new THREE.Vector3(2.5,1.2,-1.5));targets.push(new THREE.Vector3(-2,1.8,1.2));}
       targets.forEach(function(tp){
-        var mid=fromPos.clone().add(tp).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*.8,1+Math.random()*.6,(Math.random()-.5)*.8));
-        splines.push({curve:new THREE.CatmullRomCurve3([fromPos.clone(),mid,tp.clone()]),fromLocal:true,sp:null});
+        var mid=fromPos.clone().add(tp).multiplyScalar(.5)
+          .add(new THREE.Vector3((Math.random()-.5)*.8,1+Math.random()*.6,(Math.random()-.5)*.8));
+        splines.push({curve:new THREE.CatmullRomCurve3([fromPos.clone(),mid,tp.clone()]),senderT:0,sp:null});
       });
     }
     var grp=new THREE.Group();grp._mAge=0;grp._mMax=200;grp._mSlot=slot;grp._mObjs=[];grp._mDir='out';
     var perSpline=slot===0?5:slot===1?4:6;
-    splines.forEach(function(sp){
+    splines.forEach(function(entry){
       for(var i=0;i<perSpline;i++){
-        var curve=sp.curve;
-        // Determine travel direction: always FROM fromPos end AWAY
-        // For local:uid splines, local end = t=0, remote end = t=1
-        // Start staggered along t=0..0.15 and move toward t=1
-        var startT=i/perSpline*0.12;
+        var curve=entry.curve;
+        var sT=entry.senderT||0;
+        var dir=(sT===0)?1:-1; // travel direction: +1 means t increases, -1 means t decreases
+        // Stagger start near senderT
+        var startT=sT+(dir*i/perSpline*0.12);
+        startT=Math.max(0,Math.min(1,startT));
         var geo=_mistGeo(slot,col,0.85);
         var mesh=new THREE.Mesh(geo,_mistMat(col,slot===0?.9:slot===1?.85:.7));
-        var pt=curve.getPoint(startT);
-        mesh.position.copy(pt);
-        mesh._mc=curve;mesh._mt=startT;mesh._mspd=(0.005+Math.random()*.004)*(slot===1?1.15:1);
+        mesh.position.copy(curve.getPoint(startT));
+        mesh._mc=curve;mesh._mt=startT;
+        mesh._mspd=(0.005+Math.random()*.004)*(slot===1?1.15:1);
+        mesh._mDir=dir; // +1 outward, -1 outward (when senderT=1)
+        mesh._mSenderT=sT;
         mesh._mr=new THREE.Vector3(Math.random()*.05,Math.random()*.04,Math.random()*.03);
         grp._mObjs.push(mesh);grp.add(mesh);
       }
     });
-    // Connecting arc line for each spline (faint, shows the route)
-    splines.slice(0,6).forEach(function(sp){
-      var lGeo=new THREE.BufferGeometry().setFromPoints(sp.curve.getPoints(36));
-      var lMat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.2});
+    // Faint arc lines showing the routes
+    splines.slice(0,6).forEach(function(entry){
+      var lGeo=new THREE.BufferGeometry().setFromPoints(entry.curve.getPoints(36));
+      var lMat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.18});
       grp.add(new THREE.Line(lGeo,lMat));
     });
     scene.add(grp);_geom.push(grp);
@@ -240,12 +262,19 @@
     splines.forEach(function(sp){
       for(var i=0;i<perSpline;i++){
         // Travel REVERSE: start near t=1 (remote end), move toward t=0 (local end / toPos)
-        var startT=0.88+i/perSpline*0.12; // 0.88 → 1.0 stagger
+        // Incoming: start at the FAR end (opposite of target) and travel toward target
+        // senderT tells us which end to start from (it's the end away from target)
+        var sT=sp.senderT!=null?sp.senderT:1;
+        var dir=(sT===1)?-1:1; // travel toward 1-sT (the target end)
+        var startT=sT+(dir*i/perSpline*-0.12); // stagger near far end
+        startT=Math.max(0,Math.min(1,startT));
         var geo=_mistGeo(slot,col,0.78);
         var mesh=new THREE.Mesh(geo,_mistMat(col,slot===0?.85:slot===1?.8:.65));
-        var pt=sp.curve.getPoint(Math.min(1,startT));
+        var pt=sp.curve.getPoint(startT);
         mesh.position.copy(pt);
-        mesh._mc=sp.curve;mesh._mt=startT;mesh._mspd=(0.005+Math.random()*.004);mesh._mReverse=true;
+        mesh._mc=sp.curve;mesh._mt=startT;mesh._mspd=(0.005+Math.random()*.004);
+        mesh._mDir=dir; // travel direction toward target
+        mesh._mSenderT=sT;
         mesh._mr=new THREE.Vector3(Math.random()*.05,Math.random()*.04,Math.random()*.03);
         grp._mObjs.push(mesh);grp.add(mesh);
       }
@@ -285,28 +314,21 @@
           return;
         }
         if(obj._mc){
-          if(obj._mReverse){
-            // Incoming — move from t=1 toward t=0
-            obj._mt-=obj._mspd;
-            if(obj._mt<0){
-              // Wrap: when reaching target, respawn at outer end for continuous flow
-              obj._mt=0.88+Math.random()*.12;
-            }
-          } else {
-            // Outgoing — move from t=0 toward t=1
-            obj._mt+=obj._mspd;
-            if(obj._mt>1) obj._mt=Math.random()*.1; // wrap back to start for continuous
-          }
+          var dir=obj._mDir||1; // +1 or -1
+          obj._mt+=dir*obj._mspd;
+          // Wrap: when particle exits the far end, loop back to sender end for continuous flow
+          if(obj._mt>1) obj._mt=(obj._mSenderT||0)+Math.random()*.08;
+          if(obj._mt<0) obj._mt=(obj._mSenderT||1)-Math.random()*.08;
           var t=Math.max(0,Math.min(1,obj._mt));
           var pt=obj._mc.getPoint(t);
           obj.position.copy(pt);
-          // Slot 2: drift displacement
           if(g._mSlot===2) obj.position.x+=Math.sin(g._mAge*.05+t*4)*.06;
         }
         obj.rotation.x+=obj._mr.x;obj.rotation.y+=obj._mr.y;obj.rotation.z+=obj._mr.z;
-        // Fade opacity: outgoing fades at tail (near start), incoming fades at tail (near end)
-        var tFade=obj._mReverse?(1-obj._mt):obj._mt;
-        obj.material.opacity=Math.max(0,.9*fade*Math.pow(tFade+.15,0.4));
+        // Fade: brightest at the leading edge (far from sender), transparent near sender
+        var sT=obj._mSenderT||0;
+        var tFade=Math.abs(obj._mt - sT);
+        obj.material.opacity=Math.max(0,.9*fade*Math.pow(tFade+.08,0.35));
       });
     });
     rem.forEach(function(g){
@@ -621,22 +643,6 @@
     setTimeout(function(){_phaseSend(slot);},260);
   }
   function _ss(m){var el=document.getElementById('mist-status');if(el)el.textContent=m;}
-
-  // ── Also: _splinesFor('_local_') needs to return local:* splines ─────────
-  // Override to handle the special '_local_' key used in _spawnOutgoing
-  var _origSplinesFor=_splinesFor;
-  _splinesFor=function(uid){
-    if(uid==='_local_'){
-      var out=[];
-      if(typeof _ashNodes!=='undefined'&&_ashNodes._splines){
-        Object.keys(_ashNodes._splines).forEach(function(k){
-          if(k.indexOf('local:')===0) out.push({curve:_ashNodes._splines[k].curve,fromLocal:true,sp:_ashNodes._splines[k]});
-        });
-      }
-      return out;
-    }
-    return _origSplinesFor(uid);
-  };
 
   function init(){injectCSS();injectHTML();setTimeout(function(){_poll();setInterval(_poll,POLL_MS);},5000);}
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
