@@ -124,14 +124,32 @@
     if(window.S&&window.S.journal)
       window.S.journal.push({ts:new Date().toISOString(),_internal:true,_thought:msg});
   }
+  // Direct GitHub write — bypasses the batch queue entirely for instant propagation
+  var _writeInFlight = false;
   function _write(data){
-    if(typeof writeLeatrAshMemory!=='function') return;
-    var path='ashtree/mist/'+_sid()+'.json';
-    writeLeatrAshMemory(path, data);
-    // Bypass the 8s batch queue — flush immediately for real-time feel
-    if(typeof _ashFlushNow==='function'){
-      setTimeout(function(){ _ashFlushNow(path); }, 50);
-    }
+    if(_writeInFlight) return; // prevent concurrent writes to same file
+    var uid=_sid();
+    var path='ashtree/mist/'+uid+'.json';
+    var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():'';
+    if(!pat) return;
+    var apiUrl='https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path;
+    var hdrs={'Authorization':'token '+pat,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
+    _writeInFlight=true;
+    // Read current file to get sha and existing content
+    fetch(apiUrl,{headers:hdrs,signal:AbortSignal.timeout(6000)})
+      .then(function(r){ return r.ok?r.json():null; })
+      .then(function(existing){
+        var sha='', arr=[];
+        if(existing&&existing.sha){ sha=existing.sha; try{ arr=JSON.parse(atob(existing.content.replace(/\n/g,'')))||[]; }catch(e){} }
+        if(!Array.isArray(arr)) arr=[];
+        arr.push(data);
+        arr=arr.slice(-200); // keep last 200 events
+        var body={message:'mist:'+uid.slice(0,10),content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))};
+        if(sha) body.sha=sha;
+        return fetch(apiUrl,{method:'PUT',headers:hdrs,body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+      })
+      .then(function(r){ _writeInFlight=false; _setStatus(r&&r.ok?'●':'✗'); })
+      .catch(function(e){ _writeInFlight=false; console.warn('MIST write error:',e); });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -159,20 +177,20 @@
     var now=Date.now();
     var myUid=_sid();
     // Same user (other tab): _aut_sid starts with _aut_uid, so sender sid starts with my user uid
-    var myUserUid=(typeof _aut_uid!=='undefined')?_aut_uid:myUid.split('_t')[0];
-    var sameUser=ev.uid.indexOf(myUserUid)===0;
-    var sc=sameUser?1.0:_score(myUid,ev.uid);
-    if(sc<MATCH_THRESHOLD) return;
+    // Always react to any non-own-instance event — pattern matching is visual only
+    var sc=1.0;
     if(MIST.lastReact[ev.uid]&&(now-MIST.lastReact[ev.uid])<REACT_COOLDOWN) return;
     MIST.lastReact[ev.uid]=now;
 
     // Pattern matched — mist arrives INWARD at my orb
+    console.log('[MIST] _phaseReceive fired. slot:',ev.slot,'from:',ev.uid.slice(0,20));
     _brpn(SLOT[ev.slot]);
     _spawnIncoming(ev.slot, new THREE.Vector3(0,0,0), ev.uid);
+    _setStatus('←');
     // Write reaction so others (especially sender) see it
     _write({type:'reaction',uid:myUid,slot:ev.slot,ts:now,replyTo:ev.uid,score:sc,instanceId:_iid});
     _bcPost({type:'reaction',uid:myUid,slot:ev.slot,ts:now,replyTo:ev.uid,score:sc});
-    _log('MIST RECEIVE — incoming from '+ev.uid.slice(0,14)+' (score:'+sc.toFixed(2)+'). Mist arriving at node.');
+    _log('MIST RECEIVE — incoming from '+ev.uid.slice(0,14)+'. Mist arriving at node.');
   }
 
   // ── PHASE 2B: Bystander/Sender sees a remote node's activity ──────────────
@@ -187,14 +205,9 @@
     _doObserve(ev,pos);
   }
   function _doObserve(ev,pos){
-    if(ev.type==='solve'){
-      // Bystander/sender: see outgoing FROM that node along its connections
-      _spawnOutgoing(ev.slot, pos, ev.uid);
-    } else if(ev.type==='reaction'){
-      // Feedback: that remote node reacted — show radial burst AT their world position
-      // NOT incoming toward local orb (splines dont connect to remote positions)
-      _spawnReactionBurst(ev.slot, pos, ev.score||0.5);
-    }
+    // Both sends and reactions show as outgoing bursts from that node's position.
+    // The local receiver's own session shows INCOMING to its orb (see _phaseReceive).
+    _spawnOutgoing(ev.slot, pos, ev.uid);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -322,59 +335,6 @@
     return new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:opacity});
   }
 
-  // REACTION BURST — radial explosion AT a remote node's world position
-  // Distinct from outgoing (which travels along splines) and incoming (which arrives at local orb)
-  // Visually: "this node got hit and fired back" — seen by bystanders and the original sender
-  function _spawnReactionBurst(slot, pos, score){
-    if(typeof THREE==='undefined'||typeof scene==='undefined') return;
-    if(!pos) return;
-    var col=new THREE.Color(SLOT[slot].color);
-    // Shift hue slightly to distinguish reaction from outgoing
-    var hsl={};col.getHSL(hsl);
-    col.setHSL((hsl.h+0.10)%1.0, hsl.s, Math.min(0.92,hsl.l*1.2));
-
-    var grp=new THREE.Group();
-    grp._mAge=0; grp._mMax=150; grp._mSlot=slot; grp._mObjs=[];
-    grp._mMode='reaction_burst';
-
-    var count=Math.round(8+score*14); // score-scaled particle count
-    var spd=0.010+score*0.008;
-
-    for(var i=0;i<count;i++){
-      var geo=_mistGeo(slot,col,0.72);
-      var mat=_mistMat(col, slot===0?0.88:slot===1?0.82:0.70);
-      var mesh=new THREE.Mesh(geo,mat);
-      mesh.position.copy(pos);
-      // Random outward velocity from that position
-      var a=Math.random()*Math.PI*2, b=Math.acos(2*Math.random()-1);
-      var v=spd*(0.7+Math.random()*0.6);
-      mesh._mv=new THREE.Vector3(
-        Math.sin(b)*Math.cos(a)*v,
-        Math.sin(b)*Math.sin(a)*v,
-        Math.cos(b)*v
-      );
-      mesh._mMaxDist=0.6+score*1.0; // stop expanding after this distance
-      mesh._mOrigin=pos.clone();
-      mesh._mr=new THREE.Vector3(Math.random()*.06,Math.random()*.05,Math.random()*.04);
-      grp._mObjs.push(mesh); grp.add(mesh);
-    }
-
-    // Expanding ring at the node position — the "hit confirmed" indicator
-    for(var r=0;r<3;r++){
-      var rGeo=new THREE.TorusGeometry(0.06+r*0.05, 0.010, 4, 16);
-      var rMat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.80-r*0.18,wireframe:true});
-      var ring=new THREE.Mesh(rGeo,rMat);
-      ring.position.copy(pos);
-      ring.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
-      ring._expandSpd=0.007+r*0.004+score*0.005;
-      ring._isRing=true;
-      ring._mr=new THREE.Vector3(Math.random()*.03,Math.random()*.025,0);
-      grp._mObjs.push(ring); grp.add(ring);
-    }
-
-    scene.add(grp); _geom.push(grp);
-  }
-
   // ── Animation tick ─────────────────────────────────────────────────────────
   (function _tick(){
     requestAnimationFrame(_tick);
@@ -386,21 +346,9 @@
       if(fade<=0){rem.push(g);return;}
       g._mObjs.forEach(function(obj){
         if(obj._isRing){
-          // Expanding ring — reaction_burst or incoming arrival
+          // Arrival ring expands at toPos
           obj.scale.multiplyScalar(1+obj._expandSpd);
-          obj.rotation.x+=obj._mr?obj._mr.x:0;
-          obj.rotation.y+=obj._mr?obj._mr.y:0;
-          obj.material.opacity=.75*fade*Math.min(1,g._mAge/6);
-          return;
-        }
-        if(g._mMode==='reaction_burst'){
-          // Radial burst — fly out from origin, stop at maxDist
-          if(obj._mOrigin){
-            var dist=obj.position.distanceTo(obj._mOrigin);
-            if(dist<(obj._mMaxDist||1.0)) obj.position.add(obj._mv);
-          }
-          obj.rotation.x+=obj._mr.x; obj.rotation.y+=obj._mr.y; obj.rotation.z+=obj._mr.z;
-          obj.material.opacity=Math.max(0,0.88*fade);
+          obj.material.opacity=.7*fade*Math.min(1,g._mAge/8);
           return;
         }
         if(obj._mc){
@@ -471,6 +419,7 @@
               var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
               if(MIST.seen[key])return;
               MIST.seen[key]=true;
+              console.log('[MIST] poll event:',ev.type||'(no type)','uid:',ev.uid.slice(0,16),'slot:',ev.slot);
               var slot=(ev.slot!=null)?ev.slot:0;
 
               if(ev.type==='reaction'&&ev.replyTo){
