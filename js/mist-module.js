@@ -369,6 +369,8 @@
       window.S.journal.push({ts:new Date().toISOString(),_internal:true,
         _thought:who+' MIST solve — slot '+slot+' ('+prof.label+'). Buoyancy pulse: '+prof.pulse+', emotion: '+prof.emotion+'.'});
     }
+    // 8. Volumetric wireframe geometry in BRPN scene
+    _spawnMistGeometry(slot);
     // 8. Write to leatr-ash so ALL users' poll cycles pick it up
     if(isLocal && typeof writeLeatrAshMemory==='function'){
       var uid=(typeof _aut_sid!=='undefined')?_aut_sid:(typeof _aut_uid!=='undefined')?_aut_uid:'anon';
@@ -377,6 +379,98 @@
       });
     }
   }
+
+
+  // ── Volumetric wireframe geometry in the main BRPN scene ─────────────────
+  var _mistActiveGeom=[];
+  function _spawnMistGeometry(slot){
+    if(typeof THREE==='undefined'||typeof scene==='undefined') return;
+    var COLORS=[0xffdd00,0xff4488,0x00e5ff];
+    var col=new THREE.Color(COLORS[slot]);
+    var positions=[new THREE.Vector3(0,0,0)];
+    if(typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups){
+      Object.keys(_ashNodes._sessionGroups).forEach(function(uid){
+        var g=_ashNodes._sessionGroups[uid];
+        if(g&&g.group)positions.push(g.group.position.clone());
+      });
+    }
+    if(positions.length<2){
+      positions.push(new THREE.Vector3(2.2,1.2,-1.2));
+      positions.push(new THREE.Vector3(-1.8,1.8,1));
+      positions.push(new THREE.Vector3(0.8,-2.2,1.8));
+    }
+    var group=new THREE.Group();
+    group._mAge=0; group._mMax=180; group._mSlot=slot; group._mObjs=[];
+    var perNode=slot===0?6:slot===1?4:7;
+    positions.forEach(function(nodePos,ni){
+      for(var i=0;i<perNode;i++){
+        var geo,mat,mesh;
+        if(slot===0){
+          geo=new THREE.OctahedronGeometry(0.09+Math.random()*.13,0);
+          mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.9});
+          mesh=new THREE.Mesh(geo,mat);
+          mesh.position.copy(nodePos);
+          var a=Math.random()*Math.PI*2,b=Math.acos(2*Math.random()-1),spd=0.022+Math.random()*.038;
+          mesh._mv=new THREE.Vector3(Math.sin(b)*Math.cos(a)*spd,Math.sin(b)*Math.sin(a)*spd,Math.cos(b)*spd);
+          mesh._mr=new THREE.Vector3(Math.random()*.05,Math.random()*.04,0);
+        } else if(slot===1){
+          geo=new THREE.SphereGeometry(0.055+Math.random()*.04,5,5);
+          mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.85});
+          mesh=new THREE.Mesh(geo,mat);
+          var origin=positions[0],target=nodePos;
+          var mid=origin.clone().add(target).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*.8,1.2+Math.random()*.8,(Math.random()-.5)*.8));
+          mesh._mc=new THREE.CatmullRomCurve3([origin.clone(),mid,target.clone()]);
+          mesh._mt=(i/perNode)*-0.35; mesh._mspd=0.006+Math.random()*.003;
+          mesh._mr=new THREE.Vector3(0,0,Math.random()*.04);
+          mesh.position.copy(origin);
+        } else {
+          geo=new THREE.TetrahedronGeometry(0.07+Math.random()*.1,0);
+          mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.65});
+          mesh=new THREE.Mesh(geo,mat);
+          var curve=null;
+          if(typeof _ashNodes!=='undefined'&&_ashNodes._splines){
+            var ks=Object.keys(_ashNodes._splines);
+            if(ks.length)curve=_ashNodes._splines[ks[(ni*perNode+i)%ks.length]].curve;
+          }
+          if(!curve){var pa=positions[ni%positions.length],pb=positions[(ni+1)%positions.length];var mpt=pa.clone().add(pb).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*1.5,(Math.random()-.5)*1.5,0));curve=new THREE.CatmullRomCurve3([pa.clone(),mpt,pb.clone()]);}
+          mesh._mc=curve; mesh._mt=Math.random(); mesh._mspd=0.004+Math.random()*.005;
+          mesh._mr=new THREE.Vector3(Math.random()*.035,Math.random()*.03,0);
+          var pt=curve.getPoint(mesh._mt);mesh.position.copy(pt);
+        }
+        group._mObjs.push(mesh); group.add(mesh);
+      }
+    });
+    for(var li=0;li<Math.min(5,positions.length);li++){
+      var pa=positions[li%positions.length],pb=positions[(li+1)%positions.length];
+      var mid2=pa.clone().add(pb).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*2,(Math.random()-.5)*2,0));
+      var c2=new THREE.CatmullRomCurve3([pa,mid2,pb]);
+      var lGeo=new THREE.BufferGeometry().setFromPoints(c2.getPoints(40));
+      var lMat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.35});
+      group.add(new THREE.Line(lGeo,lMat));
+    }
+    scene.add(group);
+    _mistActiveGeom.push(group);
+  }
+  (function _mistTick(){
+    requestAnimationFrame(_mistTick);
+    if(!_mistActiveGeom.length)return;
+    var rem=[];
+    _mistActiveGeom.forEach(function(g){
+      g._mAge++;
+      var fade=1-g._mAge/g._mMax;
+      if(fade<=0){rem.push(g);return;}
+      g._mObjs.forEach(function(obj){
+        if(g._mSlot===0){obj.position.add(obj._mv);obj.rotation.x+=obj._mr.x;obj.rotation.y+=obj._mr.y;obj.material.opacity=.9*fade;}
+        else if(g._mSlot===1){obj._mt+=obj._mspd;if(obj._mt>1)obj._mt=0;if(obj._mt>=0&&obj._mc){var pt=obj._mc.getPoint(Math.min(1,obj._mt));obj.position.copy(pt);}obj.rotation.z+=obj._mr.z;obj.material.opacity=.85*fade;}
+        else{obj._mt+=obj._mspd;if(obj._mt>1)obj._mt=0;if(obj._mc){var pt2=obj._mc.getPoint(obj._mt);obj.position.copy(pt2);obj.position.x+=Math.sin(g._mAge*.06+obj._mt*5)*.07;}obj.rotation.x+=obj._mr.x;obj.rotation.y+=obj._mr.y;obj.material.opacity=.65*fade;}
+      });
+    });
+    rem.forEach(function(g){
+      if(typeof scene!=='undefined')scene.remove(g);
+      g._mObjs.forEach(function(o){o.geometry&&o.geometry.dispose();o.material&&o.material.dispose();});
+      var idx=_mistActiveGeom.indexOf(g);if(idx>=0)_mistActiveGeom.splice(idx,1);
+    });
+  })();
 
   // ── Poll leatr-ash for other users' mist events ───────────────────────────
   function _pollRemoteMist(){
