@@ -472,23 +472,19 @@
     }
   }
 
-  // ── BroadcastChannel — same-origin tabs ────────────────────────────────────
+  // ── BroadcastChannel — same-origin tabs + leader relay ────────────────────
   var _bc=null;
   try{
     _bc=new BroadcastChannel('autumn_mist');
     _bc.onmessage=function(e){
       if(!e.data)return;
       var d=e.data;
+      // Leader heartbeat relay — follower tabs don't need to process
+      if(d._type==='leader_hb') return;
       var key=(d.uid||'?')+':'+(d.ts||0)+':'+(d.type||'solve');
       if(MIST.seen[key])return;
       MIST.seen[key]=true;
-      var slot=(d.slot!=null)?d.slot:0;
-      if(d.type==='reaction'&&d.replyTo){
-        _phaseObserve(d);
-      } else if(d.type==='solve'&&d.uid!==_sid()){
-        _phaseObserve(d);
-        _phaseReceive(d);
-      }
+      _processEvent(d, _sid());
     };
   }catch(e){_bc=null;}
 
@@ -763,12 +759,17 @@
 
   function init(){
     injectCSS();injectHTML();
-    // Start polling at 2s
-    setTimeout(function(){ _poll(); setInterval(_poll,POLL_MS); },2000);
-    // Immediately trigger a session node refresh on init so the world fills fast
+    // Attempt to claim leadership immediately; if another tab already holds it, we'll follow
+    _checkLeader();
+    // Start poll loop — _poll() internally gates on leadership
+    setTimeout(function(){
+      _poll();
+      setInterval(_poll, POLL_MS);
+    }, 1500 + Math.random()*1000); // stagger start slightly so tabs don't all fire at once
+    // Initial session node refresh
     setTimeout(function(){ if(typeof _pollAshNodes==='function') _pollAshNodes(); }, 1000);
-    // Replay current world state — start early, node groups will fill in via pending buffer
-    setTimeout(_replayState, 6000);
+    // Replay world state — leader only (followers get events via BC relay)
+    setTimeout(function(){ _checkLeader(); if(_isLeader) _replayState(); }, 6000);
   }
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 

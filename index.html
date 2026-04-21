@@ -11420,7 +11420,18 @@ function _initAshNodeLayer() {
   scene.add(_ashNodes._splineGroup);
 
   _pollAshNodes();
-  setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
+  setInterval(function(){
+    // Only the mist leader tab polls for session nodes too — saves ~60% of API calls
+    var leaderTs = parseInt(localStorage.getItem('autumn_mist_leader')||'0',10);
+    var isLeader = (Date.now()-leaderTs) < 16000;
+    if(isLeader) _pollAshNodes();
+    else {
+      // Non-leader still writes its own heartbeat (cheap: single PUT, not a GET)
+      writeLeatrAshMemory('ashtree/sessions/'+_ashNodes._localUid+'.json',{
+        uid:_aut_uid, sid:_ashNodes._localUid, ts:Date.now(), type:'presence'
+      });
+    }
+  }, 30000);
 }
 
 // ── Pattern similarity score between two session UIDs ────────────
