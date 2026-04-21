@@ -103,7 +103,7 @@ function _clearPAT(){ try{sessionStorage.removeItem('_aut_ide_pat');localStorage
 // Leaf/branch events batch at 8s to group rapid tool usage
 const _ashQ = {};
 
-async function _ashFlushNow(path) {
+window._ashFlushNow = async function _ashFlushNow(path) {
   const q = _ashQ[path];
   if (!q || !q.items.length) return;
   const items = q.items.splice(0);
@@ -11333,7 +11333,7 @@ var _ashNodes = {
   _lineGroup: null,
   _localUid: null,
   _uids: [],
-  POLL_INTERVAL: 15000,
+  POLL_INTERVAL: 5000,
   MAX_REMOTE: 80
 };
 
@@ -11561,6 +11561,7 @@ async function _pollAshNodes() {
                   if(typeof window._buoyancyMistPulse === 'function') {
                     window._buoyancyMistPulse({ slot: ms.slot });
                   }
+                  setTimeout(_pollAshNodes, 1500);
                 }
               }
             }
