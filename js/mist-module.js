@@ -3,7 +3,9 @@
 //  Lead Edge Ash Tree Reflex
 //  On solve → drives BRPN buoyancy network (pulseShells/applyOrbEmotion/etc)
 //  Multi-user → writes to ashtree/mist/{uid}.json via writeLeatrAshMemory
-//              → polls every 12s for other users' mist events → reacts
+//              → polls every 6s for other users' mist events → reacts
+//  v2.1 — originUid-aware geometry: remote solves burst FROM that node,
+//          not from the local orb center.
 // ═══════════════════════════════════════════════════════════════════════════
 (function() {
   'use strict';
@@ -20,7 +22,7 @@
     sphereTarget: null,
     sphereActual: null,
     sphereAnimId: null,
-    lastRemoteTs: {}   // uid → last seen ts to debounce duplicate fires
+    lastRemoteTs: {}   // uid+ts → true, debounce duplicate fires
   };
 
   var DIFF = { 1:{w:5,h:5}, 2:{w:9,h:9}, 3:{w:13,h:13} };
@@ -93,25 +95,23 @@
       entry = cellOnSide(es, ep); exit = cellOnSide(xs, xp);
       
       // Rule: Line of Sight (LOS) blocking
-      // Openings cannot be in view of one another through interior paths
       var hasLOS = function(a, b) {
         if(a.x === b.x) {
           var y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
           for(var ty=y1; ty<y2; ty++) { if(grid[ty][a.x].s) return false; }
-          return true; // Unblocked path vertically
+          return true;
         }
         if(a.y === b.y) {
           var x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
           for(var tx=x1; tx<x2; tx++) { if(grid[a.y][tx].e) return false; }
-          return true; // Unblocked path horizontally
+          return true;
         }
         return false;
       };
       if(hasLOS(entry, exit)) continue;
 
-      // Rule: Sub-branch complexity check for trial and error
-      // A simple solution is rejected to prevent defeating game purpose
-      var res = solveMaze({grid, w, h, entry, exit});
+      // Rule: Sub-branch complexity check
+      var res = solveMaze({grid: grid, w: w, h: h, entry: entry, exit: exit});
       if(!res || res.length < (w+h)/1.4) continue;
 
       valid = true;
@@ -121,12 +121,9 @@
     grid[entry.y][entry.x][es] = 0;
     grid[exit.y][exit.x][xs] = 0;
 
-    // ── Boolean differential logic (concept) ──────────────────────────
-    // Replicating pathfinding by taking generated walls and subtracting differences 
-    // using trig placeholders to find the "Sigma" remainder (the solution path).
-    var sigmaSolution = solveMaze({grid, w, h, entry, exit});
+    var sigmaSolution = solveMaze({grid: grid, w: w, h: h, entry: entry, exit: exit});
 
-    return { grid, w, h, entry, exit, entrySide: es, exitSide: xs, solution: sigmaSolution };
+    return { grid: grid, w: w, h: h, entry: entry, exit: exit, entrySide: es, exitSide: xs, solution: sigmaSolution };
   }
 
   function solveMaze(maze) {
@@ -296,15 +293,10 @@
         var cell = maze.grid[y][x], px = x * cs, py = y * cs;
         
         var drawWireWall = function(x1, y1, x2, y2) {
-          // Unit glow
           ctx.strokeStyle = 'rgba(0,229,255,0.45)'; ctx.lineWidth = cs * 0.35;
           ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-          
-          // Wireframe core spline
           ctx.strokeStyle = 'rgba(0,229,255,0.9)'; ctx.lineWidth = 1.0;
           ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-          
-          // Unit ribs (consistency)
           var numRibs = 4;
           for(var i=0; i<=numRibs; i++) {
             var rx = x1 + (x2-x1)*(i/numRibs), ry = y1 + (y2-y1)*(i/numRibs);
@@ -318,7 +310,6 @@
         if(cell.w) drawWireWall(px, py, px, py+cs);
         if(cell.e) drawWireWall(px+cs, py, px+cs, py+cs);
         
-        // Unit nodes (corners)
         ctx.fillStyle = 'rgba(0,229,255,0.25)';
         ctx.fillRect(px-1, py-1, 2, 2);
       }
@@ -333,7 +324,6 @@
       ctx.stroke();
     }
 
-    // Terminals
     ctx.beginPath(); ctx.arc(maze.exit.x*cs+cs/2, maze.exit.y*cs+cs/2, cs*.35, 0, Math.PI*2);
     ctx.fillStyle = 'rgba(0,229,255,.55)'; ctx.shadowBlur = 10; ctx.shadowColor='#00e5ff';
     ctx.fill(); ctx.shadowBlur = 0;
@@ -415,10 +405,16 @@
     }
     var ci = document.getElementById('mt-' + slot); if(ci) ci.classList.add('mi-active');
     setTimeout(function(){ MIST.open = false; var ov = document.getElementById('mist-overlay'); if(ov) ov.classList.remove('mist-open'); document.removeEventListener('click', _mistOutside, true); }, 2500);
-    setTimeout(function(){ _fireMistNetworkReaction(slot, true); }, 260);
+    // Pass local uid so geometry knows THIS node is the origin
+    var localUid = (typeof _aut_sid !== 'undefined') ? _aut_sid : (typeof _aut_uid !== 'undefined') ? _aut_uid : null;
+    setTimeout(function(){ _fireMistNetworkReaction(slot, true, localUid); }, 260);
   }
 
-  function _fireMistNetworkReaction(slot, isLocal) {
+  // ── CORE REACTION — slot, isLocal, originUid ───────────────────────────
+  // originUid: the session ID that solved the maze.
+  //   • local solve  → the current tab's _aut_sid (particles from orb center, outward to all nodes)
+  //   • remote solve → the remote session's uid   (particles from THAT node's 3D position)
+  function _fireMistNetworkReaction(slot, isLocal, originUid) {
     var prof = SLOT_PROFILE[slot];
     if(typeof pulseShells === 'function') {
       pulseShells(prof.pulse);
@@ -438,42 +434,74 @@
     if(window.S && window.S.journal) {
       var who = isLocal ? 'Local' : 'Remote';
       window.S.journal.push({ts:new Date().toISOString(), _internal:true,
-        _thought:who + ' MIST solve — slot ' + slot + ' (' + prof.label + '). Buoyancy pulse: ' + prof.pulse + ', emotion: ' + prof.emotion + '.'});
+        _thought:who + ' MIST solve — slot ' + slot + ' (' + prof.label + ')' + (originUid ? ' from ' + originUid.slice(0,16) : '') + '. Buoyancy pulse: ' + prof.pulse + ', emotion: ' + prof.emotion + '.'});
     }
-    _spawnMistGeometry(slot);
+    // Pass originUid through to geometry so it knows which node to burst FROM
+    _spawnMistGeometry(slot, originUid);
     if(isLocal && typeof writeLeatrAshMemory === 'function') {
       var uid = (typeof _aut_sid !== 'undefined') ? _aut_sid : (typeof _aut_uid !== 'undefined') ? _aut_uid : 'anon';
       var _mts = Date.now();
       writeLeatrAshMemory('ashtree/mist/' + uid + '.json', { uid:uid, slot:slot, ts:_mts, instanceId:_mistInstanceId, label:prof.label, emotion:prof.emotion });
-      // Instantly notify all same-origin tabs (including same-user second sessions)
       _broadcastMistSolve(uid, slot, _mts);
     }
   }
 
+  // ── GEOMETRY SPAWNER — originUid-aware ────────────────────────────────
+  // Builds the position list with the SOLVING NODE first so particles burst
+  // FROM that node outward to the orb center and all other session nodes.
   var _mistActiveGeom=[];
-  function _spawnMistGeometry(slot){
+  function _spawnMistGeometry(slot, originUid){
     if(typeof THREE==='undefined'||typeof scene==='undefined') return;
     var COLORS=[0xffdd00,0xff4488,0x00e5ff];
     var col=new THREE.Color(COLORS[slot]);
-    var positions=[new THREE.Vector3(0,0,0)];
-    if(typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups){
-      Object.keys(_ashNodes._sessionGroups).forEach(function(uid){
-        var g=_ashNodes._sessionGroups[uid];
-        if(g&&g.group)positions.push(g.group.position.clone());
+
+    // ── Resolve origin position ──────────────────────────────────────────
+    // If originUid matches a remote session group, use its world position.
+    // If it's the local session (not in _sessionGroups), use orb center (0,0,0).
+    var originPos = new THREE.Vector3(0,0,0);
+    var originIsRemote = false;
+    if(originUid && typeof _ashNodes!=='undefined' && _ashNodes._sessionGroups) {
+      var og = _ashNodes._sessionGroups[originUid];
+      if(og && og.group) {
+        originPos = og.group.position.clone();
+        originIsRemote = true;
+      }
+    }
+
+    // ── Build positions list: [originPos, orbCenter?, ...otherNodes] ─────
+    // originPos is always index 0 so slot-1 (HEART) curves travel FROM it.
+    var positions = [originPos.clone()];
+    // If origin is a remote node, include the orb center (0,0,0) as a target
+    if(originIsRemote) {
+      positions.push(new THREE.Vector3(0,0,0));
+    }
+    // Add all other remote session nodes (skip origin, already added)
+    if(typeof _ashNodes!=='undefined' && _ashNodes._sessionGroups){
+      Object.keys(_ashNodes._sessionGroups).forEach(function(sid){
+        if(sid === originUid) return; // already at index 0
+        var g=_ashNodes._sessionGroups[sid];
+        if(g&&g.group) positions.push(g.group.position.clone());
       });
     }
-    if(positions.length<2){
+    // Fallback: if still just one position, add synthetic targets so geometry is visible
+    if(positions.length < 2){
       positions.push(new THREE.Vector3(2.2,1.2,-1.2));
       positions.push(new THREE.Vector3(-1.8,1.8,1));
       positions.push(new THREE.Vector3(0.8,-2.2,1.8));
     }
+
     var group=new THREE.Group();
     group._mAge=0; group._mMax=180; group._mSlot=slot; group._mObjs=[];
-    var perNode=slot===0?6:slot===1?4:7;
+    // Spawn more particles from the origin node on remote solves for visual emphasis
+    var perNode=slot===0 ? (originIsRemote?10:6) : slot===1 ? (originIsRemote?6:4) : (originIsRemote?9:7);
+
     positions.forEach(function(nodePos,ni){
-      for(var i=0;i<perNode;i++){
+      // For local solves (origin = orb center), skip index 0 for slot 1 — those are the source
+      // For remote solves, index 0 is the remote node and is the source — always spawn there
+      for(var i=0;i<(ni===0?perNode:Math.max(3,perNode-2));i++){
         var geo,mat,mesh;
         if(slot===0){
+          // STAR — OctahedronGeometry wireframes burst outward from nodePos
           geo=new THREE.OctahedronGeometry(0.09+Math.random()*.13,0);
           mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.9});
           mesh=new THREE.Mesh(geo,mat);
@@ -482,34 +510,68 @@
           mesh._mv=new THREE.Vector3(Math.sin(b)*Math.cos(a)*spd,Math.sin(b)*Math.sin(a)*spd,Math.cos(b)*spd);
           mesh._mr=new THREE.Vector3(Math.random()*.05,Math.random()*.04,0);
         } else if(slot===1){
+          // HEART — SphereGeometry travels on CatmullRom curve FROM originPos TO nodePos
           geo=new THREE.SphereGeometry(0.055+Math.random()*.04,5,5);
           mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.85});
           mesh=new THREE.Mesh(geo,mat);
-          var origin=positions[0],target=nodePos;
-          var mid=origin.clone().add(target).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*.8,1.2+Math.random()*.8,(Math.random()-.5)*.8));
-          mesh._mc=new THREE.CatmullRomCurve3([origin.clone(),mid,target.clone()]);
-          mesh._mt=(i/perNode)*-0.35; mesh._mspd=0.006+Math.random()*.003;
+          // Origin is always positions[0]; targets are all other positions
+          var origin=positions[0], target=nodePos;
+          if(ni===0){
+            // At origin itself — burst radially outward then pull back, as visual "bloom"
+            var a2=Math.random()*Math.PI*2, b2=Math.acos(2*Math.random()-1), r2=0.4+Math.random()*.6;
+            var midOff=new THREE.Vector3(Math.sin(b2)*Math.cos(a2)*r2,Math.sin(b2)*Math.sin(a2)*r2,Math.cos(b2)*r2);
+            var bloom=origin.clone().add(midOff);
+            target=origin.clone(); // returns back to origin
+            var mid=bloom;
+            mesh._mc=new THREE.CatmullRomCurve3([origin.clone(),mid,target.clone()]);
+          } else {
+            var mid=origin.clone().add(target).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*.8,1.2+Math.random()*.8,(Math.random()-.5)*.8));
+            mesh._mc=new THREE.CatmullRomCurve3([origin.clone(),mid,target.clone()]);
+          }
+          mesh._mt=(i/(ni===0?perNode:perNode-2))*-0.35; mesh._mspd=0.006+Math.random()*.003;
           mesh._mr=new THREE.Vector3(0,0,Math.random()*.04);
           mesh.position.copy(origin);
         } else {
+          // MIST — TetrahedronGeometry rides plasma splines outward from originPos
           geo=new THREE.TetrahedronGeometry(0.07+Math.random()*.1,0);
           mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.65});
           mesh=new THREE.Mesh(geo,mat);
           var curve=null;
+          // Prefer splines that involve the origin node
           if(typeof _ashNodes!=='undefined'&&_ashNodes._splines){
             var ks=Object.keys(_ashNodes._splines);
-            if(ks.length)curve=_ashNodes._splines[ks[(ni*perNode+i)%ks.length]].curve;
+            // Find a spline that starts near originPos
+            if(originIsRemote && ks.length){
+              var bestKey=null, bestDist=Infinity;
+              ks.forEach(function(k){
+                var sp=_ashNodes._splines[k];
+                if(sp&&sp.curve){
+                  var p0=sp.curve.getPoint(0);
+                  var d=p0.distanceTo(originPos);
+                  if(d<bestDist){bestDist=d;bestKey=k;}
+                }
+              });
+              if(bestKey) curve=_ashNodes._splines[bestKey].curve;
+            }
+            if(!curve && ks.length) curve=_ashNodes._splines[ks[(ni*perNode+i)%ks.length]].curve;
           }
-          if(!curve){var pa=positions[ni%positions.length],pb=positions[(ni+1)%positions.length];var mpt=pa.clone().add(pb).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*1.5,(Math.random()-.5)*1.5,0));curve=new THREE.CatmullRomCurve3([pa.clone(),mpt,pb.clone()]);}
-          mesh._mc=curve; mesh._mt=Math.random(); mesh._mspd=0.004+Math.random()*.005;
+          if(!curve){
+            var pa=positions[0], pb=positions[(ni+1)%positions.length];
+            var mpt=pa.clone().add(pb).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*1.5,(Math.random()-.5)*1.5,0));
+            curve=new THREE.CatmullRomCurve3([pa.clone(),mpt,pb.clone()]);
+          }
+          mesh._mc=curve; mesh._mt=ni===0?0:Math.random(); mesh._mspd=0.004+Math.random()*.005;
           mesh._mr=new THREE.Vector3(Math.random()*.035,Math.random()*.03,0);
-          var pt=curve.getPoint(mesh._mt);mesh.position.copy(pt);
+          var pt=curve.getPoint(mesh._mt); mesh.position.copy(pt);
         }
         group._mObjs.push(mesh); group.add(mesh);
       }
     });
+
+    // ── Connecting lines between origin and all targets ──────────────────
     for(var li=0;li<Math.min(5,positions.length);li++){
-      var pa=positions[li%positions.length],pb=positions[(li+1)%positions.length];
+      var pa=positions[0]; // always start from origin
+      var pb=positions[(li+1)%positions.length];
       var mid2=pa.clone().add(pb).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*2,(Math.random()-.5)*2,0));
       var c2=new THREE.CatmullRomCurve3([pa,mid2,pb]);
       var lGeo=new THREE.BufferGeometry().setFromPoints(c2.getPoints(40));
@@ -519,6 +581,8 @@
     scene.add(group);
     _mistActiveGeom.push(group);
   }
+
+  // ── Animation tick — unchanged ─────────────────────────────────────────
   (function _mistTick(){
     requestAnimationFrame(_mistTick);
     if(!_mistActiveGeom.length)return;
@@ -540,6 +604,7 @@
     });
   })();
 
+  // ── Poll remote mist events — passes originUid to reaction ────────────
   function _pollRemoteMist(){
     var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():'';
     if(!pat)return;
@@ -549,14 +614,11 @@
     }).then(function(r){return r.ok?r.json():null;})
     .then(function(files){
       if(!Array.isArray(files))return;
-      var STALE_MS=60000; // 60s — tighter window so events feel live
-      // Include ALL json files — same-user other sessions should also trigger reactions
+      var STALE_MS=60000;
       files.filter(function(f){return f.name.endsWith('.json');}).slice(0,30).forEach(function(f){
         fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(d){
-            // writeLeatrAshMemory appends to an array for non-session paths;
-            // handle both array format (current) and flat object (legacy)
             var events = Array.isArray(d) ? d
                         : (d && d.ts && d.uid) ? [d]
                         : null;
@@ -567,46 +629,46 @@
               if(ev.instanceId && ev.instanceId === _mistInstanceId) return;
               var age = Date.now() - ev.ts;
               if(age > STALE_MS) return;
-              // Debounce by uid+ts — allows future solves from same user through
               var key = ev.uid + ':' + ev.ts;
               if(MIST.lastRemoteTs[key]) return;
               MIST.lastRemoteTs[key] = true;
-              _fireMistNetworkReaction(ev.slot != null ? ev.slot : 0, false);
+              // Pass ev.uid as originUid so geometry bursts FROM that node's position
+              _fireMistNetworkReaction(ev.slot != null ? ev.slot : 0, false, ev.uid);
             });
           }).catch(function(){});
       });
     }).catch(function(){});
   }
 
-  // ── BroadcastChannel — same-origin tabs (instant, including same-user multi-tab) ──
+  // ── BroadcastChannel — same-origin tabs ───────────────────────────────
   var _mistBC = null;
   try{
     _mistBC = new BroadcastChannel('autumn_mist');
     _mistBC.onmessage = function(ev){
       if(!ev.data || ev.data.type !== 'mist-solve') return;
       var d = ev.data.data || {};
-      // Debounce by uid+ts so duplicate firings are blocked
       var key = (d.uid||'?') + ':' + (d.ts||0);
       if(MIST.lastRemoteTs[key]) return;
       MIST.lastRemoteTs[key] = true;
-      _fireMistNetworkReaction(d.slot != null ? d.slot : 0, false);
+      // Pass d.uid so same-user other-tab solve bursts from that tab's session node
+      _fireMistNetworkReaction(d.slot != null ? d.slot : 0, false, d.uid);
     };
   }catch(e){ _mistBC = null; }
 
-  // Broadcast a local solve to all same-origin tabs immediately
   function _broadcastMistSolve(uid, slot, ts){
     if(!_mistBC) return;
     try{ _mistBC.postMessage({ type:'mist-solve', data:{ uid:uid, slot:slot, ts:ts } }); }catch(e){}
   }
 
+  // External trigger (from BRPN buoyancy system)
   window._buoyancyMistPulse=function(detail){
-    if(detail&&typeof detail.slot==='number') _fireMistNetworkReaction(detail.slot,false);
+    if(detail&&typeof detail.slot==='number') _fireMistNetworkReaction(detail.slot, false, detail.uid||null);
   };
 
   function _startMistPoller(){
     setTimeout(function(){
       _pollRemoteMist();
-      setInterval(_pollRemoteMist, 6000); // poll every 6s for snappier cross-user response
+      setInterval(_pollRemoteMist, 6000);
     }, 5000);
   }
 
