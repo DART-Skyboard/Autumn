@@ -25,6 +25,9 @@
 
   var DIFF = { 1:{w:5,h:5}, 2:{w:9,h:9}, 3:{w:13,h:13} };
 
+  // Unique ID for this page-load instance — used to avoid self-reaction via poll
+  var _mistInstanceId = 'mi_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+
   // Slot → BRPN network reaction profile
   var SLOT_PROFILE = {
     0: { emotion:'inspired',   pulse:1.4, speed:1.25, shellBoost:[0.08,0.06,0.04], label:'★ STAR SOLVED' },
@@ -440,7 +443,10 @@
     _spawnMistGeometry(slot);
     if(isLocal && typeof writeLeatrAshMemory === 'function') {
       var uid = (typeof _aut_sid !== 'undefined') ? _aut_sid : (typeof _aut_uid !== 'undefined') ? _aut_uid : 'anon';
-      writeLeatrAshMemory('ashtree/mist/' + uid + '.json', { uid:uid, slot:slot, ts:Date.now(), label:prof.label, emotion:prof.emotion });
+      var _mts = Date.now();
+      writeLeatrAshMemory('ashtree/mist/' + uid + '.json', { uid:uid, slot:slot, ts:_mts, instanceId:_mistInstanceId, label:prof.label, emotion:prof.emotion });
+      // Instantly notify all same-origin tabs (including same-user second sessions)
+      _broadcastMistSolve(uid, slot, _mts);
     }
   }
 
@@ -537,38 +543,53 @@
   function _pollRemoteMist(){
     var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():'';
     if(!pat)return;
-    var localUid=(typeof _aut_sid!=='undefined')?_aut_sid:(typeof _aut_uid!=='undefined')?_aut_uid:'local';
     fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
-      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
       signal:AbortSignal.timeout(6000)
     }).then(function(r){return r.ok?r.json():null;})
     .then(function(files){
       if(!Array.isArray(files))return;
-      var STALE_MS=90000;
-      var remotes=files.filter(function(f){return f.name.endsWith('.json')&&f.name!==localUid+'.json';}).slice(0,20);
-      remotes.forEach(function(f){
-        fetch(f.download_url,{signal:AbortSignal.timeout(4000)})
+      var STALE_MS=60000; // 60s — tighter window so events feel live
+      // Include ALL json files — same-user other sessions should also trigger reactions
+      files.filter(function(f){return f.name.endsWith('.json');}).slice(0,30).forEach(function(f){
+        fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(d){
             if(!d||!d.ts||!d.uid)return;
+            // Skip if this exact instance wrote it (already reacted locally)
+            if(d.instanceId && d.instanceId===_mistInstanceId)return;
             var age=Date.now()-d.ts;
             if(age>STALE_MS)return;
-            var lastSeen=MIST.lastRemoteTs[d.uid]||0;
-            if(d.ts<=lastSeen)return;
-            MIST.lastRemoteTs[d.uid]=d.ts;
+            // Debounce by uid+ts — allows future solves from same user through
+            var key=d.uid+':'+d.ts;
+            if(MIST.lastRemoteTs[key])return;
+            MIST.lastRemoteTs[key]=true;
             _fireMistNetworkReaction(d.slot||0, false);
           }).catch(function(){});
       });
     }).catch(function(){});
   }
 
+  // ── BroadcastChannel — same-origin tabs (instant, including same-user multi-tab) ──
+  var _mistBC = null;
   try{
-    var _mistBC=new BroadcastChannel('autumn_mist');
-    _mistBC.onmessage=function(ev){
-      if(!ev.data||ev.data.type!=='mist-solve')return;
-      _fireMistNetworkReaction(ev.data.data&&ev.data.data.slot!=null?ev.data.data.slot:0,false);
+    _mistBC = new BroadcastChannel('autumn_mist');
+    _mistBC.onmessage = function(ev){
+      if(!ev.data || ev.data.type !== 'mist-solve') return;
+      var d = ev.data.data || {};
+      // Debounce by uid+ts so duplicate firings are blocked
+      var key = (d.uid||'?') + ':' + (d.ts||0);
+      if(MIST.lastRemoteTs[key]) return;
+      MIST.lastRemoteTs[key] = true;
+      _fireMistNetworkReaction(d.slot != null ? d.slot : 0, false);
     };
-  }catch(e){}
+  }catch(e){ _mistBC = null; }
+
+  // Broadcast a local solve to all same-origin tabs immediately
+  function _broadcastMistSolve(uid, slot, ts){
+    if(!_mistBC) return;
+    try{ _mistBC.postMessage({ type:'mist-solve', data:{ uid:uid, slot:slot, ts:ts } }); }catch(e){}
+  }
 
   window._buoyancyMistPulse=function(detail){
     if(detail&&typeof detail.slot==='number') _fireMistNetworkReaction(detail.slot,false);
@@ -577,8 +598,8 @@
   function _startMistPoller(){
     setTimeout(function(){
       _pollRemoteMist();
-      setInterval(_pollRemoteMist,12000);
-    },8000);
+      setInterval(_pollRemoteMist, 6000); // poll every 6s for snappier cross-user response
+    }, 5000);
   }
 
   function setStatus(msg) { var el = document.getElementById('mist-status'); if(el) el.textContent = msg; }
