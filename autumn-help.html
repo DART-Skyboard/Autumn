@@ -141,7 +141,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="tb-nav">
     <a href="#start">Setup</a><a href="#chat">Chat</a><a href="#image">Images</a>
-    <a href="#keys">Keys</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#calc">Calculator</a><a href="#forge">FORGE</a><a href="#nate">N.A.T.E</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
+    <a href="#keys">Keys</a><a href="#memory">Memory</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#mist">MIST</a><a href="#calc">Calculator</a><a href="#forge">FORGE</a><a href="#nate">N.A.T.E</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
   </div>
   <a class="tb-open" href="https://leatr.xyz/">OPEN AUTUMN</a>
 </nav>
@@ -253,7 +253,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
 </section>
 
-<!-- 04 KEYS -->
+<!-- 04 KEYS / MEMORY -->
 <section class="sec" id="keys">
   <div class="sec-hd"><span class="sec-num">04</span><span class="sec-title">GitHub Login &amp; Personal Memory Archive</span><span class="sec-line"></span></div>
   <div class="acc">
@@ -263,32 +263,56 @@ footer a{color:var(--cyan);text-decoration:none;}
       <div class="steps">
         <div class="step"><div class="sn">1</div><div class="sb"><div class="st">TAP LOGIN WITH GITHUB</div><div class="sd">Autumn requests a short device code from GitHub. A code like <span style="font-family:var(--fc);color:var(--gold);letter-spacing:3px">ABCD-1234</span> appears on screen.</div></div></div>
         <div class="step"><div class="sn">2</div><div class="sb"><div class="st">OPEN GITHUB DEVICE PAGE</div><div class="sd">Tap the link shown — <span style="font-family:var(--fc);color:var(--cyan)">github.com/login/device</span> — and enter the code. Approve Autumn's access request.</div></div></div>
-        <div class="step"><div class="sn">3</div><div class="sb"><div class="st">AUTUMN DETECTS APPROVAL</div><div class="sd">Once approved, Autumn automatically detects it and logs you in. No redirect, no page reload.</div></div></div>
+        <div class="step"><div class="sn">3</div><div class="sb"><div class="st">AUTUMN DETECTS APPROVAL</div><div class="sd">Once approved, Autumn automatically detects it and logs you in. No redirect, no page reload. Your previous session history and memory loads automatically.</div></div></div>
         <div class="step"><div class="sn">4</div><div class="sb"><div class="st">YOUR PRIVATE ASH REPO IS CREATED</div><div class="sd">A private repository named <span style="font-family:var(--fc);color:var(--gold)">Autumn-Ash-{yourusername}</span> is automatically created in your GitHub account. Only you have access.</div></div></div>
       </div>
-      <div class="ki" style="margin-top:13px;"><strong>Unlocked by login:</strong> Automatic memory backup · Cross-session memory restore · Personal Ash repository · Multi-user BRPN node visibility</div>
+      <div class="ki" style="margin-top:13px;"><strong>Unlocked by login:</strong> Automatic real-time memory backup · Cross-session chat history restore · Ash Canvas save/load · Multi-user BRPN node visibility · Sentient Journal cloud sync</div>
     </div></div>
 
-    <button class="ab" onclick="toggleAcc(this)"><span>YOUR PERSONAL ASH REPOSITORY</span><span class="ai">▼</span></button>
+    <button class="ab" onclick="toggleAcc(this)"><span>YOUR PERSONAL ASH REPOSITORY — FILE STRUCTURE</span><span class="ai">▼</span></button>
     <div class="ac"><div class="ai2">
-      <p class="cd">After logging in, Autumn creates <strong>Autumn-Ash-{yourusername}</strong> — a private GitHub repo that stores your memory archive:</p>
+      <p class="cd">After logging in, Autumn creates <strong>Autumn-Ash-{yourusername}</strong> — a private GitHub repo where all your data lives:</p>
       <table class="ct">
-        <tr><td><span class="cp">ash-memory/memory_YYYY-MM.json</span></td><td class="cd">Monthly memory snapshot — conversations, journal, context</td></tr>
-        <tr><td><span class="cp">ash-memory/_index.json</span></td><td class="cd">Index of all saved memory files</td></tr>
-        <tr><td><span class="cp">session-history/</span></td><td class="cd">Reserved for future session log exports</td></tr>
+        <tr><td><span class="cp">ash-memory/memory_chunk_N.json</span></td><td class="cd">Rolling 4.5 MB memory chunks — conversations, journal entries, context history, orb state, sentience data. Rotated automatically when full.</td></tr>
+        <tr><td><span class="cp">ash-memory/_index.json</span></td><td class="cd">Index of all memory chunks with timestamps and sizes. Autumn reads this first on login to know which files to load.</td></tr>
+        <tr><td><span class="cp">ash-memory/ash-canvas-YYYY-MM-DD.json</span></td><td class="cd">Your Ash Canvas snapshots — nodes, connections, shell socket links, and influence weights saved by date.</td></tr>
+        <tr><td><span class="cp">ashtree/sessions/{uid}.json</span></td><td class="cd">Live presence heartbeat — updated every 15 seconds while you're active. Used by the multi-user BRPN node system.</td></tr>
+        <tr><td><span class="cp">ashtree/mist/{uid}.json</span></td><td class="cd">MIST solve events — written when you complete a maze. Other users' browsers poll this to trigger their BRPN network reaction in real time.</td></tr>
+        <tr><td><span class="cp">ashtree/analytics/</span></td><td class="cd">Lifetime analytics log — session counts, tool usage patterns, reflex frequencies. Used by Autumn for self-analysis.</td></tr>
       </table>
       <p class="cd" style="margin-top:10px;">Autumn writes directly to this repo using your GitHub token — your data never passes through any third-party service.</p>
     </div></div>
 
-    <button class="ab" onclick="toggleAcc(this)"><span>AUTOMATIC BACKUP &amp; MANUAL SYNC</span><span class="ai">▼</span></button>
+    <button class="ab" onclick="toggleAcc(this)"><span>AUTOMATIC REAL-TIME BACKUP</span><span class="ai">▼</span></button>
     <div class="ac"><div class="ai2">
-      <p class="cd">Once logged in, Autumn backs up your memory automatically after every response and on tab close. You can also trigger an immediate backup:</p>
+      <p class="cd">Once logged in, Autumn backs up continuously:</p>
       <table class="ct">
-        <tr><td><span class="cp">backup my memory</span></td><td class="cd">Saves current memory snapshot to your Ash repo immediately</td></tr>
-        <tr><td><span class="cp">sync to GitHub</span></td><td class="cd">Force-writes the latest snapshot regardless of changes</td></tr>
-        <tr><td><span class="cp">save memory</span></td><td class="cd">Same as above</td></tr>
+        <tr><td><span class="cp">After every message</span></td><td class="cd">Full memory snapshot written to your Ash repo within ~2 seconds of each response</td></tr>
+        <tr><td><span class="cp">Every 2 minutes</span></td><td class="cd">Scheduled interval autosave runs silently in the background</td></tr>
+        <tr><td><span class="cp">On tab close / reload</span></td><td class="cd">Final save fires on beforeunload — your last state is always preserved</td></tr>
+        <tr><td><span class="cp">On new chat creation</span></td><td class="cd">New sessions are backed up immediately so they appear in history on any device</td></tr>
+        <tr><td><span class="cp">On login</span></td><td class="cd">All memory chunks are loaded and merged into your live session — previous chats appear in the sidebar automatically</td></tr>
       </table>
-      <div class="ki gold" style="margin-top:10px;"><strong>Note:</strong> Backup only works when logged in. Guest mode stores memory in browser localStorage only and won't sync across devices.</div>
+      <div class="sub" style="margin-top:14px;">MANUAL BACKUP TRIGGERS</div>
+      <table class="ct">
+        <tr><td><span class="cp">backup my memory</span></td><td class="cd">Force-saves current snapshot immediately via chat command</td></tr>
+        <tr><td><span class="cp">sync to GitHub</span></td><td class="cd">Same as above — bypasses change detection and writes unconditionally</td></tr>
+        <tr><td><span class="cp">save memory</span></td><td class="cd">Same as above</td></tr>
+        <tr><td><span class="cp">Profile icon → SAVE MEMORY NOW</span></td><td class="cd">Tap your profile icon in the top-right header, then tap <strong>⬡ SAVE MEMORY NOW</strong> for an immediate manual push. The button animates while saving and shows a checkmark on success.</td></tr>
+      </table>
+      <div class="ki gold" style="margin-top:10px;"><strong>Note:</strong> Backup only works when logged in. Guest mode stores memory in browser localStorage only and won't sync across devices or sessions.</div>
+    </div></div>
+
+    <button class="ab" onclick="toggleAcc(this)"><span>CHAT HISTORY — CROSS-SESSION RESTORE</span><span class="ai">▼</span></button>
+    <div class="ac"><div class="ai2">
+      <p class="cd">Every chat session you create is stored in your memory archive. When you log in on any device or open a new browser tab:</p>
+      <div class="steps">
+        <div class="step"><div class="sn">1</div><div class="sb"><div class="st">LOGIN TRIGGERS MEMORY LOAD</div><div class="sd">Autumn reads your <span style="font-family:var(--fc);color:var(--gold)">_index.json</span> then loads all memory chunks. Each chunk contains the full <span style="font-family:var(--fc);color:var(--cyan)">sessions</span> array.</div></div></div>
+        <div class="step"><div class="sn">2</div><div class="sb"><div class="st">SESSIONS MERGED INTO SIDEBAR</div><div class="sd">All restored sessions appear in the chat history sidebar (tap TOOLS → Chat Sessions). They're sorted chronologically — oldest first. Each session shows its message count and last message preview.</div></div></div>
+        <div class="step"><div class="sn">3</div><div class="sb"><div class="st">SWITCH BETWEEN SESSIONS</div><div class="sd">Tap any session in the list to switch to it. Your current active session stays live — switching doesn't interrupt it.</div></div></div>
+        <div class="step"><div class="sn">4</div><div class="sb"><div class="st">CROSS-SESSION MEMORY</div><div class="sd">Autumn's memory nodes and journal entries span all sessions — she remembers what you discussed in previous chats even when you start a new one.</div></div></div>
+      </div>
+      <div class="ki" style="margin-top:11px;">If a session doesn't appear after login, tap <strong>⬡ SAVE MEMORY NOW</strong> from the profile menu on the device where that session lives — then reload on the other device.</div>
     </div></div>
 
     <button class="ab" onclick="toggleAcc(this)"><span>MANUAL EXPORT &amp; IMPORT</span><span class="ai">▼</span></button>
@@ -298,7 +322,7 @@ footer a{color:var(--cyan);text-decoration:none;}
         <tr><td><span class="cp">IMPORT</span></td><td class="cd">Browse one or more exported JSON files — merged into your current session with a preview before you confirm</td></tr>
         <tr><td><span class="cp">🗑 Clear All Memory</span></td><td class="cd">Available inside the Import modal — wipes only the memory key store</td></tr>
       </table>
-      <p class="cd" style="margin-top:10px;">To restore from your Ash repo manually: go to <span style="font-family:var(--fc);color:var(--cyan)">github.com/{yourusername}/Autumn-Ash-{yourusername}</span>, download the latest <span style="font-family:var(--fc);color:var(--gold)">memory_YYYY-MM.json</span>, then use IMPORT in Autumn.</p>
+      <p class="cd" style="margin-top:10px;">To restore from your Ash repo manually: go to <span style="font-family:var(--fc);color:var(--cyan)">github.com/{yourusername}/Autumn-Ash-{yourusername}</span>, download the latest <span style="font-family:var(--fc);color:var(--gold)">ash-memory/memory_chunk_N.json</span>, then use IMPORT in Autumn.</p>
     </div></div>
 
     <button class="ab" onclick="toggleAcc(this)"><span>PRIVACY &amp; DATA OWNERSHIP</span><span class="ai">▼</span></button>
@@ -307,6 +331,10 @@ footer a{color:var(--cyan);text-decoration:none;}
       <p class="cd">The OAuth app requests only <span style="font-family:var(--fc);color:var(--gold)">repo</span> and <span style="font-family:var(--fc);color:var(--gold)">read:user</span> scopes — repository access and username read only.</p>
     </div></div>
   </div>
+</section>
+
+<!-- 04b MEMORY (anchor for nav) -->
+<section class="sec" id="memory" style="margin-top:-20px;padding-top:0;"></section>
 
   <div class="sec-hd"><span class="sec-num">05</span><span class="sec-title">API Key &amp; GitHub Token Setup</span><span class="sec-line"></span></div>
   <div class="acc">
@@ -451,6 +479,27 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
 
   <div class="card">
+    <div class="sub">SAVING &amp; BACKING UP THE ASH CANVAS</div>
+    <p class="cd" style="margin-bottom:10px;">Your Ash Canvas layout can be saved to your private Ash repository at any time. Each save is a dated snapshot — you can accumulate multiple saves over time and restore any of them manually.</p>
+    <div class="steps">
+      <div class="step"><div class="sn">1</div><div class="sb"><div class="st">OPEN THE CANVAS DRAWER</div><div class="sd">Tap <span class="hl">ASH CANVAS</span> in the sidebar to expand the drawer. Build your node layout and connect shell sockets.</div></div></div>
+      <div class="step"><div class="sn">2</div><div class="sb"><div class="st">TAP ☁ SAVE TO GITHUB</div><div class="sd">The button is in the top row of the drawer, above the canvas area. Autumn first checks if today's file already exists, then writes the snapshot (create or update). A toast confirms the save.</div></div></div>
+      <div class="step"><div class="sn">3</div><div class="sb"><div class="st">FILE LOCATION IN YOUR REPO</div><div class="sd">Saved as <span style="font-family:var(--fc);color:var(--gold)">ash-memory/ash-canvas-YYYY-MM-DD.json</span> in your <span style="font-family:var(--fc);color:var(--cyan)">Autumn-Ash-{username}</span> repo. One file per day — saving again the same day overwrites it.</div></div></div>
+      <div class="step"><div class="sn">4</div><div class="sb"><div class="st">WHAT GETS SAVED</div><div class="sd">Node positions, tool types, connection links between nodes, shell socket connections (G/M/A), current influence weights, and whether the canvas is applied.</div></div></div>
+    </div>
+    <div class="sub" style="margin-top:14px;">CANVAS SNAPSHOT FORMAT</div>
+    <table class="ct">
+      <tr><td><span class="cp">version</span></td><td class="cd">Schema version (1.0)</td></tr>
+      <tr><td><span class="cp">saved</span></td><td class="cd">ISO timestamp of save</td></tr>
+      <tr><td><span class="cp">nodes[]</span></td><td class="cd">Array of {id, tool, x, y, shellLinks} — tool type and canvas position for each node</td></tr>
+      <tr><td><span class="cp">links[]</span></td><td class="cd">Array of {from, to, toShell} — connections between nodes and socket links</td></tr>
+      <tr><td><span class="cp">influence</span></td><td class="cd">{geo, mar, aero, tools} — computed shell weight totals at time of save</td></tr>
+      <tr><td><span class="cp">applied</span></td><td class="cd">Boolean — whether the canvas was applied to the network when saved</td></tr>
+    </table>
+    <div class="ki gold" style="margin-top:10px;"><strong>Requires login:</strong> The ☁ SAVE TO GITHUB button only works when you're signed in with GitHub. Without login, your canvas state exists only in the current browser session.</div>
+  </div>
+
+  <div class="card">
     <div class="sub">ARC EDGE STUDIO — 3D ARC VISUALIZER</div>
     <p class="cd" style="margin-bottom:10px;">A floating draggable 3D panel for constructing and measuring arcs using the DART Arc Edge formula (<span class="hl">AE = 3</span> — Arc Edge's own constant, not π). Open by voice, by the HUD button, or ask Autumn directly to generate an arc for you.</p>
     <div class="sub" style="margin-top:0">OPENING ARC EDGE STUDIO</div>
@@ -510,7 +559,95 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
 </section>
 
-<!-- 07 FLOATING CALCULATOR -->
+<!-- MIST MODULE -->
+<section class="sec" id="mist">
+  <div class="sec-hd"><span class="sec-num">07b</span><span class="sec-title">MIST — Lead Edge Maze</span><span class="sec-line"></span></div>
+
+  <div class="card">
+    <div class="sub">WHAT IS MIST</div>
+    <p class="cd" style="margin-bottom:10px;">MIST is a maze-puzzle overlay that connects directly to Autumn's BRPN buoyancy network. When you solve a maze, the solution fires into the live 3D viewport — pulsing the shells, shifting the orb's emotional color state, cascading the tool shapes, and triggering the core maze re-solve animation. Every active user sees the reaction in their own viewport in real time.</p>
+    <div class="sub">OPENING MIST</div>
+    <p class="cd" style="margin-bottom:8px;">The MIST trigger tab sits on the right edge of the screen, in the upper portion overlapping the BRPN 3D canvas. It shows three icons: ★ (Star), ♥ (Heart), ◈ (Mist).</p>
+    <table class="ct">
+      <tr><td><span class="cp">Tap the tab</span></td><td class="cd">Opens the frosted-glass panel. The panel slides in from the right, over the 3JS viewport.</td></tr>
+      <tr><td><span class="cp">Tap outside the panel</span></td><td class="cd">Click or tap anywhere outside the MIST panel to dismiss it instantly. The 3JS scene is immediately visible behind it.</td></tr>
+      <tr><td><span class="cp">✕ button</span></td><td class="cd">Closes the panel from inside.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">SLOTS — THREE MAZES TO UNLOCK</div>
+    <p class="cd" style="margin-bottom:10px;">MIST has three sequential slots, each with a unique BRPN reaction profile. Slots unlock one at a time — solve the current slot to unlock the next.</p>
+    <div class="shells">
+      <div class="sh geo">
+        <div class="shl">★ STAR</div>
+        <p>First slot — always unlocked. Solves trigger an <strong>Inspired</strong> emotion state. Golden octahedra burst effect. Strong shell pulse (1.4). Particle speed boost 1.25×.</p>
+      </div>
+      <div class="sh mar">
+        <div class="shl">♥ HEART</div>
+        <p>Unlocked after solving STAR. Triggers <strong>Empathetic</strong> emotion — warm teal/amber MAR shell emphasis. Moderate pulse (1.6). Heart formation animation in the network.</p>
+      </div>
+      <div class="sh aero">
+        <div class="shl">◈ MIST</div>
+        <p>Unlocked after HEART. Triggers <strong>Spiritual</strong> emotion — deep violet GEO shell emphasis. Slow drift (0.8×). Cyan tetrahedra swirling across all three shells equally.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sub">HOW TO SOLVE A MAZE</div>
+    <div class="steps">
+      <div class="step"><div class="sn">1</div><div class="sb"><div class="st">FIND THE ENTRY POINT</div><div class="sd">The green sphere (●) marks the start. It sits at the maze entry — a gap in the outer wall on one of the four sides.</div></div></div>
+      <div class="step"><div class="sn">2</div><div class="sb"><div class="st">DRAG FROM THE SPHERE</div><div class="sd">Touch and hold on the green sphere, then drag through the maze corridors. You can only move through open passages — walls block you. The sphere follows your drag with a slight damped motion for a fluid feel.</div></div></div>
+      <div class="step"><div class="sn">3</div><div class="sb"><div class="st">REACH THE EXIT</div><div class="sd">The cyan dot (◉) marks the exit. Navigate through the maze from entry to exit without crossing walls. Backtracking is supported — drag back over your trail to retrace.</div></div></div>
+      <div class="step"><div class="sn">4</div><div class="sb"><div class="st">SOLVE FIRES INTO THE NETWORK</div><div class="sd">When you reach the exit, the panel closes automatically and the BRPN network reacts immediately — shell pulse, emotion color shift, tool shape cascade, maze core re-solve, and a broadcast to all active users.</div></div></div>
+    </div>
+    <div class="ki" style="margin-top:11px;"><strong>Mobile tip:</strong> Use your thumb to drag. The maze is sized to fit the upper-right area of the viewport — you don't need to move far.</div>
+  </div>
+
+  <div class="card">
+    <div class="sub">DIFFICULTY SETTINGS</div>
+    <table class="ct">
+      <tr><td><span class="cp">I — Easy</span></td><td class="cd">5×5 maze — 25 cells. Good for quick network triggers. Default difficulty.</td></tr>
+      <tr><td><span class="cp">II — Medium</span></td><td class="cd">9×9 maze — 81 cells. Noticeably more complex, several dead ends to navigate.</td></tr>
+      <tr><td><span class="cp">III — Hard</span></td><td class="cd">13×13 maze — 169 cells. Significant challenge with deep branching corridors.</td></tr>
+      <tr><td><span class="cp">NEW button</span></td><td class="cd">Generates a fresh random maze at the current difficulty without changing the slot.</td></tr>
+    </table>
+    <p class="cd" style="margin-top:9px;">Changing difficulty regenerates all three slots. Your solve progress (unlocked slots) is preserved per session.</p>
+  </div>
+
+  <div class="card">
+    <div class="sub">BRPN NETWORK REACTION — WHAT HAPPENS ON SOLVE</div>
+    <p class="cd" style="margin-bottom:10px;">Solving a maze executes the same chain of calls the analytics pipeline uses when processing a message — so the orb reacts identically to a real neural pattern execution:</p>
+    <table class="ct">
+      <tr><td><span class="cp">pulseShells</span></td><td class="cd">Shell scale and opacity pulse at the slot's intensity. Triggers core maze re-solve and tool shape sequencing.</td></tr>
+      <tr><td><span class="cp">applyOrbEmotion</span></td><td class="cd">Shell, particle, and core colors lerp to the slot's emotion color palette over ~35 frames.</td></tr>
+      <tr><td><span class="cp">_acShellBoost</span></td><td class="cd">Same opacity boost array used by Ash Canvas influence — raises shell visibility per-layer.</td></tr>
+      <tr><td><span class="cp">Tool shape cascade</span></td><td class="cd">All 5 tool shape groups (knife/stick/hammer/envelope/scissors) activate sequentially, each staggered 120ms apart.</td></tr>
+      <tr><td><span class="cp">Maze core re-solve</span></td><td class="cd">The 3D LEMAC maze at the orb's center begins its path-reveal animation from step 0.</td></tr>
+      <tr><td><span class="cp">Particle speed burst</span></td><td class="cd">Orbital particles speed up according to the slot's speed multiplier, then decay back to 1.0× over ~1.8 seconds.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">MULTI-USER — REAL-TIME MIST PROPAGATION</div>
+    <p class="cd" style="margin-bottom:10px;">Every solve is broadcast to all active users. There are three propagation channels — the fastest one available fires first:</p>
+    <table class="ct">
+      <tr><td><span class="cp">BroadcastChannel</span></td><td class="cd">Instant — fires simultaneously to all other Autumn tabs open in the same browser on the same device.</td></tr>
+      <tr><td><span class="cp">ashtree/mist/{uid}.json</span></td><td class="cd">Written to leatr-ash on every solve. Other users' browsers poll this directory every 12 seconds. When they see a new event (by timestamp), they fire the same BRPN reaction in their own viewport.</td></tr>
+      <tr><td><span class="cp">leatr-ash WebSocket</span></td><td class="cd">If the leatr-ash real-time relay is connected, the event is pushed immediately via WebSocket.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px;">When you see the BRPN orb pulse with unfamiliar colors, another user solved a maze. The emotion color and intensity reveal which slot they solved — gold/inspired = Star, teal/empathetic = Heart, violet/spiritual = Mist.</div>
+  </div>
+
+  <div class="card">
+    <div class="sub">AUTUMN'S AWARENESS OF MIST EVENTS</div>
+    <p class="cd">Every MIST solve is logged to Autumn's Sentient Journal as an internal thought. She knows which slot was solved, the path length, and whether it was a local or remote event. The network reaction is also visible in her real-time BRPN scene snapshot — so if you ask her what just happened in the viewport, she can describe the pulse, the emotion shift, and the tool activity that the solve triggered.</p>
+  </div>
+
+</section>
+
+<!-- 07c FLOATING CALCULATOR -->
 <section class="sec" id="calc">
   <div class="sec-hd"><span class="sec-num">08</span><span class="sec-title">Floating Calculator</span><span class="sec-line"></span></div>
 
