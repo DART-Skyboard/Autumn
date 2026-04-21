@@ -1,155 +1,519 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  MIST MODULE — Autumn frosted-glass overlay maze
-//  Lead Edge Ash Tree Reflex
-//  On solve → drives BRPN buoyancy network (pulseShells/applyOrbEmotion/etc)
-//  Multi-user → writes to ashtree/mist/{uid}.json via writeLeatrAshMemory
-//              → polls every 6s for other users' mist events → reacts
-//  v2.1 — originUid-aware geometry: remote solves burst FROM that node,
-//          not from the local orb center.
+//  MIST MODULE v3 — Autumn Lead Edge Maze · Multi-User Real-Time
+//  DART-Skyboard/Autumn  ·  Radical Deepscale LLC
+//
+//  TWO-PHASE PROTOCOL
+//  ──────────────────
+//  PHASE 1 — SEND (your device, you solve):
+//    • Local animation: particles burst OUT from your orb center
+//    • Write {type:'solve', uid, slot, ts, instanceId} → ashtree/mist/{sid}.json
+//
+//  PHASE 2A — REACT (other devices, pattern-matched):
+//    • Poll finds your solve → compute _sessionPatternScore(theirUid, yourUid)
+//    • If score ≥ MATCH_THRESHOLD:
+//        – Their node fires local reaction geometry (mist at their orb)
+//        – Write {type:'reaction', uid:theirSid, slot, ts, replyTo:yourSid}
+//              → ashtree/mist/{theirSid}.json
+//
+//  PHASE 2B — FEEDBACK (your device, you see reactions):
+//    • Poll finds {type:'reaction', replyTo:yourSid}
+//    • Render reaction geometry AT that node's position in your scene
+//        (shockwave ring expanding from their node — not traveling to yours)
+//
+//  POLLING — SHA-diff cache: directory listing every 3s,
+//            file content fetched ONLY when sha changes. 
+//            Minimises GitHub API usage for real-time feel.
 // ═══════════════════════════════════════════════════════════════════════════
 (function() {
   'use strict';
 
+  // ── Constants ────────────────────────────────────────────────────────────
+  var MATCH_THRESHOLD  = 0.22;  // _sessionPatternScore min to trigger reaction
+  var POLL_MS          = 3000;  // poll interval — 3s for real-time feel
+  var STALE_MS         = 90000; // ignore events older than 90s
+  var MAX_MIST_FILES   = 40;    // max files to scan per poll
+  var REACTION_LIMIT   = 8;     // max simultaneous reaction geometries
+  var REACTION_COOLDOWN= 4000;  // ms between reactions from same uid
+
+  // ── State ────────────────────────────────────────────────────────────────
   var MIST = {
-    open: false,
-    difficulty: 1,
-    mazes: [null,null,null],
-    solvedCount: 0,
-    dragging: false,
-    dragPos: null,
-    dragPath: [],
-    activeMaze: 0,
-    sphereTarget: null,
-    sphereActual: null,
-    sphereAnimId: null,
-    lastRemoteTs: {}   // uid+ts → true, debounce duplicate fires
+    open: false, difficulty: 1,
+    mazes: [null,null,null], solvedCount: 0,
+    dragging: false, dragPos: null, dragPath: [],
+    activeMaze: 0, sphereTarget: null, sphereActual: null, sphereAnimId: null,
+    seenKeys:  {},   // "uid:ts" → true  (debounce all events)
+    lastReact: {}    // uid → ts  (cooldown per remote uid)
   };
 
   var DIFF = { 1:{w:5,h:5}, 2:{w:9,h:9}, 3:{w:13,h:13} };
 
-  // Unique ID for this page-load instance — used to avoid self-reaction via poll
-  var _mistInstanceId = 'mi_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  var _instanceId = 'mi_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
 
-  // Slot → BRPN network reaction profile
+  // Recent local solve uids+ts so we can match incoming reactions
+  var _myRecentSolves = []; // [{uid, ts}]  keep last 20
+
+  // SHA diff cache — only fetch file content when sha changes
+  var _shaCache = {}; // filename → sha
+
+  // Slot → BRPN reaction profile
   var SLOT_PROFILE = {
-    0: { emotion:'inspired',   pulse:1.4, speed:1.25, shellBoost:[0.08,0.06,0.04], label:'★ STAR SOLVED' },
-    1: { emotion:'empathetic', pulse:1.6, speed:1.1,  shellBoost:[0.05,0.10,0.06], label:'♥ HEART SOLVED' },
-    2: { emotion:'spiritual',  pulse:1.0, speed:0.8,  shellBoost:[0.12,0.08,0.10], label:'◈ MIST SOLVED'  }
+    0: { emotion:'inspired',   pulse:1.4, speed:1.25, shellBoost:[0.08,0.06,0.04], label:'★ STAR SOLVED',   color:0xffdd00 },
+    1: { emotion:'empathetic', pulse:1.6, speed:1.1,  shellBoost:[0.05,0.10,0.06], label:'♥ HEART SOLVED',  color:0xff4488 },
+    2: { emotion:'spiritual',  pulse:1.0, speed:0.8,  shellBoost:[0.12,0.08,0.10], label:'◈ MIST SOLVED',   color:0x00e5ff }
   };
 
-  // ── LEAD EDGE maze generator ───────────────────────────────────────────
-  function generateMaze(w, h) {
-    var grid = [];
-    var branch1 = []; // Perimeter generation branch
-    var branch2 = []; // Variable placeholder for subtraction logic
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function _localSid() {
+    return (typeof _aut_sid !== 'undefined') ? _aut_sid
+         : (typeof _aut_uid !== 'undefined') ? _aut_uid
+         : 'local';
+  }
+  function _pat() {
+    return (typeof getLeatrAshPAT === 'function') ? getLeatrAshPAT() : '';
+  }
+  function _patScore(a, b) {
+    if(typeof _sessionPatternScore === 'function') return _sessionPatternScore(a, b);
+    // Fallback hash-based pseudo-score when function not yet loaded
+    var h = 0;
+    for(var i=0;i<a.length;i++) h=(h*31+a.charCodeAt(i))&0x7fffffff;
+    var h2=0;
+    for(var j=0;j<b.length;j++) h2=(h2*31+b.charCodeAt(j))&0x7fffffff;
+    return Math.max(0, 1 - Math.abs(h/0x7fffffff - h2/0x7fffffff) * 2.5);
+  }
+  function _nodePos(uid) {
+    // Returns THREE.Vector3 for a remote session node, or null if not in scene
+    if(typeof _ashNodes === 'undefined' || !_ashNodes._sessionGroups) return null;
+    var g = _ashNodes._sessionGroups[uid];
+    return (g && g.group) ? g.group.position.clone() : null;
+  }
+  function _applyBRPN(prof) {
+    if(typeof pulseShells === 'function') {
+      pulseShells(prof.pulse);
+      setTimeout(function(){ if(typeof pulseShells==='function') pulseShells(prof.pulse*.5); }, 230);
+    }
+    if(typeof applyOrbEmotion === 'function') applyOrbEmotion(prof.emotion);
+    window._acShellBoost = window._acShellBoost || [0,0,0];
+    window._acShellBoost[0] = Math.min(.22, (window._acShellBoost[0]||0) + prof.shellBoost[0]);
+    window._acShellBoost[1] = Math.min(.18, (window._acShellBoost[1]||0) + prof.shellBoost[1]);
+    window._acShellBoost[2] = Math.min(.16, (window._acShellBoost[2]||0) + prof.shellBoost[2]);
+    window._orbEmoSpeedMult = prof.speed;
+    setTimeout(function(){ window._orbEmoSpeedMult = Math.max(window._orbEmoSpeedMult*.85, 1.0); }, 1800);
+    if(typeof mazeOrbState !== 'undefined') {
+      mazeOrbState.solveActive=true; mazeOrbState.solveStep=0;
+      if(mazeOrbState.pathMeshes) mazeOrbState.pathMeshes.forEach(function(m){ if(m&&m.material) m.material.opacity=0; });
+    }
+  }
+  function _journal(msg) {
+    if(window.S && window.S.journal)
+      window.S.journal.push({ts:new Date().toISOString(),_internal:true,_thought:msg});
+  }
 
-    // Initialize unit-consistent grid with high detail placeholders
-    for(var y=0; y<h; y++) {
-      grid[y] = [];
-      for(var x=0; x<w; x++) {
-        grid[y][x] = { n: 1, s: 1, e: 1, w: 1, v1: false, v2: false };
-      }
+  // ── PHASE 1 — LOCAL SOLVE ─────────────────────────────────────────────
+  function _onLocalSolve(slot) {
+    var prof = SLOT_PROFILE[slot];
+    _applyBRPN(prof);
+    _spawnOutgoingMist(slot);  // burst OUT from your orb
+    _journal('MIST SEND — slot ' + slot + ' (' + prof.label + '). Broadcasting to network.');
+
+    var uid = _localSid(), ts = Date.now();
+    _myRecentSolves.push({uid:uid, ts:ts});
+    if(_myRecentSolves.length > 20) _myRecentSolves.shift();
+
+    // Write solve event to leatr-ash
+    if(typeof writeLeatrAshMemory === 'function') {
+      writeLeatrAshMemory('ashtree/mist/' + uid + '.json', {
+        type: 'solve', uid: uid, slot: slot, ts: ts,
+        instanceId: _instanceId, label: prof.label, emotion: prof.emotion
+      });
+    }
+    // Instant same-origin tab notification
+    _bcSend({ type:'solve', uid:uid, slot:slot, ts:ts });
+  }
+
+  // ── PHASE 2A — REACT to incoming solve (fires on OTHER sessions) ───────
+  function _onIncomingSolve(ev) {
+    var prof = SLOT_PROFILE[ev.slot];
+    var myUid = _localSid();
+
+    // Pattern match check
+    var score = _patScore(myUid, ev.uid);
+    if(score < MATCH_THRESHOLD) return;
+
+    // Cooldown — don't react to same sender more than once per REACTION_COOLDOWN
+    var now = Date.now();
+    if(MIST.lastReact[ev.uid] && (now - MIST.lastReact[ev.uid]) < REACTION_COOLDOWN) return;
+    MIST.lastReact[ev.uid] = now;
+
+    // Apply BRPN on this session
+    _applyBRPN(prof);
+    // Fire reaction geometry from THIS session's orb
+    _spawnReactionLocal(slot, score);
+    _journal('MIST REACT — incoming from ' + ev.uid.slice(0,14) + ' (score:' + score.toFixed(2) + '). Slot ' + ev.slot + '.');
+
+    // Write reaction back so sender sees it
+    if(typeof writeLeatrAshMemory === 'function') {
+      writeLeatrAshMemory('ashtree/mist/' + myUid + '.json', {
+        type: 'reaction', uid: myUid, slot: ev.slot, ts: now,
+        replyTo: ev.uid, score: score, instanceId: _instanceId
+      });
+    }
+    _bcSend({ type:'reaction', uid:myUid, slot:ev.slot, ts:now, replyTo:ev.uid, score:score });
+  }
+
+  // ── PHASE 2B — FEEDBACK: see remote reaction in YOUR scene ─────────────
+  function _onRemoteReaction(ev) {
+    // Show their reaction AT their node in your scene
+    var pos = _nodePos(ev.uid);
+    _spawnReactionRemote(ev.slot, pos, ev.score || 0.5);
+    _journal('MIST FEEDBACK — ' + ev.uid.slice(0,14) + ' reacted to your solve (slot ' + ev.slot + ').');
+  }
+
+  // ── GEOMETRY — PHASE 1: outgoing burst from your orb ──────────────────
+  // Full STAR/HEART/MIST geometry radiating outward, connecting to all
+  // visible session nodes via curves.
+  var _activeGeom = [];
+  function _spawnOutgoingMist(slot) {
+    if(typeof THREE === 'undefined' || typeof scene === 'undefined') return;
+    var col = new THREE.Color(SLOT_PROFILE[slot].color);
+
+    // Positions: orb center + all known remote nodes
+    var positions = [new THREE.Vector3(0,0,0)];
+    if(typeof _ashNodes !== 'undefined' && _ashNodes._sessionGroups) {
+      Object.keys(_ashNodes._sessionGroups).forEach(function(sid) {
+        var g = _ashNodes._sessionGroups[sid];
+        if(g && g.group) positions.push(g.group.position.clone());
+      });
+    }
+    if(positions.length < 2) {
+      positions.push(new THREE.Vector3(2.2,1.2,-1.2));
+      positions.push(new THREE.Vector3(-1.8,1.8,1));
     }
 
-    // Branch 1: Structural Perimeter Wall Carving
-    function carveBranch1(x, y) {
-      grid[y][x].v1 = true;
-      var dirs = [['n',0,-1],['s',0,1],['e',1,0],['w',-1,0]];
-      dirs.sort(function(){ return Math.random() - .5; });
-      dirs.forEach(function(d) {
-        var nx = x + d[1], ny = y + d[2];
-        if(nx >= 0 && nx < w && ny >= 0 && ny < h && !grid[ny][nx].v1) {
-          grid[y][x][d[0]] = 0;
-          grid[ny][nx][{n:'s',s:'n',e:'w',w:'e'}[d[0]]] = 0;
-          carveBranch1(nx, ny);
+    _buildMistGroup(slot, col, positions, false, 1.0);
+  }
+
+  // ── GEOMETRY — PHASE 2A: your node reacts to incoming (local reaction) ─
+  // Smaller contained burst from your orb, scaled by pattern score.
+  function _spawnReactionLocal(slot, score) {
+    if(typeof THREE === 'undefined' || typeof scene === 'undefined') return;
+    var base = SLOT_PROFILE[slot].color;
+    // Shift hue slightly for visual distinction from outgoing
+    var col = new THREE.Color(base);
+    var hsl = {}; col.getHSL(hsl);
+    col.setHSL((hsl.h + 0.08) % 1.0, hsl.s, Math.min(0.9, hsl.l * 1.15));
+    _buildMistGroup(slot, col, [new THREE.Vector3(0,0,0)], false, Math.min(1.0, 0.5 + score * 0.5));
+  }
+
+  // ── GEOMETRY — PHASE 2B: shockwave ring AT the reacting remote node ────
+  // A toroidal shockwave that expands and fades at the remote node's position.
+  // Does NOT travel anywhere — it's their node "glowing" in your scene.
+  function _spawnReactionRemote(slot, pos, score) {
+    if(typeof THREE === 'undefined' || typeof scene === 'undefined') return;
+    var col = new THREE.Color(SLOT_PROFILE[slot].color);
+    var origin = pos || new THREE.Vector3(
+      (Math.random()-.5)*4, (Math.random()-.5)*4, (Math.random()-.5)*4
+    );
+    var group = new THREE.Group();
+    group._mAge = 0; group._mMax = 140; group._mSlot = slot; group._mObjs = [];
+    group._mMode = 'remote_reaction';
+
+    // 3 expanding rings + scattered small sparks
+    for(var r=0; r<3; r++) {
+      var ringGeo = new THREE.TorusGeometry(0.08 + r*0.06, 0.012, 4, 18);
+      var ringMat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.85-r*0.15, wireframe:true});
+      var ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.copy(origin);
+      ring.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+      ring._expandSpd = 0.008 + r*0.004 + score*0.006;
+      ring._mr = new THREE.Vector3(Math.random()*.04, Math.random()*.03, 0);
+      group._mObjs.push(ring); group.add(ring);
+    }
+    // Score-scaled spark count
+    var sparks = Math.round(6 + score * 10);
+    for(var s=0; s<sparks; s++) {
+      var sg = new THREE.OctahedronGeometry(0.03 + Math.random()*.04, 0);
+      var sm = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.75, wireframe:true});
+      var spark = new THREE.Mesh(sg, sm);
+      spark.position.copy(origin);
+      var a=Math.random()*Math.PI*2, b=Math.acos(2*Math.random()-1), spd=0.008+Math.random()*.014;
+      spark._mv = new THREE.Vector3(Math.sin(b)*Math.cos(a)*spd, Math.sin(b)*Math.sin(a)*spd, Math.cos(b)*spd);
+      spark._mr = new THREE.Vector3(Math.random()*.06, Math.random()*.05, 0);
+      spark._origin = origin.clone();
+      spark._maxDist = 0.5 + score * 0.8;
+      group._mObjs.push(spark); group.add(spark);
+    }
+
+    scene.add(group);
+    _activeGeom.push(group);
+  }
+
+  // ── GEOMETRY — shared builder (outgoing + local reaction) ─────────────
+  function _buildMistGroup(slot, col, positions, isReaction, scale) {
+    var group = new THREE.Group();
+    group._mAge = 0; group._mMax = isReaction ? 140 : 180;
+    group._mSlot = slot; group._mObjs = [];
+    group._mMode = isReaction ? 'local_reaction' : 'outgoing';
+    var perNode = Math.round((slot===0?6:slot===1?4:7) * scale);
+
+    positions.forEach(function(nodePos, ni) {
+      for(var i=0; i<(ni===0?perNode:Math.max(2,perNode-2)); i++) {
+        var geo, mat, mesh;
+        if(slot===0) {
+          geo = new THREE.OctahedronGeometry((0.09+Math.random()*.13)*scale, 0);
+          mat = new THREE.MeshBasicMaterial({color:col, wireframe:true, transparent:true, opacity:.9});
+          mesh = new THREE.Mesh(geo, mat);
+          mesh.position.copy(nodePos);
+          var a=Math.random()*Math.PI*2, b=Math.acos(2*Math.random()-1), spd=(0.022+Math.random()*.038)*scale;
+          mesh._mv = new THREE.Vector3(Math.sin(b)*Math.cos(a)*spd, Math.sin(b)*Math.sin(a)*spd, Math.cos(b)*spd);
+          mesh._mr = new THREE.Vector3(Math.random()*.05, Math.random()*.04, 0);
+        } else if(slot===1) {
+          geo = new THREE.SphereGeometry((0.055+Math.random()*.04)*scale, 5, 5);
+          mat = new THREE.MeshBasicMaterial({color:col, wireframe:true, transparent:true, opacity:.85});
+          mesh = new THREE.Mesh(geo, mat);
+          var origin = positions[0], target = nodePos;
+          var mid = origin.clone().add(target).multiplyScalar(.5)
+            .add(new THREE.Vector3((Math.random()-.5)*.8, 1.2+Math.random()*.8, (Math.random()-.5)*.8));
+          mesh._mc = new THREE.CatmullRomCurve3([origin.clone(), mid, target.clone()]);
+          mesh._mt = (i/perNode)*-.35; mesh._mspd = (0.006+Math.random()*.003)*scale;
+          mesh._mr = new THREE.Vector3(0, 0, Math.random()*.04);
+          mesh.position.copy(origin);
+        } else {
+          geo = new THREE.TetrahedronGeometry((0.07+Math.random()*.1)*scale, 0);
+          mat = new THREE.MeshBasicMaterial({color:col, wireframe:true, transparent:true, opacity:.65});
+          mesh = new THREE.Mesh(geo, mat);
+          var curve = null;
+          if(typeof _ashNodes !== 'undefined' && _ashNodes._splines) {
+            var ks = Object.keys(_ashNodes._splines);
+            if(ks.length) curve = _ashNodes._splines[ks[(ni*perNode+i)%ks.length]].curve;
+          }
+          if(!curve) {
+            var pa=positions[0], pb=positions[Math.max(1,(ni+1)%positions.length)];
+            var mpt=pa.clone().add(pb).multiplyScalar(.5)
+              .add(new THREE.Vector3((Math.random()-.5)*1.5,(Math.random()-.5)*1.5,0));
+            curve=new THREE.CatmullRomCurve3([pa.clone(),mpt,pb.clone()]);
+          }
+          mesh._mc=curve; mesh._mt=Math.random(); mesh._mspd=(0.004+Math.random()*.005)*scale;
+          mesh._mr=new THREE.Vector3(Math.random()*.035,Math.random()*.03,0);
+          mesh.position.copy(curve.getPoint(mesh._mt));
+        }
+        group._mObjs.push(mesh); group.add(mesh);
+      }
+    });
+
+    // Connecting arc lines from origin to targets
+    for(var li=0; li<Math.min(5,positions.length); li++) {
+      var lpa=positions[0], lpb=positions[(li+1)%positions.length];
+      var lmid=lpa.clone().add(lpb).multiplyScalar(.5)
+        .add(new THREE.Vector3((Math.random()-.5)*2,(Math.random()-.5)*2,0));
+      var lc=new THREE.CatmullRomCurve3([lpa,lmid,lpb]);
+      var lGeo=new THREE.BufferGeometry().setFromPoints(lc.getPoints(40));
+      var lMat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.35*scale});
+      group.add(new THREE.Line(lGeo,lMat));
+    }
+    scene.add(group);
+    _activeGeom.push(group);
+  }
+
+  // ── Animation tick ───────────────────────────────────────────────────────
+  (function _tick() {
+    requestAnimationFrame(_tick);
+    if(!_activeGeom.length) return;
+    var rem = [];
+    _activeGeom.forEach(function(g) {
+      g._mAge++;
+      var fade = 1 - g._mAge/g._mMax;
+      if(fade <= 0) { rem.push(g); return; }
+      g._mObjs.forEach(function(obj) {
+        if(g._mMode === 'remote_reaction') {
+          // Rings expand, sparks fly out then stop
+          if(obj._expandSpd !== undefined) {
+            // Ring
+            var s = obj.scale.x + obj._expandSpd;
+            obj.scale.setScalar(s);
+            obj.rotation.x += obj._mr.x; obj.rotation.y += obj._mr.y;
+            obj.material.opacity = (0.85 - (obj.scale.x-1)*0.6) * fade;
+          } else {
+            // Spark — moves until max dist then stays
+            if(obj._origin) {
+              var dist = obj.position.distanceTo(obj._origin);
+              if(dist < obj._maxDist) obj.position.add(obj._mv);
+              obj.rotation.x += obj._mr.x; obj.rotation.y += obj._mr.y;
+              obj.material.opacity = .75 * fade;
+            }
+          }
+        } else if(g._mSlot===0) {
+          obj.position.add(obj._mv);
+          obj.rotation.x+=obj._mr.x; obj.rotation.y+=obj._mr.y;
+          obj.material.opacity=.9*fade;
+        } else if(g._mSlot===1) {
+          obj._mt+=obj._mspd; if(obj._mt>1) obj._mt=0;
+          if(obj._mc){ var pt=obj._mc.getPoint(Math.min(1,obj._mt)); obj.position.copy(pt); }
+          obj.rotation.z+=obj._mr.z; obj.material.opacity=.85*fade;
+        } else {
+          obj._mt+=obj._mspd; if(obj._mt>1) obj._mt=0;
+          if(obj._mc){ var pt2=obj._mc.getPoint(obj._mt); obj.position.copy(pt2); obj.position.x+=Math.sin(g._mAge*.06+obj._mt*5)*.07; }
+          obj.rotation.x+=obj._mr.x; obj.rotation.y+=obj._mr.y;
+          obj.material.opacity=.65*fade;
+        }
+      });
+    });
+    rem.forEach(function(g) {
+      if(typeof scene !== 'undefined') scene.remove(g);
+      g._mObjs.forEach(function(o){ o.geometry&&o.geometry.dispose(); o.material&&o.material.dispose(); });
+      var idx = _activeGeom.indexOf(g); if(idx>=0) _activeGeom.splice(idx,1);
+    });
+  })();
+
+  // ── POLL — SHA-diff cache, 3s interval ──────────────────────────────────
+  function _poll() {
+    var pat = _pat(); if(!pat) return;
+    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
+      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
+      signal: AbortSignal.timeout(5000)
+    }).then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(files) {
+      if(!Array.isArray(files)) return;
+      var myUid = _localSid();
+      files.filter(function(f){ return f.name.endsWith('.json'); })
+           .slice(0, MAX_MIST_FILES)
+           .forEach(function(f) {
+        // Only fetch if SHA changed since last poll
+        if(_shaCache[f.name] === f.sha) return;
+        _shaCache[f.name] = f.sha;
+
+        fetch(f.download_url + '?_=' + Date.now(), { signal: AbortSignal.timeout(4000) })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(d) {
+            var evts = Array.isArray(d) ? d : (d && d.ts && d.uid) ? [d] : null;
+            if(!evts || !evts.length) return;
+
+            evts.forEach(function(ev) {
+              if(!ev || !ev.ts || !ev.uid) return;
+              // Ignore own instance to prevent double-fire
+              if(ev.instanceId && ev.instanceId === _instanceId) return;
+              // Ignore stale
+              if(Date.now() - ev.ts > STALE_MS) return;
+              // Global debounce
+              var key = ev.uid + ':' + ev.ts + ':' + (ev.type||'solve');
+              if(MIST.seenKeys[key]) return;
+              MIST.seenKeys[key] = true;
+
+              var slot = (ev.slot != null) ? ev.slot : 0;
+
+              if(ev.type === 'reaction' && ev.replyTo) {
+                // Is this a reaction to one of MY solves?
+                var isMyFeedback = _myRecentSolves.some(function(s){
+                  return s.uid === ev.replyTo && (ev.ts - s.ts) < STALE_MS;
+                });
+                if(isMyFeedback) {
+                  // PHASE 2B: show their reaction at their node in my scene
+                  var rpos = _nodePos(ev.uid);
+                  _spawnReactionRemote(slot, rpos, ev.score || 0.5);
+                  _journal('MIST FEEDBACK ← ' + ev.uid.slice(0,14) + ' reacted to your slot-' + slot + ' solve.');
+                }
+                // Also: if MY session has recently sent out a solve of the same slot,
+                // any reaction from any session can visually reinforce (optional secondary effect)
+              } else {
+                // It's a solve from another session — run pattern match
+                _onIncomingSolve(ev);
+              }
+            });
+          }).catch(function(){});
+      });
+    }).catch(function(){});
+  }
+
+  // ── BroadcastChannel — instant same-origin tab sync ─────────────────────
+  var _bc = null;
+  try {
+    _bc = new BroadcastChannel('autumn_mist');
+    _bc.onmessage = function(e) {
+      if(!e.data) return;
+      var d = e.data, slot = (d.slot != null) ? d.slot : 0;
+      var key = (d.uid||'?') + ':' + (d.ts||0) + ':' + (d.type||'solve');
+      if(MIST.seenKeys[key]) return;
+      MIST.seenKeys[key] = true;
+      if(d.type === 'reaction' && d.replyTo) {
+        var isMyFeedback = _myRecentSolves.some(function(s){ return s.uid === d.replyTo; });
+        if(isMyFeedback) {
+          _spawnReactionRemote(slot, _nodePos(d.uid), d.score || 0.5);
+        }
+      } else if(d.type === 'solve') {
+        _onIncomingSolve(d);
+      }
+    };
+  } catch(e) { _bc = null; }
+
+  function _bcSend(data) {
+    if(!_bc) return;
+    try{ _bc.postMessage(data); } catch(e){}
+  }
+
+  // External hook for buoyancy system
+  window._buoyancyMistPulse = function(detail) {
+    if(detail && typeof detail.slot === 'number')
+      _onIncomingSolve({ uid: detail.uid || _localSid(), slot: detail.slot, ts: Date.now(), type:'solve' });
+  };
+
+  // ── MAZE ENGINE ──────────────────────────────────────────────────────────
+  var DIFF_CFG = { 1:{w:5,h:5}, 2:{w:9,h:9}, 3:{w:13,h:13} };
+
+  function generateMaze(w, h) {
+    var grid=[];
+    for(var y=0;y<h;y++){ grid[y]=[]; for(var x=0;x<w;x++) grid[y][x]={n:1,s:1,e:1,w:1,v1:false}; }
+    function carve(x,y){
+      grid[y][x].v1=true;
+      var dirs=[['n',0,-1],['s',0,1],['e',1,0],['w',-1,0]];
+      dirs.sort(function(){return Math.random()-.5;});
+      dirs.forEach(function(d){
+        var nx=x+d[1],ny=y+d[2];
+        if(nx>=0&&nx<w&&ny>=0&&ny<h&&!grid[ny][nx].v1){
+          grid[y][x][d[0]]=0; grid[ny][nx][{n:'s',s:'n',e:'w',w:'e'}[d[0]]]=0; carve(nx,ny);
         }
       });
     }
-    carveBranch1(0, 0);
-
-    // Rule validation for dynamic randomization
-    function pickSide() { return ['n','s','e','w'][Math.floor(Math.random()*4)]; }
-    function posOnSide(s) { return (s==='n'||s==='s') ? Math.floor(Math.random()*w) : Math.floor(Math.random()*h); }
-    function cellOnSide(s,p) {
-      if(s==='n') return {x:p, y:0};
-      if(s==='s') return {x:p, y:h-1};
-      if(s==='w') return {x:0, y:p};
-      return {x:w-1, y:p};
-    }
-
-    var es, ep, xs, xp, att = 0;
-    var valid = false;
-    var entry, exit;
-
-    // Opening and Exit Rules enforcement
-    while(!valid && att < 500) {
-      att++;
-      es = pickSide(); ep = posOnSide(es);
-      xs = pickSide(); xp = posOnSide(xs);
-
-      // Rule: Proximity Check (Same side constraint)
-      if(es === xs) {
-        if(Math.abs(ep - xp) < 2) continue; // Must have at least one unit of segment between
-      }
-
-      entry = cellOnSide(es, ep); exit = cellOnSide(xs, xp);
-      
-      // Rule: Line of Sight (LOS) blocking
-      var hasLOS = function(a, b) {
-        if(a.x === b.x) {
-          var y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
-          for(var ty=y1; ty<y2; ty++) { if(grid[ty][a.x].s) return false; }
-          return true;
-        }
-        if(a.y === b.y) {
-          var x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
-          for(var tx=x1; tx<x2; tx++) { if(grid[a.y][tx].e) return false; }
-          return true;
-        }
+    carve(0,0);
+    function pickSide(){return['n','s','e','w'][Math.floor(Math.random()*4)];}
+    function posOnSide(s){return(s==='n'||s==='s')?Math.floor(Math.random()*w):Math.floor(Math.random()*h);}
+    function cellOnSide(s,p){if(s==='n')return{x:p,y:0};if(s==='s')return{x:p,y:h-1};if(s==='w')return{x:0,y:p};return{x:w-1,y:p};}
+    var es,ep,xs,xp,att=0,valid=false,entry,exit;
+    while(!valid&&att<500){
+      att++;es=pickSide();ep=posOnSide(es);xs=pickSide();xp=posOnSide(xs);
+      if(es===xs&&Math.abs(ep-xp)<2)continue;
+      entry=cellOnSide(es,ep);exit=cellOnSide(xs,xp);
+      var hasLOS=function(a,b){
+        if(a.x===b.x){var y1=Math.min(a.y,b.y),y2=Math.max(a.y,b.y);for(var ty=y1;ty<y2;ty++)if(grid[ty][a.x].s)return false;return true;}
+        if(a.y===b.y){var x1=Math.min(a.x,b.x),x2=Math.max(a.x,b.x);for(var tx=x1;tx<x2;tx++)if(grid[a.y][tx].e)return false;return true;}
         return false;
       };
-      if(hasLOS(entry, exit)) continue;
-
-      // Rule: Sub-branch complexity check
-      var res = solveMaze({grid: grid, w: w, h: h, entry: entry, exit: exit});
-      if(!res || res.length < (w+h)/1.4) continue;
-
-      valid = true;
+      if(hasLOS(entry,exit))continue;
+      var res=solveMaze({grid:grid,w:w,h:h,entry:entry,exit:exit});
+      if(!res||res.length<(w+h)/1.4)continue;
+      valid=true;
     }
-    
-    // Punch openings in perimeter
-    grid[entry.y][entry.x][es] = 0;
-    grid[exit.y][exit.x][xs] = 0;
-
-    var sigmaSolution = solveMaze({grid: grid, w: w, h: h, entry: entry, exit: exit});
-
-    return { grid: grid, w: w, h: h, entry: entry, exit: exit, entrySide: es, exitSide: xs, solution: sigmaSolution };
+    grid[entry.y][entry.x][es]=0; grid[exit.y][exit.x][xs]=0;
+    return{grid:grid,w:w,h:h,entry:entry,exit:exit,entrySide:es,exitSide:xs,solution:solveMaze({grid:grid,w:w,h:h,entry:entry,exit:exit})};
   }
 
-  function solveMaze(maze) {
-    if(!maze.grid) return null;
-    var queue = [{x:maze.entry.x, y:maze.entry.y, path:[{x:maze.entry.x, y:maze.entry.y}]}];
-    var seen = {}; seen[maze.entry.x+','+maze.entry.y] = true;
-    var dirs = {n:[0,-1], s:[0,1], e:[1,0], w:[-1,0]};
-    while(queue.length) {
-      var cur = queue.shift();
-      if(cur.x === maze.exit.x && cur.y === maze.exit.y) return cur.path;
-      var cell = maze.grid[cur.y][cur.x];
-      Object.keys(dirs).forEach(function(d) {
-        if(cell[d] === 0) {
-          var nx = cur.x + dirs[d][0], ny = cur.y + dirs[d][1], k = nx+','+ny;
-          if(nx >= 0 && nx < maze.w && ny >= 0 && ny < maze.h && !seen[k]) {
-            seen[k] = true;
-            queue.push({x:nx, y:ny, path:cur.path.concat([{x:nx, y:ny}])});
-          }
-        }
+  function solveMaze(maze){
+    if(!maze.grid)return null;
+    var queue=[{x:maze.entry.x,y:maze.entry.y,path:[{x:maze.entry.x,y:maze.entry.y}]}];
+    var seen={};seen[maze.entry.x+','+maze.entry.y]=true;
+    var dirs={n:[0,-1],s:[0,1],e:[1,0],w:[-1,0]};
+    while(queue.length){
+      var cur=queue.shift();
+      if(cur.x===maze.exit.x&&cur.y===maze.exit.y)return cur.path;
+      var cell=maze.grid[cur.y][cur.x];
+      Object.keys(dirs).forEach(function(d){
+        if(cell[d]===0){var nx=cur.x+dirs[d][0],ny=cur.y+dirs[d][1],k=nx+','+ny;
+          if(nx>=0&&nx<maze.w&&ny>=0&&ny<maze.h&&!seen[k]){seen[k]=true;queue.push({x:nx,y:ny,path:cur.path.concat([{x:nx,y:ny}])});}}
       });
     }
     return null;
   }
 
   // ── CSS ───────────────────────────────────────────────────────────────────
-  function injectCSS() {
+  function injectCSS(){
     var s=document.createElement('style');
     s.textContent=[
       '#mist-trigger{position:fixed;right:0;top:148px;z-index:9500;display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 5px;',
@@ -191,12 +555,12 @@
   }
 
   // ── HTML ──────────────────────────────────────────────────────────────────
-  function injectHTML() {
-    var trig=document.createElement('div'); trig.id='mist-trigger'; trig.title='MIST — Lead Edge Maze';
+  function injectHTML(){
+    var trig=document.createElement('div');trig.id='mist-trigger';trig.title='MIST — Lead Edge Maze';
     trig.innerHTML='<div class="mt-icon mi-ready" id="mt-0">★</div><div class="mt-icon mi-locked" id="mt-1">♥</div><div class="mt-icon mi-locked" id="mt-2">◈</div>';
     trig.onclick=function(e){e.stopPropagation();mistToggle();};
     document.body.appendChild(trig);
-    var ov=document.createElement('div'); ov.id='mist-overlay';
+    var ov=document.createElement('div');ov.id='mist-overlay';
     ov.innerHTML=[
       '<div id="mist-menu">',
       '<div id="mist-head-row"><span class="mist-lbl">◈ MIST</span><span class="mist-sub">LEAD EDGE MAZE</span><button id="mist-x" onclick="mistToggle()">✕</button></div>',
@@ -218,46 +582,37 @@
     document.body.appendChild(ov);
   }
 
+  // ── UI controls ───────────────────────────────────────────────────────────
   window.mistToggle=function(){
     MIST.open=!MIST.open;
     var ov=document.getElementById('mist-overlay');
-    if(ov) ov.classList.toggle('mist-open',MIST.open);
-    if(MIST.open){
-      setTimeout(function(){
-        bindCanvasEvents();
-        if(!MIST.mazes[MIST.activeMaze]) mistNewMaze();
-        else renderMaze(MIST.mazes[MIST.activeMaze],MIST.dragPath);
-        document.addEventListener('click',_mistOutside,true);
-      },60);
-    } else {
-      document.removeEventListener('click',_mistOutside,true);
-    }
+    if(ov)ov.classList.toggle('mist-open',MIST.open);
+    if(MIST.open){setTimeout(function(){bindCanvasEvents();if(!MIST.mazes[MIST.activeMaze])mistNewMaze();else renderMaze(MIST.mazes[MIST.activeMaze],MIST.dragPath);document.addEventListener('click',_outside,true);},60);}
+    else{document.removeEventListener('click',_outside,true);}
   };
-  function _mistOutside(e){
+  function _outside(e){
     var ov=document.getElementById('mist-overlay'),tr=document.getElementById('mist-trigger');
-    if(ov&&ov.contains(e.target))return;
-    if(tr&&tr.contains(e.target))return;
-    if(MIST.open){MIST.open=false;if(ov)ov.classList.remove('mist-open');document.removeEventListener('click',_mistOutside,true);}
+    if(ov&&ov.contains(e.target))return;if(tr&&tr.contains(e.target))return;
+    if(MIST.open){MIST.open=false;if(ov)ov.classList.remove('mist-open');document.removeEventListener('click',_outside,true);}
   }
-
   window.mistSetDiff=function(d){
     MIST.difficulty=d;
     [1,2,3].forEach(function(n){var b=document.getElementById('mst-d'+n);if(b)b.classList.toggle('db-active',n===d);});
-    MIST.mazes=[null,null,null]; mistNewMaze();
+    MIST.mazes=[null,null,null];mistNewMaze();
   };
   window.mistSetSlot=function(slot){
     if(slot>0&&MIST.solvedCount<slot)return;
     MIST.activeMaze=slot;
     [0,1,2].forEach(function(i){var t=document.getElementById('mst-tab'+i);if(t)t.classList.toggle('mst-active',i===slot);});
-    if(!MIST.mazes[slot]) mistNewMaze(); else renderMaze(MIST.mazes[slot],[]);
+    if(!MIST.mazes[slot])mistNewMaze();else renderMaze(MIST.mazes[slot],[]);
     setStatus('DRAG ● FROM ENTRY TO EXIT');
   };
   window.mistNewMaze=function(){
     var cfg=DIFF[MIST.difficulty];
-    var maze=generateMaze(cfg.w,cfg.h); maze.solved=false;
-    MIST.mazes[MIST.activeMaze]=maze; MIST.dragPath=[]; MIST.dragging=false;
-    MIST.sphereTarget=null; MIST.sphereActual=null; stopSphereAnim();
-    renderMaze(maze,[]); setStatus('DRAG ● FROM ENTRY TO EXIT');
+    var maze=generateMaze(cfg.w,cfg.h);maze.solved=false;
+    MIST.mazes[MIST.activeMaze]=maze;MIST.dragPath=[];MIST.dragging=false;
+    MIST.sphereTarget=null;MIST.sphereActual=null;stopSphereAnim();
+    renderMaze(maze,[]);setStatus('DRAG ● FROM ENTRY TO EXIT');
   };
 
   function stopSphereAnim(){if(MIST.sphereAnimId){cancelAnimationFrame(MIST.sphereAnimId);MIST.sphereAnimId=null;}}
@@ -268,7 +623,7 @@
       if(!maze||!MIST.sphereTarget){MIST.sphereAnimId=null;return;}
       if(!MIST.sphereActual)MIST.sphereActual={x:MIST.sphereTarget.x,y:MIST.sphereTarget.y};
       var dx=MIST.sphereTarget.x-MIST.sphereActual.x,dy=MIST.sphereTarget.y-MIST.sphereActual.y;
-      MIST.sphereActual.x+=dx*.16; MIST.sphereActual.y+=dy*.16;
+      MIST.sphereActual.x+=dx*.16;MIST.sphereActual.y+=dy*.16;
       renderMaze(maze,MIST.dragPath);
       if(Math.sqrt(dx*dx+dy*dy)>.3){MIST.sphereAnimId=requestAnimationFrame(tick);}
       else{MIST.sphereActual.x=MIST.sphereTarget.x;MIST.sphereActual.y=MIST.sphereTarget.y;renderMaze(maze,MIST.dragPath);MIST.sphereAnimId=null;}
@@ -276,405 +631,119 @@
     MIST.sphereAnimId=requestAnimationFrame(tick);
   }
 
-  // ── WIREFRAME SPLINE Renderer ───────────────────────────────────────────
-  function renderMaze(maze, dragPath) {
-    var canvas = document.getElementById('mist-maze-canvas'), wrap = document.getElementById('mist-canvas-wrap');
-    if(!canvas || !wrap) return;
-    var avail = Math.min(wrap.clientWidth - 14, 220); 
-    var cs = Math.max(8, Math.floor(avail / Math.max(maze.w, maze.h)));
-    var pw = cs * maze.w, ph = cs * maze.h;
-    canvas.width = pw; canvas.height = ph;
-    canvas.style.width = pw + 'px'; canvas.style.height = ph + 'px';
-    var ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, pw, ph);
-
-    for(var y=0; y<maze.h; y++) {
-      for(var x=0; x<maze.w; x++) {
-        var cell = maze.grid[y][x], px = x * cs, py = y * cs;
-        
-        var drawWireWall = function(x1, y1, x2, y2) {
-          ctx.strokeStyle = 'rgba(0,229,255,0.45)'; ctx.lineWidth = cs * 0.35;
-          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-          ctx.strokeStyle = 'rgba(0,229,255,0.9)'; ctx.lineWidth = 1.0;
-          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-          var numRibs = 4;
-          for(var i=0; i<=numRibs; i++) {
-            var rx = x1 + (x2-x1)*(i/numRibs), ry = y1 + (y2-y1)*(i/numRibs);
-            var rxD = (y2-y1)*0.12, ryD = -(x2-x1)*0.12;
-            ctx.beginPath(); ctx.moveTo(rx-rxD, ry-ryD); ctx.lineTo(rx+rxD, ry+ryD); ctx.stroke();
-          }
+  // ── Canvas renderer ───────────────────────────────────────────────────────
+  function renderMaze(maze,dragPath){
+    var canvas=document.getElementById('mist-maze-canvas'),wrap=document.getElementById('mist-canvas-wrap');
+    if(!canvas||!wrap)return;
+    var avail=Math.min(wrap.clientWidth-14,220);
+    var cs=Math.max(8,Math.floor(avail/Math.max(maze.w,maze.h)));
+    var pw=cs*maze.w,ph=cs*maze.h;
+    canvas.width=pw;canvas.height=ph;canvas.style.width=pw+'px';canvas.style.height=ph+'px';
+    var ctx=canvas.getContext('2d');ctx.clearRect(0,0,pw,ph);
+    for(var y=0;y<maze.h;y++){
+      for(var x=0;x<maze.w;x++){
+        var cell=maze.grid[y][x],px=x*cs,py=y*cs;
+        var dw=function(x1,y1,x2,y2){
+          ctx.strokeStyle='rgba(0,229,255,0.45)';ctx.lineWidth=cs*.35;
+          ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+          ctx.strokeStyle='rgba(0,229,255,0.9)';ctx.lineWidth=1.0;
+          ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+          for(var i=0;i<=4;i++){var rx=x1+(x2-x1)*(i/4),ry=y1+(y2-y1)*(i/4),rxD=(y2-y1)*.12,ryD=-(x2-x1)*.12;ctx.beginPath();ctx.moveTo(rx-rxD,ry-ryD);ctx.lineTo(rx+rxD,ry+ryD);ctx.stroke();}
         };
-
-        if(cell.n) drawWireWall(px, py, px+cs, py);
-        if(cell.s) drawWireWall(px, py+cs, px+cs, py+cs);
-        if(cell.w) drawWireWall(px, py, px, py+cs);
-        if(cell.e) drawWireWall(px+cs, py, px+cs, py+cs);
-        
-        ctx.fillStyle = 'rgba(0,229,255,0.25)';
-        ctx.fillRect(px-1, py-1, 2, 2);
+        if(cell.n)dw(px,py,px+cs,py);if(cell.s)dw(px,py+cs,px+cs,py+cs);
+        if(cell.w)dw(px,py,px,py+cs);if(cell.e)dw(px+cs,py,px+cs,py+cs);
+        ctx.fillStyle='rgba(0,229,255,0.25)';ctx.fillRect(px-1,py-1,2,2);
       }
     }
-
-    if(dragPath && dragPath.length > 1) {
-      ctx.strokeStyle = 'rgba(0,255,136,.6)'; ctx.lineWidth = cs * .22;
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(dragPath[0].x*cs+cs/2, dragPath[0].y*cs+cs/2);
-      dragPath.forEach(function(p){ctx.lineTo(p.x*cs+cs/2, p.y*cs+cs/2);});
-      ctx.stroke();
+    if(dragPath&&dragPath.length>1){
+      ctx.strokeStyle='rgba(0,255,136,.6)';ctx.lineWidth=cs*.22;ctx.lineCap='round';ctx.lineJoin='round';
+      ctx.beginPath();ctx.moveTo(dragPath[0].x*cs+cs/2,dragPath[0].y*cs+cs/2);
+      dragPath.forEach(function(p){ctx.lineTo(p.x*cs+cs/2,p.y*cs+cs/2);});ctx.stroke();
     }
-
-    ctx.beginPath(); ctx.arc(maze.exit.x*cs+cs/2, maze.exit.y*cs+cs/2, cs*.35, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(0,229,255,.55)'; ctx.shadowBlur = 10; ctx.shadowColor='#00e5ff';
-    ctx.fill(); ctx.shadowBlur = 0;
-
-    var bx, by;
-    if(MIST.sphereActual) { bx = MIST.sphereActual.x; by = MIST.sphereActual.y; }
-    else { var bc = (MIST.dragging && MIST.dragPos) ? MIST.dragPos : maze.entry; bx = bc.x*cs+cs/2; by = bc.y*cs+cs/2; }
-    
-    ctx.beginPath(); ctx.arc(bx, by, cs*.4, 0, Math.PI*2);
-    ctx.fillStyle = maze.solved ? 'rgba(0,255,136,1)' : 'rgba(0,255,136,.95)';
-    ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 1.0; ctx.stroke();
-    ctx.fill();
+    ctx.beginPath();ctx.arc(maze.exit.x*cs+cs/2,maze.exit.y*cs+cs/2,cs*.35,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,229,255,.55)';ctx.shadowBlur=10;ctx.shadowColor='#00e5ff';ctx.fill();ctx.shadowBlur=0;
+    var bx,by;
+    if(MIST.sphereActual){bx=MIST.sphereActual.x;by=MIST.sphereActual.y;}
+    else{var bc=(MIST.dragging&&MIST.dragPos)?MIST.dragPos:maze.entry;bx=bc.x*cs+cs/2;by=bc.y*cs+cs/2;}
+    ctx.beginPath();ctx.arc(bx,by,cs*.4,0,Math.PI*2);
+    ctx.fillStyle=maze.solved?'rgba(0,255,136,1)':'rgba(0,255,136,.95)';
+    ctx.strokeStyle='#00ff88';ctx.lineWidth=1.0;ctx.stroke();ctx.fill();
   }
 
-  function canvasToCell(canvas, maze, cx, cy) {
-    var rect = canvas.getBoundingClientRect();
-    return {
-      x: Math.max(0, Math.min(maze.w-1, Math.floor(((cx-rect.left)*(canvas.width/rect.width))/(canvas.width/maze.w)))),
-      y: Math.max(0, Math.min(maze.h-1, Math.floor(((cy-rect.top)*(canvas.height/rect.height))/(canvas.height/maze.h))))
-    };
+  function canvasToCell(canvas,maze,cx,cy){
+    var rect=canvas.getBoundingClientRect();
+    return{x:Math.max(0,Math.min(maze.w-1,Math.floor(((cx-rect.left)*(canvas.width/rect.width))/(canvas.width/maze.w)))),
+           y:Math.max(0,Math.min(maze.h-1,Math.floor(((cy-rect.top)*(canvas.height/rect.height))/(canvas.height/maze.h))))};
   }
-  function onDragStart(e) {
-    var maze = MIST.mazes[MIST.activeMaze]; if(!maze || maze.solved) return;
-    e.preventDefault(); e.stopPropagation();
-    var pt = e.touches ? e.touches[0] : e, cell = canvasToCell(this, maze, pt.clientX, pt.clientY);
-    if(cell.x === maze.entry.x && cell.y === maze.entry.y) {
-      MIST.dragging = true; MIST.dragPos = cell; MIST.dragPath = [cell];
-      var cs = this.width / maze.w; MIST.sphereTarget = { x: cell.x*cs+cs/2, y: cell.y*cs+cs/2 }; MIST.sphereActual = { x: cell.x*cs+cs/2, y: cell.y*cs+cs/2 };
+  function onDragStart(e){
+    var maze=MIST.mazes[MIST.activeMaze];if(!maze||maze.solved)return;
+    e.preventDefault();e.stopPropagation();
+    var pt=e.touches?e.touches[0]:e,cell=canvasToCell(this,maze,pt.clientX,pt.clientY);
+    if(cell.x===maze.entry.x&&cell.y===maze.entry.y){
+      MIST.dragging=true;MIST.dragPos=cell;MIST.dragPath=[cell];
+      var cs=this.width/maze.w;MIST.sphereTarget={x:cell.x*cs+cs/2,y:cell.y*cs+cs/2};MIST.sphereActual={x:cell.x*cs+cs/2,y:cell.y*cs+cs/2};
       setStatus('NAVIGATE TO ◉ EXIT');
     }
-    renderMaze(maze, MIST.dragPath);
+    renderMaze(maze,MIST.dragPath);
   }
-  function onDragMove(e) {
-    if(!MIST.dragging) return; e.preventDefault(); e.stopPropagation();
-    var maze = MIST.mazes[MIST.activeMaze]; if(!maze) return;
-    var pt = e.touches ? e.touches[0] : e, cell = canvasToCell(this, maze, pt.clientX, pt.clientY);
-    var prev = MIST.dragPath[MIST.dragPath.length-1];
-    if(cell.x === prev.x && cell.y === prev.y) return;
-    var dx = cell.x-prev.x, dy = cell.y-prev.y;
-    if(Math.abs(dx) + Math.abs(dy) !== 1) return;
-    var wd = dx===1 ? 'e' : dx===-1 ? 'w' : dy===1 ? 's' : 'n';
-    if(maze.grid[prev.y][prev.x][wd] !== 0) return;
-    if(MIST.dragPath.length >= 2) { var pp = MIST.dragPath[MIST.dragPath.length-2]; if(cell.x===pp.x && cell.y===pp.y) MIST.dragPath.pop(); else MIST.dragPath.push(cell); }
+  function onDragMove(e){
+    if(!MIST.dragging)return;e.preventDefault();e.stopPropagation();
+    var maze=MIST.mazes[MIST.activeMaze];if(!maze)return;
+    var pt=e.touches?e.touches[0]:e,cell=canvasToCell(this,maze,pt.clientX,pt.clientY);
+    var prev=MIST.dragPath[MIST.dragPath.length-1];
+    if(cell.x===prev.x&&cell.y===prev.y)return;
+    var dx=cell.x-prev.x,dy=cell.y-prev.y;
+    if(Math.abs(dx)+Math.abs(dy)!==1)return;
+    var wd=dx===1?'e':dx===-1?'w':dy===1?'s':'n';
+    if(maze.grid[prev.y][prev.x][wd]!==0)return;
+    if(MIST.dragPath.length>=2){var pp=MIST.dragPath[MIST.dragPath.length-2];if(cell.x===pp.x&&cell.y===pp.y)MIST.dragPath.pop();else MIST.dragPath.push(cell);}
     else MIST.dragPath.push(cell);
-    MIST.dragPos = cell;
-    var cs = this.width / maze.w; MIST.sphereTarget = { x: cell.x*cs+cs/2, y: cell.y*cs+cs/2 }; startSphereAnim();
-    if(cell.x === maze.exit.x && cell.y === maze.exit.y) { MIST.dragging = false; maze.solved = true; onMazeSolved(MIST.activeMaze, maze); }
+    MIST.dragPos=cell;
+    var cs=this.width/maze.w;MIST.sphereTarget={x:cell.x*cs+cs/2,y:cell.y*cs+cs/2};startSphereAnim();
+    if(cell.x===maze.exit.x&&cell.y===maze.exit.y){MIST.dragging=false;maze.solved=true;_onMazeSolved(MIST.activeMaze,maze);}
   }
-  function onDragEnd() {
-    if(!MIST.dragging) return; MIST.dragging = false;
-    var maze = MIST.mazes[MIST.activeMaze];
-    if(maze && !maze.solved) {
-      MIST.dragPath = []; var cv = document.getElementById('mist-maze-canvas'), cs = cv ? cv.width/maze.w : 10;
-      MIST.sphereTarget = { x: maze.entry.x*cs+cs/2, y: maze.entry.y*cs+cs/2 }; startSphereAnim();
+  function onDragEnd(){
+    if(!MIST.dragging)return;MIST.dragging=false;
+    var maze=MIST.mazes[MIST.activeMaze];
+    if(maze&&!maze.solved){
+      MIST.dragPath=[];var cv=document.getElementById('mist-maze-canvas'),cs=cv?cv.width/maze.w:10;
+      MIST.sphereTarget={x:maze.entry.x*cs+cs/2,y:maze.entry.y*cs+cs/2};startSphereAnim();
       setStatus('DRAG ● FROM ENTRY TO EXIT');
     }
   }
-  function bindCanvasEvents() {
-    var canvas = document.getElementById('mist-maze-canvas'); if(!canvas || canvas._mistBound) return; canvas._mistBound = true;
-    canvas.addEventListener('mousedown', onDragStart.bind(canvas));
-    canvas.addEventListener('mousemove', onDragMove.bind(canvas));
-    canvas.addEventListener('mouseup',   onDragEnd.bind(canvas));
-    canvas.addEventListener('mouseleave',onDragEnd.bind(canvas));
+  function bindCanvasEvents(){
+    var canvas=document.getElementById('mist-maze-canvas');if(!canvas||canvas._mistBound)return;canvas._mistBound=true;
+    canvas.addEventListener('mousedown',onDragStart.bind(canvas));canvas.addEventListener('mousemove',onDragMove.bind(canvas));
+    canvas.addEventListener('mouseup',onDragEnd.bind(canvas));canvas.addEventListener('mouseleave',onDragEnd.bind(canvas));
     canvas.addEventListener('touchstart',onDragStart.bind(canvas),{passive:false});
-    canvas.addEventListener('touchmove', onDragMove.bind(canvas), {passive:false});
-    canvas.addEventListener('touchend',  onDragEnd.bind(canvas),  {passive:false});
+    canvas.addEventListener('touchmove',onDragMove.bind(canvas),{passive:false});
+    canvas.addEventListener('touchend',onDragEnd.bind(canvas),{passive:false});
   }
 
-  function onMazeSolved(slot, maze) {
-    var prof = SLOT_PROFILE[slot];
-    setStatus('✓ ' + prof.label + ' — WELL DONE');
-    MIST.solvedCount = Math.max(MIST.solvedCount, slot + 1);
-    renderMaze(maze, MIST.dragPath);
-    var wrap = document.getElementById('mist-canvas-wrap');
-    if(wrap) { wrap.classList.add('mist-solved'); setTimeout(function(){ wrap.classList.remove('mist-solved'); }, 3500); }
-    if(slot + 1 <= 2) {
-      var nt = document.getElementById('mst-tab' + (slot+1)); if(nt) nt.classList.remove('mst-locked');
-      var ni = document.getElementById('mt-' + (slot+1)); if(ni) { ni.classList.remove('mi-locked'); ni.classList.add('mi-ready'); }
+  function _onMazeSolved(slot,maze){
+    var prof=SLOT_PROFILE[slot];
+    setStatus('✓ '+prof.label+' — WELL DONE');
+    MIST.solvedCount=Math.max(MIST.solvedCount,slot+1);
+    renderMaze(maze,MIST.dragPath);
+    var wrap=document.getElementById('mist-canvas-wrap');
+    if(wrap){wrap.classList.add('mist-solved');setTimeout(function(){wrap.classList.remove('mist-solved');},3500);}
+    if(slot+1<=2){
+      var nt=document.getElementById('mst-tab'+(slot+1));if(nt)nt.classList.remove('mst-locked');
+      var ni=document.getElementById('mt-'+(slot+1));if(ni){ni.classList.remove('mi-locked');ni.classList.add('mi-ready');}
     }
-    var ci = document.getElementById('mt-' + slot); if(ci) ci.classList.add('mi-active');
-    setTimeout(function(){ MIST.open = false; var ov = document.getElementById('mist-overlay'); if(ov) ov.classList.remove('mist-open'); document.removeEventListener('click', _mistOutside, true); }, 2500);
-    // Pass local uid so geometry knows THIS node is the origin
-    var localUid = (typeof _aut_sid !== 'undefined') ? _aut_sid : (typeof _aut_uid !== 'undefined') ? _aut_uid : null;
-    setTimeout(function(){ _fireMistNetworkReaction(slot, true, localUid); }, 260);
+    var ci=document.getElementById('mt-'+slot);if(ci)ci.classList.add('mi-active');
+    setTimeout(function(){MIST.open=false;var ov=document.getElementById('mist-overlay');if(ov)ov.classList.remove('mist-open');document.removeEventListener('click',_outside,true);},2500);
+    setTimeout(function(){ _onLocalSolve(slot); },260);
   }
 
-  // ── CORE REACTION — slot, isLocal, originUid ───────────────────────────
-  // originUid: the session ID that solved the maze.
-  //   • local solve  → the current tab's _aut_sid (particles from orb center, outward to all nodes)
-  //   • remote solve → the remote session's uid   (particles from THAT node's 3D position)
-  function _fireMistNetworkReaction(slot, isLocal, originUid) {
-    var prof = SLOT_PROFILE[slot];
-    if(typeof pulseShells === 'function') {
-      pulseShells(prof.pulse);
-      setTimeout(function(){ if(typeof pulseShells === 'function') pulseShells(prof.pulse * .5); }, 230);
-    }
-    if(typeof applyOrbEmotion === 'function') applyOrbEmotion(prof.emotion);
-    window._acShellBoost = window._acShellBoost || [0,0,0];
-    window._acShellBoost[0] = Math.min(.22, (window._acShellBoost[0]||0) + prof.shellBoost[0]);
-    window._acShellBoost[1] = Math.min(.18, (window._acShellBoost[1]||0) + prof.shellBoost[1]);
-    window._acShellBoost[2] = Math.min(.16, (window._acShellBoost[2]||0) + prof.shellBoost[2]);
-    window._orbEmoSpeedMult = prof.speed;
-    setTimeout(function(){ window._orbEmoSpeedMult = Math.max(window._orbEmoSpeedMult * .85, 1.0); }, 1800);
-    if(typeof mazeOrbState !== 'undefined') {
-      mazeOrbState.solveActive = true; mazeOrbState.solveStep = 0;
-      if(mazeOrbState.pathMeshes) mazeOrbState.pathMeshes.forEach(function(m){ if(m && m.material) m.material.opacity = 0; });
-    }
-    if(window.S && window.S.journal) {
-      var who = isLocal ? 'Local' : 'Remote';
-      window.S.journal.push({ts:new Date().toISOString(), _internal:true,
-        _thought:who + ' MIST solve — slot ' + slot + ' (' + prof.label + ')' + (originUid ? ' from ' + originUid.slice(0,16) : '') + '. Buoyancy pulse: ' + prof.pulse + ', emotion: ' + prof.emotion + '.'});
-    }
-    // Pass originUid through to geometry so it knows which node to burst FROM
-    _spawnMistGeometry(slot, originUid);
-    if(isLocal && typeof writeLeatrAshMemory === 'function') {
-      var uid = (typeof _aut_sid !== 'undefined') ? _aut_sid : (typeof _aut_uid !== 'undefined') ? _aut_uid : 'anon';
-      var _mts = Date.now();
-      writeLeatrAshMemory('ashtree/mist/' + uid + '.json', { uid:uid, slot:slot, ts:_mts, instanceId:_mistInstanceId, label:prof.label, emotion:prof.emotion });
-      _broadcastMistSolve(uid, slot, _mts);
-    }
+  function setStatus(msg){var el=document.getElementById('mist-status');if(el)el.textContent=msg;}
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  function init(){
+    injectCSS();injectHTML();
+    // Start polling — 5s initial delay then every 3s
+    setTimeout(function(){ _poll(); setInterval(_poll, POLL_MS); }, 5000);
   }
-
-  // ── GEOMETRY SPAWNER — originUid-aware ────────────────────────────────
-  // Builds the position list with the SOLVING NODE first so particles burst
-  // FROM that node outward to the orb center and all other session nodes.
-  var _mistActiveGeom=[];
-  function _spawnMistGeometry(slot, originUid){
-    if(typeof THREE==='undefined'||typeof scene==='undefined') return;
-    var COLORS=[0xffdd00,0xff4488,0x00e5ff];
-    var col=new THREE.Color(COLORS[slot]);
-
-    // ── Resolve origin position ──────────────────────────────────────────
-    // If originUid matches a remote session group, use its world position.
-    // If it's the local session (not in _sessionGroups), use orb center (0,0,0).
-    var originPos = new THREE.Vector3(0,0,0);
-    var originIsRemote = false;
-    if(originUid && typeof _ashNodes!=='undefined' && _ashNodes._sessionGroups) {
-      var og = _ashNodes._sessionGroups[originUid];
-      if(og && og.group) {
-        originPos = og.group.position.clone();
-        originIsRemote = true;
-      }
-    }
-
-    // ── Build positions list: [originPos, orbCenter?, ...otherNodes] ─────
-    // originPos is always index 0 so slot-1 (HEART) curves travel FROM it.
-    var positions = [originPos.clone()];
-    // If origin is a remote node, include the orb center (0,0,0) as a target
-    if(originIsRemote) {
-      positions.push(new THREE.Vector3(0,0,0));
-    }
-    // Add all other remote session nodes (skip origin, already added)
-    if(typeof _ashNodes!=='undefined' && _ashNodes._sessionGroups){
-      Object.keys(_ashNodes._sessionGroups).forEach(function(sid){
-        if(sid === originUid) return; // already at index 0
-        var g=_ashNodes._sessionGroups[sid];
-        if(g&&g.group) positions.push(g.group.position.clone());
-      });
-    }
-    // Fallback: if still just one position, add synthetic targets so geometry is visible
-    if(positions.length < 2){
-      positions.push(new THREE.Vector3(2.2,1.2,-1.2));
-      positions.push(new THREE.Vector3(-1.8,1.8,1));
-      positions.push(new THREE.Vector3(0.8,-2.2,1.8));
-    }
-
-    var group=new THREE.Group();
-    group._mAge=0; group._mMax=180; group._mSlot=slot; group._mObjs=[];
-    // Spawn more particles from the origin node on remote solves for visual emphasis
-    var perNode=slot===0 ? (originIsRemote?10:6) : slot===1 ? (originIsRemote?6:4) : (originIsRemote?9:7);
-
-    positions.forEach(function(nodePos,ni){
-      // For local solves (origin = orb center), skip index 0 for slot 1 — those are the source
-      // For remote solves, index 0 is the remote node and is the source — always spawn there
-      for(var i=0;i<(ni===0?perNode:Math.max(3,perNode-2));i++){
-        var geo,mat,mesh;
-        if(slot===0){
-          // STAR — OctahedronGeometry wireframes burst outward from nodePos
-          geo=new THREE.OctahedronGeometry(0.09+Math.random()*.13,0);
-          mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.9});
-          mesh=new THREE.Mesh(geo,mat);
-          mesh.position.copy(nodePos);
-          var a=Math.random()*Math.PI*2,b=Math.acos(2*Math.random()-1),spd=0.022+Math.random()*.038;
-          mesh._mv=new THREE.Vector3(Math.sin(b)*Math.cos(a)*spd,Math.sin(b)*Math.sin(a)*spd,Math.cos(b)*spd);
-          mesh._mr=new THREE.Vector3(Math.random()*.05,Math.random()*.04,0);
-        } else if(slot===1){
-          // HEART — SphereGeometry travels on CatmullRom curve FROM originPos TO nodePos
-          geo=new THREE.SphereGeometry(0.055+Math.random()*.04,5,5);
-          mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.85});
-          mesh=new THREE.Mesh(geo,mat);
-          // Origin is always positions[0]; targets are all other positions
-          var origin=positions[0], target=nodePos;
-          if(ni===0){
-            // At origin itself — burst radially outward then pull back, as visual "bloom"
-            var a2=Math.random()*Math.PI*2, b2=Math.acos(2*Math.random()-1), r2=0.4+Math.random()*.6;
-            var midOff=new THREE.Vector3(Math.sin(b2)*Math.cos(a2)*r2,Math.sin(b2)*Math.sin(a2)*r2,Math.cos(b2)*r2);
-            var bloom=origin.clone().add(midOff);
-            target=origin.clone(); // returns back to origin
-            var mid=bloom;
-            mesh._mc=new THREE.CatmullRomCurve3([origin.clone(),mid,target.clone()]);
-          } else {
-            var mid=origin.clone().add(target).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*.8,1.2+Math.random()*.8,(Math.random()-.5)*.8));
-            mesh._mc=new THREE.CatmullRomCurve3([origin.clone(),mid,target.clone()]);
-          }
-          mesh._mt=(i/(ni===0?perNode:perNode-2))*-0.35; mesh._mspd=0.006+Math.random()*.003;
-          mesh._mr=new THREE.Vector3(0,0,Math.random()*.04);
-          mesh.position.copy(origin);
-        } else {
-          // MIST — TetrahedronGeometry rides plasma splines outward from originPos
-          geo=new THREE.TetrahedronGeometry(0.07+Math.random()*.1,0);
-          mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.65});
-          mesh=new THREE.Mesh(geo,mat);
-          var curve=null;
-          // Prefer splines that involve the origin node
-          if(typeof _ashNodes!=='undefined'&&_ashNodes._splines){
-            var ks=Object.keys(_ashNodes._splines);
-            // Find a spline that starts near originPos
-            if(originIsRemote && ks.length){
-              var bestKey=null, bestDist=Infinity;
-              ks.forEach(function(k){
-                var sp=_ashNodes._splines[k];
-                if(sp&&sp.curve){
-                  var p0=sp.curve.getPoint(0);
-                  var d=p0.distanceTo(originPos);
-                  if(d<bestDist){bestDist=d;bestKey=k;}
-                }
-              });
-              if(bestKey) curve=_ashNodes._splines[bestKey].curve;
-            }
-            if(!curve && ks.length) curve=_ashNodes._splines[ks[(ni*perNode+i)%ks.length]].curve;
-          }
-          if(!curve){
-            var pa=positions[0], pb=positions[(ni+1)%positions.length];
-            var mpt=pa.clone().add(pb).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*1.5,(Math.random()-.5)*1.5,0));
-            curve=new THREE.CatmullRomCurve3([pa.clone(),mpt,pb.clone()]);
-          }
-          mesh._mc=curve; mesh._mt=ni===0?0:Math.random(); mesh._mspd=0.004+Math.random()*.005;
-          mesh._mr=new THREE.Vector3(Math.random()*.035,Math.random()*.03,0);
-          var pt=curve.getPoint(mesh._mt); mesh.position.copy(pt);
-        }
-        group._mObjs.push(mesh); group.add(mesh);
-      }
-    });
-
-    // ── Connecting lines between origin and all targets ──────────────────
-    for(var li=0;li<Math.min(5,positions.length);li++){
-      var pa=positions[0]; // always start from origin
-      var pb=positions[(li+1)%positions.length];
-      var mid2=pa.clone().add(pb).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*2,(Math.random()-.5)*2,0));
-      var c2=new THREE.CatmullRomCurve3([pa,mid2,pb]);
-      var lGeo=new THREE.BufferGeometry().setFromPoints(c2.getPoints(40));
-      var lMat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.35});
-      group.add(new THREE.Line(lGeo,lMat));
-    }
-    scene.add(group);
-    _mistActiveGeom.push(group);
-  }
-
-  // ── Animation tick — unchanged ─────────────────────────────────────────
-  (function _mistTick(){
-    requestAnimationFrame(_mistTick);
-    if(!_mistActiveGeom.length)return;
-    var rem=[];
-    _mistActiveGeom.forEach(function(g){
-      g._mAge++;
-      var fade=1-g._mAge/g._mMax;
-      if(fade<=0){rem.push(g);return;}
-      g._mObjs.forEach(function(obj){
-        if(g._mSlot===0){obj.position.add(obj._mv);obj.rotation.x+=obj._mr.x;obj.rotation.y+=obj._mr.y;obj.material.opacity=.9*fade;}
-        else if(g._mSlot===1){obj._mt+=obj._mspd;if(obj._mt>1)obj._mt=0;if(obj._mt>=0&&obj._mc){var pt=obj._mc.getPoint(Math.min(1,obj._mt));obj.position.copy(pt);}obj.rotation.z+=obj._mr.z;obj.material.opacity=.85*fade;}
-        else{obj._mt+=obj._mspd;if(obj._mt>1)obj._mt=0;if(obj._mc){var pt2=obj._mc.getPoint(obj._mt);obj.position.copy(pt2);obj.position.x+=Math.sin(g._mAge*.06+obj._mt*5)*.07;}obj.rotation.x+=obj._mr.x;obj.rotation.y+=obj._mr.y;obj.material.opacity=.65*fade;}
-      });
-    });
-    rem.forEach(function(g){
-      if(typeof scene!=='undefined')scene.remove(g);
-      g._mObjs.forEach(function(o){o.geometry&&o.geometry.dispose();o.material&&o.material.dispose();});
-      var idx=_mistActiveGeom.indexOf(g);if(idx>=0)_mistActiveGeom.splice(idx,1);
-    });
-  })();
-
-  // ── Poll remote mist events — passes originUid to reaction ────────────
-  function _pollRemoteMist(){
-    var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():'';
-    if(!pat)return;
-    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
-      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-      signal:AbortSignal.timeout(6000)
-    }).then(function(r){return r.ok?r.json():null;})
-    .then(function(files){
-      if(!Array.isArray(files))return;
-      var STALE_MS=60000;
-      files.filter(function(f){return f.name.endsWith('.json');}).slice(0,30).forEach(function(f){
-        fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
-          .then(function(r){return r.ok?r.json():null;})
-          .then(function(d){
-            var events = Array.isArray(d) ? d
-                        : (d && d.ts && d.uid) ? [d]
-                        : null;
-            if(!events || !events.length) return;
-            events.forEach(function(ev){
-              if(!ev || !ev.ts || !ev.uid) return;
-              // Skip if this exact instance wrote it (already reacted locally)
-              if(ev.instanceId && ev.instanceId === _mistInstanceId) return;
-              var age = Date.now() - ev.ts;
-              if(age > STALE_MS) return;
-              var key = ev.uid + ':' + ev.ts;
-              if(MIST.lastRemoteTs[key]) return;
-              MIST.lastRemoteTs[key] = true;
-              // Pass ev.uid as originUid so geometry bursts FROM that node's position
-              _fireMistNetworkReaction(ev.slot != null ? ev.slot : 0, false, ev.uid);
-            });
-          }).catch(function(){});
-      });
-    }).catch(function(){});
-  }
-
-  // ── BroadcastChannel — same-origin tabs ───────────────────────────────
-  var _mistBC = null;
-  try{
-    _mistBC = new BroadcastChannel('autumn_mist');
-    _mistBC.onmessage = function(ev){
-      if(!ev.data || ev.data.type !== 'mist-solve') return;
-      var d = ev.data.data || {};
-      var key = (d.uid||'?') + ':' + (d.ts||0);
-      if(MIST.lastRemoteTs[key]) return;
-      MIST.lastRemoteTs[key] = true;
-      // Pass d.uid so same-user other-tab solve bursts from that tab's session node
-      _fireMistNetworkReaction(d.slot != null ? d.slot : 0, false, d.uid);
-    };
-  }catch(e){ _mistBC = null; }
-
-  function _broadcastMistSolve(uid, slot, ts){
-    if(!_mistBC) return;
-    try{ _mistBC.postMessage({ type:'mist-solve', data:{ uid:uid, slot:slot, ts:ts } }); }catch(e){}
-  }
-
-  // External trigger (from BRPN buoyancy system)
-  window._buoyancyMistPulse=function(detail){
-    if(detail&&typeof detail.slot==='number') _fireMistNetworkReaction(detail.slot, false, detail.uid||null);
-  };
-
-  function _startMistPoller(){
-    setTimeout(function(){
-      _pollRemoteMist();
-      setInterval(_pollRemoteMist, 6000);
-    }, 5000);
-  }
-
-  function setStatus(msg) { var el = document.getElementById('mist-status'); if(el) el.textContent = msg; }
-
-  function init() { injectCSS(); injectHTML(); _startMistPoller(); }
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 
 })();
