@@ -168,31 +168,15 @@
     _write({type:'solve',uid:uid,slot:slot,ts:ts,instanceId:_iid,label:prof.label,emotion:prof.emotion});
     _bcPost({type:'solve',uid:uid,slot:slot,ts:ts});
     // ── Global cross-browser propagation ─────────────────────────────────────
-    // Write mistSolve into the session file immediately (bypass the 4s queue)
-    // then trigger an instant _pollAshNodes so other browsers see it on their
-    // next poll cycle (now 5s) rather than waiting up to 19s combined.
-    var _sessionPath = 'ashtree/sessions/' + uid + '.json';
-    var _mistPayload = {
-      uid: (typeof _aut_uid!=='undefined'?_aut_uid:uid),
-      sid: uid, ts: Date.now(), type: 'presence',
-      mistSolve: { slot: slot, ts: ts }
-    };
-    if(typeof writeLeatrAshMemory === 'function') {
-      writeLeatrAshMemory(_sessionPath, _mistPayload);
+    // Store solve in _ashNodes._lastMistSolve — the heartbeat in _pollAshNodes
+    // carries this field for 30s so every poll cycle from every browser picks it up.
+    // Same pipeline as nodes and splines — no separate infrastructure needed.
+    if(typeof _ashNodes !== 'undefined') {
+      _ashNodes._lastMistSolve = { slot: slot, ts: ts };
     }
-    // Bypass queue — flush immediately so GitHub has the data ASAP
-    if(typeof window._ashFlushNow === 'function') {
-      // Inject directly into queue then flush now
-      if(typeof _ashQ !== 'undefined') {
-        if(!_ashQ[_sessionPath]) _ashQ[_sessionPath] = { items:[], timer:null, isAppend:false };
-        clearTimeout(_ashQ[_sessionPath].timer);
-        _ashQ[_sessionPath].items = [_mistPayload];
-      }
-      window._ashFlushNow(_sessionPath);
-    }
-    // Immediately re-poll so other browsers get notified on their next cycle
+    // Trigger immediate poll so this session's heartbeat writes to GitHub right away
     if(typeof _pollAshNodes === 'function') {
-      setTimeout(_pollAshNodes, 500);
+      _pollAshNodes();
     }
     _log('MIST SEND — slot '+slot+' ('+prof.label+'). Signal out over network.');
   }

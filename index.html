@@ -11330,6 +11330,7 @@ function setOrbThinking(active){
 var _ashNodes = {
   _sessionGroups: {},   // sid → { group, shells, node, basePos }
   _seenMist: {},        // key → true, debounces cross-browser mist reactions
+  _lastMistSolve: null, // { slot, ts } — carried in heartbeat for 30s after solve
   _lineGroup: null,
   _localUid: null,
   _uids: [],
@@ -11512,9 +11513,12 @@ async function _pollAshNodes() {
   var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
 
   // Heartbeat: write/refresh this tab's own session file
-  writeLeatrAshMemory('ashtree/sessions/' + _ashNodes._localUid + '.json', {
-    uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence'
-  });
+  // Carry mistSolve for 30s after a solve so other browsers' poll cycles catch it
+  var _hbPayload = { uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence' };
+  if(_ashNodes._lastMistSolve && (Date.now() - _ashNodes._lastMistSolve.ts) < 30000) {
+    _hbPayload.mistSolve = _ashNodes._lastMistSolve;
+  }
+  writeLeatrAshMemory('ashtree/sessions/' + _ashNodes._localUid + '.json', _hbPayload);
 
   var nodes = [{uid: _ashNodes._localUid, ts: Date.now(), isLocal: true}];
 
