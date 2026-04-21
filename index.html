@@ -11534,6 +11534,7 @@ async function _pollAshNodes() {
           var STALE_MS = 6 * 60 * 1000;
           var recentFiles = files
             .filter(function(f){ return f.name.endsWith('.json') && f.name !== _ashNodes._localUid+'.json'; })
+            .sort(function(a,b){ return b.name > a.name ? 1 : -1; }) // newest tmo* suffix first
             .slice(0, _ashNodes.MAX_REMOTE);
           var fetches = recentFiles.map(function(f) {
             // Use f.url (GitHub API endpoint) with auth — not f.download_url (CDN, cached)
