@@ -412,8 +412,11 @@
            .forEach(function(f){
         if(_shaCache[f.name]===f.sha) return; // unchanged
         _shaCache[f.name]=f.sha;
-        fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
-          .then(function(r){return r.ok?r.json():null;})
+        fetch(f.url+'?_='+Date.now(),{
+          headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
+          cache:'no-store',signal:AbortSignal.timeout(5000)
+        }).then(function(r){return r.ok?r.json():null;})
+          .then(function(r2){return r2&&r2.content?JSON.parse(atob(r2.content.replace(/\n/g,''))):null;})
           .then(function(d){
             var evts=Array.isArray(d)?d:(d&&d.ts&&d.uid)?[d]:null;
             if(!evts||!evts.length)return;
@@ -716,8 +719,11 @@
       files.filter(function(f){return f.name.endsWith('.json');}).slice(0,MAX_FILES)
         .forEach(function(f){
           _shaCache[f.name]=f.sha; // mark as seen — future polls only fire on NEW events
-          fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
-            .then(function(r){return r.ok?r.json():null;})
+          fetch(f.url+'?_='+Date.now(),{
+            headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
+            cache:'no-store',signal:AbortSignal.timeout(5000)
+          }).then(function(r){return r.ok?r.json():null;})
+            .then(function(r2){return r2&&r2.content?JSON.parse(atob(r2.content.replace(/\n/g,''))):null;})
             .then(function(d){
               var evts=Array.isArray(d)?d:(d&&d.ts)?[d]:null;
               if(!evts)return;
