@@ -167,6 +167,17 @@
     if(_mySolves.length>20)_mySolves.shift();
     _write({type:'solve',uid:uid,slot:slot,ts:ts,instanceId:_iid,label:prof.label,emotion:prof.emotion});
     _bcPost({type:'solve',uid:uid,slot:slot,ts:ts});
+    // ── Global cross-browser propagation ─────────────────────────────────────
+    // Stamp mistSolve into the session file that _pollAshNodes already reads.
+    // Every browser/user polling the session directory will pick this up
+    // on their next poll cycle — no separate mist polling infrastructure needed.
+    if(typeof writeLeatrAshMemory === 'function') {
+      writeLeatrAshMemory('ashtree/sessions/' + uid + '.json', {
+        uid: (typeof _aut_uid!=='undefined'?_aut_uid:uid),
+        sid: uid, ts: Date.now(), type: 'presence',
+        mistSolve: { slot: slot, ts: ts }
+      });
+    }
     _log('MIST SEND — slot '+slot+' ('+prof.label+'). Signal out over network.');
   }
 

@@ -11329,6 +11329,7 @@ function setOrbThinking(active){
 // ============================================================
 var _ashNodes = {
   _sessionGroups: {},   // sid → { group, shells, node, basePos }
+  _seenMist: {},        // key → true, debounces cross-browser mist reactions
   _lineGroup: null,
   _localUid: null,
   _uids: [],
@@ -11542,6 +11543,19 @@ async function _pollAshNodes() {
               if(age < STALE_MS) {
                 var nodeId = res.value.sid || res.value.uid;
                 nodes.push({ uid: nodeId, deviceUid: res.value.uid||nodeId, ts: res.value.ts||Date.now(), isLocal: false });
+              }
+              // ── MIST cross-browser reaction ──────────────────────────────
+              // If this session file carries a fresh mistSolve event, fire it
+              var ms = res.value.mistSolve;
+              if(ms && ms.ts && ms.slot != null) {
+                var msAge = Date.now() - ms.ts;
+                var msKey = (res.value.sid||res.value.uid) + ':mist:' + ms.ts;
+                if(msAge < 90000 && !_ashNodes._seenMist[msKey]) {
+                  _ashNodes._seenMist[msKey] = true;
+                  if(typeof window._buoyancyMistPulse === 'function') {
+                    window._buoyancyMistPulse({ slot: ms.slot });
+                  }
+                }
               }
             }
           });
