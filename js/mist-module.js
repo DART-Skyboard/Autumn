@@ -25,29 +25,25 @@
 
   var DIFF = { 1:{w:5,h:5}, 2:{w:9,h:9}, 3:{w:13,h:13} };
 
-  // Slot â†’ BRPN network reaction profile
-  var SLOT_PROFILE = {
-    0: { emotion:'inspired',   pulse:1.4, speed:1.25, shellBoost:[0.08,0.06,0.04], label:'â˜… STAR SOLVED' },
-    1: { emotion:'empathetic', pulse:1.6, speed:1.1,  shellBoost:[0.05,0.10,0.06], label:'â™¥ HEART SOLVED' },
-    2: { emotion:'spiritual',  pulse:1.0, speed:0.8,  shellBoost:[0.12,0.08,0.10], label:'â—ˆ MIST SOLVED'  }
-  };
+  // Slot â†’ BRPN network profile
+  var SLOT_PROFILE = [
+    { label: 'STAR',  icon: 'â—ˆ', icon2: 'â˜…', pulse: 3.2, emotion: 'ELEVATED', shellBoost: [0.08, 0, 0.02], speed: 1.4 },
+    { label: 'HEART', icon: 'â—ˆ', icon2: 'â™¥', pulse: 2.8, emotion: 'WARM',     shellBoost: [0, 0.06, 0.04], speed: 1.2 },
+    { label: 'MIST',  icon: 'â—ˆ', icon2: 'â—†', pulse: 4.5, emotion: 'NEUTRAL',  shellBoost: [0.05, 0.05, 0.05], speed: 1.8 }
+  ];
 
   // â”€â”€ LEAD EDGE maze generator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function generateMaze(w, h) {
     var grid = [];
-    var branch1 = []; // Perimeter generation branch
-    var branch2 = []; // Variable placeholder for subtraction logic
-
-    // Initialize unit-consistent grid with high detail placeholders
     for(var y=0; y<h; y++) {
       grid[y] = [];
       for(var x=0; x<w; x++) {
-        grid[y][x] = { n: 1, s: 1, e: 1, w: 1, v1: false, v2: false };
+        grid[y][x] = { n: 1, s: 1, e: 1, w: 1, v1: false };
       }
     }
 
-    // Branch 1: Structural Perimeter Wall Carving
-    function carveBranch1(x, y) {
+    // Recursive Backtracker for structure
+    function carve(x, y) {
       grid[y][x].v1 = true;
       var dirs = [['n',0,-1],['s',0,1],['e',1,0],['w',-1,0]];
       dirs.sort(function(){ return Math.random() - .5; });
@@ -56,61 +52,49 @@
         if(nx >= 0 && nx < w && ny >= 0 && ny < h && !grid[ny][nx].v1) {
           grid[y][x][d[0]] = 0;
           grid[ny][nx][{n:'s',s:'n',e:'w',w:'e'}[d[0]]] = 0;
-          carveBranch1(nx, ny);
+          carve(nx, ny);
         }
       });
     }
-    carveBranch1(0, 0);
+    carve(0, 0);
 
-    // Rule validation for dynamic randomization
-    function pickSide() { return ['n','s','e','w'][Math.floor(Math.random()*4)]; }
-    function posOnSide(s) { return (s==='n'||s==='s') ? Math.floor(Math.random()*w) : Math.floor(Math.random()*h); }
-    function cellOnSide(s,p) {
+    // Opening and Exit Rules enforcement
+    var pickSide = function() { return ['n','s','e','w'][Math.floor(Math.random()*4)]; };
+    var posOnSide = function(s) { return (s==='n'||s==='s') ? Math.floor(Math.random()*w) : Math.floor(Math.random()*h); };
+    var cellOnSide = function(s,p) {
       if(s==='n') return {x:p, y:0};
       if(s==='s') return {x:p, y:h-1};
       if(s==='w') return {x:0, y:p};
       return {x:w-1, y:p};
-    }
+    };
 
-    var es, ep, xs, xp, att = 0;
-    var valid = false;
-    var entry, exit;
-
-    // Opening and Exit Rules enforcement
+    var es, ep, xs, xp, att = 0, valid = false, entry, exit;
     while(!valid && att < 500) {
       att++;
       es = pickSide(); ep = posOnSide(es);
       xs = pickSide(); xp = posOnSide(xs);
-
-      // Rule: Proximity Check (Same side constraint)
-      if(es === xs) {
-        if(Math.abs(ep - xp) < 2) continue; // Must have at least one unit of segment between
-      }
-
+      if(es === xs && Math.abs(ep - xp) < 2) continue; // Min 1 unit separation on same side
       entry = cellOnSide(es, ep); exit = cellOnSide(xs, xp);
       
-      // Rule: Line of Sight (LOS) blocking
-      // Openings cannot be in view of one another through interior paths
+      // Line of Sight (LOS) blocking check
       var hasLOS = function(a, b) {
         if(a.x === b.x) {
           var y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
           for(var ty=y1; ty<y2; ty++) { if(grid[ty][a.x].s) return false; }
-          return true; // Unblocked path vertically
+          return true;
         }
         if(a.y === b.y) {
           var x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
           for(var tx=x1; tx<x2; tx++) { if(grid[a.y][tx].e) return false; }
-          return true; // Unblocked path horizontally
+          return true;
         }
         return false;
       };
       if(hasLOS(entry, exit)) continue;
 
-      // Rule: Sub-branch complexity check for trial and error
-      // A simple solution is rejected to prevent defeating game purpose
+      // Solution path complexity check (Trial & Error opportunity)
       var res = solveMaze({grid, w, h, entry, exit});
       if(!res || res.length < (w+h)/1.4) continue;
-
       valid = true;
     }
     
@@ -118,12 +102,7 @@
     grid[entry.y][entry.x][es] = 0;
     grid[exit.y][exit.x][xs] = 0;
 
-    // â”€â”€ Boolean differential logic (concept) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Replicating pathfinding by taking generated walls and subtracting differences 
-    // using trig placeholders to find the "Sigma" remainder (the solution path).
-    var sigmaSolution = solveMaze({grid, w, h, entry, exit});
-
-    return { grid, w, h, entry, exit, entrySide: es, exitSide: xs, solution: sigmaSolution };
+    return { grid, w, h, entry, exit, entrySide: es, exitSide: xs, solution: res };
   }
 
   function solveMaze(maze) {
@@ -150,71 +129,94 @@
 
   // â”€â”€ CSS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function injectCSS() {
-    var s=document.createElement('style');
-    s.textContent=[
-      '#mist-trigger{position:fixed;right:0;top:148px;z-index:9500;display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 5px;',
-        'background:rgba(2,6,14,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);',
-        'border:1px solid rgba(0,229,255,.22);border-right:none;border-radius:7px 0 0 7px;cursor:pointer;transition:all .2s}',
-      '#mist-trigger:hover{background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.45)}',
-      '.mt-icon{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .3s}',
-      '.mt-icon.mi-active{filter:drop-shadow(0 0 4px #00e5ff);opacity:1}',
-      '.mt-icon.mi-locked{opacity:.14}',
-      '.mt-icon.mi-ready{opacity:.6}',
-      '#mist-overlay{position:fixed;right:36px;top:140px;z-index:9400;width:min(250px,calc(100vw - 48px));display:flex;flex-direction:column;',
-        'transform:translateX(calc(100% + 44px));transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;opacity:0;pointer-events:none}',
-      '#mist-overlay.mist-open{transform:translateX(0);opacity:1;pointer-events:all}',
-      '#mist-menu{background:rgba(4,10,22,.52);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
-        'border:1px solid rgba(0,229,255,.2);border-bottom:none;border-radius:7px 7px 0 0;padding:7px 9px 5px;display:flex;flex-direction:column;gap:5px}',
-      '#mist-head-row{display:flex;align-items:center;gap:7px}',
-      '.mist-lbl{font-family:var(--font-d,monospace);font-size:.42rem;letter-spacing:3px;color:rgba(0,229,255,.9);text-shadow:0 0 7px rgba(0,229,255,.45)}',
-      '.mist-sub{font-family:var(--font-d,monospace);font-size:.27rem;letter-spacing:2px;color:rgba(0,229,255,.35)}',
-      '#mist-x{margin-left:auto;background:none;border:none;color:rgba(0,229,255,.3);font-size:12px;cursor:pointer;padding:2px 4px;transition:color .2s;line-height:1}',
-      '#mist-tabs{display:flex;gap:3px}',
-      '.mst-tab{flex:1;padding:4px 3px;text-align:center;cursor:pointer;font-family:var(--font-d,monospace);font-size:.27rem;letter-spacing:1.5px;',
-        'color:rgba(255,255,255,.22);border:1px solid rgba(0,229,255,.08);border-radius:3px;background:transparent;transition:all .18s}',
-      '.mst-tab.mst-active{color:#00e5ff;border-color:rgba(0,229,255,.35);text-shadow:0 0 5px rgba(0,229,255,.5)}',
-      '.mst-tab.mst-locked{cursor:not-allowed;opacity:.18}',
-      '#mist-diff{display:flex;align-items:center;gap:4px}',
-      '.diff-lbl{font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:2px;color:rgba(255,255,255,.22)}',
-      '.db{background:transparent;border:1px solid rgba(0,229,255,.12);color:rgba(0,229,255,.35);',
-        'padding:2px 6px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1px;transition:all .15s}',
-      '.db.db-active{border-color:rgba(0,229,255,.65);color:#00e5ff}',
-      '#mist-new{margin-left:auto;background:transparent;border:1px solid rgba(0,229,255,.18);color:#00e5ff;',
-        'padding:2px 7px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1px}',
-      '#mist-canvas-wrap{background:rgba(4,10,22,.48);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
-        'border:1px solid rgba(0,229,255,.18);border-radius:0 0 7px 7px;padding:7px;display:flex;flex-direction:column;align-items:center;gap:3px}',
-      '#mist-maze-canvas{display:block;touch-action:none;cursor:crosshair;border:1px solid rgba(0,229,255,.1);border-radius:2px}',
-      '#mist-status{font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:2px;color:rgba(0,229,255,.38);text-align:center;min-height:13px}',
-      '.mist-solved{animation:mist-win 1.1s ease-in-out 3}',
-    ].join('');
+    if(document.getElementById('mist-styles')) return;
+    var s = document.createElement('style');
+    s.id = 'mist-styles';
+    s.textContent = `
+      #mist-overlay { position: fixed; inset: 0; background: rgba(0,8,12,0.6); backdrop-filter: blur(10px); z-index: 12000; opacity: 0; pointer-events: none; transition: opacity 0.4s; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; color: #00e5ff; }
+      #mist-overlay.mist-open { opacity: 1; pointer-events: auto; }
+      #mist-panel { width: 320px; background: rgba(2,12,18,0.92); border: 1px solid rgba(0,229,255,0.22); border-radius: 4px; box-shadow: 0 0 40px rgba(0,0,0,0.6); overflow: hidden; position: relative; }
+      #mist-header { padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0,229,255,0.1); }
+      #mist-title { font-size: 11px; font-weight: 500; letter-spacing: 0.15em; display: flex; align-items: baseline; gap: 8px; }
+      #mist-subtitle { font-size: 8px; opacity: 0.4; font-weight: 400; }
+      #mist-close { cursor: pointer; opacity: 0.6; transition: opacity 0.2s; font-size: 16px; margin-top: -2px; }
+      #mist-close:hover { opacity: 1; color: #ff0055; }
+      
+      #mist-tabs { display: flex; gap: 1px; background: rgba(0,229,255,0.05); padding: 4px; border-bottom: 1px solid rgba(0,229,255,0.08); }
+      .mst-tab { flex: 1; padding: 10px 4px; text-align: center; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; border-radius: 2px; height: 42px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+      .mst-tab:hover { background: rgba(0,229,255,0.08); }
+      .mst-tab.mst-active { background: rgba(0,229,255,0.12); border: 1px solid rgba(0,229,255,0.3); }
+      .mst-tab.mst-locked { opacity: 0.2; cursor: not-allowed; filter: grayscale(1); }
+      .mt-icon-tab { font-size: 11px; margin-bottom: 2px; }
+      .mst-label { font-size: 8px; letter-spacing: 0.1em; opacity: 0.6; }
+      .mst-tab.mst-active .mst-label { opacity: 1; }
+      
+      #mist-controls { padding: 10px 14px; background: rgba(0,229,255,0.02); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0,229,255,0.08); }
+      #mist-diff-wrap { display: flex; align-items: center; gap: 6px; font-size: 8px; letter-spacing: 0.1em; opacity: 0.8; }
+      .db { padding: 2px 8px; border: 1px solid rgba(0,229,255,0.22); cursor: pointer; border-radius: 2px; transition: all 0.2s; min-width: 24px; text-align: center; font-size: 9px; background: transparent; color: inherit; }
+      .db:hover { border-color: rgba(0,229,255,0.6); background: rgba(0,229,255,0.05); }
+      .db.db-active { border-color: #00e5ff; background: rgba(0,229,255,0.15); font-weight: 700; color: #fff; }
+      #mist-new { font-size: 9px; letter-spacing: 0.1em; border: 1px solid rgba(0,229,255,0.25); padding: 2px 10px; border-radius: 2px; cursor: pointer; transition: all 0.2s; background: transparent; color: inherit; }
+      #mist-new:hover { color: #fff; background: rgba(0,229,255,0.3); border-color: #00e5ff; }
+
+      #mist-canvas-wrap { padding: 12px; display: flex; flex-direction: column; align-items: center; position: relative; background: rgba(0,0,0,0.2); }
+      #mist-maze-canvas { background: rgba(0,5,10,0.4); border: 1px solid rgba(0,229,255,0.1); cursor: crosshair; }
+      #mist-status { margin-top: 10px; font-size: 8px; letter-spacing: 0.12em; text-align: center; color: rgba(0,229,255,0.6); min-height: 12px; }
+      
+      #mist-trigger { position: fixed; right: 20px; top: 120px; width: 34px; background: rgba(0,10,15,0.85); border: 1px solid rgba(0,229,255,0.22); border-radius: 4px; display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 10px; z-index: 11000; cursor: pointer; transition: all 0.3s; }
+      #mist-trigger:hover { border-color: rgba(0,229,255,0.6); box-shadow: 0 0 15px rgba(0,229,255,0.2); }
+      .mt-icon { font-size: 14px; opacity: 0.2; transition: all 0.4s; color: #fff; }
+      .mt-icon.mi-ready { opacity: 0.7; color: #00e5ff; }
+      .mt-icon.mi-active { opacity: 1; color: #00ff88; text-shadow: 0 0 8px #00ff88; }
+      .mt-icon.mi-locked { opacity: 0.1; }
+
+      .mist-solved { animation: mist-success 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+      @keyframes mist-success { 0%, 100% { box-shadow: inset 0 0 0px #00ff88; } 50% { box-shadow: inset 0 0 30px rgba(0,255,136,0.25); } }
+    `;
     document.head.appendChild(s);
   }
 
   // â”€â”€ HTML â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function injectHTML() {
-    var trig=document.createElement('div'); trig.id='mist-trigger'; trig.title='MIST â€” Lead Edge Maze';
-    trig.innerHTML='<div class="mt-icon mi-ready" id="mt-0">â˜…</div><div class="mt-icon mi-locked" id="mt-1">â™¥</div><div class="mt-icon mi-locked" id="mt-2">â—ˆ</div>';
-    trig.onclick=function(e){e.stopPropagation();mistToggle();};
+    if(document.getElementById('mist-overlay')) return;
+    var trig = document.createElement('div');
+    trig.id = 'mist-trigger';
+    trig.innerHTML = SLOT_PROFILE.map((p, i) => `<div class="mt-icon ${MIST.solvedCount>=i?'mi-ready':'mi-locked'}" id="mt-${i}">${p.icon2}</div>`).join('');
+    trig.onclick = function(e){ e.stopPropagation(); mistToggle(); };
     document.body.appendChild(trig);
-    var ov=document.createElement('div'); ov.id='mist-overlay';
-    ov.innerHTML=[
-      '<div id="mist-menu">',
-      '<div id="mist-head-row"><span class="mist-lbl">â—ˆ MIST</span><span class="mist-sub">LEAD EDGE MAZE</span><button id="mist-x" onclick="mistToggle()">âœ•</button></div>',
-      '<div id="mist-tabs">',
-        '<div class="mst-tab mst-active" id="mst-tab0" onclick="mistSetSlot(0)"><span class="ti">â˜…</span>STAR</div>',
-        '<div class="mst-tab mst-locked" id="mst-tab1" onclick="mistSetSlot(1)"><span class="ti">â™¥</span>HEART</div>',
-        '<div class="mst-tab mst-locked" id="mst-tab2" onclick="mistSetSlot(2)"><span class="ti">â—ˆ</span>MIST</div>',
-      '</div>',
-      '<div id="mist-diff"><span class="diff-lbl">DIFF:</span>',
-        '<button class="db db-active" id="mst-d1" onclick="mistSetDiff(1)">I</button>',
-        '<button class="db" id="mst-d2" onclick="mistSetDiff(2)">II</button>',
-        '<button class="db" id="mst-d3" onclick="mistSetDiff(3)">III</button>',
-        '<button id="mist-new" onclick="mistNewMaze()">NEW</button>',
-      '</div></div>',
-      '<div id="mist-canvas-wrap"><canvas id="mist-maze-canvas"></canvas>',
-      '<div id="mist-status">DRAG â— FROM ENTRY TO EXIT</div></div>',
-    ].join('');
-    ov.addEventListener('click',function(e){e.stopPropagation();});
+
+    var ov = document.createElement('div');
+    ov.id = 'mist-overlay';
+    ov.innerHTML = `
+      <div id="mist-panel">
+        <div id="mist-header">
+          <div id="mist-title">â—ˆ MIST <span id="mist-subtitle">LEAD EDGE MAZE</span></div>
+          <div id="mist-close" onclick="mistToggle()">Ã—</div>
+        </div>
+        <div id="mist-tabs">
+          ${SLOT_PROFILE.map((p, i) => `
+            <div id="mst-tab${i}" class="mst-tab ${i===MIST.activeMaze?'mst-active':''} ${MIST.solvedCount<i?'mst-locked':''}" onclick="mistSetSlot(${i})">
+              <div class="mt-icon-tab">${p.icon2}</div>
+              <div class="mst-label">${p.label}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div id="mist-controls">
+          <div id="mist-diff-wrap">
+            DIFF: 
+            <button class="db ${MIST.difficulty===1?'db-active':''}" id="mst-d1" onclick="mistSetDiff(1)">I</button>
+            <button class="db ${MIST.difficulty===2?'db-active':''}" id="mst-d2" onclick="mistSetDiff(2)">II</button>
+            <button class="db ${MIST.difficulty===3?'db-active':''}" id="mst-d3" onclick="mistSetDiff(3)">III</button>
+          </div>
+          <button id="mist-new" onclick="mistNewMaze()">NEW</button>
+        </div>
+        <div id="mist-canvas-wrap">
+          <canvas id="mist-maze-canvas"></canvas>
+          <div id="mist-status">DRAG â— FROM ENTRY TO EXIT</div>
+        </div>
+      </div>
+    `;
+    ov.addEventListener('click', function(e){ e.stopPropagation(); });
     document.body.appendChild(ov);
   }
 
@@ -233,6 +235,7 @@
       document.removeEventListener('click',_mistOutside,true);
     }
   };
+
   function _mistOutside(e){
     var ov=document.getElementById('mist-overlay'),tr=document.getElementById('mist-trigger');
     if(ov&&ov.contains(e.target))return;
@@ -245,6 +248,7 @@
     [1,2,3].forEach(function(n){var b=document.getElementById('mst-d'+n);if(b)b.classList.toggle('db-active',n===d);});
     MIST.mazes=[null,null,null]; mistNewMaze();
   };
+
   window.mistSetSlot=function(slot){
     if(slot>0&&MIST.solvedCount<slot)return;
     MIST.activeMaze=slot;
@@ -252,6 +256,7 @@
     if(!MIST.mazes[slot]) mistNewMaze(); else renderMaze(MIST.mazes[slot],[]);
     setStatus('DRAG â— FROM ENTRY TO EXIT');
   };
+
   window.mistNewMaze=function(){
     var cfg=DIFF[MIST.difficulty];
     var maze=generateMaze(cfg.w,cfg.h); maze.solved=false;
@@ -276,53 +281,42 @@
     MIST.sphereAnimId=requestAnimationFrame(tick);
   }
 
-  // â”€â”€ WIREFRAME SPLINE Renderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€ WIREFRAME SPLINE Renderer (Narrow Spline Restore) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderMaze(maze, dragPath) {
     var canvas = document.getElementById('mist-maze-canvas'), wrap = document.getElementById('mist-canvas-wrap');
     if(!canvas || !wrap) return;
-    var avail = Math.min(wrap.clientWidth - 14, 220); 
+
+    // Fixed sizing to maintain core unit consistency
+    var avail = Math.min(wrap.clientWidth - 28, 260); 
     var cs = Math.max(8, Math.floor(avail / Math.max(maze.w, maze.h)));
     var pw = cs * maze.w, ph = cs * maze.h;
+
     canvas.width = pw; canvas.height = ph;
     canvas.style.width = pw + 'px'; canvas.style.height = ph + 'px';
     var ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, pw, ph);
 
+    // 1. Draw Maze Walls (Narrow single splines as per Lead Edge screenshot)
+    ctx.strokeStyle = 'rgba(0,229,255,0.7)'; 
+    ctx.lineWidth = 1.0; 
+    ctx.lineCap = 'butt'; 
+    ctx.lineJoin = 'miter';
+    
+    ctx.beginPath();
     for(var y=0; y<maze.h; y++) {
       for(var x=0; x<maze.w; x++) {
         var cell = maze.grid[y][x], px = x * cs, py = y * cs;
-        
-        var drawWireWall = function(x1, y1, x2, y2) {
-          // Unit glow
-          ctx.strokeStyle = 'rgba(0,229,255,0.45)'; ctx.lineWidth = cs * 0.35;
-          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-          
-          // Wireframe core spline
-          ctx.strokeStyle = 'rgba(0,229,255,0.9)'; ctx.lineWidth = 1.0;
-          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-          
-          // Unit ribs (consistency)
-          var numRibs = 4;
-          for(var i=0; i<=numRibs; i++) {
-            var rx = x1 + (x2-x1)*(i/numRibs), ry = y1 + (y2-y1)*(i/numRibs);
-            var rxD = (y2-y1)*0.12, ryD = -(x2-x1)*0.12;
-            ctx.beginPath(); ctx.moveTo(rx-rxD, ry-ryD); ctx.lineTo(rx+rxD, ry+ryD); ctx.stroke();
-          }
-        };
-
-        if(cell.n) drawWireWall(px, py, px+cs, py);
-        if(cell.s) drawWireWall(px, py+cs, px+cs, py+cs);
-        if(cell.w) drawWireWall(px, py, px, py+cs);
-        if(cell.e) drawWireWall(px+cs, py, px+cs, py+cs);
-        
-        // Unit nodes (corners)
-        ctx.fillStyle = 'rgba(0,229,255,0.25)';
-        ctx.fillRect(px-1, py-1, 2, 2);
+        if(cell.n) { ctx.moveTo(px, py); ctx.lineTo(px+cs, py); }
+        if(cell.s) { ctx.moveTo(px, py+cs); ctx.lineTo(px+cs, py+cs); }
+        if(cell.w) { ctx.moveTo(px, py); ctx.lineTo(px, py+cs); }
+        if(cell.e) { ctx.moveTo(px+cs, py); ctx.lineTo(px+cs, py+cs); }
       }
     }
+    ctx.stroke();
 
+    // 2. Draw Player Path
     if(dragPath && dragPath.length > 1) {
-      ctx.strokeStyle = 'rgba(0,255,136,.6)'; ctx.lineWidth = cs * .22;
+      ctx.strokeStyle = 'rgba(0,229,255,0.3)'; ctx.lineWidth = cs * 0.1;
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.beginPath();
       ctx.moveTo(dragPath[0].x*cs+cs/2, dragPath[0].y*cs+cs/2);
@@ -330,19 +324,23 @@
       ctx.stroke();
     }
 
-    // Terminals
-    ctx.beginPath(); ctx.arc(maze.exit.x*cs+cs/2, maze.exit.y*cs+cs/2, cs*.35, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(0,229,255,.55)'; ctx.shadowBlur = 10; ctx.shadowColor='#00e5ff';
+    // 3. Draw Exit Terminal
+    ctx.beginPath(); ctx.arc(maze.exit.x*cs+cs/2, maze.exit.y*cs+cs/2, cs*0.35, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(0,229,255,0.25)'; ctx.shadowBlur = 12; ctx.shadowColor = '#00e5ff';
     ctx.fill(); ctx.shadowBlur = 0;
 
+    // 4. Draw Player Sphere (Ensures exact centroid alignment)
     var bx, by;
     if(MIST.sphereActual) { bx = MIST.sphereActual.x; by = MIST.sphereActual.y; }
-    else { var bc = (MIST.dragging && MIST.dragPos) ? MIST.dragPos : maze.entry; bx = bc.x*cs+cs/2; by = bc.y*cs+cs/2; }
+    else { 
+      var bc = (MIST.dragging && MIST.dragPos) ? MIST.dragPos : maze.entry; 
+      bx = bc.x*cs+cs/2; by = bc.y*cs+cs/2; 
+    }
     
-    ctx.beginPath(); ctx.arc(bx, by, cs*.4, 0, Math.PI*2);
-    ctx.fillStyle = maze.solved ? 'rgba(0,255,136,1)' : 'rgba(0,255,136,.95)';
-    ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 1.0; ctx.stroke();
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(bx, by, cs*0.35, 0, Math.PI*2);
+    ctx.fillStyle = maze.solved ? 'rgba(0,255,136,1)' : 'rgba(0,255,136,0.9)';
+    ctx.shadowBlur = 14; ctx.shadowColor = '#00ff88';
+    ctx.fill(); ctx.shadowBlur = 0;
   }
 
   function canvasToCell(canvas, maze, cx, cy) {
@@ -447,7 +445,7 @@
   var _mistActiveGeom=[];
   function _spawnMistGeometry(slot){
     if(typeof THREE==='undefined'||typeof scene==='undefined') return;
-    var COLORS=[0xffdd00,0xff4488,0x00e5ff];
+    var COLORS=[0xffdd00,0x00ff88,0x00e5ff];
     var col=new THREE.Color(COLORS[slot]);
     var positions=[new THREE.Vector3(0,0,0)];
     if(typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups){
@@ -474,7 +472,6 @@
           mesh.position.copy(nodePos);
           var a=Math.random()*Math.PI*2,b=Math.acos(2*Math.random()-1),spd=0.022+Math.random()*.038;
           mesh._mv=new THREE.Vector3(Math.sin(b)*Math.cos(a)*spd,Math.sin(b)*Math.sin(a)*spd,Math.cos(b)*spd);
-          mesh._mr=new THREE.Vector3(Math.random()*.05,Math.random()*.04,0);
         } else if(slot===1){
           geo=new THREE.SphereGeometry(0.055+Math.random()*.04,5,5);
           mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.85});
@@ -483,7 +480,6 @@
           var mid=origin.clone().add(target).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*.8,1.2+Math.random()*.8,(Math.random()-.5)*.8));
           mesh._mc=new THREE.CatmullRomCurve3([origin.clone(),mid,target.clone()]);
           mesh._mt=(i/perNode)*-0.35; mesh._mspd=0.006+Math.random()*.003;
-          mesh._mr=new THREE.Vector3(0,0,Math.random()*.04);
           mesh.position.copy(origin);
         } else {
           geo=new THREE.TetrahedronGeometry(0.07+Math.random()*.1,0);
@@ -496,23 +492,16 @@
           }
           if(!curve){var pa=positions[ni%positions.length],pb=positions[(ni+1)%positions.length];var mpt=pa.clone().add(pb).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*1.5,(Math.random()-.5)*1.5,0));curve=new THREE.CatmullRomCurve3([pa.clone(),mpt,pb.clone()]);}
           mesh._mc=curve; mesh._mt=Math.random(); mesh._mspd=0.004+Math.random()*.005;
-          mesh._mr=new THREE.Vector3(Math.random()*.035,Math.random()*.03,0);
           var pt=curve.getPoint(mesh._mt);mesh.position.copy(pt);
         }
+        mesh._mr=new THREE.Vector3(Math.random()*.05,Math.random()*.04,Math.random()*.03);
         group._mObjs.push(mesh); group.add(mesh);
       }
     });
-    for(var li=0;li<Math.min(5,positions.length);li++){
-      var pa=positions[li%positions.length],pb=positions[(li+1)%positions.length];
-      var mid2=pa.clone().add(pb).multiplyScalar(.5).add(new THREE.Vector3((Math.random()-.5)*2,(Math.random()-.5)*2,0));
-      var c2=new THREE.CatmullRomCurve3([pa,mid2,pb]);
-      var lGeo=new THREE.BufferGeometry().setFromPoints(c2.getPoints(40));
-      var lMat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.35});
-      group.add(new THREE.Line(lGeo,lMat));
-    }
     scene.add(group);
     _mistActiveGeom.push(group);
   }
+
   (function _mistTick(){
     requestAnimationFrame(_mistTick);
     if(!_mistActiveGeom.length)return;
@@ -522,9 +511,10 @@
       var fade=1-g._mAge/g._mMax;
       if(fade<=0){rem.push(g);return;}
       g._mObjs.forEach(function(obj){
-        if(g._mSlot===0){obj.position.add(obj._mv);obj.rotation.x+=obj._mr.x;obj.rotation.y+=obj._mr.y;obj.material.opacity=.9*fade;}
-        else if(g._mSlot===1){obj._mt+=obj._mspd;if(obj._mt>1)obj._mt=0;if(obj._mt>=0&&obj._mc){var pt=obj._mc.getPoint(Math.min(1,obj._mt));obj.position.copy(pt);}obj.rotation.z+=obj._mr.z;obj.material.opacity=.85*fade;}
-        else{obj._mt+=obj._mspd;if(obj._mt>1)obj._mt=0;if(obj._mc){var pt2=obj._mc.getPoint(obj._mt);obj.position.copy(pt2);obj.position.x+=Math.sin(g._mAge*.06+obj._mt*5)*.07;}obj.rotation.x+=obj._mr.x;obj.rotation.y+=obj._mr.y;obj.material.opacity=.65*fade;}
+        obj.rotation.x+=obj._mr.x; obj.rotation.y+=obj._mr.y; obj.rotation.z+=obj._mr.z;
+        if(g._mSlot===0){obj.position.add(obj._mv); obj.material.opacity=.9*fade;}
+        else if(g._mSlot===1){obj._mt+=obj._mspd;if(obj._mt>1)obj._mt=0;if(obj._mt>=0&&obj._mc){obj.position.copy(obj._mc.getPoint(Math.min(1,obj._mt)));}obj.material.opacity=.85*fade;}
+        else{obj._mt+=obj._mspd;if(obj._mt>1)obj._mt=0;if(obj._mc){obj.position.copy(obj._mc.getPoint(obj._mt));obj.position.x+=Math.sin(g._mAge*.06+obj._mt*5)*.07;}obj.material.opacity=.65*fade;}
       });
     });
     rem.forEach(function(g){
@@ -551,10 +541,8 @@
           .then(function(r){return r.ok?r.json():null;})
           .then(function(d){
             if(!d||!d.ts||!d.uid)return;
-            var age=Date.now()-d.ts;
-            if(age>STALE_MS)return;
-            var lastSeen=MIST.lastRemoteTs[d.uid]||0;
-            if(d.ts<=lastSeen)return;
+            if(Date.now()-d.ts > STALE_MS) return;
+            if(d.ts <= (MIST.lastRemoteTs[d.uid]||0)) return;
             MIST.lastRemoteTs[d.uid]=d.ts;
             _fireMistNetworkReaction(d.slot||0, false);
           }).catch(function(){});
@@ -578,7 +566,7 @@
     setTimeout(function(){
       _pollRemoteMist();
       setInterval(_pollRemoteMist,12000);
-    },8000);
+    },10000);
   }
 
   function setStatus(msg) { var el = document.getElementById('mist-status'); if(el) el.textContent = msg; }
