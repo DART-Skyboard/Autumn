@@ -3084,8 +3084,8 @@ function newChat() {
   S.activeContext = null;
   saveState(); renderMessages();
   // Backup new session to GitHub so it's visible on next page load
-  if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
-    setTimeout(function() { try { window._lastSaveHash = ''; _autosave(); } catch(e) {} }, 1200);
+  if (window._ghAuth && window._ghAuth.loggedIn && typeof window._autosave === 'function') {
+    setTimeout(function() { try { window._lastSaveHash = ''; window._autosave(); } catch(e) {} }, 1200);
   }
 }
 
@@ -8543,8 +8543,8 @@ async function handleSend() {
     if(typeof setOrbThinking==='function') setOrbThinking(false);
     renderMessages(); updateFooter();
     // Autosave to GitHub 2s after every response
-    if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
-      setTimeout(_autosave, 2000);
+    if (window._ghAuth && window._ghAuth.loggedIn && typeof window._autosave === 'function') {
+      setTimeout(window._autosave, 2000);
     }
   };
 
@@ -8862,7 +8862,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
       window._lastSaveHash = '';
       // Force-clear the in-flight lock so manual sync commands always execute immediately
       if (typeof window._forceResetSaveState === 'function') window._forceResetSaveState();
-      var _bakPromise = (typeof _autosave === 'function') ? _autosave() : Promise.reject(new Error('autosave not available'));
+      var _bakPromise = (typeof window._autosave === 'function') ? window._autosave() : Promise.reject(new Error('autosave not available'));
       // Guard: if _autosave returned undefined (race condition), wrap it
       if (!_bakPromise || typeof _bakPromise.then !== 'function') {
         _bakPromise = Promise.reject(new Error('Sync engine unavailable — check GitHub token'));
@@ -16825,7 +16825,7 @@ _syncActionBtn();
         .catch(function(){ if(typeof ideToast==='function') ideToast('Save failed', 2000); });
     } else {
       // Fallback: trigger full autosave which includes canvas state
-      if (typeof _autosave === 'function') { window._lastSaveHash=''; _autosave(); }
+      if (typeof window._autosave === 'function') { window._lastSaveHash=''; window._autosave(); }
       if (typeof ideToast==='function') ideToast('✓ Syncing to GitHub…', 2000);
     }
   };
@@ -19572,6 +19572,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _lastSaveHash = '';
   };
 
+  // Expose _autosave globally so the chat sync command (outside this IIFE) can call it
   function _autosave() {
     var token    = window._ghAuth.token;
     var username = window._ghAuth.username;
@@ -19689,6 +19690,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       return chunkName;
     }).catch(function(e){ _saveInFlight = false; throw e; });
   }
+  // Expose so chat sync command (outside this IIFE) can reach it
+  window._autosave = _autosave;
 
   function _rotateChunk(snapshot, content, byteSize, token, username, repoName) {
     // Seal current chunk, start new one
@@ -19857,7 +19860,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       var lc  = txt.toLowerCase();
       var isSyncCmd = /\b(backup|back up|sync memory|sync memories|sync all|sync everything|sync my memory|sync the memory|memory sync|commit memory|archive memory|save memory|save data|save all|save to github|sync to github|force save|push memory|push to github)\b/i.test(lc);
       if (isSyncCmd) {
-        if (window._ghAuth && window._ghAuth.loggedIn && typeof _autosave === 'function') {
+        if (window._ghAuth && window._ghAuth.loggedIn && typeof window._autosave === 'function') {
           // Push user message first
           var userMsg = {role:'user', text:txt, ts:new Date().toISOString(), id:'u-'+Date.now()};
           if (typeof msgs === 'function') msgs().push(userMsg);
@@ -19877,7 +19880,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           if (typeof window._forceResetSaveState === 'function') window._forceResetSaveState();
 
           try {
-            var filename = await _autosave();
+            var filename = await window._autosave();
             var _sc = (window.S && window.S.sessions) ? window.S.sessions.length : '—';
             var _mc = (window.S && window.S.sessions) ? window.S.sessions.reduce(function(a,s){return a+(s.messages||[]).length;},0) : '—';
             var _ci = window._memIndex;
