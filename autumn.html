@@ -8859,7 +8859,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     MEMORY_ANALYSIS_TRIGGERS.some(function(t){ return augmentedText.toLowerCase().includes(t); });
 
   // ── Backup to GitHub Ash repo ─────────────────────────────────────────────
-  const _backupTrigger = /\b(backup|back up|sync to github|save to github|save memory|force save|push memory)\b/i.test(augmentedText);
+  const _backupTrigger = /\b(backup|back up|sync memory|sync memories|sync to github|save to github|save memory|force save|push memory|sync all|sync everything|sync my memory|sync the memory|memory sync|commit memory|archive memory)\b/i.test(augmentedText);
   if (_backupTrigger && !_pendingImgs.length) {
     const _bakMsgId = 'bak-'+Date.now();
     if (window._ghAuth && window._ghAuth.loggedIn) {
@@ -8868,10 +8868,29 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
         imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>SAVING TO ASH REPO…</div></div>'});
       renderMessages();
       window._lastSaveHash = '';
+      // Force-clear the in-flight lock so manual sync commands always execute immediately
+      if (typeof window._forceResetSaveState === 'function') window._forceResetSaveState();
       var _bakPromise = (typeof _autosave === 'function') ? _autosave() : Promise.reject(new Error('autosave not available'));
+      // Guard: if _autosave returned undefined (race condition), wrap it
+      if (!_bakPromise || typeof _bakPromise.then !== 'function') {
+        _bakPromise = Promise.reject(new Error('Sync engine unavailable — check GitHub token'));
+      }
       _bakPromise.then(function(filename){
         var msgEl = document.querySelector('[data-id="'+_bakMsgId+'"] .img-gen-card');
-        if (msgEl) msgEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(0,255,204,.4)"><div style="padding:14px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;color:var(--cyan)">✓ MEMORY SAVED<br><span style="color:rgba(255,255,255,.5);font-size:.55rem">Autumn-Ash-'+window._ghAuth.username+' / ash-memory/'+(filename||'memory snapshot')+'</span></div></div>';
+        if (msgEl) {
+          var _sc = (window.S && window.S.sessions) ? window.S.sessions.length : '—';
+          var _mc = (window.S && window.S.sessions) ? window.S.sessions.reduce(function(a,s){return a+(s.messages||[]).length;},0) : '—';
+          var _ci = window._memIndex;
+          var _chunks = _ci ? (_ci.chunks||[]).length : 1;
+          var _kb = _ci ? Math.round((_ci.totalBytes||0)/1024) : '—';
+          msgEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(0,255,204,.4)">'
+            +'<div style="padding:14px 16px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;color:var(--cyan);line-height:1.9">'
+            +'✓ MEMORY SYNCED<br>'
+            +'<span style="color:rgba(255,255,255,.45);font-size:.55rem">'
+            +'Autumn-Ash-'+window._ghAuth.username+' / ash-memory/'+(filename||'memory snapshot')+'<br>'
+            +_sc+' session'+(+_sc===1?'':'s')+' · '+_mc+' message'+(+_mc===1?'':'s')+' · chunk '+_chunks+' · '+_kb+'kb total'
+            +'</span></div></div>';
+        }
         renderMessages();
       }).catch(function(e){
         var msgEl = document.querySelector('[data-id="'+_bakMsgId+'"] .img-gen-card');
@@ -11513,6 +11532,7 @@ async function _pollAshNodes() {
   var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
 
   // Heartbeat: write/refresh this tab's own session file
+  // Carry mistSolve for 30s after a solve so other browsers' poll cycles catch it
   var _hbPayload = { uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence' };
   if(_ashNodes._lastMistSolve && (Date.now() - _ashNodes._lastMistSolve.ts) < 30000) {
     _hbPayload.mistSolve = _ashNodes._lastMistSolve;
@@ -11536,6 +11556,8 @@ async function _pollAshNodes() {
             .sort(function(a,b){ return b.name > a.name ? 1 : -1; }) // newest tmo* suffix first
             .slice(0, _ashNodes.MAX_REMOTE);
           var fetches = recentFiles.map(function(f) {
+            // Use f.url (GitHub API endpoint) with auth — not f.download_url (CDN, cached)
+            // This ensures we always get fresh file content across all browsers/devices
             return fetch(f.url, {
                 headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
                 signal: AbortSignal.timeout(4000)
@@ -11556,6 +11578,7 @@ async function _pollAshNodes() {
                 nodes.push({ uid: nodeId, deviceUid: res.value.uid||nodeId, ts: res.value.ts||Date.now(), isLocal: false });
               }
               // ── MIST cross-browser reaction ──────────────────────────────
+              // If this session file carries a fresh mistSolve event, fire it
               var ms = res.value.mistSolve;
               if(ms && ms.ts && ms.slot != null) {
                 var msAge = Date.now() - ms.ts;
@@ -11565,6 +11588,7 @@ async function _pollAshNodes() {
                   if(typeof window._buoyancyMistPulse === 'function') {
                     window._buoyancyMistPulse({ slot: ms.slot });
                   }
+                  // Re-poll quickly so reaction writes propagate back out fast
                   setTimeout(_pollAshNodes, 1500);
                 }
               }
@@ -19550,39 +19574,85 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   }
 
   // ── Autosave — rolling 4.5MB chunks with index ───────────────────────────
+  // Expose a way for manual sync commands to reset the in-flight lock
+  window._forceResetSaveState = function() {
+    _saveInFlight = false;
+    _lastSaveHash = '';
+  };
+
   function _autosave() {
     var token    = window._ghAuth.token;
     var username = window._ghAuth.username;
     var repoName = window._ghAuth.repoName;
-    if (!token || !repoName || _saveInFlight) return;
+    if (!token || !repoName) return Promise.reject(new Error('GitHub token or repo not configured'));
+    if (_saveInFlight) return Promise.reject(new Error('Sync already in progress'));
     var S = window.S;
-    if (!S) return;
+    if (!S) return Promise.reject(new Error('Session state unavailable'));
 
     // Build snapshot with all memory types
     var now = new Date().toISOString();
     var _ss=(S.sessions||[]).map(function(s){return{id:s.id,messages:(s.messages||[]).map(function(m){var r=Object.assign({},m);delete r._savedAttachments;delete r.uploadedImageThumbs;return r;})};});
+
+    // Capture full ash canvas state including SVG output and maze render
+    var _ashFull = {};
+    try {
+      if (window._ashState) {
+        _ashFull = {
+          tab:       window._ashState.tab,
+          ashCode:   window._ashState.ashCode,
+          mazeW:     window._ashState.mazeW,
+          mazeH:     window._ashState.mazeH,
+          mazeD:     window._ashState.mazeD,
+          mazeMode:  window._ashState.mazeMode,
+          mazeEngine:window._ashState.mazeEngine,
+          // Capture the live SVG output from the ash canvas panel if rendered
+          svgOutput: (function(){
+            try {
+              var sv = document.querySelector('#ash-canvas-panel svg, #ash-canvas-output svg, .ash-canvas-svg');
+              return sv ? sv.outerHTML : null;
+            } catch(e){ return null; }
+          })(),
+          // Capture rendered maze canvas as data URL if present
+          mazeCanvas: (function(){
+            try {
+              var cv = document.querySelector('#ash-maze-canvas, #lemac-canvas, .ash-canvas-panel canvas');
+              return cv ? cv.toDataURL('image/png') : null;
+            } catch(e){ return null; }
+          })()
+        };
+      }
+    } catch(e) {}
+
     var snapshot = {
-      version:        '2.0',
+      version:        '2.1',
       username:       username,
       saved:          now,
       chunk:          _activeChunkName(),
+      // Full session history — every message across every session
       sessions:       _ss,
       currentSession: S.currentSession || 0,
+      // Core memory stores
       memory:         S.memory         || {},
       journal:        (S.journal        || []).slice(-500),
-      contextHistory: (S.contextHistory || []).slice(-100),
+      contextHistory: (S.contextHistory || []).slice(-200),
       sessionHistory: (S.sessionHistory || []).slice(-200),
       attachments:    (S.attachments    || []).slice(-100),
       sentience:      S.sentience       || {},
       nlp:            S.lastAnalysis    || {},
+      orbEvo:         S.orbEvo          || {},
+      // Module states — FORGE code, Arc Edge arcs, Ash Canvas
       moduleStates:   (typeof window._captureModuleStates==='function') ? window._captureModuleStates() : {},
-      orbEvo:         S.orbEvo          || {}
+      // Full ash canvas — overrides the basic capture in moduleStates.ashCanvas
+      ashCanvas:      _ashFull,
+      // Cross-session identifiers for Autumn to look up older chunks
+      memoryIndex:    _memIndex || null,
+      totalChunks:    _memIndex ? (_memIndex.chunks||[]).length : 1
     };
     var content = JSON.stringify(snapshot);
 
     // Skip if nothing changed
     var hash = content.length + '|' + content.slice(0,300);
-    if (hash === _lastSaveHash) return;
+    if (hash === _lastSaveHash) return Promise.resolve(_activeChunkName());
     _lastSaveHash = hash;
 
     _saveInFlight = true;
@@ -19590,9 +19660,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     // Check if active chunk needs rotation (>= 4.5 MB)
     if (_memIndex && byteSize >= MAX_FILE_BYTES) {
-      _rotateChunk(snapshot, content, byteSize, token, username, repoName);
+      return _rotateChunk(snapshot, content, byteSize, token, username, repoName);
     } else {
-      _writeActiveChunk(content, byteSize, token, username, repoName);
+      return _writeActiveChunk(content, byteSize, token, username, repoName);
     }
   }
 
@@ -19604,7 +19674,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       ? Promise.resolve(_activeSha)
       : _getFileSha(path, token, username, repoName);
 
-    shaPromise.then(function(sha) {
+    return shaPromise.then(function(sha) {
       _activeSha = sha;
       return _ghWriteFile(path, content, sha, token, username, repoName);
     }).then(function(res) {
@@ -19624,7 +19694,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }).then(function(){
       _saveInFlight = false;
       _toast('\u2713 Memory saved');
-    }).catch(function(){ _saveInFlight = false; });
+      return chunkName;
+    }).catch(function(e){ _saveInFlight = false; throw e; });
   }
 
   function _rotateChunk(snapshot, content, byteSize, token, username, repoName) {
@@ -19662,7 +19733,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _memIndex.lastSaved  = new Date().toISOString();
     _activeSha = null; // new file, no SHA yet
 
-    _ghWriteFile(MEMORY_PATH + newName, freshContent, null, token, username, repoName)
+    return _ghWriteFile(MEMORY_PATH + newName, freshContent, null, token, username, repoName)
       .then(function(res) {
         if (res && res.content && res.content.sha) _activeSha = res.content.sha;
         return _saveIndex(token, username, repoName);
@@ -19670,8 +19741,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .then(function(){
         _saveInFlight = false;
         _toast('\u2713 Memory chunk rotated (' + _memIndex.chunks.length + ' total)');
+        return newName;
       })
-      .catch(function(){ _saveInFlight = false; });
+      .catch(function(e){ _saveInFlight = false; throw e; });
   }
 
   function _saveIndex(token, username, repoName) {
