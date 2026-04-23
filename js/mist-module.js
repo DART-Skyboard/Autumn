@@ -124,32 +124,47 @@
     if(window.S&&window.S.journal)
       window.S.journal.push({ts:new Date().toISOString(),_internal:true,_thought:msg});
   }
-  // Direct GitHub write — bypasses the batch queue entirely for instant propagation
+  // Mist write — routes through GAS proxy so all users can write without a PAT.
+  // PAT path kept as fallback for IDE/admin sessions.
   var _writeInFlight = false;
   function _write(data){
-    if(_writeInFlight) return; // prevent concurrent writes to same file
+    if(_writeInFlight) return;
     var uid=_sid();
-    var path='ashtree/mist/'+uid+'.json';
-    var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():'';
-    if(!pat) return;
-    var apiUrl='https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path;
-    var hdrs={'Authorization':'token '+pat,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
     _writeInFlight=true;
-    // Read current file to get sha and existing content
-    fetch(apiUrl,{headers:hdrs,signal:AbortSignal.timeout(6000)})
-      .then(function(r){ return r.ok?r.json():null; })
-      .then(function(existing){
-        var sha='', arr=[];
-        if(existing&&existing.sha){ sha=existing.sha; try{ arr=JSON.parse(atob(existing.content.replace(/\n/g,'')))||[]; }catch(e){} }
-        if(!Array.isArray(arr)) arr=[];
-        arr.push(data);
-        arr=arr.slice(-200); // keep last 200 events
-        var body={message:'mist:'+uid.slice(0,10),content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))};
-        if(sha) body.sha=sha;
-        return fetch(apiUrl,{method:'PUT',headers:hdrs,body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+    var gasUrl=(typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&!AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))?AUTUMN_GAS_URL:null;
+    var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():null;
+
+    if(gasUrl){
+      // Primary: GAS proxy — works for all visitors, no client PAT needed
+      fetch(gasUrl,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'mistwrite',uid:uid,payload:data}),
+        signal:AbortSignal.timeout(12000)
       })
       .then(function(r){ _writeInFlight=false; _setStatus(r&&r.ok?'●':'✗'); })
       .catch(function(e){ _writeInFlight=false; console.warn('MIST write error:',e); });
+    } else if(pat){
+      // Fallback: direct GitHub API for IDE/admin with PAT
+      var mistPath='ashtree/mist/'+uid+'.json';
+      var apiUrl='https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+mistPath;
+      var hdrs={'Authorization':'token '+pat,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
+      fetch(apiUrl,{headers:hdrs,signal:AbortSignal.timeout(6000)})
+        .then(function(r){ return r.ok?r.json():null; })
+        .then(function(existing){
+          var sha='', arr=[];
+          if(existing&&existing.sha){ sha=existing.sha; try{ arr=JSON.parse(atob(existing.content.replace(/\n/g,'')))||[]; }catch(e){} }
+          if(!Array.isArray(arr)) arr=[];
+          arr.push(data); arr=arr.slice(-200);
+          var body={message:'mist:'+uid.slice(0,10),content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))};
+          if(sha) body.sha=sha;
+          return fetch(apiUrl,{method:'PUT',headers:hdrs,body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+        })
+        .then(function(r){ _writeInFlight=false; _setStatus(r&&r.ok?'●':'✗'); })
+        .catch(function(e){ _writeInFlight=false; console.warn('MIST write error:',e); });
+    } else {
+      _writeInFlight=false;
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -396,7 +411,6 @@
   //  POLL — SHA-diff, 3s
   // ══════════════════════════════════════════════════════════════════════════
   function _poll(){
-    var pat=_pat();if(!pat)return;
     // Retry buffered events whose node positions are now known
     if(_pendingObs.length){
       var stillPending=[];
@@ -411,54 +425,63 @@
       });
       _pendingObs=stillPending;
     }
-    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
-      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-      signal:AbortSignal.timeout(5000)
-    }).then(function(r){return r.ok?r.json():null;})
-    .then(function(files){
-      if(!Array.isArray(files))return;
-      var myUid=_sid();
-      files.filter(function(f){return f.name.endsWith('.json');})
-           .slice(0,MAX_FILES)
-           .forEach(function(f){
-        if(_shaCache[f.name]===f.sha) return; // unchanged
-        _shaCache[f.name]=f.sha;
-        fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
-          .then(function(r){return r.ok?r.json():null;})
-          .then(function(d){
-            var evts=Array.isArray(d)?d:(d&&d.ts&&d.uid)?[d]:null;
-            if(!evts||!evts.length)return;
-            evts.forEach(function(ev){
-              if(!ev||!ev.ts||!ev.uid)return;
-              if(ev.instanceId&&ev.instanceId===_iid)return; // own instance
-              if(Date.now()-ev.ts>STALE_MS)return;
-              var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
-              if(MIST.seen[key])return;
-              MIST.seen[key]=true;
-              console.log('[MIST] poll event:',ev.type||'(no type)','uid:',ev.uid.slice(0,16),'slot:',ev.slot);
-              var slot=(ev.slot!=null)?ev.slot:0;
 
-              if(ev.type==='reaction'&&ev.replyTo){
-                // Is this a reaction to MY solve? → show incoming at their node (feedback)
-                var isMyFeedback=_mySolves.some(function(s){return s.uid===ev.replyTo&&(ev.ts-s.ts)<STALE_MS;});
-                // Always observe: bystanders AND sender both see incoming at reacting node
-                _phaseObserve(ev);
-                if(isMyFeedback){
-                  _log('MIST FEEDBACK ← '+ev.uid.slice(0,14)+' reacted to your slot-'+slot+' solve (score:'+((ev.score||0).toFixed(2))+').');
-                }
-              } else {
-                // It's a solve event from another session
-                // 1. Everyone observes: show outgoing at sender's node in scene
-                _phaseObserve(ev);
-                // 2. If pattern matches: THIS session reacts (incoming to my orb + write reaction)
-                if(ev.uid!==myUid){
-                  _phaseReceive(ev);
-                }
-              }
-            });
-          }).catch(function(){});
+    var gasUrl=(typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&!AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))?AUTUMN_GAS_URL:null;
+    var pat=_pat();
+
+    function _processEvents(evts){
+      if(!Array.isArray(evts)||!evts.length)return;
+      var myUid=_sid();
+      evts.forEach(function(ev){
+        if(!ev||!ev.ts||!ev.uid)return;
+        if(ev.instanceId&&ev.instanceId===_iid)return;
+        if(Date.now()-ev.ts>STALE_MS)return;
+        var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
+        if(MIST.seen[key])return;
+        MIST.seen[key]=true;
+        console.log('[MIST] poll event:',ev.type||'(no type)','uid:',ev.uid.slice(0,16),'slot:',ev.slot);
+        var slot=(ev.slot!=null)?ev.slot:0;
+        if(ev.type==='reaction'&&ev.replyTo){
+          var isMyFeedback=_mySolves.some(function(s){return s.uid===ev.replyTo&&(ev.ts-s.ts)<STALE_MS;});
+          _phaseObserve(ev);
+          if(isMyFeedback){
+            _log('MIST FEEDBACK \u2190 '+ev.uid.slice(0,14)+' reacted to your slot-'+slot+' solve (score:'+((ev.score||0).toFixed(2))+').');
+          }
+        } else {
+          _phaseObserve(ev);
+          if(ev.uid!==myUid) _phaseReceive(ev);
+        }
       });
-    }).catch(function(){});
+    }
+
+    if(gasUrl){
+      // Primary: GAS proxy — works for all visitors, no client PAT needed
+      fetch(gasUrl+'?action=mistevents',{signal:AbortSignal.timeout(8000)})
+        .then(function(r){return r.ok?r.json():null;})
+        .then(function(d){if(d&&Array.isArray(d.events)) _processEvents(d.events);})
+        .catch(function(){});
+    } else if(pat){
+      // Fallback: direct GitHub API for IDE/admin with PAT
+      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
+        headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
+        signal:AbortSignal.timeout(5000)
+      }).then(function(r){return r.ok?r.json():null;})
+      .then(function(files){
+        if(!Array.isArray(files))return;
+        files.filter(function(f){return f.name.endsWith('.json');})
+             .slice(0,MAX_FILES)
+             .forEach(function(f){
+          if(_shaCache[f.name]===f.sha) return;
+          _shaCache[f.name]=f.sha;
+          fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
+            .then(function(r){return r.ok?r.json():null;})
+            .then(function(d){
+              var evts=Array.isArray(d)?d:(d&&d.ts&&d.uid)?[d]:null;
+              _processEvents(evts||[]);
+            }).catch(function(){});
+        });
+      }).catch(function(){});
+    }
   }
 
   // ── BroadcastChannel — same-origin tabs ────────────────────────────────────
@@ -715,36 +738,49 @@
 
   // Replay recent mist events so late-joiners see the live world state immediately
   function _replayState(){
-    var pat=_pat();if(!pat)return;
-    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
-      headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
-      signal:AbortSignal.timeout(6000)
-    }).then(function(r){return r.ok?r.json():null;})
-    .then(function(files){
-      if(!Array.isArray(files))return;
-      // Seed sha cache so regular polls skip these files unless they change after replay
-      var REPLAY_WINDOW=600000; // replay up to 10 min of history — matches STALE_MS
-      files.filter(function(f){return f.name.endsWith('.json');}).slice(0,MAX_FILES)
-        .forEach(function(f){
-          _shaCache[f.name]=f.sha; // mark as seen — future polls only fire on NEW events
-          fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
-            .then(function(r){return r.ok?r.json():null;})
-            .then(function(d){
-              var evts=Array.isArray(d)?d:(d&&d.ts)?[d]:null;
-              if(!evts)return;
-              evts.forEach(function(ev){
-                if(!ev||!ev.ts||!ev.uid)return;
-                if(Date.now()-ev.ts>REPLAY_WINDOW)return;
-                if(ev.instanceId&&ev.instanceId===_iid)return;
-                var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
-                if(MIST.seen[key])return;
-                MIST.seen[key]=true;
-                // Render the state — no BRPN effects for replayed events (just visual)
-                _phaseObserve(ev);
-              });
-            }).catch(function(){});
-        });
-    }).catch(function(){});
+    var REPLAY_WINDOW=600000;
+    var gasUrl=(typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&!AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))?AUTUMN_GAS_URL:null;
+    var pat=_pat();
+
+    function _processReplay(evts){
+      if(!Array.isArray(evts))return;
+      evts.forEach(function(ev){
+        if(!ev||!ev.ts||!ev.uid)return;
+        if(Date.now()-ev.ts>REPLAY_WINDOW)return;
+        if(ev.instanceId&&ev.instanceId===_iid)return;
+        var key=ev.uid+':'+ev.ts+':'+(ev.type||'solve');
+        if(MIST.seen[key])return;
+        MIST.seen[key]=true;
+        _phaseObserve(ev);
+      });
+    }
+
+    if(gasUrl){
+      // Primary: GAS proxy — works for all visitors, no client PAT needed
+      fetch(gasUrl+'?action=mistevents',{signal:AbortSignal.timeout(8000)})
+        .then(function(r){return r.ok?r.json():null;})
+        .then(function(d){if(d&&Array.isArray(d.events)) _processReplay(d.events);})
+        .catch(function(){});
+    } else if(pat){
+      // Fallback: direct GitHub API for IDE/admin with PAT
+      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/mist',{
+        headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'},
+        signal:AbortSignal.timeout(6000)
+      }).then(function(r){return r.ok?r.json():null;})
+      .then(function(files){
+        if(!Array.isArray(files))return;
+        files.filter(function(f){return f.name.endsWith('.json');}).slice(0,MAX_FILES)
+          .forEach(function(f){
+            _shaCache[f.name]=f.sha;
+            fetch(f.download_url+'?_='+Date.now(),{signal:AbortSignal.timeout(4000)})
+              .then(function(r){return r.ok?r.json():null;})
+              .then(function(d){
+                var evts=Array.isArray(d)?d:(d&&d.ts)?[d]:null;
+                _processReplay(evts||[]);
+              }).catch(function(){});
+          });
+      }).catch(function(){});
+    }
   }
 
   function init(){
