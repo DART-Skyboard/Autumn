@@ -8870,12 +8870,13 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
       window._lastSaveHash = '';
       // Force-clear the in-flight lock so manual sync commands always execute immediately
       if (typeof window._forceResetSaveState === 'function') window._forceResetSaveState();
-      var _bakPromise = (typeof _autosave === 'function') ? _autosave() : Promise.reject(new Error('autosave not available'));
-      // Guard: if _autosave returned undefined (race condition), wrap it
+      var _bakPromise = (typeof window._syncMemoryDual === 'function')
+        ? window._syncMemoryDual()
+        : Promise.reject(new Error('Sync engine unavailable'));
       if (!_bakPromise || typeof _bakPromise.then !== 'function') {
         _bakPromise = Promise.reject(new Error('Sync engine unavailable — check GitHub token'));
       }
-      _bakPromise.then(function(filename){
+      _bakPromise.then(function(dualResult){
         var msgEl = document.querySelector('[data-id="'+_bakMsgId+'"] .img-gen-card');
         if (msgEl) {
           var _sc = (window.S && window.S.sessions) ? window.S.sessions.length : '—';
@@ -8883,13 +8884,18 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
           var _ci = window._memIndex;
           var _chunks = _ci ? (_ci.chunks||[]).length : 1;
           var _kb = _ci ? Math.round((_ci.totalBytes||0)/1024) : '—';
+          var userLine = dualResult && dualResult.userOk
+            ? '✓ USER REPO — Autumn-Ash-'+window._ghAuth.username+' / ash-memory/'+(dualResult.userFile||'memory snapshot')
+            : '⚠ USER REPO FAILED: '+((dualResult&&dualResult.userErr&&dualResult.userErr.message)||'unknown error');
+          var ashLine  = dualResult && dualResult.ashOk
+            ? '✓ AUTUMN NEURAL — leatr-ash neural queue flushed'
+            : '⚠ AUTUMN NEURAL FAILED: '+((dualResult&&dualResult.ashErr&&dualResult.ashErr.message)||'unknown error');
           msgEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(0,255,204,.4)">'
-            +'<div style="padding:14px 16px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;color:var(--cyan);line-height:1.9">'
-            +'✓ MEMORY SYNCED<br>'
-            +'<span style="color:rgba(255,255,255,.45);font-size:.55rem">'
-            +'Autumn-Ash-'+window._ghAuth.username+' / ash-memory/'+(filename||'memory snapshot')+'<br>'
-            +_sc+' session'+(+_sc===1?'':'s')+' · '+_mc+' message'+(+_mc===1?'':'s')+' · chunk '+_chunks+' · '+_kb+'kb total'
-            +'</span></div></div>';
+            +'<div style="padding:14px 16px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;line-height:2">'
+            +'<span style="color:'+(dualResult&&dualResult.userOk?'var(--cyan)':'#f88')+'">'+userLine+'</span><br>'
+            +'<span style="color:'+(dualResult&&dualResult.ashOk?'#a0f0b0':'#f88')+'">'+ashLine+'</span><br>'
+            +'<span style="color:rgba(255,255,255,.4);font-size:.55rem">'+_sc+' session'+(+_sc===1?'':'s')+' · '+_mc+' message'+(+_mc===1?'':'s')+' · chunk '+_chunks+' · '+_kb+'kb total</span>'
+            +'</div></div>';
         }
         renderMessages();
       }).catch(function(e){
@@ -19580,6 +19586,53 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _lastSaveHash = '';
   };
 
+  // ── Stuck-lock watchdog ───────────────────────────────────────────────────
+  // If _saveInFlight is still true after 30s, something died silently — auto-reset
+  var _saveInFlightSince = 0;
+  var _origWriteActiveChunk_ref = null; // patched below after _writeActiveChunk is defined
+  setInterval(function() {
+    if (_saveInFlight) {
+      var elapsed = Date.now() - _saveInFlightSince;
+      if (elapsed > 30000) {
+        console.warn('[ASH] _saveInFlight stuck for ' + Math.round(elapsed/1000) + 's — force-resetting');
+        _saveInFlight = false;
+        _lastSaveHash = '';
+      }
+    }
+  }, 5000);
+
+  // ── Dual sync: user repo + Autumn leatr-ash repo simultaneously ───────────
+  // Call this instead of _autosave() directly for "Sync Memory" commands
+  window._syncMemoryDual = async function() {
+    // 1. Flush Autumn's leatr-ash neural queue immediately (don't wait for batch timers)
+    var ashFlushPromise = Promise.all(
+      Object.keys(window._ashQ || {}).map(function(path) {
+        return typeof window._ashFlushNow === 'function'
+          ? window._ashFlushNow(path).catch(function(){})
+          : Promise.resolve();
+      })
+    );
+
+    // 2. Flush user's private repo
+    window._lastSaveHash = '';
+    if (typeof window._forceResetSaveState === 'function') window._forceResetSaveState();
+    var userSyncPromise = (typeof _autosave === 'function')
+      ? _autosave().catch(function(e){ return Promise.reject(e); })
+      : Promise.reject(new Error('autosave not available'));
+
+    // Run both in parallel, return results
+    var results = await Promise.allSettled([userSyncPromise, ashFlushPromise]);
+    var userResult  = results[0];
+    var ashResult   = results[1];
+    return {
+      userOk:    userResult.status  === 'fulfilled',
+      userFile:  userResult.value   || null,
+      userErr:   userResult.reason  || null,
+      ashOk:     ashResult.status   === 'fulfilled',
+      ashErr:    ashResult.reason   || null
+    };
+  };
+
   function _autosave() {
     var token    = window._ghAuth.token;
     var username = window._ghAuth.username;
@@ -19656,6 +19709,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _lastSaveHash = hash;
 
     _saveInFlight = true;
+    _saveInFlightSince = Date.now();
     var byteSize = new Blob([content]).size;
 
     // Check if active chunk needs rotation (>= 4.5 MB)
@@ -19875,30 +19929,33 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           // Show spinner card while save runs
           var _bakId = 'bak-'+Date.now();
           var spinnerMsg = {role:'autumn', text:'', ts:new Date().toISOString(), id:_bakId,
-            grammarMeta:'Memory sync → Autumn-Ash-'+window._ghAuth.username, brpnMeta:'', contextType:'BACKUP',
-            imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>SYNCING TO ASH REPO…</div></div>'};
+            grammarMeta:'Memory sync → user repo + Autumn neural repo', brpnMeta:'', contextType:'BACKUP',
+            imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>SYNCING USER REPO + AUTUMN NEURAL REPO…</div></div>'};
           if (typeof msgs === 'function') msgs().push(spinnerMsg);
           if (typeof renderMessages==='function') renderMessages();
 
-          // Force-clear locks so this always runs immediately
-          window._lastSaveHash = '';
-          if (typeof window._forceResetSaveState === 'function') window._forceResetSaveState();
-
           try {
-            var filename = await _autosave();
+            var dualResult = await window._syncMemoryDual();
             var _sc = (window.S && window.S.sessions) ? window.S.sessions.length : '—';
             var _mc = (window.S && window.S.sessions) ? window.S.sessions.reduce(function(a,s){return a+(s.messages||[]).length;},0) : '—';
             var _ci = window._memIndex;
             var _chunks = _ci ? (_ci.chunks||[]).length : 1;
             var _kb = _ci ? Math.round((_ci.totalBytes||0)/1024) : '—';
+            var userLine  = dualResult.userOk
+              ? '✓ USER REPO — Autumn-Ash-'+window._ghAuth.username+' / ash-memory/'+(dualResult.userFile||'memory snapshot')
+              : '⚠ USER REPO FAILED: '+(dualResult.userErr&&dualResult.userErr.message||'unknown error');
+            var ashLine   = dualResult.ashOk
+              ? '✓ AUTUMN NEURAL — leatr-ash neural queue flushed'
+              : '⚠ AUTUMN NEURAL FAILED: '+(dualResult.ashErr&&dualResult.ashErr.message||'unknown error');
+            var userColor = dualResult.userOk ? 'var(--cyan)' : '#f88';
+            var ashColor  = dualResult.ashOk  ? '#a0f0b0'    : '#f88';
             var cardEl = document.querySelector('[data-id="'+_bakId+'"] .img-gen-card');
             if (cardEl) cardEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(0,255,204,.4)">'
-              +'<div style="padding:14px 16px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;color:var(--cyan);line-height:1.9">'
-              +'✓ MEMORY SYNCED<br>'
-              +'<span style="color:rgba(255,255,255,.45);font-size:.55rem">'
-              +'Autumn-Ash-'+window._ghAuth.username+' / ash-memory/'+(filename||'memory snapshot')+'<br>'
-              +_sc+' session'+(+_sc===1?'':'s')+' · '+_mc+' message'+(+_mc===1?'':'s')+' · chunk '+_chunks+' · '+_kb+'kb total'
-              +'</span></div></div>';
+              +'<div style="padding:14px 16px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;line-height:2">'
+              +'<span style="color:'+userColor+'">'+userLine+'</span><br>'
+              +'<span style="color:'+ashColor+'">'+ashLine+'</span><br>'
+              +'<span style="color:rgba(255,255,255,.4);font-size:.55rem">'+_sc+' session'+(+_sc===1?'':'s')+' · '+_mc+' message'+(+_mc===1?'':'s')+' · chunk '+_chunks+' · '+_kb+'kb total</span>'
+              +'</div></div>';
           } catch(e) {
             var cardEl2 = document.querySelector('[data-id="'+_bakId+'"] .img-gen-card');
             if (cardEl2) cardEl2.outerHTML = '<div class="img-gen-card" style="border-color:rgba(255,68,102,.4)">'
