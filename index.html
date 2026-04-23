@@ -11521,9 +11521,7 @@ function _makePlasmaSpline(posA, posB, colorHex, resonance, isLocalSpline) {
 }
 
 async function _pollAshNodes() {
-  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
-
-  // Heartbeat: write/refresh this tab's own session file
+  // Heartbeat: write/refresh this tab's own session file via GAS proxy
   // Carry mistSolve for 30s after a solve so other browsers' poll cycles catch it
   var _hbPayload = { uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence' };
   if(_ashNodes._lastMistSolve && (Date.now() - _ashNodes._lastMistSolve.ts) < 30000) {
@@ -11533,8 +11531,31 @@ async function _pollAshNodes() {
 
   var nodes = [{uid: _ashNodes._localUid, ts: Date.now(), isLocal: true}];
 
-  if(pat) {
-    try {
+  // ── Read remote sessions via GAS proxy — no client-side token needed ──
+  // GAS holds ADMIN_TOKEN server-side; all visitors get real-time node data.
+  // PAT path still used as fast-path fallback for IDE/admin sessions.
+  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : null;
+  var GAS_URL = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))
+    ? AUTUMN_GAS_URL : null;
+
+  try {
+    var remoteSessions = [];
+
+    if(GAS_URL) {
+      // Primary path: GAS proxy reads all session files server-side (works for everyone)
+      var gasR = await fetch(GAS_URL + '?action=sessions', {
+        signal: AbortSignal.timeout(10000)
+      });
+      if(gasR.ok) {
+        var gasData = await gasR.json();
+        if(gasData && Array.isArray(gasData.sessions)) {
+          remoteSessions = gasData.sessions;
+        }
+      }
+    }
+
+    if(remoteSessions.length === 0 && pat) {
+      // Fallback: direct GitHub API for IDE/admin users who have a PAT stored
       var r = await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
         headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
         signal: AbortSignal.timeout(8000)
@@ -11545,11 +11566,9 @@ async function _pollAshNodes() {
           var STALE_MS = 6 * 60 * 1000;
           var recentFiles = files
             .filter(function(f){ return f.name.endsWith('.json') && f.name !== _ashNodes._localUid+'.json'; })
-            .sort(function(a,b){ return b.name > a.name ? 1 : -1; }) // newest tmo* suffix first
+            .sort(function(a,b){ return b.name > a.name ? 1 : -1; })
             .slice(0, _ashNodes.MAX_REMOTE);
           var fetches = recentFiles.map(function(f) {
-            // Use f.url (GitHub API endpoint) with auth — not f.download_url (CDN, cached)
-            // This ensures we always get fresh file content across all browsers/devices
             return fetch(f.url, {
                 headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
                 signal: AbortSignal.timeout(4000)
@@ -11563,33 +11582,39 @@ async function _pollAshNodes() {
           });
           var results = await Promise.allSettled(fetches);
           results.forEach(function(res) {
-            if(res.status==='fulfilled' && res.value && (res.value.sid || res.value.uid)) {
-              var age = Date.now() - (res.value.ts||0);
-              if(age < STALE_MS) {
-                var nodeId = res.value.sid || res.value.uid;
-                nodes.push({ uid: nodeId, deviceUid: res.value.uid||nodeId, ts: res.value.ts||Date.now(), isLocal: false });
-              }
-              // ── MIST cross-browser reaction ──────────────────────────────
-              // If this session file carries a fresh mistSolve event, fire it
-              var ms = res.value.mistSolve;
-              if(ms && ms.ts && ms.slot != null) {
-                var msAge = Date.now() - ms.ts;
-                var msKey = (res.value.sid||res.value.uid) + ':mist:' + ms.ts;
-                if(msAge < 90000 && !_ashNodes._seenMist[msKey]) {
-                  _ashNodes._seenMist[msKey] = true;
-                  if(typeof window._buoyancyMistPulse === 'function') {
-                    window._buoyancyMistPulse({ slot: ms.slot });
-                  }
-                  // Re-poll quickly so reaction writes propagate back out fast
-                  setTimeout(_pollAshNodes, 1500);
-                }
-              }
-            }
+            if(res.status==='fulfilled' && res.value) remoteSessions.push(res.value);
           });
         }
       }
-    } catch(e) { /* keep local node only */ }
-  }
+    }
+
+    // Process whichever path returned session data
+    var STALE_MS = 6 * 60 * 1000;
+    remoteSessions.forEach(function(s) {
+      if(!s || !(s.sid || s.uid)) return;
+      var age = Date.now() - (s.ts||0);
+      if(age < STALE_MS) {
+        var nodeId = s.sid || s.uid;
+        if(nodeId !== _ashNodes._localUid) {
+          nodes.push({ uid: nodeId, deviceUid: s.uid||nodeId, ts: s.ts||Date.now(), isLocal: false });
+        }
+      }
+      // ── MIST cross-browser reaction ──────────────────────────────
+      var ms = s.mistSolve;
+      if(ms && ms.ts && ms.slot != null) {
+        var msAge = Date.now() - ms.ts;
+        var msKey = (s.sid||s.uid) + ':mist:' + ms.ts;
+        if(msAge < 90000 && !_ashNodes._seenMist[msKey]) {
+          _ashNodes._seenMist[msKey] = true;
+          if(typeof window._buoyancyMistPulse === 'function') {
+            window._buoyancyMistPulse({ slot: ms.slot });
+          }
+          // Re-poll quickly so reaction writes propagate back out fast
+          setTimeout(_pollAshNodes, 1500);
+        }
+      }
+    });
+  } catch(e) { /* keep local node only */ }
 
   // Update multi-user bar — always visible
   var bar = document.getElementById('multi-user-bar');
