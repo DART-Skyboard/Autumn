@@ -64,14 +64,13 @@ function showDataPolicy() {
 //  LEATR-ASH -- Background Neural Memory System
 //  Writes silently for EVERY visitor -- no user setup needed.
 //
-//  BOT TOKEN: swap _ASH_BOT parts with your fine-grained PAT
-//  (leatr-ash contents:write only). Generate at:
-//  github.com/settings/tokens -> Fine-grained tokens
+//  All GitHub writes are proxied through the Apps Script server.
+//  No tokens are stored client-side. The GAS web app holds
+//  credentials server-side and handles all repo writes securely.
 // ============================================================
 
-// Bot token -- write-only, scoped to leatr-ash only
-// Split to avoid plain-text token scanners
-const _ASH_BOT = ['ghp_','IsnQDc0x','H4YrdCrP','JWLX4oP','REu9aEB0','FGyyB'].join('');
+// No client-side token -- all leatr-ash writes go via GAS proxy
+const _ASH_BOT = null;
 
 const LEATR_ASH_REPO = 'DART-Skyboard/leatr-ash';
 
@@ -90,9 +89,10 @@ if (!_aut_sid) {
   sessionStorage.setItem('_aut_sid', _aut_sid);
 }
 
-// User personal PAT -- IDE/admin only, falls back to bot token
+// User personal PAT -- IDE/admin only, sourced from session/local storage only
+// Never falls back to a hardcoded token -- all background writes go via GAS proxy
 function getLeatrAshPAT() {
-  return sessionStorage.getItem('_aut_ide_pat') || localStorage.getItem('_aut_pat_persist') || _ASH_BOT;
+  return sessionStorage.getItem('_aut_ide_pat') || localStorage.getItem('_aut_pat_persist') || null;
 }
 function _setPATSession(v){ try{sessionStorage.setItem('_aut_ide_pat',v);}catch(e){} }
 function _setPATPersist(v){ try{localStorage.setItem('_aut_pat_persist',v);sessionStorage.setItem('_aut_ide_pat',v);}catch(e){} }
@@ -107,34 +107,26 @@ window._ashFlushNow = async function _ashFlushNow(path) {
   const q = _ashQ[path];
   if (!q || !q.items.length) return;
   const items = q.items.splice(0);
-  const url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/' + path;
-  const hdrs = { 'Authorization':'token '+_ASH_BOT, 'Content-Type':'application/json' };
-  let sha = '', payload;
-  if (q.isAppend) {
-    let existing = [];
-    try {
-      const rg = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(6000) });
-      if (rg.ok) {
-        const eg = await rg.json();
-        sha = eg.sha || '';
-        try { existing = JSON.parse(atob(eg.content.replace(/\n/g,''))) || []; } catch(e) {}
-      }
-    } catch(e) {}
-    if (!Array.isArray(existing)) existing = [];
-    existing = existing.concat(items).slice(-500);
-    payload = existing;
-  } else {
-    payload = items[items.length - 1];
-    try {
-      const rg = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(4000) });
-      if (rg.ok) { const eg = await rg.json(); sha = eg.sha || ''; }
-    } catch(e) {}
-  }
+  const payload = q.isAppend ? items : items[items.length - 1];
+  // Route through GAS proxy — no token needed client-side
+  const GAS_URL = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))
+    ? AUTUMN_GAS_URL
+    : null;
+  if (!GAS_URL) return; // GAS not configured yet, skip silently
   try {
-    const body = { message:'ash:'+_aut_uid.slice(0,10), content:btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2)))) };
-    if (sha) body.sha = sha;
-    await fetch(url, { method:'PUT', headers:hdrs, body:JSON.stringify(body), signal:AbortSignal.timeout(12000) });
-  } catch(e) { /* silent */ }
+    await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // avoid CORS preflight
+      body: JSON.stringify({
+        action:  'ashwrite',
+        path:    path,
+        uid:     _aut_uid,
+        append:  q.isAppend,
+        payload: payload
+      }),
+      signal: AbortSignal.timeout(12000)
+    });
+  } catch(e) { /* silent — background neural sync, non-blocking */ }
 }
 
 function writeLeatrAshMemory(path, dataObj) {
