@@ -19860,7 +19860,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       var lc  = txt.toLowerCase();
       var isSyncCmd = /\b(backup|back up|sync memory|sync memories|sync all|sync everything|sync my memory|sync the memory|memory sync|commit memory|archive memory|save memory|save data|save all|save to github|sync to github|force save|push memory|push to github)\b/i.test(lc);
       if (isSyncCmd) {
-        if (window._ghAuth && window._ghAuth.loggedIn && typeof window._autosave === 'function') {
+        if (window._ghAuth && window._ghAuth.loggedIn && typeof window._ghAutosaveNow === 'function') {
           // Push user message first
           var userMsg = {role:'user', text:txt, ts:new Date().toISOString(), id:'u-'+Date.now()};
           if (typeof msgs === 'function') msgs().push(userMsg);
@@ -19875,34 +19875,20 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           if (typeof msgs === 'function') msgs().push(spinnerMsg);
           if (typeof renderMessages==='function') renderMessages();
 
-          // Force-clear locks so this always runs immediately
-          window._lastSaveHash = '';
-          if (typeof window._forceResetSaveState === 'function') window._forceResetSaveState();
-
-          try {
-            var filename = await window._autosave();
+          // Call the exact same function the menu button calls
+          window._ghAutosaveNow();
+          setTimeout(function() {
             var _sc = (window.S && window.S.sessions) ? window.S.sessions.length : '—';
             var _mc = (window.S && window.S.sessions) ? window.S.sessions.reduce(function(a,s){return a+(s.messages||[]).length;},0) : '—';
             var _ci = window._memIndex;
             var _chunks = _ci ? (_ci.chunks||[]).length : 1;
             var _kb = _ci ? Math.round((_ci.totalBytes||0)/1024) : '—';
             var cardEl = document.querySelector('[data-id="'+_bakId+'"] .img-gen-card');
-            if (cardEl) cardEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(0,255,204,.4)">'
-              +'<div style="padding:14px 16px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;color:var(--cyan);line-height:1.9">'
-              +'✓ MEMORY SYNCED<br>'
-              +'<span style="color:rgba(255,255,255,.45);font-size:.55rem">'
-              +'Autumn-Ash-'+window._ghAuth.username+' / ash-memory/'+(filename||'memory snapshot')+'<br>'
-              +_sc+' session'+(+_sc===1?'':'s')+' · '+_mc+' message'+(+_mc===1?'':'s')+' · chunk '+_chunks+' · '+_kb+'kb total'
-              +'</span></div></div>';
-          } catch(e) {
-            var cardEl2 = document.querySelector('[data-id="'+_bakId+'"] .img-gen-card');
-            if (cardEl2) cardEl2.outerHTML = '<div class="img-gen-card" style="border-color:rgba(255,68,102,.4)">'
-              +'<div style="padding:14px;font-family:var(--font-d);font-size:.6rem;color:#f66">'
-              +'⚠ SYNC FAILED: '+(e&&e.message||'unknown error')+'</div></div>';
-          }
-          if (typeof renderMessages==='function') renderMessages();
-          if (typeof updateFooter==='function') updateFooter();
-          if (typeof saveState==='function') saveState();
+            if (cardEl) cardEl.outerHTML = '<div class="img-gen-card" style="border-color:rgba(0,255,204,.4)"><div style="padding:14px 16px;font-family:var(--font-d);font-size:.6rem;letter-spacing:1px;color:var(--cyan);line-height:1.9">✓ MEMORY SYNCED<br><span style="color:rgba(255,255,255,.45);font-size:.55rem">Autumn-Ash-'+window._ghAuth.username+' / ash-memory/<br>'+_sc+' session'+(_sc===1?'':'s')+' · '+_mc+' message'+(_mc===1?'':'s')+'</span></div></div>';
+            if (typeof renderMessages==='function') renderMessages();
+            if (typeof updateFooter==='function') updateFooter();
+            if (typeof saveState==='function') saveState();
+          }, 4000);
           return;
         } else if (isSyncCmd) {
           // Not logged in — still short-circuit with helpful message
