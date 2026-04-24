@@ -19327,19 +19327,28 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .then(function(d){
         _hideAuthLoading();
         if (d.error) {
-          // Exchange failed — show specific message for quota vs real failure
+          // Exchange failed — quota hit → auto-fall back to device flow (no GAS exchange needed)
           var isQuota = d.error.indexOf('too many') !== -1 || d.error.indexOf('quota') !== -1 || d.error.indexOf('urlfetch') !== -1;
-          var msg = isQuota
-            ? 'Auth service is temporarily busy. Try again in a few minutes.'
-            : 'Sign-in failed. GitHub may need to re-authorize.';
           _showLoginModal();
-          _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.58rem;text-align:center;padding:8px 4px;line-height:1.6">'
-            + msg + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:4px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
+          if (isQuota) {
+            // Stamp quota hit — next login attempt auto-routes to device flow for ~1 hour
+            try { localStorage.setItem('_gh_quota_ts', Date.now().toString()); } catch(e) {}
+            // Device flow: user enters code directly on github.com — bypasses the exchange GAS call entirely
+            _setDeviceUI('<div style="color:#a78bfa;font-family:var(--font-d);font-size:.55rem;text-align:center;padding:6px 4px;line-height:1.7;letter-spacing:1px">'
+              + 'AUTH QUOTA HIT — SWITCHING TO DEVICE FLOW<br>'
+              + '<span style="color:rgba(255,255,255,.5);font-size:.5rem">One-time code login — no redirect needed</span></div>');
+            setTimeout(_showDeviceFlow, 600);
+          } else {
+            _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.58rem;text-align:center;padding:8px 4px;line-height:1.6">'
+              + 'Sign-in failed. GitHub may need to re-authorize.'
+              + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:4px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
+          }
           return;
         }
         _saveSession(d);
-        // Clear login_skipped if it was set
+        // Clear login_skipped and quota flag on successful auth
         try { localStorage.removeItem('_gh_login_skipped'); } catch(e){}
+        try { localStorage.removeItem('_gh_quota_ts'); } catch(e){}
         _applySession(d);
       })
       .catch(function(){
@@ -19354,8 +19363,14 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var _devicePollTimer = null;
 
   function _startOAuth() {
+    // Check if GAS quota was recently hit — if so, go straight to device flow
+    var quotaTs = localStorage.getItem('_gh_quota_ts');
+    if (quotaTs && (Date.now() - parseInt(quotaTs)) < 3600000) {
+      // Quota hit within last hour — use device flow to bypass GAS exchange entirely
+      _showDeviceFlow();
+      return;
+    }
     // Web redirect flow — 1 UrlFetch for exchange vs 180+ for device poll
-    // Note: device flow exhausts GAS quota 60x faster due to 5s polling
     _redirectToGitHubOAuth();
   }
 
@@ -19415,6 +19430,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           if (d.access_token) {
             clearInterval(_devicePollTimer);
             _saveSession(d);
+            try { localStorage.removeItem('_gh_quota_ts'); } catch(e){}
             // Close modal immediately
             var _pm = document.getElementById('gh-login-modal');
             if (_pm) _pm.classList.remove('show');
