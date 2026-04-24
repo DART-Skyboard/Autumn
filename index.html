@@ -19318,17 +19318,36 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Route through GAS — reliable, no third-party CORS proxies
     var _ghDeviceCode = function() {
       var gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL) ? AUTUMN_GAS_URL : window.AUTUMN_GAS_URL;
-      if (!gasUrl) return Promise.reject(new Error('GAS URL not set'));
-      return fetch(gasUrl + '?action=devicecode', { signal: AbortSignal.timeout(15000) })
-        .then(function(r) {
-          if (!r.ok) throw new Error('proxy failed (' + r.status + ')');
-          return r.json();
-        })
-        .then(function(d) {
-          if (d.error) throw new Error(d.error);
-          if (!d.device_code) throw new Error('no device_code');
-          return d;
-        });
+      var _deviceBody = JSON.stringify({ client_id: 'Ov23li2K0njEqO1WTSdD', scope: 'repo,read:user' });
+      var _deviceHdrs = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+
+      // Primary: GitHub directly (CORS supported natively — no proxy dependency)
+      return fetch('https://github.com/login/device/code', {
+        method: 'POST', headers: _deviceHdrs, body: _deviceBody,
+        signal: AbortSignal.timeout(10000)
+      })
+      .then(function(r) { if (!r.ok) throw new Error('direct'); return r.json(); })
+      .then(function(d) {
+        if (d.error && d.error !== 'authorization_pending') throw new Error(d.error);
+        if (!d.device_code) throw new Error('no device_code');
+        return d;
+      })
+      .catch(function() {
+        // Fallback: GAS proxy
+        if (!gasUrl) return Promise.reject(new Error('Auth unavailable — check connection'));
+        return fetch(gasUrl + '?action=devicecode', { signal: AbortSignal.timeout(15000) })
+          .then(function(r) { if (!r.ok) throw new Error('proxy failed (' + r.status + ')'); return r.json(); })
+          .then(function(d) {
+            if (d.error) {
+              // Quota exhausted — friendly message instead of raw GAS exception
+              if (d.error.indexOf('urlfetch') !== -1 || d.error.indexOf('too many') !== -1 || d.error.indexOf('quota') !== -1)
+                throw new Error('Service temporarily at capacity — please try again in a few minutes');
+              throw new Error(d.error);
+            }
+            if (!d.device_code) throw new Error('no device_code');
+            return d;
+          });
+      });
     };
     _ghDeviceCode()
       .then(function(d){
@@ -19361,12 +19380,27 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Poll for token
     _devicePollTimer = setInterval(function() {
       var _gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL) ? AUTUMN_GAS_URL : window.AUTUMN_GAS_URL;
-      fetch(_gasUrl + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode), {
-        signal: AbortSignal.timeout(12000)
+      var _pollBody = JSON.stringify({
+        client_id: 'Ov23li2K0njEqO1WTSdD',
+        device_code: deviceCode,
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+      });
+      // Primary: GitHub directly — GAS quota-independent
+      fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: _pollBody,
+        signal: AbortSignal.timeout(10000)
       })
-        .then(function(r){ return r.ok ? r.json() : {}; })
-        .catch(function(){ return {}; })
-        .then(function(d){
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .catch(function() {
+        // Fallback: GAS proxy
+        return fetch(_gasUrl + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode), {
+          signal: AbortSignal.timeout(12000)
+        }).then(function(r){ return r.ok ? r.json() : {}; });
+      })
+      .catch(function(){ return {}; })
+      .then(function(d){
           if (d.access_token) {
             clearInterval(_devicePollTimer);
 
