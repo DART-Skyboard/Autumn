@@ -84,7 +84,7 @@ if (!_aut_uid) {
 // Per-tab session instance ID -- unique per browser tab (sessionStorage is NOT shared across tabs)
 // This ensures each open tab registers as its own distinct node in the BRPN scene
 let _aut_sid = sessionStorage.getItem('_aut_sid');
-if (!_aut_sid) {
+if (!_aut_sid || _aut_sid === 'null' || _aut_sid === 'undefined') {
   _aut_sid = _aut_uid + '_t' + Date.now().toString(36) + Math.random().toString(36).substr(2,4);
   sessionStorage.setItem('_aut_sid', _aut_sid);
 }
@@ -165,10 +165,11 @@ function syncToolPattern(toolName, parameters) {
   writeLeatrAshMemory('ashleaves/'+_aut_sid+'.json', { tool:toolName, ts:Date.now(), params:parameters });
 }
 
-// Heartbeat every 3 minutes to keep this tab's session node alive
+// Heartbeat every 90s — keeps node alive well within the 10-min stale window
 setInterval(function() {
+  if(!_aut_sid || _aut_sid === 'null') return;
   writeLeatrAshMemory('ashtree/sessions/'+_aut_sid+'.json', { uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'heartbeat' });
-}, 3 * 60 * 1000);
+}, 90 * 1000);
 
 // ── Analytics — lifetime session log reader ───────────────────────────────────
 // Cached in memory for the session; Autumn reads it via getAnalyticsContext()
@@ -11563,7 +11564,7 @@ async function _pollAshNodes() {
       if(r.ok) {
         var files = await r.json();
         if(Array.isArray(files)) {
-          var STALE_MS = 6 * 60 * 1000;
+          var STALE_MS = 10 * 60 * 1000;
           var recentFiles = files
             .filter(function(f){ return f.name.endsWith('.json') && f.name !== _ashNodes._localUid+'.json'; })
             .sort(function(a,b){ return b.name > a.name ? 1 : -1; })
@@ -11589,12 +11590,14 @@ async function _pollAshNodes() {
     }
 
     // Process whichever path returned session data
-    var STALE_MS = 6 * 60 * 1000;
+    var STALE_MS = 10 * 60 * 1000;
     remoteSessions.forEach(function(s) {
       if(!s || !(s.sid || s.uid)) return;
+      var nodeId = s.sid || s.uid;
+      // Skip sentinel/corrupted files that wrote literal "null" as the sid
+      if(nodeId === 'null' || nodeId === 'undefined' || nodeId === null) return;
       var age = Date.now() - (s.ts||0);
       if(age < STALE_MS) {
-        var nodeId = s.sid || s.uid;
         if(nodeId !== _ashNodes._localUid) {
           nodes.push({ uid: nodeId, deviceUid: s.uid||nodeId, ts: s.ts||Date.now(), isLocal: false });
         }
