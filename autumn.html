@@ -763,7 +763,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #st-label{color:var(--st-color,#00d4ff);transition:color .3s;line-height:1}
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;position:relative;z-index:1}
 /* BRPN 3D region */
-#brpn-region{height:280px;flex-shrink:0;position:relative;border-bottom:1px solid var(--border);overflow:hidden;cursor:grab;margin:0}
+#brpn-region{height:320px;flex-shrink:0;position:relative;border-bottom:1px solid var(--border);overflow:hidden;cursor:grab;margin:10px}
 #brpn-region:active{cursor:grabbing}
 #brpn-canvas{position:absolute;inset:10px}
 #brpn-hud{position:absolute;bottom:8px;left:10px;z-index:10;font-size:.6rem;color:rgba(0,255,204,.5);font-family:var(--font-d);letter-spacing:1px;line-height:1.7;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,.8)}
@@ -780,7 +780,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #shell-status{position:absolute;top:8px;right:10px;z-index:10;display:flex;gap:8px;pointer-events:none}
 .shell-badge{display:flex;align-items:center;gap:4px;font-size:.52rem;font-family:var(--font-d);letter-spacing:1px;padding:3px 8px;border-radius:3px;background:rgba(3,10,14,.7);border:1px solid var(--border);backdrop-filter:blur(6px);text-shadow:0 0 6px rgba(0,0,0,.6)}
 .shell-badge .dot{width:6px;height:6px;border-radius:50%;animation:pulse 2s infinite}
-#brpn-resize{position:absolute;bottom:-10px;left:0;width:100%;height:20px;cursor:row-resize;z-index:20;display:flex;align-items:center;justify-content:center;touch-action:none}
+#brpn-resize{position:absolute;bottom:-10px;left:0;width:100%;height:30px;cursor:row-resize;z-index:20;display:flex;align-items:center;justify-content:center;touch-action:none}
 #brpn-resize::after{content:'';width:50px;height:2px;background:var(--border);border-radius:2px;transition:background .15s}
 #brpn-resize:hover::after{background:var(--cyan);box-shadow:0 0 6px var(--cyan)}
 /* Context type indicator bar */
@@ -19284,94 +19284,20 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   } catch(e) {}
 
   function init() {
-    // ── Step 1: OAuth web flow redirect — check for ?code= in URL ────────────
-    var urlParams = new URLSearchParams(window.location.search);
-    var oauthCode = urlParams.get('code');
-    if (oauthCode) {
-      // Strip code from URL immediately so refreshes don't replay it
-      var cleanUrl = window.location.pathname + window.location.hash;
-      history.replaceState(null, '', cleanUrl);
-      _handleOAuthRedirect(oauthCode);
-      return;
-    }
-
-    // ── Step 2: Stored session — apply immediately, no blocking GAS call ───
     var stored = _loadStoredSession();
     if (stored && stored.access_token) {
       _applySession(stored);
       return;
     }
-
-    // ── Step 3: No session — show login or guest mode ────────────────────────
     var skipped = localStorage.getItem('_gh_login_skipped');
     if (!skipped) _showLoginModal();
     else _showGuestMode();
   }
 
-  // ── OAuth web flow — redirect to GitHub ──────────────────────────────────
-  function _redirectToGitHubOAuth() {
-    var params = new URLSearchParams({
-      client_id:    'Ov23li2K0njEqO1WTSdD',
-      redirect_uri: 'https://leatr.xyz/',
-      scope:        'repo,read:user'
-      // No prompt=consent — GitHub skips re-auth if already authorized
-    });
-    window.location.href = 'https://github.com/login/oauth/authorize?' + params.toString();
-  }
-
-  // ── Handle OAuth redirect — exchange code for token via GAS ──────────────
-  function _handleOAuthRedirect(code) {
-    _showAuthLoading();
-    fetch(AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code))
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        _hideAuthLoading();
-        if (d.error) {
-          // Exchange failed — quota hit → auto-fall back to device flow (no GAS exchange needed)
-          var isQuota = d.error.indexOf('too many') !== -1 || d.error.indexOf('quota') !== -1 || d.error.indexOf('urlfetch') !== -1;
-          _showLoginModal();
-          if (isQuota) {
-            // Stamp quota hit — next login attempt auto-routes to device flow for ~1 hour
-            try { localStorage.setItem('_gh_quota_ts', Date.now().toString()); } catch(e) {}
-            // Device flow: user enters code directly on github.com — bypasses the exchange GAS call entirely
-            _setDeviceUI('<div style="color:#a78bfa;font-family:var(--font-d);font-size:.55rem;text-align:center;padding:6px 4px;line-height:1.7;letter-spacing:1px">'
-              + 'AUTH QUOTA HIT — SWITCHING TO DEVICE FLOW<br>'
-              + '<span style="color:rgba(255,255,255,.5);font-size:.5rem">One-time code login — no redirect needed</span></div>');
-            setTimeout(_showDeviceFlow, 600);
-          } else {
-            _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.58rem;text-align:center;padding:8px 4px;line-height:1.6">'
-              + 'Sign-in failed. GitHub may need to re-authorize.'
-              + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:4px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
-          }
-          return;
-        }
-        _saveSession(d);
-        // Clear login_skipped and quota flag on successful auth
-        try { localStorage.removeItem('_gh_login_skipped'); } catch(e){}
-        try { localStorage.removeItem('_gh_quota_ts'); } catch(e){}
-        _applySession(d);
-      })
-      .catch(function(){
-        _hideAuthLoading();
-        _showLoginModal();
-        _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
-          + 'Network error. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
-      });
-  }
-
-  // ── Device Flow — request device code via GAS ─────────────────────────────
   var _devicePollTimer = null;
 
   function _startOAuth() {
-    // Check if GAS quota was recently hit — if so, go straight to device flow
-    var quotaTs = localStorage.getItem('_gh_quota_ts');
-    if (quotaTs && (Date.now() - parseInt(quotaTs)) < 3600000) {
-      // Quota hit within last hour — use device flow to bypass GAS exchange entirely
-      _showDeviceFlow();
-      return;
-    }
-    // Web redirect flow — 1 UrlFetch for exchange vs 180+ for device poll
-    _redirectToGitHubOAuth();
+    _showDeviceFlow();
   }
 
   function _preWireBtn() {
@@ -19384,16 +19310,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var inner = modal ? (modal.querySelector('.gh-login-inner') || modal.querySelector('.gh-login-box')) : null;
     if (!inner) { _showAuthLoading(); }
 
-    // Show requesting state
     _setDeviceUI('<div style="color:var(--cyan);font-family:var(--font-d);letter-spacing:2px;font-size:.7rem;">REQUESTING CODE...</div>');
 
-    // GAS proxy — required for CORS (github.com/login/device/code blocks direct browser calls)
-    // New GAS URL has fresh quota + 10s cache to prevent hammer
-    fetch(AUTUMN_GAS_URL + '?action=devicecode&callback=_ghDeviceCallback')
-      .then(function(r){ return r.text(); })
-      .then(function(t){
-        var json = t.replace(/^_ghDeviceCallback\(/, '').replace(/\);?$/, '');
-        var d = JSON.parse(json);
+    fetch('https://github.com/login/device/code', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: 'Ov23li2K0njEqO1WTSdD' })
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
         if (d.error) {
           _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
             + d.error + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
@@ -19414,29 +19339,44 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       + '</div>';
     _setDeviceUI(html);
 
-    // Copy code on tap
     setTimeout(function(){
       var el = document.getElementById('gh-device-code-display');
       if (el) el.addEventListener('click', function(){ navigator.clipboard && navigator.clipboard.writeText(userCode); _toast('Code copied!'); });
     }, 100);
 
-    // Poll for token
     _devicePollTimer = setInterval(function() {
-      fetch(AUTUMN_GAS_URL + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode) + '&callback=_ghPollCallback')
-        .then(function(r){ return r.text(); })
-        .then(function(t){
-          var json = t.replace(/^_ghPollCallback\(/, '').replace(/\);?$/, '');
-          var d = JSON.parse(json);
+      fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: 'Ov23li2K0njEqO1WTSdD',
+          device_code: deviceCode,
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+        })
+      })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
           if (d.access_token) {
             clearInterval(_devicePollTimer);
-            _saveSession(d);
-            try { localStorage.removeItem('_gh_quota_ts'); } catch(e){}
-            // Close modal immediately
-            var _pm = document.getElementById('gh-login-modal');
-            if (_pm) _pm.classList.remove('show');
-            _applySession(d);
-            // Notify all open tabs instantly
-            try { var _bc=new BroadcastChannel('autumn_auth'); _bc.postMessage({type:'login',data:d}); _bc.close(); } catch(e){}
+            fetch('https://api.github.com/user', {
+              headers: { 'Authorization': 'token ' + d.access_token, 'Accept': 'application/vnd.github.v3+json' }
+            })
+            .then(function(ur){ return ur.json(); })
+            .then(function(user){
+              var sessionData = {
+                access_token: d.access_token,
+                username: user.login,
+                avatar_url: user.avatar_url,
+                name: user.name
+              };
+              localStorage.setItem('_gh_session', JSON.stringify(sessionData));
+              localStorage.removeItem('_gh_login_skipped');
+              _applySession(sessionData);
+              try { var _bc=new BroadcastChannel('autumn_auth'); _bc.postMessage({type:'login',data:sessionData}); _bc.close(); } catch(e){}
+            })
+            .catch(function(e){
+              _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Failed to fetch user info. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
+            });
           } else if (d.error === 'access_denied') {
             clearInterval(_devicePollTimer);
             _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Access denied. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
@@ -19444,7 +19384,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             clearInterval(_devicePollTimer);
             _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Code expired. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Get new code</span></div>');
           }
-          // authorization_pending or slow_down — just keep polling
         })
         .catch(function(){});
     }, interval * 1000);
