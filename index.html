@@ -150,11 +150,15 @@ window.addEventListener('beforeunload', function() {
 });
 
 function initLeatrAshSync() {
-  // Use per-tab _aut_sid as the session key so each browser tab = distinct node
-  writeLeatrAshMemory('ashtree/sessions/' + _aut_sid + '.json', {
-    uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'init',
-    ref: document.referrer ? document.referrer.slice(0,60) : 'direct'
-  });
+  // Only write session once per tab (not on every page load/refresh) — saves UrlFetch quota
+  var _initKey = '_aut_init_' + _aut_sid;
+  if (!sessionStorage.getItem(_initKey)) {
+    sessionStorage.setItem(_initKey, '1');
+    writeLeatrAshMemory('ashtree/sessions/' + _aut_sid + '.json', {
+      uid:_aut_uid, sid:_aut_sid, ts:Date.now(), type:'init',
+      ref: document.referrer ? document.referrer.slice(0,60) : 'direct'
+    });
+  }
   // Fire-and-forget: fetch analytics so Autumn can answer questions about it
   _fetchAnalytics();
 }
@@ -19350,8 +19354,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var _devicePollTimer = null;
 
   function _startOAuth() {
-    // Device code flow — keeps user on leatr.xyz (no redirect, no desktop-mode switch on mobile)
-    _showDeviceFlow();
+    // Web redirect flow — 1 UrlFetch for exchange vs 180+ for device poll
+    // Note: device flow exhausts GAS quota 60x faster due to 5s polling
+    _redirectToGitHubOAuth();
   }
 
   function _preWireBtn() {
@@ -19367,17 +19372,16 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Show requesting state
     _setDeviceUI('<div style="color:var(--cyan);font-family:var(--font-d);letter-spacing:2px;font-size:.7rem;">REQUESTING CODE...</div>');
 
-    // Direct GitHub call — client_id is public, no GAS proxy needed, no UrlFetch quota usage
-    fetch('https://github.com/login/device/code', {
-      method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: 'Ov23li2K0njEqO1WTSdD', scope: 'repo,read:user' })
-    })
-      .then(function(r){ return r.json(); })
-      .then(function(d){
+    // GAS proxy — required for CORS (github.com/login/device/code blocks direct browser calls)
+    // New GAS URL has fresh quota + 10s cache to prevent hammer
+    fetch(AUTUMN_GAS_URL + '?action=devicecode&callback=_ghDeviceCallback')
+      .then(function(r){ return r.text(); })
+      .then(function(t){
+        var json = t.replace(/^_ghDeviceCallback\(/, '').replace(/\);?$/, '');
+        var d = JSON.parse(json);
         if (d.error) {
           _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
-            + (d.error_description || d.error) + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
+            + d.error + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
           return;
         }
         _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5);
