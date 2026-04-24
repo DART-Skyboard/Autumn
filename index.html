@@ -19247,7 +19247,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 (function() {
   'use strict';
 
-  var AUTUMN_GAS_URL = 'https://script.google.com/macros/s/AKfycbxWvM7471vYesv3w6O46fIishhhqDK7QtOOGXArrKm4ueqGutgZR9WpAbEdu0ifWSF7sg/exec';
+  var AUTUMN_GAS_URL = 'https://script.google.com/macros/s/AKfycbyL92_3oIKCyO7Jkl2gBRRQMqPb3jZNKlhLlxnk-NRZWkLXWRHNrFlbuTlsBaH-Sfhj/exec';
   window.AUTUMN_GAS_URL = AUTUMN_GAS_URL; // expose globally for nodes + mist GAS proxy paths
   var GH_CLIENT_ID   = 'Ov23li2K0njEqO1WTSdD';
   var GH_SCOPES      = 'repo,read:user';
@@ -19315,30 +19315,20 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Show requesting state
     _setDeviceUI('<div style="color:var(--cyan);font-family:var(--font-d);letter-spacing:2px;font-size:.7rem;">REQUESTING CODE...</div>');
 
-    // Try proxies in order until one works
+    // Route through GAS — reliable, no third-party CORS proxies
     var _ghDeviceCode = function() {
-      var proxies = [
-        'https://corsproxy.io/?' + encodeURIComponent('https://github.com/login/device/code'),
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://github.com/login/device/code'),
-        'https://cors-anywhere.herokuapp.com/https://github.com/login/device/code'
-      ];
-      var body = JSON.stringify({ client_id: 'Ov23li2K0njEqO1WTSdD', scope: 'repo,read:user' });
-      var hdrs = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
-      // Try each proxy sequentially
-      return proxies.reduce(function(chain, url) {
-        return chain.catch(function() {
-          return fetch(url, { method: 'POST', headers: hdrs, body: body })
-            .then(function(r) {
-              if (!r.ok) throw new Error('proxy failed');
-              return r.json();
-            })
-            .then(function(d) {
-              if (d.error && d.error !== 'authorization_pending') throw new Error(d.error);
-              if (!d.device_code) throw new Error('no device_code');
-              return d;
-            });
+      var gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL) ? AUTUMN_GAS_URL : window.AUTUMN_GAS_URL;
+      if (!gasUrl) return Promise.reject(new Error('GAS URL not set'));
+      return fetch(gasUrl + '?action=devicecode', { signal: AbortSignal.timeout(15000) })
+        .then(function(r) {
+          if (!r.ok) throw new Error('proxy failed (' + r.status + ')');
+          return r.json();
+        })
+        .then(function(d) {
+          if (d.error) throw new Error(d.error);
+          if (!d.device_code) throw new Error('no device_code');
+          return d;
         });
-      }, Promise.reject());
     };
     _ghDeviceCode()
       .then(function(d){
@@ -19370,22 +19360,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     // Poll for token
     _devicePollTimer = setInterval(function() {
-      var _pollBody = JSON.stringify({
-          client_id: 'Ov23li2K0njEqO1WTSdD',
-          device_code: deviceCode,
-          grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-        });
-      var _pollUrl = 'https://github.com/login/oauth/access_token';
-      var _pollProxies = [
-        'https://corsproxy.io/?' + encodeURIComponent(_pollUrl),
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(_pollUrl)
-      ];
-      _pollProxies.reduce(function(ch,url){
-        return ch.catch(function(){
-          return fetch(url,{method:'POST',headers:{'Accept':'application/json','Content-Type':'application/json'},body:_pollBody})
-            .then(function(r){return r.ok?r.json():Promise.reject();});
-        });
-      }, Promise.reject())
+      var _gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL) ? AUTUMN_GAS_URL : window.AUTUMN_GAS_URL;
+      fetch(_gasUrl + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode), {
+        signal: AbortSignal.timeout(12000)
+      })
+        .then(function(r){ return r.ok ? r.json() : {}; })
         .catch(function(){ return {}; })
         .then(function(d){
           if (d.access_token) {
