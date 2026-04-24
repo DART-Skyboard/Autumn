@@ -19350,8 +19350,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var _devicePollTimer = null;
 
   function _startOAuth() {
-    // Use OAuth web flow (silent for returning users, instant for first-time)
-    _redirectToGitHubOAuth();
+    // Device code flow — keeps user on leatr.xyz (no redirect, no desktop-mode switch on mobile)
+    _showDeviceFlow();
   }
 
   function _preWireBtn() {
