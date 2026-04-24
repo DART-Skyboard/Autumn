@@ -19315,12 +19315,32 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Show requesting state
     _setDeviceUI('<div style="color:var(--cyan);font-family:var(--font-d);letter-spacing:2px;font-size:.7rem;">REQUESTING CODE...</div>');
 
-    fetch('https://corsproxy.io/?' + encodeURIComponent('https://github.com/login/device/code'), {
-      method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: 'Ov23li2K0njEqO1WTSdD' })
-    })
-      .then(function(r){ return r.json(); })
+    // Try proxies in order until one works
+    var _ghDeviceCode = function() {
+      var proxies = [
+        'https://corsproxy.io/?' + encodeURIComponent('https://github.com/login/device/code'),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://github.com/login/device/code'),
+        'https://cors-anywhere.herokuapp.com/https://github.com/login/device/code'
+      ];
+      var body = JSON.stringify({ client_id: 'Ov23li2K0njEqO1WTSdD', scope: 'repo,read:user' });
+      var hdrs = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+      // Try each proxy sequentially
+      return proxies.reduce(function(chain, url) {
+        return chain.catch(function() {
+          return fetch(url, { method: 'POST', headers: hdrs, body: body })
+            .then(function(r) {
+              if (!r.ok) throw new Error('proxy failed');
+              return r.json();
+            })
+            .then(function(d) {
+              if (d.error && d.error !== 'authorization_pending') throw new Error(d.error);
+              if (!d.device_code) throw new Error('no device_code');
+              return d;
+            });
+        });
+      }, Promise.reject());
+    };
+    _ghDeviceCode()
       .then(function(d){
         if (d.error) {
           _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
@@ -19350,16 +19370,23 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     // Poll for token
     _devicePollTimer = setInterval(function() {
-      fetch('https://corsproxy.io/?' + encodeURIComponent('https://github.com/login/oauth/access_token'), {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      var _pollBody = JSON.stringify({
           client_id: 'Ov23li2K0njEqO1WTSdD',
           device_code: deviceCode,
           grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-        })
-      })
-        .then(function(r){ return r.json(); })
+        });
+      var _pollUrl = 'https://github.com/login/oauth/access_token';
+      var _pollProxies = [
+        'https://corsproxy.io/?' + encodeURIComponent(_pollUrl),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(_pollUrl)
+      ];
+      _pollProxies.reduce(function(ch,url){
+        return ch.catch(function(){
+          return fetch(url,{method:'POST',headers:{'Accept':'application/json','Content-Type':'application/json'},body:_pollBody})
+            .then(function(r){return r.ok?r.json():Promise.reject();});
+        });
+      }, Promise.reject())
+        .catch(function(){ return {}; })
         .then(function(d){
           if (d.access_token) {
             clearInterval(_devicePollTimer);
@@ -20179,6 +20206,26 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 <script src="js/ash-shard-module.js"></script>
 
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/scripts/sentience-journal.js"></script>
+  // ── Sentience journal hook on Ash Canvas apply ────────────────────────────
+  (function() {
+    var _origACApply = window.acApplyToNetwork;
+    if (typeof _origACApply !== 'function') return;
+    window.acApplyToNetwork = function() {
+      _origACApply.apply(this, arguments);
+      setTimeout(function() {
+        try {
+          if (window.AutumnSentience && window._ac) {
+            var S = window.S;
+            var emo = S && S.lastAnalysis && S.lastAnalysis.emotion ? S.lastAnalysis.emotion.primary : null;
+            window.AutumnSentience.recordAshCanvas(
+              window._ac.nodes, window._ac.links, window._ac.influence, emo
+            );
+          }
+        } catch(e) {}
+      }, 500);
+    };
+  })();
+
 </body>
 </html>
 
