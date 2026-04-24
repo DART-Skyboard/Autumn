@@ -19315,7 +19315,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Show requesting state
     _setDeviceUI('<div style="color:var(--cyan);font-family:var(--font-d);letter-spacing:2px;font-size:.7rem;">REQUESTING CODE...</div>');
 
-    fetch('https://github.com/login/device/code', {
+    fetch('https://corsproxy.io/?' + encodeURIComponent('https://github.com/login/device/code'), {
       method: 'POST',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: 'Ov23li2K0njEqO1WTSdD' })
@@ -19329,7 +19329,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         }
         _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5);
       })
-      .catch(function(e){ _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">Connection error — try again later<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Retry</span></div>'); });
+      .catch(function(e){ _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">CORS or Network error: ' + e.message + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Retry</span></div>'); console.error(e); });
   }
 
   function _showDeviceCode(userCode, verifyUrl, deviceCode, interval) {
@@ -19350,7 +19350,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     // Poll for token
     _devicePollTimer = setInterval(function() {
-      fetch('https://github.com/login/oauth/access_token', {
+      fetch('https://corsproxy.io/?' + encodeURIComponent('https://github.com/login/oauth/access_token'), {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
