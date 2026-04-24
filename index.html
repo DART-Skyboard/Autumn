@@ -19280,22 +19280,96 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   } catch(e) {}
 
   function init() {
-    // Check stored session
-    var stored = _loadStoredSession();
-    if (stored) {
-      _applySession(stored);
-    } else {
-      var skipped = localStorage.getItem('_gh_login_skipped');
-      if (!skipped) _showLoginModal();
-      else _showGuestMode();
+    // ── Step 1: OAuth web flow redirect — check for ?code= in URL ────────────
+    var urlParams = new URLSearchParams(window.location.search);
+    var oauthCode = urlParams.get('code');
+    if (oauthCode) {
+      // Strip code from URL immediately so refreshes don't replay it
+      var cleanUrl = window.location.pathname + window.location.hash;
+      history.replaceState(null, '', cleanUrl);
+      _handleOAuthRedirect(oauthCode);
+      return;
     }
+
+    // ── Step 2: Stored session — returning user, re-validate silently ────────
+    var stored = _loadStoredSession();
+    if (stored && stored.access_token) {
+      // Silently re-validate token via GAS then apply
+      _showAuthLoading();
+      fetch(AUTUMN_GAS_URL + '?action=userinfo&token=' + encodeURIComponent(stored.access_token))
+        .then(function(r){ return r.json(); })
+        .then(function(u){
+          _hideAuthLoading();
+          if (u && u.login) {
+            // Token still valid — refresh session data and apply
+            stored.username   = u.login;
+            stored.avatar_url = u.avatar_url || stored.avatar_url;
+            stored.name       = u.name || u.login;
+            _saveSession(stored);
+            _applySession(stored);
+          } else {
+            // Token expired — silent web flow re-auth
+            _redirectToGitHubOAuth();
+          }
+        })
+        .catch(function(){
+          _hideAuthLoading();
+          // Network error — apply stored session optimistically
+          _applySession(stored);
+        });
+      return;
+    }
+
+    // ── Step 3: No session — show login or guest mode ────────────────────────
+    var skipped = localStorage.getItem('_gh_login_skipped');
+    if (!skipped) _showLoginModal();
+    else _showGuestMode();
+  }
+
+  // ── OAuth web flow — redirect to GitHub ──────────────────────────────────
+  function _redirectToGitHubOAuth() {
+    var params = new URLSearchParams({
+      client_id:    'Ov23li2K0njEqO1WTSdD',
+      redirect_uri: 'https://leatr.xyz/',
+      scope:        'repo,read:user'
+      // No prompt=consent — GitHub skips re-auth if already authorized
+    });
+    window.location.href = 'https://github.com/login/oauth/authorize?' + params.toString();
+  }
+
+  // ── Handle OAuth redirect — exchange code for token via GAS ──────────────
+  function _handleOAuthRedirect(code) {
+    _showAuthLoading();
+    fetch(AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        _hideAuthLoading();
+        if (d.error) {
+          // Exchange failed — fall through to login modal with friendly error
+          _showLoginModal();
+          _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
+            + 'Sign-in failed. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
+          return;
+        }
+        _saveSession(d);
+        // Clear login_skipped if it was set
+        try { localStorage.removeItem('_gh_login_skipped'); } catch(e){}
+        _applySession(d);
+      })
+      .catch(function(){
+        _hideAuthLoading();
+        _showLoginModal();
+        _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
+          + 'Network error. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
+      });
   }
 
   // ── Device Flow — request device code via GAS ─────────────────────────────
   var _devicePollTimer = null;
 
   function _startOAuth() {
-    _showDeviceFlow();
+    // Use OAuth web flow (silent for returning users, instant for first-time)
+    _redirectToGitHubOAuth();
   }
 
   function _preWireBtn() {
@@ -19316,10 +19390,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .then(function(t){
         var json = t.replace(/^_ghDeviceCallback\(/, '').replace(/\);?$/, '');
         var d = JSON.parse(json);
-        if (d.error) { _setDeviceUI('<div style="color:#f66">Error: ' + d.error + '</div>'); return; }
+        if (d.error) {
+          var friendly = (d.error.indexOf('too many') !== -1 || d.error.indexOf('quota') !== -1 || d.error.indexOf('urlfetch') !== -1)
+            ? 'Service busy — try again later'
+            : 'Sign-in unavailable — try again later';
+          _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
+            + friendly + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
+          return;
+        }
         _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5);
       })
-      .catch(function(e){ _setDeviceUI('<div style="color:#f66">Network error — try again</div>'); });
+      .catch(function(e){ _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">Connection error — try again later<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Retry</span></div>'); });
   }
 
   function _showDeviceCode(userCode, verifyUrl, deviceCode, interval) {
@@ -19952,14 +20033,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if (userBtn)  userBtn.style.display  = 'none';
     _toast('Logged out');
   };
-  // Instant re-login for returning registered users — no device flow needed
+  // Re-login for returning registered users — silent OAuth web flow
   window._ghReLogin = function() {
-    var stored = _loadStoredSession();
-    if (stored && stored.access_token) {
-      _applySession(stored);
-    } else {
-      _showLoginModal();
-    }
+    _redirectToGitHubOAuth();
   };
 
   window._ghShowUserMenu = function(e) {
