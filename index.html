@@ -11526,7 +11526,6 @@ function _makePlasmaSpline(posA, posB, colorHex, resonance, isLocalSpline) {
 
 async function _pollAshNodes() {
   // Heartbeat: write/refresh this tab's own session file via GAS proxy
-  // Carry mistSolve for 30s after a solve so other browsers' poll cycles catch it
   var _hbPayload = { uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence' };
   if(_ashNodes._lastMistSolve && (Date.now() - _ashNodes._lastMistSolve.ts) < 30000) {
     _hbPayload.mistSolve = _ashNodes._lastMistSolve;
@@ -11535,31 +11534,58 @@ async function _pollAshNodes() {
 
   var nodes = [{uid: _ashNodes._localUid, ts: Date.now(), isLocal: true}];
 
-  // ── Read remote sessions via GAS proxy — no client-side token needed ──
-  // GAS holds ADMIN_TOKEN server-side; all visitors get real-time node data.
-  // PAT path still used as fast-path fallback for IDE/admin sessions.
   var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : null;
   var GAS_URL = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))
     ? AUTUMN_GAS_URL : null;
+
+  // ── WRITE: register this session into CacheService via GAS writenode ──
+  // Works for ALL users (guest + logged in). Fast write, no quota impact.
+  if(GAS_URL) {
+    var _nodeParam = encodeURIComponent(JSON.stringify({
+      x: 0, y: 0, z: 0, shell: 'Geological', color: '#00e5ff',
+      label: _aut_uid ? _aut_uid.slice(0,10) : 'guest', ts: Date.now()
+    }));
+    fetch(GAS_URL + '?action=writenode&sid=' + encodeURIComponent(_ashNodes._localUid) +
+          '&uid=' + encodeURIComponent(_aut_uid || _ashNodes._localUid) +
+          '&node=' + _nodeParam, { signal: AbortSignal.timeout(8000) })
+      .catch(function(){});
+  }
 
   try {
     var remoteSessions = [];
 
     if(GAS_URL) {
-      // Primary path: GAS proxy reads all session files server-side (works for everyone)
-      var gasR = await fetch(GAS_URL + '?action=sessions', {
-        signal: AbortSignal.timeout(10000)
+      // ── PRIMARY: readnodes — CacheService, sub-100ms, zero UrlFetch quota ──
+      var nodesR = await fetch(GAS_URL + '?action=readnodes', {
+        signal: AbortSignal.timeout(8000)
       });
-      if(gasR.ok) {
-        var gasData = await gasR.json();
-        if(gasData && Array.isArray(gasData.sessions)) {
-          remoteSessions = gasData.sessions;
+      if(nodesR.ok) {
+        var nodesData = await nodesR.json();
+        if(nodesData && Array.isArray(nodesData.nodes) && nodesData.nodes.length > 0) {
+          nodesData.nodes.forEach(function(n) {
+            if(n && (n.sid || n.uid) && (n.sid || n.uid) !== _ashNodes._localUid) {
+              remoteSessions.push({ sid: n.sid, uid: n.uid, ts: n.ts || Date.now() });
+            }
+          });
+        }
+      }
+
+      // ── SECONDARY: sessions (GitHub-backed) for full data + mist heartbeat ──
+      if(remoteSessions.length === 0) {
+        var gasR = await fetch(GAS_URL + '?action=sessions', {
+          signal: AbortSignal.timeout(10000)
+        });
+        if(gasR.ok) {
+          var gasData = await gasR.json();
+          if(gasData && Array.isArray(gasData.sessions)) {
+            remoteSessions = gasData.sessions;
+          }
         }
       }
     }
 
     if(remoteSessions.length === 0 && pat) {
-      // Fallback: direct GitHub API for IDE/admin users who have a PAT stored
+      // Fallback: direct GitHub API for IDE/admin users with a PAT
       var r = await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
         headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
         signal: AbortSignal.timeout(8000)
@@ -11573,15 +11599,8 @@ async function _pollAshNodes() {
             .sort(function(a,b){ return b.name > a.name ? 1 : -1; })
             .slice(0, _ashNodes.MAX_REMOTE);
           var fetches = recentFiles.map(function(f) {
-            return fetch(f.url, {
-                headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
-                signal: AbortSignal.timeout(4000)
-              })
+            return fetch(f.download_url, {signal: AbortSignal.timeout(4000)})
               .then(function(res){ return res.ok ? res.json() : null; })
-              .then(function(meta){
-                if(!meta || !meta.content) return null;
-                try{ return JSON.parse(atob(meta.content.replace(/\n/g,''))); }catch(e){ return null; }
-              })
               .catch(function(){ return null; });
           });
           var results = await Promise.allSettled(fetches);
@@ -11592,7 +11611,7 @@ async function _pollAshNodes() {
       }
     }
 
-    // Process whichever path returned session data
+    // Process session data
     var STALE_MS = 6 * 60 * 1000;
     remoteSessions.forEach(function(s) {
       if(!s || !(s.sid || s.uid)) return;
@@ -11613,7 +11632,6 @@ async function _pollAshNodes() {
           if(typeof window._buoyancyMistPulse === 'function') {
             window._buoyancyMistPulse({ slot: ms.slot });
           }
-          // Re-poll quickly so reaction writes propagate back out fast
           setTimeout(_pollAshNodes, 1500);
         }
       }
