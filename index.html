@@ -19444,7 +19444,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           area.style.cssText = 'margin-top:12px;';
           btn.parentNode.insertBefore(area, btn.nextSibling);
           target = area;
-          btn.style.display = 'none';
+          // Keep btn visible — only hide it during active device code flow, not for errors
         }
       }
     }
