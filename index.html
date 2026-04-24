@@ -19367,17 +19367,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Show requesting state
     _setDeviceUI('<div style="color:var(--cyan);font-family:var(--font-d);letter-spacing:2px;font-size:.7rem;">REQUESTING CODE...</div>');
 
-    fetch(AUTUMN_GAS_URL + '?action=devicecode&callback=_ghDeviceCallback')
-      .then(function(r){ return r.text(); })
-      .then(function(t){
-        var json = t.replace(/^_ghDeviceCallback\(/, '').replace(/\);?$/, '');
-        var d = JSON.parse(json);
+    // Direct GitHub call — client_id is public, no GAS proxy needed, no UrlFetch quota usage
+    fetch('https://github.com/login/device/code', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: 'Ov23li2K0njEqO1WTSdD', scope: 'repo,read:user' })
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
         if (d.error) {
-          var friendly = (d.error.indexOf('too many') !== -1 || d.error.indexOf('quota') !== -1 || d.error.indexOf('urlfetch') !== -1)
-            ? 'Service busy — try again later'
-            : 'Sign-in unavailable — try again later';
           _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
-            + friendly + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
+            + (d.error_description || d.error) + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
           return;
         }
         _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5);
