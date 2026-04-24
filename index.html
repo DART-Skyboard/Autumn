@@ -19291,32 +19291,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       return;
     }
 
-    // ── Step 2: Stored session — returning user, re-validate silently ────────
+    // ── Step 2: Stored session — apply immediately, no blocking GAS call ───
     var stored = _loadStoredSession();
     if (stored && stored.access_token) {
-      // Silently re-validate token via GAS then apply
-      _showAuthLoading();
-      fetch(AUTUMN_GAS_URL + '?action=userinfo&token=' + encodeURIComponent(stored.access_token))
-        .then(function(r){ return r.json(); })
-        .then(function(u){
-          _hideAuthLoading();
-          if (u && u.login) {
-            // Token still valid — refresh session data and apply
-            stored.username   = u.login;
-            stored.avatar_url = u.avatar_url || stored.avatar_url;
-            stored.name       = u.name || u.login;
-            _saveSession(stored);
-            _applySession(stored);
-          } else {
-            // Token expired — silent web flow re-auth
-            _redirectToGitHubOAuth();
-          }
-        })
-        .catch(function(){
-          _hideAuthLoading();
-          // Network error — apply stored session optimistically
-          _applySession(stored);
-        });
+      _applySession(stored);
       return;
     }
 
@@ -19345,10 +19323,14 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .then(function(d){
         _hideAuthLoading();
         if (d.error) {
-          // Exchange failed — fall through to login modal with friendly error
+          // Exchange failed — show specific message for quota vs real failure
+          var isQuota = d.error.indexOf('too many') !== -1 || d.error.indexOf('quota') !== -1 || d.error.indexOf('urlfetch') !== -1;
+          var msg = isQuota
+            ? 'Auth service is temporarily busy. Try again in a few minutes.'
+            : 'Sign-in failed. GitHub may need to re-authorize.';
           _showLoginModal();
-          _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
-            + 'Sign-in failed. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
+          _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.58rem;text-align:center;padding:8px 4px;line-height:1.6">'
+            + msg + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:4px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
           return;
         }
         _saveSession(d);
