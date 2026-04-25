@@ -2598,7 +2598,7 @@ function syncSessionsToGitHub(manual) {
   var gasUrl = window.AUTUMN_GAS_URL;
   if (!gasUrl) { _syncSessionsActive=false; return; }
   fetch(gasUrl, {
-    method:'POST', headers:{'Content-Type':'application/json'},
+    method:'POST', headers:{'Content-Type':'text/plain'},
     body: JSON.stringify({ action:'savememory', token:token, filename:'sessions.json', content:JSON.stringify(payload,null,2) })
   }).then(function(){ _syncSessionsActive=false; if(manual){ var el=document.getElementById('tools-body'); if(el && el.innerHTML.indexOf('session')>-1) renderToolsContent(); } })
     .catch(function(){ _syncSessionsActive=false; });
@@ -11817,7 +11817,7 @@ async function _pollAshNodes() {
   if(GAS_URL) {
     fetch(GAS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' }, // avoid CORS preflight — GAS doesn't handle OPTIONS
       body: JSON.stringify({
         action: 'writenode',
         sid: _ashNodes._localUid,
@@ -13404,7 +13404,7 @@ window._saveDataShare = function(showNotice) {
   if (_ghToken && window.AUTUMN_GAS_URL) {
     fetch(window.AUTUMN_GAS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'savedataprefs', token: _ghToken, prefs: prefs })
     }).catch(function(){});
   }
