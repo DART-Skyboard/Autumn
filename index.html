@@ -2540,7 +2540,7 @@ const STORE_KEY = "autumn_leatr_data";
 
 function checkConsent() {
   try { const stored=localStorage.getItem("autumn_consent");
-    if(stored==="yes"){useStorage=true;return;} if(stored==="no"){useStorage=false;return;}
+    if(stored==="yes"||stored==="true"){useStorage=true;return;} if(stored==="no"){useStorage=false;return;}
   }catch(e){}
   if(!localStorage.getItem('_aut_data_consent'))document.getElementById("consent-modal").style.display="flex";
 }
