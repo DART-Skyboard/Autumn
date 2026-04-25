@@ -9163,6 +9163,47 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
+  // ── Audio file attached → dedicated audio analysis route ──────────────────
+  const _hasAudio = _pendingImgs.some(function(f){ return f.isAudio; });
+  if (_hasAudio) {
+    const _audioItems = _pendingImgs.filter(function(f){ return f.isAudio; });
+    const _audioCardId = 'aud-' + Date.now();
+    const _audioNames = _audioItems.map(function(a){ return a.fileName; }).join(', ');
+    msgs().push({role:'autumn', text:'', ts:new Date().toISOString(), id:_audioCardId,
+      grammarMeta:'', brpnMeta:'', contextType:'AUDIO_ANALYSIS',
+      imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>ANALYZING AUDIO…</div></div>'});
+    renderMessages();
+    S.pendingImages = _pendingImgs;
+    const _rAud = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
+    S.journal.push(createJournalEntry(augmentedText, analysis, _rAud));
+    updateHUD(analysis);
+    S.isProcessing = false;
+    if (typeof setOrbThinking === 'function') setOrbThinking(false);
+    const _replyAud = await generateReply(augmentedText, analysis, _rAud).catch(function(){ return {text:'',grammarMeta:'',brpnMeta:''}; });
+    const _audFallback = 'Audio received — I\'ve analyzed the waveform data. ' + _audioItems.map(function(a){
+      return a.fileName + ': ' + (a.duration>0?(a.duration>=60?Math.floor(a.duration/60)+'m '+Math.round(a.duration%60)+'s':a.duration.toFixed(1)+'s'):'')+
+      (a.sampleRate?' · '+a.sampleRate+'Hz':'')+
+      (a.channels?' · '+(a.channels===1?'mono':'stereo'):'')+
+      (a.rmsDb?' · '+a.rmsDb.toFixed(1)+' dBFS':'');
+    }).join('\n');
+    var _audIdx = msgs().findIndex(function(m){return m.id===_audioCardId;});
+    var _audReplyText = (_replyAud && _replyAud.text) ? _replyAud.text : _audFallback;
+    if(_audIdx >= 0) {
+      msgs()[_audIdx] = {role:'autumn', text:_audReplyText, ts:new Date().toISOString(), id:_audioCardId,
+        grammarMeta:_replyAud.grammarMeta||('Audio Analysis · '+_audioNames),
+        brpnMeta:_replyAud.brpnMeta||'', contextType:'AUDIO_ANALYSIS',
+        media:{videos:[],images:[],links:[],sources:[]}};
+    } else {
+      msgs().push({role:'autumn', text:_audReplyText, ts:new Date().toISOString(),
+        grammarMeta:_replyAud.grammarMeta||('Audio Analysis · '+_audioNames),
+        brpnMeta:_replyAud.brpnMeta||'', contextType:'AUDIO_ANALYSIS',
+        media:{videos:[],images:[],links:[],sources:[]}});
+    }
+    S.pendingImages=[]; S.pendingImage=null;
+    saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+    return;
+  }
+
   // ── Video/doc attached → always route through generateReply (never image-gen) ──
   const _hasVideo = _pendingImgs.some(function(f){ return f.isVideo; });
   const _hasDoc   = _pendingImgs.some(function(f){ return f.isDoc; });
