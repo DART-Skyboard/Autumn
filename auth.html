@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Autumn — GitHub Authorization</title>
+<style>
+  :root {
+    --cyan:   #00e5ff;
+    --violet: #a78bfa;
+    --amber:  #ffb347;
+    --bg:     #02080e;
+    --border: rgba(0,229,255,.15);
+    --dim:    rgba(224,244,255,.35);
+    --font-d: 'Courier New', Courier, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: #e0f4ff;
+    font-family: var(--font-d);
+    overflow: hidden;
+  }
+
+  /* Hex grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      repeating-linear-gradient(60deg,  rgba(0,229,255,.03) 0, rgba(0,229,255,.03) 1px, transparent 1px, transparent 30px),
+      repeating-linear-gradient(120deg, rgba(0,229,255,.03) 0, rgba(0,229,255,.03) 1px, transparent 1px, transparent 30px),
+      repeating-linear-gradient(0deg,   rgba(0,229,255,.03) 0, rgba(0,229,255,.03) 1px, transparent 1px, transparent 26px);
+    pointer-events: none;
+  }
+
+  .wrap {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px;
+    gap: 0;
+  }
+
+  .logo {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    border: 2px solid rgba(0,229,255,.4);
+    box-shadow: 0 0 20px rgba(0,229,255,.15);
+    margin-bottom: 18px;
+    display: block;
+  }
+
+  .title {
+    font-size: .75rem;
+    letter-spacing: 4px;
+    color: var(--cyan);
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .subtitle {
+    font-size: .5rem;
+    letter-spacing: 2px;
+    color: var(--dim);
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  /* ── Main card ── */
+  .card {
+    width: 100%;
+    max-width: 360px;
+    background: rgba(6,14,26,.92);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 24px 24px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.6), 0 0 30px rgba(0,229,255,.05);
+    backdrop-filter: blur(12px);
+    text-align: center;
+    transition: all .3s ease;
+  }
+
+  .state-label {
+    font-size: .48rem;
+    letter-spacing: 2.5px;
+    color: rgba(0,229,255,.5);
+    margin-bottom: 12px;
+  }
+
+  /* Code display */
+  .code-box {
+    font-size: 1.8rem;
+    letter-spacing: 8px;
+    color: #fff;
+    background: rgba(0,255,204,.06);
+    border: 1px solid rgba(0,255,204,.25);
+    border-radius: 8px;
+    padding: 14px 20px;
+    margin: 0 auto 10px;
+    cursor: pointer;
+    user-select: all;
+    transition: background .15s, border-color .15s;
+    position: relative;
+  }
+  .code-box:hover { background: rgba(0,255,204,.1); border-color: rgba(0,255,204,.4); }
+  .code-box.copied { border-color: rgba(0,255,204,.7); }
+  .copy-hint {
+    font-size: .42rem;
+    letter-spacing: 1.5px;
+    color: rgba(0,255,204,.35);
+    margin-bottom: 20px;
+  }
+
+  /* Auth button */
+  .auth-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%;
+    padding: 11px 16px;
+    background: rgba(0,229,255,.12);
+    border: 1px solid rgba(0,229,255,.35);
+    border-radius: 8px;
+    color: var(--cyan);
+    font-family: var(--font-d);
+    font-size: .6rem;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .15s;
+    margin-bottom: 12px;
+  }
+  .auth-btn:hover { background: rgba(0,229,255,.22); box-shadow: 0 0 16px rgba(0,229,255,.15); }
+  .auth-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
+
+  .status {
+    font-size: .45rem;
+    letter-spacing: 1.5px;
+    color: var(--dim);
+    min-height: 18px;
+    transition: color .3s;
+  }
+  .status.polling { color: rgba(0,229,255,.5); }
+  .status.success { color: #4ade80; }
+  .status.error   { color: #f87171; }
+
+  /* Pulse dot */
+  .pulse {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(0,229,255,.6);
+    box-shadow: 0 0 6px rgba(0,229,255,.4);
+    margin-right: 6px;
+    animation: pulse 1.4s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .4; transform: scale(.7); }
+  }
+
+  /* Success state */
+  .success-card {
+    text-align: center;
+    padding: 8px 0;
+  }
+  .success-avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    border: 2px solid rgba(0,229,255,.5);
+    box-shadow: 0 0 20px rgba(0,229,255,.2);
+    margin: 0 auto 14px;
+    display: block;
+  }
+  .success-name {
+    font-size: .8rem;
+    letter-spacing: 3px;
+    color: var(--cyan);
+    margin-bottom: 6px;
+  }
+  .success-sub {
+    font-size: .5rem;
+    color: var(--dim);
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+  .success-check {
+    font-size: 2rem;
+    color: #4ade80;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .closing-msg {
+    font-size: .42rem;
+    letter-spacing: 1.5px;
+    color: rgba(0,255,204,.35);
+    animation: fadeInOut 1.8s ease-in-out infinite;
+  }
+  @keyframes fadeInOut {
+    0%,100% { opacity: .35; }
+    50%      { opacity: .8; }
+  }
+
+  /* Fade transition */
+  .fade-out {
+    opacity: 0;
+    transform: scale(.97);
+    transition: opacity .5s ease, transform .5s ease;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img src="assets/autumn.png" alt="Autumn" class="logo" onerror="this.style.display='none'">
+  <div class="title">AUTUMN × GITHUB</div>
+  <div class="subtitle">AUTHORIZATION</div>
+
+  <div class="card" id="main-card">
+    <div class="state-label" id="state-label">CONNECTING…</div>
+    <div id="card-body">
+      <div style="color:var(--dim);font-size:.5rem;letter-spacing:1px;">Requesting code…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var GH_CLIENT_ID = 'Ov23li2K0njEqO1WTSdD';
+  var GAS_URL      = 'https://script.google.com/macros/s/AKfycbzATQjU-e_-W3A1IYQ-M9Fp-8fqbgGoteEMSmQc8_n6tAO_LzVcdm8zsyaiiX3o8zVAzg/exec';
+
+  var params      = new URLSearchParams(window.location.search);
+  var userCode    = params.get('code');
+  var verifyUrl   = params.get('url')   || 'https://github.com/login/device';
+  var deviceCode  = params.get('dc');
+  var pollInterval= parseInt(params.get('interval') || '5', 10);
+  var isReturning = params.get('returning') === '1';
+
+  var _pollTimer  = null;
+  var _card       = document.getElementById('main-card');
+  var _body       = document.getElementById('card-body');
+  var _label      = document.getElementById('state-label');
+  var _channel    = null;
+
+  // BroadcastChannel back to main tab
+  try { _channel = new BroadcastChannel('autumn_auth'); } catch(e) {}
+
+  function setLabel(t) { if (_label) _label.textContent = t; }
+  function setBody(html) { if (_body) _body.innerHTML = html; }
+
+  // ── If we already have code+dc from URL params, skip the request step ──
+  if (userCode && deviceCode) {
+    showCodeUI(userCode, verifyUrl, deviceCode, pollInterval);
+  } else {
+    // Should not happen — auth.html is always opened with params pre-filled
+    setLabel('ERROR');
+    setBody('<div style="color:#f87171;font-size:.5rem;letter-spacing:1px;">Missing auth parameters.<br>Please close this tab and try again.</div>');
+  }
+
+  function showCodeUI(code, url, dc, interval) {
+    setLabel(isReturning ? 'WELCOME BACK' : 'FIRST TIME SETUP');
+    setBody(
+      '<div class="state-label" style="margin-bottom:8px;font-size:.42rem;color:rgba(0,229,255,.4);">'
+        + (isReturning ? 'Re-authorize to restore your memory archive' : 'Connect GitHub to sync your memory archive')
+        + '</div>'
+      + '<div class="code-box" id="code-display">' + code + '</div>'
+      + '<div class="copy-hint" id="copy-hint">TAP TO COPY CODE</div>'
+      + '<a class="auth-btn" id="auth-link" href="' + url + '" target="_blank" rel="noopener">'
+        + '<svg viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>'
+        + 'AUTHORIZE ON GITHUB ↗'
+      + '</a>'
+      + '<div class="status polling" id="status-msg"><span class="pulse"></span>WAITING FOR AUTHORIZATION…</div>'
+    );
+
+    // Tap to copy
+    var codeEl = document.getElementById('code-display');
+    var hintEl = document.getElementById('copy-hint');
+    if (codeEl) codeEl.addEventListener('click', function() {
+      try { navigator.clipboard.writeText(code).then(function() {
+        codeEl.classList.add('copied');
+        if (hintEl) hintEl.textContent = '✓ COPIED';
+        setTimeout(function() {
+          codeEl.classList.remove('copied');
+          if (hintEl) hintEl.textContent = 'TAP TO COPY CODE';
+        }, 2000);
+      }); } catch(e) {}
+    });
+
+    // Auto-copy on load
+    setTimeout(function() {
+      try { navigator.clipboard.writeText(code); } catch(e) {}
+    }, 300);
+
+    startPolling(dc, interval);
+  }
+
+  function startPolling(dc, interval) {
+    _pollTimer = setInterval(function() {
+      var body = 'client_id=' + GH_CLIENT_ID
+        + '&device_code=' + encodeURIComponent(dc)
+        + '&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code';
+
+      fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body,
+        signal: AbortSignal.timeout(10000)
+      })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .catch(function() {
+        return fetch(GAS_URL + '?action=devicepoll&device_code=' + encodeURIComponent(dc), {
+          signal: AbortSignal.timeout(12000)
+        }).then(function(r) { return r.ok ? r.json() : {}; });
+      })
+      .catch(function() { return {}; })
+      .then(function(d) {
+        if (d.access_token) {
+          clearInterval(_pollTimer);
+          // Fetch user profile
+          fetch('https://api.github.com/user', {
+            headers: { 'Authorization': 'token ' + d.access_token, 'Accept': 'application/vnd.github.v3+json' }
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(user) {
+            var sessionData = {
+              access_token: d.access_token,
+              username:     user.login,
+              avatar_url:   user.avatar_url,
+              name:         user.name || user.login
+            };
+            // Broadcast success to main tab
+            try {
+              if (_channel) _channel.postMessage({ type: 'login', data: sessionData });
+              // Also try window.opener for direct reference
+              if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({ type: 'autumn_auth_success', data: sessionData }, window.location.origin);
+              }
+            } catch(e) {}
+            showSuccess(user, sessionData);
+          })
+          .catch(function() {
+            showError('Could not fetch GitHub profile. Please try again.');
+          });
+        } else if (d.error === 'access_denied') {
+          clearInterval(_pollTimer);
+          showError('Access denied by GitHub.');
+        } else if (d.error === 'expired_token') {
+          clearInterval(_pollTimer);
+          showError('Code expired. Please close this tab and try again.');
+        }
+        // authorization_pending / slow_down — keep polling
+      })
+      .catch(function() {});
+    }, interval * 1000);
+  }
+
+  function showSuccess(user, sessionData) {
+    setLabel('AUTHORIZED');
+    _body.innerHTML =
+      '<div class="success-card">'
+      + '<img src="' + (user.avatar_url || 'assets/autumn.png') + '" class="success-avatar" alt="">'
+      + '<div class="success-name">WELCOME' + (sessionData.username ? ', ' + sessionData.username.toUpperCase() : '') + '</div>'
+      + '<div class="success-sub">'
+        + (isReturning ? 'Memory archive restored.' : 'Your memory archive is being created.')
+        + '<br>Returning you to Autumn…'
+      + '</div>'
+      + '<span class="success-check">✓</span>'
+      + '<div class="closing-msg">THIS TAB WILL CLOSE AUTOMATICALLY</div>'
+      + '</div>';
+    // Auto-close after brief success beat
+    setTimeout(function() {
+      if (_card) { _card.classList.add('fade-out'); }
+      setTimeout(function() {
+        try { window.close(); } catch(e) {}
+        // Fallback if window.close() is blocked (tab wasn't opened by script)
+        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;font-size:.6rem;letter-spacing:2px;color:rgba(0,229,255,.5);">✓ AUTHORIZED — YOU MAY CLOSE THIS TAB</div>';
+      }, 500);
+    }, 2000);
+  }
+
+  function showError(msg) {
+    var s = document.getElementById('status-msg');
+    if (s) { s.className = 'status error'; s.textContent = msg; }
+    setLabel('ERROR');
+  }
+
+  // Also listen for the main tab telling us it got the token (belt-and-suspenders)
+  if (_channel) {
+    _channel.onmessage = function(ev) {
+      if (ev.data && ev.data.type === 'login_confirmed') {
+        clearInterval(_pollTimer);
+        try { window.close(); } catch(e) {}
+      }
+    };
+  }
+
+})();
+</script>
+</body>
+</html>
