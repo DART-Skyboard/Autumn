@@ -16424,11 +16424,17 @@ function create3DChatViewer(containerId, fileURL, fileName, ext) {
   var controls = null;
   if(typeof THREE.OrbitControls!=='undefined') {
     controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
+    controls.enableDamping = false;
     controls.enablePan = true;
-    controls.minDistance = 0.1;
-    controls.maxDistance = 200;
+    controls.enableZoom = true;
+    controls.panSpeed = 1.0;
+    controls.zoomSpeed = 1.2;
+    controls.rotateSpeed = 1.0;
+    controls.minDistance = 0.05;
+    controls.maxDistance = 500;
+    // Stop auto-rotate on any user interaction, resume on release
+    controls.addEventListener('start', function(){ autoRotate = false; });
+    controls.addEventListener('end',   function(){ autoRotate = true;  });
   }
 
   var mat = new THREE.MeshStandardMaterial({color:0x00cccc, roughness:0.4, metalness:0.6, side:THREE.DoubleSide});
@@ -16485,17 +16491,18 @@ function create3DChatViewer(containerId, fileURL, fileName, ext) {
     }
   } catch(e) { console.warn('[3DWidget load]',e); }
 
-  // Prevent scroll hijack on touch
-  renderer.domElement.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
-  renderer.domElement.addEventListener('wheel',function(e){e.stopPropagation();},{passive:true});
-  // Toggle auto-rotate on double-click/tap
-  renderer.domElement.addEventListener('dblclick',function(){autoRotate=!autoRotate;});
+  // Prevent scroll hijack on touch — non-passive so OrbitControls can handle multi-touch
+  renderer.domElement.addEventListener('touchstart', function(e){ if(e.touches.length > 1) e.preventDefault(); e.stopPropagation(); }, {passive:false});
+  renderer.domElement.addEventListener('touchmove',  function(e){ e.stopPropagation(); }, {passive:false});
+  renderer.domElement.addEventListener('wheel', function(e){ e.stopPropagation(); }, {passive:true});
+  // Toggle auto-rotate on double-tap/click
+  renderer.domElement.addEventListener('dblclick', function(){ autoRotate = !autoRotate; });
 
   var alive = true;
   function anim() {
     if(!alive) return;
     requestAnimationFrame(anim);
-    if(autoRotate && !controls) modelRoot.rotation.y += 0.008;
+    if(autoRotate) modelRoot.rotation.y += 0.008;
     if(controls) controls.update();
     renderer.render(scene, camera);
   }
