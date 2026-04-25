@@ -11539,16 +11539,21 @@ async function _pollAshNodes() {
     ? AUTUMN_GAS_URL : null;
 
   // ── WRITE: register this session into CacheService via GAS writenode ──
-  // Works for ALL users (guest + logged in). Fast write, no quota impact.
+  // POST required — GET with JSON node param hits GAS 400 (confirmed via round-trip test).
+  // Works for ALL users (guest + logged in). Fast write, zero quota impact.
   if(GAS_URL) {
-    var _nodeParam = encodeURIComponent(JSON.stringify({
-      x: 0, y: 0, z: 0, shell: 'Geological', color: '#00e5ff',
-      label: _aut_uid ? _aut_uid.slice(0,10) : 'guest', ts: Date.now()
-    }));
-    fetch(GAS_URL + '?action=writenode&sid=' + encodeURIComponent(_ashNodes._localUid) +
-          '&uid=' + encodeURIComponent(_aut_uid || _ashNodes._localUid) +
-          '&node=' + _nodeParam, { signal: AbortSignal.timeout(8000) })
-      .catch(function(){});
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'writenode',
+        sid: _ashNodes._localUid,
+        uid: _aut_uid || _ashNodes._localUid,
+        node: { x:0, y:0, z:0, shell:'Geological', color:'#00e5ff',
+                label: _aut_uid ? _aut_uid.slice(0,10) : 'guest', ts: Date.now() }
+      }),
+      signal: AbortSignal.timeout(8000)
+    }).catch(function(){});
   }
 
   try {
