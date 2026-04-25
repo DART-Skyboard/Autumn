@@ -19309,6 +19309,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   } catch(e) {}
 
   function init() {
+    // ── Must be first: catch GitHub redirect back with ?code= ─────────────
+    if (_handleOAuthReturn()) return;
+
     var stored = _loadStoredSession();
     var isRegistered = localStorage.getItem('_gh_registered');
 
@@ -19372,26 +19375,62 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     else _showGuestMode();
   }
 
-  // ── Re-auth prompt for returning users whose token expired ───────────────
-  // Much lighter than full device flow — just a single button, user already knows the drill.
+  // ── Re-auth: returning user, token gone (cleared cookies/storage/new browser)
+  // GitHub already has the app authorized — redirect comes back instantly, no code entry.
   function _showReAuthPrompt(knownUsername) {
-    var modal = document.getElementById('gh-login-modal');
-    if (!modal) { _showLoginModal(); return; }
-    var inner = modal.querySelector('.gh-login-box') || modal.querySelector('.gh-login-inner');
-    if (inner) {
-      // Replace the title/subtitle with a returning-user message
-      var titleEl = inner.querySelector('.gh-login-title, h2, h3');
-      var subEl   = inner.querySelector('.gh-login-sub, p');
-      if (titleEl) titleEl.textContent = knownUsername ? 'WELCOME BACK, ' + knownUsername.toUpperCase() : 'WELCOME BACK';
-      if (subEl)   subEl.textContent   = 'Re-authorize with GitHub to restore your memory archive and pick up where you left off.';
+    if (knownUsername) {
+      try { sessionStorage.setItem('_gh_reauth_user', knownUsername); } catch(e) {}
     }
-    modal.classList.add('show');
+    _doWebFlowRedirect();
+  }
+
+  // ── Web flow redirect — sends user to GitHub OAuth, which redirects back to leatr.xyz/?code=
+  // New users: GitHub shows the authorize screen once.
+  // Returning users: GitHub skips it entirely — instant redirect back with a fresh code.
+  function _doWebFlowRedirect() {
+    var state = Math.random().toString(36).substr(2, 10);
+    try { sessionStorage.setItem('_gh_oauth_state', state); } catch(e) {}
+    window.location.href = 'https://github.com/login/oauth/authorize'
+      + '?client_id=' + GH_CLIENT_ID
+      + '&scope='        + encodeURIComponent(GH_SCOPES)
+      + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/')
+      + '&state='        + state;
+  }
+
+  // ── Handle ?code= on return from GitHub — exchange for token via GAS ──────
+  function _handleOAuthReturn() {
+    var params = new URLSearchParams(window.location.search);
+    var code   = params.get('code');
+    if (!code) return false;
+    // Strip ?code=... immediately so a page refresh doesn't re-trigger
+    window.history.replaceState({}, document.title, window.location.pathname);
+    _showAuthLoading();
+    fetch(AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        _hideAuthLoading();
+        if (d.error) {
+          _showLoginModal();
+          _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px">'
+            + 'Sign-in error.<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline" onclick="window._ghStartOAuth()">Try again</span></div>');
+          return;
+        }
+        _saveSession(d);
+        _applySession(d);
+      })
+      .catch(function() {
+        _hideAuthLoading();
+        _showLoginModal();
+        _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px">'
+          + 'Network error.<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline" onclick="window._ghStartOAuth()">Try again</span></div>');
+      });
+    return true;
   }
 
   var _devicePollTimer = null;
 
   function _startOAuth() {
-    _showDeviceFlow();
+    _doWebFlowRedirect();
   }
 
   function _preWireBtn() {
