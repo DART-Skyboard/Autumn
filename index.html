@@ -16432,9 +16432,10 @@ function create3DChatViewer(containerId, fileURL, fileName, ext) {
     controls.rotateSpeed = 1.0;
     controls.minDistance = 0.05;
     controls.maxDistance = 500;
-    // Stop auto-rotate on any user interaction, resume on release
-    controls.addEventListener('start', function(){ autoRotate = false; });
-    controls.addEventListener('end',   function(){ autoRotate = true;  });
+    // Stop auto-rotate on interaction, resume on release — via DOM events (shim has no EventDispatcher)
+    renderer.domElement.addEventListener('pointerdown', function(){ autoRotate = false; });
+    renderer.domElement.addEventListener('pointerup',   function(){ autoRotate = true;  });
+    renderer.domElement.addEventListener('pointerleave',function(){ autoRotate = true;  });
   }
 
   var mat = new THREE.MeshStandardMaterial({color:0x00cccc, roughness:0.4, metalness:0.6, side:THREE.DoubleSide});
