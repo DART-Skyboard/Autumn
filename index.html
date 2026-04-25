@@ -13276,6 +13276,16 @@ window._saveDataShare = function(showNotice) {
   };
   try { localStorage.setItem('_autumn_data_prefs', JSON.stringify(prefs)); } catch(_e){}
   window._dataSharePrefs = prefs;
+  // Persist to GAS if user is logged in with a GitHub token
+  var _ghToken = null;
+  try { _ghToken = localStorage.getItem('_gh_token') || localStorage.getItem('gh_access_token') || null; } catch(_e){}
+  if (_ghToken && typeof _GAS_URL !== 'undefined' && _GAS_URL) {
+    fetch(_GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'savedataprefs', token: _ghToken, prefs: prefs })
+    }).catch(function(){});
+  }
   if(showNotice) {
     var n = document.getElementById('ds-saved-notice');
     if(n) { n.style.display='block'; setTimeout(function(){ n.style.display='none'; }, 2500); }
