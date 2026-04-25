@@ -19331,13 +19331,24 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           avatar_url:   user.avatar_url || stored.avatar_url,
           name:         user.name || user.login
         };
+        localStorage.setItem('_gh_token_ok', String(Date.now()));
+        localStorage.setItem('_gh_token_ok', String(Date.now()));
         _saveSession(refreshed);
         _applySession(refreshed);
       })
       .catch(function() {
-        // Token invalid/expired — clear session but preserve registered flag
+        // Token check failed — could be network error OR truly expired.
+        // Check when we last successfully validated to distinguish the two.
+        var lastOk = 0;
+        try { lastOk = parseInt(localStorage.getItem('_gh_token_ok') || '0', 10); } catch(e) {}
+        var age = Date.now() - lastOk;
+        if (lastOk && age < 30 * 60 * 1000) {
+          // Validated within last 30min — likely a network blip, trust the stored session
+          _applySession(stored);
+          return;
+        }
+        // Genuinely stale — clear and prompt
         try { localStorage.removeItem('_gh_session'); } catch(e) {}
-        // Registered user whose token expired → re-auth prompt, NOT full welcome
         if (isRegistered) {
           _showReAuthPrompt(stored.username || isRegistered);
         } else {
@@ -19438,32 +19449,24 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             + d.error + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
           return;
         }
-        _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5, !!localStorage.getItem('_gh_registered'));
+        _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5);
       })
       .catch(function(e){ _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">CORS or Network error: ' + e.message + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Retry</span></div>'); console.error(e); });
   }
 
-  function _showDeviceCode(userCode, verifyUrl, deviceCode, interval, returning) {
-    var html = '<div style="text-align:center;padding:12px 0">'
-      + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:14px;">AUTHORIZATION TAB OPENED</div>'
-      + '<div style="font-family:var(--font-d);font-size:1.6rem;letter-spacing:6px;color:#fff;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);border-radius:6px;padding:12px 20px;margin-bottom:10px;cursor:pointer;user-select:all;" id="gh-device-code-display" title="Tap to copy">' + userCode + '</div>'
-      + '<div style="font-family:var(--font-d);font-size:.48rem;letter-spacing:1px;color:rgba(0,255,204,.35);margin-bottom:16px;">Code copied to clipboard &middot; Enter it in the authorization tab'
-      + '<br><span style="cursor:pointer;text-decoration:underline;color:rgba(0,229,255,.5);" onclick="window._ghOpenDeviceTab(window.location.origin+\'/auth.html?code=\'+encodeURIComponent(\'' + userCode + '\')+\'&url=\'+encodeURIComponent(\'' + verifyUrl + '\')+\'&dc=\'+encodeURIComponent(\'' + deviceCode + '\')+\'&interval=\'+' + interval + ');">Tab blocked? Reopen ↗</span></div>'
+  function _showDeviceCode(userCode, verifyUrl, deviceCode, interval) {
+    var html = '<div style="text-align:center;padding:8px 0">'
+      + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:10px;">ENTER THIS CODE ON GITHUB</div>'
+      + '<div style="font-family:var(--font-d);font-size:1.6rem;letter-spacing:6px;color:#fff;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);border-radius:6px;padding:12px 20px;margin-bottom:10px;cursor:pointer;user-select:all;" id="gh-device-code-display">' + userCode + '</div>'
+      + '<div style="font-family:var(--font-d);font-size:.48rem;letter-spacing:1px;color:rgba(0,255,204,.35);margin-bottom:14px;">Code copied to clipboard &middot; <span style="cursor:pointer;text-decoration:underline;color:rgba(0,229,255,.5);" onclick="window._ghOpenDeviceTab(\'' + verifyUrl + '\');">Reopen GitHub tab ↗</span></div>'
       + '<div style="font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;color:rgba(0,255,204,.5);" id="gh-device-status"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(0,229,255,.6);box-shadow:0 0 6px rgba(0,229,255,.4);margin-right:6px;animation:pulse 1.4s ease-in-out infinite;vertical-align:middle"></span>Waiting for authorization…</div>'
       + '</div>';
     _setDeviceUI(html);
 
-    // Auto-open auth.html (our proxy page) with params — auto-copies code too
+    // Auto-open github.com/login/device directly — poll stays here in index.html
     setTimeout(function() {
       try { navigator.clipboard && navigator.clipboard.writeText(userCode); } catch(e) {}
-      var _authUrl = window.location.origin + '/auth.html'
-        + '?code='     + encodeURIComponent(userCode)
-        + '&url='      + encodeURIComponent(verifyUrl)
-        + '&dc='       + encodeURIComponent(deviceCode)
-        + '&interval=' + encodeURIComponent(interval)
-        + (returning ? '&returning=1' : '');
-      window._ghOpenDeviceTab(_authUrl);
-      // Wire tap-to-copy on the code display in main modal (fallback if popup blocked)
+      window._ghOpenDeviceTab(verifyUrl);
       var el = document.getElementById('gh-device-code-display');
       if (el) el.addEventListener('click', function() {
         try { navigator.clipboard && navigator.clipboard.writeText(userCode); } catch(e) {}
@@ -20025,7 +20028,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   // ── Session storage ───────────────────────────────────────────────────────
   function _saveSession(data) {
-    try { localStorage.setItem('_gh_session', JSON.stringify(data)); } catch(e){}
+    try {
+      localStorage.setItem('_gh_session', JSON.stringify(data));
+      localStorage.setItem('_gh_token_ok', String(Date.now())); // last-validated timestamp
+    } catch(e){}
   }
   function _loadStoredSession() {
     try {
