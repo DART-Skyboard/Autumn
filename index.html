@@ -19310,9 +19310,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   function init() {
     var stored = _loadStoredSession();
+    var isRegistered = localStorage.getItem('_gh_registered');
+
     if (stored && stored.access_token) {
-      // ── Returning user: validate token silently before applying ──────────
-      // Avoids looping the login modal when token has expired/been revoked.
+      // ── Returning user with stored token: validate silently ──────────────
+      // Show nothing until we know the token is valid — prevents any flash of modal.
       fetch('https://api.github.com/user', {
         headers: { 'Authorization': 'token ' + stored.access_token, 'Accept': 'application/vnd.github.v3+json' },
         signal: AbortSignal.timeout(8000)
@@ -19333,12 +19335,27 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         _applySession(refreshed);
       })
       .catch(function() {
-        // Token invalid/expired — clear it and show minimal re-auth prompt
+        // Token invalid/expired — clear session but preserve registered flag
         try { localStorage.removeItem('_gh_session'); } catch(e) {}
-        _showReAuthPrompt(stored.username);
+        // Registered user whose token expired → re-auth prompt, NOT full welcome
+        if (isRegistered) {
+          _showReAuthPrompt(stored.username || isRegistered);
+        } else {
+          _showLoginModal();
+        }
       });
       return;
     }
+
+    // ── No stored token ───────────────────────────────────────────────────
+    if (isRegistered) {
+      // User logged in before but session was cleared (e.g. different browser,
+      // cleared storage). Show re-auth prompt — not the first-timer welcome.
+      _showReAuthPrompt(isRegistered !== '1' ? isRegistered : null);
+      return;
+    }
+
+    // ── Truly new user ────────────────────────────────────────────────────
     var skipped = localStorage.getItem('_gh_login_skipped');
     if (!skipped) _showLoginModal();
     else _showGuestMode();
@@ -19350,12 +19367,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var modal = document.getElementById('gh-login-modal');
     if (!modal) { _showLoginModal(); return; }
     var inner = modal.querySelector('.gh-login-box') || modal.querySelector('.gh-login-inner');
-    if (inner && knownUsername) {
+    if (inner) {
       // Replace the title/subtitle with a returning-user message
       var titleEl = inner.querySelector('.gh-login-title, h2, h3');
       var subEl   = inner.querySelector('.gh-login-sub, p');
-      if (titleEl) titleEl.textContent = 'WELCOME BACK';
-      if (subEl)   subEl.textContent   = 'Your session expired. Re-authorize with GitHub to restore your memory archive.';
+      if (titleEl) titleEl.textContent = knownUsername ? 'WELCOME BACK, ' + knownUsername.toUpperCase() : 'WELCOME BACK';
+      if (subEl)   subEl.textContent   = 'Re-authorize with GitHub to restore your memory archive and pick up where you left off.';
     }
     modal.classList.add('show');
   }
@@ -19537,7 +19554,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     window._ghAuth.name       = data.name || data.username;
     window._ghAuth.loggedIn   = true;
 
-    // Update header
+    // Update header — swap login button for profile avatar/menu
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     var avatar   = document.getElementById('hdr-gh-avatar');
@@ -19547,20 +19564,48 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if (avatar)   avatar.src  = data.avatar_url || '';
     if (nameEl)   nameEl.textContent = (data.username || '').toUpperCase();
 
-    // Hide login modal
-    var modal = document.getElementById('gh-login-modal');
-    if (modal) modal.classList.remove('show');
-
-    // Mark registered + auto-accept consent permanently
+    // Mark registered + clear skip flag + auto-accept consent permanently
+    var _isFirstTimeLogin = !localStorage.getItem('_gh_registered');
     try {
       localStorage.setItem('_aut_data_consent', 'true');
       localStorage.setItem('autumn_consent', 'true');
       localStorage.setItem('_gh_registered', data.username || '1');
+      localStorage.removeItem('_gh_login_skipped'); // never interfere with future sessions
       var cm = document.getElementById('consent-modal');
       if (cm) cm.style.display = 'none';
       var dm = document.getElementById('data-policy-modal');
       if (dm) dm.style.display = 'none';
     } catch(e) {}
+
+    var modal = document.getElementById('gh-login-modal');
+
+    if (_isFirstTimeLogin && modal) {
+      // ── First-time user: show a brief welcome confirmation before entering app ──
+      var inner = modal.querySelector('.gh-login-box') || modal.querySelector('.gh-login-inner');
+      if (inner) {
+        inner.innerHTML = '<div style="text-align:center;padding:16px 8px">'
+          + '<img src="' + (data.avatar_url || 'assets/autumn.png') + '" style="width:64px;height:64px;border-radius:50%;border:2px solid rgba(0,229,255,.5);margin-bottom:14px;display:block;margin-left:auto;margin-right:auto;">'
+          + '<div style="font-family:var(--font-d);font-size:.9rem;letter-spacing:3px;color:var(--cyan);margin-bottom:6px;">WELCOME, ' + (data.username || '').toUpperCase() + '</div>'
+          + '<div style="font-size:.6rem;color:rgba(224,244,255,.45);line-height:1.7;margin-bottom:18px;">Your memory archive is ready.<br>Autumn will remember everything from here.</div>'
+          + '<div id="_gh_welcome_spinner" style="font-family:var(--font-d);font-size:.5rem;letter-spacing:2px;color:rgba(0,229,255,.4);">LOADING ARCHIVE…</div>'
+          + '</div>';
+      }
+      // Dismiss modal after a short welcome beat and drop into the app
+      setTimeout(function() {
+        if (modal) {
+          modal.style.transition = 'opacity 0.5s ease';
+          modal.style.opacity = '0';
+          setTimeout(function() {
+            modal.classList.remove('show');
+            modal.style.opacity = '';
+            modal.style.transition = '';
+          }, 500);
+        }
+      }, 2200);
+    } else {
+      // Returning user re-auth — dismiss immediately, no splash needed
+      if (modal) modal.classList.remove('show');
+    }
 
     // Ensure user repo exists, then load memory
     _ensureUserRepo().then(function() {
@@ -20085,8 +20130,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   window._ghLogout = function() {
     // Autosave before logout
     if (typeof _autosave === 'function') { _lastSaveHash = ''; _autosave(); }
-    // Keep token — registered user just needs to tap login to get back in
-    window._ghAuth.loggedIn = false;
+    // Clear session token but preserve _gh_registered so next visit shows
+    // re-auth prompt, NOT the first-timer welcome screen.
+    var _savedUsername = window._ghAuth.username || localStorage.getItem('_gh_registered');
+    try { localStorage.removeItem('_gh_session'); } catch(e) {}
+    try { if (_savedUsername) localStorage.setItem('_gh_registered', _savedUsername); } catch(e) {}
+    // Reset in-memory auth state
+    window._ghAuth.loggedIn   = false;
+    window._ghAuth.token      = null;
+    window._ghAuth.repoReady  = false;
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     if (loginBtn) loginBtn.style.display = '';
