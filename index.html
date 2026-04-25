@@ -2340,7 +2340,7 @@ select.ash-ctrl-input{cursor:pointer}
         </div>
       </div>
       <!-- Hidden file inputs -->
-      <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.frax,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.pdf,.txt,.md,.html,.htm,.js,.ts,.json,.csv,.svg,.py,.css,.xml,.yaml,.yml,.sh,.rb,.java,.c,.cpp,.h,.rs,.log,.ini,.conf,.toml,.glb,.gltf,.obj,.stl,.fbx,.dae,.docx,.rtf,.odt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain" multiple style="display:none" onchange="handleImageFilesSelect(this.files)">
+      <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.frax,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,audio/mpeg,audio/wav,audio/ogg,audio/flac,audio/mp4,audio/aac,.mp3,.wav,.ogg,.flac,.m4a,.aac,.opus,.pdf,.txt,.md,.html,.htm,.js,.ts,.json,.csv,.svg,.py,.css,.xml,.yaml,.yml,.sh,.rb,.java,.c,.cpp,.h,.rs,.log,.ini,.conf,.toml,.glb,.gltf,.obj,.stl,.fbx,.dae,.docx,.rtf,.odt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain" multiple style="display:none" onchange="handleImageFilesSelect(this.files)">
       <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleImageFilesSelect(this.files)">
       <!-- Main input row -->
       <div id="input-bar">
@@ -6653,6 +6653,7 @@ function classifyAttachment(file) {
   if (['glb','gltf','obj','stl','fbx','dae'].includes(ext)) return '3d';
   if (mime.startsWith('video/') || ['mp4','webm','mov','avi','mkv','m4v','ogv','3gp'].includes(ext)) return 'video';
   if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) return 'image';
+  if (mime.startsWith('audio/') || ['mp3','wav','ogg','flac','m4a','aac','opus'].includes(ext)) return 'audio';
   // Documents
   return 'doc';
 }
@@ -6845,6 +6846,60 @@ async function loadDocumentFile(file) {
   };
 }
 
+// ── Audio file analysis via Web Audio API ─────────────────────────────────
+async function analyzeAudioFile(file) {
+  var blobUrl = URL.createObjectURL(file);
+  var ext = (file.name.split('.').pop() || 'audio').toLowerCase();
+  var duration = 0, sampleRate = 0, channels = 0;
+  var rmsDb = -60, zcr = 0, bassRatio = 33, midRatio = 34, highRatio = 33;
+  var audioSummary = '';
+  try {
+    var ab = await file.arrayBuffer();
+    var actx = new (window.AudioContext || window.webkitAudioContext)();
+    var decoded = await actx.decodeAudioData(ab.slice(0));
+    actx.close();
+    duration = decoded.duration;
+    sampleRate = decoded.sampleRate;
+    channels = decoded.numberOfChannels;
+    var data = decoded.getChannelData(0);
+    var N = Math.min(data.length, sampleRate * 60);
+    var sumSq = 0, zc = 0;
+    for (var i = 0; i < N; i++) {
+      sumSq += data[i] * data[i];
+      if (i > 0 && ((data[i] >= 0) !== (data[i-1] >= 0))) zc++;
+    }
+    rmsDb = 20 * Math.log10(Math.sqrt(sumSq / N) + 1e-9);
+    zcr = Math.round((zc / N) * sampleRate);
+    // Temporal energy split as rough band proxy (low-freq energy = slow changes = bass)
+    var BS = Math.floor(N / 3);
+    function segRMS(s, e) { var q=0; for(var j=s;j<e;j++) q+=data[j]*data[j]; return Math.sqrt(q/(e-s)); }
+    var bE = segRMS(0, BS), mE = segRMS(BS, BS*2), hE = segRMS(BS*2, N);
+    var tot = bE + mE + hE + 1e-9;
+    bassRatio = Math.round(bE/tot*100); midRatio = Math.round(mE/tot*100); highRatio = Math.round(hE/tot*100);
+    var character = bassRatio > 45 ? 'bass-heavy' : highRatio > 45 ? 'bright/treble-dominant' : midRatio > 45 ? 'midrange-focused' : 'balanced';
+    var zcrHint = zcr > 4000 ? 'high spectral content — likely voice, synth, or complex harmonics'
+      : zcr > 1500 ? 'mixed content — vocals + instruments likely'
+      : 'low spectral density — deep bass, pads, or ambient texture';
+    var durStr = duration >= 60 ? Math.floor(duration/60)+'m '+Math.round(duration%60)+'s' : duration.toFixed(1)+'s';
+    audioSummary = '[AUDIO FILE: '+file.name+']\n'
+      +'Duration: '+durStr+'\n'
+      +'Sample rate: '+sampleRate+' Hz · Channels: '+channels+(channels===1?' (mono)':channels===2?' (stereo)':'')+'\n'
+      +'Volume: '+rmsDb.toFixed(1)+' dBFS RMS\n'
+      +'Frequency character: '+character+' (bass '+bassRatio+'% / mid '+midRatio+'% / high '+highRatio+'%)\n'
+      +'Spectral signature: '+zcrHint+'\n'
+      +'File size: '+(file.size/1024).toFixed(1)+' KB';
+  } catch(e) {
+    audioSummary = '[AUDIO FILE: '+file.name+' — analysis failed: '+e.message+']\nFile size: '+(file.size/1024).toFixed(1)+' KB';
+  }
+  return {
+    isAudio:true, isImage:false, isVideo:false, isDoc:false, is3D:false, isFrax:false,
+    fileName:file.name, fileSize:file.size, mimeType:file.type||('audio/'+ext),
+    blobUrl:blobUrl, duration:duration, sampleRate:sampleRate, channels:channels,
+    rmsDb:rmsDb, zcr:zcr, bassRatio:bassRatio, midRatio:midRatio, highRatio:highRatio,
+    audioSummary:audioSummary, thumbnail:''
+  };
+}
+
 async function loadSingleImageFile(file) {
   var kind = classifyAttachment(file);
 
@@ -6891,6 +6946,11 @@ async function loadSingleImageFile(file) {
       console.warn('[Autumn Video]', file.name, e);
       return null;
     }
+  }
+
+  // ── AUDIO ─────────────────────────────────────────────────
+  if (kind === 'audio') {
+    return await analyzeAudioFile(file);
   }
 
   // ── DOCUMENT ──────────────────────────────────────────────
@@ -7060,6 +7120,18 @@ function renderThumbRow() {
       var badge=document.createElement('span');badge.className='attach-type-badge doc';
       badge.textContent=(item.docExt||'DOC').toUpperCase().slice(0,4);
       wrap.appendChild(docDiv);wrap.appendChild(badge);
+    } else if (item.isAudio) {
+      var audDiv=document.createElement('div');
+      audDiv.title=item.fileName;
+      audDiv.style.cssText='width:56px;height:56px;border-radius:10px;background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.28);display:flex;align-items:center;justify-content:center;flex-direction:column;overflow:hidden;cursor:default;';
+      var durLbl = item.duration > 0 ? (item.duration>=60?Math.floor(item.duration/60)+'m'+Math.round(item.duration%60)+'s':Math.round(item.duration)+'s') : '';
+      audDiv.innerHTML='<div style="font-size:20px">🎵</div>'
+        +'<div style="font-size:8px;color:rgba(0,229,255,.8);font-family:var(--font-d);letter-spacing:.5px;margin-top:2px">'+(item.fileName.split('.').pop()||'').toUpperCase()+'</div>'
+        +(durLbl?'<div style="font-size:8px;color:rgba(0,229,255,.5);font-family:var(--font-d)">'+durLbl+'</div>':'');
+      var badge=document.createElement('span');badge.className='attach-type-badge';
+      badge.style.cssText='position:absolute;bottom:2px;left:2px;font-size:8px;background:rgba(0,229,255,.15);color:rgba(0,229,255,.9);border-radius:3px;padding:1px 3px;font-family:var(--font-d);letter-spacing:.5px;';
+      badge.textContent='AUDIO';
+      wrap.appendChild(audDiv);wrap.appendChild(badge);
     } else {
       // Image / FRAX
       var thumb=document.createElement('img');
@@ -8565,6 +8637,7 @@ async function handleSend() {
   // Push user message and show typing indicator right away
   msgs().push({ role:'user', id:'u-'+Date.now(), text, ts:new Date().toISOString(),
     uploadedImageThumbs: _earlyPendingImgs.map(function(i){ return i.is3D ? i : (i.previewDataUrl || i.thumbnail); }),
+    audioPlayers: _earlyPendingImgs.filter(function(i){ return i.isAudio; }).map(function(i){ return {fileName:i.fileName, blobUrl:i.blobUrl}; }),
     _savedAttachments: _earlyPendingImgs.length ? _earlyPendingImgs : undefined });
   renderMessages();
   const _earlyTyping = document.createElement('div');
@@ -9650,6 +9723,11 @@ ${(function(){
             }
             _cb.push({type:'text', text:'[3D File: ' + item.fileName + ']\n' + fileCtx});
             _contextNote += ' [3D: ' + item.fileName + (geo ? ', '+geo.totalVertices.toLocaleString()+' verts' : '') + ']';
+          } else if (item.isAudio) {
+            // Audio: inject analysis summary as text context
+            _cb.push({type:'text', text: item.audioSummary || ('[AUDIO FILE: '+item.fileName+']')});
+            var _adur = item.duration > 0 ? (item.duration>=60?Math.floor(item.duration/60)+'m'+Math.round(item.duration%60)+'s':item.duration.toFixed(1)+'s') : '';
+            _contextNote += ' [AUDIO: '+item.fileName+(_adur?' · '+_adur:'')+']';
           } else if (item.base64 && item.mimeType) {
             // Regular image or FRAX
             _cb.push({type:'image', source:{type:'base64', media_type:item.mimeType, data:item.base64}});
@@ -10304,6 +10382,17 @@ function renderMessages() {
     const mazeHtml = m.mazeHtml||'';
     const musicCardHtml = m.musicCard||'';
 
+    // Audio player(s) attached to this message
+    let audioPlayerHtml = '';
+    if (m.audioPlayers && m.audioPlayers.length) {
+      m.audioPlayers.forEach(function(ap) {
+        audioPlayerHtml += '<div style="margin:8px 0 4px 0;padding:8px 10px;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.18);border-radius:10px;">'
+          +'<div style="font-size:10px;color:rgba(0,229,255,.6);font-family:var(--font-d);letter-spacing:1px;margin-bottom:5px">◈ '+esc(ap.fileName)+'</div>'
+          +'<audio controls style="width:100%;height:36px;accent-color:#00e5ff;outline:none;display:block" src="'+ap.blobUrl+'"></audio>'
+          +'</div>';
+      });
+    }
+
     // Debug metadata — hidden by default, tap ◈ to reveal
     const _hasDebug = !!(m.grammarMeta || m.brpnMeta || m.meta);
     const _debugContent = _hasDebug ? (
@@ -10384,7 +10473,7 @@ function renderMessages() {
     const _mid = m.id || ('mi-'+_idx);
     if(!m.id) m.id = _mid; // backfill so edit/resend find() works
     const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${_mid}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${_mid}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${_mid}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
-    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}">${forgeRenderText((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim(), _mid)}</div>${imgRecallHtml}${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
+    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}${audioPlayerHtml}<div class="msg-text-content" id="txt-${_mid}">${forgeRenderText((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim(), _mid)}</div>${imgRecallHtml}${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
