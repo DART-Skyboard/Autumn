@@ -20739,12 +20739,79 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       +'<div style="font-family:var(--font-d);font-size:9px;letter-spacing:2px;color:rgba(0,229,255,.4);margin-bottom:8px">PERSONAL DATA · OPT-IN</div>'
       +'<div style="font-size:10px;color:var(--dim);line-height:1.6;margin-bottom:10px">Check to allow Autumn to associate that information with your account. Uncheck at any time — collection stops immediately and the data field is removed from sync.</div>'
       + personalHtml
+      +'<div style="font-family:var(--font-d);font-size:9px;letter-spacing:2px;color:rgba(0,229,255,.4);margin:20px 0 8px">◈ LOCATION · OPT-IN</div>'
+      +'<div style="font-size:10px;color:var(--dim);line-height:1.6;margin-bottom:10px">Allow Autumn to use your location for place searches, weather, and context-aware responses. Uncheck to stop — location is never stored or synced unless you also opt into personal data above.</div>'
+      +'<label id="ds-loc-label" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.09);border-radius:8px;margin-bottom:6px;cursor:pointer">'
+      +'<input type="checkbox" id="ds-loc-chk" style="accent-color:#00e5ff;width:16px;height:16px;flex-shrink:0" onchange="window._ghHandleLocationPref(this.checked)">'
+      +'<div><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1px;color:var(--cyan)">Location Sharing</div>'
+      +'<div id="ds-loc-desc" style="font-size:10px;color:var(--dim);margin-top:2px">Checking will trigger your browser\'s location permission prompt if not yet granted.</div></div></label>'
       +'<div style="font-family:var(--font-d);font-size:9px;letter-spacing:2px;color:rgba(191,0,255,.5);margin:20px 0 8px">◈ MODEL TRAINING · OPTIONAL</div>'
       +'<div style="font-size:10px;color:var(--dim);line-height:1.6;margin-bottom:10px">Help advance the LEATR neural network. Opted-in data is stored securely in your private Ash repository and never mixed with other users.</div>'
       + modelHtml
       +'<div style="margin-top:24px;padding-top:14px;border-top:1px solid rgba(0,229,255,.07);font-size:9px;color:rgba(0,229,255,.2);text-align:center;font-family:var(--font-d);letter-spacing:1px">DART MEADOW · RADICAL DEEPSCALE LLC<br><span style="font-size:8px;opacity:.6">Preferences saved automatically and synced to your private repository</span></div>'
       +'</div>';
     document.body.appendChild(ov);
+    // ── Location permission sync — check state and pre-fill checkbox ──
+    (function() {
+      var chk = document.getElementById('ds-loc-chk');
+      var desc = document.getElementById('ds-loc-desc');
+      if (!chk) return;
+      var locPref = !!(prefs.location);
+      chk.checked = locPref;
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({name:'geolocation'}).then(function(status) {
+          if (status.state === 'granted') {
+            chk.checked = true;
+            if (desc) desc.textContent = 'Location access granted. Uncheck to stop Autumn from using your location.';
+            window._ghUpdateDataPref('location', true);
+          } else if (status.state === 'denied') {
+            chk.checked = false; chk.disabled = true;
+            if (desc) desc.innerHTML = 'Location access blocked. <span style="color:rgba(255,160,50,.7)">Update browser site permissions for leatr.xyz to re-enable.</span>';
+            window._ghUpdateDataPref('location', false);
+          } else {
+            chk.checked = false;
+            if (desc) desc.textContent = 'Checking will trigger your browser\'s location permission prompt.';
+          }
+          status.onchange = function() {
+            var granted = status.state === 'granted';
+            chk.checked = granted; chk.disabled = status.state === 'denied';
+            window._ghUpdateDataPref('location', granted);
+            if (desc) desc.textContent = granted ? 'Location access granted.' : status.state === 'denied' ? 'Location blocked in browser settings.' : 'Location permission removed.';
+          };
+        }).catch(function(){});
+      }
+    })();
+  };
+
+  // ── Handle location pref checkbox ────────────────────────────────────────
+  window._ghHandleLocationPref = function(checked) {
+    if (checked) {
+      // Request permission — browser will prompt if not yet granted
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos) {
+            window._ghUpdateDataPref('location', true);
+            var desc = document.getElementById('ds-loc-desc');
+            if (desc) desc.textContent = 'Location access granted. Autumn can now use your location.';
+          },
+          function(err) {
+            // User denied or error — uncheck
+            var chk = document.getElementById('ds-loc-chk');
+            if (chk) { chk.checked = false; if (err.code === 1) chk.disabled = true; }
+            window._ghUpdateDataPref('location', false);
+            var desc = document.getElementById('ds-loc-desc');
+            if (desc) desc.textContent = err.code === 1
+              ? 'Location blocked. Update browser site permissions to enable.'
+              : 'Could not get location. Please try again.';
+          },
+          {timeout:10000, maximumAge:60000}
+        );
+      }
+    } else {
+      window._ghUpdateDataPref('location', false);
+      var desc = document.getElementById('ds-loc-desc');
+      if (desc) desc.textContent = 'Location sharing disabled. Autumn will no longer request your location.';
+    }
   };
 
   // ── Sync model training snapshot to user private Ash repo ─────────────────
