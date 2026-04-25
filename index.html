@@ -20725,7 +20725,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         +'</div></div></label>';
     var ov = document.createElement('div');
     ov.id = 'data-sharing-overlay';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:10200;background:rgba(2,8,18,.97);backdrop-filter:blur(16px);display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10200;background:rgba(2,8,18,.97);backdrop-filter:blur(16px);display:flex;flex-direction:column;overflow-y:scroll;-webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior:contain';
     ov.innerHTML = '<div style="max-width:520px;width:100%;margin:0 auto;padding:20px 16px 48px">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">'
       +'<span style="font-family:var(--font-d);font-size:.65rem;letter-spacing:3px;color:var(--cyan)">◈ USER DATA SHARING</span>'
