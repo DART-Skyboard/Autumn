@@ -11889,6 +11889,36 @@ async function _pollAshNodes() {
       }
     }
 
+    // ── TERTIARY: raw GitHub (no auth — public repo, works without GAS or PAT) ──
+    if(remoteSessions.length === 0) {
+      try {
+        var ghApiR = await fetch(
+          'https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',
+          { headers:{'Accept':'application/vnd.github.v3+json'}, signal: AbortSignal.timeout(8000) }
+        );
+        if(ghApiR.ok) {
+          var ghFiles = await ghApiR.json();
+          if(Array.isArray(ghFiles)) {
+            var STALE_RAW = 8 * 60 * 1000;
+            var rawToFetch = ghFiles
+              .filter(function(f){ return f.name.endsWith('.json') && f.name.replace('.json','') !== _ashNodes._localUid; })
+              .sort(function(a,b){ return b.name > a.name ? 1 : -1; })
+              .slice(0, 20);
+            var rawResults = await Promise.allSettled(rawToFetch.map(function(f){
+              return fetch(f.download_url+'?nocache='+Date.now(), {signal:AbortSignal.timeout(4000)})
+                .then(function(res){ return res.ok ? res.json() : null; })
+                .catch(function(){ return null; });
+            }));
+            rawResults.forEach(function(res){
+              if(res.status==='fulfilled' && res.value && (Date.now()-(res.value.ts||0)) < STALE_RAW) {
+                remoteSessions.push(res.value);
+              }
+            });
+          }
+        }
+      } catch(_ghE){}
+    }
+
     // Process session data
     var STALE_MS = 6 * 60 * 1000;
     remoteSessions.forEach(function(s) {
