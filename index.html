@@ -1836,7 +1836,7 @@ select.ash-ctrl-input{cursor:pointer}
 </div>
 
 <header>
-  <a href="https://radicaldeepscale.com/" class="logo-wrap" style="text-decoration:none">
+  <a href="https://leatr.xyz/" class="logo-wrap" style="text-decoration:none">
     <img src="assets/autumn.png" alt="Autumn" style="height:36px;width:auto;object-fit:contain;filter:drop-shadow(0 0 8px rgba(191,0,255,.3))">
     <div class="logo">Autumn</div>
     <div class="logo-sub">LEATR v2.1</div>
@@ -12982,7 +12982,8 @@ const TOOL_TABS=[
   {id:"journal",label:"Journal",icon:"📖"},
   {id:"sessions",label:"Sessions",icon:"💬"},
   {id:"ashtree",label:"Ash Tree",icon:"⬡"},
-  {id:"crypto",label:"Cryptology",icon:"🔐"}
+  {id:"crypto",label:"Cryptology",icon:"🔐"},
+  {id:"about",label:"About",icon:"🌐"}
 ];
 let currentToolTab="cognition";
 
@@ -13006,8 +13007,34 @@ function renderToolsContent(){
     case "sessions":  el.innerHTML=renderToolsSessions(); break;
     case "ashtree":   el.innerHTML=renderToolsAshTree(); bindToolsAshTree(); break;
     case "crypto":    el.innerHTML=renderToolsCrypto(); bindToolsCrypto(); break;
+    case "about":     el.innerHTML=renderToolsAbout(); break;
   }
 }
+
+function renderToolsAbout(){
+  const links=[
+    {label:'LEATR.XYZ',url:'https://leatr.xyz/',desc:'Autumn — LEATR neural network home'},
+    {label:'DARTMEADOW.COM',url:'https://dartmeadow.com/',desc:'DART Meadow main site'},
+    {label:'DARTMEADOW.SPACE',url:'https://dartmeadow.space/',desc:'DART Meadow space'},
+    {label:'RADICALDEEPSCALE.COM',url:'https://radicaldeepscale.com/',desc:'Radical Deepscale LLC — engineering & AI tools'},
+    {label:'DRYMEADOW.COM',url:'https://drymeadow.com/',desc:'Dry Meadow'},
+    {label:'YOUTUBE · @dartmeadow',url:'https://youtube.com/@dartmeadow',desc:'DART Meadow on YouTube'},
+    {label:'YOUTUBE · @dry.meadow',url:'https://youtube.com/@dry.meadow',desc:'Dry Meadow on YouTube'},
+  ];
+  const linksHtml=links.map(l=>`
+    <a href="${l.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.12);border-radius:8px;text-decoration:none;transition:background .15s;margin-bottom:6px" onmouseover="this.style.background='rgba(0,229,255,.09)'" onmouseout="this.style.background='rgba(0,229,255,.04)'">
+      <span style="font-size:16px">🔗</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--font-d);font-size:10px;letter-spacing:1.5px;color:var(--cyan)">${l.label}</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">${l.desc}</div>
+      </div>
+      <span style="font-size:11px;color:rgba(0,229,255,.3)">↗</span>
+    </a>`).join('');
+  return`<div class="glass"><div class="glass-title">◈ DART MEADOW · RADICAL DEEPSCALE</div>
+    <div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:14px">Engineering, AI &amp; scientific visualization tools built on the LEATR v2 neural system.<br>Founded by Justin Craig Venable.</div>
+    ${linksHtml}
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(0,229,255,.08);font-size:10px;color:rgba(0,229,255,.3);font-family:var(--font-d);letter-spacing:1px;text-align:center">© 2026 DART MEADOW · RADICAL DEEPSCALE LLC</div>
+  </div>`;
 
 function renderToolsCognition(){
   const a=S.lastAnalysis;
