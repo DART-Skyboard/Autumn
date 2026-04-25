@@ -19875,7 +19875,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var _devicePollTimer = null;
 
   function _startOAuth() {
-    _doWebFlowRedirect();
+    // Device flow works fully client-side (no GAS needed) — use it as primary
+    _showDeviceFlow();
   }
 
   function _preWireBtn() {
