@@ -19906,15 +19906,44 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     };
     _ghDeviceCode()
       .then(function(d){
-        if (d.error) {
-          _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
-            + d.error + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
-          return;
-        }
+        if (d.error) { _setDeviceUI(_quotaFallbackHtml()); return; }
         _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5);
       })
-      .catch(function(e){ _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">CORS or Network error: ' + e.message + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Retry</span></div>'); console.error(e); });
+      .catch(function(e){ _setDeviceUI(_quotaFallbackHtml()); console.error(e); })
   }
+
+  function _quotaFallbackHtml() {
+    return '<div style="text-align:center;padding:8px 0">'
+      +'<div style="font-family:var(--font-d);font-size:.48rem;letter-spacing:1.5px;color:rgba(255,160,50,.8);margin-bottom:10px">◈ AUTH SERVICE BUSY — USE TOKEN LOGIN</div>'
+      +'<div style="font-size:10px;color:var(--dim);line-height:1.6;margin-bottom:12px">Paste a GitHub Personal Access Token<br><span style="font-size:9px;opacity:.6">(Settings → Developer settings → PAT → Classic → repo + read:user)</span></div>'
+      +'<input id="pat-login-input" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="new-password" style="width:100%;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.3);color:#fff;font-family:monospace;font-size:11px;padding:8px 10px;border-radius:6px;outline:none;box-sizing:border-box;margin-bottom:8px">'
+      +'<button onclick="window._patLogin()" style="width:100%;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.4);color:var(--cyan);font-family:var(--font-d);font-size:.42rem;letter-spacing:1.5px;padding:9px;border-radius:6px;cursor:pointer">SIGN IN WITH TOKEN</button>'
+      +'<div id="pat-login-status" style="font-size:10px;color:rgba(255,100,100,.7);margin-top:6px;min-height:16px"></div>'
+      +'<div style="margin-top:10px;font-size:9px;color:rgba(0,229,255,.3);font-family:var(--font-d)">Retry the standard flow after midnight Pacific</div>'
+      +'</div>';
+  }
+
+  window._patLogin = function() {
+    var tok = (document.getElementById('pat-login-input')||{}).value||'';
+    var status = document.getElementById('pat-login-status');
+    if (!tok.trim()) { if(status) status.textContent='Paste your token first.'; return; }
+    if(status) status.textContent = 'Validating…';
+    fetch('https://api.github.com/user', {
+      headers:{'Authorization':'token '+tok.trim(),'Accept':'application/vnd.github.v3+json'},
+      signal: AbortSignal.timeout(10000)
+    })
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(user){
+      var sd = { access_token: tok.trim(), username: user.login, avatar_url: user.avatar_url||'', name: user.name||user.login };
+      _saveSession(sd);
+      var _pm = document.getElementById('gh-login-modal');
+      if(_pm) _pm.classList.remove('show');
+      _applySession(sd);
+    })
+    .catch(function(e){
+      if(status) status.textContent = 'Invalid token or network error. Check your PAT and try again.';
+    });
+  };
 
   function _showDeviceCode(userCode, verifyUrl, deviceCode, interval) {
     var html = '<div style="text-align:center;padding:8px 0">'
