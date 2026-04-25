@@ -19311,12 +19311,53 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   function init() {
     var stored = _loadStoredSession();
     if (stored && stored.access_token) {
-      _applySession(stored);
+      // ── Returning user: validate token silently before applying ──────────
+      // Avoids looping the login modal when token has expired/been revoked.
+      fetch('https://api.github.com/user', {
+        headers: { 'Authorization': 'token ' + stored.access_token, 'Accept': 'application/vnd.github.v3+json' },
+        signal: AbortSignal.timeout(8000)
+      })
+      .then(function(r) {
+        if (r.ok) return r.json();
+        throw new Error('invalid_token');
+      })
+      .then(function(user) {
+        // Token valid — refresh stored data with latest GitHub profile and apply
+        var refreshed = {
+          access_token: stored.access_token,
+          username:     user.login,
+          avatar_url:   user.avatar_url || stored.avatar_url,
+          name:         user.name || user.login
+        };
+        _saveSession(refreshed);
+        _applySession(refreshed);
+      })
+      .catch(function() {
+        // Token invalid/expired — clear it and show minimal re-auth prompt
+        try { localStorage.removeItem('_gh_session'); } catch(e) {}
+        _showReAuthPrompt(stored.username);
+      });
       return;
     }
     var skipped = localStorage.getItem('_gh_login_skipped');
     if (!skipped) _showLoginModal();
     else _showGuestMode();
+  }
+
+  // ── Re-auth prompt for returning users whose token expired ───────────────
+  // Much lighter than full device flow — just a single button, user already knows the drill.
+  function _showReAuthPrompt(knownUsername) {
+    var modal = document.getElementById('gh-login-modal');
+    if (!modal) { _showLoginModal(); return; }
+    var inner = modal.querySelector('.gh-login-box') || modal.querySelector('.gh-login-inner');
+    if (inner && knownUsername) {
+      // Replace the title/subtitle with a returning-user message
+      var titleEl = inner.querySelector('.gh-login-title, h2, h3');
+      var subEl   = inner.querySelector('.gh-login-sub, p');
+      if (titleEl) titleEl.textContent = 'WELCOME BACK';
+      if (subEl)   subEl.textContent   = 'Your session expired. Re-authorize with GitHub to restore your memory archive.';
+    }
+    modal.classList.add('show');
   }
 
   var _devicePollTimer = null;
@@ -19389,7 +19430,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:12px;">STEP 1 — COPY THIS CODE</div>'
       + '<div style="font-family:var(--font-d);font-size:1.6rem;letter-spacing:6px;color:#fff;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);border-radius:6px;padding:12px 20px;margin-bottom:16px;cursor:pointer;user-select:all;" id="gh-device-code-display">' + userCode + '</div>'
       + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:10px;">STEP 2 — OPEN THIS URL AND ENTER CODE</div>'
-      + '<a href="' + verifyUrl + '" target="_blank" style="display:inline-block;font-family:var(--font-d);font-size:.65rem;letter-spacing:1px;color:#fff;background:rgba(0,255,204,.15);border:1px solid rgba(0,255,204,.4);border-radius:4px;padding:8px 16px;text-decoration:none;margin-bottom:16px;">' + verifyUrl + ' ↗</a>'
+      + '<button onclick="window._ghOpenDeviceTab(\'' + verifyUrl + '\')" style="display:inline-block;font-family:var(--font-d);font-size:.65rem;letter-spacing:1px;color:#fff;background:rgba(0,255,204,.15);border:1px solid rgba(0,255,204,.4);border-radius:4px;padding:8px 16px;cursor:pointer;margin-bottom:16px;">' + verifyUrl + ' ↗</button>'
       + '<div style="font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;color:rgba(0,255,204,.5);" id="gh-device-status">Waiting for approval...</div>'
       + '</div>';
     _setDeviceUI(html);
@@ -19441,6 +19482,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
               };
               _saveSession(sessionData);
               try { localStorage.removeItem('_gh_quota_ts'); } catch(e){}
+              // Close the GitHub device-auth tab if we opened it
+              try { if (window._ghDeviceTab && !window._ghDeviceTab.closed) { window._ghDeviceTab.close(); window._ghDeviceTab = null; } } catch(e){}
               // Close modal immediately
               var _pm = document.getElementById('gh-login-modal');
               if (_pm) _pm.classList.remove('show');
@@ -20052,7 +20095,37 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
   // Re-login for returning registered users — silent OAuth web flow
   window._ghReLogin = function() {
-    _redirectToGitHubOAuth();
+    // ── Returning user: try silent token validation first ───────────────
+    var stored = _loadStoredSession();
+    if (stored && stored.access_token) {
+      fetch('https://api.github.com/user', {
+        headers: { 'Authorization': 'token ' + stored.access_token },
+        signal: AbortSignal.timeout(8000)
+      })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(user) {
+        var refreshed = { access_token: stored.access_token, username: user.login,
+                          avatar_url: user.avatar_url || stored.avatar_url, name: user.name || user.login };
+        _saveSession(refreshed);
+        _applySession(refreshed);
+      })
+      .catch(function() {
+        try { localStorage.removeItem('_gh_session'); } catch(e) {}
+        _showDeviceFlow(); // Token bad — need fresh auth
+      });
+    } else {
+      _showDeviceFlow();
+    }
+  };
+
+  // ── Open GitHub device auth tab and keep a reference to close it after ──
+  var _ghDeviceTab = null;
+  window._ghOpenDeviceTab = function(url) {
+    try {
+      _ghDeviceTab = window.open(url, '_blank');
+    } catch(e) {
+      window.open(url, '_blank');
+    }
   };
 
   window._ghShowUserMenu = function(e) {
