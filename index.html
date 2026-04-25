@@ -11336,24 +11336,24 @@ function initBRPN() {
           arc.line.material.opacity = Math.max(0, arc.line.material.opacity - 0.06);
           return;
         }
-        // Electrical arc: zigzag path radiating from core outward
+        // Electrical arc: zigzag path radiating from core out to shell level
         var _r = 0.22 + Math.sin(f*0.08 + arc.phase)*0.08;
-        var _R = 0.7 + Math.sin(f*0.05 + arc.phase*1.3)*0.2;
+        var _R = 1.8 + Math.sin(f*0.05 + arc.phase*1.3)*0.4;
         var _baseAngle = arc.phase + f*0.04*(ai%2===0?1:-1);
         var _pts = arc.pts;
         for(var pi=0; pi<6; pi++) {
           var _t = pi/5;
           var _r2 = _r + (_R-_r)*_t;
-          var _jitter = (pi>0&&pi<5) ? (Math.random()-0.5)*0.18 : 0;
+          var _jitter = (pi>0&&pi<5) ? (Math.random()-0.5)*0.55 : 0;
           var _a = _baseAngle + _jitter + Math.sin(f*0.2+pi)*0.3;
-          var _elev = Math.sin(f*0.06 + arc.phase + pi*0.5)*0.4;
+          var _elev = Math.sin(f*0.06 + arc.phase + pi*0.5)*0.6;
           _pts[pi*3]   = Math.cos(_a)*_r2*Math.cos(_elev);
-          _pts[pi*3+1] = Math.sin(_elev)*_r2*0.6;
+          _pts[pi*3+1] = Math.sin(_elev)*_r2*0.7;
           _pts[pi*3+2] = Math.sin(_a)*_r2*Math.cos(_elev);
         }
         arc.geo.attributes.position.needsUpdate = true;
         // Flicker opacity for spark effect
-        arc.line.material.opacity = 0.55 + Math.random()*0.45;
+        arc.line.material.opacity = 0.7 + Math.random()*0.3;
         arc.line.material.color.setHex(f%4<2 ? 0x00aaff : 0x44ddff);
       });
     }
@@ -11625,14 +11625,14 @@ function _initAshNodeLayer() {
   // ── Audio playback arc lines ─────────────────────────────────────────────
   // 5 electrical arc lines around the core — activated when user plays audio
   _ashNodes._arcLines = [];
-  for(var _ai=0; _ai<5; _ai++) {
+  for(var _ai=0; _ai<8; _ai++) {
     var _arcGeo = new THREE.BufferGeometry();
     var _arcPts = new Float32Array(6*3); // 6 points per arc
     _arcGeo.setAttribute('position', new THREE.BufferAttribute(_arcPts, 3));
-    var _arcMat = new THREE.LineBasicMaterial({color:0x00aaff, transparent:true, opacity:0, linewidth:1});
+    var _arcMat = new THREE.LineBasicMaterial({color:0x00aaff, transparent:true, opacity:0, linewidth:2});
     var _arcLine = new THREE.Line(_arcGeo, _arcMat);
     scene.add(_arcLine);
-    _ashNodes._arcLines.push({line:_arcLine, geo:_arcGeo, pts:_arcPts, phase:_ai*1.2566});
+    _ashNodes._arcLines.push({line:_arcLine, geo:_arcGeo, pts:_arcPts, phase:_ai*(Math.PI*2/8)});
   }
 
   // ── Audio playback listener — event delegation on chat ───────────────────
