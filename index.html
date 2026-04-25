@@ -2572,6 +2572,61 @@ function saveState() {
     const data = { sessions: S.sessions, currentSession: S.currentSession, journal: S.journal, memory: S.memory, moduleStates: _captureModuleStates() };
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
   } catch(e) {}
+  // Debounced GitHub sync for logged-in users
+  if (window._ghAuth && window._ghAuth.loggedIn) {
+    clearTimeout(window._saveStateGitHubTimer);
+    window._saveStateGitHubTimer = setTimeout(function(){ syncSessionsToGitHub(); }, 8000);
+  }
+}
+
+// ── GitHub session sync ───────────────────────────────────────────────────
+var _syncSessionsActive = false;
+function syncSessionsToGitHub(manual) {
+  if (!window._ghAuth || !window._ghAuth.loggedIn || !window._ghAuth.token) return;
+  if (_syncSessionsActive && !manual) return;
+  _syncSessionsActive = true;
+  var token = window._ghAuth.token;
+  var username = window._ghAuth.username;
+  var payload = {
+    sessions: S.sessions.map(function(sess) {
+      return { id:sess.id, title:sess.title||null, messages:sess.messages||[], _savedAttachments:undefined };
+    }),
+    currentSession: S.currentSession,
+    memory: S.memory,
+    ts: new Date().toISOString()
+  };
+  var gasUrl = window.AUTUMN_GAS_URL;
+  if (!gasUrl) { _syncSessionsActive=false; return; }
+  fetch(gasUrl, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'savememory', token:token, filename:'sessions.json', content:JSON.stringify(payload,null,2) })
+  }).then(function(){ _syncSessionsActive=false; if(manual){ var el=document.getElementById('tools-body'); if(el && el.innerHTML.indexOf('session')>-1) renderToolsContent(); } })
+    .catch(function(){ _syncSessionsActive=false; });
+}
+
+function restoreSessionsFromGitHub(token) {
+  if (!token || !window.AUTUMN_GAS_URL) return;
+  fetch(window.AUTUMN_GAS_URL + '?action=readmemory&token=' + encodeURIComponent(token) + '&filename=sessions.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d || !d.content) return;
+      var data = JSON.parse(d.content);
+      if (!data || !Array.isArray(data.sessions) || data.sessions.length === 0) return;
+      // Merge: add sessions from GitHub that aren't in localStorage by id
+      var existingIds = new Set((S.sessions||[]).map(function(s){ return s.id; }));
+      var added = 0;
+      data.sessions.forEach(function(sess) {
+        if (!existingIds.has(sess.id)) { S.sessions.push(sess); added++; }
+        else {
+          // Update title if GitHub has one and local doesn't
+          var local = S.sessions.find(function(s){ return s.id===sess.id; });
+          if (local && !local.title && sess.title) local.title = sess.title;
+        }
+      });
+      // Restore memory nodes
+      if (data.memory) Object.assign(S.memory, data.memory);
+      if (added > 0 || data.memory) { saveState(); renderMessages(); }
+    }).catch(function(){});
 }
 function loadState() {
   if (!useStorage) return;
@@ -13129,16 +13184,53 @@ function renderToolsJournal(){
 function renderToolsSessions(){
   const items=S.sessions.map((sess,i)=>{
     const msgCount=sess.messages?.length||0;const lastMsg=sess.messages?.[sess.messages.length-1];
-    const preview=lastMsg?(lastMsg.text||"").substring(0,60):"Empty";const date=lastMsg?.ts?new Date(lastMsg.ts).toLocaleString():"—";const isActive=i===S.currentSession;
-    return`<div class="session-item ${isActive?'active':''}" onclick="switchSession(${i})"><div class="session-info"><div class="session-name">${isActive?'▸ ':''}Session ${i+1}${isActive?' (active)':''}</div><div class="session-meta">${msgCount} messages · ${date}</div><div class="session-meta" style="opacity:.5">${esc(preview)}${preview.length>=60?'...':''}</div></div><div class="session-btns"><button class="session-del" onclick="event.stopPropagation();clearSession(${i})" title="Clear messages">CLEAR</button>${S.sessions.length>1?`<button class="session-del" onclick="event.stopPropagation();deleteSession(${i})" title="Delete session">DEL</button>`:''}</div></div>`;
-  }).join("");
+    const preview=lastMsg?(lastMsg.text||'').substring(0,60):'Empty';const date=lastMsg?.ts?new Date(lastMsg.ts).toLocaleString():'—';const isActive=i===S.currentSession;
+    const title=sess.title||(isActive?'▸ ':'')+'Session '+(i+1)+(isActive?' (active)':'');
+    return`<div class="session-item ${isActive?'active':''}" onclick="switchSession(${i})">
+      <div class="session-info">
+        <div class="session-name" id="sess-title-${i}" style="display:flex;align-items:center;gap:6px">
+          <span style="flex:1">${esc(title)}</span>
+          <button onclick="event.stopPropagation();_renameSession(${i})" title="Rename" style="background:none;border:none;color:rgba(0,229,255,.4);font-size:10px;cursor:pointer;padding:0 4px;line-height:1">✎</button>
+          ${!sess.title?`<button onclick="event.stopPropagation();autoTitleSession(${i})" title="Auto-title" style="background:none;border:none;color:rgba(0,229,255,.3);font-size:9px;cursor:pointer;padding:0 4px;font-family:var(--font-d);letter-spacing:.5px">◈ AUTO</button>`:''}
+        </div>
+        <div class="session-meta">${msgCount} messages · ${date}</div>
+        <div class="session-meta" style="opacity:.5">${esc(preview)}${preview.length>=60?'...':''}</div>
+      </div>
+      <div class="session-btns">
+        <button class="session-del" onclick="event.stopPropagation();clearSession(${i})" title="Clear messages">CLEAR</button>
+        ${S.sessions.length>1?`<button class="session-del" onclick="event.stopPropagation();deleteSession(${i})" title="Delete session">DEL</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
   const habitData=HabitMemory.getAll();const habitKeys=Object.keys(habitData);
   const habitHtml=habitKeys.length?habitKeys.slice(-6).map(k=>`<div style="font-size:9px;color:var(--dim);padding:2px 0">Slot ${k}: ${habitData[k].length} data points</div>`).join(''):'<div style="color:var(--dim);font-size:10px">No habit patterns recorded yet.</div>';
-  return`<div class="glass"><div class="glass-title">Chat Sessions</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">${S.sessions.length} session${S.sessions.length>1?'s':''}</div><div style="display:flex;gap:8px;margin-bottom:14px"><button class="m-btn primary" onclick="newChat();renderToolsContent()">+ New Chat</button><button class="m-btn" onclick="clearCurrentChat();renderToolsContent()">Clear Current</button></div>${items}</div>
-<div class="glass"><div class="glass-title">Cross-Session Memory</div><div style="font-size:11px;color:var(--dim);margin-bottom:8px">${Object.keys(S.memory).length} memory nodes</div><div style="font-family:monospace;font-size:10px;line-height:1.8;color:#7fdbca;max-height:200px;overflow-y:auto">${Object.keys(S.memory).length>0?Object.entries(S.memory).slice(-20).map(([k,v])=>`<div><span style="color:var(--cyan)">${esc(k)}</span>: <span style="color:var(--dim)">${esc((v||"").substring(0,60))}</span></div>`).join(''):'<div style="color:var(--dim)">No memory nodes yet.</div>'}</div></div>
+  const syncBtn=window._ghAuth&&window._ghAuth.loggedIn?`<button class="m-btn" onclick="syncSessionsToGitHub(true)" style="font-size:9px">↑ SYNC</button>`:'';
+  return`<div class="glass"><div class="glass-title">Chat Sessions</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">${S.sessions.length} session${S.sessions.length>1?'s':''}</div><div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><button class="m-btn primary" onclick="newChat();renderToolsContent()">+ New Chat</button><button class="m-btn" onclick="clearCurrentChat();renderToolsContent()">Clear Current</button>${syncBtn}</div>${items}</div>
+<div class="glass"><div class="glass-title">Cross-Session Memory</div><div style="font-size:11px;color:var(--dim);margin-bottom:8px">${Object.keys(S.memory).length} memory nodes</div><div style="font-family:monospace;font-size:10px;line-height:1.8;color:#7fdbca;max-height:200px;overflow-y:auto">${Object.keys(S.memory).length>0?Object.entries(S.memory).slice(-20).map(([k,v])=>`<div><span style="color:var(--cyan)">${esc(k)}</span>: <span style="color:var(--dim)">${esc((v||'').substring(0,60))}</span></div>`).join(''):'<div style="color:var(--dim)">No memory nodes yet.</div>'}</div></div>
 <div class="glass"><div class="glass-title">Habit Memory (Time-of-Day Patterns)</div>${habitHtml}</div>`;
 }
 
+function _renameSession(idx){
+  var cur=S.sessions[idx].title||('Session '+(idx+1));
+  var n=prompt('Rename session:',cur);
+  if(n===null) return;
+  S.sessions[idx].title=n.trim()||cur;
+  saveState(); renderToolsContent();
+}
+
+async function autoTitleSession(idx){
+  var sess=S.sessions[idx];
+  if(!sess||!sess.messages||sess.messages.length<2) return;
+  var transcript=sess.messages.filter(function(m){return!(m.role==='autumn'&&m.text==="Hi. What's new?");}).slice(0,8).map(function(m){return(m.role==='autumn'?'Autumn':'User')+': '+(m.text||'').substring(0,120);}).join('\n');
+  var _ak=null;try{_ak=localStorage.getItem('_autumn_ak')||localStorage.getItem('ak_val');}catch(_e){}
+  if(!_ak){S.sessions[idx].title='Session '+(idx+1);saveState();renderToolsContent();return;}
+  try{
+    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:30,messages:[{role:'user',content:'Give a 3-6 word title for this chat. Reply with ONLY the title.\n\n'+transcript}]})});
+    var d=await r.json();var t=(d.content&&d.content[0]&&d.content[0].text||'').trim().substring(0,40);
+    if(t) S.sessions[idx].title=t;
+  }catch(_e){}
+  saveState(); syncSessionsToGitHub(); renderToolsContent();
+}
 function clearCurrentChat(){
   if(!confirm("Clear the current chat session?")) return;
   S.sessions[S.currentSession].messages=[{role:"autumn",text:"Chat cleared. Hi again — what's on your mind?",ts:new Date().toISOString()}];
@@ -19942,6 +20034,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     window._ghAuth.avatar_url = data.avatar_url;
     window._ghAuth.name       = data.name || data.username;
     window._ghAuth.loggedIn   = true;
+
+    // Restore sessions from GitHub on login
+    setTimeout(function(){ restoreSessionsFromGitHub(data.access_token); }, 1500);
 
     // Update header — swap login button for profile avatar/menu
     var loginBtn = document.getElementById('hdr-gh-login');
