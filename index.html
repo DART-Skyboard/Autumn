@@ -7881,7 +7881,13 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     }
 
     var visionBlocks = [];
-    imgs.slice(0,4).forEach(function(img){ if (img.is3D) return; visionBlocks.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}}); });
+    imgs.slice(0,4).forEach(function(img){ if (img.is3D || img.isAudio || img.isDoc) return; if (!img.base64 || !img.mimeType) return; visionBlocks.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}}); });
+    // If no actual image blocks, bail — this is an audio-only or doc-only attach
+    if (visionBlocks.length === 0) {
+      var idxBail = msgs().findIndex(function(m){return m.id===cardId;});
+      if(idxBail>=0) msgs().splice(idxBail,1);
+      return;
+    }
     visionBlocks.push({type:'text', text: text && text.trim().length > 3 ? text :
       'Identify and describe everything significant in this image — people, objects, text, context, setting.'});
 
@@ -7926,7 +7932,7 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var _fMsg = msgs().find(function(m){ return m.id === cardId; });
     var _thought = _fMsg ? _fMsg.text.slice(0, 400) : '';
     (imgs || []).forEach(function(img) {
-      if (img.is3D) return;
+      if (img.is3D || img.isAudio || img.isDoc) return;
       S.attachments.push({
         id: cardId + '-' + (img.fileName || 'img'),
         ts: new Date().toISOString(),
@@ -9634,7 +9640,7 @@ ${(function(){
       if (role === 'user' && m._savedAttachments && m._savedAttachments.length) {
         const imgBlocks = [];
         m._savedAttachments.slice(0,3).forEach(function(att) {
-          if (att.base64 && att.mimeType && !att.is3D && !att.isVideo) {
+          if (att.base64 && att.mimeType && !att.is3D && !att.isVideo && !att.isAudio) {
             imgBlocks.push({type:'image',source:{type:'base64',media_type:att.mimeType,data:att.base64}});
           }
         });
