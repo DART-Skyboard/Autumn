@@ -14424,43 +14424,6 @@ loadAutumnLogic();
       </div>
 
 
-      <!-- DATA SHARING & MODEL TRAINING -->
-      <div style="margin-top:4px">
-        <button onclick="var nx=this.nextElementSibling;nx.style.display=nx.style.display==='none'?'block':'none';this.innerHTML=nx.style.display==='none'?'&#9658; Data Sharing &amp; Privacy':'&#9660; Data Sharing &amp; Privacy'" style="background:none;border:none;color:rgba(0,229,255,.5);font-family:Orbitron,sans-serif;font-size:.34rem;letter-spacing:1.5px;cursor:pointer;padding:6px 0;width:100%;text-align:left">&#9660; Data Sharing &amp; Privacy</button>
-        <div id="data-sharing-section" style="display:block">
-          <div class="keys-section" style="margin-top:8px">
-            <div class="keys-section-header">
-              <span class="keys-label" style="color:rgba(0,229,255,.75)">PERSONAL DATA</span>
-              <span style="font-size:9px;color:var(--dim);font-family:monospace;margin-left:auto">registered users only</span>
-            </div>
-            <p class="keys-desc" style="margin-bottom:10px">Select which personal data fields you authorize Autumn to collect. Each can be revoked at any time — collection stops immediately on uncheck. Guests: no personal data is ever collected.</p>
-            <div id="data-share-fields" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-              <label style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text);cursor:pointer"><input type="checkbox" id="ds-name"    onchange="window._saveDataShare()" style="accent-color:var(--cyan)"> Display Name</label>
-              <label style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text);cursor:pointer"><input type="checkbox" id="ds-email"   onchange="window._saveDataShare()" style="accent-color:var(--cyan)"> Email Address</label>
-              <label style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text);cursor:pointer"><input type="checkbox" id="ds-phone"   onchange="window._saveDataShare()" style="accent-color:var(--cyan)"> Phone Number</label>
-              <label style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text);cursor:pointer"><input type="checkbox" id="ds-address" onchange="window._saveDataShare()" style="accent-color:var(--cyan)"> Mailing Address</label>
-              <label style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text);cursor:pointer"><input type="checkbox" id="ds-dob"     onchange="window._saveDataShare()" style="accent-color:var(--cyan)"> Date of Birth</label>
-            </div>
-            <div style="border-top:1px solid rgba(0,229,255,.1);padding-top:12px;margin-top:4px">
-              <div style="font-family:Orbitron,sans-serif;font-size:9px;letter-spacing:1.5px;color:rgba(0,229,255,.6);margin-bottom:6px">◈ MODEL TRAINING</div>
-              <div style="background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.15);border-radius:8px;padding:10px 12px;margin-bottom:8px">
-                <p style="font-size:10px;color:var(--dim);line-height:1.7;margin-bottom:8px">Allow Autumn to learn from your session memory and chat history to help advance the LEATR v2 neural network. Your data syncs to a private, secure folder unique to your account — never shared with other users. Personal data is omitted unless you have opted in above.</p>
-                <label style="display:flex;align-items:flex-start;gap:10px;font-size:11px;color:rgba(0,229,255,.85);cursor:pointer;font-weight:600">
-                  <input type="checkbox" id="ds-model-training" onchange="window._saveDataShare()" style="accent-color:var(--cyan);margin-top:1px;flex-shrink:0">
-                  <span>Opt in to Model Training — help advance Autumn AI</span>
-                </label>
-                <p style="font-size:9px;color:rgba(255,255,255,.18);margin-top:8px;line-height:1.6">By checking this, you confirm your data does not contain unlawful or third-party confidential content and you agree it may be used to improve Autumn AI and the LEATR system.</p>
-              </div>
-            </div>
-            <div style="margin-top:4px;display:flex;gap:8px;justify-content:flex-end">
-              <button class="keys-btn-save" onclick="window._saveDataShare(true)" style="font-size:9px;padding:5px 14px">SAVE PREFERENCES</button>
-              <a href="autumn-privacy.html" target="_blank" style="font-size:9px;color:rgba(0,229,255,.4);text-decoration:none;display:flex;align-items:center;gap:4px">Privacy Policy ↗</a>
-            </div>
-            <div id="ds-saved-notice" style="display:none;font-size:9px;color:rgba(0,255,180,.6);font-family:Orbitron,sans-serif;letter-spacing:1px;text-align:right;margin-top:4px">◈ PREFERENCES SAVED</div>
-          </div>
-        </div>
-      </div>
-
     </div>
   </div>
 </div>
@@ -19862,8 +19825,33 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Strip ?code=... immediately so a page refresh doesn't re-trigger
     window.history.replaceState({}, document.title, window.location.pathname);
     _showAuthLoading();
-    fetch(AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code))
+    // Try GAS proxy first, fall back to direct if quota exhausted
+    var _exchangeViaGAS = fetch(AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code))
       .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.error && (d.error.indexOf('urlfetch') !== -1 || d.error.indexOf('quota') !== -1 || d.error.indexOf('too many') !== -1)) {
+          throw new Error('quota');
+        }
+        return d;
+      });
+    var _exchangeDirect = function() {
+      var _CS = '377d0055743f8a29a2b65109987ad6529a4f56c6';
+      return fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'client_id=Ov23li2K0njEqO1WTSdD&client_secret=' + _CS + '&code=' + encodeURIComponent(code)
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(tok) {
+        if (!tok.access_token) throw new Error('no_token');
+        return fetch('https://api.github.com/user', { headers: { 'Authorization': 'token ' + tok.access_token } })
+          .then(function(r) { return r.json(); })
+          .then(function(user) {
+            return { access_token: tok.access_token, username: user.login, avatar_url: user.avatar_url||'', name: user.name||user.login, email: user.email||'' };
+          });
+      });
+    };
+    _exchangeViaGAS.catch(function() { return _exchangeDirect(); })
       .then(function(d) {
         _hideAuthLoading();
         if (d.error) {
