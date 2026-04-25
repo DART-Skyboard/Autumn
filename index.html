@@ -11328,6 +11328,53 @@ function initBRPN() {
       p.position.y=p.userData.yOff+Math.sin(t*2)*0.2;
     });
 
+    // ── Audio playback arc animation ──────────────────────────────────────
+    var _isAudioActive = !!window._audioPlaybackActive;
+    if(_ashNodes._arcLines && _ashNodes._arcLines.length) {
+      _ashNodes._arcLines.forEach(function(arc, ai) {
+        if(!_isAudioActive) {
+          arc.line.material.opacity = Math.max(0, arc.line.material.opacity - 0.06);
+          return;
+        }
+        // Electrical arc: zigzag path radiating from core outward
+        var _r = 0.22 + Math.sin(f*0.08 + arc.phase)*0.08;
+        var _R = 0.7 + Math.sin(f*0.05 + arc.phase*1.3)*0.2;
+        var _baseAngle = arc.phase + f*0.04*(ai%2===0?1:-1);
+        var _pts = arc.pts;
+        for(var pi=0; pi<6; pi++) {
+          var _t = pi/5;
+          var _r2 = _r + (_R-_r)*_t;
+          var _jitter = (pi>0&&pi<5) ? (Math.random()-0.5)*0.18 : 0;
+          var _a = _baseAngle + _jitter + Math.sin(f*0.2+pi)*0.3;
+          var _elev = Math.sin(f*0.06 + arc.phase + pi*0.5)*0.4;
+          _pts[pi*3]   = Math.cos(_a)*_r2*Math.cos(_elev);
+          _pts[pi*3+1] = Math.sin(_elev)*_r2*0.6;
+          _pts[pi*3+2] = Math.sin(_a)*_r2*Math.cos(_elev);
+        }
+        arc.geo.attributes.position.needsUpdate = true;
+        // Flicker opacity for spark effect
+        arc.line.material.opacity = 0.55 + Math.random()*0.45;
+        arc.line.material.color.setHex(f%4<2 ? 0x00aaff : 0x44ddff);
+      });
+    }
+
+    // ── Remote node audio glow ────────────────────────────────────────────
+    if(_ashNodes._sessionGroups) {
+      Object.values(_ashNodes._sessionGroups).forEach(function(sg) {
+        if(!sg.shells) return;
+        if(sg.audioActive) {
+          // Electric blue pulse on remote node shells
+          var _glow = 0.18 + 0.12*Math.sin(f*0.15 + (sg.basePos?sg.basePos.x:0));
+          sg.shells.forEach(function(sm, si) {
+            if(sm && sm.material) {
+              sm.material.color.setHex(0x0099ff);
+              sm.material.opacity = Math.min(0.7, (sm.material.opacity||0.15) + _glow*0.4);
+            }
+          });
+        }
+      });
+    }
+
     // ── Tool shape sequential spawning & orbit ────────────────────────────
     // During thinking: sequence through tools in LEATR order
     // Each tool type activates layer by layer
@@ -11574,6 +11621,41 @@ function _initAshNodeLayer() {
 
   _pollAshNodes();
   setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
+
+  // ── Audio playback arc lines ─────────────────────────────────────────────
+  // 5 electrical arc lines around the core — activated when user plays audio
+  _ashNodes._arcLines = [];
+  for(var _ai=0; _ai<5; _ai++) {
+    var _arcGeo = new THREE.BufferGeometry();
+    var _arcPts = new Float32Array(6*3); // 6 points per arc
+    _arcGeo.setAttribute('position', new THREE.BufferAttribute(_arcPts, 3));
+    var _arcMat = new THREE.LineBasicMaterial({color:0x00aaff, transparent:true, opacity:0, linewidth:1});
+    var _arcLine = new THREE.Line(_arcGeo, _arcMat);
+    scene.add(_arcLine);
+    _ashNodes._arcLines.push({line:_arcLine, geo:_arcGeo, pts:_arcPts, phase:_ai*1.2566});
+  }
+
+  // ── Audio playback listener — event delegation on chat ───────────────────
+  window._audioPlaybackActive = false;
+  document.addEventListener('play', function(e) {
+    if(e.target && e.target.tagName === 'AUDIO') {
+      window._audioPlaybackActive = true;
+      if(typeof pulseShells === 'function') pulseShells(0.8);
+    }
+  }, true);
+  document.addEventListener('pause', function(e) {
+    if(e.target && e.target.tagName === 'AUDIO') {
+      // Check if any other audio is still playing
+      var _anyPlaying = Array.from(document.querySelectorAll('audio')).some(function(a){ return !a.paused; });
+      window._audioPlaybackActive = _anyPlaying;
+    }
+  }, true);
+  document.addEventListener('ended', function(e) {
+    if(e.target && e.target.tagName === 'AUDIO') {
+      var _anyPlaying = Array.from(document.querySelectorAll('audio')).some(function(a){ return !a.paused; });
+      window._audioPlaybackActive = _anyPlaying;
+    }
+  }, true);
 }
 
 // ── Pattern similarity score between two session UIDs ────────────
@@ -11662,7 +11744,7 @@ function _makePlasmaSpline(posA, posB, colorHex, resonance, isLocalSpline) {
 
 async function _pollAshNodes() {
   // Heartbeat: write/refresh this tab's own session file via GAS proxy
-  var _hbPayload = { uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence' };
+  var _hbPayload = { uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence', audioActive: !!window._audioPlaybackActive };
   if(_ashNodes._lastMistSolve && (Date.now() - _ashNodes._lastMistSolve.ts) < 30000) {
     _hbPayload.mistSolve = _ashNodes._lastMistSolve;
   }
@@ -11824,10 +11906,12 @@ function _renderAshNodes(nodes) {
       built.group.position.set(bp.x, bp.y, bp.z);
       built.basePos = bp;
       built.node = node;
+      built.audioActive = !!node.audioActive;
       scene.add(built.group);
       _ashNodes._sessionGroups[node.uid] = built;
     } else {
       _ashNodes._sessionGroups[node.uid].node = node;
+      _ashNodes._sessionGroups[node.uid].audioActive = !!node.audioActive;
     }
   });
 
