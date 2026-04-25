@@ -19825,39 +19825,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Strip ?code=... immediately so a page refresh doesn't re-trigger
     window.history.replaceState({}, document.title, window.location.pathname);
     _showAuthLoading();
-    // Try GAS proxy first, fall back to direct if quota exhausted
-    var _exchangeViaGAS = fetch(AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code))
+    // Try GAS proxy first, fall back to device flow on any failure
+    fetch(AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code), {
+      signal: AbortSignal.timeout(10000)
+    })
       .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d.error && (d.error.indexOf('urlfetch') !== -1 || d.error.indexOf('quota') !== -1 || d.error.indexOf('too many') !== -1)) {
-          throw new Error('quota');
-        }
-        return d;
-      });
-    var _exchangeDirect = function() {
-      var _CS = '377d0055743f8a29a2b65109987ad6529a4f56c6';
-      return fetch('https://github.com/login/oauth/access_token', {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'client_id=Ov23li2K0njEqO1WTSdD&client_secret=' + _CS + '&code=' + encodeURIComponent(code)
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(tok) {
-        if (!tok.access_token) throw new Error('no_token');
-        return fetch('https://api.github.com/user', { headers: { 'Authorization': 'token ' + tok.access_token } })
-          .then(function(r) { return r.json(); })
-          .then(function(user) {
-            return { access_token: tok.access_token, username: user.login, avatar_url: user.avatar_url||'', name: user.name||user.login, email: user.email||'' };
-          });
-      });
-    };
-    _exchangeViaGAS.catch(function() { return _exchangeDirect(); })
       .then(function(d) {
         _hideAuthLoading();
         if (d.error) {
+          // GAS failed (quota, etc) — silently switch to device flow
           _showLoginModal();
-          _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px">'
-            + 'Sign-in error.<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline" onclick="window._ghStartOAuth()">Try again</span></div>');
+          _showDeviceFlow();
           return;
         }
         _saveSession(d);
@@ -19866,8 +19844,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .catch(function() {
         _hideAuthLoading();
         _showLoginModal();
-        _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px">'
-          + 'Network error.<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline" onclick="window._ghStartOAuth()">Try again</span></div>');
+        _showDeviceFlow(); // Fall back to device flow — always works, no GAS needed
       });
     return true;
   }
