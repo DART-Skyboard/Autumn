@@ -57,11 +57,7 @@ Autumn/
 
 ---
 
-Important Note: You might have to sign up twice and then each time you do open a new tab to go back and check the Autumn web app and after that second time when you open a new tab to go back to the automobile you should be logged in and you should see your account profile menu in there it's a little buggy the new setup but I'm working as fast as possible to get this moved out.
-
----
-
-Note: You have the option to not use GitHub sign-in and below the button in the fine print below the sign-in with GitHub button welcome screen pop-up you can continue to the site just be sure to accept the privacy policy doing so will store cookie data in your browser then at that point you can manually export and import your data just remember to do so for the sake of protecting your work productivity. Research on zero authorization services and user storage is currently in the works so stay tuned for updates on the current user account technique availabilities.
+Important Note: GitHub login is now fully implemented with device flow and web flow and as a fallback you can also create a personal access token for your account then use that token to sign-in. Currently I'm using a free account to handle the back-end token processing and only have so many requests quota that I can do per day. When the quota is exceeded I recommend using the personal access token to maintain login services. The quota resets everyday at midnight.
 
 ---
 
