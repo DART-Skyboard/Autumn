@@ -566,10 +566,31 @@ class SentenceParser {
     return tagged.slice(vi+1).find(t=>['NN','NNP'].includes(t.pos))||null;
   }
   _topic(tagged,subject,obj){
-    const cw=tagged.filter(t=>['NN','NNP','VB','ADJ'].includes(t.pos)&&t!==subject&&t!==obj);
-    if(!cw.length)return subject||obj||tagged[0]||null;
-    return cw.reduce((b,t)=>(t.vowelScore+t.norm.length)>(b.vowelScore+b.norm.length)?t:b);
+    const FILLER=new Set(['today','yesterday','tomorrow','now','just','went','come','came',
+      'going','got','get','look','looked','little','great','good','cool','thing','things',
+      'stuff','time','way','kind','type','sort','bit','lot','few','much','some','new','old',
+      'big','small','right','left','pretty','really','very','also','too','then','there',
+      'here','back','down','up','out','over','even','still','already','always','never',
+      'well','only','thought','think','know','said','told','want','feel','seem','like',
+      'make','take','give','work','working','having','going','doing','trying']);
+    // Prefer specific nouns/adjectives over generic ones
+    const cw=tagged.filter(t=>
+      ['NN','NNP','ADJ'].includes(t.pos)&&
+      t!==subject&&t!==obj&&
+      t.norm.length>3&&
+      !FILLER.has(t.norm));
+    if(!cw.length){
+      const fallback=tagged.filter(t=>['NN','NNP'].includes(t.pos)&&t.norm.length>2&&!FILLER.has(t.norm));
+      if(fallback.length) return fallback.reduce((b,t)=>t.norm.length>b.norm.length?t:b);
+      return subject||obj||tagged[0]||null;
+    }
+    return cw.reduce((b,t)=>{
+      const scoreT=t.norm.length+(t.vowelScore*3);
+      const scoreB=b.norm.length+(b.vowelScore*3);
+      return scoreT>scoreB?t:b;
+    });
   }
+
   _subTopics(tagged){
     return[
       {branch:1,label:'NounCluster',    color:'#e53935',tokens:tagged.filter(t=>['NN','NNP','PRN'].includes(t.pos))},
@@ -853,6 +874,90 @@ class ResponseBuilder {
   }
 
   // Main build — uses grammar JSON + WordNet when available
+  // ── Conversational response — for casual social input ──────────────────
+  // Picks richest content words, looks them up in WordNet,
+  // builds 2-3 sentences that acknowledge + add perspective
+  buildConversational(flowResult, rawText, knownFacts={}) {
+    const WN=typeof window!=='undefined'&&window.AutumnWordNet;
+    const SKIP_CONV=new Set(['today','yesterday','now','just','went','come','came','going',
+      'got','get','look','looked','little','great','good','cool','thing','things','stuff',
+      'time','pretty','really','very','also','too','then','there','here','back','down','up',
+      'out','over','even','still','already','always','never','well','only','kind','sort',
+      'thought','think','know','said','told','said','the','a','an','is','are','was','were',
+      'i','my','me','we','us','our','you','your','they','them','their','he','she','it',
+      'have','has','had','do','does','did','will','would','could','should','may','might',
+      'and','or','but','so','for','of','to','in','on','at','by','with','from','about',
+      'after','before','when','while','than','that','which','who','what','how','if','then']);
+
+    // Extract rich content words from raw text
+    const tagger = this._tagger || new POSTagger();
+    const tokens = tagger.tagSentence(rawText);
+    const rich = tokens
+      .filter(t=>['NN','NNP','ADJ','VB'].includes(t.pos)&&t.norm.length>3&&!SKIP_CONV.has(t.norm))
+      .sort((a,b)=>b.norm.length-a.norm.length)
+      .slice(0,6);
+
+    const topics = rich.map(t=>t.norm);
+    // Prime WordNet for all topics async
+    if(WN) topics.forEach(t=>{if(!WN.defineSync(t))WN.lookup(t).catch(()=>{});});
+
+    // Get definitions for any cached words
+    const defs={};
+    if(WN) topics.forEach(t=>{const d=WN.defineSync(t);if(d)defs[t]=d.split('.')[0].toLowerCase().replace(/;.*$/,'').trim();});
+
+    const primary   = topics.find(t=>defs[t]) || topics[0] || 'that';
+    const secondary = topics.filter(t=>t!==primary).slice(0,2);
+    const primDef   = defs[primary];
+
+    // Get synonyms for vocabulary variety
+    const G=this._grammar;
+    const CF=G&&G.conversationFramework;
+    const TP=CF&&CF.transition_phrases;
+
+    // Build sentences
+    const sentences=[];
+
+    // S1: Acknowledge the richest topic with its definition context
+    if(primDef){
+      sentences.push(`${primary.charAt(0).toUpperCase()+primary.slice(1)} — ${primDef}.`);
+    } else if(primary) {
+      const openers=[
+        `${primary.charAt(0).toUpperCase()+primary.slice(1)} is worth noting in this context.`,
+        `The ${primary} element of what you described has its own particular character.`,
+        `${primary.charAt(0).toUpperCase()+primary.slice(1)} carries specific weight in what you laid out.`
+      ];
+      sentences.push(openers[primary.length%openers.length]);
+    }
+
+    // S2: Connect secondary topics if available
+    if(secondary.length>=2&&defs[secondary[0]]){
+      sentences.push(`The connection between ${primary} and ${secondary[0]} — ${defs[secondary[0]]} — creates a context that tends to be productive.`);
+    } else if(secondary.length>=1){
+      const tph=TP?(TP.elaboration||[])[Math.floor(Date.now()/25000)%(TP.elaboration||[]).length]||'':'Worth noting:';
+      sentences.push(`${tph} ${secondary[0]} adds a specific dimension to how ${primary} lands in that setting.`.trim());
+    } else if(primDef) {
+      sentences.push(`That kind of setting tends to bring ${primary} into focus in a particular way.`);
+    }
+
+    // S3: Closing observation using emotion context
+    const em=flowResult.emotion;
+    if(em&&em.name!=='neutral'){
+      const emObs={
+        happy:     `The quality of that kind of day tends to stay useful.`,
+        inspired:  `That combination — setting, information, good drinks — has a particular generative quality.`,
+        guiding:   `Worth carrying forward: what you absorbed in that setting.`,
+        concerned: `Technology industry news can hold a lot of weight alongside a good coffee.`,
+        determined:`The shift from observation to action you described has a clean arc.`
+      };
+      const obs=emObs[em.name]||`The intersection of ${topics.slice(0,2).join(' and ')} in a relaxed context tends to produce clearer thinking.`;
+      sentences.push(obs);
+    } else if(topics.length>=2){
+      sentences.push(`The intersection of ${topics.slice(0,2).join(' and ')} in a relaxed setting tends to produce clearer thinking.`);
+    }
+
+    return sentences.filter(Boolean).join(' ').replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
+  }
+
   build(flowResult,knownFacts={}){
     const{intent,tense,negated,subTopics,centralTopic,emotion,pipelineResult}=flowResult;
     const SKIP=new Set(['is','are','was','were','be','been','a','an','the','to','of','and','or','but','so','it','this','that','what','how','why','me','my','i','do','did','have','has','will','can','just','get','got','let','go','say','tell','know','see','think','want','make','come','something']);
