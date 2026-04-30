@@ -17192,6 +17192,24 @@ _syncActionBtn();
   try{if(window.S)window.S.grammarJournal=GE.getJournal.bind(GE);}catch(e){}
   console.log('[Autumn Grammar Engine Patch v2.0] Live — 7-panel LEATR + emotion + journal wired ✓');
 
+  // Pass GitHub token to DualJournal for auto-chunk push when available
+  (function wireGHToken(){
+    try{
+      var ghPat=localStorage.getItem('_gh_pat')||localStorage.getItem('autumn_gh_pat');
+      if(ghPat&&GE.setGitHubToken) GE.setGitHubToken(ghPat);
+      // Also watch for PAT being set later
+      var _origConnect=window.connectGitHub||null;
+      if(_origConnect){
+        window.connectGitHub=function(){
+          var r=_origConnect.apply(this,arguments);
+          var p=localStorage.getItem('_gh_pat')||localStorage.getItem('autumn_gh_pat');
+          if(p&&GE.setGitHubToken) GE.setGitHubToken(p);
+          return r;
+        };
+      }
+    }catch(e){}
+  })();
+
   // Wire WordNet into grammar engine ResponseBuilder when loader is ready
   (function wireWordNet(){
     if(typeof window.WordNetLoader==='undefined'){
