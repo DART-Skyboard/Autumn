@@ -472,7 +472,22 @@ class ResponseBuilder {
       .catch(()=>{});
   }
 
-  // Main build — uses grammar JSON when available, falls back to structural
+  // Enrich a word via WordNet — updates knownFacts cache async for next call
+  async _enrichAsync(word, knownFacts){
+    if(!this._wordnet||!word||word.length<3) return;
+    if(knownFacts[word]) return;
+    try{
+      const e=await this._wordnet.enrich(word);
+      if(e&&e.definition){
+        knownFacts[word]=e.definition;
+        // Cache synonyms as related words for slot filling
+        this._wnCache=this._wnCache||{};
+        this._wnCache[word]=e;
+      }
+    }catch(err){}
+  }
+
+  // Main build — uses grammar JSON + WordNet when available
   build(flowResult,knownFacts={}){
     const{intent,tense,negated,subTopics,centralTopic,emotion,pipelineResult}=flowResult;
 
@@ -483,6 +498,14 @@ class ResponseBuilder {
     const mods =subTopics[2].tokens.map(t=>t.word).filter(w=>w.length>2&&!SKIP.has(w.toLowerCase()));
 
     const topic  = centralTopic&&centralTopic.length>2&&!SKIP.has(centralTopic)?centralTopic:nouns[0]||'this topic';
+
+    // Pull WordNet data for topic if cached from previous async enrich call
+    const wnEntry = this._wnCache && this._wnCache[topic];
+    if(wnEntry){
+      if(!knownFacts[topic]&&wnEntry.definition) knownFacts[topic]=wnEntry.definition;
+    }
+    // Trigger async enrichment for next response (non-blocking)
+    if(this._wordnet&&topic&&topic!=='this topic') this._enrichAsync(topic,knownFacts);
     const detail = [...mods,...nouns.slice(1)].join(' ')||knownFacts[topic]||'its essential nature';
     const verb   = verbs[0]||(tense==='past'?'showed':'involves');
 
