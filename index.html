@@ -17085,25 +17085,40 @@ _syncActionBtn();
       return 'conversation';
     }
 
-    // Find the last autumn message and replace its text
-    function _replaceLastAutumnMsg(newText){
+    // Replace last autumn message — retries until Autumn's response appears
+    // (needed when Claude is connected and response arrives async)
+    function _getMsgs(){
       try{
-        var m=(typeof msgs==='function')?msgs()
-              :(window.S&&window.S.sessions&&window.S.sessions[window.S.currentSession]
-                ?window.S.sessions[window.S.currentSession].messages:[]);
-        if(!m||!m.length) return false;
-        for(var i=m.length-1;i>=0;i--){
-          if(m[i].role==='autumn'||m[i].role==='assistant'){
-            m[i].text=newText;
-            if(m[i].content!==undefined) m[i].content=newText;
-            if(typeof saveState==='function') saveState();
-            if(typeof renderMessages==='function') renderMessages();
-            if(typeof autoReadLastResponse==='function') setTimeout(autoReadLastResponse,200);
-            return true;
-          }
+        if(typeof msgs==='function') return msgs();
+        var ss=window.S&&window.S.sessions;
+        var cur=window.S&&window.S.currentSession;
+        return(ss&&ss[cur])?ss[cur].messages:[];
+      }catch(e){return[];}
+    }
+    function _doReplace(m,newText){
+      for(var i=m.length-1;i>=0;i--){
+        if(m[i].role==='autumn'||m[i].role==='assistant'){
+          m[i].text=newText;
+          if(m[i].content!==undefined) m[i].content=newText;
+          if(typeof saveState==='function') saveState();
+          if(typeof renderMessages==='function') renderMessages();
+          if(typeof autoReadLastResponse==='function') setTimeout(autoReadLastResponse,200);
+          return true;
         }
-      }catch(e){console.warn('[GE _replace]',e);}
+      }
       return false;
+    }
+    function _replaceLastAutumnMsg(newText){
+      // Try immediately first
+      var m=_getMsgs();
+      if(_doReplace(m,newText)) return;
+      // If Claude is responding async, poll every 400ms for up to 8 seconds
+      var attempts=0;
+      var poll=setInterval(function(){
+        attempts++;
+        var m2=_getMsgs();
+        if(_doReplace(m2,newText)||attempts>=20) clearInterval(poll);
+      },400);
     }
 
     window.handleSend=async function handleSend_GE(){
