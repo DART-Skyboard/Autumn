@@ -102,6 +102,265 @@ const GR = {
   }
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LEXICAL ANALYZER  — Character-level LEATR cascade
+// Implements the 7 Natural Tool Shell Arrays:
+//   [Mmsa] Maze     — master sigma, monitors ALL orders of operation
+//   [Psa]  Puzzle   — arrangement / pattern sigma
+//   [Esa]  Envelope — containment / boundary sigma
+//   [Hsa]  Hammer   — force / impact sigma
+//   [Ssa]  Stick    — direction / guidance sigma
+//   [Ksa]  Knife    — division / precision sigma
+//   [Rsa]  Scissors — refinement / closure sigma  (R used; S taken by Stick)
+//
+// All arrays initialize to zero and observe incoming character data.
+// Maze sees everything first (master sigma). Each tool shell checks only
+// its buoyancy conditions (FRP) then passes allocation forward.
+// ═══════════════════════════════════════════════════════════════════════════
+
+class LexicalAnalyzer {
+  constructor() {
+    // ── Tool Shell Arrays ─────────────────────────────────────────────────
+    // All initialized to zero — start observing
+    this.Mmsa = { tool:'MAZE',     sigma:0, isMaster:true,  state:0, buoyancy:1.00 };
+    this.Psa  = { tool:'PUZZLE',   sigma:0, isMaster:false, state:0, buoyancy:0.88 };
+    this.Esa  = { tool:'ENVELOPE', sigma:0, isMaster:false, state:0, buoyancy:0.76 };
+    this.Hsa  = { tool:'HAMMER',   sigma:0, isMaster:false, state:0, buoyancy:0.64 };
+    this.Ssa  = { tool:'STICK',    sigma:0, isMaster:false, state:0, buoyancy:0.52 };
+    this.Ksa  = { tool:'KNIFE',    sigma:0, isMaster:false, state:0, buoyancy:0.40 };
+    this.Rsa  = { tool:'SCISSORS', sigma:0, isMaster:false, state:0, buoyancy:0.28 };
+    this._shells = [this.Mmsa,this.Psa,this.Esa,this.Hsa,this.Ssa,this.Ksa,this.Rsa];
+
+    // ── Vowel system ──────────────────────────────────────────────────────
+    // LEATR: vowels denote grammar — ordered a=1,e=2,i=3,o=4,u=5
+    this.VOWELS      = new Set(['a','e','i','o','u']);
+    this.VOWEL_ORDER = {a:1,e:2,i:3,o:4,u:5};
+
+    // ── Phoneme clusters — consonant pairs with known grammatical contexts
+    this.CLUSTERS = {
+      TH: {words:['the','this','that','these','those','there','their','they','them','then','though','through','think','thing','three'],role:'determiner_signal'},
+      SH: {role:'fricative_boundary'},
+      CH: {role:'affricate_unit'},
+      PH: {role:'fricative_consonant'},
+      WH: {role:'interrogative_signal'},
+      NG: {role:'nasal_terminal'},
+      ST: {role:'initial_force'},
+      PR: {role:'initial_projection'},
+      TR: {role:'transition_cluster'},
+      CK: {role:'terminal_stop'}
+    };
+
+    // ── Bit depth map — how many bits each ASCII character uses ──────────
+    this._bitMap = {};
+    for(let i=32;i<128;i++) this._bitMap[String.fromCharCode(i)] = i.toString(2).length;
+  }
+
+  // ── Reset all shells to zero before processing a new input ──────────────
+  resetShells() {
+    this._shells.forEach(s => { s.sigma=0; s.state=0; });
+  }
+
+  // ── Analyze a single character ───────────────────────────────────────────
+  analyzeChar(char, posInWord, wordLen) {
+    const c   = char.toLowerCase();
+    const isV = this.VOWELS.has(c);
+    const vo  = this.VOWEL_ORDER[c] || 0;
+    return {
+      char:         c,
+      posInWord,
+      wordLen,
+      isVowel:      isV,
+      isConsonant:  !isV && /[a-z]/.test(c),
+      isPunct:      /[.,!?;:\-]/.test(c),
+      isSpace:      c===' ',
+      vowelOrder:   vo,              // 1-5 for vowels, 0 for consonants
+      bitDepth:     this._bitMap[char] || 7,
+      byteSize:     char.length,     // UTF-8 basic = 1 byte
+      posRatio:     wordLen>0 ? +(posInWord/wordLen).toFixed(4) : 0
+    };
+  }
+
+  // ── Analyze a full word through all 7 tool shell arrays ─────────────────
+  analyzeWord(word) {
+    const w     = word.toLowerCase().replace(/[^a-z]/g,'');
+    if(!w) return null;
+    const chars = [...w].map((c,i) => this.analyzeChar(c,i,w.length));
+    this.resetShells();
+
+    // ── MAZE (master sigma) — processes ALL characters, accumulates sigma ──
+    // Maze sees everything: vowel distribution, consonant clusters, position
+    const vowels     = chars.filter(c=>c.isVowel);
+    const consonants = chars.filter(c=>c.isConsonant);
+    const vowelSum   = vowels.reduce((s,c)=>s+c.vowelOrder,0);
+    const bitTotal   = chars.reduce((s,c)=>s+c.bitDepth,0);
+    const phonemes   = this._detectPhonemes(w);
+
+    this.Mmsa.sigma  = leatrEncode(vowelSum||1);          // LEATR encode
+    this.Mmsa.state  = vowels.length > 0 ? 1 : 0;        // T=has vowels, F=all consonants
+
+    // ── PUZZLE — arranges character patterns, checks if word is recognisable
+    // Puzzle looks for known structural patterns (suffix, prefix, cluster)
+    const hasSuffix  = ['ing','ed','tion','ness','ment','ity','ly','er','or','al','ic'].some(s=>w.endsWith(s));
+    const hasPrefix  = ['un','re','pre','dis','mis','over','under','out'].some(p=>w.startsWith(p));
+    this.Psa.sigma   = leatrEncode(chars.length);
+    this.Psa.state   = (hasSuffix||hasPrefix) ? 1 : 0;
+
+    // ── ENVELOPE — contains/wraps, checks letter boundary conditions
+    // First and last characters define envelope (opening/closing consonant or vowel)
+    const first = chars[0]||{isVowel:false,isConsonant:false};
+    const last  = chars[chars.length-1]||{isVowel:false,isConsonant:false};
+    this.Esa.sigma  = leatrEncode(first.vowelOrder + last.vowelOrder + 1);
+    this.Esa.state  = (first.isConsonant && last.isVowel) ? 1 : (first.isVowel ? 2 : 0);
+    // State 1 = consonant→vowel wrap (open syllable)
+    // State 2 = vowel-initial
+    // State 0 = consonant terminal (closed syllable)
+
+    // ── HAMMER — force of word; long words with many consonants = high force
+    const forceScore = (consonants.length * 0.7) + (chars.length * 0.3);
+    this.Hsa.sigma   = leatrEncode(forceScore);
+    this.Hsa.state   = forceScore > 4 ? 1 : 0;  // T = high force word
+
+    // ── STICK — directional; checks vowel ordering trend (rising/falling)
+    let rising = 0;
+    for(let i=1;i<chars.length;i++)
+      if(chars[i].isVowel && chars[i-1].isVowel && chars[i].vowelOrder > chars[i-1].vowelOrder) rising++;
+    this.Ssa.sigma  = leatrEncode(rising+1);
+    this.Ssa.state  = rising > 0 ? 1 : 0;
+
+    // ── KNIFE — divides; checks for compound words or internal structure
+    const midVowelBreak = chars.findIndex((c,i)=>i>0&&i<chars.length-1&&c.isVowel&&chars[i-1].isConsonant&&chars[i+1]&&chars[i+1].isConsonant);
+    this.Ksa.sigma  = leatrEncode(midVowelBreak>-1?midVowelBreak:1);
+    this.Ksa.state  = midVowelBreak > -1 ? 1 : 0;  // T = CVC structure found
+
+    // ── SCISSORS — refines/closes; checks terminal letter for grammatical close
+    const terminal = last;
+    const closedTerminals = new Set(['d','t','k','p','b','g','n','m','s','r','l','x']);
+    this.Rsa.sigma  = leatrEncode(terminal.bitDepth||7);
+    this.Rsa.state  = closedTerminals.has(terminal.char) ? 1 : 0;
+
+    // ── Buoyancy context — determined from combined shell states ──────────
+    const stateSum  = this._shells.reduce((s,sh)=>s+sh.state,0);
+    const buoyancy  = this._shells.reduce((s,sh)=>s+(sh.state*sh.buoyancy),0) /
+                      Math.max(this._shells.filter(sh=>sh.state>0).length,1);
+
+    // ── FRP check — all conditions met in order? ──────────────────────────
+    const frp = frpSqrtFrp(
+      this.Mmsa.state ? (vowelSum/Math.max(chars.length,1)) : 0.01,
+      stateSum / 7,
+      buoyancy || 0.01
+    );
+
+    // ── Infer grammatical role from shell cascade ─────────────────────────
+    const pos = this._inferPOS(w, chars, phonemes, hasSuffix, hasPrefix);
+
+    return {
+      word:      w,
+      chars,
+      vowels:    vowels.length,
+      consonants:consonants.length,
+      vowelOrderSum: vowelSum,
+      dominantVowel: this._dominantVowel(vowels),
+      phonemes,
+      shells: {
+        Mmsa:this.Mmsa.sigma, Psa:this.Psa.sigma, Esa:this.Esa.sigma,
+        Hsa:this.Hsa.sigma,   Ssa:this.Ssa.sigma, Ksa:this.Ksa.sigma,
+        Rsa:this.Rsa.sigma
+      },
+      shellStates: {
+        Mmsa:this.Mmsa.state, Psa:this.Psa.state, Esa:this.Esa.state,
+        Hsa:this.Hsa.state,   Ssa:this.Ssa.state, Ksa:this.Ksa.state,
+        Rsa:this.Rsa.state
+      },
+      buoyancy: +buoyancy.toFixed(4),
+      frpScore:  frp.score,
+      frpPassed: frp.score > 0.1,
+      pos,
+      bitTotal,
+      byteSize: w.length
+    };
+  }
+
+  // ── Analyze a full sentence ──────────────────────────────────────────────
+  analyzeSentence(text) {
+    const words   = text.toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).filter(Boolean);
+    const results = words.map(w => this.analyzeWord(w)).filter(Boolean);
+    // Accumulate master sigma across all words — Maze monitors the full sentence
+    const totalMazeSigma = results.reduce((s,r)=>s+Math.abs(r.shells.Mmsa),0);
+    const dominantTool   = this._dominantToolFromShells(results);
+    const buoyancyCtx    = this._sentenceBuoyancy(results);
+    return {
+      words: results,
+      totalMazeSigma: +totalMazeSigma.toFixed(4),
+      dominantTool,
+      buoyancyContext: buoyancyCtx,
+      sentenceType:    this._detectSentenceType(text, results)
+    };
+  }
+
+  // ── Private helpers ──────────────────────────────────────────────────────
+
+  _detectPhonemes(word) {
+    const found = [];
+    const pairs = Object.keys(this.CLUSTERS);
+    for(const p of pairs)
+      if(word.includes(p.toLowerCase())) found.push({cluster:p,...this.CLUSTERS[p]});
+    return found;
+  }
+
+  _dominantVowel(vowelChars) {
+    if(!vowelChars.length) return null;
+    const counts = {};
+    vowelChars.forEach(c=>{ counts[c.char]=(counts[c.char]||0)+1; });
+    return Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+  }
+
+  _inferPOS(word, chars, phonemes, hasSuffix, hasPrefix) {
+    // TH cluster at start = likely article/determiner/pronoun
+    if(phonemes.some(p=>p.cluster==='TH')&&word.length<=5) return 'DET';
+    if(phonemes.some(p=>p.cluster==='WH')) return 'INT';
+    // Suffix-based inference (refines over base POSTagger)
+    if(word.endsWith('ing'))  return 'VB_ING';
+    if(word.endsWith('tion')||word.endsWith('ness')||word.endsWith('ment')||word.endsWith('ity')) return 'NN';
+    if(word.endsWith('ly')&&word.length>4) return 'ADV';
+    if(word.endsWith('ful')||word.endsWith('less')||word.endsWith('ous')||word.endsWith('ive')) return 'ADJ';
+    if(word.endsWith('ed')&&word.length>3) return 'VB_PAST';
+    if(word.endsWith('er')||word.endsWith('or')) return 'NN_AGENT';
+    // CVC pattern (single vowel between consonants = often monosyllabic verb)
+    const v = chars.filter(c=>c.isVowel).length;
+    if(v===1&&chars.length<=5) return 'VB_BASE';
+    return 'NN';
+  }
+
+  _dominantToolFromShells(results) {
+    if(!results.length) return 'MAZE';
+    const toolNames = ['MAZE','PUZZLE','ENVELOPE','HAMMER','STICK','KNIFE','SCISSORS'];
+    const counts    = new Array(7).fill(0);
+    results.forEach(r => {
+      const states = Object.values(r.shellStates);
+      states.forEach((s,i) => { if(s>0) counts[i]++; });
+    });
+    const maxIdx = counts.indexOf(Math.max(...counts));
+    return toolNames[maxIdx];
+  }
+
+  _sentenceBuoyancy(results) {
+    if(!results.length) return {state:'FOUNDATION',score:1.0};
+    const avg = results.reduce((s,r)=>s+r.buoyancy,0)/results.length;
+    const state = avg>=0.76?'FOUNDATION':avg>=0.44?'REFLEX':'PERFORMANCE';
+    return {state,score:+avg.toFixed(4)};
+  }
+
+  _detectSentenceType(text, results) {
+    const t = text.trim();
+    if(t.endsWith('?')) return 'interrogative';
+    if(t.endsWith('!')) return 'exclamatory';
+    // Check if first word is a verb (command)
+    if(results[0]&&['VB_BASE','VB_ING'].includes(results[0].pos)) return 'imperative';
+    return 'declarative';
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────
 // POS TAGGER
 // ─────────────────────────────────────────────────────────────────
@@ -251,9 +510,15 @@ class NaturalToolPanel {
     // Y/N — are all frp conditions met in order?
     const frpMet=this.tool.frpCheck(parsedInput);
     // frp√frp across 3 BRPN concentric shells
-    const vs   =parsedInput.centralTopic?parsedInput.centralTopic.vowelScore:0;
-    const tokR =Math.min((parsedInput.tokens.length||1)/20,1);
-    const iConf=parsedInput.intent&&parsedInput.intent!=='default'?0.8:0.4;
+    // Lexical FRP — use LexicalAnalyzer results if available on S
+    const lexResult=typeof window!=='undefined'&&window.AutumnGrammarEngine&&
+                    window.AutumnGrammarEngine._engine&&
+                    window.AutumnGrammarEngine._engine._lexer?
+                    window.AutumnGrammarEngine._engine._lexer.analyzeSentence(parsedInput.raw):null;
+    const vs   = lexResult?lexResult.buoyancyContext.score
+               :(parsedInput.centralTopic?parsedInput.centralTopic.vowelScore:0);
+    const tokR = Math.min((parsedInput.tokens.length||1)/20,1);
+    const iConf= parsedInput.intent&&parsedInput.intent!=='default'?0.8:0.4;
     const frpResult=frpSqrtFrp(tokR,vs,iConf);
     const buoyancyPassed=frpResult.score>=(this.tool.buoyancy*0.5);
     // T or F
@@ -932,17 +1197,26 @@ class ANLPCA {
     const journal=new SentienceJournal(opts.journalKey);
     const storyEng=new StoryEngine();
     const topicalEng=new TopicalEngine(tagger);
+    const lexer=new LexicalAnalyzer();
     // LEATR variable names
     this.anlpca=this;this.cpa=tagger;this.c=parser;this.i=tagger;
     this.bl=flow;this.t=pipeline;this.a=builder;this.asjc=journal;this.s={};
     this._story=storyEng;
     this._topical=topicalEng;
+    this._lexer=lexer;
+    // Expose shell arrays directly for external inspection
+    this.shells={Mmsa:lexer.Mmsa,Psa:lexer.Psa,Esa:lexer.Esa,
+                 Hsa:lexer.Hsa,Ssa:lexer.Ssa,Ksa:lexer.Ksa,Rsa:lexer.Rsa};
     if(opts.autoThink!==false)journal.startThinkLoop(opts.thinkInterval||30000);
   }
   processInitial(text,facts={}){
     this.asjc.setUserPresent(true);
+    // Run lexical analysis first — feeds into panel FRP via shell arrays
+    const lexResult=this._lexer.analyzeSentence(text);
+    this.s.lexResult=lexResult;
     const fr=this.bl.analyzeInitial(text);const res=this.a.build(fr,facts);
-    this.asjc.logInteraction(fr,res,text);this.s.lastFlow=fr;return this._pack(fr,res);
+    this.asjc.logInteraction(fr,res,text);this.s.lastFlow=fr;
+    return this._pack(fr,res,lexResult);
   }
   processContinuation(text,facts={}){
     this.asjc.setUserPresent(true);
@@ -989,13 +1263,17 @@ class ANLPCA {
     return{...this._pack(fr,response),topical:true,topicalResponse:topicalRes};
   }
 
-  _pack(fr,response){
+  _pack(fr,response,lexResult){
     return{stage:fr.stage,label:fr.label,centralTopic:fr.centralTopic,intent:fr.intent,
            tense:fr.tense,negated:fr.negated,subTopics:fr.subTopics,emotion:fr.emotion,
            expLayer:fr.expLayer,expLayerName:fr.expLayerName,allAllocated:fr.allAllocated,
            pipelineTrace:fr.pipelineResult,leatrScore:fr.leatrScore,response,
            topicEvolved:fr.topicEvolved||false,priorTopicRef:fr.priorTopicRef||null,
-           dominantPast:fr.dominantPastTopic||null,timestamp:fr.timestamp};
+           dominantPast:fr.dominantPastTopic||null,timestamp:fr.timestamp,
+           lexical:lexResult?{dominantTool:lexResult.dominantTool,
+             buoyancyContext:lexResult.buoyancyContext,
+             sentenceType:lexResult.sentenceType,
+             totalMazeSigma:lexResult.totalMazeSigma}:null};
   }
 }
 
@@ -1019,7 +1297,10 @@ return{
   onJournalWrite:(fn)=>engine.asjc.onWrite(fn),
   _engine:engine,
   EMOTION_MAP,EXP_LAYERS,TOOL_DEFS,GR,leatrEncode,leatrDecode,frpSqrtFrp,
-  StoryEngine,TopicalEngine
+  StoryEngine,TopicalEngine,LexicalAnalyzer,
+  // Live shell array references (Mmsa has master sigma)
+  get shells(){ return engine.shells; },
+  analyzeLex:(text)=>engine._lexer.analyzeSentence(text)
 };
 
 })();
