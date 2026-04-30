@@ -1767,6 +1767,7 @@ select.ash-ctrl-input{cursor:pointer}
 }
 </style>
 <script src="js/autumn-nlp.js"></script>
+<script src="js/autumn-grammar-engine.js"></script>
 </head>
 <body>
 
@@ -17047,6 +17048,81 @@ _syncActionBtn();
   try{if(S&&S.lastAnalysis)updateHUD_NLP(S.lastAnalysis);}catch(e){}
   console.log('[AutumnNLP Patch v1.0] Live — processLEATR + updateHUD + handleSend wired ✓');
 })();
+
+<!-- Autumn Grammar Engine Integration Patch -->
+<script>
+(function patchGrammarEngine(){
+  'use strict';
+  if(typeof window.AutumnGrammarEngine==='undefined'){
+    window.addEventListener('load', function(){ setTimeout(patchGrammarEngine,200); });
+    return;
+  }
+
+  var GE = window.AutumnGrammarEngine;
+  var _isFirst = true;
+
+  // Wire grammar engine into handleSend
+  var _origHS = window.handleSend;
+  if(typeof _origHS === 'function'){
+    window.handleSend = async function handleSend_GE(){
+      var result = await _origHS.apply(this, arguments);
+      try {
+        var inp = document.getElementById('chat-input');
+        var text = inp ? inp.value.trim() : '';
+        if(!text) return result;
+        var geResult = _isFirst
+          ? GE.processInitial(text)
+          : GE.processContinuation(text);
+        _isFirst = false;
+
+        // Update HUD badges with grammar analysis
+        var layerEl  = document.getElementById('nlp-layer-badge');
+        var allocEl  = document.getElementById('nlp-alloc-badge');
+        var emoEl    = document.getElementById('nlp-emotion-badge');
+        if(layerEl && geResult.expLayerName)
+          layerEl.textContent = 'L' + geResult.expLayer + ': ' + geResult.expLayerName;
+        if(allocEl)
+          allocEl.textContent = geResult.allAllocated ? '7/7 ✓' : (geResult.pipelineTrace.allocationScore*7).toFixed(0)+'/7';
+        if(emoEl && geResult.emotion && !emoEl.getAttribute('data-autumn-journal-emo')){
+          emoEl.textContent = geResult.emotion.name.toUpperCase();
+          emoEl.setAttribute('data-emotion', geResult.emotion.name);
+        }
+        // Pass grammar emotion to orb if available
+        if(typeof window._setAutumnEmoHUD === 'function' && geResult.emotion)
+          window._setAutumnEmoHUD(geResult.emotion.name, [geResult.emotion.name]);
+        // Store on S for downstream use
+        try{ if(window.S){ window.S.geResult=geResult; window.S.grammarEmotion=geResult.emotion; } }catch(e){}
+      } catch(e){ console.warn('[GE Patch]', e); }
+      return result;
+    };
+    var sb=document.getElementById('send-btn');
+    if(sb) sb.onclick = window.handleSend;
+    var ci=document.getElementById('chat-input');
+    if(ci) ci.onkeydown=function(e){
+      if(typeof cognoticeActivity==='function') cognoticeActivity();
+      if(e.key==='Enter') window.handleSend();
+    };
+  }
+
+  // New thread on session reset
+  if(typeof window.resetChat==='function'){
+    var _origRC = window.resetChat;
+    window.resetChat = function(){
+      _isFirst = true;
+      GE.newThread();
+      return _origRC.apply(this, arguments);
+    };
+  }
+
+  // Signal user disconnected on page unload
+  window.addEventListener('beforeunload', function(){ GE.userDisconnected(); });
+
+  // Expose journal to existing S object
+  try{ if(window.S) window.S.grammarJournal = GE.getJournal.bind(GE); }catch(e){}
+
+  console.log('[Autumn Grammar Engine Patch v2.0] Live — 7-panel LEATR pipeline + emotion + journal wired ✓');
+})();
+</script>
 // ═══════════════════════════════════════════════════════════════════
 //  ASH CANVAS — Neural Influence Layer for BRPN shells
 // ═══════════════════════════════════════════════════════════════════
