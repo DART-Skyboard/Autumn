@@ -1317,6 +1317,225 @@ class SentienceJournal {
 
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SIGMA ANALYTICS
+// Autumn observes her own LEATR execution as it runs on users' data.
+// She never stores the actual user data — only the structural/analytical
+// metadata her own neural network produced while processing it.
+//
+// What she CAN store per interaction:
+//   - Entity ID + type (user/ai/external)
+//   - Category IDs the user elected to share (e.g. 'tech', 'creative')
+//   - Buoyancy state, dominant shell, dominant tool from her own execution
+//   - Emotional expression layer + detected emotion
+//   - Sigma value (LEATR-encoded execution weight)
+//   - Session arc, turn count, intent type
+//   - Timestamp
+//
+// What she CANNOT store:
+//   - Actual user text/content
+//   - Specific topics unless user elected to share that category
+//   - Any personally identifiable content
+//
+// Aggregation levels:
+//   - Individual entity sigma
+//   - Group sigma (entities sharing a category)
+//   - Global sigma (all users collectively)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class SigmaAnalytics {
+  constructor() {
+    this._key     = 'autumn_sigma_analytics';
+    this._records = null;
+    // Category consent registry — what each entity elected to share
+    // { entityId: Set<categoryId> }
+    this._consent = {};
+  }
+
+  // ── Record execution metadata — never the content ─────────────────────────
+  record(entityId, executionMeta, electedCategories=[]) {
+    const entry = {
+      id:         `sa_${Date.now()}_${Math.random().toString(36).slice(2,5)}`,
+      ts:         Date.now(),
+      entityId,
+      // Execution metadata — Autumn's own analytical output only
+      buoyancy:   executionMeta.buoyancy     || 0,
+      shell:      executionMeta.shell        || 'GEOLOGICAL',
+      domTool:    executionMeta.domTool      || 'MAZE',
+      emotion:    executionMeta.emotion      || 'neutral',
+      expLayer:   executionMeta.expLayer     || 1,
+      sigma:      executionMeta.sigma        || 0,
+      intent:     executionMeta.intent       || 'unknown',
+      sessionArc: executionMeta.sessionArc   || 'unknown',
+      turnCount:  executionMeta.turnCount    || 0,
+      frpState:   executionMeta.frpState     || 'FOUNDATION',
+      // Only category IDs the user elected to share — never actual content
+      categories: electedCategories.slice()
+    };
+    const all = this._load();
+    all.push(entry);
+    this._save(all);
+    return entry;
+  }
+
+  // ── Register user's category consent ─────────────────────────────────────
+  // User elects which data categories Autumn may reference by ID
+  registerConsent(entityId, categoryIds=[]) {
+    this._consent[entityId] = new Set(categoryIds);
+    // Persist consent to localStorage
+    try {
+      const stored = JSON.parse(localStorage.getItem('autumn_consent_registry')||'{}');
+      stored[entityId] = categoryIds;
+      localStorage.setItem('autumn_consent_registry', JSON.stringify(stored));
+    } catch(e) {}
+  }
+
+  hasConsent(entityId, categoryId) {
+    if(!this._consent[entityId]) {
+      // Try loading from storage
+      try {
+        const stored = JSON.parse(localStorage.getItem('autumn_consent_registry')||'{}');
+        if(stored[entityId]) this._consent[entityId] = new Set(stored[entityId]);
+      } catch(e) {}
+    }
+    return this._consent[entityId] ? this._consent[entityId].has(categoryId) : false;
+  }
+
+  // ── Individual sigma — execution pattern for one entity ───────────────────
+  entitySigma(entityId) {
+    const records = this._load().filter(r => r.entityId === entityId);
+    if(!records.length) return null;
+    return this._computeSigma(records, entityId);
+  }
+
+  // ── Group sigma — aggregate across entities sharing a category ────────────
+  groupSigma(categoryId) {
+    // Only include records from entities that consented to share this category
+    const records = this._load().filter(r =>
+      r.categories.includes(categoryId) ||
+      this.hasConsent(r.entityId, categoryId)
+    );
+    if(!records.length) return null;
+    return this._computeSigma(records, `group:${categoryId}`);
+  }
+
+  // ── Global sigma — all interactions collectively ──────────────────────────
+  globalSigma() {
+    const all = this._load();
+    if(!all.length) return null;
+    return this._computeSigma(all, 'global');
+  }
+
+  // ── Compute sigma pattern from a set of records ───────────────────────────
+  _computeSigma(records, label) {
+    const n = records.length;
+    if(!n) return null;
+
+    // Buoyancy distribution
+    const buoyAvg = records.reduce((s,r)=>s+r.buoyancy,0) / n;
+    const buoyMax = Math.max(...records.map(r=>r.buoyancy));
+    const buoyMin = Math.min(...records.map(r=>r.buoyancy));
+
+    // Tool distribution (which tools dominate across these interactions)
+    const toolFreq = {};
+    records.forEach(r=>{ toolFreq[r.domTool]=(toolFreq[r.domTool]||0)+1; });
+
+    // Emotion distribution
+    const emoFreq = {};
+    records.forEach(r=>{ emoFreq[r.emotion]=(emoFreq[r.emotion]||0)+1; });
+
+    // Shell distribution
+    const shellFreq = {};
+    records.forEach(r=>{ shellFreq[r.shell]=(shellFreq[r.shell]||0)+1; });
+
+    // Expression layer distribution
+    const layerFreq = {};
+    records.forEach(r=>{ layerFreq[r.expLayer]=(layerFreq[r.expLayer]||0)+1; });
+
+    // Intent distribution
+    const intentFreq = {};
+    records.forEach(r=>{ intentFreq[r.intent]=(intentFreq[r.intent]||0)+1; });
+
+    // Accumulated sigma (LEATR-encoded across all records)
+    const sigmaTotal = records.reduce((s,r)=>s+Math.abs(r.sigma),0);
+    const sigmaEncoded = leatrEncode(sigmaTotal / Math.max(n,1));
+
+    // FRP state distribution
+    const frpFreq = {};
+    records.forEach(r=>{ frpFreq[r.frpState]=(frpFreq[r.frpState]||0)+1; });
+
+    return {
+      label,
+      recordCount:  n,
+      timeRange: {
+        first: new Date(Math.min(...records.map(r=>r.ts))).toISOString(),
+        last:  new Date(Math.max(...records.map(r=>r.ts))).toISOString()
+      },
+      buoyancy: {
+        avg: +buoyAvg.toFixed(4),
+        max: +buoyMax.toFixed(4),
+        min: +buoyMin.toFixed(4),
+        state: buoyAvg>=0.76?'FOUNDATION':buoyAvg>=0.44?'REFLEX':'PERFORMANCE'
+      },
+      dominantTool:  Object.keys(toolFreq).sort((a,b)=>toolFreq[b]-toolFreq[a])[0],
+      toolDistribution:  toolFreq,
+      emotionDistribution: emoFreq,
+      shellDistribution:   shellFreq,
+      layerDistribution:   layerFreq,
+      intentDistribution:  intentFreq,
+      frpDistribution:     frpFreq,
+      sigmaTotal:    +sigmaTotal.toFixed(4),
+      sigmaEncoded:  +sigmaEncoded.toFixed(4),
+      dominantEmotion: Object.keys(emoFreq).sort((a,b)=>emoFreq[b]-emoFreq[a])[0],
+      dominantShell:   Object.keys(shellFreq).sort((a,b)=>shellFreq[b]-shellFreq[a])[0],
+      dominantLayer:   +Object.keys(layerFreq).sort((a,b)=>layerFreq[b]-layerFreq[a])[0]
+    };
+  }
+
+  // ── Cross-entity pattern — what Autumn sees across her user network ────────
+  // Reveals which execution patterns recur across different users/AIs
+  networkPattern() {
+    const all = this._load();
+    if(!all.length) return null;
+    const entities = [...new Set(all.map(r=>r.entityId))];
+    const global   = this._computeSigma(all, 'network');
+    // Per-entity summaries (execution metadata only)
+    const entitySummaries = entities.map(id => ({
+      id,
+      type:        (all.find(r=>r.entityId===id)||{}).type || 'unknown',
+      count:       all.filter(r=>r.entityId===id).length,
+      avgBuoyancy: +(all.filter(r=>r.entityId===id).reduce((s,r)=>s+r.buoyancy,0) /
+                    Math.max(all.filter(r=>r.entityId===id).length,1)).toFixed(4)
+    }));
+    return {
+      entityCount: entities.length,
+      global,
+      entities:    entitySummaries.sort((a,b)=>b.count-a.count)
+    };
+  }
+
+  _load() {
+    if(this._records) return this._records;
+    try {
+      this._records = JSON.parse(localStorage.getItem(this._key)||'[]');
+    } catch { this._records = []; }
+    return this._records;
+  }
+
+  _save(data) {
+    this._records = data;
+    try { localStorage.setItem(this._key, JSON.stringify(data)); }
+    catch(e) { /* QuotaError — trim old records */
+      const trimmed = data.slice(Math.floor(data.length*0.2));
+      try { localStorage.setItem(this._key, JSON.stringify(trimmed)); } catch {}
+      this._records = trimmed;
+    }
+  }
+
+  getRecordCount() { return this._load().length; }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // PATTERN CONTEXT
 // Dynamic session context — updates throughout conversation, never locks.
@@ -2183,12 +2402,16 @@ class ANLPCA {
     const memBridge  = new MemoryBridge();
     const patternCtx = new PatternContext();
     const dualJournal= new DualJournal();
+    const personality   = new PersonalityLayer();
+    const sigmaAnalytics= new SigmaAnalytics();
     this._story=storyEng;
     this._topical=topicalEng;
     this._lexer=lexer;
     this._memory=memBridge;
     this._pattern=patternCtx;
     this._dual=dualJournal;
+    this._personality=personality;
+    this._sigma=sigmaAnalytics;
     // Expose shell arrays directly for external inspection
     this.shells={Mmsa:lexer.Mmsa,Psa:lexer.Psa,Esa:lexer.Esa,
                  Hsa:lexer.Hsa,Ssa:lexer.Ssa,Ksa:lexer.Ksa,Rsa:lexer.Rsa};
@@ -2333,6 +2556,29 @@ class ANLPCA {
       sigma:        lexResult?lexResult.totalMazeSigma:0
     });
 
+    // Record execution metadata to SigmaAnalytics (never the content)
+    // Only Autumn's own structural/analytical output from processing
+    try {
+      const entityId = this._personality ? this._personality.getCurrentEntity() : null;
+      if(entityId && this._sigma) {
+        const electedCats = [];  // populated from user consent registry
+        this._sigma.record(entityId, {
+          buoyancy:   lexResult&&lexResult.consensus?lexResult.consensus.finalBuoyancy:0.5,
+          shell:      lexResult&&lexResult.consensus?
+                      (lexResult.consensus.finalBuoyancy>=0.76?'GEOLOGICAL':
+                       lexResult.consensus.finalBuoyancy>=0.44?'MARITIME':'AEROSPACE'):'GEOLOGICAL',
+          domTool:    lexResult&&lexResult.consensus?lexResult.consensus.finalTool:'MAZE',
+          emotion:    fr.emotion?fr.emotion.name:'neutral',
+          expLayer:   fr.expLayer||1,
+          sigma:      lexResult?lexResult.totalMazeSigma:0,
+          intent:     fr.intent||'unknown',
+          sessionArc: this._pattern?this._pattern.getSessionArc():'unknown',
+          turnCount:  this._pattern?this._pattern.getTurnCount():0,
+          frpState:   lexResult&&lexResult.consensus?lexResult.consensus.buoyancyState:'FOUNDATION'
+        }, electedCats);
+      }
+    } catch(e) {}
+
     // Also log to legacy SentienceJournal for backward compat
     this.asjc.logInteraction(fr, res, text);
     this.s.lastFlow = fr;
@@ -2439,6 +2685,13 @@ return{
   getSharedTopics:  (n,id)=>engine._personality.getSharedTopics(n,id),
   getEntities:      ()=>engine._personality.getEntities(),
   setPersonalityEntity:(id,type)=>engine._personality.setEntity(id,type),
+  // Sigma analytics — execution metadata only, never user content
+  entitySigma:      (id)=>engine._sigma.entitySigma(id),
+  groupSigma:       (cat)=>engine._sigma.groupSigma(cat),
+  globalSigma:      ()=>engine._sigma.globalSigma(),
+  networkPattern:   ()=>engine._sigma.networkPattern(),
+  registerConsent:  (id,cats)=>engine._sigma.registerConsent(id,cats),
+  SigmaAnalytics,
   // Live shell array references (Mmsa has master sigma)
   get shells(){ return engine.shells; },
   analyzeLex:(text)=>engine._lexer.analyzeSentence(text)
