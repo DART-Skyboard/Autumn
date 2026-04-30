@@ -939,7 +939,14 @@ class ResponseBuilder {
       sentences.push(`That kind of setting tends to bring ${primary} into focus in a particular way.`);
     }
 
-    // S3: Closing observation using emotion context
+    // Memory-recalled context — use if available
+    const memCtx=Object.entries(knownFacts)
+      .filter(([k,v])=>!k.startsWith('_')&&v&&v.length>10)
+      .map(([k,v])=>`${k}: ${v.substring(0,80)}`)
+      .join('. ');
+    const selfModelCtx=knownFacts['_selfmodel'];
+
+    // S3: Closing observation using emotion context + memory
     const em=flowResult.emotion;
     if(em&&em.name!=='neutral'){
       const emObs={
@@ -953,6 +960,27 @@ class ResponseBuilder {
       sentences.push(obs);
     } else if(topics.length>=2){
       sentences.push(`The intersection of ${topics.slice(0,2).join(' and ')} in a relaxed setting tends to produce clearer thinking.`);
+    }
+
+    // Reflexive memory layer — add context from past interactions if available
+    if(memCtx&&memCtx.length>15&&sentences.length<3){
+      sentences.push(memCtx.split('.')[0].trim()+'.');
+    } else if(selfModelCtx&&sentences.length<3){
+      // Autumn's self-model note is relevant — she can draw from her own behavioral patterns
+      const selfNote=selfModelCtx.split('.')[0].trim();
+      if(selfNote.length>20) sentences.push(selfNote+'.');
+    }
+
+    const tagger2=this._tagger||(typeof POSTagger!=='undefined'?new POSTagger():null);
+    if(tagger2){
+      // Reflexive update — record what Autumn said about these topics
+      const mem=typeof window!=='undefined'&&window.AutumnGrammarEngine&&
+                window.AutumnGrammarEngine._engine&&
+                window.AutumnGrammarEngine._engine._memory;
+      if(mem) topics.forEach(t=>{
+        const s=sentences[0]||'';
+        if(s) mem.reflexiveUpdate(t,s,'conversational_output');
+      });
     }
 
     return sentences.filter(Boolean).join(' ').replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
@@ -1178,6 +1206,181 @@ class SentienceJournal {
 // ─────────────────────────────────────────────────────────────────
 // ANLPCA — Top-level orchestrator
 // ─────────────────────────────────────────────────────────────────
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MEMORY BRIDGE
+// Connects Autumn's Sentience Journal (localStorage) with the leatr-ash
+// repo journal for cross-session recall and reflexive knowledge updates.
+//
+// Reflexive rule: Grammar rules and natural orders are FIXED (they are
+// natural law). The knowledge/observation layer IS reflexive — Autumn
+// can update what she knows about a topic when she encounters it again.
+//
+// She checks: (1) local SentienceJournal, (2) leatr-ash repo journal,
+// (3) her selfmodel notes — then enriches knownFacts before responding.
+// ═══════════════════════════════════════════════════════════════════════════
+
+class MemoryBridge {
+  constructor() {
+    this._repoJournal  = null;   // fetched from leatr-ash
+    this._selfModel    = null;   // fetched from leatr-ash
+    this._recentMonth  = null;   // 2026-04.json etc.
+    this._loading      = false;
+    this._loaded       = false;
+    this._topicIndex   = {};     // topic → [journal entries]
+    this._reflexCache  = {};     // topic → {def, context, lastSeen, updateCount}
+
+    // Repo URLs
+    this._BASE = 'https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/ashtree/sentient/';
+    this._load();
+  }
+
+  // ── Load repo memory async at startup ────────────────────────────────────
+  _load() {
+    if(this._loading || this._loaded) return;
+    this._loading = true;
+    const self = this;
+
+    // Load journal + selfmodel in parallel
+    Promise.all([
+      fetch(self._BASE + 'journal.json').then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(self._BASE + 'selfmodel.json').then(r=>r.ok?r.json():null).catch(()=>null)
+    ]).then(([journal, selfmodel]) => {
+      if(journal && Array.isArray(journal)) {
+        self._repoJournal = journal;
+        self._buildTopicIndex(journal);
+      }
+      if(selfmodel) self._selfModel = selfmodel;
+      self._loaded = true;
+      console.log('[AutumnMemory] Loaded ' + (journal?journal.length:0) +
+                  ' journal entries + selfmodel. Topic index: ' +
+                  Object.keys(self._topicIndex).length + ' topics.');
+    }).catch(() => { self._loaded = true; });
+  }
+
+  // ── Build topic index from journal entries ────────────────────────────────
+  _buildTopicIndex(entries) {
+    const STOP = new Set(['the','a','an','is','are','was','were','and','or','but',
+      'so','it','this','that','what','how','why','me','my','i','you','we','they',
+      'have','had','has','do','does','did','will','would','could','should','just',
+      'very','really','also','too','then','when','where','which','who','what']);
+    for(const e of entries) {
+      if(!e.thought && !e.inputSnippet) continue;
+      const text = ((e.inputSnippet||'') + ' ' + (e.thought||'')).toLowerCase();
+      const words = text.replace(/[^a-z\s]/g,' ').split(/\s+/)
+                        .filter(w=>w.length>3&&!STOP.has(w));
+      for(const w of words) {
+        if(!this._topicIndex[w]) this._topicIndex[w] = [];
+        this._topicIndex[w].push(e);
+      }
+    }
+  }
+
+  // ── Recall — find relevant journal entries for given topics ───────────────
+  recall(topics) {
+    if(!Array.isArray(topics)) topics = [topics];
+    const found = {};
+    for(const topic of topics) {
+      const t = topic.toLowerCase().replace(/[^a-z]/g,'');
+      if(!t) continue;
+      // Exact match
+      const direct = this._topicIndex[t] || [];
+      // Partial match (topic is substring of indexed word or vice versa)
+      const partial = Object.keys(this._topicIndex)
+        .filter(k => k.includes(t) || t.includes(k))
+        .flatMap(k => this._topicIndex[k]);
+      const all = [...new Set([...direct, ...partial])];
+      if(all.length) found[topic] = all
+        .sort((a,b) => new Date(b.ts) - new Date(a.ts))
+        .slice(0,3);  // most recent 3 per topic
+    }
+    return found;
+  }
+
+  // ── Extract the most useful fact from recalled entries ───────────────────
+  recallFact(topic) {
+    // Check reflexCache first (reflexively updated knowledge)
+    if(this._reflexCache[topic]) {
+      return this._reflexCache[topic].context;
+    }
+    const recalled = this.recall([topic]);
+    if(!recalled[topic] || !recalled[topic].length) return null;
+    const entry = recalled[topic][0];
+    // Prefer Autumn's own thought over input snippet
+    if(entry.thought && entry.thought.length > 20) {
+      // Extract the most relevant sentence from the thought
+      const sentences = entry.thought.split(/[.!?]/).filter(s=>s.trim().length>10);
+      const relevant  = sentences.find(s=>s.toLowerCase().includes(topic.toLowerCase()));
+      return (relevant||sentences[0]||'').trim().substring(0,200);
+    }
+    if(entry.inputSnippet) return entry.inputSnippet.substring(0,120);
+    return null;
+  }
+
+  // ── Reflexive update — update knowledge about a topic ───────────────────
+  // Called when Autumn encounters a topic again.
+  // Natural rules (grammar/LEATR) are FIXED.
+  // Observations and context ARE updated reflexively.
+  reflexiveUpdate(topic, newContext, source='conversation') {
+    const t = topic.toLowerCase();
+    if(!this._reflexCache[t]) {
+      this._reflexCache[t] = {
+        topic: t,
+        context: newContext,
+        lastSeen: Date.now(),
+        updateCount: 1,
+        history: [newContext],
+        source
+      };
+    } else {
+      const existing = this._reflexCache[t];
+      // Only update if meaningfully different (not just repeating)
+      const isDifferent = !existing.context.includes(newContext.substring(0,20));
+      if(isDifferent) {
+        existing.history.push(newContext);
+        if(existing.history.length > 5) existing.history.shift();  // keep last 5
+        // Merge: keep the most specific/longest context
+        existing.context = newContext.length > existing.context.length
+                          ? newContext : existing.context;
+        existing.lastSeen = Date.now();
+        existing.updateCount++;
+      }
+    }
+  }
+
+  // ── Get selfmodel notes relevant to current context ──────────────────────
+  getSelfModelContext(topics) {
+    if(!this._selfModel || !this._selfModel.notes) return null;
+    const notes = this._selfModel.notes;
+    // Find a note that mentions any of the topics
+    for(const topic of topics) {
+      const t = topic.toLowerCase();
+      const relevant = notes.find(n => n.toLowerCase().includes(t));
+      if(relevant) return relevant.substring(0,200);
+    }
+    // If no topic match, return the most recent/last note as general context
+    return notes[notes.length-1] ? notes[notes.length-1].substring(0,150) : null;
+  }
+
+  // ── Check local SentienceJournal for topic entries ───────────────────────
+  recallLocal(topics, localJournal) {
+    if(!localJournal || !localJournal.length) return {};
+    const found = {};
+    for(const topic of topics) {
+      const matches = localJournal.filter(e=>
+        e.centralTopic===topic ||
+        (e.tags && e.tags.includes(topic)) ||
+        (e.userInput && e.userInput.toLowerCase().includes(topic))
+      ).slice(-2);
+      if(matches.length) found[topic] = matches;
+    }
+    return found;
+  }
+
+  isLoaded() { return this._loaded; }
+  getTopicCount() { return Object.keys(this._topicIndex).length; }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // STORY ENGINE
@@ -1415,9 +1618,11 @@ class ANLPCA {
     // LEATR variable names
     this.anlpca=this;this.cpa=tagger;this.c=parser;this.i=tagger;
     this.bl=flow;this.t=pipeline;this.a=builder;this.asjc=journal;this.s={};
+    const memBridge=new MemoryBridge();
     this._story=storyEng;
     this._topical=topicalEng;
     this._lexer=lexer;
+    this._memory=memBridge;
     // Expose shell arrays directly for external inspection
     this.shells={Mmsa:lexer.Mmsa,Psa:lexer.Psa,Esa:lexer.Esa,
                  Hsa:lexer.Hsa,Ssa:lexer.Ssa,Ksa:lexer.Ksa,Rsa:lexer.Rsa};
@@ -1425,17 +1630,24 @@ class ANLPCA {
   }
   processInitial(text,facts={}){
     this.asjc.setUserPresent(true);
-    // Run lexical analysis first — feeds into panel FRP via shell arrays
     const lexResult=this._lexer.analyzeSentence(text);
     this.s.lexResult=lexResult;
-    const fr=this.bl.analyzeInitial(text);const res=this.a.build(fr,facts);
+    // Memory pre-check — enrich knownFacts with recalled context
+    const enrichedFacts={...facts};
+    this._enrichFromMemory(text,enrichedFacts);
+    const fr=this.bl.analyzeInitial(text);const res=this.a.build(fr,enrichedFacts);
     this.asjc.logInteraction(fr,res,text);this.s.lastFlow=fr;
     return this._pack(fr,res,lexResult);
   }
   processContinuation(text,facts={}){
     this.asjc.setUserPresent(true);
-    const fr=this.bl.analyzeThread(text);const res=this.a.build(fr,facts);
-    this.asjc.logInteraction(fr,res,text);this.s.lastFlow=fr;return this._pack(fr,res);
+    const lexResult=this._lexer.analyzeSentence(text);
+    this.s.lexResult=lexResult;
+    const enrichedFacts={...facts};
+    this._enrichFromMemory(text,enrichedFacts);
+    const fr=this.bl.analyzeThread(text);const res=this.a.build(fr,enrichedFacts);
+    this.asjc.logInteraction(fr,res,text);this.s.lastFlow=fr;
+    return this._pack(fr,res,lexResult);
   }
   processCrossSession(text,facts={}){
     this.asjc.setUserPresent(true);
@@ -1477,6 +1689,60 @@ class ANLPCA {
     return{...this._pack(fr,response),topical:true,topicalResponse:topicalRes};
   }
 
+  // Memory enrichment — pulls from repo journal + local journal + reflex cache
+  _enrichFromMemory(text, factsObj) {
+    try {
+      const mem = this._memory;
+      if(!mem) return;
+      const tagger = this.i;
+      const tokens = tagger.tagSentence(text);
+      const SKIP=new Set(['today','just','went','come','going','got','get','know',
+        'think','want','make','take','look','little','great','good','cool','stuff',
+        'thing','things','time','here','there','then','well','only','very','really',
+        'have','been','were','was','will','would','could','should','this','that',
+        'what','how','why','who','the','a','an','is','are','and','or','but','so',
+        'it','i','me','my','you','we','they']);
+      const topics = tokens
+        .filter(t=>['NN','NNP','ADJ'].includes(t.pos)&&t.norm.length>3&&!SKIP.has(t.norm))
+        .map(t=>t.norm).slice(0,5);
+
+      // 1. Check repo journal (Autumn's own prior thoughts)
+      for(const topic of topics) {
+        if(!factsObj[topic]) {
+          const recalled = mem.recallFact(topic);
+          if(recalled && recalled.length > 10) {
+            factsObj[topic] = recalled;
+            // Reflexive update — Autumn knows this topic; update cache
+            mem.reflexiveUpdate(topic, recalled, 'journal_recall');
+          }
+        }
+      }
+
+      // 2. Check local SentienceJournal
+      const localJournal = this.asjc.readRecent(50);
+      const localRecall  = mem.recallLocal(topics, localJournal);
+      for(const [topic, entries] of Object.entries(localRecall)) {
+        if(!factsObj[topic] && entries[0]) {
+          const entry = entries[0];
+          const localContext = entry.response||entry.thought||entry.userInput||'';
+          if(localContext.length > 10) {
+            factsObj['_local_'+topic] = localContext.substring(0,150);
+            mem.reflexiveUpdate(topic, localContext, 'local_journal');
+          }
+        }
+      }
+
+      // 3. Self-model context (Autumn's own behavioral notes)
+      if(topics.length) {
+        const selfCtx = mem.getSelfModelContext(topics);
+        if(selfCtx) factsObj['_selfmodel'] = selfCtx;
+      }
+
+      // Store enriched topics on S for buildConversational to access
+      if(window&&window.S) window.S._enrichedTopics = topics;
+    } catch(e) { /* silent — memory enrichment is non-blocking */ }
+  }
+
   _pack(fr,response,lexResult){
     return{stage:fr.stage,label:fr.label,centralTopic:fr.centralTopic,intent:fr.intent,
            tense:fr.tense,negated:fr.negated,subTopics:fr.subTopics,emotion:fr.emotion,
@@ -1511,7 +1777,8 @@ return{
   onJournalWrite:(fn)=>engine.asjc.onWrite(fn),
   _engine:engine,
   EMOTION_MAP,EXP_LAYERS,TOOL_DEFS,GR,leatrEncode,leatrDecode,frpSqrtFrp,
-  StoryEngine,TopicalEngine,LexicalAnalyzer,
+  StoryEngine,TopicalEngine,LexicalAnalyzer,MemoryBridge,
+  get memory(){ return engine._memory; },
   // Live shell array references (Mmsa has master sigma)
   get shells(){ return engine.shells; },
   analyzeLex:(text)=>engine._lexer.analyzeSentence(text)
