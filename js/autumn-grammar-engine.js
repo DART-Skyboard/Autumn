@@ -285,16 +285,115 @@ class LexicalAnalyzer {
   analyzeSentence(text) {
     const words   = text.toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).filter(Boolean);
     const results = words.map(w => this.analyzeWord(w)).filter(Boolean);
-    // Accumulate master sigma across all words — Maze monitors the full sentence
+    if(!results.length) return {words:[],totalMazeSigma:0,dominantTool:'MAZE',
+      buoyancyContext:{state:'FOUNDATION',score:1.0},sentenceType:'declarative',consensus:null};
+
+    // Forward pass complete — run backwards concatenation consensus
+    const consensus = this._backwardsConcatenation(results);
+
     const totalMazeSigma = results.reduce((s,r)=>s+Math.abs(r.shells.Mmsa),0);
-    const dominantTool   = this._dominantToolFromShells(results);
     const buoyancyCtx    = this._sentenceBuoyancy(results);
     return {
       words: results,
       totalMazeSigma: +totalMazeSigma.toFixed(4),
-      dominantTool,
+      // dominantTool comes from consensus, not just first-pass shell states
+      dominantTool:   consensus.finalTool,
       buoyancyContext: buoyancyCtx,
-      sentenceType:    this._detectSentenceType(text, results)
+      sentenceType:   this._detectSentenceType(text, results),
+      consensus       // full backwards concatenation result
+    };
+  }
+
+  // ── Backwards Concatenation ───────────────────────────────────────────────
+  // After all shells process independently, they look at each other's sigmas
+  // collectively. Maze arbitrates the final routing as master.
+  // The data may route to a different tool than the initial forward-pass result.
+  _backwardsConcatenation(wordResults) {
+    const TOOLS = ['MAZE','PUZZLE','ENVELOPE','HAMMER','STICK','KNIFE','SCISSORS'];
+    const SHELL_KEYS = ['Mmsa','Psa','Esa','Hsa','Ssa','Ksa','Rsa'];
+    const BUOYANCIES = [1.00,0.88,0.76,0.64,0.52,0.40,0.28];
+
+    // Step 1 — Collect accumulated sigma per shell across all words
+    const accumulated = SHELL_KEYS.map(k =>
+      wordResults.reduce((s,r) => s + Math.abs(r.shells[k]||0), 0)
+    );
+
+    // Step 2 — Normalise: each shell's share of total sigma
+    const total = accumulated.reduce((s,v)=>s+v,0)||1;
+    const normalised = accumulated.map(v => +(v/total).toFixed(6));
+
+    // Step 3 — Cross-shell visibility: each shell sees the normalized vector
+    // This is the "group look" — shells reading each other's contributions
+    // Maze weight is doubled (master sigma)
+    const weighted = normalised.map((n,i) => i===0 ? n*2 : n);
+    const wTotal   = weighted.reduce((s,v)=>s+v,0)||1;
+    const consensus = weighted.map((v,i) => ({
+      tool:      TOOLS[i],
+      shellKey:  SHELL_KEYS[i],
+      sigma:     accumulated[i],
+      normalised:normalised[i],
+      weight:    +(v/wTotal).toFixed(6),
+      buoyancy:  BUOYANCIES[i]
+    }));
+
+    // Step 4 — Maze arbitration:
+    // The maze looks at the full weighted consensus vector and finds where
+    // the sigma convergence actually points. This may redirect from the
+    // highest individual-shell result to the true collective centre.
+    const mazeSigma  = accumulated[0];     // Maze's own accumulated sigma
+    const otherSigmas = accumulated.slice(1);
+    const sigmaAvg   = otherSigmas.reduce((s,v)=>s+v,0) / Math.max(otherSigmas.length,1);
+
+    // Maze compares its own sigma to the average of all others
+    // If maze sigma > average → maze-level context (geological, foundational)
+    // If maze sigma < average → the data drifted toward a specific inner tool
+    const mazeRatio  = mazeSigma / Math.max(sigmaAvg,0.001);
+
+    // Step 5 — Find convergence: which tool's weighted share is closest to
+    // the group mean (not necessarily the highest — the one that fits best)
+    const groupMean  = 1 / TOOLS.length;
+    const convergence = consensus.map(c => ({
+      ...c,
+      deviation: Math.abs(c.weight - groupMean)
+    })).sort((a,b) => a.deviation - b.deviation);
+
+    // Step 6 — Final tool routing:
+    // If mazeRatio > 1.5 → maze-level (data is foundational/structural)
+    // If mazeRatio < 0.5 → inner tool owns it (check closest convergence)
+    // Otherwise → highest weighted tool
+    let finalTool, routingReason;
+    if(mazeRatio > 1.5) {
+      finalTool    = 'MAZE';
+      routingReason= 'maze_dominant_sigma';
+    } else if(mazeRatio < 0.5) {
+      // Inner tools collectively have more sigma — find the inner convergence
+      const innerBest = consensus.slice(1).sort((a,b)=>b.weight-a.weight)[0];
+      finalTool    = innerBest.tool;
+      routingReason= 'inner_tool_convergence';
+    } else {
+      // Group consensus — use the least-deviating tool (best collective fit)
+      // but maze can still override if it sees its buoyancy context
+      const mazeState = wordResults.reduce((s,r)=>s+(r.shellStates.Mmsa||0),0);
+      finalTool    = mazeState > wordResults.length*0.5
+                   ? 'MAZE'
+                   : convergence[0].tool;
+      routingReason= 'group_consensus';
+    }
+
+    // Step 7 — Determine final buoyancy context from consensus
+    const finalBuoyancy = consensus.find(c=>c.tool===finalTool)?.buoyancy || 1.0;
+    const buoyancyState = finalBuoyancy>=0.76?'FOUNDATION':finalBuoyancy>=0.44?'REFLEX':'PERFORMANCE';
+
+    return {
+      accumulated,        // raw sigma per shell
+      normalised,         // normalised share per shell
+      consensus,          // full weighted vector
+      mazeRatio,          // maze dominance ratio
+      convergence,        // sorted by deviation from group mean
+      finalTool,          // maze-arbitrated routing result
+      routingReason,      // why this tool was chosen
+      buoyancyState,      // FOUNDATION / REFLEX / PERFORMANCE
+      finalBuoyancy
     };
   }
 
@@ -515,8 +614,12 @@ class NaturalToolPanel {
                     window.AutumnGrammarEngine._engine&&
                     window.AutumnGrammarEngine._engine._lexer?
                     window.AutumnGrammarEngine._engine._lexer.analyzeSentence(parsedInput.raw):null;
-    const vs   = lexResult?lexResult.buoyancyContext.score
-               :(parsedInput.centralTopic?parsedInput.centralTopic.vowelScore:0);
+    // Use consensus finalBuoyancy if available — this is the backwards-concatenated result
+    const vs   = lexResult&&lexResult.consensus
+               ? lexResult.consensus.finalBuoyancy
+               : lexResult
+               ? lexResult.buoyancyContext.score
+               : (parsedInput.centralTopic?parsedInput.centralTopic.vowelScore:0);
     const tokR = Math.min((parsedInput.tokens.length||1)/20,1);
     const iConf= parsedInput.intent&&parsedInput.intent!=='default'?0.8:0.4;
     const frpResult=frpSqrtFrp(tokR,vs,iConf);
@@ -708,6 +811,12 @@ class GrammarAnalysisFlow {
            pipelineResult:pi,allAllocated:pi.allAllocated,leatrScore:pi.leatrScore,timestamp:Date.now()};
   }
   _domTool(p){
+    // Use backwards concatenation consensus finalTool if available
+    try{
+      const eng=typeof window!=='undefined'&&window.AutumnGrammarEngine&&window.AutumnGrammarEngine._engine;
+      if(eng&&eng.s&&eng.s.lexResult&&eng.s.lexResult.consensus)
+        return eng.s.lexResult.consensus.finalTool;
+    }catch(e){}
     if(!p.centralTopic)return 'MAZE';
     const vs=p.centralTopic.vowelScore;
     if(vs>=0.5)return 'ENVELOPE';if(vs>=0.35)return 'STICK';return 'MAZE';
