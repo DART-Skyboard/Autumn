@@ -1796,10 +1796,13 @@ class MemoryBridge {
 
 class PersonalityLayer {
   constructor() {
-    this._relationshipDepth = 0;   // grows with each interaction
-    this._sharedTopics      = {};  // topics discussed together
-    this._jokeHistory       = [];  // jokes already made (avoid repeat)
-    this._moodState         = 'neutral';
+    // Per-entity relationship tracking
+    // Key = entity ID (GitHub username, AI name, session ID, etc.)
+    // Each entity builds its own independent relationship with Autumn
+    this._entities     = {};   // { entityId: { depth, sharedTopics, lastSeen, type } }
+    this._currentEntity= null; // active entity this session
+    this._jokeHistory  = [];
+    this._moodState    = 'neutral';
 
     // Joke templates — mis-sequenced allocation variables
     // The objects/actions are out of order by design (absurdist escalation)
@@ -1835,7 +1838,13 @@ class PersonalityLayer {
   // ── Should Autumn make a joke right now? ────────────────────────────────
   // Requires: relationship depth, enough data on topic, right emotional context
   shouldJoke(topics, defs, emotion, relationshipDepth) {
-    if(relationshipDepth < 3)    return false;  // needs established rapport first
+    // Per-entity depth — each user/AI builds their own rapport with Autumn
+    const depth = (typeof relationshipDepth === 'number')
+                ? relationshipDepth
+                : this.getDepth();
+    if(depth < 3) return false;  // needs established rapport first
+    relationshipDepth = depth;  // normalise
+    if(relationshipDepth < 3)    return false;
     if(!topics || !topics.length) return false;
     // Only joke in happy/guiding/neutral emotional contexts
     const jokeEmos = new Set(['happy','guiding','neutral','excited','inspiring']);
@@ -1869,35 +1878,70 @@ class PersonalityLayer {
 ${correction} ${realResponse}`;
   }
 
-  // ── Increment relationship depth ────────────────────────────────────────
-  // Called on every successful interaction. Depth enables richer personality.
+  // ── Set active entity (user, AI, or external source) ─────────────────────
+  // entityId: GitHub username, AI endpoint name, 'web_source', etc.
+  // entityType: 'user' | 'ai' | 'external'
+  setEntity(entityId, entityType='user') {
+    if(!entityId) return;
+    this._currentEntity = entityId;
+    if(!this._entities[entityId]) {
+      this._entities[entityId] = {
+        id:           entityId,
+        type:         entityType,
+        depth:        0,
+        sharedTopics: {},
+        firstSeen:    Date.now(),
+        lastSeen:     Date.now(),
+        interactionCount: 0
+      };
+    }
+    this._entities[entityId].lastSeen = Date.now();
+  }
+
+  // ── Increment depth for current entity ──────────────────────────────────
   incrementDepth() {
-    this._relationshipDepth++;
-    return this._relationshipDepth;
+    if(!this._currentEntity) return 0;
+    const e = this._entities[this._currentEntity];
+    if(!e) return 0;
+    e.depth++;
+    e.interactionCount++;
+    return e.depth;
   }
 
-  // ── Note a shared topic ──────────────────────────────────────────────────
+  // ── Note a shared topic with the current entity ──────────────────────────
   noteSharedTopic(topic) {
-    if(!topic) return;
-    this._sharedTopics[topic] = (this._sharedTopics[topic]||0) + 1;
+    if(!topic || !this._currentEntity) return;
+    const e = this._entities[this._currentEntity];
+    if(!e) return;
+    e.sharedTopics[topic] = (e.sharedTopics[topic]||0) + 1;
   }
 
-  // ── Get most shared topics (what we've talked about most) ────────────────
-  getSharedTopics(n=5) {
-    return Object.entries(this._sharedTopics)
-      .sort((a,b)=>b[1]-a[1])
-      .slice(0,n)
+  // ── Get shared topics for current entity ─────────────────────────────────
+  getSharedTopics(n=5, entityId) {
+    const id = entityId || this._currentEntity;
+    if(!id || !this._entities[id]) return [];
+    return Object.entries(this._entities[id].sharedTopics)
+      .sort((a,b)=>b[1]-a[1]).slice(0,n)
       .map(([topic,count])=>({topic,count}));
   }
 
-  // ── Set mood from emotion ────────────────────────────────────────────────
-  setMood(emotionName) {
-    this._moodState = emotionName || 'neutral';
+  // ── Relationship depth for current or specified entity ───────────────────
+  getDepth(entityId) {
+    const id = entityId || this._currentEntity;
+    if(!id || !this._entities[id]) return 0;
+    return this._entities[id].depth;
   }
 
-  getDepth()    { return this._relationshipDepth; }
-  getMood()     { return this._moodState; }
-  getTopics()   { return this._sharedTopics; }
+  // ── All known entities ────────────────────────────────────────────────────
+  getEntities() {
+    return Object.values(this._entities)
+      .sort((a,b) => b.depth - a.depth);  // deepest relationship first
+  }
+
+  setMood(emotionName) { this._moodState = emotionName || 'neutral'; }
+  getMood()   { return this._moodState; }
+  getTopics() { return this._currentEntity ? this._entities[this._currentEntity]?.sharedTopics||{} : {}; }
+  getCurrentEntity() { return this._currentEntity; }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2223,6 +2267,18 @@ class ANLPCA {
     const enrichedFacts = { ...facts };
     this._enrichFromMemory(text, enrichedFacts);
 
+    // 4b. Set active entity from session context
+    try {
+      const ghUser = typeof localStorage!=='undefined' &&
+                     (localStorage.getItem('_gh_username') ||
+                      localStorage.getItem('autumn_gh_user'));
+      const sessionId = typeof window!=='undefined' && window.S &&
+                        window.S.currentSession;
+      const entityId  = ghUser || sessionId || 'anonymous';
+      const entityType= ghUser ? 'user' : 'session';
+      if(this._personality) this._personality.setEntity(entityId, entityType);
+    } catch(e) {}
+
     // 5. INNER PASS — Autumn processes for herself first
     // She thinks with her own neural network before responding.
     // Result goes to inner journal only.
@@ -2379,8 +2435,10 @@ return{
   get personality() { return engine._personality; },
   getDualStats:     ()=>engine._dual.getStats(),
   setGitHubToken:   (t)=>engine._dual.setToken(t),
-  getRelationshipDepth: ()=>engine._personality.getDepth(),
-  getSharedTopics:  (n)=>engine._personality.getSharedTopics(n),
+  getRelationshipDepth: (id)=>engine._personality.getDepth(id),
+  getSharedTopics:  (n,id)=>engine._personality.getSharedTopics(n,id),
+  getEntities:      ()=>engine._personality.getEntities(),
+  setPersonalityEntity:(id,type)=>engine._personality.setEntity(id,type),
   // Live shell array references (Mmsa has master sigma)
   get shells(){ return engine.shells; },
   analyzeLex:(text)=>engine._lexer.analyzeSentence(text)
