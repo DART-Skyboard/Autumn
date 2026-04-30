@@ -17064,28 +17064,75 @@ _syncActionBtn();
 
   var _origHS=window.handleSend;
   if(typeof _origHS==='function'){
+    // ── Intent router — detects story / topical / conversation mode ──
+    function _detectMode(text){
+      var t=text.toLowerCase();
+      // Fiction story triggers
+      if(/\b(write|tell|give|create|make|generate)\b.*\b(story|tale|fiction|narrative|adventure|mystery|fable)\b/.test(t)
+         ||/\b(story|tale|fiction|adventure|mystery)\b.*\b(about|of|set in|involving)\b/.test(t)
+         ||/\b(once upon|short story|long story|fiction story|adventure story|mystery story)\b/.test(t))
+        return 'story';
+      // Technical / factual topic triggers
+      if(/\b(hydraulic|pneumatic|assembly|manufacturing|engineering|chemical|biological|quantum|mechanical|electrical|thermal|structural|molecular|atmospheric|geological|astronomical|clinical|pharmaceutical|neurological|computational|algorithmic|financial|economic|statistical|epidemiological|pharmacological|aerodynamic|electromagnetic|thermodynamic)\b/.test(t)
+         ||/\b(system|process|mechanism|protocol|algorithm|circuit|reaction|synthesis|dynamics|pressure|voltage|frequency|velocity|resistance|conductance|flux|gradient|topology|taxonomy|classification)\b/.test(t)
+         ||/\bhow does\b.*\bwork\b/.test(t)||/\bexplain\b.*\b(system|process|mechanism|how|why)\b/.test(t))
+        return 'topical';
+      return 'conversation';
+    }
+
     window.handleSend=async function handleSend_GE(){
       var inp=document.getElementById('chat-input');
       var text=inp?inp.value.trim():'';
       var result=await _origHS.apply(this,arguments);
       try{
         if(!text)return result;
-        var geResult=_isFirst?GE.processInitial(text):GE.processContinuation(text);
-        _isFirst=false;
+        var mode=_detectMode(text);
+        var geResult;
+
+        if(mode==='story'){
+          // ── Fiction story mode ──────────────────────────────────────
+          var storyResult=GE.generateStory(text);
+          // Inject story into chat as Autumn's response
+          if(storyResult&&storyResult.story&&typeof window.S!=='undefined'){
+            // Append to messages as Autumn's own entry if possible
+            if(window.S.messages&&Array.isArray(window.S.messages)){
+              window.S.messages.push({role:'assistant',content:'**'+storyResult.title+'**
+
+'+storyResult.story+'
+
+*('+storyResult.wordCount+' words · '+storyResult.genre+')*'});
+              if(typeof renderMessages==='function') renderMessages();
+            }
+          }
+          geResult={emotion:{name:'inspiring'},expLayer:3,expLayerName:'Expression',
+                    allAllocated:true,pipelineTrace:{allocationScore:1},
+                    leatrScore:storyResult?storyResult.wordCount:0};
+
+        } else if(mode==='topical'){
+          // ── Technical/factual topic mode ────────────────────────────
+          geResult=GE.processTopical(text);
+
+        } else {
+          // ── Standard conversation mode ───────────────────────────────
+          geResult=_isFirst?GE.processInitial(text):GE.processContinuation(text);
+          _isFirst=false;
+        }
+
+        // Update HUD badges
         var layerEl=document.getElementById('nlp-layer-badge');
         var allocEl=document.getElementById('nlp-alloc-badge');
         var emoEl=document.getElementById('nlp-emotion-badge');
         if(layerEl&&geResult.expLayerName)
           layerEl.textContent='L'+geResult.expLayer+': '+geResult.expLayerName;
         if(allocEl)
-          allocEl.textContent=geResult.allAllocated?'7/7 ✓':Math.round(geResult.pipelineTrace.allocationScore*7)+'/7';
+          allocEl.textContent=geResult.allAllocated?'7/7 ✓':Math.round((geResult.pipelineTrace&&geResult.pipelineTrace.allocationScore||1)*7)+'/7';
         if(emoEl&&geResult.emotion&&!emoEl.getAttribute('data-autumn-journal-emo')){
           emoEl.textContent=geResult.emotion.name.toUpperCase();
           emoEl.setAttribute('data-emotion',geResult.emotion.name);
         }
         if(typeof window._setAutumnEmoHUD==='function'&&geResult.emotion)
           window._setAutumnEmoHUD(geResult.emotion.name,[geResult.emotion.name]);
-        try{if(window.S){window.S.geResult=geResult;window.S.grammarEmotion=geResult.emotion;}}catch(e){}
+        try{if(window.S){window.S.geResult=geResult;window.S.grammarEmotion=geResult.emotion;window.S.geMode=mode;}}catch(e){}
       }catch(e){console.warn('[GE Patch]',e);}
       return result;
     };
