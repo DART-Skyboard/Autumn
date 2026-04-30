@@ -472,19 +472,10 @@ class ResponseBuilder {
       .catch(()=>{});
   }
 
-  // Enrich a word via WordNet — updates knownFacts cache async for next call
-  async _enrichAsync(word, knownFacts){
-    if(!this._wordnet||!word||word.length<3) return;
-    if(knownFacts[word]) return;
-    try{
-      const e=await this._wordnet.enrich(word);
-      if(e&&e.definition){
-        knownFacts[word]=e.definition;
-        // Cache synonyms as related words for slot filling
-        this._wnCache=this._wnCache||{};
-        this._wnCache[word]=e;
-      }
-    }catch(err){}
+  // Trigger async WordNet load for a word so next call has it cached
+  _wnPrime(word){
+    const WN=typeof window!=='undefined'&&window.AutumnWordNet;
+    if(WN&&word&&word.length>2) WN.lookup(word).catch(()=>{});
   }
 
   // Main build — uses grammar JSON + WordNet when available
@@ -499,14 +490,15 @@ class ResponseBuilder {
 
     const topic  = centralTopic&&centralTopic.length>2&&!SKIP.has(centralTopic)?centralTopic:nouns[0]||'this topic';
 
-    // Pull WordNet data for topic if cached from previous async enrich call
-    const wnEntry = this._wnCache && this._wnCache[topic];
-    if(wnEntry){
-      if(!knownFacts[topic]&&wnEntry.definition) knownFacts[topic]=wnEntry.definition;
-    }
-    // Trigger async enrichment for next response (non-blocking)
-    if(this._wordnet&&topic&&topic!=='this topic') this._enrichAsync(topic,knownFacts);
-    const detail = [...mods,...nouns.slice(1)].join(' ')||knownFacts[topic]||'its essential nature';
+    // ── WordNet real definition lookup ─────────────────────────────
+    const WN=typeof window!=='undefined'&&window.AutumnWordNet;
+    const wnDef=WN?WN.defineSync(topic):null;
+    // Trigger async load for next call if not in cache yet
+    if(WN&&!wnDef&&topic&&topic!=='this topic') this._wnPrime(topic);
+    // Also prime any content nouns for richer downstream responses
+    if(WN) nouns.slice(0,2).forEach(n=>WN.lookup(n).catch(()=>{}));
+
+    const detail = wnDef||knownFacts[topic]||[...mods,...nouns.slice(1)].join(' ')||'its essential nature';
     const verb   = verbs[0]||(tense==='past'?'showed':'involves');
 
     // Dominant Natural Tool from pipeline (drives opening phrase)
@@ -589,6 +581,13 @@ class ResponseBuilder {
     return (pre?pre+' ':'')+full;
   }
 
+  _wnBucket(word){
+    if(!word||!word.length)return'a';
+    const c=word[0].toLowerCase();
+    if(c>='a'&&c<='h')return'a';
+    if(c>='i'&&c<='r')return'i';
+    return's';
+  }
   _category(topic,nouns,intent){
     if(intent.startsWith('question')) return 'concept';
     if(nouns.some(n=>/tion$|sion$|ment$|ity$/.test(n))) return 'process';
