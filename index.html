@@ -17148,7 +17148,13 @@ _syncActionBtn();
         } else {
           geResult=_isFirst?GE.processInitial(text):GE.processContinuation(text);
           _isFirst=false;
+          try{
+            var convResp=GE._engine&&GE._engine.a?
+              GE._engine.a.buildConversational(geResult,text,{}):null;
+            if(convResp&&convResp.length>20) _replaceLastAutumnMsg(convResp);
+          }catch(e){console.warn('[GE conv]',e);}
         }
+
         // Update HUD
         var layerEl=document.getElementById('nlp-layer-badge');
         var allocEl=document.getElementById('nlp-alloc-badge');
