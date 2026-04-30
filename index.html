@@ -1768,6 +1768,7 @@ select.ash-ctrl-input{cursor:pointer}
 </style>
 <script src="js/autumn-nlp.js"></script>
 <script src="js/autumn-grammar-engine.js"></script>
+<script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
 </head>
 <body>
 
@@ -17104,6 +17105,22 @@ _syncActionBtn();
   window.addEventListener('beforeunload',function(){GE.userDisconnected();});
   try{if(window.S)window.S.grammarJournal=GE.getJournal.bind(GE);}catch(e){}
   console.log('[Autumn Grammar Engine Patch v2.0] Live — 7-panel LEATR + emotion + journal wired ✓');
+
+  // Wire WordNet into grammar engine ResponseBuilder when loader is ready
+  (function wireWordNet(){
+    if(typeof window.WordNetLoader==='undefined'){
+      setTimeout(wireWordNet,300); return;
+    }
+    // Attach to ResponseBuilder so enrich() is available during build()
+    if(window.AutumnGrammarEngine && window.AutumnGrammarEngine._engine){
+      window.AutumnGrammarEngine._engine.a._wordnet = window.WordNetLoader;
+    }
+    // Start loading all chunks in background (parallel fetch)
+    window.WordNetLoader.load(function(loaded,total,chunk){
+      if(loaded===total)
+        console.log('[WordNet] All',total,'chunks loaded — Autumn semantic dictionary ready.');
+    });
+  })();
 })();
 // ═══════════════════════════════════════════════════════════════════
 //  ASH CANVAS — Neural Influence Layer for BRPN shells
