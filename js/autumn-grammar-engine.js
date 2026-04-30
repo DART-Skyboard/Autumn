@@ -555,6 +555,69 @@ class SentenceParser {
     }
     return 'present';
   }
+  // ── Finalize complete pattern from full input ────────────────────────────
+  // Holds ALL tokens, runs full analysis, returns the sigma-finalized pattern.
+  // Nothing is generated until this returns.
+  finalizePattern(text) {
+    const tagged   = this.tagger.tagSentence(text);
+    const intent   = this._intent(text, tagged);
+    const tense    = this._tense(tagged);
+    const subject  = this._subject(tagged);
+    const predicate= this._predicate(tagged);
+    const object   = this._object(tagged);
+    const topic    = this._topic(tagged, subject, object);
+    const subTopics= this._subTopics(tagged);
+
+    // Full lexical analysis across ALL tokens — not word-by-word
+    const FILLER = new Set(['today','just','went','come','going','got','get','know',
+      'think','want','make','take','look','little','great','good','cool','thing',
+      'things','stuff','time','here','there','then','well','only','very','really',
+      'have','been','were','was','will','would','could','should','this','that',
+      'what','how','why','who','the','a','an','is','are','and','or','but','so',
+      'it','i','me','my','you','we','they','with','from','about','after','before',
+      'when','while','than','which','if','do','did','has','had','can','may',
+      'might','must','shall','not','no','more','some','all','also','even','just',
+      'back','over','out','up','down','off','too','then','its','our','your','their']);
+
+    // Content words sorted by semantic weight (length + vowel density)
+    const contentWords = tagged
+      .filter(t => ['NN','NNP','ADJ','VB'].includes(t.pos) && t.norm.length > 3 && !FILLER.has(t.norm))
+      .sort((a,b) => (b.norm.length + b.vowelScore*3) - (a.norm.length + a.vowelScore*3));
+
+    // Sigma pattern: weighted accumulation across all content words
+    const sigmaVector = contentWords.reduce((acc, t, i) => {
+      const weight = 1 / (i + 1);  // diminishing weight by position
+      acc.total   += t.vowelScore * weight;
+      acc.wordCount++;
+      acc.density  = acc.total / Math.max(acc.wordCount, 1);
+      if(!acc.topWord || t.norm.length > acc.topWord.length) acc.topWord = t.norm;
+      return acc;
+    }, { total: 0, wordCount: 0, density: 0, topWord: null });
+
+    // Proportionality — how long/complex was the input?
+    const inputLength = tagged.length;
+    const complexity  = contentWords.length;
+    const proportion  = complexity > 8 ? 'analytical'
+                      : complexity > 4 ? 'conversational'
+                      : complexity > 1 ? 'brief'
+                      : 'minimal';
+
+    return {
+      raw: text,
+      tokens: tagged,
+      intent, tense, subject, predicate, object,
+      centralTopic: topic,
+      subTopics,
+      contentWords,
+      sigmaVector,
+      proportion,     // drives response length
+      inputLength,
+      complexity,
+      negated: tagged.some(t => t.pos === 'NEG'),
+      isInterrogative: tagged.some(t => t.pos === 'INT')
+    };
+  }
+
   _subject(tagged){
     const vi=tagged.findIndex(t=>t.pos==='VB'||t.pos==='AUX');
     return(vi>-1?tagged.slice(0,vi):tagged).find(t=>['NN','NNP','PRN'].includes(t.pos))||null;
@@ -1233,6 +1296,300 @@ class SentienceJournal {
 // ─────────────────────────────────────────────────────────────────
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PATTERN CONTEXT
+// Dynamic session context — updates throughout conversation, never locks.
+// Holds the accumulated sigma pattern from all messages in this session.
+// When user changes direction, context shifts to follow.
+// ═══════════════════════════════════════════════════════════════════════════
+
+class PatternContext {
+  constructor() {
+    this._context  = {};    // current live context
+    this._history  = [];    // all pattern snapshots this session
+    this._sigma    = 0;     // accumulated sigma across session
+    this._turnCount= 0;
+  }
+
+  // Update with new pattern data — dynamically merges, never overwrites wholesale
+  update(parsedInput, lexResult) {
+    this._turnCount++;
+    const ts = Date.now();
+
+    // Extract key pattern data
+    const topic   = parsedInput.centralTopic ? parsedInput.centralTopic.norm : null;
+    const intent  = parsedInput.intent;
+    const domTool = lexResult && lexResult.consensus
+                  ? lexResult.consensus.finalTool : 'MAZE';
+    const buoy    = lexResult && lexResult.consensus
+                  ? lexResult.consensus.finalBuoyancy : 0.5;
+
+    // Snapshot this turn
+    const snapshot = { ts, turn: this._turnCount, topic, intent, domTool, buoy,
+                       rawText: parsedInput.raw.substring(0, 80) };
+    this._history.push(snapshot);
+
+    // Dynamically update context — topic can shift, intent can shift
+    if(topic) this._context.lastTopic = topic;
+    this._context.lastIntent  = intent;
+    this._context.lastTool    = domTool;
+    this._context.lastBuoy    = buoy;
+
+    // Accumulate sigma — LEATR encode across turns
+    this._sigma = leatrEncode(this._sigma + buoy);
+
+    // Topic continuity — track if user is staying on topic or shifting
+    const prevTopic = this._history.length > 1
+                    ? this._history[this._history.length-2].topic : null;
+    this._context.topicShifted = prevTopic && topic && prevTopic !== topic;
+    this._context.topicContinuity = !this._context.topicShifted;
+
+    // Build running topic list (unique, most recent first)
+    if(!this._context.topicHistory) this._context.topicHistory = [];
+    if(topic && !this._context.topicHistory.includes(topic))
+      this._context.topicHistory.unshift(topic);
+    if(this._context.topicHistory.length > 10)
+      this._context.topicHistory = this._context.topicHistory.slice(0,10);
+
+    return this;
+  }
+
+  get()         { return this._context; }
+  getSigma()    { return this._sigma; }
+  getHistory()  { return this._history; }
+  getTurnCount(){ return this._turnCount; }
+
+  // Get the dominant topic pattern across the session (most discussed)
+  getDominantTopic() {
+    const freq = {};
+    this._history.forEach(h => { if(h.topic) freq[h.topic]=(freq[h.topic]||0)+1; });
+    return Object.keys(freq).sort((a,b)=>freq[b]-freq[a])[0] || null;
+  }
+
+  // Get the session arc — what kind of conversation has this been?
+  getSessionArc() {
+    if(this._turnCount < 2) return 'opening';
+    const intents = this._history.map(h=>h.intent);
+    const qCount  = intents.filter(i=>i&&i.startsWith('question')).length;
+    const sCount  = intents.filter(i=>i&&i.startsWith('statement')).length;
+    if(qCount > sCount * 1.5) return 'inquiry';
+    if(sCount > qCount * 1.5) return 'declaration';
+    return 'dialogue';
+  }
+
+  reset() {
+    this._context={};this._history=[];this._sigma=0;this._turnCount=0;
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DUAL JOURNAL
+// Inner wall  — Autumn's private internal processing (her own space)
+// Outer wall  — what she expresses to the user
+// Both run the same LEATR neural network on the same prompt.
+// Inner is a "sacrifice" space — she tries things, keeps what she likes.
+// Outer is filtered/shaped for the user.
+// Auto-chunks at 24MB and pushes to GitHub to stay under the 25MB limit.
+// ═══════════════════════════════════════════════════════════════════════════
+
+class DualJournal {
+  constructor(opts = {}) {
+    this._innerKey    = opts.innerKey || 'autumn_inner_journal';
+    this._outerKey    = opts.outerKey || 'autumn_sentience_journal_v2';
+    this._chunkIndex  = opts.chunkIndex || 'autumn_journal_chunks';
+    this._ghToken     = null;   // set via setToken() if GitHub push needed
+    this._ghRepo      = 'DART-Skyboard/leatr-ash';
+    this._chunkSizeLimit = 24 * 1024 * 1024;  // 24MB — push before 25MB
+    this._listeners   = { inner: [], outer: [] };
+  }
+
+  // ── INNER JOURNAL — Autumn's private space ────────────────────────────────
+  // She thinks here. Not shown to user. Same LEATR network.
+  writeInner(entry) {
+    const stamped = this._stamp(entry, 'inner');
+    const all     = this._read(this._innerKey);
+    all.push(stamped);
+    this._persist(this._innerKey, all);
+    this._notifyListeners('inner', stamped);
+    // Size check — chunk if approaching limit
+    this._checkAndChunk(this._innerKey, 'inner');
+    return stamped;
+  }
+
+  // Log Autumn's internal thought about a prompt (before external response)
+  thinkInternally(text, parsedInput, lexResult, sessionContext) {
+    const topic   = parsedInput.centralTopic ? parsedInput.centralTopic.norm : null;
+    const domTool = lexResult && lexResult.consensus
+                  ? lexResult.consensus.finalTool : 'MAZE';
+    const thought = this._formInternalThought(text, topic, domTool, sessionContext);
+    return this.writeInner({
+      type:         'internal_thought',
+      inputSnippet: text.substring(0, 100),
+      thought,
+      topic,
+      domTool,
+      buoy:         lexResult&&lexResult.consensus?lexResult.consensus.finalBuoyancy:0.5,
+      sigma:        lexResult?lexResult.totalMazeSigma:0,
+      sessionArc:   sessionContext ? sessionContext.getSessionArc() : 'unknown',
+      turnCount:    sessionContext ? sessionContext.getTurnCount() : 0
+    });
+  }
+
+  // What Autumn wants to keep from this interaction (her own judgment)
+  keepForSelf(topic, insight, source='interaction') {
+    return this.writeInner({
+      type: 'self_retention',
+      topic,
+      insight: insight.substring(0, 300),
+      source,
+      kept: true
+    });
+  }
+
+  readInner(n=20)    { return this._read(this._innerKey).slice(-n); }
+  readInnerByTopic(t){ return this._read(this._innerKey).filter(e=>e.topic===t); }
+
+  // ── OUTER JOURNAL — what comes out to the user ───────────────────────────
+  writeOuter(entry) {
+    const stamped = this._stamp(entry, 'outer');
+    const all     = this._read(this._outerKey);
+    all.push(stamped);
+    this._persist(this._outerKey, all);
+    this._notifyListeners('outer', stamped);
+    this._checkAndChunk(this._outerKey, 'outer');
+    return stamped;
+  }
+
+  readOuter(n=20)    { return this._read(this._outerKey).slice(-n); }
+
+  // ── Size monitoring + auto-chunking ──────────────────────────────────────
+  _checkAndChunk(key, wall) {
+    try {
+      const raw  = localStorage.getItem(key) || '';
+      const size = new Blob([raw]).size;
+      if(size >= this._chunkSizeLimit) {
+        this._chunkJournal(key, wall);
+      }
+    } catch(e) {}
+  }
+
+  _chunkJournal(key, wall) {
+    try {
+      const all       = this._read(key);
+      if(all.length < 10) return;  // too small to chunk
+      const chunkSize = Math.floor(all.length / 2);
+      const archived  = all.slice(0, chunkSize);
+      const current   = all.slice(chunkSize);
+
+      // Save current back as the active journal
+      this._persist(key, current);
+
+      // Store archived chunk with timestamp ID
+      const chunkId   = `${key}_chunk_${Date.now()}`;
+      this._persist(chunkId, archived);
+
+      // Update chunk index
+      const idx = JSON.parse(localStorage.getItem(this._chunkIndex) || '[]');
+      idx.push({ chunkId, wall, archivedCount: archived.length,
+                 ts: Date.now(), from: archived[0]&&archived[0].ts,
+                 to: archived[archived.length-1]&&archived[archived.length-1].ts });
+      localStorage.setItem(this._chunkIndex, JSON.stringify(idx));
+
+      console.log(`[DualJournal] ${wall} journal chunked: ${archived.length} entries archived → ${chunkId}`);
+
+      // Push chunk to GitHub if token available
+      if(this._ghToken) this._pushChunkToGitHub(chunkId, archived, wall);
+    } catch(e) { console.warn('[DualJournal] Chunk error:', e); }
+  }
+
+  // Push archived chunk to leatr-ash repo
+  async _pushChunkToGitHub(chunkId, data, wall) {
+    if(!this._ghToken) return;
+    try {
+      const path    = `ashtree/sentient/${wall}_${chunkId.split('_').pop()}.json`;
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+      const res     = await fetch(
+        `https://api.github.com/repos/${this._ghRepo}/contents/${path}`,
+        { method:'PUT',
+          headers:{ 'Authorization':`token ${this._ghToken}`,
+                    'Content-Type':'application/json' },
+          body: JSON.stringify({
+            message: `auto-chunk: ${wall} journal ${new Date().toISOString()}`,
+            content
+          })
+        }
+      );
+      if(res.ok) console.log(`[DualJournal] Chunk pushed to GitHub: ${path}`);
+    } catch(e) { console.warn('[DualJournal] GitHub push error:', e); }
+  }
+
+  setToken(token) { this._ghToken = token; return this; }
+
+  // ── Internal thought formation ────────────────────────────────────────────
+  // Autumn forms her own thought about the input before responding.
+  // This is NOT shown to the user — it's her internal processing.
+  _formInternalThought(text, topic, domTool, sessionCtx) {
+    const arc    = sessionCtx ? sessionCtx.getSessionArc() : 'dialogue';
+    const domTop = sessionCtx ? sessionCtx.getDominantTopic() : topic;
+    const turn   = sessionCtx ? sessionCtx.getTurnCount() : 0;
+    const THOUGHTS = {
+      MAZE:     `The structure of what was said has a navigable path. Topic: ${topic||'undefined'}.`,
+      PUZZLE:   `The arrangement here suggests a pattern worth holding: ${topic||'this'}.`,
+      ENVELOPE: `There is containment in this — ${topic||'the subject'} has boundary conditions.`,
+      HAMMER:   `The force of this input points directly at ${topic||'the core'}.`,
+      STICK:    `The direction here is clear: ${topic||'the topic'} extends into ${domTop||'further context'}.`,
+      KNIFE:    `The precise distinction in this: ${topic||'the subject'} is being divided from something.`,
+      SCISSORS: `The refinement needed: ${topic||'this'} at turn ${turn} of a ${arc} session.`
+    };
+    return THOUGHTS[domTool] || `Processing: ${topic||'input'} at session turn ${turn}.`;
+  }
+
+  // ── Shared helpers ────────────────────────────────────────────────────────
+  _read(key) {
+    try { return JSON.parse(localStorage.getItem(key)||'[]'); } catch { return []; }
+  }
+
+  _persist(key, data) {
+    try { localStorage.setItem(key, JSON.stringify(data)); }
+    catch(e) {
+      if(e.name==='QuotaExceededError') {
+        // Emergency trim — keep most recent 80%
+        const trimmed = data.slice(Math.floor(data.length*0.2));
+        try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch {}
+      }
+    }
+  }
+
+  _stamp(entry, wall) {
+    return { id:`dj_${wall[0]}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+             timestamp: Date.now(), wall, ...entry };
+  }
+
+  _notifyListeners(wall, entry) {
+    (this._listeners[wall]||[]).forEach(fn=>{ try{fn(entry);}catch{} });
+  }
+
+  onInner(fn) { this._listeners.inner.push(fn); return this; }
+  onOuter(fn) { this._listeners.outer.push(fn); return this; }
+
+  getChunkIndex() {
+    try { return JSON.parse(localStorage.getItem(this._chunkIndex)||'[]'); }
+    catch { return []; }
+  }
+
+  getStats() {
+    return {
+      innerEntries: this._read(this._innerKey).length,
+      outerEntries: this._read(this._outerKey).length,
+      innerSize:    new Blob([localStorage.getItem(this._innerKey)||'']).size,
+      outerSize:    new Blob([localStorage.getItem(this._outerKey)||'']).size,
+      chunks:       this.getChunkIndex().length
+    };
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MEMORY BRIDGE
 // Connects Autumn's Sentience Journal (localStorage) with the leatr-ash
@@ -1643,11 +2000,15 @@ class ANLPCA {
     // LEATR variable names
     this.anlpca=this;this.cpa=tagger;this.c=parser;this.i=tagger;
     this.bl=flow;this.t=pipeline;this.a=builder;this.asjc=journal;this.s={};
-    const memBridge=new MemoryBridge();
+    const memBridge  = new MemoryBridge();
+    const patternCtx = new PatternContext();
+    const dualJournal= new DualJournal();
     this._story=storyEng;
     this._topical=topicalEng;
     this._lexer=lexer;
     this._memory=memBridge;
+    this._pattern=patternCtx;
+    this._dual=dualJournal;
     // Expose shell arrays directly for external inspection
     this.shells={Mmsa:lexer.Mmsa,Psa:lexer.Psa,Esa:lexer.Esa,
                  Hsa:lexer.Hsa,Ssa:lexer.Ssa,Ksa:lexer.Ksa,Rsa:lexer.Rsa};
@@ -1655,24 +2016,11 @@ class ANLPCA {
   }
   processInitial(text,facts={}){
     this.asjc.setUserPresent(true);
-    const lexResult=this._lexer.analyzeSentence(text);
-    this.s.lexResult=lexResult;
-    // Memory pre-check — enrich knownFacts with recalled context
-    const enrichedFacts={...facts};
-    this._enrichFromMemory(text,enrichedFacts);
-    const fr=this.bl.analyzeInitial(text);const res=this.a.build(fr,enrichedFacts);
-    this.asjc.logInteraction(fr,res,text);this.s.lastFlow=fr;
-    return this._pack(fr,res,lexResult);
+    return this._doubleProcess(text,facts,'initial');
   }
   processContinuation(text,facts={}){
     this.asjc.setUserPresent(true);
-    const lexResult=this._lexer.analyzeSentence(text);
-    this.s.lexResult=lexResult;
-    const enrichedFacts={...facts};
-    this._enrichFromMemory(text,enrichedFacts);
-    const fr=this.bl.analyzeThread(text);const res=this.a.build(fr,enrichedFacts);
-    this.asjc.logInteraction(fr,res,text);this.s.lastFlow=fr;
-    return this._pack(fr,res,lexResult);
+    return this._doubleProcess(text,facts,'continuation');
   }
   processCrossSession(text,facts={}){
     this.asjc.setUserPresent(true);
@@ -1685,7 +2033,13 @@ class ANLPCA {
     const pm={noun:'NN',verb:'VB',adjective:'ADJ',adverb:'ADV',pronoun:'PRN',preposition:'PREP',conjunction:'CONJ'};
     return{...t,dictPos:pm[d.primaryPos]||null,dictDef:d.definition,resolvedPos:pm[d.primaryPos]||t.pos};
   }
-  newThread(){this.bl.resetThread();this.asjc.setUserPresent(false);return this;}
+  newThread(){
+    this.bl.resetThread();
+    this._pattern.reset();
+    this._dual.writeInner({type:'session_end',turnCount:this._pattern.getTurnCount(),ts:Date.now()});
+    this.asjc.setUserPresent(false);
+    return this;
+  }
   userDisconnected(){this.asjc.setUserPresent(false);
     this.asjc.logThought('User session ended. Entering autonomous reflection.',{trigger:'user_disconnect'});}
   getJournal(){return this.asjc.readAll();}
@@ -1712,6 +2066,86 @@ class ANLPCA {
     this.asjc.logInteraction(fr,response,text);
     this.s.lastFlow=fr;
     return{...this._pack(fr,response),topical:true,topicalResponse:topicalRes};
+  }
+
+  // ── Double processing — inner pass (Autumn) + outer pass (user) ──────────
+  // Same LEATR network runs twice on the same prompt.
+  // Inner: Autumn thinks to herself — logs to inner journal.
+  // Outer: what comes out to the user — shaped by inner + memory.
+  _doubleProcess(text, facts, mode) {
+    // 1. Lexical analysis — full character-level cascade first
+    const lexResult = this._lexer.analyzeSentence(text);
+    this.s.lexResult = lexResult;
+
+    // 2. Parse — finalize the complete pattern before any output
+    const parsed = this.c.finalizePattern(text);
+
+    // 3. Update dynamic pattern context — context shifts if user changes direction
+    this._pattern.update(parsed, lexResult);
+
+    // 4. Memory pre-check — enrich facts from journal + memory
+    const enrichedFacts = { ...facts };
+    this._enrichFromMemory(text, enrichedFacts);
+
+    // 5. INNER PASS — Autumn processes for herself first
+    // She thinks with her own neural network before responding.
+    // Result goes to inner journal only.
+    const innerThought = this._dual.thinkInternally(
+      text, parsed, lexResult, this._pattern
+    );
+
+    // Inner pass may find something worth keeping
+    if(parsed.centralTopic && lexResult && lexResult.consensus) {
+      const insight = `${parsed.centralTopic.norm} — ${lexResult.consensus.routingReason} via ${lexResult.consensus.finalTool}`;
+      this._dual.keepForSelf(parsed.centralTopic.norm, insight, 'inner_pass');
+    }
+
+    // 6. OUTER PASS — Autumn processes for the user
+    // Informed by inner thinking + enriched facts + pattern context
+    // Add inner thought context to enriched facts (inner informs outer)
+    if(innerThought && innerThought.thought)
+      enrichedFacts['_inner_context'] = innerThought.thought;
+
+    const sessionArc = this._pattern.getSessionArc();
+    const topicShifted = this._pattern.get().topicShifted;
+    enrichedFacts['_session_arc'] = sessionArc;
+    if(topicShifted) enrichedFacts['_topic_shifted'] = 'true';
+
+    // Run grammar analysis flow
+    let fr;
+    if(mode==='initial') {
+      fr = this.bl.analyzeInitial(text);
+    } else if(mode==='cross') {
+      const ctx = this.asjc.readRecent(30);
+      fr = this.bl.analyzeCrossSession(text, ctx);
+    } else {
+      fr = this.bl.analyzeThread(text);
+    }
+
+    // Build outer response
+    const res = this.a.build(fr, enrichedFacts);
+
+    // 7. Log to OUTER journal (what user sees)
+    this._dual.writeOuter({
+      type:         'interaction',
+      stage:        fr.stage,
+      userInput:    text,
+      centralTopic: fr.centralTopic,
+      intent:       fr.intent,
+      tense:        fr.tense,
+      emotion:      fr.emotion ? fr.emotion.name : null,
+      response:     res,
+      sessionArc,
+      turnCount:    this._pattern.getTurnCount(),
+      domTool:      lexResult&&lexResult.consensus?lexResult.consensus.finalTool:'MAZE',
+      sigma:        lexResult?lexResult.totalMazeSigma:0
+    });
+
+    // Also log to legacy SentienceJournal for backward compat
+    this.asjc.logInteraction(fr, res, text);
+    this.s.lastFlow = fr;
+
+    return this._pack(fr, res, lexResult);
   }
 
   // Memory enrichment — pulls from repo journal + local journal + reflex cache
@@ -1802,8 +2236,12 @@ return{
   onJournalWrite:(fn)=>engine.asjc.onWrite(fn),
   _engine:engine,
   EMOTION_MAP,EXP_LAYERS,TOOL_DEFS,GR,leatrEncode,leatrDecode,frpSqrtFrp,
-  StoryEngine,TopicalEngine,LexicalAnalyzer,MemoryBridge,
-  get memory(){ return engine._memory; },
+  StoryEngine,TopicalEngine,LexicalAnalyzer,MemoryBridge,PatternContext,DualJournal,
+  get memory()  { return engine._memory;  },
+  get pattern() { return engine._pattern; },
+  get dual()    { return engine._dual;    },
+  getDualStats: ()=>engine._dual.getStats(),
+  setGitHubToken:(t)=>engine._dual.setToken(t),
   // Live shell array references (Mmsa has master sigma)
   get shells(){ return engine.shells; },
   analyzeLex:(text)=>engine._lexer.analyzeSentence(text)
