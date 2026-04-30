@@ -917,16 +917,41 @@ class ResponseBuilder {
     // Build sentences
     const sentences=[];
 
-    // S1: Acknowledge the richest topic with its definition context
+    // Knowledge boundary check — does she actually have data on this?
+    const hasData = primDef || Object.keys(defs).length > 0 ||
+                    Object.keys(knownFacts).some(k=>!k.startsWith('_'));
+    const hasPriorMemory = Object.keys(knownFacts).filter(k=>!k.startsWith('_')).length > 0;
+
+    if(!hasData && !hasPriorMemory) {
+      // Honest boundary — she doesn't have reference data for this topic.
+      // She uses her grammar/LEATR execution to describe what she CAN see:
+      // the structural/lexical properties of the words themselves.
+      const lexWords = topics.slice(0,2).join(' and ') || primary;
+      const boundaryResponse = [
+        `${primary?primary.charAt(0).toUpperCase()+primary.slice(1):'This topic'} isn't in my reference data yet.`,
+        `What I can process is its grammatical and structural pattern — the word itself carries ${primary?primary.length:0} characters, ` +
+        `${primary?(primary.match(/[aeiou]/g)||[]).length:0} vowels, and its shell analysis routes through the ${lexResult&&lexResult.consensus?lexResult.consensus.finalTool:'MAZE'} layer.`,
+        `When reference data for ${lexWords} becomes available, the pattern is already logged — I'll recognize it and apply the same execution from there.`
+      ];
+      // Log the unknown topic to the journal so the structural hook is stored
+      const mem=typeof window!=='undefined'&&window.AutumnGrammarEngine&&
+                window.AutumnGrammarEngine._engine&&window.AutumnGrammarEngine._engine._memory;
+      if(mem&&primary) mem.reflexiveUpdate(primary,
+        `[boundary] Structural pattern encountered. No reference data. ` +
+        `Shell route: ${lexResult&&lexResult.consensus?lexResult.consensus.finalTool:'MAZE'}. ` +
+        `Vowels: ${primary?(primary.match(/[aeiou]/g)||[]).length:0}/${primary?primary.length:0}.`,
+        'boundary_encounter');
+      return boundaryResponse.join(' ');
+    }
+
+    // S1: She has data — use it
     if(primDef){
       sentences.push(`${primary.charAt(0).toUpperCase()+primary.slice(1)} — ${primDef}.`);
-    } else if(primary) {
-      const openers=[
-        `${primary.charAt(0).toUpperCase()+primary.slice(1)} is worth noting in this context.`,
-        `The ${primary} element of what you described has its own particular character.`,
-        `${primary.charAt(0).toUpperCase()+primary.slice(1)} carries specific weight in what you laid out.`
-      ];
-      sentences.push(openers[primary.length%openers.length]);
+    } else if(hasPriorMemory) {
+      const memFact = Object.entries(knownFacts).find(([k,v])=>!k.startsWith('_')&&v);
+      if(memFact) sentences.push(`${memFact[0].charAt(0).toUpperCase()+memFact[0].slice(1)} — from prior context: ${memFact[1].split('.')[0].trim()}.`);
+    } else {
+      sentences.push(`${primary.charAt(0).toUpperCase()+primary.slice(1)} is present in this context — its structural pattern is clear even without a full definition.`);
     }
 
     // S2: Connect secondary topics if available
