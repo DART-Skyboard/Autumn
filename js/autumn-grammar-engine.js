@@ -454,39 +454,139 @@ class GrammarAnalysisFlow {
 // RESPONSE BUILDER
 // ─────────────────────────────────────────────────────────────────
 class ResponseBuilder {
-  constructor(){this._dc={};}
-  build(flowResult,knownFacts={}){
-    const{intent,tense,negated,subTopics,centralTopic,emotion}=flowResult;
-    const nouns=subTopics[0].tokens.map(t=>t.word).join(' ');
-    const verbs=subTopics[1].tokens.map(t=>t.word).join(' ');
-    const mods= subTopics[2].tokens.map(t=>t.word).join(' ');
-    const subj=nouns||centralTopic||'The subject';
-    const vb  =verbs||'relates to';
-    const mod =mods||'';
-    const cop =tense==='past'?'was':'is';
-    const negAux=tense==='past'?'did not':'does not';
-    let r=GR.TEMPLATES[intent]||GR.TEMPLATES.default;
-    r=r.replace('[SUBJ]',subj).replace('[COP]',cop)
-       .replace('[DEF]',knownFacts[centralTopic]||`${mod} ${vb}`.trim())
-       .replace('[ACTION]',vb).replace('[PROCESS]',mod||'the described process')
-       .replace('[VB]',vb).replace('[CAUSE]',knownFacts[centralTopic]||vb)
-       .replace('[TENSE_MARK]',tense==='past'?'occurred':'occurs')
-       .replace('[TIME]',mod||'the relevant period')
-       .replace('[LOC]',mod||'the given location')
-       .replace('[AGENT]',subj).replace('[VP]',vb).replace('[OBJ]',nouns)
-       .replace('[MODAL]',negated?'No':'Yes').replace('[MOD]',mod)
-       .replace('[OBJ_OR_COMP]',nouns||mod).replace('[NEG_AUX]',negAux)
-       .replace('[VB_BASE]',vb).replace('[EXPLANATION]',`${subj} ${vb} ${mod}`.trim())
-       .replace('[CLAUSE1]',`${subj} ${vb}`).replace('[CONJ]','and')
-       .replace('[CLAUSE2]',mod||'that is the case').replace('[COMP]',`${vb} ${mod}`.trim())
-       .replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
-    const pre=this._pre(emotion);
-    return pre?`${pre} ${r}`:r;
+  constructor(){
+    this._dc={};
+    this._grammar=null;
+    this._grammarLoading=false;
+    // Load grammar reference async at startup
+    this._loadGrammar();
   }
-  _pre(em){if(!em)return '';const m={worried:'To address that,',lucrative:'From a value perspective,',
-    concerned:'To note,',confused:'To clarify,',inspiring:'Indeed,',determined:'Clearly,',
-    spiritual:'In a broader sense,',guiding:'To guide this,',forgiving:'That said,',sad:'Understood.'};
-    return m[em.name]||'';}
+
+  // Load english_grammar.json from leatr-ash
+  _loadGrammar(){
+    if(this._grammarLoading||this._grammar) return;
+    this._grammarLoading=true;
+    fetch('https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/grammar/english_grammar.json')
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{if(d){this._grammar=d;console.log('[Autumn GE] Grammar dictionary loaded.');}})
+      .catch(()=>{});
+  }
+
+  // Main build — uses grammar JSON when available, falls back to structural
+  build(flowResult,knownFacts={}){
+    const{intent,tense,negated,subTopics,centralTopic,emotion,pipelineResult}=flowResult;
+
+    // Extract content words — filter out trivial tokens
+    const SKIP=new Set(['is','are','was','were','be','been','a','an','the','to','of','and','or','but','so','it','this','that','what','how','why','me','my','i']);
+    const nouns=subTopics[0].tokens.map(t=>t.word).filter(w=>w.length>2&&!SKIP.has(w.toLowerCase()));
+    const verbs=subTopics[1].tokens.map(t=>t.word).filter(w=>!SKIP.has(w.toLowerCase())&&w.length>2);
+    const mods =subTopics[2].tokens.map(t=>t.word).filter(w=>w.length>2&&!SKIP.has(w.toLowerCase()));
+
+    const topic  = centralTopic&&centralTopic.length>2&&!SKIP.has(centralTopic)?centralTopic:nouns[0]||'this topic';
+    const detail = [...mods,...nouns.slice(1)].join(' ')||knownFacts[topic]||'its essential nature';
+    const verb   = verbs[0]||(tense==='past'?'showed':'involves');
+
+    // Dominant Natural Tool from pipeline (drives opening phrase)
+    let domTool='maze';
+    if(pipelineResult&&pipelineResult.panels){
+      const p=pipelineResult.panels.filter(r=>r.allocated);
+      if(p.length) domTool=p[p.length-1].panel.toLowerCase();
+    }
+
+    const G=this._grammar;
+    let opening='', body='', transition='';
+
+    // ── Opening: tool-specific phrase from conversationFramework ──
+    if(G&&G.conversationFramework&&G.conversationFramework.opening_by_tool){
+      const tmpl=G.conversationFramework.opening_by_tool[domTool]||'';
+      opening=tmpl
+        .replace('{topic}',topic).replace('{aspect}',detail)
+        .replace('{core}',detail).replace('{related_area}',detail)
+        .replace('{detail}',detail).replace('{observation}',`${topic} ${verb} ${detail}`)
+        .replace('{related}',nouns[1]||detail);
+    }
+
+    // ── Body: intent-mapped response template ──
+    if(G&&G.responseTemplates){
+      const typeMap={
+        question_what:'explanatory',question_how:'analytical',question_why:'analytical',
+        question_when:'declarative', question_where:'declarative',question_who:'declarative',
+        question_yn:'explanatory',  statement_pos:'declarative',statement_neg:'elaborative',
+        exclamation:'conversational',command_do:'conversational',command_tell:'explanatory'
+      };
+      const pool=G.responseTemplates[typeMap[intent]]||G.responseTemplates.declarative||[];
+      if(pool.length){
+        const idx=(topic.length*(nouns.length+1))%pool.length;
+        const cat=this._category(topic,nouns,intent);
+        body=pool[idx]
+          .replace('{topic}',topic).replace('{description}',detail)
+          .replace('{definition}',knownFacts[topic]||detail)
+          .replace('{noun}',nouns[0]||topic).replace('{verb}',verb)
+          .replace('{object}',nouns[1]||detail).replace('{subject}',nouns[0]||topic)
+          .replace('{reason}',mods[0]||'its inherent structure')
+          .replace('{condition}',`${topic} is active`)
+          .replace('{category}',cat).replace('{detail}',detail)
+          .replace('{explanation}',knownFacts[topic]||detail)
+          .replace('{core_idea}',detail).replace('{process}',verb)
+          .replace('{result}',`${topic} resolves`)
+          .replace('{list}',[...nouns.slice(0,3),...mods.slice(0,2)].filter(Boolean).join(', ')||detail)
+          .replace('{observation}',`${topic} ${verb} ${detail}`)
+          .replace('{aspect}',mods[0]||nouns[1]||'its structure')
+          .replace('{insight}',knownFacts[topic]||detail)
+          .replace('{related}',nouns[1]||`context of ${topic}`)
+          .replace('{link}',mods[0]||'shared structure')
+          .replace('{perspective1}',`${topic} ${verb}`)
+          .replace('{perspective2}',`${detail} extends this`)
+          .replace('{clarification}',knownFacts[topic]||detail)
+          .replace('{nuance}',`${topic} ${mods[0]||'operates'} beyond surface reading`)
+          .replace('{core}',detail);
+      }
+    }
+
+    // Fallback if grammar not loaded yet
+    if(!body){
+      const neg=negated?'does not ':'is ';
+      body=`${topic} ${neg}${verb} ${detail}.`.replace(/\s{2,}/g,' ');
+    }
+
+    // ── Transition between opening and body ──
+    if(opening&&body){
+      if(G&&G.conversationFramework&&G.conversationFramework.transition_phrases){
+        const elaboration=G.conversationFramework.transition_phrases.elaboration||[];
+        transition=' '+(elaboration[Math.floor(Date.now()/10000)%elaboration.length]||'')+' ';
+      } else {
+        transition=' ';
+      }
+    }
+
+    const full=(opening+transition+body).replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
+
+    // Emotion-aware prefix
+    const pre=this._pre(emotion);
+    return (pre?pre+' ':'')+full;
+  }
+
+  _category(topic,nouns,intent){
+    if(intent.startsWith('question')) return 'concept';
+    if(nouns.some(n=>/tion$|sion$|ment$|ity$/.test(n))) return 'process';
+    if(nouns.some(n=>/er$|or$|ist$/.test(n))) return 'element';
+    return 'subject';
+  }
+
+  _pre(em){
+    if(!em)return '';
+    if(this._grammar&&this._grammar.conversationFramework){
+      const op=this._grammar.conversationFramework.opening_by_tool;
+      // emotion frpState maps to BRPN shell which maps to dominant tool
+      const shellTool={FOUNDATION:'maze',REFLEX:'stick',PERFORMANCE:'hammer'};
+      // Use emotion's frpState as a tone signal but keep response as Autumn's own voice
+    }
+    const m={worried:'To address that,',lucrative:'From a value perspective,',
+      concerned:'To note,',confused:'To clarify,',inspiring:'Indeed,',determined:'Clearly,',
+      spiritual:'In a broader sense,',guiding:'To guide this,',forgiving:'That said,',sad:'Understood.'};
+    return m[em.name]||'';
+  }
+
   async lookupWord(word){
     if(this._dc[word])return this._dc[word];
     try{const res=await fetch(`https://api.dictionarapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
