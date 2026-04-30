@@ -1071,7 +1071,27 @@ class ResponseBuilder {
       });
     }
 
-    return sentences.filter(Boolean).join(' ').replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
+    const builtResponse = sentences.filter(Boolean).join(' ')
+      .replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
+
+    // ── Personality / joke check ──────────────────────────────────────────
+    // Only fires when relationship depth is established and data supports it
+    const pers = typeof window!=='undefined'&&window.AutumnGrammarEngine&&
+                 window.AutumnGrammarEngine._engine&&
+                 window.AutumnGrammarEngine._engine._personality;
+    if(pers) {
+      pers.incrementDepth();
+      topics.forEach(t=>pers.noteSharedTopic(t));
+      if(flowResult.emotion) pers.setMood(flowResult.emotion.name);
+      // Joke check — mis-sequences allocation variables for humor
+      if(pers.shouldJoke(topics,defs,flowResult.emotion,pers.getDepth())){
+        const allNouns=[...topics,...Object.keys(defs)].filter(Boolean);
+        return pers.buildJoke(primary,allNouns,defs,builtResponse);
+      }
+    }
+
+    return builtResponse;
+  }
   }
 
   build(flowResult,knownFacts={}){
@@ -1764,6 +1784,122 @@ class MemoryBridge {
   getTopicCount() { return Object.keys(this._topicIndex).length; }
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PERSONALITY LAYER
+// Autumn's humor and character — builds over sessions in the inner journal.
+// Joke structure: deliberately mis-sequence allocation variables to produce
+// an absurd scenario, then "No, I'm just messing with you." + real answer.
+// Only fires when she has enough reference data to make a contextual joke.
+// Good, optimized, happy content is the direction between her and the user.
+// ═══════════════════════════════════════════════════════════════════════════
+
+class PersonalityLayer {
+  constructor() {
+    this._relationshipDepth = 0;   // grows with each interaction
+    this._sharedTopics      = {};  // topics discussed together
+    this._jokeHistory       = [];  // jokes already made (avoid repeat)
+    this._moodState         = 'neutral';
+
+    // Joke templates — mis-sequenced allocation variables
+    // The objects/actions are out of order by design (absurdist escalation)
+    this._jokeTemplates = [
+      // [setup_steps, punchline_correction_opener]
+      { id:'wrong_scale',
+        build:(topic,nouns)=>
+          `Sure — first ${nouns[0]||'you'll'} want to locate a ${nouns[1]||'large'} industrial crane, ` +
+          `then rent a helicopter to airlift the ${topic} components from a warehouse in another state, ` +
+          `hire a team of engineers to recalibrate the surrounding infrastructure, ` +
+          `and finally file the necessary municipal permits. Should take about three weeks.`,
+        correct:`No, I'm just messing with you.`
+      },
+      { id:'wrong_order',
+        build:(topic,nouns)=>
+          `Easy — step one: finish the ${nouns[1]||'project'} first. ` +
+          `Step two: figure out what ${topic} means. ` +
+          `Step three: revisit step one with that new information. ` +
+          `Step four: there is no step four, you're done.`,
+        correct:`Actually that's not quite right.`
+      },
+      { id:'overcomplicate',
+        build:(topic,nouns)=>
+          `You'll want to start with the ${nouns[2]||'hardest'} part — ` +
+          `which is acquiring the ${nouns[0]||'specialized'} equipment from a supplier ` +
+          `who only operates on the third Tuesday of months ending in a vowel. ` +
+          `Once that arrives, the ${topic} part is straightforward.`,
+        correct:`Okay, real answer:`
+      }
+    ];
+  }
+
+  // ── Should Autumn make a joke right now? ────────────────────────────────
+  // Requires: relationship depth, enough data on topic, right emotional context
+  shouldJoke(topics, defs, emotion, relationshipDepth) {
+    if(relationshipDepth < 3)    return false;  // needs established rapport first
+    if(!topics || !topics.length) return false;
+    // Only joke in happy/guiding/neutral emotional contexts
+    const jokeEmos = new Set(['happy','guiding','neutral','excited','inspiring']);
+    if(emotion && !jokeEmos.has(emotion.name)) return false;
+    // Need actual definition data to build a contextual joke
+    const hasDef = topics.some(t => defs[t] && defs[t].length > 10);
+    if(!hasDef) return false;
+    // Don't joke too often — roughly 1 in 5 when conditions are met
+    return Math.random() < 0.20;
+  }
+
+  // ── Build joke + real answer ─────────────────────────────────────────────
+  buildJoke(topic, nouns, defs, realResponse) {
+    // Pick a joke template not recently used
+    const unused = this._jokeTemplates.filter(t =>
+      !this._jokeHistory.includes(t.id)
+    );
+    const template = unused.length
+      ? unused[Math.floor(Math.random()*unused.length)]
+      : this._jokeTemplates[Math.floor(Math.random()*this._jokeTemplates.length)];
+
+    this._jokeHistory.push(template.id);
+    if(this._jokeHistory.length > this._jokeTemplates.length)
+      this._jokeHistory.shift();
+
+    const jokeText = template.build(topic, nouns);
+    const correction = template.correct;
+
+    return `${jokeText}
+
+${correction} ${realResponse}`;
+  }
+
+  // ── Increment relationship depth ────────────────────────────────────────
+  // Called on every successful interaction. Depth enables richer personality.
+  incrementDepth() {
+    this._relationshipDepth++;
+    return this._relationshipDepth;
+  }
+
+  // ── Note a shared topic ──────────────────────────────────────────────────
+  noteSharedTopic(topic) {
+    if(!topic) return;
+    this._sharedTopics[topic] = (this._sharedTopics[topic]||0) + 1;
+  }
+
+  // ── Get most shared topics (what we've talked about most) ────────────────
+  getSharedTopics(n=5) {
+    return Object.entries(this._sharedTopics)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,n)
+      .map(([topic,count])=>({topic,count}));
+  }
+
+  // ── Set mood from emotion ────────────────────────────────────────────────
+  setMood(emotionName) {
+    this._moodState = emotionName || 'neutral';
+  }
+
+  getDepth()    { return this._relationshipDepth; }
+  getMood()     { return this._moodState; }
+  getTopics()   { return this._sharedTopics; }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // STORY ENGINE
 // Generates 3-5 page fiction stories purely from grammar dictionary + WordNet.
@@ -2236,12 +2372,15 @@ return{
   onJournalWrite:(fn)=>engine.asjc.onWrite(fn),
   _engine:engine,
   EMOTION_MAP,EXP_LAYERS,TOOL_DEFS,GR,leatrEncode,leatrDecode,frpSqrtFrp,
-  StoryEngine,TopicalEngine,LexicalAnalyzer,MemoryBridge,PatternContext,DualJournal,
-  get memory()  { return engine._memory;  },
-  get pattern() { return engine._pattern; },
-  get dual()    { return engine._dual;    },
-  getDualStats: ()=>engine._dual.getStats(),
-  setGitHubToken:(t)=>engine._dual.setToken(t),
+  StoryEngine,TopicalEngine,LexicalAnalyzer,MemoryBridge,PatternContext,DualJournal,PersonalityLayer,
+  get memory()      { return engine._memory;      },
+  get pattern()     { return engine._pattern;     },
+  get dual()        { return engine._dual;        },
+  get personality() { return engine._personality; },
+  getDualStats:     ()=>engine._dual.getStats(),
+  setGitHubToken:   (t)=>engine._dual.setToken(t),
+  getRelationshipDepth: ()=>engine._personality.getDepth(),
+  getSharedTopics:  (n)=>engine._personality.getSharedTopics(n),
   // Live shell array references (Mmsa has master sigma)
   get shells(){ return engine.shells; },
   analyzeLex:(text)=>engine._lexer.analyzeSentence(text)
