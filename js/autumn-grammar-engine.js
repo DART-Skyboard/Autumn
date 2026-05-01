@@ -990,7 +990,7 @@ class ResponseBuilder {
   // builds 2-3 sentences that acknowledge + add perspective
   buildConversational(flowResult, rawText, knownFacts={}) {
     const WN=typeof window!=='undefined'&&window.AutumnWordNet;
-    const SKIP_CONV=new Set(['today','yesterday','now','just','went','come','came','going',
+    const SKIP_CONV=new Set(['today','yesterday','now','just','went','come','came','going','like','want','need','would','could','should','tell','said','help','find','make','know','take','give','let','put','use','try','ask','see','feel','think','work','done','does','
       'got','get','look','looked','little','great','good','cool','thing','things','stuff',
       'time','pretty','really','very','also','too','then','there','here','back','down','up',
       'out','over','even','still','already','always','never','well','only','kind','sort',
