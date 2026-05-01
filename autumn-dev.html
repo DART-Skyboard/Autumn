@@ -1,5 +1,4 @@
-<!DOCTYP
-      <button class="tools-tab" data-tab="arclake" onclick="window.switchTab&&window.switchTab('arclake')">⬡ ArcLake</button>E html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1925,7 +1924,6 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/autumn-nlp.js"></script>
 <script src="js/wordnet_loader.js"></script>
 <script src="js/cn_loader.js"></script>
-<script src="js/arclake_studio.js?v=2026050101"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js"></script>
 <script src="js/autumn-grammar-engine.js?v=2026050102"></script>
@@ -13504,7 +13502,8 @@ const TOOL_TABS=[
   {id:"journal",label:"Journal",icon:"📖"},
   {id:"sessions",label:"Sessions",icon:"💬"},
   {id:"ashtree",label:"Ash Tree",icon:"🌿"},
-  {id:"about",label:"About",icon:"🌐"}
+  {id:"about",label:"About",icon:"🌐"},
+  {id:"arclake",label:"ArcLake",icon:"⬡"}
 ];
 let currentToolTab="cognition";
 
@@ -13528,7 +13527,6 @@ function renderToolsContent(){
     case "sessions":  el.innerHTML=renderToolsSessions(); break;
     case "ashtree":   el.innerHTML=renderToolsAshTree(); bindToolsAshTree(); break;
     case "about":     el.innerHTML=renderToolsAbout(); break;
-    case "arclake":   el.innerHTML=renderToolsArcLake?renderToolsArcLake():"Loading..."; requestAnimationFrame(function(){ window._alsMounted&&window._alsMounted(); }); break;
   }
 }
 
