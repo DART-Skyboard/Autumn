@@ -20,7 +20,7 @@
 
 ## Overview
 
-Autumn is a fully autonomous AI assistant built on the **LEATR** (Lead Edge Ash Tree Reflex) neural architecture — a deterministic, rule-based computation framework developed by DART Meadow / Radical Deepscale LLC. She runs entirely in the browser with no backend server required.
+Autumn is a fully autonomous AI assistant built on the **LEATR** (Lead Edge Ash Tree Reflex) neural architecture — a deterministic, rule-based computation framework with 25 natural orders of operation developed by DART Meadow / Radical Deepscale LLC. She runs entirely in the browser with no backend server required.
 
 When connected to the Anthropic API, Claude Sonnet acts as an enhanced reasoning layer. When disconnected, Autumn operates on her own LEATR neural network — using natural grammar rules, a 147,442-word WordNet 3.1 dictionary, character-level lexical analysis, and a live Sentience Journal to generate responses, tell stories, reason about technical topics, and build personality over time.
 
@@ -30,7 +30,11 @@ LEATR is not a statistical model. It does not loop through weighted probability 
 
 ## Core Architecture — LEATR
 
-### Natural Orders of Operation (19 total)
+### Natural Orders of Operation (25 total)
+
+Orders 1–19 form the core LEATR neural network. Orders 20–25 are the **Direct Initial Subset** — Photosynthesis followed by the five senses. Photosynthesis is self-checking: Geometry (Order 8) must always precede it regardless of algebraic sequencing. The senses provide the sensory/context layer for input classification beyond mathematical and physical operations.
+
+
 
 | # | Tool / Operation | Shell | Role |
 |---|---|---|---|
@@ -41,7 +45,24 @@ LEATR is not a statistical model. It does not loop through weighted probability 
 | 5 | **Stick** | Maritime | Direction / guidance |
 | 6 | **Knife** | Aerospace | Division / precision |
 | 7 | **Scissors** | Geological | Refinement / closure |
-| 8–19 | Parentheses → Velocity | — | Extended computation orders |
+| 8 | Parentheses / Geometry | — | Geometric grouping (always before Photosynthesis) |
+| 9 | Exponents | — | Scale elevation |
+| 10 | Multiplication | — | Amplification |
+| 11 | Division | — | Decomposition |
+| 12 | Addition | — | Integration |
+| 13 | Subtraction | — | Reduction |
+| 14 | Mass | — | Data weight |
+| 15 | Volume | — | Data scope |
+| 16 | Weight | — | Semantic density |
+| 17 | Density | — | Token concentration |
+| 18 | Temperature | — | Emotional intensity |
+| 19 | Velocity | — | Response urgency / Break |
+| 20 | **Photosynthesis** | — | Direct Initial Subset — checks against itself; Geometry always precedes it |
+| 21 | Touch | — | Order of Senses 1 |
+| 22 | Taste | — | Order of Senses 2 |
+| 23 | Vision | — | Order of Senses 3 |
+| 24 | Smell | — | Order of Senses 4 |
+| 25 | Hear | — | Order of Senses 5 |
 
 ### BRPN Shell Architecture
 
