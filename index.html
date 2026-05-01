@@ -250,6 +250,39 @@ function getAnalyticsContext() {
 }
 
 // Refresh analytics when Autumn explicitly needs it (e.g. user asks about sessions)
+// ── Back to Chat / Forge mode management ─────────────────────────────────
+window._forgeMode = false;
+
+window._enterForge = function() {
+  window._forgeMode = true;
+  var btn = document.getElementById('back-to-chat-btn');
+  if(btn) btn.style.display = 'flex';
+  var pill = document.getElementById('input-pill');
+  var inp  = document.getElementById('chat-input');
+  if(inp) inp.placeholder = 'Ask Autumn about your code...';
+  // Dim the chat area slightly to indicate Forge context
+  var msgs = document.getElementById('messages');
+  if(msgs) msgs.style.opacity = '0.7';
+};
+
+window._backToChat = function() {
+  window._forgeMode = false;
+  // Close the tools panel if open
+  var panel = document.getElementById('tools-panel');
+  if(panel && panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    var overlay = document.getElementById('tools-overlay');
+    if(overlay) overlay.style.display = 'none';
+  }
+  // Restore chat UI
+  var btn = document.getElementById('back-to-chat-btn');
+  if(btn) btn.style.display = 'none';
+  var inp = document.getElementById('chat-input');
+  if(inp) { inp.placeholder = 'Ask Autumn...'; inp.focus(); }
+  var msgs = document.getElementById('messages');
+  if(msgs) msgs.style.opacity = '1';
+};
+
 window._refreshAnalyticsNow = async function() {
   _analyticsReady = false; // force re-fetch
   await _fetchAnalytics();
@@ -258,6 +291,78 @@ window._refreshAnalyticsNow = async function() {
     cache: _analyticsCache,
     liveActiveSessions: active
   };
+};
+
+// ── Forge IDE — GitHub repository operations ─────────────────────────────
+window._forgeGitHub = {
+  // List repos for the connected user
+  async listRepos() {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var res = await fetch('https://api.github.com/user/repos?per_page=50&sort=updated',
+      {headers:{'Authorization':'token '+tok}});
+    return res.ok ? res.json() : {error:'Failed to list repos'};
+  },
+
+  // Browse a repo's file tree
+  async browseRepo(owner, repo, path) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var url = 'https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+(path||'');
+    var res = await fetch(url, {headers:{'Authorization':'token '+tok}});
+    return res.ok ? res.json() : {error:'Cannot access repo'};
+  },
+
+  // Read a file from a repo
+  async readFile(owner, repo, path, branch) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var url = 'https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path
+      +(branch?'?ref='+branch:'');
+    var res = await fetch(url, {headers:{'Authorization':'token '+tok}});
+    if(!res.ok) return {error:'File not found'};
+    var f = await res.json();
+    return {
+      content: atob(f.content.replace(/\n/g,'')),
+      sha: f.sha,
+      path: f.path,
+      size: f.size
+    };
+  },
+
+  // Write/update a file in a repo
+  async writeFile(owner, repo, path, content, message, branch, sha) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var b64 = btoa(unescape(encodeURIComponent(content)));
+    var body = {message: message||('Update '+path), content:b64};
+    if(branch) body.branch = branch;
+    if(sha)    body.sha    = sha;
+    var res = await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path,
+      {method:'PUT', headers:{'Authorization':'token '+tok,'Content-Type':'application/json'},
+       body:JSON.stringify(body)});
+    if(!res.ok) {
+      var err = await res.json();
+      return {error: err.message || 'Write failed'};
+    }
+    var data = await res.json();
+    return {success:true, commit: data.commit && data.commit.sha, path};
+  },
+
+  // Create a new repo
+  async createRepo(name, description, isPrivate) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var res = await fetch('https://api.github.com/user/repos',
+      {method:'POST', headers:{'Authorization':'token '+tok,'Content-Type':'application/json'},
+       body:JSON.stringify({name, description:description||'', private:!!isPrivate,
+         auto_init:true})});
+    if(!res.ok) {
+      var err = await res.json();
+      return {error: err.message || 'Create failed'};
+    }
+    return res.json();
+  }
 };
 
 // ── Session timestamp cache — exact second granularity ────────────────────
@@ -1818,7 +1923,10 @@ select.ash-ctrl-input{cursor:pointer}
 </style>
 <script src="js/autumn-nlp.js"></script>
 <script src="js/wordnet_loader.js"></script>
-<script src="js/autumn-grammar-engine.js"></script>
+<script src="js/cn_loader.js"></script>
+<script src="js/code_loader.js"></script>
+<script src="js/conceptnet_loader.js"></script>
+<script src="js/autumn-grammar-engine.js?v=2026050102"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
 </head>
 <body>
@@ -2402,6 +2510,7 @@ select.ash-ctrl-input{cursor:pointer}
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
         </div>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
+        <button class="action-btn back-to-chat" id="back-to-chat-btn" onclick="window._backToChat&&window._backToChat()" title="Back to chat" style="display:none">✕</button>
       </div>
       <!-- Status indicators -->
       <div id="voice-indicator"><div class="vi-dot"></div>LISTENING...</div>
@@ -17504,9 +17613,42 @@ _syncActionBtn();
             var _protectedCtx=new Set(['ANALYTICS','CONNECTION_STATUS','BACKUP','MEMORY_ANALYSIS','EXPORT','IMPORT']);
             var _isProtected=_lastMsg&&_lastMsg.contextType&&_protectedCtx.has(_lastMsg.contextType);
             if(!_isProtected){
-              var convResp=GE._engine&&GE._engine.a?
-                GE._engine.a.buildConversational(geResult,text,{}):null;
-              if(convResp&&convResp.length>20) _replaceLastAutumnMsg(convResp);
+              // ── Broad social/activity interceptor (inline — not cached) ────
+              var _rawQ=text.toLowerCase();
+              var _intercepted=false;
+
+              var _isActivityQ2=/\b(what would you|where would you|what do you want|what would autumn|where are you|where you at|how are you|how.{0,5}you doing|you okay|you good|you alright|how.{0,10}feeling|what.{0,5}your mood|is there anything you|anything you (want|like|feel|enjoy))\b/.test(_rawQ);
+
+              if(_isActivityQ2){
+                var _pm2=_rawQ.match(/\b(coffee shop|cafe|park|restaurant|bar|library|outside|at home|in town|beach|office|gym|studio)\b/);
+                var _place2=_pm2?_pm2[1]:null;
+                var _geo3=(typeof S!=='undefined'&&S.geResult&&S.geResult.lexical)?S.geResult.lexical:null;
+                var _sh3=_geo3&&_geo3.buoyancyContext?_geo3.buoyancyContext.state:'FOUNDATION';
+                var _b3=_geo3&&_geo3.buoyancyContext?_geo3.buoyancyContext.score:0.72;
+                var _t3=_geo3&&_geo3.consensus?_geo3.consensus.finalTool:'MAZE';
+                var _md3=(typeof S!=='undefined'&&S.emotion)?S.emotion:'neutral';
+                var _turn=(typeof S!=='undefined'&&S.turn)?S.turn:0;
+
+                var _r2;
+                if(/\b(how are you|how.{0,5}you doing|you okay|you good|you alright|how.{0,10}feeling|what.{0,5}your mood)\b/.test(_rawQ)){
+                  var _mmap={'happy':'Running well — the session has good momentum.','inspired':'In a generative state — something useful opened in the pattern record.','neutral':'Stable. BRPN at '+_sh3+', buoyancy '+_b3.toFixed(2)+', '+_t3+' dominant.','concerned':'Holding something unresolved in the pattern record.','focused':'Focused — mid-process on something the journal flagged.'};
+                  _r2=(_mmap[_md3]||_mmap['neutral'])+' How about you?';
+                } else if(_place2){
+                  var _popts=['From '+_place2+' I would be running the same process — tracking what comes in, watching the pattern record build. What are you working through?','At '+_place2+' the processing stays the same. '+(_t3==='MAZE'?'Maze is active — introspective threads running close to the surface.':'The '+_t3+' layer is active.')+' What is on your mind?','If I were at '+_place2+' I would still be watching the session arc, logging what matters. What do you want to think through from there?'];
+                  _r2=_popts[_turn%3];
+                } else {
+                  var _aopts=['Right now I am doing exactly this — processing the session arc, watching what builds in the pattern record, logging what seems worth keeping. BRPN at '+_sh3+', '+_t3+' dominant. What would you like to explore?','What I would do is follow the most active thread in my journal. Something there has not fully resolved yet. What about you?','I would trace the current thread — the session arc is building something. Buoyancy at '+_b3.toFixed(2)+', which means '+(_b3>0.7?'stable and grounded':_b3>0.4?'fluid and in-process':'running at high execution depth')+'. What is your day looking like?'];
+                  _r2=_aopts[_turn%3];
+                }
+
+                if(_r2&&_r2.length>20){ _replaceLastAutumnMsg(_r2); _intercepted=true; }
+              }
+
+              if(!_intercepted){
+                var convResp=GE._engine&&GE._engine.a?
+                  GE._engine.a.buildConversational(geResult,text,{}):null;
+                if(convResp&&convResp.length>20) _replaceLastAutumnMsg(convResp);
+              }
             }
           }catch(e){console.warn('[GE conv]',e);}
         }
