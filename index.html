@@ -17280,10 +17280,18 @@ _syncActionBtn();
         } else {
           geResult=_isFirst?GE.processInitial(text):GE.processContinuation(text);
           _isFirst=false;
+          // Only replace if the original response is NOT a special handled type
+          // (analytics, connection status, backup, etc. must not be overwritten)
           try{
-            var convResp=GE._engine&&GE._engine.a?
-              GE._engine.a.buildConversational(geResult,text,{}):null;
-            if(convResp&&convResp.length>20) _replaceLastAutumnMsg(convResp);
+            var _lastMsgs=_getMsgs();
+            var _lastMsg=_lastMsgs&&_lastMsgs.length?_lastMsgs[_lastMsgs.length-1]:null;
+            var _protectedCtx=new Set(['ANALYTICS','CONNECTION_STATUS','BACKUP','MEMORY_ANALYSIS','EXPORT','IMPORT']);
+            var _isProtected=_lastMsg&&_lastMsg.contextType&&_protectedCtx.has(_lastMsg.contextType);
+            if(!_isProtected){
+              var convResp=GE._engine&&GE._engine.a?
+                GE._engine.a.buildConversational(geResult,text,{}):null;
+              if(convResp&&convResp.length>20) _replaceLastAutumnMsg(convResp);
+            }
           }catch(e){console.warn('[GE conv]',e);}
         }
 
