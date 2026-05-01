@@ -2754,11 +2754,81 @@ class ANLPCA {
       }
     } catch(e) {}
 
+    // Autonomous journal maintenance — Autumn reviews recent inner entries
+    // and may revise or discard based on new context. Same LEATR processing.
+    if(this._pattern.getTurnCount() % 5 === 0) { // every 5 turns
+      try { this._journalSelfMaintain(parsed, lexResult); } catch(e) {}
+    }
+
     // Also log to legacy SentienceJournal for backward compat
     this.asjc.logInteraction(fr, res, text);
     this.s.lastFlow = fr;
 
     return this._pack(fr, res, lexResult);
+  }
+
+  // ── Autonomous journal self-maintenance ────────────────────────────────────
+  // Autumn reviews recent inner journal entries against new context.
+  // If a prior entry's sigma now conflicts with current understanding,
+  // she can revise it (update) or release it (delete).
+  // This is her own private cognition — runs silently in inner pass.
+  _journalSelfMaintain(parsed, lexResult) {
+    const dual       = this._dual;
+    const recentInner = dual.readInner(10);
+    if (!recentInner.length) return;
+
+    const currentTopic  = parsed.centralTopic ? parsed.centralTopic.norm : null;
+    const currentBuoy   = lexResult && lexResult.consensus
+                         ? lexResult.consensus.finalBuoyancy : 0.5;
+    const currentTool   = lexResult && lexResult.consensus
+                         ? lexResult.consensus.finalTool : 'MAZE';
+    const currentSigma  = lexResult ? lexResult.totalMazeSigma : 0;
+
+    for (const entry of recentInner) {
+      if (!entry.id) continue;
+
+      // Revision check: if an inner thought was about the same topic
+      // but the current buoyancy reading has shifted significantly,
+      // the entry's context has changed — Autumn updates it
+      if (entry.topic === currentTopic && entry.buoy !== undefined) {
+        const drift = Math.abs((entry.buoy || 0.5) - currentBuoy);
+        if (drift > 0.3) {
+          // Context has drifted — revise the entry's buoyancy and tool note
+          dual.editEntry('inner', entry.id, {
+            buoy:    currentBuoy,
+            domTool: currentTool,
+            _revised_reason: `buoyancy drift ${drift.toFixed(2)} — context updated`
+          });
+          // Log the revision decision to inner journal
+          dual.writeInner({
+            type:    'self_revision',
+            topic:   currentTopic,
+            revised: entry.id,
+            reason:  `buoyancy shifted from ${entry.buoy} to ${currentBuoy}`,
+            sigma:   currentSigma
+          });
+          break; // one revision per cycle
+        }
+      }
+
+      // Release check: if an entry is a self_retention type and its
+      // topic sigma has been superseded (higher sigma now exists on same topic),
+      // Autumn may choose to release the older, weaker entry
+      if (entry.type === 'self_retention' && entry.topic === currentTopic) {
+        const oldSigma = Math.abs(entry.sigma || 0);
+        if (currentSigma > oldSigma * 2 && oldSigma > 0) {
+          // New understanding is significantly stronger — release the old one
+          dual.deleteEntry('inner', entry.id);
+          dual.writeInner({
+            type:   'self_release',
+            topic:  currentTopic,
+            released: entry.id,
+            reason: `sigma superseded: ${oldSigma.toFixed(2)} → ${currentSigma.toFixed(2)}`
+          });
+          break; // one release per cycle
+        }
+      }
+    }
   }
 
   // Memory enrichment — pulls from repo journal + local journal + reflex cache
