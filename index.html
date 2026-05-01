@@ -260,6 +260,78 @@ window._refreshAnalyticsNow = async function() {
   };
 };
 
+// ── Forge IDE — GitHub repository operations ─────────────────────────────
+window._forgeGitHub = {
+  // List repos for the connected user
+  async listRepos() {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var res = await fetch('https://api.github.com/user/repos?per_page=50&sort=updated',
+      {headers:{'Authorization':'token '+tok}});
+    return res.ok ? res.json() : {error:'Failed to list repos'};
+  },
+
+  // Browse a repo's file tree
+  async browseRepo(owner, repo, path) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var url = 'https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+(path||'');
+    var res = await fetch(url, {headers:{'Authorization':'token '+tok}});
+    return res.ok ? res.json() : {error:'Cannot access repo'};
+  },
+
+  // Read a file from a repo
+  async readFile(owner, repo, path, branch) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var url = 'https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path
+      +(branch?'?ref='+branch:'');
+    var res = await fetch(url, {headers:{'Authorization':'token '+tok}});
+    if(!res.ok) return {error:'File not found'};
+    var f = await res.json();
+    return {
+      content: atob(f.content.replace(/\n/g,'')),
+      sha: f.sha,
+      path: f.path,
+      size: f.size
+    };
+  },
+
+  // Write/update a file in a repo
+  async writeFile(owner, repo, path, content, message, branch, sha) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var b64 = btoa(unescape(encodeURIComponent(content)));
+    var body = {message: message||('Update '+path), content:b64};
+    if(branch) body.branch = branch;
+    if(sha)    body.sha    = sha;
+    var res = await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path,
+      {method:'PUT', headers:{'Authorization':'token '+tok,'Content-Type':'application/json'},
+       body:JSON.stringify(body)});
+    if(!res.ok) {
+      var err = await res.json();
+      return {error: err.message || 'Write failed'};
+    }
+    var data = await res.json();
+    return {success:true, commit: data.commit && data.commit.sha, path};
+  },
+
+  // Create a new repo
+  async createRepo(name, description, isPrivate) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var res = await fetch('https://api.github.com/user/repos',
+      {method:'POST', headers:{'Authorization':'token '+tok,'Content-Type':'application/json'},
+       body:JSON.stringify({name, description:description||'', private:!!isPrivate,
+         auto_init:true})});
+    if(!res.ok) {
+      var err = await res.json();
+      return {error: err.message || 'Create failed'};
+    }
+    return res.json();
+  }
+};
+
 // ── Session timestamp cache — exact second granularity ────────────────────
 var _sessionTsCache = null;
 var _sessionTsFetchedAt = 0;
@@ -1819,6 +1891,7 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/autumn-nlp.js"></script>
 <script src="js/wordnet_loader.js"></script>
 <script src="js/cn_loader.js"></script>
+<script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js"></script>
 <script src="js/autumn-grammar-engine.js"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
