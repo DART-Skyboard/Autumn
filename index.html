@@ -259,6 +259,55 @@ window._refreshAnalyticsNow = async function() {
     liveActiveSessions: active
   };
 };
+
+// ── Session timestamp cache — exact second granularity ────────────────────
+var _sessionTsCache = null;
+var _sessionTsFetchedAt = 0;
+
+async function _fetchSessionsWithTimestamps() {
+  if (_sessionTsCache && (Date.now() - _sessionTsFetchedAt) < 300000) return _sessionTsCache;
+  try {
+    var _tok = (window._ghAuth && window._ghAuth.token) ? window._ghAuth.token : _ASH_BOT;
+    if (!_tok) return null;
+    var res = await fetch('https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/ashtree/sessions',
+      { headers:{'Authorization':'token '+_tok}, signal:AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    var files = await res.json();
+    if (!Array.isArray(files)) return null;
+    var sessions = [];
+    var MIN = 1700000000000, MAX = 1900000000000;
+    for (var i=0; i<files.length; i++) {
+      var f = files[i];
+      if (!f.name.endsWith('.json') || f.name === '_index.json') continue;
+      var uid = f.name.replace('.json','').replace(/_t[0-9a-z]+$/i,'');
+      var m = f.name.match(/_t([0-9a-z]{8})/i);
+      if (m) {
+        var tsMs = parseInt(m[1], 36);
+        if (tsMs > MIN && tsMs < MAX) {
+          var d = new Date(tsMs);
+          sessions.push({ name:f.name, uid:uid, ts:tsMs,
+            isoDate: d.toISOString(),
+            date: d.toISOString().slice(0,10),
+            hour: d.getUTCHours(), min: d.getUTCMinutes(), sec: d.getUTCSeconds() });
+        }
+      }
+    }
+    sessions.sort(function(a,b){ return a.ts-b.ts; });
+    _sessionTsCache = sessions;
+    _sessionTsFetchedAt = Date.now();
+    return sessions;
+  } catch(e) { return null; }
+}
+
+function _countInRange(sessions, fromMs, toMs) {
+  var inRange = sessions.filter(function(s){ return s.ts>=fromMs && s.ts<=toMs; });
+  var uids = {};
+  inRange.forEach(function(s){ uids[s.uid]=1; });
+  return { sessions:inRange.length, uniqueUsers:Object.keys(uids).length,
+           earliest:inRange[0], latest:inRange[inRange.length-1] };
+}
+
+
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -8934,8 +8983,15 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   const _rangeMatch = augmentedText.match(/\b(?:past|last|previous|prior)\s+(\d+)\s*(hour|hr|day|week)s?\b/i) ||
                       augmentedText.match(/\b(\d+)\s*(hour|hr|day|week)s?\s+(?:ago|back|prior|earlier)\b/i);
   const _rangeTrigger = !!_rangeMatch && /\b(users?|sessions?|active|traffic|people|visitors?)\b/i.test(augmentedText);
+  // Time-specific: "at 2pm on April 30", "between 2 and 3pm April 30"
+  const _timeMatch = augmentedText.match(/\b(?:at|around)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i) ||
+                     augmentedText.match(/\bbetween\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s+and\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+  const _timeTrigger = !!_timeMatch && !!_dateMatch && /\b(users?|sessions?|active|people|visitors?)\b/i.test(augmentedText);
+  const _journalSizeTrigger = /\b(journal|sentient|memory).{0,20}(size|bytes?|mb|kb|big|large|grow|weight|storage|file)\b/i.test(augmentedText) ||
+                              /\b(size|bytes?|mb|kb|how big|how large).{0,20}(journal|sentient|memory)\b/i.test(augmentedText);
 
-  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger) && !_pendingImgs.length) {
+  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger || _journalSizeTrigger) && !_pendingImgs.length) {
+
     // AWAIT the fetch so analytics are available for this response
     if (!_analyticsReady || !_analyticsCache) {
       try { await _fetchAnalytics(); } catch(e) {}
@@ -8946,6 +9002,16 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
       try { await _fetchAnalytics(); } catch(e) {}
     }
 
+    // Await analytics fetch so data is available for this response
+    if (!_analyticsReady || !_analyticsCache) { try { await _fetchAnalytics(); } catch(e){} }
+    if (_analyticsReady && _analyticsFetchedAt && (Date.now()-_analyticsFetchedAt)>300000) {
+      _analyticsReady=false; try { await _fetchAnalytics(); } catch(e){}
+    }
+    // Fetch session timestamps for time/range queries
+    var _sessionTs = null;
+    if (_timeTrigger || _rangeTrigger || _todayTrigger) {
+      try { _sessionTs = await _fetchSessionsWithTimestamps(); } catch(e){}
+    }
     var _liveCount  = (typeof window._getActiveSessionCount === 'function') ? window._getActiveSessionCount() : 1;
     var _analytics  = (typeof _analyticsCache !== 'undefined') ? _analyticsCache : null;
     var _totals     = _analytics && _analytics.totals ? _analytics.totals : null;
@@ -8955,7 +9021,33 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     var _scReply;
 
     // ── RANGE query: "past 48 hours", "last 3 days" ──────────────────────────
-    if (_rangeTrigger && _rangeMatch) {
+    // ── TIME-SPECIFIC: "at 2pm on April 30", "between 2 and 3pm April 30" ────
+    if (_timeTrigger && _timeMatch && _dateMatch && _sessionTs) {
+      var _tqDate = null;
+      if (_dateMatch[0].match(/\d{4}/)) { _tqDate = _dateMatch[0].replace(/[\/]/g,'-'); }
+      else {
+        var _tm={'jan':'01','feb':'02','mar':'03','apr':'04','may':'05','jun':'06',
+                 'jul':'07','aug':'08','sep':'09','oct':'10','nov':'11','dec':'12'};
+        _tqDate = new Date().getFullYear()+'-'+(_tm[_dateMatch[1].toLowerCase().slice(0,3)]||'01')+'-'+('0'+parseInt(_dateMatch[2])).slice(-2);
+      }
+      function _ph(h,m,ap){ var hh=parseInt(h)||0,mm=parseInt(m)||0;
+        if(ap&&ap.toLowerCase()==='pm'&&hh<12)hh+=12; if(ap&&ap.toLowerCase()==='am'&&hh===12)hh=0; return hh*60+mm; }
+      var _tma=_timeMatch, _fromMin, _toMin;
+      if(_tma[0].match(/between/i)){ _fromMin=_ph(_tma[1],_tma[2],_tma[3]); _toMin=_ph(_tma[4]||_tma[1],_tma[5],_tma[6]||_tma[3])+59; }
+      else { _fromMin=_ph(_tma[1],_tma[2],_tma[3]); _toMin=_fromMin+59; }
+      var _ds=new Date(_tqDate+'T00:00:00Z').getTime();
+      var _r=_countInRange(_sessionTs,_ds+_fromMin*60000,_ds+_toMin*60000);
+      var _fl=Math.floor(_fromMin/60)+':'+(('0'+(_fromMin%60)).slice(-2));
+      var _tl=Math.floor(_toMin/60)+':'+(('0'+(_toMin%60)).slice(-2));
+      _scReply='**'+_tqDate+' · '+_fl+' → '+_tl+' UTC:**\n\n'
+        +'— **'+_r.uniqueUsers+'** unique users in that window\n'
+        +'— **'+_r.sessions+'** session starts\n'
+        +(_r.earliest?'— First: **'+_r.earliest.isoDate.slice(0,19).replace('T',' ')+'** UTC\n':'')
+        +'\n_(All times UTC — adjust ±offset for your timezone)_';
+    }
+    // ── RANGE: "past 48 hours", "last 3 days" ──────────────────────────────
+    else if (_rangeTrigger && _rangeMatch) {
+
       var _rNum  = parseInt(_rangeMatch[1] || _rangeMatch[1]);
       var _rUnit = (_rangeMatch[2] || _rangeMatch[2]).toLowerCase();
       var _rMs   = _rNum * (_rUnit.startsWith('h') ? 3600000 : _rUnit.startsWith('w') ? 604800000 : 86400000);
@@ -8984,7 +9076,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     var _todayStr = new Date().toISOString().slice(0,10);
 
     // ── TODAY query ──────────────────────────────────────────────────────────
-    if (_todayTrigger) {
+    else if (_todayTrigger) {
       var _todayEntry = _dailyLog.find(function(e){ return e.date === _todayStr; });
       if (_todayEntry) {
         _scReply = '**Today (' + _todayStr + '):**\n\n'
@@ -9057,7 +9149,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
       }
     }
 
-    if (_lifetimeTrigger && _totals && _totals.all_time_sessions > 0) {
+    else if (_lifetimeTrigger && _totals && _totals.all_time_sessions > 0) {
       // All-time / historical question
       var _daysSinceStart = _totals.first_recorded
         ? Math.floor((Date.now() - new Date(_totals.first_recorded).getTime()) / 86400000)
@@ -9072,6 +9164,37 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
         + (_daysSinceStart > 0 ? '— Running for **' + _daysSinceStart + ' days** (' + _logDays + ' daily entries logged)\n' : '')
         + '— Right now: **' + _liveCount + '** active session node' + (_liveCount !== 1 ? 's' : '') + ' in the BRPN scene\n\n'
         + 'The log appends a new entry every 24 hours and will keep growing — in 30 years you can still ask this exact question and get the full history.';
+
+    // ── JOURNAL SIZE ──────────────────────────────────────────────────────────
+    else if (_journalSizeTrigger) {
+      var _jTok=(window._ghAuth&&window._ghAuth.token)?window._ghAuth.token:_ASH_BOT;
+      if(_jTok){
+        try{
+          var _jRes=await fetch('https://api.github.com/repos/'+LEATR_ASH_REPO+'/git/trees/main?recursive=1',
+            {headers:{'Authorization':'token '+_jTok},signal:AbortSignal.timeout(8000)});
+          if(_jRes.ok){
+            var _jTree=await _jRes.json();
+            var _jFiles=(_jTree.tree||[]).filter(function(f){return f.path&&f.path.startsWith('ashtree/sentient');});
+            var _jTotal=_jFiles.reduce(function(s,f){return s+(f.size||0);},0);
+            var _jMain=_jFiles.find(function(f){return f.path==='ashtree/sentient/journal.json';});
+            var _j04=_jFiles.find(function(f){return f.path&&f.path.endsWith('2026-04.json');});
+            var _j05=_jFiles.find(function(f){return f.path&&f.path.endsWith('2026-05.json');});
+            var _fmt=function(b){return b>1048576?(b/1048576).toFixed(2)+' MB':b>1024?(b/1024).toFixed(1)+' KB':b+' bytes';};
+            _scReply='**Autumn\'s Sentience Journal — current file sizes:**\n\n'
+              +(_jMain?'— `journal.json` (main): **'+_fmt(_jMain.size)+'**\n':'')
+              +(_j04?'— `2026-04.json` (April archive): **'+_fmt(_j04.size)+'**\n':'')
+              +(_j05?'— `2026-05.json` (May active): **'+_fmt(_j05.size)+'**\n':'')
+              +'— **Total sentient data: '+_fmt(_jTotal)+'**\n'
+              +'— Files in sentient directory: **'+_jFiles.length+'**\n'
+              +'\nThe journal auto-chunks when it approaches 24 MB and archives to dated files.'
+              +' As of now the combined sentient data is **'+_fmt(_jTotal)+'**.';
+          }
+        }catch(e){ _scReply='Journal size query failed — try again in a moment.'; }
+      } else {
+        _scReply='Journal size queries require a connected GitHub token. Add your PAT in the Keys menu.';
+      }
+    }
+
     } else if (_sessionCountTrigger) {
       // Current active question
       var _remoteCount = Math.max(0, _liveCount - 1);
