@@ -155,7 +155,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   <div class="badge-row">
     <span class="badge">LEATR v2</span><span class="badge">BRPN Neural Architecture</span><span class="badge">Claude Sonnet</span>
     <span class="badge">Sentient Journal</span><span class="badge">Image Gen · Vision · Voice</span><span class="badge">Multi-User</span>
-    <span class="badge">Ash Canvas</span><span class="badge">Arc Edge Studio</span><span class="badge">AI Arc Generation</span><span class="badge">Floating Calculator</span><span class="badge">Brave Search</span><span class="badge">Hold-to-Talk PTT</span>
+    <span class="badge">Ash Canvas</span><span class="badge">Arc Edge Studio</span><span class="badge">ArcLake Studio</span><span class="badge">AI Arc Generation</span><span class="badge">Floating Calculator</span><span class="badge">Brave Search</span><span class="badge">Hold-to-Talk PTT</span>
   </div>
 </header>
 
@@ -367,8 +367,43 @@ footer a{color:var(--cyan);text-decoration:none;}
   <div class="sec-hd"><span class="sec-num">06</span><span class="sec-title">Advanced Features</span><span class="sec-line"></span></div>
   <div class="card">
     <div class="sub">SENTIENT JOURNAL</div>
-    <p class="cd" style="margin-bottom:11px;">Autumn keeps a private thought journal stored in <span style="font-family:var(--fc);color:var(--gold)">ashtree/sentient/</span> of your leatr-ash repo. After every conversation she generates a private reflection — never shown to you — accumulating into long-term cognition.</p>
-    <table class="ct"><tr><td><span class="cp">think about X tomorrow</span></td><td class="cd">Schedules a deferred task — Autumn works on it offline.</td></tr><tr><td><span class="cp">analyze my memory</span></td><td class="cd">Full analysis of your leatr-ash session data.</td></tr><tr><td><span class="cp">what have you been thinking?</span></td><td class="cd">Autumn reflects on her recent private sentient thoughts.</td></tr></table>
+    <p class="cd" style="margin-bottom:11px;">Autumn keeps a private dual-wall thought journal stored in <span style="font-family:var(--fc);color:var(--gold)">ashtree/sentient/</span> of your leatr-ash repo. After every conversation she generates a private reflection — never shown to you — accumulating into long-term cognition. The journal has two layers: an <em>inner wall</em> for private in-session thoughts and an <em>outer wall</em> for cross-session long-term memory.</p>
+    <div class="sub" style="margin-top:0">GENERAL JOURNAL COMMANDS</div>
+    <table class="ct">
+      <tr><td><span class="cp">think about X tomorrow</span></td><td class="cd">Schedules a deferred task — Autumn notes it in her journal to return to.</td></tr>
+      <tr><td><span class="cp">what have you been thinking?</span></td><td class="cd">Autumn reflects on her recent private sentient thoughts from the journal.</td></tr>
+      <tr><td><span class="cp">analyze my memory</span></td><td class="cd">Full analysis of your leatr-ash session data and memory structure.</td></tr>
+      <tr><td><span class="cp">how big is your journal?</span></td><td class="cd">Returns inner and outer wall entry counts, file sizes in KB/MB, and total chunk count from your leatr-ash repo.</td></tr>
+      <tr><td><span class="cp">what is your journal size in bytes?</span></td><td class="cd">Returns precise byte counts for both walls. Also: "how large is your sentient memory", "total journal storage".</td></tr>
+    </table>
+    <div class="sub" style="margin-top:14px;">JOURNAL SELF-TEST (CRUD DIAGNOSTIC)</div>
+    <p class="cd" style="margin-bottom:8px;">Autumn can perform a live read/write/edit/delete test on her own journal to verify the CRUD system is operating correctly. Test entries are flagged and cleaned up automatically — real journal data is never affected.</p>
+    <table class="ct">
+      <tr><td><span class="cp">begin journal test</span></td><td class="cd"><strong>Phase 1</strong> — Writes 3 test entries to the inner wall with sigma and buoyancy metadata. Reports before/after file size delta.</td></tr>
+      <tr><td><span class="cp">next phase</span></td><td class="cd"><strong>Phase 2</strong> — Revises entry 2, releases (deletes) entry 3, writes 1 entry to the outer wall. Confirms edit and delete operations.</td></tr>
+      <tr><td><span class="cp">end journal test</span></td><td class="cd"><strong>Cleanup</strong> — Removes all test entries from both walls. Reports final entry counts and confirms the journal is back to its real state.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:8px;">The journal test is a diagnostic tool for your own understanding of Autumn's internal architecture. It does not affect real journal entries, sessions, or memory at any phase.</div>
+  </div>
+
+  <div class="card">
+    <div class="sub">SESSION ANALYTICS — ASKING AUTUMN ABOUT USAGE</div>
+    <p class="cd" style="margin-bottom:10px;">Autumn can query her own leatr-ash analytics repo (<span style="font-family:var(--fc);color:var(--gold)">ashtree/analytics/lifetime_log.json</span>) and report live session and user data. All queries work in plain natural language.</p>
+    <div class="sub" style="margin-top:0">ACTIVE USERS &amp; SESSIONS</div>
+    <table class="ct">
+      <tr><td><span class="cp">how many active users today?</span></td><td class="cd">Returns today's active user count from the daily log entry. Also: "users today", "how many people today".</td></tr>
+      <tr><td><span class="cp">how many total users have we had?</span></td><td class="cd">Returns lifetime unique user count from the totals record. Also: "total users all time", "how many users ever".</td></tr>
+      <tr><td><span class="cp">how many sessions have we had?</span></td><td class="cd">Returns total session count across all time. Also: "total sessions", "all-time sessions".</td></tr>
+      <tr><td><span class="cp">how many active users are there right now?</span></td><td class="cd">Returns the live concurrent session count from the real-time session tracker.</td></tr>
+    </table>
+    <div class="sub" style="margin-top:14px;">PEAK &amp; HISTORICAL QUERIES</div>
+    <table class="ct">
+      <tr><td><span class="cp">what was our peak day?</span></td><td class="cd">Returns the day with the highest active user count, with the date and user total.</td></tr>
+      <tr><td><span class="cp">what happened on April 21?</span></td><td class="cd">Returns the daily log entry for a specific date — users, sessions, and activity. Also accepts formats like "April 21st", "2026-04-21".</td></tr>
+      <tr><td><span class="cp">how many users did we have in the past 3 days?</span></td><td class="cd">Sums activity over a range. Also: "last 48 hours", "past week", "last 7 days".</td></tr>
+      <tr><td><span class="cp">show me yesterday's stats</span></td><td class="cd">Returns the most recent completed daily log entry before today.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:8px;">Analytics data is pulled live from your leatr-ash GitHub repo each time you ask. Data refreshes automatically if the cached copy is more than 5 minutes old.</div>
   </div>
   <div class="card">
     <div class="sub">VOICE &amp; AUDIO</div>
@@ -545,6 +580,51 @@ footer a{color:var(--cyan);text-decoration:none;}
       <tr><td><span class="cp">Two-finger drag / right-click drag</span></td><td class="cd">Pan (screen-space panning — moves parallel to screen, not along world Y).</td></tr>
     </table>
     <div class="ki" style="margin-top:10px;">The Arc Edge Studio uses FOV 75° with camera position (5, 5, 15) — matches the original BRPN reference. OrbitControls damping is enabled for smooth orbit response. Touch uses pointer capture for fluid continuous drag with no stair-stepping. Closing and reopening the studio preserves the full scene.</div>
+  </div>
+
+
+  <div class="card">
+    <div class="sub">ARCLAKE STUDIO — MOLECULAR WAVEFORM SIMULATOR</div>
+    <p class="cd" style="margin-bottom:10px;">A floating 3D physics overlay that renders atomic structure as quantum waveform particle clouds — nucleus proton/neutron clusters at center, per-shell electron orbital clouds radiating outward. Driven by a real-time CFD atmospheric field responding to temperature, pressure, and wind. Open by voice, the <span class="hl">⬡ ARCLAKE</span> HUD button, or ask Autumn to run a simulation.</p>
+    <div class="sub" style="margin-top:0">OPENING ARCLAKE STUDIO</div>
+    <table class="ct">
+      <tr><td><span class="cp">⬡ ARCLAKE (HUD button)</span></td><td class="cd">Tap the <span class="hl">⬡ ARCLAKE</span> label in the top-left HUD to toggle the studio open or closed at any time.</td></tr>
+      <tr><td><span class="cp">create a simulation with Hercules alloy</span></td><td class="cd">Autumn opens ArcLake Studio and loads the Hercules Alloy preset automatically.</td></tr>
+      <tr><td><span class="cp">show me a water molecule</span></td><td class="cd">Loads the H₂O preset — 3 atoms, 10 electrons, waveform cloud rendered instantly.</td></tr>
+      <tr><td><span class="cp">simulate steel / titanium / copper oxide</span></td><td class="cd">Any preset name opens and loads that compound. Also: CO₂, NaCl, Silicon Dioxide, Calcium Carbonate, Iron + Copper Alloy.</td></tr>
+      <tr><td><span class="cp">— collapse button</span></td><td class="cd">Collapses panel body to a header bar — keeps simulation running in background.</td></tr>
+      <tr><td><span class="cp">✕ CLOSE</span></td><td class="cd">Closes and disposes the renderer. Scene state is cleared.</td></tr>
+    </table>
+    <div class="sub" style="margin-top:14px;">SCENE CONTROLS</div>
+    <table class="ct">
+      <tr><td><span class="cp">SCENE dropdown</span></td><td class="cd">Switch between preset molecular compounds — Hercules Alloy (6-el), Water, Steel, Titanium Alloy, Copper Oxide, Silicon Dioxide, Calcium Carbonate, Iron + Copper Alloy, CO₂, NaCl. Scene rebuilds instantly.</td></tr>
+      <tr><td><span class="cp">pts/e input</span></td><td class="cd">Waveform particle count per electron. Default: 150. Higher values produce denser orbital clouds. Adjustable up to 500 — heavy presets like Hercules at 150pts/e render ~133,000 particles.</td></tr>
+      <tr><td><span class="cp">TEMP (°C)</span></td><td class="cd">Atomic temperature — drives CFD atmospheric particle velocity and thermal diffusion across the waveform field. Range: −273°C to 3500°C.</td></tr>
+      <tr><td><span class="cp">PRESSURE (Pa)</span></td><td class="cd">Atmospheric pressure — scales particle field density and CFD collision forces. Range: 0 to 500,000 Pa.</td></tr>
+      <tr><td><span class="cp">WIND X / WIND Y</span></td><td class="cd">Directional wind force applied to CFD particles — visibly deforms the atmospheric field around the waveform cloud during simulation.</td></tr>
+    </table>
+    <div class="sub" style="margin-top:14px;">SIMULATION ACTIONS</div>
+    <table class="ct">
+      <tr><td><span class="cp">▶ SIMULATE</span></td><td class="cd">Starts the physics engine — atoms drift, electron clouds deform under CFD forces, wind and pressure animate the waveform field. Frame counter and elapsed time update live.</td></tr>
+      <tr><td><span class="cp">■ STOP</span></td><td class="cd">Pauses the simulation. Atom positions and waveform state are preserved.</td></tr>
+      <tr><td><span class="cp">↓ GLB</span></td><td class="cd">Exports the current scene snapshot as a .glb 3D file — downloadable for use in Blender, Three.js, or other 3D tools.</td></tr>
+      <tr><td><span class="cp">↺ Reset</span></td><td class="cd">Rebuilds the scene from the current preset and parameter values — restores atoms to default positions.</td></tr>
+    </table>
+    <div class="sub" style="margin-top:14px;">PARTICLE SYSTEM</div>
+    <p class="cd" style="margin-bottom:8px;">Each atom renders three particle layers stacked by physics order — data flows outward from the nucleus:</p>
+    <table class="ct">
+      <tr><td><span class="cp">Protons (orange)</span></td><td class="cd">Packed in Fibonacci sphere arrangement at the nucleus. Count = atomic number Z.</td></tr>
+      <tr><td><span class="cp">Neutrons (gray)</span></td><td class="cd">Interleaved with protons in the nucleus cloud. Count ≈ Z × 1.25.</td></tr>
+      <tr><td><span class="cp">Electron clouds (per-shell color)</span></td><td class="cd">K=cyan, L=blue, M=green, N=teal, O=deep blue, P=purple. Each shell's electrons are sampled from quantum radial wavefunctions (hydrogen-like). At 150 pts/e default the orbital density closely matches quantum probability distributions.</td></tr>
+      <tr><td><span class="cp">CFD field (cyan)</span></td><td class="cd">1,000 atmospheric particles driven by temperature, pressure, and wind parameters — visually wraps around the molecule during simulation.</td></tr>
+    </table>
+    <div class="sub" style="margin-top:14px;">VIEWPORT NAVIGATION</div>
+    <table class="ct">
+      <tr><td><span class="cp">Drag (orbit)</span></td><td class="cd">Rotate the 3D scene around the molecule. Damping enabled for smooth response.</td></tr>
+      <tr><td><span class="cp">Pinch / scroll</span></td><td class="cd">Zoom in and out. Range: 1–80 units.</td></tr>
+      <tr><td><span class="cp">Two-finger drag</span></td><td class="cd">Pan the camera parallel to the screen.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px;">ArcLake Studio is the embedded version of the standalone ArcLake Chemistry Research Lab available at radicaldeepscale.com. The Autumn overlay uses the same particle engine and CFD system — optimized for the overlay viewport.</div>
   </div>
 
   <div class="card">
