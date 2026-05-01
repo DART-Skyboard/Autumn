@@ -985,6 +985,98 @@ class ResponseBuilder {
   }
 
   // Main build — uses grammar JSON + WordNet when available
+  // ── Grammar-API Bridge ──────────────────────────────────────────────────
+  // Synthesizes: grammar dictionary templates + ConceptNet + coding ref + WordNet
+  // Called by buildConversational and build() when API context is available
+  // Returns a properly-structured sentence or null if insufficient data
+  _buildFromAPIs(topic, domTool, sigType, cnContext, codeContext, primDef) {
+    const G   = this._grammar;
+    const APT = G && G.api_response_templates;
+    const APC = G && G.api_pipeline;
+    if (!APT || !topic) return null;
+
+    // Extract ConceptNet relation data
+    const cnEdges = cnContext && cnContext.edges ? cnContext.edges : [];
+    const cnMap   = {};
+    cnEdges.forEach(function(e){ if(!cnMap[e.rel]) cnMap[e.rel]=[]; cnMap[e.rel].push(e.end); });
+
+    const cn_isa      = (cnMap.IsA     || [])[0] || '';
+    const cn_usedfor  = (cnMap.UsedFor || [])[0] || '';
+    const cn_property = (cnMap.HasProperty || [])[0] || '';
+    const cn_location = (cnMap.AtLocation || [])[0] || '';
+    const cn_capable  = (cnMap.CapableOf || [])[0] || '';
+    const cn_causes   = (cnMap.Causes || [])[0] || '';
+    const cn_related  = (cnMap.RelatedTo || [])[0] || '';
+    const cn_part     = (cnMap.PartOf || [])[0] || '';
+
+    // Composite fill vars
+    const cn_or_def         = cn_isa || primDef || '';
+    const cn_usedfor_or_verb = cn_usedfor || cn_capable || '';
+    const cn_location_or_ctx = cn_location || cn_related || '';
+    const cn_part_or_rel    = cn_part || cn_related || '';
+    const cn_related_or_sub = cn_related || cn_usedfor || '';
+    const cn_property_or_diff= cn_property || cn_isa || '';
+
+    // Simple template fill function
+    const fill = function(tmpl, vars) {
+      if (!tmpl) return '';
+      return tmpl.replace(/\{(\w+)\}/g, function(_, k){ return vars[k] || ''; })
+                 .replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
+    };
+
+    const vars = { topic, cn_isa, cn_usedfor, cn_property, cn_location, cn_capable,
+                   cn_causes, cn_related, cn_part, cn_or_def, cn_usedfor_or_verb,
+                   cn_location_or_ctx, cn_part_or_rel, cn_related_or_sub, cn_property_or_diff };
+
+    // Add coding context vars if available
+    if (codeContext && codeContext.ref) {
+      const ref = codeContext.ref;
+      vars.lang    = ref.name || codeContext.lang || '';
+      vars.paradigm = ref.paradigm || '';
+      vars.ext     = (ref.file_ext || []).slice(0,2).join(', ');
+      // Get first syntax example for the query topic
+      const synKeys = Object.keys(ref.syntax || {});
+      const matchKey = synKeys.find(function(k){ return topic.toLowerCase().includes(k); });
+      if (matchKey && Array.isArray(ref.syntax[matchKey])) {
+        vars.syntax_example = ref.syntax[matchKey][0] || '';
+        vars.pattern_name   = matchKey;
+      }
+    }
+
+    // Select template based on tool + available data
+    let result = '';
+    const toolTmpl = APT.analytical_by_tool && APT.analytical_by_tool[domTool];
+
+    if (codeContext && codeContext.lang && vars.lang) {
+      // Code topic — use code ref template
+      const ct = APT.with_code_ref;
+      if (vars.syntax_example && ct) {
+        result = fill(ct.syntax_example, vars);
+      } else if (ct) {
+        result = fill(ct.language_intro, vars);
+      }
+    } else if (cnEdges.length >= 3 && cn_isa && cn_usedfor) {
+      // Rich ConceptNet data — use combo template
+      result = fill(APT.with_conceptnet.combo_2, vars);
+      if (cn_property) result += ' ' + fill(APT.with_conceptnet.HasProperty, vars);
+    } else if (cn_isa) {
+      result = fill(APT.with_conceptnet.IsA, vars);
+      if (cn_usedfor) result += ' ' + fill(APT.with_conceptnet.UsedFor, vars);
+    } else if (cn_usedfor) {
+      result = fill(APT.with_conceptnet.UsedFor, vars);
+    } else if (toolTmpl && cn_or_def) {
+      // Use tool-specific analytical template
+      result = fill(toolTmpl, vars);
+    } else if (primDef) {
+      // Fall back to plain definition
+      const defTmpl = APT.with_conceptnet.IsA.replace('{cn_isa}', '{primDef}');
+      vars.primDef = primDef;
+      result = fill(defTmpl, vars);
+    }
+
+    return result && result.length > 10 ? result : null;
+  }
+
   // ── Conversational response — for casual social input ──────────────────
   // Picks richest content words, looks them up in WordNet,
   // builds 2-3 sentences that acknowledge + add perspective
@@ -1100,14 +1192,24 @@ class ResponseBuilder {
       return boundaryResponse.join(' ');
     }
 
-    // S1: She has data — use it
-    if(primDef){
+    // S1: Build from APIs when context available — grammar+ConceptNet+code bridge
+    const _cnCtxS1  = knownFacts['_cnContext'];
+    const _codeCtxS1 = knownFacts['_codeContext'];
+    const _lexR     = knownFacts['_lexResult'] || (typeof S!=='undefined'&&S.geResult&&S.geResult.lexical);
+    const _domTool  = _lexR&&_lexR.consensus ? _lexR.consensus.finalTool : 'MAZE';
+    const _sigType  = _lexR ? (_lexR.sigType||'SIG_D') : 'SIG_D';
+    const _bridgeS1 = this._buildFromAPIs(primary, _domTool, _sigType, _cnCtxS1, _codeCtxS1, primDef);
+
+    if(_bridgeS1) {
+      // Bridge built a grounded sentence from APIs + grammar templates
+      sentences.push(_bridgeS1);
+    } else if(primDef){
       sentences.push(`${primary.charAt(0).toUpperCase()+primary.slice(1)} — ${primDef}.`);
     } else if(hasPriorMemory) {
       const memFact = Object.entries(knownFacts).find(([k,v])=>!k.startsWith('_')&&v);
-      if(memFact) sentences.push(`${memFact[0].charAt(0).toUpperCase()+memFact[0].slice(1)} — from prior context: ${memFact[1].split('.')[0].trim()}.`);
+      if(memFact) sentences.push(`${memFact[0].charAt(0).toUpperCase()+memFact[0].slice(1)}: ${memFact[1].split('.')[0].trim()}.`);
     } else {
-      sentences.push(`${primary.charAt(0).toUpperCase()+primary.slice(1)} is present in this context — its structural pattern is clear even without a full definition.`);
+      sentences.push(`${primary.charAt(0).toUpperCase()+primary.slice(1)} — pattern present, reference data loading.`);
     }
 
     // S2: Connect secondary topics if available
@@ -1231,7 +1333,13 @@ class ResponseBuilder {
     const RT=G&&G.responseTemplates;
     const TP=CF&&CF.transition_phrases;
     let s1='';
-    if(CF&&CF.opening_by_tool){
+    // Try grammar-API bridge first (ConceptNet + code ref + grammar templates)
+    const _cnCtxB = (typeof window!=='undefined'&&window._lastCnCtx)||null;
+    const _codeCtxB = (typeof window!=='undefined'&&window._lastCodeCtx)||null;
+    const _bridgeB = this._buildFromAPIs(topic, domTool, sigType||'SIG_D', _cnCtxB, _codeCtxB, primDef||altWord);
+    if(_bridgeB) {
+      s1 = _bridgeB;
+    } else if(CF&&CF.opening_by_tool){
       s1=this._fill(CF.opening_by_tool[domTool]||'',{topic,detail,verb,nouns,mods,altWord});
     }
     if(!s1){const op=[`${topic} is worth considering here.`,`The subject of ${topic} has clear structure.`,`${topic} — there is something precise to address here.`];s1=op[topic.length%op.length];}
