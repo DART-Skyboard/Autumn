@@ -394,17 +394,36 @@ window.renderToolsArcLake = function() {
     <!-- Canvas -->
     <div style="position:relative;flex:1;min-height:200px;overflow:hidden">
       <canvas id="als-canvas" style="width:100%;height:100%;display:block;touch-action:none"></canvas>
-      <!-- HUD overlay -->
+      <!-- HUD overlay — left: status readout | right: action buttons -->
       <div id="als-hud" style="position:absolute;top:8px;left:10px;font-size:9px;
-        color:#00e5ff;opacity:0.7;line-height:1.8;pointer-events:none">
-        <div id="als-hud-status">● IDLE</div>
+        color:#00e5ff;opacity:0.85;line-height:1.9;pointer-events:none">
+        <div id="als-hud-status" style="font-weight:700;letter-spacing:1px">● IDLE</div>
         <div id="als-hud-frames">FRAMES: 0</div>
         <div id="als-hud-time">TIME: 0.00s</div>
       </div>
-      <!-- Temp indicator -->
-      <div id="als-temp-bar" style="position:absolute;bottom:6px;right:8px;font-size:9px;
-        color:#ff6644;opacity:0.8;pointer-events:none">
-        <span id="als-temp-label">25°C</span>
+      <!-- HUD right-side action buttons -->
+      <div style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:5px;pointer-events:all">
+        <button onclick="window._alsStart&&window._alsStart()" title="Start simulation"
+          style="width:28px;height:28px;background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.4);
+          color:#00e5ff;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">▶</button>
+        <button onclick="window._alsStop&&window._alsStop()" title="Stop simulation"
+          style="width:28px;height:28px;background:rgba(255,77,77,0.12);border:1px solid rgba(255,77,77,0.35);
+          color:#ff4d4d;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">■</button>
+        <button onclick="window._alsExport&&window._alsExport()" title="Export GLB"
+          style="width:28px;height:28px;background:rgba(124,77,255,0.15);border:1px solid rgba(124,77,255,0.4);
+          color:#c4a0ff;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">⬇</button>
+        <button onclick="window._alsFullscreen&&window._alsFullscreen()" title="Fullscreen"
+          style="width:28px;height:28px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
+          color:#8a8fa8;border-radius:6px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center">⛶</button>
+        <button onclick="window._alsReset&&window._alsReset()" title="Reset scene"
+          style="width:28px;height:28px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+          color:#666;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">↺</button>
+      </div>
+      <!-- Temp + pressure readout bottom right -->
+      <div style="position:absolute;bottom:6px;right:8px;font-size:9px;
+        color:#ff6644;opacity:0.85;pointer-events:none;text-align:right;line-height:1.6">
+        <span id="als-temp-label">25°C</span><br>
+        <span id="als-pres-hud" style="color:#7c4dff">101325 Pa</span>
       </div>
     </div>
 
@@ -582,8 +601,16 @@ window._alsParseCustom = function() {
 window._alsUpdateParam = function(key, val) {
   if (!_als) return;
   _als.params[key] = val;
-  if (key==='temp')     { document.getElementById('als-temp-val').textContent  = val+'°C'; }
-  if (key==='pressure') { document.getElementById('als-pres-val').textContent  = val+' Pa'; }
+  if (key==='temp') {
+    document.getElementById('als-temp-val').textContent = val+'°C';
+    const tl = document.getElementById('als-temp-label');
+    if (tl) tl.textContent = val+'°C';
+  }
+  if (key==='pressure') {
+    document.getElementById('als-pres-val').textContent  = val+' Pa';
+    const ph = document.getElementById('als-pres-hud');
+    if (ph) ph.textContent = val+' Pa';
+  }
   if (key==='windX')    { document.getElementById('als-wx-val').textContent    = val+' m/s'; }
   if (key==='windY')    { document.getElementById('als-wy-val').textContent    = val+' m/s'; }
 };
