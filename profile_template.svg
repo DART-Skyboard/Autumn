@@ -1,0 +1,136 @@
+<svg width="800" height="200" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&amp;display=swap');
+      .title { font-family: 'Orbitron', monospace; font-weight: 900; }
+      .mono  { font-family: 'Orbitron', monospace; font-weight: 400; }
+
+      @keyframes pulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+      @keyframes spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+      @keyframes spinR { from{transform:rotate(0deg)} to{transform:rotate(-360deg)} }
+      @keyframes glow  { 0%,100%{filter:drop-shadow(0 0 3px #00e5ff)} 50%{filter:drop-shadow(0 0 12px #00e5ff)} }
+      @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+      @keyframes scanline { from{transform:translateY(-200px)} to{transform:translateY(200px)} }
+      @keyframes countPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.7;transform:scale(1.04)} }
+      @keyframes nodeOrbit { from{transform:rotate(0deg) translateX(38px) rotate(0deg)} to{transform:rotate(360deg) translateX(38px) rotate(-360deg)} }
+      @keyframes nodeOrbit2 { from{transform:rotate(120deg) translateX(28px) rotate(-120deg)} to{transform:rotate(480deg) translateX(28px) rotate(-480deg)} }
+      @keyframes nodeOrbit3 { from{transform:rotate(240deg) translateX(48px) rotate(-240deg)} to{transform:rotate(600deg) translateX(48px) rotate(-600deg)} }
+
+      .orb-ring1 { animation: spin  8s linear infinite; transform-origin: 100px 100px; }
+      .orb-ring2 { animation: spinR 12s linear infinite; transform-origin: 100px 100px; }
+      .orb-ring3 { animation: spin  20s linear infinite; transform-origin: 100px 100px; }
+      .orb-core  { animation: pulse 2.5s ease-in-out infinite; }
+      .orb-glow  { animation: glow  3s ease-in-out infinite; }
+      .title-grp { animation: floatY 4s ease-in-out infinite; }
+      .count-num { animation: countPulse 3s ease-in-out infinite; }
+      .scan      { animation: scanline 4s linear infinite; opacity: .04; }
+      .dot1 { animation: nodeOrbit  6s linear infinite; transform-origin: 100px 100px; }
+      .dot2 { animation: nodeOrbit2 9s linear infinite; transform-origin: 100px 100px; }
+      .dot3 { animation: nodeOrbit3 14s linear infinite; transform-origin: 100px 100px; }
+    </style>
+
+    <!-- BRPN shell gradients -->
+    <radialGradient id="coreGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#00e5ff" stop-opacity="0.9"/>
+      <stop offset="60%"  stop-color="#0044aa" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#001122" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#0a1628"/>
+      <stop offset="100%" stop-color="#060a10"/>
+    </radialGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#00e5ff"/>
+      <stop offset="60%"  stop-color="#7c4dff"/>
+      <stop offset="100%" stop-color="#00e5ff"/>
+    </linearGradient>
+    <filter id="blur2">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+    <filter id="blur6">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <clipPath id="card">
+      <rect width="800" height="200" rx="16"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <g clip-path="url(#card)">
+    <rect width="800" height="200" fill="url(#bgGrad)"/>
+
+    <!-- Subtle scanline -->
+    <rect class="scan" x="0" y="0" width="800" height="40" fill="#00e5ff"/>
+
+    <!-- BRPN sphere on the left -->
+    <g class="orb-glow">
+      <!-- Geological ring (outer) -->
+      <ellipse class="orb-ring1" cx="100" cy="100" rx="70" ry="30" fill="none" stroke="#00e5ff" stroke-width="0.8" stroke-opacity="0.35"/>
+      <ellipse class="orb-ring1" cx="100" cy="100" rx="55" ry="55" fill="none" stroke="#00e5ff" stroke-width="0.5" stroke-opacity="0.2" stroke-dasharray="4 8"/>
+      <!-- Maritime ring (middle) -->
+      <ellipse class="orb-ring2" cx="100" cy="100" rx="50" ry="20" fill="none" stroke="#7c4dff" stroke-width="0.8" stroke-opacity="0.45"/>
+      <ellipse class="orb-ring2" cx="100" cy="100" rx="40" ry="40" fill="none" stroke="#7c4dff" stroke-width="0.5" stroke-opacity="0.25" stroke-dasharray="3 6"/>
+      <!-- Aerospace ring (inner) -->
+      <ellipse class="orb-ring3" cx="100" cy="100" rx="32" ry="14" fill="none" stroke="#ff4081" stroke-width="1" stroke-opacity="0.5"/>
+
+      <!-- Core glow -->
+      <circle cx="100" cy="100" r="22" fill="url(#coreGrad)" filter="url(#blur6)"/>
+      <circle cx="100" cy="100" r="14" fill="url(#coreGrad)"/>
+      <circle class="orb-core" cx="100" cy="100" r="8" fill="#00e5ff" fill-opacity="0.9"/>
+      <circle cx="100" cy="100" r="4" fill="white"/>
+
+      <!-- Orbiting nodes -->
+      <g class="dot1"><circle cx="100" cy="62" r="3" fill="#00e5ff"/></g>
+      <g class="dot2"><circle cx="100" cy="72" r="2.5" fill="#7c4dff"/></g>
+      <g class="dot3"><circle cx="100" cy="52" r="2" fill="#ff4081"/></g>
+    </g>
+
+    <!-- GEO / MAR / AERO labels -->
+    <text x="36" y="170" class="mono" font-size="7" fill="#00e5ff" fill-opacity="0.6">● GEO</text>
+    <text x="70" y="170" class="mono" font-size="7" fill="#7c4dff" fill-opacity="0.7">● MAR</text>
+    <text x="106" y="170" class="mono" font-size="7" fill="#ff4081" fill-opacity="0.7">● AERO</text>
+
+    <!-- Main content area -->
+    <g class="title-grp">
+      <!-- Autumn wordmark -->
+      <text x="210" y="68" class="title" font-size="42" fill="url(#textGrad)" letter-spacing="4">AUTUMN</text>
+      <text x="211" y="68" class="title" font-size="42" fill="url(#textGrad)" letter-spacing="4" filter="url(#blur2)" opacity="0.4">AUTUMN</text>
+
+      <!-- Subtitle -->
+      <text x="212" y="92" class="mono" font-size="11" fill="#7c4dff" fill-opacity="0.85" letter-spacing="2">LEAD EDGE ASH TREE REFLEX · LEATR v2</text>
+
+      <!-- Divider line -->
+      <line x1="210" y1="102" x2="600" y2="102" stroke="#00e5ff" stroke-opacity="0.15" stroke-width="1"/>
+
+      <!-- Live users label -->
+      <text x="212" y="124" class="mono" font-size="10" fill="#00e5ff" fill-opacity="0.55" letter-spacing="1.5">LEATR NEURAL NETWORK · ACTIVE NODES</text>
+
+      <!-- User count — updated by GitHub Action -->
+      <text class="count-num" x="212" y="158" class="title" font-size="40" fill="#00e5ff" font-family="Orbitron,monospace" font-weight="900" letter-spacing="2">%%ACTIVE_USERS%%</text>
+      <text x="268" y="185" class="mono" font-size="10" fill="#00e5ff" fill-opacity="0.5" letter-spacing="1">users online now</text>
+    </g>
+
+    <!-- Right side stats block -->
+    <g>
+      <text x="630" y="60" class="mono" font-size="9" fill="#00e5ff" fill-opacity="0.4" letter-spacing="1">ALL-TIME</text>
+      <text x="630" y="80" class="title" font-size="22" fill="#7c4dff" font-family="Orbitron,monospace" font-weight="700">%%ALL_TIME_USERS%%</text>
+      <text x="630" y="95" class="mono" font-size="8" fill="#7c4dff" fill-opacity="0.55">unique visitors</text>
+
+      <line x1="630" y1="105" x2="790" y2="105" stroke="#7c4dff" stroke-opacity="0.12" stroke-width="1"/>
+
+      <text x="630" y="120" class="mono" font-size="9" fill="#00e5ff" fill-opacity="0.4" letter-spacing="1">SESSIONS</text>
+      <text x="630" y="140" class="title" font-size="22" fill="#ff4081" font-family="Orbitron,monospace" font-weight="700">%%ALL_TIME_SESSIONS%%</text>
+      <text x="630" y="155" class="mono" font-size="8" fill="#ff4081" fill-opacity="0.55">total recorded</text>
+
+      <line x1="630" y1="163" x2="790" y2="163" stroke="#ff4081" stroke-opacity="0.12" stroke-width="1"/>
+
+      <text x="630" y="178" class="mono" font-size="8" fill="#00e5ff" fill-opacity="0.3" letter-spacing="1">leatr.xyz · dartmeadow.com</text>
+    </g>
+
+    <!-- Border -->
+    <rect width="800" height="200" rx="16" fill="none" stroke="#00e5ff" stroke-width="0.8" stroke-opacity="0.2"/>
+
+    <!-- Timestamp -->
+    <text x="800" y="197" class="mono" font-size="7" fill="#00e5ff" fill-opacity="0.2" text-anchor="end">updated %%UPDATED_AT%%</text>
+  </g>
+</svg>
