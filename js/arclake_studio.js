@@ -366,7 +366,7 @@ global.renderToolsArcLake=function(){
     <div style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:5px;pointer-events:all">
       <button onclick="window._alsStart&&window._alsStart()" title="Start" style="width:30px;height:30px;background:rgba(0,229,255,.15);border:1px solid rgba(0,229,255,.45);color:#00e5ff;border-radius:6px;cursor:pointer;font-size:13px">&#9654;</button>
       <button onclick="window._alsStop&&window._alsStop()"  title="Stop"  style="width:30px;height:30px;background:rgba(255,77,77,.12);border:1px solid rgba(255,77,77,.35);color:#ff4d4d;border-radius:6px;cursor:pointer;font-size:13px">&#9632;</button>
-      <button onclick="window._alsExport&&window._alsExport()" title="GLB" style="width:30px;height:30px;background:rgba(124,77,255,.15);border:1px solid rgba(124,77,255,.4);color:#c4a0ff;border-radius:6px;cursor:pointer;font-size:12px">&#x2B07;</button>
+      <button onclick="window._alsExport&&window._alsExport()" title="GLB" style="width:30px;height:30px;background:rgba(124,77,255,.15);border:1px solid rgba(124,77,255,.4);color:#c4a0ff;border-radius:6px;cursor:pointer;font-size:12px">↓</button>
       <button onclick="window._alsFullscreen&&window._alsFullscreen()" title="Expand" style="width:30px;height:30px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#8a8fa8;border-radius:6px;cursor:pointer;font-size:11px">&#x26F6;</button>
       <button onclick="window._alsReset&&window._alsReset()" title="Reset" style="width:30px;height:30px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#555;border-radius:6px;cursor:pointer;font-size:13px">&#x21BA;</button>
     </div>
@@ -382,8 +382,6 @@ global.renderToolsArcLake=function(){
         ${PRESET_KEYS.map(k=>`<option value="${k}">${k}</option>`).join('')}
         <option value="__custom">Custom elements...</option>
       </select>
-      <label style="font-size:8px;color:#8a8fa8;white-space:nowrap;margin-left:6px">pts/e</label>
-      <input id="als-pte" type="number" min="5" max="500" value="150" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:44px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
       <label style="font-size:8px;color:#8a8fa8;white-space:nowrap">pts/e&#x207B;</label>
       <input id="als-pte" type="number" min="5" max="200" value="30" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:44px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
     </div>
@@ -408,7 +406,7 @@ global.renderToolsArcLake=function(){
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       <button onclick="window._alsStart&&window._alsStart()" style="flex:1;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.35);color:#00e5ff;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit;font-weight:700">&#9654; SIMULATE</button>
       <button onclick="window._alsStop&&window._alsStop()"   style="flex:1;background:rgba(255,77,77,.1);border:1px solid rgba(255,77,77,.3);color:#ff4d4d;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit">&#9632; STOP</button>
-      <button id="als-btn-glb" onclick="window._alsExport&&window._alsExport()" style="flex:1;background:rgba(124,77,255,.12);border:1px solid rgba(124,77,255,.3);color:#c4a0ff;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit">&#x2B07; GLB</button>
+      <button id="als-btn-glb" onclick="window._alsExport&&window._alsExport()" style="flex:1;background:rgba(124,77,255,.12);border:1px solid rgba(124,77,255,.3);color:#c4a0ff;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit">↓ GLB</button>
       <button onclick="window._alsReset&&window._alsReset()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#555;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-family:inherit">&#x21BA;</button>
     </div>
     <div id="als-status" style="font-size:8.5px;color:#8a8fa8;text-align:center;min-height:13px"></div>
@@ -514,7 +512,7 @@ global._alsExport=async function(){
   document.getElementById('als-status').textContent='Building GLB with animation data...';
   try{await _exportGLB(S);document.getElementById('als-status').textContent='GLB downloaded.';}
   catch(e){document.getElementById('als-status').textContent='Export error: '+e.message;}
-  if(btn)btn.textContent='&#x2B07; GLB';
+  if(btn)btn.textContent='↓ GLB';
 };
 
 global._alsFullscreen=function(){

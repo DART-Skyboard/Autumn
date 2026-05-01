@@ -330,7 +330,7 @@ window._refreshAnalyticsNow = async function() {
         _doMount();
       } else {
         var s = document.createElement('script');
-        s.src = 'js/arclake_studio.js?v=2026050108';
+        s.src = 'js/arclake_studio.js?v=2026050109';
         s.onload = _doMount;
         document.head.appendChild(s);
       }
@@ -13782,7 +13782,7 @@ function renderToolsContent(){
       } else {
         el.innerHTML="<div style='padding:20px;font-family:Orbitron,monospace;color:#00e5ff'>⬡ Loading ArcLake Studio...</div>";
         var _als_script=document.createElement('script');
-        _als_script.src='js/arclake_studio.js?v=2026050108';
+        _als_script.src='js/arclake_studio.js?v=2026050109';
         _als_script.onload=function(){
           el.innerHTML=window.renderToolsArcLake?window.renderToolsArcLake():"ArcLake Studio failed to load.";
           setTimeout(function(){ window._alsMounted&&window._alsMounted(); },50);
