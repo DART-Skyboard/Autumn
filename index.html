@@ -9019,6 +9019,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     var _lastEntry  = _dailyLog.length ? _dailyLog[_dailyLog.length - 1] : null;
 
     var _scReply;
+    var _todayStr = new Date().toISOString().slice(0,10);
 
     // ── RANGE query: "past 48 hours", "last 3 days" ──────────────────────────
     // ── TIME-SPECIFIC: "at 2pm on April 30", "between 2 and 3pm April 30" ────
@@ -9071,9 +9072,6 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
           + '. Currently: **'+_liveCount+'** active node'+(parseInt(_liveCount)!==1?'s':'') + '.';
       }
     }
-
-    // ── Helper: get today's date string ──────────────────────────────────────
-    var _todayStr = new Date().toISOString().slice(0,10);
 
     // ── TODAY query ──────────────────────────────────────────────────────────
     else if (_todayTrigger) {
@@ -9164,6 +9162,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
         + (_daysSinceStart > 0 ? '— Running for **' + _daysSinceStart + ' days** (' + _logDays + ' daily entries logged)\n' : '')
         + '— Right now: **' + _liveCount + '** active session node' + (_liveCount !== 1 ? 's' : '') + ' in the BRPN scene\n\n'
         + 'The log appends a new entry every 24 hours and will keep growing — in 30 years you can still ask this exact question and get the full history.';
+    }
 
     // ── JOURNAL SIZE ──────────────────────────────────────────────────────────
     else if (_journalSizeTrigger) {
@@ -9195,7 +9194,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
       }
     }
 
-    } else if (_sessionCountTrigger) {
+    else if (_sessionCountTrigger) {
       // Current active question
       var _remoteCount = Math.max(0, _liveCount - 1);
       if (_remoteCount === 0) {
