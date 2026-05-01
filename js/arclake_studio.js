@@ -1,693 +1,720 @@
-// ArcLake Studio — Autumn Tools Module
-// Three.js r128 molecular physics visualizer with GLB export
-// Adapted from ArcLake (DART-Skyboard/Ariel)
+// arclake_studio_v2.js — ArcLake Studio for Autumn
+// Waveform particle simulation — 30 particles/electron, full CFD, compound physics
+// Adapted from ArcLake (DART-Skyboard/Ariel) © DART Meadow / Radical Deepscale LLC
 
-(function(){
+(function(global){
 'use strict';
 
-// ── Periodic table: element data for molecule construction ─────────────────
-const ELEMENTS = {
-  H:  {z:1,  r:0.31, color:0xffffff, mass:1.008,  name:'Hydrogen'},
-  He: {z:2,  r:0.28, color:0xd9ffff, mass:4.003,  name:'Helium'},
-  Li: {z:3,  r:1.28, color:0xcc80ff, mass:6.941,  name:'Lithium'},
-  B:  {z:5,  r:0.84, color:0xffb5b5, mass:10.81,  name:'Boron'},
-  C:  {z:6,  r:0.77, color:0x909090, mass:12.01,  name:'Carbon'},
-  N:  {z:7,  r:0.75, color:0x3050f8, mass:14.01,  name:'Nitrogen'},
-  O:  {z:8,  r:0.73, color:0xff0d0d, mass:16.00,  name:'Oxygen'},
-  F:  {z:9,  r:0.71, color:0x90e050, mass:19.00,  name:'Fluorine'},
-  Na: {z:11, r:1.66, color:0xab5cf2, mass:22.99,  name:'Sodium'},
-  Mg: {z:12, r:1.41, color:0x8aff00, mass:24.31,  name:'Magnesium'},
-  Al: {z:13, r:1.21, color:0xbfa6a6, mass:26.98,  name:'Aluminium'},
-  Si: {z:14, r:1.11, color:0xf0c8a0, mass:28.09,  name:'Silicon'},
-  P:  {z:15, r:1.07, color:0xff8000, mass:30.97,  name:'Phosphorus'},
-  S:  {z:16, r:1.05, color:0xffff30, mass:32.07,  name:'Sulfur'},
-  Cl: {z:17, r:1.02, color:0x1ff01f, mass:35.45,  name:'Chlorine'},
-  Ca: {z:20, r:1.76, color:0x3dff00, mass:40.08,  name:'Calcium'},
-  Fe: {z:26, r:1.26, color:0xe06633, mass:55.85,  name:'Iron'},
-  Ni: {z:28, r:1.24, color:0x50d050, mass:58.69,  name:'Nickel'},
-  Cu: {z:29, r:1.28, color:0xc88033, mass:63.55,  name:'Copper'},
-  Zn: {z:30, r:1.22, color:0x7d80b0, mass:65.39,  name:'Zinc'},
-  Ti: {z:22, r:1.45, color:0xbfc2c7, mass:47.87,  name:'Titanium'},
-  Cr: {z:24, r:1.66, color:0x8a99c7, mass:52.00,  name:'Chromium'},
-  Co: {z:27, r:1.25, color:0xf090a0, mass:58.93,  name:'Cobalt'},
-  Mo: {z:42, r:1.54, color:0x54b5b5, mass:95.96,  name:'Molybdenum'},
-  Ta: {z:73, r:1.46, color:0x4da6ff, mass:180.9,  name:'Tantalum'},
-  W:  {z:74, r:1.39, color:0x2194d6, mass:183.8,  name:'Tungsten'},
+// ── Bohr radius and quantum math (simplified CDF sampling) ──────────────────
+const A0 = 0.529177;
+
+function _gamma(n){
+  if(n<=1)return 1; let r=1;
+  for(let i=2;i<n;i++) r*=i; return r;
+}
+function _assocLaguerre(k,alpha,rho){
+  if(k<=0)return 1; if(k===1)return 1+alpha-rho;
+  let a=1,b=1+alpha-rho,c=b;
+  for(let j=2;j<=k;j++){c=((2*j-1+alpha-rho)*b-(j-1+alpha)*a)/j;a=b;b=c;} return b;
+}
+
+// Sample a radius from hydrogen-like radial wavefunction P(r)∝r²|R_nl|²
+function _sampleOrbitalRadius(n,l,rng){
+  const rMax=12*n*n*A0;
+  // Rejection sampling — fast enough for 30 pts
+  for(let attempt=0;attempt<200;attempt++){
+    const r=rng()*rMax;
+    const rho=2*r/(n*A0),k=n-l-1,alpha=2*l+1;
+    const L=_assocLaguerre(k,alpha,rho);
+    const norm=Math.pow(2/(n*A0),3)*_gamma(n-l)/(2*n*Math.max(_gamma(n+l+1),1e-10));
+    const R=Math.sqrt(Math.max(0,norm))*Math.exp(-rho/2)*Math.pow(rho||1e-9,l)*L;
+    const prob=r*r*R*R;
+    // Approximate max (use first shell peak at a0)
+    const peak=Math.exp(-2/(n))*Math.pow(2/n,2*l+2)*4;
+    if(rng()*peak*1.5<prob) return r;
+  }
+  return n*n*A0*(0.5+rng()*0.5);
+}
+
+// ── Electron orbital shell config (quantum numbers n,l per shell) ──────────
+// Shells by period: K(n=1,l=0), L(n=2,l=0,1), M(n=3,l=0,1,2)...
+const SHELL_QN = [
+  {n:1,l:0,cap:2},  // K
+  {n:2,l:0,cap:2},  // L-s
+  {n:2,l:1,cap:6},  // L-p
+  {n:3,l:0,cap:2},  // M-s
+  {n:3,l:1,cap:6},  // M-p
+  {n:3,l:2,cap:10}, // M-d
+  {n:4,l:0,cap:2},  // N-s
+  {n:4,l:1,cap:6},  // N-p
+];
+
+function _buildShells(electrons){
+  const shells=[]; let rem=electrons;
+  for(const q of SHELL_QN){
+    if(rem<=0) break;
+    const n=Math.min(rem,q.cap);
+    shells.push({...q, count:n});
+    rem-=n;
+  }
+  return shells;
+}
+
+// ── Element data ─────────────────────────────────────────────────────────────
+const EL = {
+  H:  {z:1,  e:1,  r:0.53, color:[1,1,1],       name:'Hydrogen'},
+  He: {z:2,  e:2,  r:0.31, color:[0.85,1,1],     name:'Helium'},
+  Li: {z:3,  e:3,  r:1.52, color:[0.8,0.5,1],    name:'Lithium'},
+  B:  {z:5,  e:5,  r:0.87, color:[1,0.71,0.71],  name:'Boron'},
+  C:  {z:6,  e:6,  r:0.77, color:[0.56,0.56,0.56],name:'Carbon'},
+  N:  {z:7,  e:7,  r:0.75, color:[0.19,0.31,0.97],name:'Nitrogen'},
+  O:  {z:8,  e:8,  r:0.73, color:[1,0.05,0.05],   name:'Oxygen'},
+  F:  {z:9,  e:9,  r:0.71, color:[0.56,0.88,0.31],name:'Fluorine'},
+  Na: {z:11, e:11, r:1.86, color:[0.67,0.36,0.95],name:'Sodium'},
+  Mg: {z:12, e:12, r:1.60, color:[0.54,1,0],      name:'Magnesium'},
+  Al: {z:13, e:13, r:1.43, color:[0.75,0.65,0.65],name:'Aluminium'},
+  Si: {z:14, e:14, r:1.17, color:[0.94,0.78,0.63],name:'Silicon'},
+  P:  {z:15, e:15, r:1.10, color:[1,0.50,0],      name:'Phosphorus'},
+  S:  {z:16, e:16, r:1.04, color:[1,1,0.19],      name:'Sulfur'},
+  Cl: {z:17, e:17, r:0.99, color:[0.12,0.94,0.12],name:'Chlorine'},
+  Ca: {z:20, e:20, r:1.97, color:[0.24,1,0],      name:'Calcium'},
+  Fe: {z:26, e:26, r:1.26, color:[0.88,0.40,0.20],name:'Iron'},
+  Ni: {z:28, e:28, r:1.25, color:[0.31,0.82,0.31],name:'Nickel'},
+  Cu: {z:29, e:29, r:1.28, color:[0.78,0.50,0.20],name:'Copper'},
+  Zn: {z:30, e:30, r:1.22, color:[0.49,0.50,0.69],name:'Zinc'},
+  Ti: {z:22, e:22, r:1.47, color:[0.75,0.76,0.78],name:'Titanium'},
+  Cr: {z:24, e:24, r:1.66, color:[0.54,0.60,0.78],name:'Chromium'},
+  Co: {z:27, e:27, r:1.25, color:[0.94,0.56,0.63],name:'Cobalt'},
+  Mo: {z:42, e:42, r:1.54, color:[0.33,0.71,0.71],name:'Molybdenum'},
+  Ta: {z:73, e:73, r:1.46, color:[0.30,0.65,1],   name:'Tantalum'},
+  W:  {z:74, e:74, r:1.39, color:[0.13,0.58,0.84],name:'Tungsten'},
 };
 
-// ── Preset molecule/alloy compositions ──────────────────────────────────────
+// ── Compound presets ──────────────────────────────────────────────────────────
 const PRESETS = {
-  'Water (H₂O)':          [{sym:'O',pos:[0,0,0]},{sym:'H',pos:[-0.96,0.4,0]},{sym:'H',pos:[0.96,0.4,0]}],
-  'CO₂':                  [{sym:'C',pos:[0,0,0]},{sym:'O',pos:[-1.16,0,0]},{sym:'O',pos:[1.16,0,0]}],
-  'NaCl (Salt)':          [{sym:'Na',pos:[0,0,0]},{sym:'Cl',pos:[2.5,0,0]}],
-  'Iron + Copper Alloy':  [{sym:'Fe',pos:[0,0,0]},{sym:'Fe',pos:[2.5,0,0]},{sym:'Cu',pos:[1.25,2,0]},{sym:'Cu',pos:[1.25,-2,0]}],
-  'Steel (Fe+C+Cr)':      [{sym:'Fe',pos:[0,0,0]},{sym:'Fe',pos:[2.5,0,0]},{sym:'C',pos:[1.25,1.8,0]},{sym:'Cr',pos:[1.25,-1.8,0]},{sym:'C',pos:[-1.25,0,1.8]}],
-  'Titanium Alloy (Ti+Al)':[{sym:'Ti',pos:[0,0,0]},{sym:'Ti',pos:[3,0,0]},{sym:'Al',pos:[1.5,2.5,0]},{sym:'Al',pos:[1.5,-2.5,0]},{sym:'Ti',pos:[1.5,0,2.5]}],
-  'Hercules Alloy (6-el)': [{sym:'Ti',pos:[0,0,0]},{sym:'W',pos:[3.2,0,0]},{sym:'Mo',pos:[-3.2,0,0]},{sym:'Ta',pos:[0,3.2,0]},{sym:'Co',pos:[0,-3.2,0]},{sym:'Ni',pos:[0,0,3.2]}],
-  'Calcium Carbonate':    [{sym:'Ca',pos:[0,0,0]},{sym:'C',pos:[2.4,0,0]},{sym:'O',pos:[3.6,0,0]},{sym:'O',pos:[1.8,1.2,0]},{sym:'O',pos:[1.8,-1.2,0]}],
-  'Copper Oxide (CuO)':   [{sym:'Cu',pos:[0,0,0]},{sym:'O',pos:[1.9,0,0]}],
-  'Silicon Dioxide':      [{sym:'Si',pos:[0,0,0]},{sym:'O',pos:[1.6,0,0]},{sym:'O',pos:[-1.6,0,0]}],
+  'Water (H₂O)':           [{s:'O',p:[0,0,0]},{s:'H',p:[-0.96,0.77,0]},{s:'H',p:[0.96,0.77,0]}],
+  'CO₂':                   [{s:'C',p:[0,0,0]},{s:'O',p:[-1.16,0,0]},{s:'O',p:[1.16,0,0]}],
+  'NaCl (Salt)':           [{s:'Na',p:[0,0,0]},{s:'Cl',p:[2.81,0,0]}],
+  'Iron + Copper Alloy':   [{s:'Fe',p:[0,0,0]},{s:'Fe',p:[2.5,0,0]},{s:'Cu',p:[1.25,2.5,0]},{s:'Cu',p:[1.25,-2.5,0]}],
+  'Steel (Fe+C+Cr)':       [{s:'Fe',p:[0,0,0]},{s:'Fe',p:[2.87,0,0]},{s:'C',p:[1.43,2.0,0]},{s:'Cr',p:[1.43,-2.0,0]},{s:'C',p:[-1.43,0,2.0]}],
+  'Titanium Alloy (Ti+Al)':[{s:'Ti',p:[0,0,0]},{s:'Ti',p:[3.2,0,0]},{s:'Al',p:[1.6,2.8,0]},{s:'Al',p:[1.6,-2.8,0]},{s:'Ti',p:[1.6,0,2.8]}],
+  'Hercules Alloy (6-el)': [{s:'Ti',p:[0,0,0]},{s:'W',p:[3.5,0,0]},{s:'Mo',p:[-3.5,0,0]},{s:'Ta',p:[0,3.5,0]},{s:'Co',p:[0,-3.5,0]},{s:'Ni',p:[0,0,3.5]}],
+  'Calcium Carbonate':     [{s:'Ca',p:[0,0,0]},{s:'C',p:[2.4,0,0]},{s:'O',p:[3.6,0,0]},{s:'O',p:[1.8,1.2,0]},{s:'O',p:[1.8,-1.2,0]}],
+  'Copper Oxide (CuO)':    [{s:'Cu',p:[0,0,0]},{s:'O',p:[1.85,0,0]}],
+  'Silicon Dioxide':       [{s:'Si',p:[0,0,0]},{s:'O',p:[1.63,0,0]},{s:'O',p:[-1.63,0,0]}],
 };
 
-// ── Module state ─────────────────────────────────────────────────────────────
-let _als = null; // singleton state
+const PRESET_KEYS = Object.keys(PRESETS);
 
-function _init(canvasId) {
-  if (_als && _als.renderer) _als.renderer.dispose();
-  const THREE = window.THREE;
-  if (!THREE) return null;
+// ── Global state ──────────────────────────────────────────────────────────────
+let S = null;
 
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return null;
+function _dispose(){
+  if(!S) return;
+  if(S.raf) cancelAnimationFrame(S.raf);
+  if(S.ro) S.ro.disconnect();
+  if(S.renderer){ S.renderer.dispose(); }
+  S = null;
+}
 
-  const W = canvas.clientWidth  || 400;
-  const H = canvas.clientHeight || 300;
+function _rng(){ return Math.random(); }
 
-  const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+// ── Init Three.js scene ───────────────────────────────────────────────────────
+function _initScene(canvas){
+  const T = window.THREE;
+  if(!T || !canvas) return null;
+
+  const W = canvas.clientWidth  || canvas.offsetWidth  || 380;
+  const H = canvas.clientHeight || canvas.offsetHeight || 280;
+
+  const renderer = new T.WebGLRenderer({canvas, antialias:true, alpha:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
   renderer.setSize(W, H, false);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  renderer.setClearColor(0x060a10, 1);
+  renderer.setClearColor(0x04070e, 1);
+  renderer.shadowMap.enabled = false;
 
-  const scene    = new THREE.Scene();
-  const camera   = new THREE.PerspectiveCamera(45, W/H, 0.01, 1000);
-  camera.position.set(0, 3, 14);
+  const scene  = new T.Scene();
+  const camera = new T.PerspectiveCamera(50, W/H, 0.01, 500);
+  camera.position.set(0, 4, 18);
+  camera.lookAt(0,0,0);
 
-  // Lighting
-  scene.add(new THREE.AmbientLight(0x334466, 0.8));
-  const dl = new THREE.DirectionalLight(0x00e5ff, 1.2);
-  dl.position.set(5, 10, 8);
-  scene.add(dl);
-  const bl = new THREE.DirectionalLight(0x7c4dff, 0.6);
-  bl.position.set(-5, -3, -5);
-  scene.add(bl);
+  // Lights
+  scene.add(new T.AmbientLight(0x223355, 1.0));
+  const sun = new T.DirectionalLight(0x00e5ff, 1.8);
+  sun.position.set(8, 12, 10); scene.add(sun);
+  const fill = new T.DirectionalLight(0x7c4dff, 0.6);
+  fill.position.set(-8, -4, -8); scene.add(fill);
 
-  // OrbitControls
+  // OrbitControls — proper mobile touch support
   let controls = null;
-  if (window.THREE && THREE.OrbitControls) {
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = false;
-    controls.enableZoom = true;
+  if(T.OrbitControls){
+    controls = new T.OrbitControls(camera, canvas);
+    controls.enableDamping    = true;
+    controls.dampingFactor    = 0.08;
+    controls.enableZoom       = true;
+    controls.enablePan        = true;
+    controls.enableRotate     = true;
+    controls.touches = {
+      ONE: T.TOUCH ? T.TOUCH.ROTATE : 0,
+      TWO: T.TOUCH ? T.TOUCH.DOLLY_PAN : 1
+    };
     controls.minDistance = 2;
-    controls.maxDistance = 60;
+    controls.maxDistance = 80;
+    // Mobile: prevent canvas from eating scroll events
+    canvas.addEventListener('touchstart', e => { if(e.touches.length > 1) e.preventDefault(); }, {passive:false});
   }
 
-  // Particle system for CFD (wind/pressure visualization)
-  const NPART = 600;
-  const pGeo  = new THREE.BufferGeometry();
-  const pPos  = new Float32Array(NPART * 3);
-  for (let i=0; i<NPART; i++) {
-    pPos[i*3]   = (Math.random()-0.5)*20;
-    pPos[i*3+1] = (Math.random()-0.5)*20;
-    pPos[i*3+2] = (Math.random()-0.5)*20;
+  // CFD particle field (atmospheric simulation)
+  const NCFD = 1200;
+  const cfdGeo = new T.BufferGeometry();
+  const cfdPos = new Float32Array(NCFD*3);
+  const cfdCol = new Float32Array(NCFD*3);
+  for(let i=0;i<NCFD;i++){
+    cfdPos[i*3]   = (_rng()-0.5)*24;
+    cfdPos[i*3+1] = (_rng()-0.5)*24;
+    cfdPos[i*3+2] = (_rng()-0.5)*24;
+    cfdCol[i*3]=0; cfdCol[i*3+1]=0.9; cfdCol[i*3+2]=1;
   }
-  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos,3));
-  const pMat  = new THREE.PointsMaterial({color:0x00e5ff, size:0.08, transparent:true, opacity:0.35, sizeAttenuation:true});
-  const particles = new THREE.Points(pGeo, pMat);
-  scene.add(particles);
-  const pVel = new Float32Array(NPART * 3);
-  for (let i=0; i<NPART; i++) {
-    pVel[i*3]   = (Math.random()-0.5)*0.01;
-    pVel[i*3+1] = (Math.random()-0.5)*0.01;
-    pVel[i*3+2] = (Math.random()-0.5)*0.01;
+  cfdGeo.setAttribute('position',new T.BufferAttribute(cfdPos,3));
+  cfdGeo.setAttribute('color',   new T.BufferAttribute(cfdCol,3));
+  const cfdMat = new T.PointsMaterial({size:0.06,vertexColors:true,transparent:true,opacity:0.3,sizeAttenuation:true,depthWrite:false});
+  const cfdPoints = new T.Points(cfdGeo, cfdMat);
+  scene.add(cfdPoints);
+  const cfdVel = new Float32Array(NCFD*3);
+  for(let i=0;i<NCFD;i++){
+    cfdVel[i*3]   = (_rng()-0.5)*0.005;
+    cfdVel[i*3+1] = (_rng()-0.5)*0.005;
+    cfdVel[i*3+2] = (_rng()-0.5)*0.005;
   }
 
   return {
-    THREE, renderer, scene, camera, controls, canvas,
-    particles, pGeo, pPos, pVel,
-    atoms: [], bonds: [], envGroup: new THREE.Group(),
-    isSimulating: false, recordedFrames: [], animClips: [],
-    simTime: 0, frameInterval: null,
-    params: { temp:25, pressure:101325, windX:0, windY:0, windZ:0 }
+    T, renderer, scene, camera, controls, canvas,
+    cfdPoints, cfdGeo, cfdPos, cfdVel, cfdCol, NCFD,
+    atomGroups: [],    // array of {mesh, electronClouds, vel, def, el}
+    bondMeshes: [],
+    isSimulating: false,
+    recordedFrames: [], simTime: 0,
+    params: {temp:25, pressure:101325, windX:0, windY:0, windZ:0, ptsPerE:30}
   };
 }
 
-function _buildMolecule(state, atomDefs) {
-  const T = state.THREE;
-  // Clear old atoms/bonds
-  state.atoms.forEach(a => state.scene.remove(a.group));
-  state.bonds.forEach(b => state.scene.remove(b));
-  state.atoms = []; state.bonds = [];
+// ── Build electron point cloud for one atom ───────────────────────────────────
+function _buildElectronCloud(T, el, center, ptsPerE){
+  const shells = _buildShells(el.e);
+  const allPos = [];
+  const allCol = [];
 
-  atomDefs.forEach((def, i) => {
-    const el = ELEMENTS[def.sym] || ELEMENTS.C;
-    const r  = Math.max(0.3, el.r * 0.55);
-    const geo = new T.SphereGeometry(r, 20, 16);
-    const mat = new T.MeshPhongMaterial({
-      color: el.color,
-      emissive: el.color,
-      emissiveIntensity: 0.15,
-      shininess: 60,
-      transparent: false,
-    });
-    const mesh = new T.Mesh(geo, mat);
-    mesh.position.set(def.pos[0], def.pos[1], def.pos[2]);
-    mesh.name = `atom_${def.sym}_${i}`;
+  // Base electron color: complement of nucleus color + luminance
+  const [nr,ng,nb] = el.color;
+  const er = Math.min(1, ng*0.6 + nb*0.4 + 0.3);
+  const eg = Math.min(1, nr*0.3 + nb*0.6 + 0.3);
+  const eb = Math.min(1, nr*0.4 + ng*0.3 + 0.7);
 
-    // Electron ring
-    const ringGeo = new T.TorusGeometry(r*1.7, 0.025, 6, 40);
-    const ringMat = new T.MeshBasicMaterial({color:0x00e5ff, transparent:true, opacity:0.4});
-    const ring = new T.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI/2;
-    ring.name = `ring_${i}`;
-
-    const group = new T.Group();
-    group.add(mesh); group.add(ring);
-    group.position.set(def.pos[0], def.pos[1], def.pos[2]);
-    mesh.position.set(0,0,0);
-    ring.position.set(0,0,0);
-
-    state.scene.add(group);
-    state.atoms.push({group, mesh, ring, el, def,
-      vel: new T.Vector3(
-        (Math.random()-0.5)*0.0005,
-        (Math.random()-0.5)*0.0005,
-        (Math.random()-0.5)*0.0005
-      )
-    });
-  });
-
-  // Draw bonds between nearby atoms
-  for (let i=0; i<state.atoms.length; i++) {
-    for (let j=i+1; j<state.atoms.length; j++) {
-      const a = state.atoms[i].group.position;
-      const b = state.atoms[j].group.position;
-      const dist = a.distanceTo(b);
-      const ri = (ELEMENTS[state.atoms[i].def.sym]||ELEMENTS.C).r;
-      const rj = (ELEMENTS[state.atoms[j].def.sym]||ELEMENTS.C).r;
-      if (dist < (ri + rj) * 3.5) {
-        _addBond(state, a, b);
+  for(const shell of shells){
+    const scale = 1.2 + shell.n * 0.8; // scale orbital radii to visible range
+    for(let ei=0; ei<shell.count; ei++){
+      for(let p=0; p<ptsPerE; p++){
+        // Sample orbital radius
+        const r = _sampleOrbitalRadius(shell.n, shell.l, _rng) * scale;
+        // Random direction on sphere
+        const theta = Math.acos(2*_rng()-1);
+        const phi   = _rng()*Math.PI*2;
+        allPos.push(
+          center[0] + r*Math.sin(theta)*Math.cos(phi),
+          center[1] + r*Math.sin(theta)*Math.sin(phi),
+          center[2] + r*Math.cos(theta)
+        );
+        // Vary brightness by shell distance
+        const bright = 0.6 + 0.4*_rng();
+        allCol.push(er*bright, eg*bright, eb*bright);
       }
     }
   }
+
+  if(!allPos.length) return null;
+  const geo = new T.BufferGeometry();
+  geo.setAttribute('position', new T.BufferAttribute(new Float32Array(allPos),3));
+  geo.setAttribute('color',    new T.BufferAttribute(new Float32Array(allCol),3));
+  const mat = new T.PointsMaterial({
+    size:0.045, vertexColors:true, transparent:true, opacity:0.75,
+    sizeAttenuation:true, depthWrite:false
+  });
+  return new T.Points(geo, mat);
 }
 
-function _addBond(state, a, b) {
-  const T = state.THREE;
-  const dir  = new T.Vector3().subVectors(b, a);
-  const len  = dir.length();
-  const mid  = new T.Vector3().addVectors(a, b).multiplyScalar(0.5);
-  const geo  = new T.CylinderGeometry(0.045, 0.045, len, 8, 1);
-  const mat  = new T.MeshPhongMaterial({color:0x446688, transparent:true, opacity:0.7});
+// ── Build nucleus mesh ────────────────────────────────────────────────────────
+function _buildNucleus(T, el, center){
+  const r = Math.max(0.18, el.r * 0.28);
+  const geo = new T.SphereGeometry(r, 20, 16);
+  const [cr,cg,cb] = el.color;
+  const mat = new T.MeshPhongMaterial({
+    color: new T.Color(cr,cg,cb),
+    emissive: new T.Color(cr*0.2, cg*0.2, cb*0.2),
+    shininess: 80, transparent:false
+  });
+  const mesh = new T.Mesh(geo, mat);
+  mesh.position.set(...center);
+  return mesh;
+}
+
+// ── Bond cylinder ─────────────────────────────────────────────────────────────
+function _addBond(T, scene, a, b, list){
+  const av = new T.Vector3(...a), bv = new T.Vector3(...b);
+  const dir = new T.Vector3().subVectors(bv, av);
+  const len = dir.length();
+  const mid = new T.Vector3().addVectors(av, bv).multiplyScalar(0.5);
+  const geo = new T.CylinderGeometry(0.04, 0.04, len, 8, 1);
+  const mat = new T.MeshPhongMaterial({color:0x334466, transparent:true, opacity:0.5});
   const mesh = new T.Mesh(geo, mat);
   mesh.position.copy(mid);
-  const ax = new T.Vector3(0,1,0);
-  mesh.quaternion.setFromUnitVectors(ax, dir.normalize());
-  state.scene.add(mesh);
-  state.bonds.push(mesh);
+  mesh.quaternion.setFromUnitVectors(new T.Vector3(0,1,0), dir.normalize());
+  scene.add(mesh); list.push(mesh);
 }
 
-function _applyEnvToParticles(state) {
-  const p = state.params;
-  const T = state.THREE;
-  // Temperature → speed of particles
-  const tempFactor = Math.sqrt(Math.max(1, p.temp + 273) / 298) * 0.02;
-  // Pressure → density (squeeze bounding box)
-  const pressBox = 10 * (101325 / Math.max(1, p.pressure));
-  // Wind → directional force
-  const wx = p.windX * 0.0003;
-  const wy = p.windY * 0.0003;
-  const wz = p.windZ * 0.0003;
-  const pos = state.pPos;
-  const vel = state.pVel;
-  for (let i=0; i<pos.length/3; i++) {
-    vel[i*3]   += wx + (Math.random()-0.5)*tempFactor*0.1;
-    vel[i*3+1] += wy + (Math.random()-0.5)*tempFactor*0.1;
-    vel[i*3+2] += wz + (Math.random()-0.5)*tempFactor*0.1;
-    pos[i*3]   += vel[i*3];
-    pos[i*3+1] += vel[i*3+1];
-    pos[i*3+2] += vel[i*3+2];
-    // Wrap around bounding box
-    for (let ax=0; ax<3; ax++) {
-      if (pos[i*3+ax] > pressBox)  pos[i*3+ax] = -pressBox;
-      if (pos[i*3+ax] < -pressBox) pos[i*3+ax] =  pressBox;
-    }
-  }
-  state.pGeo.attributes.position.needsUpdate = true;
-  // Particle color driven by temperature
-  const hot = p.temp > 500;
-  const veryhot = p.temp > 1500;
-  state.particles.material.color.setHex(veryhot ? 0xff4400 : hot ? 0xffaa00 : 0x00e5ff);
-  state.particles.material.opacity = Math.min(0.6, 0.2 + p.pressure/500000);
-}
+// ── Build full molecule ───────────────────────────────────────────────────────
+function _buildMolecule(state, atomDefs, ptsPerE){
+  const T = state.T;
+  // Clear previous
+  state.atomGroups.forEach(ag => {
+    state.scene.remove(ag.nucleus);
+    if(ag.eCloud) state.scene.remove(ag.eCloud);
+  });
+  state.bondMeshes.forEach(m => state.scene.remove(m));
+  state.atomGroups = []; state.bondMeshes = [];
 
-function _simStep(state) {
-  if (!state.isSimulating) return;
-  const T = state.THREE;
-  const p = state.params;
-  const tempK = p.temp + 273;
-  const kT = tempK / 3000;
-  const wind = new T.Vector3(p.windX, p.windY, p.windZ).multiplyScalar(0.0001);
+  atomDefs.forEach((def, i) => {
+    const sym = def.s || def.sym || 'C';
+    const el  = EL[sym] || EL.C;
+    const pos = def.p || def.pos || [0,0,0];
 
-  state.atoms.forEach((atom, i) => {
-    if (!atom.vel) atom.vel = new T.Vector3();
-    // Thermal motion
-    atom.vel.x += (Math.random()-0.5) * kT * 0.001;
-    atom.vel.y += (Math.random()-0.5) * kT * 0.001;
-    atom.vel.z += (Math.random()-0.5) * kT * 0.001;
-    // Wind force
-    atom.vel.add(wind);
-    // Damping
-    atom.vel.multiplyScalar(0.96);
-    // Clamp
-    const spd = atom.vel.length();
-    if (spd > 0.08) atom.vel.multiplyScalar(0.08/spd);
-    // Move
-    atom.group.position.add(atom.vel);
-    // Bounds restore — pull back to origin slowly
-    atom.group.position.lerp(new T.Vector3(atom.def.pos[0], atom.def.pos[1], atom.def.pos[2]), 0.001);
-    // Spin ring
-    atom.ring.rotation.z += 0.015 * (1 + kT * 2);
-    atom.ring.rotation.y += 0.008;
+    const nucleus = _buildNucleus(T, el, pos);
+    state.scene.add(nucleus);
+
+    const eCloud = _buildElectronCloud(T, el, pos, ptsPerE||30);
+    if(eCloud) state.scene.add(eCloud);
+
+    state.atomGroups.push({
+      nucleus, eCloud, el, def:{s:sym,p:[...pos]},
+      origPos:[...pos],
+      vel: new T.Vector3((_rng()-0.5)*0.0002,(_rng()-0.5)*0.0002,(_rng()-0.5)*0.0002),
+      ePhase: _rng()*Math.PI*2,
+      ePhaseDrift: 0.008+_rng()*0.004
+    });
   });
 
-  // Update bonds
-  state.bonds.forEach(b => state.scene.remove(b));
-  state.bonds = [];
-  for (let i=0; i<state.atoms.length; i++) {
-    for (let j=i+1; j<state.atoms.length; j++) {
-      const a = state.atoms[i].group.position;
-      const b2= state.atoms[j].group.position;
-      const dist = a.distanceTo(b2);
-      const ri = (ELEMENTS[state.atoms[i].def.sym]||ELEMENTS.C).r;
-      const rj = (ELEMENTS[state.atoms[j].def.sym]||ELEMENTS.C).r;
-      if (dist < (ri + rj) * 5) {
-        _addBond(state, a, b2);
-      }
+  // Bonds
+  for(let i=0;i<state.atomGroups.length;i++){
+    for(let j=i+1;j<state.atomGroups.length;j++){
+      const a=state.atomGroups[i], b=state.atomGroups[j];
+      const dist=Math.hypot(
+        a.def.p[0]-b.def.p[0], a.def.p[1]-b.def.p[1], a.def.p[2]-b.def.p[2]
+      );
+      const bondLen=(a.el.r+b.el.r)*3.2;
+      if(dist<bondLen) _addBond(T,state.scene,a.def.p,b.def.p,state.bondMeshes);
+    }
+  }
+  state.simTime = 0;
+  state.recordedFrames = [];
+}
+
+// ── Simulation step ───────────────────────────────────────────────────────────
+function _simStep(state){
+  if(!state.isSimulating) return;
+  const T    = state.T;
+  const p    = state.params;
+  const tempK= p.temp + 273;
+  const kT   = tempK/6000;
+  const wind = new T.Vector3(p.windX, p.windY, p.windZ).multiplyScalar(0.00008);
+
+  // Atom nucleus physics
+  state.atomGroups.forEach(ag => {
+    // Thermal random motion
+    ag.vel.x += (_rng()-0.5)*kT*0.001;
+    ag.vel.y += (_rng()-0.5)*kT*0.001;
+    ag.vel.z += (_rng()-0.5)*kT*0.001;
+    ag.vel.add(wind);
+    ag.vel.multiplyScalar(0.97);
+    // Clamp
+    const spd = ag.vel.length();
+    if(spd>0.12) ag.vel.multiplyScalar(0.12/spd);
+    // Move
+    ag.nucleus.position.add(ag.vel);
+    // Soft restore to original position
+    const orig = new T.Vector3(...ag.origPos);
+    ag.nucleus.position.lerp(orig, 0.0015);
+    // Update def.p for bond rebuilding
+    ag.def.p[0]=ag.nucleus.position.x;
+    ag.def.p[1]=ag.nucleus.position.y;
+    ag.def.p[2]=ag.nucleus.position.z;
+
+    // Rotate electron cloud + drift phase
+    ag.ePhase += ag.ePhaseDrift * (1 + kT*4);
+    if(ag.eCloud){
+      ag.eCloud.position.copy(ag.nucleus.position);
+      ag.eCloud.rotation.y = ag.ePhase;
+      ag.eCloud.rotation.x = ag.ePhase*0.43;
+      // Scale cloud by temperature (thermal expansion)
+      const tempScale = 1 + kT * 0.8;
+      ag.eCloud.scale.setScalar(tempScale);
+    }
+  });
+
+  // Rebuild bonds each frame (atoms move)
+  state.bondMeshes.forEach(m => state.scene.remove(m));
+  state.bondMeshes = [];
+  for(let i=0;i<state.atomGroups.length;i++){
+    for(let j=i+1;j<state.atomGroups.length;j++){
+      const a=state.atomGroups[i], b=state.atomGroups[j];
+      const dist=Math.hypot(
+        a.def.p[0]-b.def.p[0], a.def.p[1]-b.def.p[1], a.def.p[2]-b.def.p[2]
+      );
+      const bondLen=(a.el.r+b.el.r)*4.5;
+      if(dist<bondLen) _addBond(T,state.scene,a.def.p,b.def.p,state.bondMeshes);
     }
   }
 
-  _applyEnvToParticles(state);
-  state.simTime += 1/60;
+  // CFD particle field physics
+  const pressBox = 12 * (101325/Math.max(1,p.pressure));
+  const tempFactor = Math.sqrt(tempK/298)*0.015;
+  const pos=state.cfdPos, vel=state.cfdVel, col=state.cfdCol;
+  for(let i=0;i<state.NCFD;i++){
+    vel[i*3]   += (p.windX*0.00015) + (_rng()-0.5)*tempFactor;
+    vel[i*3+1] += (p.windY*0.00015) + (_rng()-0.5)*tempFactor;
+    vel[i*3+2] += (p.windZ*0.00015) + (_rng()-0.5)*tempFactor;
+    // Damping
+    vel[i*3]*=0.98; vel[i*3+1]*=0.98; vel[i*3+2]*=0.98;
+    pos[i*3]  +=vel[i*3];
+    pos[i*3+1]+=vel[i*3+1];
+    pos[i*3+2]+=vel[i*3+2];
+    // Wrap
+    for(let ax=0;ax<3;ax++){
+      if(pos[i*3+ax]>pressBox)  pos[i*3+ax]=-pressBox;
+      if(pos[i*3+ax]<-pressBox) pos[i*3+ax]= pressBox;
+    }
+    // Color by temperature
+    const hot=p.temp>800, vhot=p.temp>2000;
+    col[i*3]   = vhot?1:hot?1:0;
+    col[i*3+1] = vhot?0.3:hot?0.6:0.9;
+    col[i*3+2] = vhot?0:hot?0:1;
+  }
+  state.cfdGeo.attributes.position.needsUpdate=true;
+  state.cfdGeo.attributes.color.needsUpdate=true;
+  state.cfdPoints.material.opacity = Math.min(0.5, 0.15 + p.pressure/600000);
+  state.cfdPoints.material.size    = Math.max(0.04, 0.12 - p.pressure/2000000);
 
   // Record frame
-  if (state.recordedFrames.length < 1800) { // max 30s at 60fps
-    const frameData = {
+  state.simTime += 1/60;
+  if(state.recordedFrames.length < 1800){
+    state.recordedFrames.push({
       time: state.simTime,
-      atoms: state.atoms.map(a => ({
-        pos: a.group.position.toArray()
-      }))
-    };
-    state.recordedFrames.push(frameData);
+      atoms: state.atomGroups.map(ag=>({pos:[...ag.def.p]}))
+    });
   }
 }
 
-function _buildAnimClips(state) {
-  const T = state.THREE;
-  const frames = state.recordedFrames;
-  if (frames.length < 2) return [];
-  const clips = [];
-  const times = frames.map(f => f.time);
-  state.atoms.forEach((atom, ai) => {
-    const pos = [];
-    frames.forEach(f => {
-      const d = f.atoms[ai];
-      if (d) { pos.push(d.pos[0], d.pos[1], d.pos[2]); }
-    });
-    if (pos.length > 0) {
-      const name = atom.mesh.name || `atom_${ai}`;
-      atom.mesh.name = name;
-      clips.push(new T.AnimationClip(
-        `Atom_${ai}_Anim`, -1,
-        [new T.VectorKeyframeTrack(`${name}.position`, times, pos)]
-      ));
-    }
-  });
-  return clips;
-}
-
-async function _exportGLB(state) {
-  const T = state.THREE;
-  // Dynamically load GLTFExporter if not present
-  if (!T.GLTFExporter) {
-    await new Promise((res,rej) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js';
-      s.onload = res; s.onerror = rej;
+// ── GLB Export ────────────────────────────────────────────────────────────────
+async function _exportGLB(state){
+  const T = state.T;
+  if(!T.GLTFExporter){
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js';
+      s.onload=res; s.onerror=rej;
       document.head.appendChild(s);
     });
   }
-
-  const exportScene = new T.Scene();
-  // Lights
-  exportScene.add(new T.AmbientLight(0x334466, 0.8));
-  const dl = new T.DirectionalLight(0x00e5ff, 1.2);
-  dl.position.set(5,10,8);
-  exportScene.add(dl);
+  const exp = new T.Scene();
+  exp.add(new T.AmbientLight(0x334466,0.8));
 
   // Atoms
-  state.atoms.forEach((atom, i) => {
-    const clone = atom.group.clone();
-    clone.name = atom.mesh.name || `atom_${i}`;
-    exportScene.add(clone);
-  });
-  state.bonds.forEach((b, i) => {
-    const bc = b.clone();
-    bc.name = `bond_${i}`;
-    exportScene.add(bc);
+  state.atomGroups.forEach((ag,i)=>{
+    const g=new T.Group(); g.name=`Atom_${ag.el.name}_${i}`;
+    g.add(ag.nucleus.clone());
+    if(ag.eCloud){ const ec=ag.eCloud.clone(); ec.name=`eCloud_${i}`; g.add(ec); }
+    exp.add(g);
   });
 
-  // Build animation clips from recorded frames
-  const clips = _buildAnimClips(state);
+  // Build animation clips
+  const clips = [];
+  const frames = state.recordedFrames;
+  if(frames.length > 2){
+    const times = frames.map(f=>f.time);
+    state.atomGroups.forEach((ag,ai)=>{
+      const positions=[];
+      frames.forEach(f=>{ const d=f.atoms[ai]; if(d) positions.push(d.pos[0],d.pos[1],d.pos[2]); });
+      if(positions.length){
+        const name=`Atom_${ag.el.name}_${ai}`;
+        clips.push(new T.AnimationClip(name+'_Anim',-1,[
+          new T.VectorKeyframeTrack(name+'.position',times,positions)
+        ]));
+      }
+    });
+  }
 
-  exportScene.updateMatrixWorld(true);
-
-  return new Promise((resolve, reject) => {
-    const exporter = new T.GLTFExporter();
-    exporter.parse(exportScene, (glb) => {
-      const blob = new Blob([glb], {type:'model/gltf-binary'});
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url;
-      a.download = `arclake_sim_${Date.now()}.glb`;
-      a.click();
-      URL.revokeObjectURL(url);
-      resolve(true);
-    }, (err) => reject(err),
-    {binary:true, animations: clips.length > 0 ? clips : undefined});
+  exp.updateMatrixWorld(true);
+  return new Promise((res,rej)=>{
+    new T.GLTFExporter().parse(exp,glb=>{
+      const blob=new Blob([glb],{type:'model/gltf-binary'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=`arclake_${Date.now()}.glb`; a.click();
+      URL.revokeObjectURL(url); res(true);
+    },err=>rej(err),{binary:true, animations:clips.length?clips:undefined});
   });
 }
 
-// ── Render function — returns HTML for the Tools tab ──────────────────────
-window.renderToolsArcLake = function() {
-  return `
-  <div class="arclake-studio" id="als-root" style="
-    display:flex;flex-direction:column;height:100%;
-    background:#060a10;color:#e8eaf0;font-family:'Orbitron',monospace;
-    gap:0;overflow:hidden;
-  ">
-    <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;
-      padding:10px 14px 8px;border-bottom:1px solid rgba(0,229,255,0.12);
-      background:rgba(6,10,16,0.97);flex-shrink:0">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="color:#00e5ff;font-size:16px">⬡</span>
-        <span style="font-size:11px;letter-spacing:2px;color:#00e5ff;font-weight:700">ARCLAKE STUDIO</span>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button onclick="window._alsFullscreen&&window._alsFullscreen()" style="
-          background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);
-          color:#00e5ff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:10px;
-          font-family:inherit">⛶ EXPAND</button>
-      </div>
+// ── Render HTML ───────────────────────────────────────────────────────────────
+global.renderToolsArcLake = function(){
+  return `<div id="als-root" style="display:flex;flex-direction:column;height:100%;background:#04070e;color:#e8eaf0;font-family:Orbitron,monospace;overflow:hidden">
+  <div style="position:relative;flex:1;min-height:180px;overflow:hidden">
+    <canvas id="als-canvas" style="width:100%;height:100%;display:block;touch-action:none;outline:none" tabindex="0"></canvas>
+    <div style="position:absolute;top:8px;left:10px;font-size:8.5px;color:#00e5ff;opacity:0.85;line-height:1.9;pointer-events:none">
+      <div id="als-hud-s" style="font-weight:700;letter-spacing:1px">&#9679; IDLE</div>
+      <div id="als-hud-f">FRAMES: 0</div>
+      <div id="als-hud-t">TIME: 0.00s</div>
+      <div id="als-hud-e" style="color:#c4a0ff"></div>
     </div>
-
-    <!-- Canvas -->
-    <div style="position:relative;flex:1;min-height:200px;overflow:hidden">
-      <canvas id="als-canvas" style="width:100%;height:100%;display:block;touch-action:none"></canvas>
-      <!-- HUD overlay — left: status readout | right: action buttons -->
-      <div id="als-hud" style="position:absolute;top:8px;left:10px;font-size:9px;
-        color:#00e5ff;opacity:0.85;line-height:1.9;pointer-events:none">
-        <div id="als-hud-status" style="font-weight:700;letter-spacing:1px">● IDLE</div>
-        <div id="als-hud-frames">FRAMES: 0</div>
-        <div id="als-hud-time">TIME: 0.00s</div>
-      </div>
-      <!-- HUD right-side action buttons -->
-      <div style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:5px;pointer-events:all">
-        <button onclick="window._alsStart&&window._alsStart()" title="Start simulation"
-          style="width:28px;height:28px;background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.4);
-          color:#00e5ff;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">▶</button>
-        <button onclick="window._alsStop&&window._alsStop()" title="Stop simulation"
-          style="width:28px;height:28px;background:rgba(255,77,77,0.12);border:1px solid rgba(255,77,77,0.35);
-          color:#ff4d4d;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">■</button>
-        <button onclick="window._alsExport&&window._alsExport()" title="Export GLB"
-          style="width:28px;height:28px;background:rgba(124,77,255,0.15);border:1px solid rgba(124,77,255,0.4);
-          color:#c4a0ff;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">⬇</button>
-        <button onclick="window._alsFullscreen&&window._alsFullscreen()" title="Fullscreen"
-          style="width:28px;height:28px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
-          color:#8a8fa8;border-radius:6px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center">⛶</button>
-        <button onclick="window._alsReset&&window._alsReset()" title="Reset scene"
-          style="width:28px;height:28px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
-          color:#666;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">↺</button>
-      </div>
-      <!-- Temp + pressure readout bottom right -->
-      <div style="position:absolute;bottom:6px;right:8px;font-size:9px;
-        color:#ff6644;opacity:0.85;pointer-events:none;text-align:right;line-height:1.6">
-        <span id="als-temp-label">25°C</span><br>
-        <span id="als-pres-hud" style="color:#7c4dff">101325 Pa</span>
-      </div>
+    <div style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:5px;pointer-events:all">
+      <button onclick="window._alsStart&&window._alsStart()" title="Start" style="width:30px;height:30px;background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.45);color:#00e5ff;border-radius:6px;cursor:pointer;font-size:13px">&#9654;</button>
+      <button onclick="window._alsStop&&window._alsStop()"  title="Stop"  style="width:30px;height:30px;background:rgba(255,77,77,0.12);border:1px solid rgba(255,77,77,0.35);color:#ff4d4d;border-radius:6px;cursor:pointer;font-size:13px">&#9632;</button>
+      <button onclick="window._alsExport&&window._alsExport()" title="Export GLB" style="width:30px;height:30px;background:rgba(124,77,255,0.15);border:1px solid rgba(124,77,255,0.4);color:#c4a0ff;border-radius:6px;cursor:pointer;font-size:12px">&#x2B07;</button>
+      <button onclick="window._alsFullscreen&&window._alsFullscreen()" title="Expand" style="width:30px;height:30px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:#8a8fa8;border-radius:6px;cursor:pointer;font-size:11px">&#x26F6;</button>
+      <button onclick="window._alsReset&&window._alsReset()" title="Reset" style="width:30px;height:30px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#555;border-radius:6px;cursor:pointer;font-size:13px">&#x21BA;</button>
     </div>
-
-    <!-- Controls -->
-    <div style="flex-shrink:0;padding:10px 12px;border-top:1px solid rgba(0,229,255,0.1);
-      background:rgba(6,10,16,0.95);display:flex;flex-direction:column;gap:8px">
-
-      <!-- Molecule selector -->
-      <div style="display:flex;gap:8px;align-items:center">
-        <label style="font-size:9px;color:#8a8fa8;letter-spacing:1px;white-space:nowrap">SCENE</label>
-        <select id="als-preset" onchange="window._alsLoadPreset&&window._alsLoadPreset(this.value)" style="
-          flex:1;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.25);
-          color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:10px;font-family:inherit;cursor:pointer">
-          ${Object.keys(PRESETS).map(k=>`<option value="${k}">${k}</option>`).join('')}
-          <option value="__custom">Custom...</option>
-        </select>
-      </div>
-
-      <!-- Custom input -->
-      <div id="als-custom-row" style="display:none;gap:6px;align-items:center">
-        <input id="als-custom-input" placeholder="e.g. Fe,Cu,Ni or describe..." style="
-          flex:1;background:rgba(124,77,255,0.08);border:1px solid rgba(124,77,255,0.3);
-          color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:10px;font-family:inherit"
-          onkeydown="if(event.key==='Enter') window._alsParseCustom&&window._alsParseCustom()">
-        <button onclick="window._alsParseCustom&&window._alsParseCustom()" style="
-          background:rgba(124,77,255,0.2);border:1px solid rgba(124,77,255,0.4);
-          color:#c4a0ff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:10px;font-family:inherit">BUILD</button>
-      </div>
-
-      <!-- Environment params -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <div>
-          <label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">TEMP (°C)</label>
-          <input id="als-temp" type="range" min="-273" max="3500" value="25" step="1"
-            oninput="window._alsUpdateParam&&window._alsUpdateParam('temp',+this.value)"
-            style="width:100%;accent-color:#ff6644">
-          <span id="als-temp-val" style="font-size:9px;color:#ff6644">25°C</span>
-        </div>
-        <div>
-          <label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">PRESSURE (Pa)</label>
-          <input id="als-pressure" type="range" min="0" max="500000" value="101325" step="100"
-            oninput="window._alsUpdateParam&&window._alsUpdateParam('pressure',+this.value)"
-            style="width:100%;accent-color:#7c4dff">
-          <span id="als-pres-val" style="font-size:9px;color:#7c4dff">101325 Pa</span>
-        </div>
-        <div>
-          <label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">WIND X (m/s)</label>
-          <input id="als-windx" type="range" min="-100" max="100" value="0" step="1"
-            oninput="window._alsUpdateParam&&window._alsUpdateParam('windX',+this.value)"
-            style="width:100%;accent-color:#00e5ff">
-          <span id="als-wx-val" style="font-size:9px;color:#00e5ff">0 m/s</span>
-        </div>
-        <div>
-          <label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">WIND Y (m/s)</label>
-          <input id="als-windy" type="range" min="-100" max="100" value="0" step="1"
-            oninput="window._alsUpdateParam&&window._alsUpdateParam('windY',+this.value)"
-            style="width:100%;accent-color:#00e5ff">
-          <span id="als-wy-val" style="font-size:9px;color:#00e5ff">0 m/s</span>
-        </div>
-      </div>
-
-      <!-- Simulation controls -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button id="als-btn-start" onclick="window._alsStart&&window._alsStart()" style="
-          flex:1;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.35);
-          color:#00e5ff;padding:7px;border-radius:8px;cursor:pointer;font-size:10px;font-family:inherit;font-weight:700">
-          ▶ SIMULATE</button>
-        <button id="als-btn-stop" onclick="window._alsStop&&window._alsStop()" style="
-          flex:1;background:rgba(255,77,77,0.12);border:1px solid rgba(255,77,77,0.3);
-          color:#ff4d4d;padding:7px;border-radius:8px;cursor:pointer;font-size:10px;font-family:inherit">
-          ■ STOP</button>
-        <button id="als-btn-export" onclick="window._alsExport&&window._alsExport()" style="
-          flex:1;background:rgba(124,77,255,0.12);border:1px solid rgba(124,77,255,0.3);
-          color:#c4a0ff;padding:7px;border-radius:8px;cursor:pointer;font-size:10px;font-family:inherit">
-          ⬇ GLB</button>
-        <button onclick="window._alsReset&&window._alsReset()" style="
-          background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-          color:#8a8fa8;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:10px;font-family:inherit">
-          ↺</button>
-      </div>
-
-      <!-- Status bar -->
-      <div id="als-status" style="font-size:9px;color:#8a8fa8;text-align:center;min-height:14px"></div>
+    <div style="position:absolute;bottom:6px;right:8px;font-size:8.5px;text-align:right;line-height:1.7;pointer-events:none">
+      <span id="als-hud-tmp" style="color:#ff6644"></span><br>
+      <span id="als-hud-prs" style="color:#7c4dff"></span>
     </div>
-  </div>`;
+  </div>
+  <div style="flex-shrink:0;padding:8px 10px 10px;background:rgba(4,7,14,0.98);border-top:1px solid rgba(0,229,255,0.1);display:flex;flex-direction:column;gap:7px">
+    <div style="display:flex;gap:8px;align-items:center">
+      <label style="font-size:8.5px;color:#8a8fa8;letter-spacing:1px;white-space:nowrap">SCENE</label>
+      <select id="als-preset" onchange="window._alsLoadPreset&&window._alsLoadPreset(this.value)" style="flex:1;background:rgba(0,229,255,0.07);border:1px solid rgba(0,229,255,0.22);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9.5px;font-family:inherit;cursor:pointer">
+        ${PRESET_KEYS.map(k=>`<option value="${k}">${k}</option>`).join('')}
+        <option value="__custom">Custom elements...</option>
+      </select>
+      <label style="font-size:8px;color:#8a8fa8;white-space:nowrap">pts/e&#x207B;</label>
+      <input id="als-pte" type="number" min="5" max="100" value="30" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:42px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
+    </div>
+    <div id="als-custom-row" style="display:none;gap:6px;align-items:center">
+      <input id="als-custom-in" placeholder="Fe,Cu,Ni or describe compound..." style="flex:1;background:rgba(124,77,255,0.07);border:1px solid rgba(124,77,255,0.28);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9.5px;font-family:inherit" onkeydown="if(event.key==='Enter')window._alsParseCustom&&window._alsParseCustom()">
+      <button onclick="window._alsParseCustom&&window._alsParseCustom()" style="background:rgba(124,77,255,0.18);border:1px solid rgba(124,77,255,0.38);color:#c4a0ff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:9px;font-family:inherit">BUILD</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div><label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">TEMP (°C)</label>
+        <input id="als-temp" type="range" min="-273" max="3500" value="25" step="1" oninput="window._alsUpdateParam&&window._alsUpdateParam('temp',+this.value)" style="width:100%;accent-color:#ff6644;margin-top:2px">
+        <span id="als-temp-v" style="font-size:8.5px;color:#ff6644">25°C</span></div>
+      <div><label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">PRESSURE (Pa)</label>
+        <input id="als-pres" type="range" min="0" max="500000" value="101325" step="100" oninput="window._alsUpdateParam&&window._alsUpdateParam('pressure',+this.value)" style="width:100%;accent-color:#7c4dff;margin-top:2px">
+        <span id="als-pres-v" style="font-size:8.5px;color:#7c4dff">101325 Pa</span></div>
+      <div><label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">WIND X (m/s)</label>
+        <input id="als-wx" type="range" min="-200" max="200" value="0" step="1" oninput="window._alsUpdateParam&&window._alsUpdateParam('windX',+this.value)" style="width:100%;accent-color:#00e5ff;margin-top:2px">
+        <span id="als-wx-v" style="font-size:8.5px;color:#00e5ff">0 m/s</span></div>
+      <div><label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">WIND Y (m/s)</label>
+        <input id="als-wy" type="range" min="-200" max="200" value="0" step="1" oninput="window._alsUpdateParam&&window._alsUpdateParam('windY',+this.value)" style="width:100%;accent-color:#00e5ff;margin-top:2px">
+        <span id="als-wy-v" style="font-size:8.5px;color:#00e5ff">0 m/s</span></div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button id="als-btn-s" onclick="window._alsStart&&window._alsStart()" style="flex:1;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.35);color:#00e5ff;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit;font-weight:700">&#9654; SIMULATE</button>
+      <button onclick="window._alsStop&&window._alsStop()" style="flex:1;background:rgba(255,77,77,0.1);border:1px solid rgba(255,77,77,0.3);color:#ff4d4d;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit">&#9632; STOP</button>
+      <button id="als-btn-glb" onclick="window._alsExport&&window._alsExport()" style="flex:1;background:rgba(124,77,255,0.12);border:1px solid rgba(124,77,255,0.3);color:#c4a0ff;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit">&#x2B07; GLB</button>
+      <button onclick="window._alsReset&&window._alsReset()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#555;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-family:inherit">&#x21BA;</button>
+    </div>
+    <div id="als-status" style="font-size:8.5px;color:#8a8fa8;text-align:center;min-height:13px"></div>
+  </div>
+</div>`;
 };
 
-// ── Mount logic — called after HTML is injected ─────────────────────────────
-window._alsMounted = function() {
-  // Size canvas properly
+// ── Mount ─────────────────────────────────────────────────────────────────────
+global._alsMounted = function(){
+  _dispose();
   const canvas = document.getElementById('als-canvas');
-  if (!canvas) return;
+  if(!canvas){ console.warn('[ArcLake] canvas not found'); return; }
   const container = canvas.parentElement;
-  const W = container.offsetWidth  || 360;
-  const H = container.offsetHeight || 220;
-  canvas.width  = W * (window.devicePixelRatio||1);
-  canvas.height = H * (window.devicePixelRatio||1);
-  canvas.style.width  = W+'px';
-  canvas.style.height = H+'px';
 
-  _als = _init('als-canvas');
-  if (!_als) { document.getElementById('als-status').textContent='THREE.js not loaded — refresh'; return; }
-  _als.scene.add(_als.envGroup);
+  // Set canvas size explicitly
+  const setSize = () => {
+    const W = container.offsetWidth  || 380;
+    const H = Math.max(160, container.offsetHeight || 240);
+    canvas.width  = W * (window.devicePixelRatio||1);
+    canvas.height = H * (window.devicePixelRatio||1);
+    canvas.style.width  = W+'px';
+    canvas.style.height = H+'px';
+    if(S && S.renderer){
+      S.renderer.setSize(W, H, false);
+      S.camera.aspect = W/H;
+      S.camera.updateProjectionMatrix();
+      if(S.controls) S.controls.update();
+    }
+  };
+  setSize();
+
+  S = _initScene(canvas);
+  if(!S){ document.getElementById('als-status').textContent='THREE.js not ready'; return; }
+  S.params.ptsPerE = 30;
 
   // Load default preset
-  const presetKeys = Object.keys(PRESETS);
-  _buildMolecule(_als, PRESETS[presetKeys[0]]);
+  _buildMolecule(S, PRESETS[PRESET_KEYS[0]], 30);
 
   // Animation loop
-  let _rafId = null;
-  function _loop() {
-    _rafId = requestAnimationFrame(_loop);
-    if (_als.isSimulating) _simStep(_als);
-    if (_als.controls) _als.controls.update();
-    _als.renderer.render(_als.scene, _als.camera);
+  function _loop(){
+    S.raf = requestAnimationFrame(_loop);
+    if(S.isSimulating) _simStep(S);
+    if(S.controls) S.controls.update();
+    S.renderer.render(S.scene, S.camera);
     // HUD
-    const hud = document.getElementById('als-hud-frames');
-    const htime = document.getElementById('als-hud-time');
-    const htmp  = document.getElementById('als-temp-label');
-    if (hud)   hud.textContent   = 'FRAMES: ' + _als.recordedFrames.length;
-    if (htime) htime.textContent = 'TIME: '   + _als.simTime.toFixed(2)+'s';
-    if (htmp)  htmp.textContent  = _als.params.temp+'°C';
+    const hs=document.getElementById('als-hud-s');
+    const hf=document.getElementById('als-hud-f');
+    const ht=document.getElementById('als-hud-t');
+    const he=document.getElementById('als-hud-e');
+    const htmp=document.getElementById('als-hud-tmp');
+    const hprs=document.getElementById('als-hud-prs');
+    if(hs) hs.textContent = S.isSimulating ? '&#9679; SIMULATING' : '&#9679; IDLE';
+    if(hf) hf.textContent = 'FRAMES: '+S.recordedFrames.length;
+    if(ht) ht.textContent = 'TIME: '+S.simTime.toFixed(2)+'s';
+    if(he && S.atomGroups.length){
+      const totalE=S.atomGroups.reduce((a,ag)=>a+ag.el.e,0);
+      he.textContent='e&#x207B;: '+(totalE*S.params.ptsPerE).toLocaleString()+' pts';
+    }
+    if(htmp) htmp.textContent = S.params.temp+'°C';
+    if(hprs) hprs.textContent = S.params.pressure+' Pa';
   }
   _loop();
 
   // Resize observer
-  const ro = new ResizeObserver(() => {
-    if (!_als || !_als.renderer) return;
-    const W2 = container.offsetWidth || 360;
-    const H2 = Math.max(150, container.offsetHeight || 220);
-    _als.renderer.setSize(W2, H2, false);
-    _als.camera.aspect = W2/H2;
-    _als.camera.updateProjectionMatrix();
+  S.ro = new ResizeObserver(setSize);
+  S.ro.observe(container);
+};
+
+// ── API ───────────────────────────────────────────────────────────────────────
+global._alsLoadPreset = function(key){
+  const row=document.getElementById('als-custom-row');
+  if(key==='__custom'){ if(row) row.style.display='flex'; return; }
+  if(row) row.style.display='none';
+  if(!S) return;
+  S.isSimulating=false;
+  const pte=S.params.ptsPerE||30;
+  const defs=PRESETS[key];
+  if(!defs){ document.getElementById('als-status').textContent='Preset not found: '+key; return; }
+  _buildMolecule(S, defs, pte);
+  const el=document.getElementById('als-preset');
+  if(el) el.value=key;
+  const totalE=S.atomGroups.reduce((a,ag)=>a+(ag.el.e||0),0);
+  document.getElementById('als-status').textContent=key+' — '+S.atomGroups.length+' atoms, '+totalE+' electrons, '+(totalE*pte).toLocaleString()+' waveform particles';
+};
+
+global._alsParseCustom = function(){
+  const raw=(document.getElementById('als-custom-in')||{}).value||'';
+  if(!S||!raw.trim()) return;
+  const syms=raw.split(',').map(s=>s.trim()).map(s=>s.charAt(0).toUpperCase()+s.slice(1).toLowerCase()).filter(s=>EL[s]);
+  if(!syms.length){ document.getElementById('als-status').textContent='Unknown elements. Try: Fe,Cu,Ni'; return; }
+  const defs=syms.map((s,i)=>{
+    const angle=(i/syms.length)*Math.PI*2;
+    const r2=syms.length>1?2.8:0;
+    return {s,p:[Math.cos(angle)*r2,0,Math.sin(angle)*r2]};
   });
-  ro.observe(container);
-  _als._ro = ro;
-  _als._rafId = _rafId;
+  S.isSimulating=false;
+  _buildMolecule(S, defs, S.params.ptsPerE||30);
+  document.getElementById('als-status').textContent='Custom: '+syms.join(', ');
 };
 
-// ── Exposed API ─────────────────────────────────────────────────────────────
-window._alsLoadPreset = function(key) {
-  const row = document.getElementById('als-custom-row');
-  if (key === '__custom') {
-    if (row) row.style.display = 'flex';
-    return;
+global._alsSetPtsPerE = function(n){
+  if(!S) return;
+  S.params.ptsPerE=Math.max(5,Math.min(100,n||30));
+  const key=(document.getElementById('als-preset')||{}).value||PRESET_KEYS[0];
+  if(PRESETS[key]) _buildMolecule(S,PRESETS[key],S.params.ptsPerE);
+};
+
+global._alsUpdateParam = function(key,val){
+  if(!S) return;
+  S.params[key]=val;
+  const map={temp:['als-temp-v','°C','#ff6644'],pressure:['als-pres-v',' Pa','#7c4dff'],windX:['als-wx-v',' m/s','#00e5ff'],windY:['als-wy-v',' m/s','#00e5ff']};
+  if(map[key]){ const el=document.getElementById(map[key][0]); if(el){el.textContent=val+map[key][1]; el.style.color=map[key][2];} }
+};
+
+global._alsStart = function(){
+  if(!S) return;
+  S.isSimulating=true;
+  document.getElementById('als-status').textContent='Simulation running — recording waveform frames...';
+};
+
+global._alsStop = function(){
+  if(!S) return;
+  S.isSimulating=false;
+  document.getElementById('als-status').textContent='Stopped. '+S.recordedFrames.length+' frames. Ready for GLB export.';
+};
+
+global._alsReset = function(){
+  if(!S) return;
+  S.isSimulating=false;
+  const key=(document.getElementById('als-preset')||{}).value||PRESET_KEYS[0];
+  if(PRESETS[key]) _buildMolecule(S,PRESETS[key],S.params.ptsPerE||30);
+  document.getElementById('als-status').textContent='Scene reset.';
+};
+
+global._alsExport = async function(){
+  if(!S) return;
+  const btn=document.getElementById('als-btn-glb');
+  if(btn) btn.textContent='&#x23F3; BUILDING...';
+  document.getElementById('als-status').textContent='Building GLB with waveform animation data...';
+  try{
+    await _exportGLB(S);
+    document.getElementById('als-status').textContent='GLB downloaded — '+S.recordedFrames.length+' animation frames.';
+  }catch(e){
+    document.getElementById('als-status').textContent='Export error: '+e.message;
   }
-  if (row) row.style.display = 'none';
-  if (!_als || !PRESETS[key]) return;
-  _als.isSimulating = false;
-  _als.recordedFrames = [];
-  _als.simTime = 0;
-  _buildMolecule(_als, PRESETS[key]);
-  document.getElementById('als-status').textContent = 'Scene: '+key;
+  if(btn) btn.textContent='&#x2B07; GLB';
 };
 
-window._alsParseCustom = function() {
-  const raw = document.getElementById('als-custom-input').value.trim();
-  if (!raw || !_als) return;
-  // Parse comma-separated element symbols
-  const syms = raw.split(',').map(s=>s.trim().replace(/[^A-Za-z]/g,''));
-  const valid = syms.filter(s=>ELEMENTS[s]||ELEMENTS[s.charAt(0).toUpperCase()+s.slice(1).toLowerCase()]);
-  if (!valid.length) { document.getElementById('als-status').textContent='Unknown elements — try: Fe,Cu,Ni'; return; }
-  const defs = valid.map((sym,i) => {
-    const angle = (i / valid.length) * Math.PI * 2;
-    const r2 = valid.length > 1 ? 2.5 : 0;
-    return {sym: sym.charAt(0).toUpperCase()+sym.slice(1).toLowerCase(), pos:[Math.cos(angle)*r2, 0, Math.sin(angle)*r2]};
-  });
-  _als.isSimulating = false;
-  _als.recordedFrames = [];
-  _als.simTime = 0;
-  _buildMolecule(_als, defs);
-  document.getElementById('als-status').textContent = 'Custom: '+valid.join(', ');
-};
+global._alsFullscreen = function(){
+  const ex=document.getElementById('als-fs-overlay');
+  if(ex){ ex.remove(); if(S) _alsMounted_target('als-canvas'); return; }
 
-window._alsUpdateParam = function(key, val) {
-  if (!_als) return;
-  _als.params[key] = val;
-  if (key==='temp') {
-    document.getElementById('als-temp-val').textContent = val+'°C';
-    const tl = document.getElementById('als-temp-label');
-    if (tl) tl.textContent = val+'°C';
-  }
-  if (key==='pressure') {
-    document.getElementById('als-pres-val').textContent  = val+' Pa';
-    const ph = document.getElementById('als-pres-hud');
-    if (ph) ph.textContent = val+' Pa';
-  }
-  if (key==='windX')    { document.getElementById('als-wx-val').textContent    = val+' m/s'; }
-  if (key==='windY')    { document.getElementById('als-wy-val').textContent    = val+' m/s'; }
-};
+  const ov=document.createElement('div');
+  ov.id='als-fs-overlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:99998;background:#04070e;display:flex;align-items:stretch;justify-content:stretch';
 
-window._alsStart = function() {
-  if (!_als) return;
-  _als.isSimulating = true;
-  const s = document.getElementById('als-hud-status');
-  if (s) s.textContent = '● SIMULATING';
-  document.getElementById('als-status').textContent = 'Simulation running — recording frames...';
-};
+  const closeBtn=document.createElement('button');
+  closeBtn.innerHTML='&#x2715; CLOSE';
+  closeBtn.style.cssText='position:absolute;top:12px;right:12px;z-index:99999;background:rgba(255,77,77,0.15);border:1px solid rgba(255,77,77,0.35);color:#ff4d4d;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:Orbitron,monospace;font-size:11px';
+  closeBtn.onclick=()=>{ ov.remove(); };
+  ov.appendChild(closeBtn);
 
-window._alsStop = function() {
-  if (!_als) return;
-  _als.isSimulating = false;
-  const s = document.getElementById('als-hud-status');
-  if (s) s.textContent = '■ STOPPED';
-  document.getElementById('als-status').textContent = 'Stopped. '+_als.recordedFrames.length+' frames recorded. Ready for GLB export.';
-};
+  const fsCanvas=document.createElement('canvas');
+  fsCanvas.id='als-fs-canvas';
+  fsCanvas.style.cssText='width:100%;height:100%;display:block;touch-action:none';
+  ov.appendChild(fsCanvas);
+  document.body.appendChild(ov);
 
-window._alsReset = function() {
-  if (!_als) return;
-  _als.isSimulating = false;
-  _als.recordedFrames = [];
-  _als.simTime = 0;
-  const key = document.getElementById('als-preset').value;
-  if (PRESETS[key]) _buildMolecule(_als, PRESETS[key]);
-  document.getElementById('als-status').textContent = 'Reset.';
-  const s = document.getElementById('als-hud-status');
-  if (s) s.textContent = '● IDLE';
-};
-
-window._alsExport = async function() {
-  if (!_als) return;
-  const btn = document.getElementById('als-btn-export');
-  if (btn) btn.textContent = '⏳ EXPORTING...';
-  document.getElementById('als-status').textContent = 'Building GLB with animation data...';
-  try {
-    await _exportGLB(_als);
-    document.getElementById('als-status').textContent = 'GLB downloaded with '+_als.recordedFrames.length+' animation frames.';
-  } catch(e) {
-    document.getElementById('als-status').textContent = 'Export error: '+e.message;
-  }
-  if (btn) btn.textContent = '⬇ GLB';
-};
-
-window._alsFullscreen = function() {
-  // Create fullscreen overlay
-  const existing = document.getElementById('als-fullscreen-overlay');
-  if (existing) { existing.remove(); return; }
-  const overlay = document.createElement('div');
-  overlay.id = 'als-fullscreen-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#060a10;display:flex;flex-direction:column';
-  const closeBtn = document.createElement('button');
-  closeBtn.textContent = '✕ CLOSE STUDIO';
-  closeBtn.style.cssText = 'position:absolute;top:12px;right:12px;z-index:100000;background:rgba(255,77,77,0.15);border:1px solid rgba(255,77,77,0.35);color:#ff4d4d;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:Orbitron,monospace;font-size:11px';
-  closeBtn.onclick = () => overlay.remove();
-  overlay.appendChild(closeBtn);
-  // Mount a fresh canvas
-  const fsCanvas = document.createElement('canvas');
-  fsCanvas.id = 'als-fs-canvas';
-  fsCanvas.style.cssText = 'width:100%;height:100%;display:block;touch-action:none';
-  overlay.appendChild(fsCanvas);
-  document.body.appendChild(overlay);
-  // Init new renderer on fullscreen canvas
-  requestAnimationFrame(() => {
-    const W = overlay.offsetWidth; const H = overlay.offsetHeight;
-    fsCanvas.width = W; fsCanvas.height = H;
-    if (_als && window.THREE) {
-      _als.renderer.dispose();
-      const r2 = new window.THREE.WebGLRenderer({canvas:fsCanvas,antialias:true,alpha:true});
-      r2.setSize(W,H,false); r2.setClearColor(0x060a10,1);
-      _als.renderer = r2;
-      _als.camera.aspect = W/H; _als.camera.updateProjectionMatrix();
-      if (_als.controls) { _als.controls.dispose(); _als.controls = new window.THREE.OrbitControls(_als.camera, r2.domElement); }
+  requestAnimationFrame(()=>{
+    const W=ov.offsetWidth, H=ov.offsetHeight;
+    fsCanvas.width=W*(window.devicePixelRatio||1);
+    fsCanvas.height=H*(window.devicePixelRatio||1);
+    fsCanvas.style.width=W+'px'; fsCanvas.style.height=H+'px';
+    if(S && window.THREE){
+      if(S.raf) cancelAnimationFrame(S.raf);
+      if(S.controls) S.controls.dispose();
+      S.renderer.dispose();
+      const T=window.THREE;
+      const r2=new T.WebGLRenderer({canvas:fsCanvas,antialias:true,alpha:false});
+      r2.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+      r2.setSize(W,H,false); r2.setClearColor(0x04070e,1);
+      S.renderer=r2;
+      S.camera.aspect=W/H; S.camera.updateProjectionMatrix();
+      if(T.OrbitControls){
+        S.controls=new T.OrbitControls(S.camera,fsCanvas);
+        S.controls.enableDamping=true; S.controls.dampingFactor=0.08;
+      }
+      function _fsLoop(){
+        if(!document.getElementById('als-fs-overlay')){ return; }
+        S.raf=requestAnimationFrame(_fsLoop);
+        if(S.isSimulating) _simStep(S);
+        if(S.controls) S.controls.update();
+        S.renderer.render(S.scene,S.camera);
+      }
+      _fsLoop();
     }
   });
 };
 
-})();
+})(typeof window!=='undefined'?window:global);
