@@ -1119,7 +1119,11 @@ class ResponseBuilder {
       });
     }
 
-    const builtResponse = sentences.filter(Boolean).join(' ')
+    // Voice mode: strip markdown, use spoken cadence
+    const _voiceMode = knownFacts['_voiceActive'] === true ||
+                       (typeof window!=='undefined'&&window._lastVoiceState===true);
+
+    const builtResponse = sentences.filter(Boolean).join(_voiceMode ? ' ' : ' ')
       .replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
 
     // ── Personality / joke check ──────────────────────────────────────────
@@ -1203,6 +1207,11 @@ class ResponseBuilder {
     let full=parts.join(' ').replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
     if(full&&!/[.!?]$/.test(full)) full+='.';
     const pre=this._pre(emotion);
+    // In voice mode: strip markdown so TTS reads cleanly
+    const _vm = knownFacts['_voiceActive']===true||
+                (typeof window!=='undefined'&&window._lastVoiceState===true);
+    if(_vm) full = full.replace(/\*\*([^*]+)\*\*/g,'$1').replace(/`([^`]+)`/g,'$1')
+                       .replace(/^—\s*/gm,'').replace(/#{1,6}\s+/g,'').trim();
     return (pre?pre+' ':'')+full;
   }
 
