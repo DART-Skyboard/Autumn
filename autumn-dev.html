@@ -11059,48 +11059,7 @@ window.forgeInlineRun=function(bid,pid,lang){
   if(rb)rb.style.display='none';if(sb)sb.style.display='';
   var doc=frm.contentDocument||frm.contentWindow.document;
   if(lang==='html'){doc.open();doc.write(code);doc.close();}
-  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre><script>var _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}<\/script>
-
-  <!-- ⬡ ARCLAKE STUDIO OVERLAY (draggable — matches Arc Edge pattern) -->
-  <div id="als-overlay" style="
-    display:none;position:fixed;z-index:9100;
-    top:60px;left:50%;transform:translateX(-50%);
-    width:min(720px,96vw);max-height:85vh;
-    background:rgba(6,10,16,0.97);
-    border:1px solid rgba(0,229,255,0.25);
-    border-radius:14px;
-    box-shadow:0 8px 40px rgba(0,0,0,0.7),0 0 0 1px rgba(0,229,255,0.1);
-    overflow:hidden;display:flex;flex-direction:column;
-    font-family:'Orbitron',monospace;
-    touch-action:none;user-select:none;
-  ">
-    <!-- Drag header -->
-    <div id="als-overlay-header" style="
-      display:flex;align-items:center;justify-content:space-between;
-      padding:10px 14px;
-      background:rgba(0,229,255,0.06);
-      border-bottom:1px solid rgba(0,229,255,0.15);
-      cursor:grab;flex-shrink:0;
-    ">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="color:#00e5ff;font-size:16px">⬡</span>
-        <span style="font-size:11px;letter-spacing:2px;color:#00e5ff;font-weight:700">ARCLAKE STUDIO</span>
-        <span id="als-overlay-status" style="font-size:9px;color:#8a8fa8;letter-spacing:1px;margin-left:4px">● IDLE</span>
-      </div>
-      <div style="display:flex;gap:6px;pointer-events:all">
-        <button onclick="window.arcLakeStudioCollapse&&window.arcLakeStudioCollapse()" id="als-collapse-btn"
-          style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
-          color:#8a8fa8;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px">—</button>
-        <button onclick="window.arcLakeStudioClose&&window.arcLakeStudioClose()"
-          style="background:rgba(255,77,77,0.1);border:1px solid rgba(255,77,77,0.3);
-          color:#ff4d4d;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:10px;font-family:inherit">✕ CLOSE</button>
-      </div>
-    </div>
-    <!-- Body injected by arclake_studio module -->
-    <div id="als-overlay-body" style="flex:1;overflow:hidden;min-height:400px"></div>
-  </div>
-
-</body></html>');doc.close();}
+  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre><script>var _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}<\/script></body></html>');doc.close();}
   else if(lang==='css'){doc.open();doc.write('<style>'+code+'</style><p style="font-family:sans-serif;padding:12px">CSS preview</p>');doc.close();}
   else if(lang==='markdown'){var h=code.replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/^# (.+)/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');doc.open();doc.write('<style>body{font-family:sans-serif;padding:14px;line-height:1.6}</style>'+h);doc.close();}
   else{doc.open();doc.write('<pre style="font-family:monospace;font-size:11px;padding:10px;background:#030810;color:#e0f4ff;margin:0;white-space:pre-wrap">['+lang.toUpperCase()+' requires local runtime]\n\n'+code.replace(/</g,'&lt;')+'</pre>');doc.close();}
@@ -21980,6 +21939,22 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   })();
 </script>
 
+
+  <!-- ⬡ ARCLAKE STUDIO OVERLAY -->
+  <div id="als-overlay" style="display:none;position:fixed;z-index:9100;top:60px;left:50%;transform:translateX(-50%);width:min(720px,96vw);max-height:85vh;background:rgba(6,10,16,0.97);border:1px solid rgba(0,229,255,0.25);border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,0.7);flex-direction:column;font-family:Orbitron,monospace;touch-action:none;user-select:none">
+    <div id="als-overlay-header" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,229,255,0.06);border-bottom:1px solid rgba(0,229,255,0.15);cursor:grab;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:#00e5ff;font-size:16px">&#x2B21;</span>
+        <span style="font-size:11px;letter-spacing:2px;color:#00e5ff;font-weight:700">ARCLAKE STUDIO</span>
+        <span id="als-overlay-status" style="font-size:9px;color:#8a8fa8;letter-spacing:1px;margin-left:4px">&#9679; IDLE</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="window.arcLakeStudioCollapse&&window.arcLakeStudioCollapse()" id="als-collapse-btn" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#8a8fa8;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px">&#x2014;</button>
+        <button onclick="window.arcLakeStudioClose&&window.arcLakeStudioClose()" style="background:rgba(255,77,77,0.1);border:1px solid rgba(255,77,77,0.3);color:#ff4d4d;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:10px;font-family:inherit">&#x2715; CLOSE</button>
+      </div>
+    </div>
+    <div id="als-overlay-body" style="flex:1;overflow:hidden;min-height:400px"></div>
+  </div>
 </body>
 </html>
 
