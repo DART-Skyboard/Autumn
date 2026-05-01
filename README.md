@@ -1,8 +1,4 @@
-<p align="center">
-  <a href="https://leatr.xyz/" target="_blank">
-    <img src="https://raw.githubusercontent.com/DART-Skyboard/Autumn/main/profile.svg" alt="Autumn — Live Active Users" width="800">
-  </a>
-</p>
+
 
 <p align="center">
   <a href="https://leatr.xyz/" target="_blank">
