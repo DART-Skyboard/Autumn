@@ -392,7 +392,7 @@ async function _exportGLB(state){
 // ── HTML ──────────────────────────────────────────────────────────────────────
 global.renderToolsArcLake=function(){
   return`<div id="als-root" style="display:flex;flex-direction:column;height:100%;background:#04070e;color:#e8eaf0;font-family:Orbitron,monospace;overflow:hidden">
-  <div style="position:relative;flex:1;min-height:180px;overflow:hidden;background:#04070e">
+  <div style="position:relative;width:100%;height:260px;min-height:260px;overflow:hidden;background:#04070e">
     <canvas id="als-canvas" style="width:100%;height:100%;display:block;touch-action:none;outline:none" tabindex="0"></canvas>
     <div style="position:absolute;top:8px;left:10px;font-size:8.5px;color:#00e5ff;opacity:.85;line-height:1.9;pointer-events:none">
       <div id="als-hud-s" style="font-weight:700;letter-spacing:1px">&#9679; IDLE</div>
@@ -466,10 +466,18 @@ global._alsMounted=function(){
   };
 
   function _tryInit(tries){
-    if((!cont.offsetWidth||!cont.offsetHeight)&&tries>0){setTimeout(()=>_tryInit(tries-1),80);return;}
-    resize();
+    // Force explicit height on the canvas container chain so offsetHeight is never 0
+    const overlay=document.getElementById('als-overlay');
+    const body=document.getElementById('als-overlay-body');
+    if(overlay) overlay.style.height=Math.min(window.innerHeight*0.85,700)+'px';
+    if(body) body.style.height='260px';
+    cont.style.height='260px';
+    canvas.style.height='260px';
+    const W=Math.max(200,cont.offsetWidth||360), H=260;
+    canvas.width=W*(window.devicePixelRatio||1); canvas.height=H*(window.devicePixelRatio||1);
+    canvas.style.width=W+'px'; canvas.style.height=H+'px';
     S=_initScene(canvas);
-    if(!S)return;
+    if(!S){ if(tries>0){setTimeout(()=>_tryInit(tries-1),100);return;} return; }
     _build(S,PRESETS[PRESET_KEYS[0]],150);
     S.renderer.autoClear=false;
 
