@@ -250,6 +250,39 @@ function getAnalyticsContext() {
 }
 
 // Refresh analytics when Autumn explicitly needs it (e.g. user asks about sessions)
+// ── Back to Chat / Forge mode management ─────────────────────────────────
+window._forgeMode = false;
+
+window._enterForge = function() {
+  window._forgeMode = true;
+  var btn = document.getElementById('back-to-chat-btn');
+  if(btn) btn.style.display = 'flex';
+  var pill = document.getElementById('input-pill');
+  var inp  = document.getElementById('chat-input');
+  if(inp) inp.placeholder = 'Ask Autumn about your code...';
+  // Dim the chat area slightly to indicate Forge context
+  var msgs = document.getElementById('messages');
+  if(msgs) msgs.style.opacity = '0.7';
+};
+
+window._backToChat = function() {
+  window._forgeMode = false;
+  // Close the tools panel if open
+  var panel = document.getElementById('tools-panel');
+  if(panel && panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    var overlay = document.getElementById('tools-overlay');
+    if(overlay) overlay.style.display = 'none';
+  }
+  // Restore chat UI
+  var btn = document.getElementById('back-to-chat-btn');
+  if(btn) btn.style.display = 'none';
+  var inp = document.getElementById('chat-input');
+  if(inp) { inp.placeholder = 'Ask Autumn...'; inp.focus(); }
+  var msgs = document.getElementById('messages');
+  if(msgs) msgs.style.opacity = '1';
+};
+
 window._refreshAnalyticsNow = async function() {
   _analyticsReady = false; // force re-fetch
   await _fetchAnalytics();
@@ -2477,6 +2510,7 @@ select.ash-ctrl-input{cursor:pointer}
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
         </div>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
+        <button class="action-btn back-to-chat" id="back-to-chat-btn" onclick="window._backToChat&&window._backToChat()" title="Back to chat" style="display:none">✕</button>
       </div>
       <!-- Status indicators -->
       <div id="voice-indicator"><div class="vi-dot"></div>LISTENING...</div>
