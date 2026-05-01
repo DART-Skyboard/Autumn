@@ -13495,15 +13495,15 @@ function drawToolsMaze(){
 //  TOOLS PANEL
 // ============================================================
 const TOOL_TABS=[
-  {id:"cognition",label:"Cognition",icon:"🧠"},
-  {id:"contacts",label:"Contacts",icon:"◈"},
-  {id:"maze",label:"Lead Edge",icon:"🌀"},
-  {id:"arcedge",label:"Arc Edge",icon:"📐"},
-  {id:"journal",label:"Journal",icon:"📖"},
-  {id:"sessions",label:"Sessions",icon:"💬"},
-  {id:"ashtree",label:"Ash Tree",icon:"🌿"},
-  {id:"about",label:"About",icon:"🌐"},
-  {id:"arclake",label:"ArcLake",icon:"⬡"}
+  {id:"arclake",  label:"ArcLake",  icon:"🔬", color:"#00e5ff"},
+  {id:"cognition",label:"Cognition",icon:"🧠", color:"#c4a0ff"},
+  {id:"contexts", label:"Contexts", icon:"◈",  color:"#00e5ff"},
+  {id:"maze",     label:"Lead Edge",icon:"🌀", color:"#7c4dff"},
+  {id:"arcedge",  label:"Arc Edge", icon:"📐", color:"#00d4ff"},
+  {id:"journal",  label:"Journal",  icon:"📖", color:"#ff9a4d"},
+  {id:"sessions", label:"Sessions", icon:"💬", color:"#4dffb8"},
+  {id:"ashtree",  label:"Ash Tree", icon:"🌿", color:"#7fff7f"},
+  {id:"about",    label:"About",    icon:"🌐", color:"#7c9fff"}
 ];
 let currentToolTab="cognition";
 
@@ -13512,7 +13512,7 @@ function closeTools(){document.getElementById("tools-overlay").classList.remove(
 
 function renderToolsTabs(){
   const el=document.getElementById("tools-tabs");
-  el.innerHTML=TOOL_TABS.map(t=>`<button class="tools-tab ${currentToolTab===t.id?'active':''}" data-tab="${t.id}">${t.icon} ${t.label}</button>`).join("");
+  el.innerHTML=TOOL_TABS.map(t=>`<button class="tools-tab ${currentToolTab===t.id?'active':''}" data-tab="${t.id}" style="${currentToolTab===t.id&&t.color?'border-color:'+t.color+';color:'+t.color+';background:'+(t.color)+'22':''}">`+(t.color&&currentToolTab===t.id?`<span style="color:${t.color}">${t.icon}</span>`:`<span>${t.icon}</span>`)+` ${t.label}</button>`).join("");
   el.querySelectorAll(".tools-tab").forEach(btn=>{btn.onclick=()=>{currentToolTab=btn.dataset.tab;renderToolsTabs();renderToolsContent();};});
 }
 
@@ -13520,13 +13520,29 @@ function renderToolsContent(){
   const el=document.getElementById("tools-body");
   switch(currentToolTab){
     case "cognition": el.innerHTML=renderToolsCognition(); break;
-    case "contacts":  el.innerHTML=renderToolsContacts(); break;
+    case "contacts": // legacy — falls through  el.innerHTML=renderToolsContacts(); break;
     case "maze":      el.innerHTML=renderToolsMaze();bindToolsMaze();setTimeout(drawToolsMaze,50); break;
     case "arcedge":   el.innerHTML=renderToolsArcEdge();bindToolsArcEdge(); break;
     case "journal":   el.innerHTML=renderToolsJournal(); break;
     case "sessions":  el.innerHTML=renderToolsSessions(); break;
     case "ashtree":   el.innerHTML=renderToolsAshTree(); bindToolsAshTree(); break;
     case "about":     el.innerHTML=renderToolsAbout(); break;
+    case "contexts":  el.innerHTML=renderToolsContacts?renderToolsContacts():"<div style='padding:20px;color:#8a8fa8'>Contexts loading...</div>"; break;
+    case "arclake":
+      if(window.renderToolsArcLake){
+        el.innerHTML=window.renderToolsArcLake();
+        setTimeout(function(){ window._alsMounted&&window._alsMounted(); },50);
+      } else {
+        el.innerHTML="<div style='padding:20px;font-family:Orbitron,monospace;color:#00e5ff'>⬡ Loading ArcLake Studio...</div>";
+        var _als_script=document.createElement('script');
+        _als_script.src='js/arclake_studio.js?v=2026050103';
+        _als_script.onload=function(){
+          el.innerHTML=window.renderToolsArcLake?window.renderToolsArcLake():"ArcLake Studio failed to load.";
+          setTimeout(function(){ window._alsMounted&&window._alsMounted(); },50);
+        };
+        document.head.appendChild(_als_script);
+      }
+      break;
   }
 }
 
