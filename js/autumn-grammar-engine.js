@@ -1119,6 +1119,19 @@ class ResponseBuilder {
       });
     }
 
+    // ConceptNet grounded context — weave facts into response naturally
+    const _cnCtx = knownFacts['_cnContext'];
+    if (_cnCtx && _cnCtx.sentences && _cnCtx.sentences.length) {
+      // Pick 1-2 ConceptNet sentences that aren't already covered by the response
+      const _cnSentences = _cnCtx.sentences.filter(function(s){
+        return s && s.length > 10 && full.toLowerCase().indexOf(_cnCtx.word) < 0;
+      }).slice(0, 2);
+      if (_cnSentences.length && full.length < 400) {
+        // Only add if response is short and topic is genuinely unfamiliar
+        full = full + ' ' + _cnSentences.join(' ');
+      }
+    }
+
     // Voice mode: strip markdown, use spoken cadence
     const _voiceMode = knownFacts['_voiceActive'] === true ||
                        (typeof window!=='undefined'&&window._lastVoiceState===true);
