@@ -8937,11 +8937,20 @@ function classifyIntentLocal(text, hasPendingImages) {
     if (/^(show|restore|unhide|reveal)\s+(the\s+)?(messages|history|hidden|chat)$/.test(lc) ||
         /^show\s+hidden\s+messages$/.test(lc)) return 'SHOW_HIDDEN';
   }
+  // ── ARCLAKE — must come BEFORE Arc Edge (arc lake contains the word "arc") ──
+  var _arcLakeIntent =
+    /\b(arc\s*lake|arclake)\b/i.test(lc) ||
+    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid)\b/i.test(lc) &&
+     !/\b(arc\s*edge|arcedge|deviation|induction)\b/i.test(lc));
+  if (_arcLakeIntent) return 'ARCLAKE';
+
   // ── ARC EDGE — highest priority for arc/curve generation requests ──
   // Must come before IMAGE_GEN so "create a brain with 100 arcs" routes here not to image gen
+  // Explicitly exclude "arc lake" so it doesn't steal those commands
   var _arcEdgeIntent = /\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(lc) ||
     (/\b(create|generate|build|make|add|show|draw|render|produce)\b/i.test(lc) &&
-     /\b(arc|arcs|curve|curves|arc\s*line|finite\s*arc|deviation|arc\s*edge)\b/i.test(lc));
+     /\b(arc|arcs|curve|curves|arc\s*line|finite\s*arc|deviation|arc\s*edge)\b/i.test(lc) &&
+     !/\b(arc\s*lake|arclake|molecule|alloy|simulate)\b/i.test(lc));
   if (_arcEdgeIntent) return 'ARC_EDGE';
 
   // Vision when image attached
@@ -10026,6 +10035,58 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     if(typeof setOrbThinking === 'function') setOrbThinking(false);
     S.pendingImages = []; S.pendingImage = null;
     saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+    return;
+  }
+
+  // ── ARCLAKE — open ArcLake Studio with matched preset and auto-start ──────────
+  if (_intentLabel === 'ARCLAKE') {
+    var _alsPreset = null;
+    var _alsAutoStart = /\b(simulate|run|start|show|play|visualize|render)\b/i.test(augmentedText);
+    var _alsTxt = augmentedText.toLowerCase();
+    if (/hercules/i.test(_alsTxt))               _alsPreset = 'Hercules Alloy (6-el)';
+    else if (/water|h2o/i.test(_alsTxt))          _alsPreset = 'Water (H₂O)';
+    else if (/co2|carbon.?dioxide/i.test(_alsTxt))_alsPreset = 'CO₂';
+    else if (/salt|nacl/i.test(_alsTxt))          _alsPreset = 'NaCl (Salt)';
+    else if (/steel/i.test(_alsTxt))              _alsPreset = 'Steel (Fe+C+Cr)';
+    else if (/titanium/i.test(_alsTxt))           _alsPreset = 'Titanium Alloy (Ti+Al)';
+    else if (/copper.?oxide|cuo/i.test(_alsTxt))  _alsPreset = 'Copper Oxide (CuO)';
+    else if (/calcium/i.test(_alsTxt))            _alsPreset = 'Calcium Carbonate';
+    else if (/silicon/i.test(_alsTxt))            _alsPreset = 'Silicon Dioxide';
+    else if (/iron.*copper|copper.*iron/i.test(_alsTxt)) _alsPreset = 'Iron + Copper Alloy';
+    // Temperature extraction
+    var _alsTempM = augmentedText.match(/([-\d.]+)\s*(?:degrees?|°)?\s*(celsius|fahrenheit|kelvin|[cfkCFK])\b/i);
+    var _alsTemp  = null;
+    if (_alsTempM) {
+      var tv = parseFloat(_alsTempM[1]);
+      var tu = (_alsTempM[2]||'').toLowerCase();
+      if (tu.startsWith('f')) tv = Math.round((tv-32)*5/9);
+      if (tu.startsWith('k')) tv = tv - 273;
+      _alsTemp = tv;
+    }
+    // Wind extraction
+    var _alsWindM = augmentedText.match(/([-\d.]+)\s*(?:m\/s|mph|knots?)/i);
+    var _alsWind  = _alsWindM ? parseFloat(_alsWindM[1]) : null;
+    // Open studio
+    if (window.arcLakeStudioOpen) {
+      window.arcLakeStudioOpen(_alsPreset, _alsAutoStart);
+      if (_alsTemp !== null) setTimeout(function(){
+        var sl = document.getElementById('als-temp');
+        if (sl) { sl.value=_alsTemp; window._alsUpdateParam&&window._alsUpdateParam('temp',_alsTemp); }
+      }, 400);
+      if (_alsWind !== null) setTimeout(function(){
+        var sl = document.getElementById('als-windx');
+        if (sl) { sl.value=_alsWind; window._alsUpdateParam&&window._alsUpdateParam('windX',_alsWind); }
+      }, 400);
+    }
+    var _alsName = _alsPreset ? _alsPreset.replace(/\(.*\)/,'').trim() : 'molecular simulation';
+    var _alsMsg  = 'Opening ArcLake Studio'
+      + (_alsPreset ? ' — **'+_alsName+'** preset loaded' : '')
+      + (_alsTemp   ? ', temperature set to **'+_alsTemp+'°C**' : '')
+      + (_alsWind   ? ', wind **'+_alsWind+' m/s**' : '')
+      + (_alsAutoStart ? '. Simulation starting.' : '.');
+    msgs().push({ role:'autumn', text:_alsMsg, ts:new Date().toISOString(), id:'als-'+Date.now() });
+    saveState(); renderMessages(); updateFooter();
+    S.isProcessing = false;
     return;
   }
 
