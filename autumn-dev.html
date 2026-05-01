@@ -9287,7 +9287,17 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     /\b(journal|sentient).{0,60}(file|repo|repository|storage|total|combined)\b/i.test(augmentedText) ||
     /\b(current|actual|real|total).{0,20}(file\s*size|size).{0,30}(journal|sentient|memory)\b/i.test(augmentedText);
 
-  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger || _journalSizeTrigger) && !_pendingImgs.length) {
+  // ── JOURNAL SELF-TEST triggers ────────────────────────────────────────────
+  const _journalTestTrigger =
+    /\b(begin|start|run|do|execute)\s+(journal|sentient)\s+(test|crud|check)\b/i.test(augmentedText) ||
+    /\b(test|check)\s+(the\s+)?(journal|sentient)\s*(crud|system|write|read|edit|delete)?\b/i.test(augmentedText) ||
+    /\bnext\s+phase\b/i.test(augmentedText);
+  const _journalTestEnd =
+    /\b(end|finish|stop|clear|reset|clean\s*up)\s+(journal|sentient)?\s*test\b/i.test(augmentedText) ||
+    /\bclean\s*up\s+(test|journal)\b/i.test(augmentedText);
+  const _journalTestPhase = (typeof S !== 'undefined' && S._journalTestPhase) ? S._journalTestPhase : 0;
+
+  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger || _journalSizeTrigger || _journalTestTrigger || _journalTestEnd) && !_pendingImgs.length) {
 
     // AWAIT the fetch so analytics are available for this response
     if (!_analyticsReady || !_analyticsCache) {
