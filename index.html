@@ -185,7 +185,8 @@ async function _fetchAnalytics() {
   if (_analyticsReady && (Date.now() - _analyticsFetchedAt) < 60 * 60 * 1000) return;
   try {
     var url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/ashtree/analytics/lifetime_log.json';
-    var hdrs = { 'Authorization':'token ' + _ASH_BOT, 'Content-Type':'application/json' };
+    var _tok = (window._ghAuth && window._ghAuth.token) ? window._ghAuth.token : _ASH_BOT;
+    var hdrs = _tok ? { 'Authorization':'token ' + _tok, 'Content-Type':'application/json' } : { 'Content-Type':'application/json' };
     var res = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(8000) });
     if (!res.ok) return;
     var eg = await res.json();
@@ -8929,15 +8930,20 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   const _dateMatch = augmentedText.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b/i) ||
                      augmentedText.match(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/);
   const _dateTrigger = !!_dateMatch && /\b(users?|sessions?|active|traffic|people|visitors?)\b/i.test(augmentedText);
+  // "past 24 hours", "last 48 hours", "past 3 days", "last week" etc.
+  const _rangeMatch = augmentedText.match(/\b(?:past|last|previous|prior)\s+(\d+)\s*(hour|hr|day|week)s?\b/i) ||
+                      augmentedText.match(/\b(\d+)\s*(hour|hr|day|week)s?\s+(?:ago|back|prior|earlier)\b/i);
+  const _rangeTrigger = !!_rangeMatch && /\b(users?|sessions?|active|traffic|people|visitors?)\b/i.test(augmentedText);
 
-  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger) && !_pendingImgs.length) {
-    // Kick off a live refresh in parallel (resolves within ~2s; we don't await it here
-    // so the reply is immediate from cache, but the cache is updated for next time)
-    if (typeof window._refreshAnalyticsNow === 'function') {
-      window._refreshAnalyticsNow().then(function(fresh) {
-        // Update cache silently — next question will be even fresher
-        if (fresh && fresh.cache) _analyticsCache = fresh.cache;
-      }).catch(function(){});
+  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger) && !_pendingImgs.length) {
+    // AWAIT the fetch so analytics are available for this response
+    if (!_analyticsReady || !_analyticsCache) {
+      try { await _fetchAnalytics(); } catch(e) {}
+    }
+    // Also force-refresh if data is stale (>5 min)
+    if (_analyticsReady && _analyticsFetchedAt && (Date.now()-_analyticsFetchedAt) > 300000) {
+      _analyticsReady = false;
+      try { await _fetchAnalytics(); } catch(e) {}
     }
 
     var _liveCount  = (typeof window._getActiveSessionCount === 'function') ? window._getActiveSessionCount() : 1;
@@ -8947,6 +8953,32 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     var _lastEntry  = _dailyLog.length ? _dailyLog[_dailyLog.length - 1] : null;
 
     var _scReply;
+
+    // ── RANGE query: "past 48 hours", "last 3 days" ──────────────────────────
+    if (_rangeTrigger && _rangeMatch) {
+      var _rNum  = parseInt(_rangeMatch[1] || _rangeMatch[1]);
+      var _rUnit = (_rangeMatch[2] || _rangeMatch[2]).toLowerCase();
+      var _rMs   = _rNum * (_rUnit.startsWith('h') ? 3600000 : _rUnit.startsWith('w') ? 604800000 : 86400000);
+      var _rFromTs = Date.now() - _rMs;
+      var _rFromDate = new Date(_rFromTs).toISOString().slice(0,10);
+      // Sum users across all daily log entries within the range
+      var _rEntries = _dailyLog.filter(function(e){ return e.date >= _rFromDate; });
+      if (_rEntries.length > 0) {
+        var _rTotalUsers = _rEntries.reduce(function(s,e){ return s + (e.active_users||0); }, 0);
+        var _rTotalSess  = _rEntries.reduce(function(s,e){ return s + (e.active_sessions||0); }, 0);
+        var _rPeak = _rEntries.reduce(function(b,e){ return e.active_users > b.active_users ? e : b; }, _rEntries[0]);
+        _scReply = '**Past ' + _rNum + ' ' + _rUnit + (parseInt(_rNum)>1?'s':'') + ' (' + _rFromDate + ' → today):**\n\n'
+          + '— **' + _rTotalUsers + '** total user-days across **' + _rEntries.length + '** log entries\n'
+          + '— **' + _rTotalSess + '** sessions in that window\n'
+          + '— Peak day in range: **' + _rPeak.active_users + ' users** on ' + _rPeak.date + '\n'
+          + '\nRight now: **' + _liveCount + '** active node' + (_liveCount!==1?'s':'') + '.';
+      } else {
+        _scReply = 'No log entries found covering the past ' + _rNum + ' ' + _rUnit
+          + (parseInt(_rNum)>1?'s':'')+'. The log starts from '
+          + (_totals&&_totals.first_recorded?_totals.first_recorded.slice(0,10):'recently')
+          + '. Currently: **'+_liveCount+'** active node'+(parseInt(_liveCount)!==1?'s':'') + '.';
+      }
+    }
 
     // ── Helper: get today's date string ──────────────────────────────────────
     var _todayStr = new Date().toISOString().slice(0,10);
