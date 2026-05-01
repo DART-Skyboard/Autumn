@@ -2272,7 +2272,7 @@ class PersonalityLayer {
       // [setup_steps, punchline_correction_opener]
       { id:'wrong_scale',
         build:(topic,nouns)=>
-          `Sure — first ${nouns[0]||'you'll'} want to locate a ${nouns[1]||'large'} industrial crane, ` +
+          `Sure — first ${nouns[0]||"you'll"} want to locate a ${nouns[1]||'large'} industrial crane, ` +
           `then rent a helicopter to airlift the ${topic} components from a warehouse in another state, ` +
           `hire a team of engineers to recalibrate the surrounding infrastructure, ` +
           `and finally file the necessary municipal permits. Should take about three weeks.`,
