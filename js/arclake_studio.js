@@ -459,44 +459,49 @@ global._alsMounted=function(){
   const cont=canvas.parentElement;
 
   const resize=()=>{
-    const W=cont.offsetWidth||380, H=Math.max(160,cont.offsetHeight||240);
+    const W=Math.max(200,cont.offsetWidth||380), H=Math.max(180,cont.offsetHeight||260);
     canvas.width=W*(window.devicePixelRatio||1); canvas.height=H*(window.devicePixelRatio||1);
     canvas.style.width=W+'px'; canvas.style.height=H+'px';
     if(S&&S.renderer){S.renderer.setSize(W,H,false);S.camera.aspect=W/H;S.camera.updateProjectionMatrix();}
   };
-  resize();
-  S=_initScene(canvas);
-  if(!S)return;
-  _build(S,PRESETS[PRESET_KEYS[0]],150);
-  S.renderer.autoClear=false;
 
-  function _loop(){
-    S.raf=requestAnimationFrame(_loop);
-    _step(S);
-    if(S.controls)S.controls.update();
-    S.renderer.clear();
-    if(S.bgScene&&S.bgCam){
-      S.renderer.render(S.bgScene,S.bgCam);
-      S.renderer.clearDepth();
+  function _tryInit(tries){
+    if((!cont.offsetWidth||!cont.offsetHeight)&&tries>0){setTimeout(()=>_tryInit(tries-1),80);return;}
+    resize();
+    S=_initScene(canvas);
+    if(!S)return;
+    _build(S,PRESETS[PRESET_KEYS[0]],150);
+    S.renderer.autoClear=false;
+
+    function _loop(){
+      S.raf=requestAnimationFrame(_loop);
+      _step(S);
+      if(S.controls)S.controls.update();
+      S.renderer.clear();
+      if(S.bgScene&&S.bgCam){
+        S.renderer.render(S.bgScene,S.bgCam);
+        S.renderer.clearDepth();
+      }
+      S.renderer.render(S.scene,S.camera);
+      const totalE=S.atoms.reduce((a,ag)=>a+(ag.el.e||0),0);
+      const hs=document.getElementById('als-hud-s');
+      const hf=document.getElementById('als-hud-f');
+      const ht=document.getElementById('als-hud-t');
+      const he=document.getElementById('als-hud-e');
+      const htmp=document.getElementById('als-hud-tmp');
+      const hprs=document.getElementById('als-hud-prs');
+      if(hs)hs.innerHTML=S.isSimulating?'&#9679; SIMULATING':'&#9679; IDLE';
+      if(hf)hf.textContent='FRAMES: '+S.recordedFrames.length;
+      if(ht)ht.textContent='TIME: '+S.simTime.toFixed(2)+'s';
+      if(he)he.textContent='e\u207B: '+(totalE*S.params.ptsPerE).toLocaleString()+' pts';
+      if(htmp)htmp.textContent=S.params.temp+'°C';
+      if(hprs)hprs.textContent=S.params.pressure+' Pa';
     }
-    S.renderer.render(S.scene,S.camera);
-    const totalE=S.atoms.reduce((a,ag)=>a+(ag.el.e||0),0);
-    const hs=document.getElementById('als-hud-s');
-    const hf=document.getElementById('als-hud-f');
-    const ht=document.getElementById('als-hud-t');
-    const he=document.getElementById('als-hud-e');
-    const htmp=document.getElementById('als-hud-tmp');
-    const hprs=document.getElementById('als-hud-prs');
-    if(hs)hs.innerHTML=S.isSimulating?'&#9679; SIMULATING':'&#9679; IDLE';
-    if(hf)hf.textContent='FRAMES: '+S.recordedFrames.length;
-    if(ht)ht.textContent='TIME: '+S.simTime.toFixed(2)+'s';
-    if(he)he.textContent='e\u207B: '+(totalE*S.params.ptsPerE).toLocaleString()+' pts';
-    if(htmp)htmp.textContent=S.params.temp+'°C';
-    if(hprs)hprs.textContent=S.params.pressure+' Pa';
-  }
-  _loop();
-  S.ro=new ResizeObserver(resize);
-  S.ro.observe(cont);
+    _loop();
+    S.ro=new ResizeObserver(resize);
+    S.ro.observe(cont);
+  } // end _tryInit
+  _tryInit(10);
 };
 
 // ── API ───────────────────────────────────────────────────────────────────────
