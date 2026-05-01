@@ -13069,8 +13069,7 @@ const TOOL_TABS=[
   {id:"arcedge",label:"Arc Edge",icon:"📐"},
   {id:"journal",label:"Journal",icon:"📖"},
   {id:"sessions",label:"Sessions",icon:"💬"},
-  {id:"ashtree",label:"Ash Tree",icon:"⬡"},
-  {id:"crypto",label:"Cryptology",icon:"🔐"},
+  {id:"ashtree",label:"Ash Tree",icon:"🌿"},
   {id:"about",label:"About",icon:"🌐"}
 ];
 let currentToolTab="cognition";
@@ -13094,7 +13093,6 @@ function renderToolsContent(){
     case "journal":   el.innerHTML=renderToolsJournal(); break;
     case "sessions":  el.innerHTML=renderToolsSessions(); break;
     case "ashtree":   el.innerHTML=renderToolsAshTree(); bindToolsAshTree(); break;
-    case "crypto":    el.innerHTML=renderToolsCrypto(); bindToolsCrypto(); break;
     case "about":     el.innerHTML=renderToolsAbout(); break;
   }
 }
@@ -13209,8 +13207,29 @@ function renderToolsJournal(){
   const topKw=getTopKeywordsFromJournal(8);
   const freqWeights=buildFrequencyWeights();
   const freqHtml=topKw.map(kw=>`<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:3px;font-size:10px;background:rgba(0,255,204,${(freqWeights[kw]||0.1).toFixed(2)});color:var(--bg);font-family:var(--font-b)">${esc(kw)}</span>`).join('');
-  const entries=S.journal.slice().reverse().map((e,i)=>`<div class="journal-entry"><div class="journal-header"><span class="journal-num">ENTRY #${S.journal.length-i}</span><span class="journal-time">${new Date(e.ts||e.timestamp).toLocaleString()}</span></div><div class="journal-input">${e._internal?`<span style="color:rgba(0,136,255,.4);font-style:italic">[${e._thoughtType||'thought'}]</span> ${esc((e._thought||'').substring(0,100))}`:(`"${esc((e.input||'').substring(0,120))}"`)}</div><div class="journal-data">Cog: ${(e.cogState||0).toFixed(2)} | Buoy: ${(e.buoyancy||0).toFixed(1)} | Mood: ${e.mood||"—"} | Tense: ${e.tense||"—"} | Words: ${e.wordCount||0}</div><div class="journal-data">Reflexes: ${(e.activeReflexes||[]).join(", ")||"None"} | Keywords: ${(e.keywords||[]).join(", ")||"—"} | Context: ${e.contextType||"—"} | Emotional: ${e.emotional||"—"}</div></div>`).join("");
-  return`<div class="glass"><div class="glass-title">Sentience Journal — ${S.journal.length} entries</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">"Is the power off?" — ${S.sessions.length} sessions</div><div style="max-height:500px;overflow-y:auto">${entries}</div></div>
+  // Privacy filter — journal only shows entries from this user's sessions
+  // Internal thoughts (Autumn's own) always show — they contain no user data
+  // User input entries only show if they belong to this user's session ID
+  var _myUid = (typeof _aut_uid !== 'undefined') ? _aut_uid : null;
+  var _mySid = (typeof _aut_sid !== 'undefined') ? _aut_sid : null;
+  var _isAdmin = window._ghAuth && window._ghAuth.loggedIn &&
+                 (window._ghAuth.username === 'dartsolarpunk' ||
+                  window._ghAuth.username === localStorage.getItem('_autumn_admin'));
+  function _entryIsVisible(e) {
+    // Autumn's internal thoughts — always visible (no user content)
+    if (e._internal || e.contextType === 'INTERNAL') return true;
+    // Admin sees all entries
+    if (_isAdmin) return true;
+    // Session-scoped entry — show only if matches this user's session
+    if (e.sid && _mySid && e.sid === _mySid) return true;
+    if (e.uid && _myUid && e.uid === _myUid) return true;
+    // No session tag — legacy entry, show to current user only
+    if (!e.sid && !e.uid) return true;
+    return false;
+  }
+  var _visibleEntries = S.journal.filter(_entryIsVisible);
+  const entries=_visibleEntries.slice().reverse().map((e,i)=>`<div class="journal-entry"><div class="journal-header"><span class="journal-num">ENTRY #${_visibleEntries.length-i}</span><span class="journal-time">${new Date(e.ts||e.timestamp).toLocaleString()}</span></div><div class="journal-input">${e._internal?`<span style="color:rgba(0,136,255,.4);font-style:italic">[${e._thoughtType||'thought'}]</span> ${esc((e._thought||'').substring(0,100))}`:(`"${esc((e.input||'').substring(0,120))}"`)}</div><div class="journal-data">Cog: ${(e.cogState||0).toFixed(2)} | Buoy: ${(e.buoyancy||0).toFixed(1)} | Mood: ${e.mood||"—"} | Tense: ${e.tense||"—"} | Words: ${e.wordCount||0}</div><div class="journal-data">Reflexes: ${(e.activeReflexes||[]).join(", ")||"None"} | Keywords: ${(e.keywords||[]).join(", ")||"—"} | Context: ${e.contextType||"—"} | Emotional: ${e.emotional||"—"}</div></div>`).join("");
+  return`<div class="glass"><div class="glass-title">Sentience Journal — ${_visibleEntries.length} entries</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">"Is the power off?" — ${S.sessions.length} sessions${_isAdmin?' · <span style=\'color:rgba(255,100,80,.7);font-size:9px\'>ADMIN VIEW</span>':''}</div><div style="max-height:500px;overflow-y:auto">${entries}</div></div>
 <div class="glass"><div class="glass-title">Journal Statistics & Frequency Weights</div><div style="font-family:monospace;font-size:11px;line-height:2;color:#7fdbca"><div>Interactive: ${S.journal.filter(e=>!e._internal).length} · Internal thoughts: ${S.journal.filter(e=>e._internal).length}</div><div>Total Sessions: ${S.sessions.length}</div><div>Memory Nodes: ${Object.keys(S.memory).length}</div><div>Dict Cache: ${Object.keys(_dictCache).length} lookups</div></div><div style="margin-top:10px"><div style="font-size:9px;color:rgba(0,255,204,.4);font-family:var(--font-d);letter-spacing:1px;margin-bottom:6px">TOP RECURRING TOPICS (opacity = frequency weight)</div>${freqHtml||'<div style="color:var(--dim);font-size:10px">No patterns yet</div>'}</div></div>`;
 }
 
