@@ -259,6 +259,56 @@ window._refreshAnalyticsNow = async function() {
     liveActiveSessions: active
   };
 };
+
+// ── Session timestamp cache — second-level granularity ───────────────────
+// SID format: uid_t{8-char-base36-ms-timestamp}{4-char-rand}.json
+var _sessionTsCache = null;
+var _sessionTsFetchedAt = 0;
+
+async function _fetchSessionsWithTimestamps() {
+  if (_sessionTsCache && (Date.now() - _sessionTsFetchedAt) < 300000) return _sessionTsCache;
+  try {
+    var _tok = (window._ghAuth && window._ghAuth.token) ? window._ghAuth.token : _ASH_BOT;
+    if (!_tok) return null;
+    var url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/ashtree/sessions';
+    var res = await fetch(url, { headers:{'Authorization':'token '+_tok}, signal:AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    var files = await res.json();
+    if (!Array.isArray(files)) return null;
+    var sessions = [];
+    var EPOCH_MIN = 1700000000000;
+    var EPOCH_MAX = 1900000000000;
+    for (var i=0; i<files.length; i++) {
+      var f = files[i];
+      if (!f.name.endsWith('.json') || f.name === '_index.json') continue;
+      var uid = f.name.replace('.json','').replace(/_t[0-9a-z]+$/i,'');
+      var m = f.name.match(/_t([0-9a-z]{8})/i);
+      if (m) {
+        var tsMs = parseInt(m[1], 36);
+        if (tsMs > EPOCH_MIN && tsMs < EPOCH_MAX) {
+          var d = new Date(tsMs);
+          sessions.push({ name:f.name, uid:uid, ts:tsMs,
+            isoDate: d.toISOString(),
+            date: d.toISOString().slice(0,10),
+            hour: d.getUTCHours(), min: d.getUTCMinutes(), sec: d.getUTCSeconds() });
+        }
+      }
+    }
+    sessions.sort(function(a,b){ return a.ts-b.ts; });
+    _sessionTsCache = sessions;
+    _sessionTsFetchedAt = Date.now();
+    return sessions;
+  } catch(e) { return null; }
+}
+
+function _countInRange(sessions, fromMs, toMs) {
+  var inRange = sessions.filter(function(s){ return s.ts>=fromMs && s.ts<=toMs; });
+  var uids = {};
+  inRange.forEach(function(s){ uids[s.uid]=1; });
+  return { sessions:inRange.length, uniqueUsers:Object.keys(uids).length, earliest:inRange[0], latest:inRange[inRange.length-1] };
+}
+
+
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -8934,16 +8984,25 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   const _rangeMatch = augmentedText.match(/\b(?:past|last|previous|prior)\s+(\d+)\s*(hour|hr|day|week)s?\b/i) ||
                       augmentedText.match(/\b(\d+)\s*(hour|hr|day|week)s?\s+(?:ago|back|prior|earlier)\b/i);
   const _rangeTrigger = !!_rangeMatch && /\b(users?|sessions?|active|traffic|people|visitors?)\b/i.test(augmentedText);
+  // Time-specific: "at 2pm", "at 14:30", "between 2 and 3pm", "from 2:00 to 3:00"
+  const _timeMatch = augmentedText.match(/\b(?:at|around|about)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i) ||
+                     augmentedText.match(/\bbetween\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s+and\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i) ||
+                     augmentedText.match(/\bfrom\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s+to\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+  const _timeTrigger = !!_timeMatch && !!_dateMatch && /\b(users?|sessions?|active|traffic|people|visitors?)\b/i.test(augmentedText);
 
-  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger) && !_pendingImgs.length) {
-    // AWAIT the fetch so analytics are available for this response
+  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger) && !_pendingImgs.length) {
+    // AWAIT analytics fetch
     if (!_analyticsReady || !_analyticsCache) {
       try { await _fetchAnalytics(); } catch(e) {}
     }
-    // Also force-refresh if data is stale (>5 min)
     if (_analyticsReady && _analyticsFetchedAt && (Date.now()-_analyticsFetchedAt) > 300000) {
       _analyticsReady = false;
       try { await _fetchAnalytics(); } catch(e) {}
+    }
+    // For time/range/today queries, also fetch session timestamps
+    var _sessionTs = null;
+    if (_timeTrigger || _rangeTrigger || _todayTrigger) {
+      try { _sessionTs = await _fetchSessionsWithTimestamps(); } catch(e) {}
     }
 
     var _liveCount  = (typeof window._getActiveSessionCount === 'function') ? window._getActiveSessionCount() : 1;
@@ -8954,25 +9013,79 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
 
     var _scReply;
 
+    // ── TIME-SPECIFIC query: "at 2pm on April 30", "between 2 and 3pm April 30" ──
+    if (_timeTrigger && _timeMatch && _dateMatch && _sessionTs) {
+      // Parse the queried date
+      var _tqDate = null;
+      if (_dateMatch[0].match(/\d{4}/)) {
+        _tqDate = _dateMatch[0].replace(/[\/]/g,'-');
+      } else {
+        var _tmonths={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',
+                      jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+        var _tmk=_dateMatch[1].toLowerCase().slice(0,3);
+        _tqDate = new Date().getFullYear()+'-'+(_tmonths[_tmk]||'01')+'-'+('0'+parseInt(_dateMatch[2])).slice(-2);
+      }
+      // Parse start/end hours
+      function _parseHour(hStr,mStr,ampm){
+        var h=parseInt(hStr)||0; var m=parseInt(mStr)||0;
+        if(ampm&&ampm.toLowerCase()==='pm'&&h<12) h+=12;
+        if(ampm&&ampm.toLowerCase()==='am'&&h===12) h=0;
+        return h*60+m; // minutes since midnight UTC
+      }
+      var _fromMin=0, _toMin=59;
+      var _tma=_timeMatch;
+      if(_tma[0].match(/between|from/i)){
+        _fromMin=_parseHour(_tma[1],_tma[2],_tma[3]);
+        _toMin  =_parseHour(_tma[4]||_tma[1],_tma[5],_tma[6]||_tma[3])+59;
+      } else {
+        _fromMin=_parseHour(_tma[1],_tma[2],_tma[3]);
+        _toMin  =_fromMin+59;
+      }
+      var _dayStart = new Date(_tqDate+'T00:00:00Z').getTime();
+      var _fromMs = _dayStart + _fromMin*60000;
+      var _toMs   = _dayStart + _toMin  *60000;
+      var _result = _countInRange(_sessionTs, _fromMs, _toMs);
+      var _fromLabel = Math.floor(_fromMin/60)+':'+(('0'+(_fromMin%60)).slice(-2))+' UTC';
+      var _toLabel   = Math.floor(_toMin/60)+':'+(('0'+(_toMin%60)).slice(-2))+' UTC';
+      _scReply = '**'+_tqDate+' · '+_fromLabel+' → '+_toLabel+':**\n\n'
+        + '— **'+_result.uniqueUsers+'** unique users active in that window\n'
+        + '— **'+_result.sessions+'** session starts recorded\n'
+        + (_result.earliest ? '— First session: **'+_result.earliest.isoDate.slice(0,19).replace('T',' ')+'** UTC\n' : '')
+        + (_result.latest && _result.sessions>1 ? '— Last session: **'+_result.latest.isoDate.slice(0,19).replace('T',' ')+'** UTC\n' : '')
+        + '\n_(Times shown in UTC — adjust for your timezone)_';
+    }
+
     // ── RANGE query: "past 48 hours", "last 3 days" ──────────────────────────
     if (_rangeTrigger && _rangeMatch) {
-      var _rNum  = parseInt(_rangeMatch[1] || _rangeMatch[1]);
-      var _rUnit = (_rangeMatch[2] || _rangeMatch[2]).toLowerCase();
+      var _rNum  = parseInt(_rangeMatch[1]);
+      var _rUnit = (_rangeMatch[2]).toLowerCase();
       var _rMs   = _rNum * (_rUnit.startsWith('h') ? 3600000 : _rUnit.startsWith('w') ? 604800000 : 86400000);
       var _rFromTs = Date.now() - _rMs;
       var _rFromDate = new Date(_rFromTs).toISOString().slice(0,10);
-      // Sum users across all daily log entries within the range
-      var _rEntries = _dailyLog.filter(function(e){ return e.date >= _rFromDate; });
-      if (_rEntries.length > 0) {
-        var _rTotalUsers = _rEntries.reduce(function(s,e){ return s + (e.active_users||0); }, 0);
-        var _rTotalSess  = _rEntries.reduce(function(s,e){ return s + (e.active_sessions||0); }, 0);
-        var _rPeak = _rEntries.reduce(function(b,e){ return e.active_users > b.active_users ? e : b; }, _rEntries[0]);
-        _scReply = '**Past ' + _rNum + ' ' + _rUnit + (parseInt(_rNum)>1?'s':'') + ' (' + _rFromDate + ' → today):**\n\n'
-          + '— **' + _rTotalUsers + '** total user-days across **' + _rEntries.length + '** log entries\n'
-          + '— **' + _rTotalSess + '** sessions in that window\n'
-          + '— Peak day in range: **' + _rPeak.active_users + ' users** on ' + _rPeak.date + '\n'
-          + '\nRight now: **' + _liveCount + '** active node' + (_liveCount!==1?'s':'') + '.';
+      if (_sessionTs && _sessionTs.length > 0) {
+        var _rResult = _countInRange(_sessionTs, _rFromTs, Date.now());
+        _scReply = '**Past '+_rNum+' '+_rUnit+(parseInt(_rNum)>1?'s':'')+' ('+_rFromDate+' → now):**\n\n'
+          + '— **'+_rResult.uniqueUsers+'** unique users\n'
+          + '— **'+_rResult.sessions+'** session starts in that window\n'
+          + (_rResult.earliest ? '— Earliest recorded: **'+_rResult.earliest.isoDate.slice(0,19).replace('T',' ')+'** UTC\n' : '')
+          + '\nRight now: **'+_liveCount+'** active node'+(parseInt(_liveCount)!==1?'s':'')+'.';
       } else {
+        var _rEntries = _dailyLog.filter(function(e){ return e.date >= _rFromDate; });
+        if (_rEntries.length > 0) {
+          var _rUsers = _rEntries.reduce(function(s,e){ return s+(e.active_users||0); },0);
+          var _rSess  = _rEntries.reduce(function(s,e){ return s+(e.active_sessions||0); },0);
+          var _rPeak  = _rEntries.reduce(function(b,e){ return e.active_users>b.active_users?e:b; },_rEntries[0]);
+          _scReply = '**Past '+_rNum+' '+_rUnit+(parseInt(_rNum)>1?'s':'')+' ('+_rFromDate+' → today):**\n\n'
+            + '— **'+_rUsers+'** user-days · **'+_rSess+'** sessions · **'+_rEntries.length+'** log entries\n'
+            + '— Peak: **'+_rPeak.active_users+' users** on '+_rPeak.date+'\n'
+            + '\nRight now: **'+_liveCount+'** active.';
+        } else {
+          _scReply = 'No entries for past '+_rNum+' '+_rUnit+(parseInt(_rNum)>1?'s':'')+'. Log starts '
+            +(_totals&&_totals.first_recorded?_totals.first_recorded.slice(0,10):'recently')+'. Currently: **'+_liveCount+'** active.';
+        }
+      }
+    }
+
         _scReply = 'No log entries found covering the past ' + _rNum + ' ' + _rUnit
           + (parseInt(_rNum)>1?'s':'')+'. The log starts from '
           + (_totals&&_totals.first_recorded?_totals.first_recorded.slice(0,10):'recently')
