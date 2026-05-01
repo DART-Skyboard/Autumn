@@ -1,0 +1,52 @@
+name: Dev Preview
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout dev branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy index.html to autumn-dev.html on main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the current index.html content from dev (already checked out)
+          CONTENT=$(base64 -w 0 index.html)
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M UTC")
+
+          # Get current SHA of autumn-dev.html on main (if it exists)
+          SHA=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/DART-Skyboard/Autumn/contents/autumn-dev.html?ref=main" \
+            | jq -r '.sha // empty')
+
+          # Build payload
+          if [ -n "$SHA" ]; then
+            PAYLOAD=$(jq -n --arg msg "dev-preview: sync from dev @ $TIMESTAMP" \
+              --arg content "$CONTENT" --arg sha "$SHA" --arg branch "main" \
+              '{message:$msg,content:$content,sha:$sha,branch:$branch}')
+          else
+            PAYLOAD=$(jq -n --arg msg "dev-preview: initial deploy from dev @ $TIMESTAMP" \
+              --arg content "$CONTENT" --arg branch "main" \
+              '{message:$msg,content:$content,branch:$branch}')
+          fi
+
+          # Push to main as autumn-dev.html
+          RESULT=$(curl -s -X PUT \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/DART-Skyboard/Autumn/contents/autumn-dev.html" \
+            -d "$PAYLOAD")
+
+          echo "Status: $(echo $RESULT | jq -r '.commit.sha // .message')"
+          echo "✓ Preview live at: https://leatr.xyz/autumn-dev.html"
