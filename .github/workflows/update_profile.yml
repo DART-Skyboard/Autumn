@@ -2,7 +2,6 @@ name: Update Profile SVG
 
 on:
   schedule:
-    # Regenerate every 15 minutes so active user count stays fresh
     - cron: '*/15 * * * *'
   workflow_dispatch:
   push:
@@ -11,31 +10,18 @@ on:
 jobs:
   update-profile:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout Autumn
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.LEATR_ASH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Generate profile.svg
+      - name: Generate and commit profile.svg
         env:
           LEATR_ASH_PAT: ${{ secrets.LEATR_ASH_PAT }}
+          GITHUB_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/generate_profile.js
-
-      - name: Commit profile.svg if changed
-        run: |
-          git config user.name  "Autumn Profile Bot"
-          git config user.email "autumn@dartmeadow.com"
-          git add profile.svg
-          git diff --staged --quiet || git commit -m "profile: update live user count $(date -u +%Y-%m-%dT%H:%M)"
-
-      - name: Push
-        run: git push
