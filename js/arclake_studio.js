@@ -170,43 +170,7 @@ function _initScene(canvas){
   const renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
   renderer.setSize(W,H,false);
-  renderer.setClearColor(0x000000,1);
-
-  // ── Nighttime gradient background ─────────────────────────────────────────
-  // Full-screen quad: deep navy at horizon fading to near-black at top/bottom
-  (function _addGradientBG(){
-    const bgScene=new T.Scene();
-    const bgCam=new T.OrthographicCamera(-1,1,1,-1,0,1);
-    const bgGeo=new T.PlaneGeometry(2,2);
-    const bgMat=new T.ShaderMaterial({
-      depthWrite:false,depthTest:false,
-      vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`,
-      fragmentShader:`
-        varying vec2 vUv;
-        void main(){
-          // y=0 bottom, y=1 top
-          float t=vUv.y;
-          // horizon band around y=0.38
-          float h=smoothstep(0.0,0.5,t)*smoothstep(1.0,0.45,t);
-          // base: very dark navy #050d1a → deep indigo #0a0f2e
-          vec3 top    =vec3(0.020,0.025,0.08);   // near-black indigo top
-          vec3 mid    =vec3(0.055,0.115,0.28);   // deep navy horizon
-          vec3 bottom =vec3(0.012,0.020,0.055);  // very dark bottom
-          vec3 col=mix(mix(bottom,mid,smoothstep(0.0,0.42,t)),
-                       mix(mid,top, smoothstep(0.42,1.0,t)),
-                       step(0.42,t));
-          // subtle teal glow on horizon
-          col+=vec3(0.0,0.04,0.06)*h;
-          gl_FragColor=vec4(col,1.0);
-        }
-      `
-    });
-    const bgMesh=new T.Mesh(bgGeo,bgMat);
-    bgScene.add(bgMesh);
-    // Attach to renderer so _animate can draw it first
-    renderer.userData.bgScene=bgScene;
-    renderer.userData.bgCam=bgCam;
-  })();
+  renderer.setClearColor(0x04070e,1);
 
   const scene=new T.Scene();
   const camera=new T.PerspectiveCamera(50,W/H,0.001,500);
@@ -238,7 +202,6 @@ function _initScene(canvas){
   const cfdVel=new Float32Array(NCFD*3);
 
   return {T,renderer,scene,camera,controls,canvas,cfdPts,cfdGeo,cfdPos,cfdVel,cfdCol,NCFD,
-    bgScene:renderer.userData.bgScene, bgCam:renderer.userData.bgCam,
     atoms:[],isSimulating:false,recordedFrames:[],simTime:0,
     params:{temp:25,pressure:101325,windX:0,windY:0,windZ:0,ptsPerE:150}};
 }
@@ -392,7 +355,7 @@ async function _exportGLB(state){
 // ── HTML ──────────────────────────────────────────────────────────────────────
 global.renderToolsArcLake=function(){
   return`<div id="als-root" style="display:flex;flex-direction:column;height:100%;background:#04070e;color:#e8eaf0;font-family:Orbitron,monospace;overflow:hidden">
-  <div style="position:relative;width:100%;height:260px;min-height:260px;overflow:hidden;background:#04070e">
+  <div style="position:relative;flex:1;min-height:180px;overflow:hidden;background:#04070e">
     <canvas id="als-canvas" style="width:100%;height:100%;display:block;touch-action:none;outline:none" tabindex="0"></canvas>
     <div style="position:absolute;top:8px;left:10px;font-size:8.5px;color:#00e5ff;opacity:.85;line-height:1.9;pointer-events:none">
       <div id="als-hud-s" style="font-weight:700;letter-spacing:1px">&#9679; IDLE</div>
@@ -419,8 +382,10 @@ global.renderToolsArcLake=function(){
         ${PRESET_KEYS.map(k=>`<option value="${k}">${k}</option>`).join('')}
         <option value="__custom">Custom elements...</option>
       </select>
+      <label style="font-size:8px;color:#8a8fa8;white-space:nowrap;margin-left:6px">pts/e</label>
+      <input id="als-pte" type="number" min="5" max="500" value="150" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:44px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
       <label style="font-size:8px;color:#8a8fa8;white-space:nowrap">pts/e&#x207B;</label>
-      <input id="als-pte" type="number" min="5" max="200" value="150" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:44px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
+      <input id="als-pte" type="number" min="5" max="200" value="30" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:44px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
     </div>
     <div id="als-custom-row" style="display:none;gap:6px;align-items:center">
       <input id="als-custom-in" placeholder="Fe,Cu,Ni or elements..." style="flex:1;background:rgba(124,77,255,.07);border:1px solid rgba(124,77,255,.28);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9.5px;font-family:inherit" onkeydown="if(event.key==='Enter')window._alsParseCustom&&window._alsParseCustom()">
@@ -459,57 +424,38 @@ global._alsMounted=function(){
   const cont=canvas.parentElement;
 
   const resize=()=>{
-    const W=Math.max(200,cont.offsetWidth||380), H=Math.max(180,cont.offsetHeight||260);
+    const W=cont.offsetWidth||380, H=Math.max(160,cont.offsetHeight||240);
     canvas.width=W*(window.devicePixelRatio||1); canvas.height=H*(window.devicePixelRatio||1);
     canvas.style.width=W+'px'; canvas.style.height=H+'px';
     if(S&&S.renderer){S.renderer.setSize(W,H,false);S.camera.aspect=W/H;S.camera.updateProjectionMatrix();}
   };
+  resize();
+  S=_initScene(canvas);
+  if(!S)return;
+  _build(S,PRESETS[PRESET_KEYS[0]],150);
 
-  function _tryInit(tries){
-    // Force explicit height on the canvas container chain so offsetHeight is never 0
-    const overlay=document.getElementById('als-overlay');
-    const body=document.getElementById('als-overlay-body');
-    if(overlay) overlay.style.height=Math.min(window.innerHeight*0.85,700)+'px';
-    if(body) body.style.height='260px';
-    cont.style.height='260px';
-    canvas.style.height='260px';
-    const W=Math.max(200,cont.offsetWidth||360), H=260;
-    canvas.width=W*(window.devicePixelRatio||1); canvas.height=H*(window.devicePixelRatio||1);
-    canvas.style.width=W+'px'; canvas.style.height=H+'px';
-    S=_initScene(canvas);
-    if(!S){ if(tries>0){setTimeout(()=>_tryInit(tries-1),100);return;} return; }
-    _build(S,PRESETS[PRESET_KEYS[0]],150);
-    S.renderer.autoClear=false;
-
-    function _loop(){
-      S.raf=requestAnimationFrame(_loop);
-      _step(S);
-      if(S.controls)S.controls.update();
-      S.renderer.clear();
-      if(S.bgScene&&S.bgCam){
-        S.renderer.render(S.bgScene,S.bgCam);
-        S.renderer.clearDepth();
-      }
-      S.renderer.render(S.scene,S.camera);
-      const totalE=S.atoms.reduce((a,ag)=>a+(ag.el.e||0),0);
-      const hs=document.getElementById('als-hud-s');
-      const hf=document.getElementById('als-hud-f');
-      const ht=document.getElementById('als-hud-t');
-      const he=document.getElementById('als-hud-e');
-      const htmp=document.getElementById('als-hud-tmp');
-      const hprs=document.getElementById('als-hud-prs');
-      if(hs)hs.innerHTML=S.isSimulating?'&#9679; SIMULATING':'&#9679; IDLE';
-      if(hf)hf.textContent='FRAMES: '+S.recordedFrames.length;
-      if(ht)ht.textContent='TIME: '+S.simTime.toFixed(2)+'s';
-      if(he)he.textContent='e\u207B: '+(totalE*S.params.ptsPerE).toLocaleString()+' pts';
-      if(htmp)htmp.textContent=S.params.temp+'°C';
-      if(hprs)hprs.textContent=S.params.pressure+' Pa';
-    }
-    _loop();
-    S.ro=new ResizeObserver(resize);
-    S.ro.observe(cont);
-  } // end _tryInit
-  _tryInit(10);
+  function _loop(){
+    S.raf=requestAnimationFrame(_loop);
+    _step(S);
+    if(S.controls)S.controls.update();
+    S.renderer.render(S.scene,S.camera);
+    const totalE=S.atoms.reduce((a,ag)=>a+(ag.el.e||0),0);
+    const hs=document.getElementById('als-hud-s');
+    const hf=document.getElementById('als-hud-f');
+    const ht=document.getElementById('als-hud-t');
+    const he=document.getElementById('als-hud-e');
+    const htmp=document.getElementById('als-hud-tmp');
+    const hprs=document.getElementById('als-hud-prs');
+    if(hs)hs.innerHTML=S.isSimulating?'&#9679; SIMULATING':'&#9679; IDLE';
+    if(hf)hf.textContent='FRAMES: '+S.recordedFrames.length;
+    if(ht)ht.textContent='TIME: '+S.simTime.toFixed(2)+'s';
+    if(he)he.textContent='e\u207B: '+(totalE*S.params.ptsPerE).toLocaleString()+' pts';
+    if(htmp)htmp.textContent=S.params.temp+'°C';
+    if(hprs)hprs.textContent=S.params.pressure+' Pa';
+  }
+  _loop();
+  S.ro=new ResizeObserver(resize);
+  S.ro.observe(cont);
 };
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -597,7 +543,7 @@ global._alsFullscreen=function(){
       r2.setPixelRatio(Math.min(window.devicePixelRatio||1,2));r2.setSize(W,H,false);r2.setClearColor(0x04070e,1);
       S.renderer=r2;S.camera.aspect=W/H;S.camera.updateProjectionMatrix();
       if(T.OrbitControls){S.controls=new T.OrbitControls(S.camera,fc);S.controls.enableDamping=true;S.controls.dampingFactor=0.08;}
-      function _fl(){if(!document.getElementById('als-fs-ov'))return;S.raf=requestAnimationFrame(_fl);_step(S);if(S.controls)S.controls.update();S.renderer.clear();if(S.bgScene&&S.bgCam){S.renderer.render(S.bgScene,S.bgCam);S.renderer.clearDepth();}S.renderer.render(S.scene,S.camera);}
+      function _fl(){if(!document.getElementById('als-fs-ov'))return;S.raf=requestAnimationFrame(_fl);_step(S);if(S.controls)S.controls.update();S.renderer.render(S.scene,S.camera);}
       _fl();
     }
   });
