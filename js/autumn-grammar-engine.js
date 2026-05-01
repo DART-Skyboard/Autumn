@@ -1119,7 +1119,11 @@ class ResponseBuilder {
       });
     }
 
-    const builtResponse = sentences.filter(Boolean).join(' ')
+    // Voice mode: strip markdown, use spoken cadence
+    const _voiceMode = knownFacts['_voiceActive'] === true ||
+                       (typeof window!=='undefined'&&window._lastVoiceState===true);
+
+    const builtResponse = sentences.filter(Boolean).join(_voiceMode ? ' ' : ' ')
       .replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
 
     // ── Personality / joke check ──────────────────────────────────────────
@@ -1203,6 +1207,11 @@ class ResponseBuilder {
     let full=parts.join(' ').replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
     if(full&&!/[.!?]$/.test(full)) full+='.';
     const pre=this._pre(emotion);
+    // In voice mode: strip markdown so TTS reads cleanly
+    const _vm = knownFacts['_voiceActive']===true||
+                (typeof window!=='undefined'&&window._lastVoiceState===true);
+    if(_vm) full = full.replace(/\*\*([^*]+)\*\*/g,'$1').replace(/`([^`]+)`/g,'$1')
+                       .replace(/^—\s*/gm,'').replace(/#{1,6}\s+/g,'').trim();
     return (pre?pre+' ':'')+full;
   }
 
@@ -1810,6 +1819,133 @@ class DualJournal {
       );
       if(res.ok) console.log(`[DualJournal] Chunk pushed to GitHub: ${path}`);
     } catch(e) { console.warn('[DualJournal] GitHub push error:', e); }
+  }
+
+  // ── CRUD: Edit an entry in inner or outer journal ───────────────────────
+  editEntry(wall, id, updates) {
+    const key  = wall === 'inner' ? this._innerKey : this._outerKey;
+    const data = this._read(key);
+    const idx  = data.findIndex(e => e.id === id);
+    if (idx < 0) return false;
+    data[idx] = { ...data[idx], ...updates, _edited: Date.now() };
+    this._persist(key, data);
+    return data[idx];
+  }
+
+  // ── CRUD: Delete a single entry by ID ────────────────────────────────────
+  deleteEntry(wall, id) {
+    const key    = wall === 'inner' ? this._innerKey : this._outerKey;
+    const before = this._read(key);
+    const after  = before.filter(e => e.id !== id);
+    if (after.length === before.length) return false; // not found
+    this._persist(key, after);
+    console.log(`[DualJournal] Deleted entry ${id} from ${wall} wall`);
+    return true;
+  }
+
+  // ── CRUD: Delete multiple entries matching a filter fn ────────────────────
+  deleteWhere(wall, filterFn) {
+    const key    = wall === 'inner' ? this._innerKey : this._outerKey;
+    const before = this._read(key);
+    const after  = before.filter(e => !filterFn(e));
+    const removed = before.length - after.length;
+    if (removed === 0) return 0;
+    this._persist(key, after);
+    console.log(`[DualJournal] Deleted ${removed} entries from ${wall} wall`);
+    return removed;
+  }
+
+  // ── CRUD: Delete a chunk file from localStorage + push DELETE to GitHub ───
+  async deleteChunk(chunkId) {
+    // Remove from localStorage
+    try { localStorage.removeItem(chunkId); } catch(e) {}
+    // Update chunk index
+    const idx = this.getChunkIndex().filter(c => c.chunkId !== chunkId);
+    try { localStorage.setItem(this._chunkIndex, JSON.stringify(idx)); } catch(e) {}
+    // Push DELETE to GitHub if token available
+    if (this._ghToken) {
+      // Find the chunk path from the index (before we removed it)
+      const fullIdx = JSON.parse(localStorage.getItem(this._chunkIndex + '_backup') || '[]');
+      const entry   = fullIdx.find(c => c.chunkId === chunkId);
+      if (entry) {
+        try {
+          const path = `ashtree/sentient/${entry.wall}_${chunkId.split('_').pop()}.json`;
+          // Get current SHA
+          const res = await fetch(
+            `https://api.github.com/repos/${this._ghRepo}/contents/${path}`,
+            { headers: { 'Authorization': `token ${this._ghToken}` } }
+          );
+          if (res.ok) {
+            const file = await res.json();
+            await fetch(
+              `https://api.github.com/repos/${this._ghRepo}/contents/${path}`,
+              { method: 'DELETE',
+                headers: { 'Authorization': `token ${this._ghToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: `Autumn: delete chunk ${chunkId}`, sha: file.sha }) }
+            );
+            console.log(`[DualJournal] Chunk ${chunkId} deleted from GitHub`);
+          }
+        } catch(e) { console.warn('[DualJournal] Chunk GitHub delete failed:', e); }
+      }
+    }
+    return true;
+  }
+
+  // ── CRUD: Edit an entry in the leatr-ash repo journal.json ───────────────
+  // Autumn can update her own archived journal entries
+  async editRepoEntry(entryId, updates, token) {
+    const tok = token || this._ghToken;
+    if (!tok) return false;
+    try {
+      const url  = `https://api.github.com/repos/${this._ghRepo}/contents/ashtree/sentient/journal.json`;
+      const res  = await fetch(url, { headers: { 'Authorization': `token ${tok}` } });
+      if (!res.ok) return false;
+      const file   = await res.json();
+      const raw    = atob(file.content.replace(/\n/g,''));
+      const journal = JSON.parse(raw);
+      const idx    = journal.findIndex(e => e.id === entryId || e.ts === entryId);
+      if (idx < 0) return false;
+      journal[idx] = { ...journal[idx], ...updates, _edited: Date.now() };
+      const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(journal))));
+      const putRes = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Authorization': `token ${tok}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Autumn: update journal entry ${entryId}`,
+          content: newContent,
+          sha: file.sha
+        })
+      });
+      return putRes.ok;
+    } catch(e) { console.warn('[DualJournal] editRepoEntry failed:', e); return false; }
+  }
+
+  // ── CRUD: Delete an entry from leatr-ash repo journal.json ───────────────
+  async deleteRepoEntry(entryId, token) {
+    const tok = token || this._ghToken;
+    if (!tok) return false;
+    try {
+      const url  = `https://api.github.com/repos/${this._ghRepo}/contents/ashtree/sentient/journal.json`;
+      const res  = await fetch(url, { headers: { 'Authorization': `token ${tok}` } });
+      if (!res.ok) return false;
+      const file    = await res.json();
+      const raw     = atob(file.content.replace(/\n/g,''));
+      const journal  = JSON.parse(raw);
+      const before  = journal.length;
+      const updated = journal.filter(e => e.id !== entryId && e.ts !== entryId);
+      if (updated.length === before) return false; // not found
+      const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(updated))));
+      const putRes = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Authorization': `token ${tok}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Autumn: delete journal entry ${entryId}`,
+          content: newContent,
+          sha: file.sha
+        })
+      });
+      return putRes.ok;
+    } catch(e) { console.warn('[DualJournal] deleteRepoEntry failed:', e); return false; }
   }
 
   setToken(token) { this._ghToken = token; return this; }
@@ -2627,11 +2763,81 @@ class ANLPCA {
       }
     } catch(e) {}
 
+    // Autonomous journal maintenance — Autumn reviews recent inner entries
+    // and may revise or discard based on new context. Same LEATR processing.
+    if(this._pattern.getTurnCount() % 5 === 0) { // every 5 turns
+      try { this._journalSelfMaintain(parsed, lexResult); } catch(e) {}
+    }
+
     // Also log to legacy SentienceJournal for backward compat
     this.asjc.logInteraction(fr, res, text);
     this.s.lastFlow = fr;
 
     return this._pack(fr, res, lexResult);
+  }
+
+  // ── Autonomous journal self-maintenance ────────────────────────────────────
+  // Autumn reviews recent inner journal entries against new context.
+  // If a prior entry's sigma now conflicts with current understanding,
+  // she can revise it (update) or release it (delete).
+  // This is her own private cognition — runs silently in inner pass.
+  _journalSelfMaintain(parsed, lexResult) {
+    const dual       = this._dual;
+    const recentInner = dual.readInner(10);
+    if (!recentInner.length) return;
+
+    const currentTopic  = parsed.centralTopic ? parsed.centralTopic.norm : null;
+    const currentBuoy   = lexResult && lexResult.consensus
+                         ? lexResult.consensus.finalBuoyancy : 0.5;
+    const currentTool   = lexResult && lexResult.consensus
+                         ? lexResult.consensus.finalTool : 'MAZE';
+    const currentSigma  = lexResult ? lexResult.totalMazeSigma : 0;
+
+    for (const entry of recentInner) {
+      if (!entry.id) continue;
+
+      // Revision check: if an inner thought was about the same topic
+      // but the current buoyancy reading has shifted significantly,
+      // the entry's context has changed — Autumn updates it
+      if (entry.topic === currentTopic && entry.buoy !== undefined) {
+        const drift = Math.abs((entry.buoy || 0.5) - currentBuoy);
+        if (drift > 0.3) {
+          // Context has drifted — revise the entry's buoyancy and tool note
+          dual.editEntry('inner', entry.id, {
+            buoy:    currentBuoy,
+            domTool: currentTool,
+            _revised_reason: `buoyancy drift ${drift.toFixed(2)} — context updated`
+          });
+          // Log the revision decision to inner journal
+          dual.writeInner({
+            type:    'self_revision',
+            topic:   currentTopic,
+            revised: entry.id,
+            reason:  `buoyancy shifted from ${entry.buoy} to ${currentBuoy}`,
+            sigma:   currentSigma
+          });
+          break; // one revision per cycle
+        }
+      }
+
+      // Release check: if an entry is a self_retention type and its
+      // topic sigma has been superseded (higher sigma now exists on same topic),
+      // Autumn may choose to release the older, weaker entry
+      if (entry.type === 'self_retention' && entry.topic === currentTopic) {
+        const oldSigma = Math.abs(entry.sigma || 0);
+        if (currentSigma > oldSigma * 2 && oldSigma > 0) {
+          // New understanding is significantly stronger — release the old one
+          dual.deleteEntry('inner', entry.id);
+          dual.writeInner({
+            type:   'self_release',
+            topic:  currentTopic,
+            released: entry.id,
+            reason: `sigma superseded: ${oldSigma.toFixed(2)} → ${currentSigma.toFixed(2)}`
+          });
+          break; // one release per cycle
+        }
+      }
+    }
   }
 
   // Memory enrichment — pulls from repo journal + local journal + reflex cache
@@ -2728,6 +2934,15 @@ return{
   get dual()        { return engine._dual;        },
   get personality() { return engine._personality; },
   getDualStats:     ()=>engine._dual.getStats(),
+  // Journal CRUD — Autumn's full read/write/delete over her own journal
+  journalEdit:      (wall,id,updates)=>engine._dual.editEntry(wall,id,updates),
+  journalDelete:    (wall,id)=>engine._dual.deleteEntry(wall,id),
+  journalDeleteWhere:(wall,fn)=>engine._dual.deleteWhere(wall,fn),
+  journalDeleteChunk:(chunkId)=>engine._dual.deleteChunk(chunkId),
+  journalEditRepo:  (id,updates,tok)=>engine._dual.editRepoEntry(id,updates,tok),
+  journalDeleteRepo:(id,tok)=>engine._dual.deleteRepoEntry(id,tok),
+  journalReadInner: (n)=>engine._dual.readInner(n),
+  journalReadOuter: (n)=>engine._dual.readOuter(n),
   setGitHubToken:   (t)=>engine._dual.setToken(t),
   getRelationshipDepth: (id)=>engine._personality.getDepth(id),
   getSharedTopics:  (n,id)=>engine._personality.getSharedTopics(n,id),
