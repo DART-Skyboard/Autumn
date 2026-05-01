@@ -17507,6 +17507,7 @@ _syncActionBtn();
     try{
       var ghPat=localStorage.getItem('_gh_pat')||localStorage.getItem('autumn_gh_pat');
       if(ghPat&&GE.setGitHubToken) GE.setGitHubToken(ghPat);
+      if(ghPat&&GE.dual) GE.dual.setToken(ghPat);
       // Also watch for PAT being set later
       var _origConnect=window.connectGitHub||null;
       if(_origConnect){
@@ -17514,6 +17515,7 @@ _syncActionBtn();
           var r=_origConnect.apply(this,arguments);
           var p=localStorage.getItem('_gh_pat')||localStorage.getItem('autumn_gh_pat');
           if(p&&GE.setGitHubToken) GE.setGitHubToken(p);
+          if(p&&GE.dual) GE.dual.setToken(p);
           return r;
         };
       }
@@ -20199,6 +20201,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
 
   // ── Init ───────────────────────────────────────────────────────────────────
+      if(typeof GE!=='undefined'&&GE.dual&&window._ghAuth&&window._ghAuth.token) GE.dual.setToken(window._ghAuth.token);
   // ── Cross-tab auth sync via BroadcastChannel ──────────────────────────────
   try {
     var _authChannel = new BroadcastChannel('autumn_auth');
