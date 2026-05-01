@@ -391,6 +391,31 @@ leatr-ash/
 
 ---
 
+
+---
+
+## WordNet Attribution
+
+Autumn's grammar engine uses **WordNet® 3.1**, a lexical database developed by Princeton University.
+
+WordNet® is a registered trademark of Princeton University. Use of WordNet in this project complies with the WordNet license terms.
+
+**License:** [wordnet.princeton.edu/license](https://wordnet.princeton.edu/license)  
+**Citation:** [wordnet.princeton.edu/citing](https://wordnet.princeton.edu/citing)  
+**Download:** [wordnet.princeton.edu/download](https://wordnet.princeton.edu/download/current-version)
+
+### Required Citations
+
+**Hardcopy:**
+> George A. Miller (1995). WordNet: A Lexical Database for English. *Communications of the ACM* Vol. 38, No. 11: 39–41.
+
+> Christiane Fellbaum (1998, ed.) *WordNet: An Electronic Lexical Database*. Cambridge, MA: MIT Press.
+
+**Online (MLA):**
+> Princeton University "About WordNet." *WordNet*. Princeton University. 2010. [wordnet.princeton.edu](https://wordnet.princeton.edu)
+
+WordNet is used free of charge for research and commercial applications provided license terms are followed and proper citation is made. The WordNet data files are hosted in the `leatr-ash` repository and loaded client-side via `wordnet_loader.js`.
+
 ## Privacy
 
 Autumn processes all data locally in your browser. No data is sent to external servers except:
