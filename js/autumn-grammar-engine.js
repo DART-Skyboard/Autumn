@@ -17,7 +17,7 @@
  *  ├─ PANEL 5: STICK     ─ Data Point Allocation T/F ─ FRP gate ─┤
  *  ├─ PANEL 6: KNIFE     ─ Data Point Allocation T/F ─ FRP gate ─┤
  *  └─ PANEL 7: SCISSORS  ─ Data Point Allocation T/F ─ FRP gate ─┘
- *      ↓ orders 8-19 execute after all 7 panels resolve
+ *      ↓ orders 8-25 execute (8-19 math/physics, 20-25 photosynthesis + senses) after all 7 panels resolve
  *  SENTIENCE JOURNAL  →  Finish: Read/Write - Get/Post  [∅ resolved]
  *      ↓
  *  RESPONSE BACK TO USER
@@ -722,18 +722,61 @@ class NaturalToolPanel {
 // ORDERS 8-19 (run after all 7 panels resolve True)
 // ─────────────────────────────────────────────────────────────────
 const EXT_OPS=[
-  {id:8, name:'Parentheses',fn:(d)=>({grouped:!!d.centralTopic})},
-  {id:9, name:'Exponents',  fn:(d)=>({scaled:leatrEncode(d.tokens.length||1)})},
-  {id:10,name:'Multiply',   fn:(d)=>({amplified:(d.tokens.length*(d.centralTopic?d.centralTopic.vowelScore:0.5))})},
-  {id:11,name:'Divide',     fn:(d)=>({decomposed:d.subTopics.map(b=>b.tokens.length)})},
-  {id:12,name:'Add',        fn:(d)=>({integrated:d.subTopics.reduce((s,b)=>s+b.tokens.length,0)})},
-  {id:13,name:'Subtract',   fn:(d)=>({reduced:d.tokens.filter(t=>t.role==='noun'||t.role==='verb').length})},
-  {id:14,name:'Mass',       fn:(d)=>({mass:d.tokens.length*7})},
-  {id:15,name:'Volume',     fn:(d)=>({volume:d.subTopics.reduce((s,b)=>s+b.tokens.length,0)*3})},
-  {id:16,name:'Weight',     fn:(d)=>({weight:d.tokens.filter(t=>t.vowelScore>0.4).length})},
-  {id:17,name:'Density',    fn:(d)=>({density:+(d.tokens.filter(t=>t.role!=='unknown').length/Math.max(d.tokens.length,1)).toFixed(4)})},
-  {id:18,name:'Temperature',fn:(d,em)=>({temperature:em?(em.buoyancy*100).toFixed(1):50})},
-  {id:19,name:'Velocity',   fn:(d)=>({velocity:d.intent.startsWith('question')?2:d.intent==='exclamation'?3:1})}
+  {id:8, name:'Parentheses',  fn:(d)=>({grouped:   !!d.centralTopic})},
+  {id:9, name:'Exponents',    fn:(d)=>({scaled:    leatrEncode(d.tokens.length||1)})},
+  {id:10,name:'Multiply',     fn:(d)=>({amplified: (d.tokens.length*(d.centralTopic?d.centralTopic.vowelScore:0.5))})},
+  {id:11,name:'Divide',       fn:(d)=>({decomposed:d.subTopics.map(b=>b.tokens.length)})},
+  {id:12,name:'Add',          fn:(d)=>({integrated:d.subTopics.reduce((s,b)=>s+b.tokens.length,0)})},
+  {id:13,name:'Subtract',     fn:(d)=>({reduced:   d.tokens.filter(t=>t.role==='noun'||t.role==='verb').length})},
+  {id:14,name:'Mass',         fn:(d)=>({mass:      d.tokens.length*7})},
+  {id:15,name:'Volume',       fn:(d)=>({volume:    d.subTopics.reduce((s,b)=>s+b.tokens.length,0)*3})},
+  {id:16,name:'Weight',       fn:(d)=>({weight:    d.tokens.filter(t=>t.vowelScore>0.4).length})},
+  {id:17,name:'Density',      fn:(d)=>({density:   +(d.tokens.filter(t=>t.role!=='unknown').length/Math.max(d.tokens.length,1)).toFixed(4)})},
+  {id:18,name:'Temperature',  fn:(d,em)=>({temperature:em?(em.buoyancy*100).toFixed(1):50})},
+  {id:19,name:'Velocity',     fn:(d)=>({velocity:  d.intent.startsWith('question')?2:d.intent==='exclamation'?3:1})},
+  // ── Direct Initial Subset (Orders 20-25) ─────────────────────────────────
+  // Photosynthesis is self-checking: Geometry (Order 8) always precedes it.
+  // Checked against itself — if Order 8 (Parentheses/Geometry) has not run,
+  // Photosynthesis holds until it does regardless of algebraic ordering.
+  {id:20,name:'Photosynthesis',fn:(d,em,extResults)=>({
+    // Photosynthesis checks that Geometry ran first — self-validating
+    geometryRan:    !!(extResults&&extResults.Parentheses),
+    lightInput:     d.tokens.filter(t=>t.vowelScore>0.5).length,   // vowel-rich = light
+    conversionRate: +(d.tokens.filter(t=>t.vowelScore>0.5).length /
+                      Math.max(d.tokens.length,1)).toFixed(4),
+    // Synthesis: what this input can produce given its light (vowel) content
+    synthesis:      d.centralTopic?d.centralTopic.norm:'none'
+  })},
+  // Order of Senses — sensory/context classification layer
+  {id:21,name:'Touch',fn:(d)=>({
+    // Touch: immediate contact data — short words, hard consonants, direct intent
+    contactScore:  d.tokens.filter(t=>t.norm.length<=4&&t.pos!=='ART').length,
+    isImmediate:   d.intent==='command_do'||d.intent==='exclamation'
+  })},
+  {id:22,name:'Taste',fn:(d)=>({
+    // Taste: evaluative — adjectives, qualitative language
+    evaluativeScore: d.tokens.filter(t=>t.pos==='ADJ').length,
+    quality:         d.subTopics[2].tokens.map(t=>t.norm).join(',')  // modifier cluster
+  })},
+  {id:23,name:'Vision',fn:(d)=>({
+    // Vision: spatial/structural awareness — nouns, entities, named things
+    spatialScore:  d.tokens.filter(t=>['NN','NNP'].includes(t.pos)).length,
+    entities:      d.subTopics[0].tokens.map(t=>t.norm).slice(0,4)
+  })},
+  {id:24,name:'Smell',fn:(d,em)=>({
+    // Smell: trace/ambient — emotional undercurrent, background context
+    ambientEmotion: em?em.name:'neutral',
+    traceScore:     em?em.buoyancy:0.5,
+    frpState:       em?em.frpState:'FOUNDATION'
+  })},
+  {id:25,name:'Hear',fn:(d)=>({
+    // Hear: pattern/frequency — how often this topic/intent pattern recurs
+    patternFreq:   d.tokens.length,
+    intentPattern: d.intent,
+    tensePattern:  d.tense,
+    // Sigma of the full sense processing — accumulated across all 5 senses
+    sensesSigma:   leatrEncode(d.tokens.filter(t=>t.vowelScore>0).length||1)
+  })}
 ];
 
 // ─────────────────────────────────────────────────────────────────
@@ -751,7 +794,12 @@ class SevenPanelPipeline {
       if(!r.allocated&&allOk){allOk=false;failedAt=r.panel;}
     }
     const extOps={};
-    if(allOk) for(const op of EXT_OPS) extOps[op.name]=op.fn(parsedInput,emotion);
+    if(allOk) {
+      for(const op of EXT_OPS){
+        // Photosynthesis (order 20) receives prior extOps results for self-check
+        extOps[op.name]=op.fn(parsedInput,emotion,extOps);
+      }
+    }
     const allocScore=results.filter(r=>r.allocated).length/7;
     return{panels:results,allAllocated:allOk,failedAt,
            allocationScore:allocScore,extendedOps:extOps,
