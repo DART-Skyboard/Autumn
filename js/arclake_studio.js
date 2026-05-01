@@ -238,6 +238,7 @@ function _initScene(canvas){
   const cfdVel=new Float32Array(NCFD*3);
 
   return {T,renderer,scene,camera,controls,canvas,cfdPts,cfdGeo,cfdPos,cfdVel,cfdCol,NCFD,
+    bgScene:renderer.userData.bgScene, bgCam:renderer.userData.bgCam,
     atoms:[],isSimulating:false,recordedFrames:[],simTime:0,
     params:{temp:25,pressure:101325,windX:0,windY:0,windZ:0,ptsPerE:150}};
 }
@@ -474,8 +475,8 @@ global._alsMounted=function(){
     _step(S);
     if(S.controls)S.controls.update();
     S.renderer.clear();
-    if(S.renderer.userData.bgScene&&S.renderer.userData.bgCam){
-      S.renderer.render(S.renderer.userData.bgScene,S.renderer.userData.bgCam);
+    if(S.bgScene&&S.bgCam){
+      S.renderer.render(S.bgScene,S.bgCam);
       S.renderer.clearDepth();
     }
     S.renderer.render(S.scene,S.camera);
@@ -583,7 +584,7 @@ global._alsFullscreen=function(){
       r2.setPixelRatio(Math.min(window.devicePixelRatio||1,2));r2.setSize(W,H,false);r2.setClearColor(0x04070e,1);
       S.renderer=r2;S.camera.aspect=W/H;S.camera.updateProjectionMatrix();
       if(T.OrbitControls){S.controls=new T.OrbitControls(S.camera,fc);S.controls.enableDamping=true;S.controls.dampingFactor=0.08;}
-      function _fl(){if(!document.getElementById('als-fs-ov'))return;S.raf=requestAnimationFrame(_fl);_step(S);if(S.controls)S.controls.update();S.renderer.clear();if(S.renderer.userData.bgScene&&S.renderer.userData.bgCam){S.renderer.render(S.renderer.userData.bgScene,S.renderer.userData.bgCam);S.renderer.clearDepth();}S.renderer.render(S.scene,S.camera);}
+      function _fl(){if(!document.getElementById('als-fs-ov'))return;S.raf=requestAnimationFrame(_fl);_step(S);if(S.controls)S.controls.update();S.renderer.clear();if(S.bgScene&&S.bgCam){S.renderer.render(S.bgScene,S.bgCam);S.renderer.clearDepth();}S.renderer.render(S.scene,S.camera);}
       _fl();
     }
   });
