@@ -170,7 +170,43 @@ function _initScene(canvas){
   const renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
   renderer.setSize(W,H,false);
-  renderer.setClearColor(0x04070e,1);
+  renderer.setClearColor(0x000000,1);
+
+  // ── Nighttime gradient background ─────────────────────────────────────────
+  // Full-screen quad: deep navy at horizon fading to near-black at top/bottom
+  (function _addGradientBG(){
+    const bgScene=new T.Scene();
+    const bgCam=new T.OrthographicCamera(-1,1,1,-1,0,1);
+    const bgGeo=new T.PlaneGeometry(2,2);
+    const bgMat=new T.ShaderMaterial({
+      depthWrite:false,depthTest:false,
+      vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`,
+      fragmentShader:`
+        varying vec2 vUv;
+        void main(){
+          // y=0 bottom, y=1 top
+          float t=vUv.y;
+          // horizon band around y=0.38
+          float h=smoothstep(0.0,0.5,t)*smoothstep(1.0,0.45,t);
+          // base: very dark navy #050d1a → deep indigo #0a0f2e
+          vec3 top    =vec3(0.020,0.025,0.08);   // near-black indigo top
+          vec3 mid    =vec3(0.055,0.115,0.28);   // deep navy horizon
+          vec3 bottom =vec3(0.012,0.020,0.055);  // very dark bottom
+          vec3 col=mix(mix(bottom,mid,smoothstep(0.0,0.42,t)),
+                       mix(mid,top, smoothstep(0.42,1.0,t)),
+                       step(0.42,t));
+          // subtle teal glow on horizon
+          col+=vec3(0.0,0.04,0.06)*h;
+          gl_FragColor=vec4(col,1.0);
+        }
+      `
+    });
+    const bgMesh=new T.Mesh(bgGeo,bgMat);
+    bgScene.add(bgMesh);
+    // Attach to renderer so _animate can draw it first
+    renderer.userData.bgScene=bgScene;
+    renderer.userData.bgCam=bgCam;
+  })();
 
   const scene=new T.Scene();
   const camera=new T.PerspectiveCamera(50,W/H,0.001,500);
@@ -203,7 +239,7 @@ function _initScene(canvas){
 
   return {T,renderer,scene,camera,controls,canvas,cfdPts,cfdGeo,cfdPos,cfdVel,cfdCol,NCFD,
     atoms:[],isSimulating:false,recordedFrames:[],simTime:0,
-    params:{temp:25,pressure:101325,windX:0,windY:0,windZ:0,ptsPerE:30}};
+    params:{temp:25,pressure:101325,windX:0,windY:0,windZ:0,ptsPerE:150}};
 }
 
 function _r(){return Math.random();}
@@ -383,7 +419,7 @@ global.renderToolsArcLake=function(){
         <option value="__custom">Custom elements...</option>
       </select>
       <label style="font-size:8px;color:#8a8fa8;white-space:nowrap">pts/e&#x207B;</label>
-      <input id="als-pte" type="number" min="5" max="200" value="30" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:44px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
+      <input id="als-pte" type="number" min="5" max="200" value="150" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:44px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
     </div>
     <div id="als-custom-row" style="display:none;gap:6px;align-items:center">
       <input id="als-custom-in" placeholder="Fe,Cu,Ni or elements..." style="flex:1;background:rgba(124,77,255,.07);border:1px solid rgba(124,77,255,.28);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9.5px;font-family:inherit" onkeydown="if(event.key==='Enter')window._alsParseCustom&&window._alsParseCustom()">
@@ -430,12 +466,18 @@ global._alsMounted=function(){
   resize();
   S=_initScene(canvas);
   if(!S)return;
-  _build(S,PRESETS[PRESET_KEYS[0]],30);
+  _build(S,PRESETS[PRESET_KEYS[0]],150);
+  S.renderer.autoClear=false;
 
   function _loop(){
     S.raf=requestAnimationFrame(_loop);
     _step(S);
     if(S.controls)S.controls.update();
+    S.renderer.clear();
+    if(S.renderer.userData.bgScene&&S.renderer.userData.bgCam){
+      S.renderer.render(S.renderer.userData.bgScene,S.renderer.userData.bgCam);
+      S.renderer.clearDepth();
+    }
     S.renderer.render(S.scene,S.camera);
     const totalE=S.atoms.reduce((a,ag)=>a+(ag.el.e||0),0);
     const hs=document.getElementById('als-hud-s');
@@ -463,7 +505,7 @@ global._alsLoadPreset=function(key){
   if(row)row.style.display='none';
   if(!S||!PRESETS[key])return;
   S.isSimulating=false;
-  const pte=S.params.ptsPerE||30;
+  const pte=S.params.ptsPerE||150;
   _build(S,PRESETS[key],pte);
   const el=document.getElementById('als-preset');
   if(el)el.value=key;
@@ -478,13 +520,13 @@ global._alsParseCustom=function(){
   if(!syms.length){document.getElementById('als-status').textContent='Unknown elements. Try: Fe,Cu,Ni';return;}
   const defs=syms.map((s,i)=>{const a=(i/syms.length)*Math.PI*2,r2=syms.length>1?2.8:0;return{s,p:[Math.cos(a)*r2,0,Math.sin(a)*r2]};});
   S.isSimulating=false;
-  _build(S,defs,S.params.ptsPerE||30);
+  _build(S,defs,S.params.ptsPerE||150);
   document.getElementById('als-status').textContent='Custom: '+syms.join(', ');
 };
 
 global._alsSetPtsPerE=function(n){
   if(!S)return;
-  S.params.ptsPerE=Math.max(5,Math.min(200,n||30));
+  S.params.ptsPerE=Math.max(5,Math.min(500,n||150));
   const key=(document.getElementById('als-preset')||{}).value||PRESET_KEYS[0];
   if(PRESETS[key])_build(S,PRESETS[key],S.params.ptsPerE);
 };
@@ -501,7 +543,7 @@ global._alsStop =function(){if(!S)return;S.isSimulating=false;document.getElemen
 global._alsReset=function(){
   if(!S)return;S.isSimulating=false;
   const key=(document.getElementById('als-preset')||{}).value||PRESET_KEYS[0];
-  if(PRESETS[key])_build(S,PRESETS[key],S.params.ptsPerE||30);
+  if(PRESETS[key])_build(S,PRESETS[key],S.params.ptsPerE||150);
   document.getElementById('als-status').textContent='Scene reset.';
 };
 
@@ -541,7 +583,7 @@ global._alsFullscreen=function(){
       r2.setPixelRatio(Math.min(window.devicePixelRatio||1,2));r2.setSize(W,H,false);r2.setClearColor(0x04070e,1);
       S.renderer=r2;S.camera.aspect=W/H;S.camera.updateProjectionMatrix();
       if(T.OrbitControls){S.controls=new T.OrbitControls(S.camera,fc);S.controls.enableDamping=true;S.controls.dampingFactor=0.08;}
-      function _fl(){if(!document.getElementById('als-fs-ov'))return;S.raf=requestAnimationFrame(_fl);_step(S);if(S.controls)S.controls.update();S.renderer.render(S.scene,S.camera);}
+      function _fl(){if(!document.getElementById('als-fs-ov'))return;S.raf=requestAnimationFrame(_fl);_step(S);if(S.controls)S.controls.update();S.renderer.clear();if(S.renderer.userData.bgScene&&S.renderer.userData.bgCam){S.renderer.render(S.renderer.userData.bgScene,S.renderer.userData.bgCam);S.renderer.clearDepth();}S.renderer.render(S.scene,S.camera);}
       _fl();
     }
   });

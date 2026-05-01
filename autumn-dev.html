@@ -8940,7 +8940,8 @@ function classifyIntentLocal(text, hasPendingImages) {
   // ── ARCLAKE — must come BEFORE Arc Edge (arc lake contains the word "arc") ──
   var _arcLakeIntent =
     /\b(arc\s*lake|arclake)\b/i.test(lc) ||
-    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid)\b/i.test(lc) &&
+    /\b(hercules\s*alloy|hercules|h2o|co2|carbon\s*dioxide|nacl|salt\s*molecule|titanium\s*alloy|copper\s*oxide|calcium\s*carbonate|silicon\s*dioxide|iron\s*copper)\b/i.test(lc) ||
+    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid|waveform|electron|proton|neutron|nucleus|atomic|atom)\b/i.test(lc) &&
      !/\b(arc\s*edge|arcedge|deviation|induction)\b/i.test(lc));
   if (_arcLakeIntent) return 'ARCLAKE';
 
