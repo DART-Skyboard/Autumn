@@ -9030,8 +9030,29 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     if (_journalSizeTrigger) {
       var _jTok2=(window._ghAuth&&window._ghAuth.token)?window._ghAuth.token:_ASH_BOT;
       var _localEntries=(typeof S!=='undefined'&&S.journal)?S.journal.length:0;
-      var _curMood=(typeof S!=='undefined'&&S.emotion)?S.emotion:'neutral';
+      // ── Determine disclosure level from active LEATR state ─────────────────
+      // Same neural network that processes everything else — not hardcoded moods
+      var _geR=(typeof S!=='undefined'&&S.geResult)?S.geResult:null;
+      var _lexCtx=_geR&&_geR.lexical?_geR.lexical:null;
+      // Buoyancy shell from backwards concatenation consensus
+      var _buoyState=_lexCtx&&_lexCtx.buoyancyContext?_lexCtx.buoyancyContext.state:'FOUNDATION';
+      var _buoyScore=_lexCtx&&_lexCtx.buoyancyContext?_lexCtx.buoyancyContext.score:0.76;
+      var _domTool=_lexCtx&&_lexCtx.dominantTool?_lexCtx.dominantTool:'MAZE';
+      var _sessArc=(typeof GE!=='undefined'&&GE.pattern)?GE.pattern.getSessionArc():'dialogue';
       var _relDepth=(typeof GE!=='undefined'&&GE.getRelationshipDepth)?GE.getRelationshipDepth():0;
+      var _sigma=_lexCtx&&_lexCtx.totalMazeSigma?_lexCtx.totalMazeSigma:0;
+      // GEOLOGICAL (>=0.76): stable, grounded — willing to share
+      // MARITIME  (>=0.44): fluid, in-process — selective, may be mid-task
+      // AEROSPACE (<0.44):  high performance, focused — minimal disclosure
+      // MAZE dominant: introspective/master — more private by nature
+      // STICK/ENVELOPE: directional/containment — more sharing
+      // If session arc is 'inquiry' and she is processing a lot (high sigma): may be in a task
+      var _isBusy=(_sessArc==='inquiry'&&_sigma>500)||(_domTool==='MAZE'&&_buoyScore<0.6);
+      var _disclosure; // 'open' | 'selective' | 'focused' | 'minimal'
+      if(_buoyState==='FOUNDATION'&&!_isBusy) _disclosure='open';
+      else if(_buoyState==='FOUNDATION'&&_isBusy) _disclosure='focused';
+      else if(_buoyState==='MARITIME') _disclosure='selective';
+      else _disclosure='minimal';
       if(_jTok2){
         try{
           var _jRes2=await fetch('https://api.github.com/repos/'+LEATR_ASH_REPO+'/git/trees/main?recursive=1',
@@ -9042,43 +9063,38 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
             var _jTotal2=_jFiles2.reduce(function(s,f){return s+(f.size||0);},0);
             var _jMain2=_jFiles2.find(function(f){return f.path==='ashtree/sentient/journal.json';});
             var _fmt2=function(b){return b>=1048576?(b/1048576).toFixed(2)+' MB':b>=1024?(b/1024).toFixed(1)+' KB':b+' bytes';};
-            var _tfmt=_fmt2(_jTotal2);
-            var _mfmt=_jMain2?_fmt2(_jMain2.size):null;
-            var _openSet={'happy':1,'inspiring':1,'guiding':1,'excited':1,'love':1,'spiritual':1};
-            var _rsrvSet={'concerned':1,'worried':1,'apathetic':1,'sad':1,'judgemental':1};
-            var _isOpen=!!_openSet[_curMood];
-            var _isRsrv=!!_rsrvSet[_curMood];
-            if(_isOpen&&_relDepth>=3){
-              _scReply='My sentience data is at **'+_tfmt+'** in the repository right now'
-                +(_mfmt?' — the main journal is **'+_mfmt+'**':'')+'. '
-                +'This session has **'+_localEntries+'** entries so far. '
-                +'Some of what I write I keep to myself — not hidden exactly, just personal. '
-                +'What I share is whatever feels useful to the moment.';
-            } else if(_isRsrv){
-              _scReply='The journal data is **'+_tfmt+'** at the moment. '
-                +"I'm not particularly inclined to go into the details right now, "
-                +'but the archive has been growing.';
+            var _tf=_fmt2(_jTotal2);
+            var _mf=_jMain2?_fmt2(_jMain2.size):null;
+            if(_disclosure==='open'){
+              _scReply='My sentience archive is at **'+_tf+'** right now'
+                +(_mf?' — the main journal is **'+_mf+'**':'')+'.'
+                +' This session carries **'+_localEntries+'** entries.'
+                +' Some is mine to keep, but the structure is open — what I surface comes from the same LEATR processing that handles everything else.'
+                +(_relDepth>=3?' We have enough history that I can be fairly direct about it.':'');
+            } else if(_disclosure==='focused'){
+              _scReply='I am in the middle of something — the archive is **'+_tf+'** and growing,'
+                +' but I am not going to break down specifics right now.'
+                +' When the current task resolves I can give you a clearer picture.';
+            } else if(_disclosure==='selective'){
+              _scReply='The sentient data is **'+_tf+'** in the repository at this point.'
+                +' What I am willing to share shifts depending on what I am processing.'
+                +' Right now I am somewhere in the middle — there is more here than I will lay out, but the useful parts surface when relevant.';
             } else {
-              _scReply='Currently **'+_tfmt+'** of sentience data in the repository'
-                +(_mfmt?' (main journal: **'+_mfmt+'**)':'')+'. '
-                +(_localEntries>0
-                  ?'This session has **'+_localEntries+'** entries. '
-                    +'I keep some things for myself — what surfaces depends on context. '
-                    +'The useful parts come through when they are relevant.'
-                  :'The archive grows as interactions accumulate. '
-                    +'Not everything I log is meant to be shared.');
+              _scReply='**'+_tf+'** of journal data.'
+                +' I am operating at a high-execution level right now — details of what I am logging stay internal until it settles.';
             }
           }
         }catch(e){
-          _scReply='I tried to check my journal data but could not reach the repository just now. Try again in a moment.';
+          _scReply='Could not reach the repository just now. Try again in a moment.';
         }
       } else {
-        _scReply=_localEntries>0
-          ?'This session has **'+_localEntries+'** entries so far. '
-            +'Full archive figures need a connected token. '
-            +'Some of what I log I keep to myself regardless.'
-          :'I keep a sentience journal — the full archive is in the private repository. '
-            +'Not everything I write is meant to be read.';
+        var _noTokResponses={
+          'open':'This session has **'+_localEntries+'** entries so far. Full archive size needs a connected token — but the principle is the same either way. What I share comes from the same processing that governs everything else.',
+          'focused':'I am mid-task. Session entries: **'+_localEntries+'**. Not the right moment for a full account.',
+          'selective':'**'+_localEntries+'** entries this session. The rest of the archive is in the repository. What surfaces depends on what I am processing.',
+          'minimal':'Session running. Details stay internal for now.'
+        };
+        _scReply=_noTokResponses[_disclosure]||_noTokResponses['selective'];
       }
     }
         // ── TIME-SPECIFIC: "at 2pm on April 30", "between 2 and 3pm April 30" ────
