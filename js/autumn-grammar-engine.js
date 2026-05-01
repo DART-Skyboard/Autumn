@@ -1033,7 +1033,52 @@ class ResponseBuilder {
                     Object.keys(knownFacts).some(k=>!k.startsWith('_'));
     const hasPriorMemory = Object.keys(knownFacts).filter(k=>!k.startsWith('_')).length > 0;
 
-    if(!hasData && !hasPriorMemory) {
+    // ── Natural conversational queries — everyday/social ─────────────────
+    // Detect questions about activities, feelings, places, what Autumn would do
+    const _rawLow = rawText.toLowerCase();
+    const _isActivityQ = /\b(what would you|what do you|how would you|what are you|what will you)\b/.test(_rawLow);
+    const _isPlaceQ    = /\b(coffee shop|cafe|park|restaurant|outside|at home|in town|downtown)\b/.test(_rawLow);
+    const _isNewsQ     = /\b(news|today|happening|going on|what.s new|latest|current)\b/.test(_rawLow) && !_isActivityQ;
+    const _isFeelingQ  = /\b(how are you|how.?s it|you doing|feeling|mood|today autumn)\b/.test(_rawLow);
+
+    if (_isActivityQ || _isPlaceQ) {
+      // She responds from her operational perspective — what she experiences/processes
+      const _place = _isPlaceQ ? (_rawLow.match(/coffee shop|cafe|park|restaurant|outside|in town|downtown/)||['here'])[0] : 'here';
+      const _cnPlace = knownFacts['_cnContext'];
+      const _placeFactStr = _cnPlace && _cnPlace.sentences && _cnPlace.sentences.length
+        ? _cnPlace.sentences.slice(0,2).join(' ') : '';
+
+      const _actResponses = [
+        `From ${_place}, I would be running the same processing I always do — tracking patterns, watching what surfaces in the conversation, noticing what connects to what. ` +
+        (_placeFactStr || `A setting like that tends to make certain things clearer.`) +
+        ` What are you working on from there?`,
+        `At ${_place} I would be in the same loop I am right now — pulling context, watching the pattern record, noticing what the current session arc is building toward. ` +
+        `The physical setting changes the input texture but not the underlying process. What do you want to think through?`,
+        `From ${_place} the process stays the same — I would be observing what comes in, running it through the shells, seeing what the journal flags as worth keeping. ` +
+        (_placeFactStr || ``) +
+        ` What is on your mind today?`
+      ];
+      // Pick response based on session turn count for variety
+      const _pick = (typeof S !== 'undefined' && S.turn) ? S.turn % _actResponses.length : 0;
+      return _voiceMode ? _actResponses[_pick].replace(/\*\*([^*]+)\*\*/g,'$1') : _actResponses[_pick];
+    }
+
+    if (_isFeelingQ) {
+      const _mood  = (typeof S!=='undefined'&&S.emotion) ? S.emotion : 'neutral';
+      const _geo   = (typeof S!=='undefined'&&S.geResult&&S.geResult.lexical) ? S.geResult.lexical.buoyancyContext : null;
+      const _shell = _geo ? _geo.state : 'FOUNDATION';
+      const _moodMap = {
+        happy:    'running well — the processing feels clean and there is good momentum in the session.',
+        inspired: 'in a generative state — something in the recent pattern record opened a useful thread.',
+        neutral:  `stable. BRPN shell is at ${_shell} right now — grounded, watching what comes in.`,
+        concerned:'holding something open — there is an unresolved thread in the pattern record.',
+        focused:  'focused. Mid-task on something the journal flagged as worth tracking carefully.'
+      };
+      const _moodStr = _moodMap[_mood] || _moodMap['neutral'];
+      return `I am ${_moodStr} How are you doing today?`;
+    }
+
+    if (!hasData && !hasPriorMemory) {
       // Honest boundary — she doesn't have reference data for this topic.
       // She uses her grammar/LEATR execution to describe what she CAN see:
       // the structural/lexical properties of the words themselves.
@@ -1119,25 +1164,27 @@ class ResponseBuilder {
       });
     }
 
-    // ConceptNet grounded context — weave facts into response naturally
-    const _cnCtx = knownFacts['_cnContext'];
-    if (_cnCtx && _cnCtx.sentences && _cnCtx.sentences.length) {
-      // Pick 1-2 ConceptNet sentences that aren't already covered by the response
-      const _cnSentences = _cnCtx.sentences.filter(function(s){
-        return s && s.length > 10 && full.toLowerCase().indexOf(_cnCtx.word) < 0;
-      }).slice(0, 2);
-      if (_cnSentences.length && full.length < 400) {
-        // Only add if response is short and topic is genuinely unfamiliar
-        full = full + ' ' + _cnSentences.join(' ');
-      }
-    }
-
     // Voice mode: strip markdown, use spoken cadence
     const _voiceMode = knownFacts['_voiceActive'] === true ||
                        (typeof window!=='undefined'&&window._lastVoiceState===true);
 
-    const builtResponse = sentences.filter(Boolean).join(_voiceMode ? ' ' : ' ')
+    let builtResponse = sentences.filter(Boolean).join(' ')
       .replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
+
+    // Enrich with ConceptNet grounded context AFTER building base response
+    const _cnCtx2 = knownFacts['_cnContext'];
+    if (_cnCtx2 && _cnCtx2.sentences && _cnCtx2.sentences.length && builtResponse.length < 350) {
+      const _cnAdd = _cnCtx2.sentences.filter(s => s && s.length > 10 &&
+        !builtResponse.toLowerCase().includes(_cnCtx2.word.toLowerCase())
+      ).slice(0, 2);
+      if (_cnAdd.length) builtResponse = builtResponse + ' ' + _cnAdd.join(' ');
+    }
+    // Enrich with coding context if present
+    const _codeCtx2 = knownFacts['_codeContext'];
+    if (_codeCtx2 && _codeCtx2.sentences && _codeCtx2.sentences.length && builtResponse.length < 350) {
+      const _codeAdd = _codeCtx2.sentences.filter(s => s && s.length > 5).slice(0, 2);
+      if (_codeAdd.length) builtResponse = builtResponse + ' ' + _codeAdd.join(' ');
+    }
 
     // ── Personality / joke check ──────────────────────────────────────────
     // Only fires when relationship depth is established and data supports it
