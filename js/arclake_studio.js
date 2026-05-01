@@ -1,93 +1,55 @@
-// arclake_studio_v2.js — ArcLake Studio for Autumn
-// Waveform particle simulation — 30 particles/electron, full CFD, compound physics
-// Adapted from ArcLake (DART-Skyboard/Ariel) © DART Meadow / Radical Deepscale LLC
+// arclake_studio_v3.js — ArcLake Studio for Autumn
+// Exact visual match to live ArcLake:
+//   Nucleus = proton(orange) + neutron(gray) particle clouds
+//   Electrons = per-shell colored quantum orbital clouds (30 pts/e default)
+//   CFD = atmospheric particle field driven by temp/pressure/wind
+// © DART Meadow / Radical Deepscale LLC
 
 (function(global){
 'use strict';
 
-// ── Bohr radius and quantum math (simplified CDF sampling) ──────────────────
-const A0 = 0.529177;
-
-function _gamma(n){
-  if(n<=1)return 1; let r=1;
-  for(let i=2;i<n;i++) r*=i; return r;
-}
-function _assocLaguerre(k,alpha,rho){
-  if(k<=0)return 1; if(k===1)return 1+alpha-rho;
-  let a=1,b=1+alpha-rho,c=b;
-  for(let j=2;j<=k;j++){c=((2*j-1+alpha-rho)*b-(j-1+alpha)*a)/j;a=b;b=c;} return b;
-}
-
-// Sample a radius from hydrogen-like radial wavefunction P(r)∝r²|R_nl|²
-function _sampleOrbitalRadius(n,l,rng){
-  const rMax=12*n*n*A0;
-  // Rejection sampling — fast enough for 30 pts
-  for(let attempt=0;attempt<200;attempt++){
-    const r=rng()*rMax;
-    const rho=2*r/(n*A0),k=n-l-1,alpha=2*l+1;
-    const L=_assocLaguerre(k,alpha,rho);
-    const norm=Math.pow(2/(n*A0),3)*_gamma(n-l)/(2*n*Math.max(_gamma(n+l+1),1e-10));
-    const R=Math.sqrt(Math.max(0,norm))*Math.exp(-rho/2)*Math.pow(rho||1e-9,l)*L;
-    const prob=r*r*R*R;
-    // Approximate max (use first shell peak at a0)
-    const peak=Math.exp(-2/(n))*Math.pow(2/n,2*l+2)*4;
-    if(rng()*peak*1.5<prob) return r;
-  }
-  return n*n*A0*(0.5+rng()*0.5);
-}
-
-// ── Electron orbital shell config (quantum numbers n,l per shell) ──────────
-// Shells by period: K(n=1,l=0), L(n=2,l=0,1), M(n=3,l=0,1,2)...
-const SHELL_QN = [
-  {n:1,l:0,cap:2},  // K
-  {n:2,l:0,cap:2},  // L-s
-  {n:2,l:1,cap:6},  // L-p
-  {n:3,l:0,cap:2},  // M-s
-  {n:3,l:1,cap:6},  // M-p
-  {n:3,l:2,cap:10}, // M-d
-  {n:4,l:0,cap:2},  // N-s
-  {n:4,l:1,cap:6},  // N-p
+// ── Shell colors matching live ArcLake ───────────────────────────────────────
+const SHELL_COLORS = [
+  [0.0, 0.9, 1.0],   // K  — cyan
+  [0.27,0.53,1.0],   // L  — blue
+  [0.27,1.0, 0.53],  // M  — green
+  [0.0, 1.0, 0.8],   // N  — teal
+  [0.0, 0.53,1.0],   // O  — deep blue
+  [0.67,0.27,1.0],   // P  — purple
+  [0.67,1.0, 0.27],  // Q  — yellow-green
+  [1.0, 0.27,0.67],  // R  — pink
 ];
+const PROTON_COLOR  = [1.0, 0.45, 0.1];   // orange
+const NEUTRON_COLOR = [0.55,0.55,0.6];     // gray
 
-function _buildShells(electrons){
-  const shells=[]; let rem=electrons;
-  for(const q of SHELL_QN){
-    if(rem<=0) break;
-    const n=Math.min(rem,q.cap);
-    shells.push({...q, count:n});
-    rem-=n;
-  }
-  return shells;
-}
+// ── Shell config: electron shell quantum numbers ─────────────────────────────
+const SHELLS = [
+  {n:1,l:0,cap:2 }, // K
+  {n:2,l:0,cap:2 }, // L
+  {n:2,l:1,cap:6 }, // L
+  {n:3,l:0,cap:2 }, // M
+  {n:3,l:1,cap:6 }, // M
+  {n:3,l:2,cap:10}, // M
+  {n:4,l:0,cap:2 }, // N
+  {n:4,l:1,cap:6 }, // N
+];
+const SHELL_INDEX = [0,1,1,2,2,2,3,3]; // maps shell entry → color index
 
 // ── Element data ─────────────────────────────────────────────────────────────
 const EL = {
-  H:  {z:1,  e:1,  r:0.53, color:[1,1,1],       name:'Hydrogen'},
-  He: {z:2,  e:2,  r:0.31, color:[0.85,1,1],     name:'Helium'},
-  Li: {z:3,  e:3,  r:1.52, color:[0.8,0.5,1],    name:'Lithium'},
-  B:  {z:5,  e:5,  r:0.87, color:[1,0.71,0.71],  name:'Boron'},
-  C:  {z:6,  e:6,  r:0.77, color:[0.56,0.56,0.56],name:'Carbon'},
-  N:  {z:7,  e:7,  r:0.75, color:[0.19,0.31,0.97],name:'Nitrogen'},
-  O:  {z:8,  e:8,  r:0.73, color:[1,0.05,0.05],   name:'Oxygen'},
-  F:  {z:9,  e:9,  r:0.71, color:[0.56,0.88,0.31],name:'Fluorine'},
-  Na: {z:11, e:11, r:1.86, color:[0.67,0.36,0.95],name:'Sodium'},
-  Mg: {z:12, e:12, r:1.60, color:[0.54,1,0],      name:'Magnesium'},
-  Al: {z:13, e:13, r:1.43, color:[0.75,0.65,0.65],name:'Aluminium'},
-  Si: {z:14, e:14, r:1.17, color:[0.94,0.78,0.63],name:'Silicon'},
-  P:  {z:15, e:15, r:1.10, color:[1,0.50,0],      name:'Phosphorus'},
-  S:  {z:16, e:16, r:1.04, color:[1,1,0.19],      name:'Sulfur'},
-  Cl: {z:17, e:17, r:0.99, color:[0.12,0.94,0.12],name:'Chlorine'},
-  Ca: {z:20, e:20, r:1.97, color:[0.24,1,0],      name:'Calcium'},
-  Fe: {z:26, e:26, r:1.26, color:[0.88,0.40,0.20],name:'Iron'},
-  Ni: {z:28, e:28, r:1.25, color:[0.31,0.82,0.31],name:'Nickel'},
-  Cu: {z:29, e:29, r:1.28, color:[0.78,0.50,0.20],name:'Copper'},
-  Zn: {z:30, e:30, r:1.22, color:[0.49,0.50,0.69],name:'Zinc'},
-  Ti: {z:22, e:22, r:1.47, color:[0.75,0.76,0.78],name:'Titanium'},
-  Cr: {z:24, e:24, r:1.66, color:[0.54,0.60,0.78],name:'Chromium'},
-  Co: {z:27, e:27, r:1.25, color:[0.94,0.56,0.63],name:'Cobalt'},
-  Mo: {z:42, e:42, r:1.54, color:[0.33,0.71,0.71],name:'Molybdenum'},
-  Ta: {z:73, e:73, r:1.46, color:[0.30,0.65,1],   name:'Tantalum'},
-  W:  {z:74, e:74, r:1.39, color:[0.13,0.58,0.84],name:'Tungsten'},
+  H:{z:1,  e:1,  r:0.25,name:'Hydrogen'},   He:{z:2, e:2, r:0.28,name:'Helium'},
+  Li:{z:3, e:3,  r:0.9, name:'Lithium'},    B:{z:5,  e:5, r:0.5, name:'Boron'},
+  C:{z:6,  e:6,  r:0.44,name:'Carbon'},     N:{z:7,  e:7, r:0.42,name:'Nitrogen'},
+  O:{z:8,  e:8,  r:0.40,name:'Oxygen'},     F:{z:9,  e:9, r:0.38,name:'Fluorine'},
+  Na:{z:11,e:11, r:1.0, name:'Sodium'},     Mg:{z:12,e:12,r:0.86,name:'Magnesium'},
+  Al:{z:13,e:13, r:0.76,name:'Aluminium'},  Si:{z:14,e:14,r:0.70,name:'Silicon'},
+  P:{z:15, e:15, r:0.66,name:'Phosphorus'}, S:{z:16, e:16,r:0.64,name:'Sulfur'},
+  Cl:{z:17,e:17, r:0.62,name:'Chlorine'},   Ca:{z:20,e:20,r:1.14,name:'Calcium'},
+  Fe:{z:26,e:26, r:0.78,name:'Iron'},       Ni:{z:28,e:28,r:0.76,name:'Nickel'},
+  Cu:{z:29,e:29, r:0.78,name:'Copper'},     Zn:{z:30,e:30,r:0.74,name:'Zinc'},
+  Ti:{z:22,e:22, r:0.88,name:'Titanium'},   Cr:{z:24,e:24,r:1.0, name:'Chromium'},
+  Co:{z:27,e:27, r:0.76,name:'Cobalt'},     Mo:{z:42,e:42,r:0.94,name:'Molybdenum'},
+  Ta:{z:73,e:73, r:0.88,name:'Tantalum'},   W:{z:74, e:74,r:0.84,name:'Tungsten'},
 };
 
 // ── Compound presets ──────────────────────────────────────────────────────────
@@ -103,402 +65,329 @@ const PRESETS = {
   'Copper Oxide (CuO)':    [{s:'Cu',p:[0,0,0]},{s:'O',p:[1.85,0,0]}],
   'Silicon Dioxide':       [{s:'Si',p:[0,0,0]},{s:'O',p:[1.63,0,0]},{s:'O',p:[-1.63,0,0]}],
 };
-
 const PRESET_KEYS = Object.keys(PRESETS);
 
-// ── Global state ──────────────────────────────────────────────────────────────
-let S = null;
+// ── Wavefunction radial sampling (simplified rejection) ───────────────────────
+function _gamma(n){let r=1;for(let i=2;i<n;i++)r*=i;return Math.max(r,1e-30);}
+function _laguerre(k,a,x){if(k<=0)return 1;if(k===1)return 1+a-x;let a0=1,a1=1+a-x,v=a1;for(let j=2;j<=k;j++){v=((2*j-1+a-x)*a1-(j-1+a)*a0)/j;a0=a1;a1=v;}return a1;}
+const A0=0.529177;
 
-function _dispose(){
-  if(!S) return;
-  if(S.raf) cancelAnimationFrame(S.raf);
-  if(S.ro) S.ro.disconnect();
-  if(S.renderer){ S.renderer.dispose(); }
-  S = null;
+function _sampleR(n,l){
+  const rMax=14*n*n*A0;
+  for(let i=0;i<300;i++){
+    const r=Math.random()*rMax;
+    const rho=2*r/(n*A0),k=n-l-1,al=2*l+1;
+    const L=_laguerre(k,al,rho);
+    const nm=Math.pow(2/(n*A0),3)*_gamma(n-l)/(2*n*Math.max(_gamma(n+l+1),1e-30));
+    const R=Math.sqrt(Math.max(0,nm))*Math.exp(-rho/2)*Math.pow(Math.max(rho,1e-9),l)*L;
+    const prob=r*r*R*R;
+    const peak=Math.exp(-2/n)*4*Math.pow(2/n,2);
+    if(Math.random()*peak*2<prob) return r;
+  }
+  return n*n*A0*(0.5+Math.random()*0.5);
 }
 
-function _rng(){ return Math.random(); }
+// ── Build nucleus particle cloud ──────────────────────────────────────────────
+// Protons = orange, neutrons = gray, packed in tight Fibonacci sphere
+function _nucleusCloud(T, el, cx, cy, cz){
+  const protons  = el.z;
+  const neutrons = Math.round(el.z * 1.25); // approx
+  const total    = protons + neutrons;
+  const pos=new Float32Array(total*3);
+  const col=new Float32Array(total*3);
+  const nucR = Math.max(0.08, el.r * 0.12); // nucleus much smaller than atom
 
-// ── Init Three.js scene ───────────────────────────────────────────────────────
+  // Fibonacci sphere packing for nucleus
+  const phi = Math.PI*(3-Math.sqrt(5));
+  for(let i=0;i<total;i++){
+    const y  = 1-(i/(total-1||1))*2;
+    const r2 = Math.sqrt(Math.max(0,1-y*y));
+    const th = phi*i;
+    const nr = nucR*(0.7+Math.random()*0.3);
+    pos[i*3]  =cx+Math.cos(th)*r2*nr;
+    pos[i*3+1]=cy+y*nr;
+    pos[i*3+2]=cz+Math.sin(th)*r2*nr;
+    const c = i<protons ? PROTON_COLOR : NEUTRON_COLOR;
+    const bright=0.8+Math.random()*0.2;
+    col[i*3]=c[0]*bright; col[i*3+1]=c[1]*bright; col[i*3+2]=c[2]*bright;
+  }
+  const geo=new T.BufferGeometry();
+  geo.setAttribute('position',new T.BufferAttribute(pos,3));
+  geo.setAttribute('color',   new T.BufferAttribute(col,3));
+  const mat=new T.PointsMaterial({size:0.025,vertexColors:true,transparent:true,opacity:1.0,sizeAttenuation:true,depthWrite:false});
+  return new T.Points(geo,mat);
+}
+
+// ── Build electron shell clouds ───────────────────────────────────────────────
+function _electronClouds(T, el, cx, cy, cz, ptsPerE){
+  const meshes=[];
+  let rem=el.e;
+  for(let si=0;si<SHELLS.length&&rem>0;si++){
+    const shell=SHELLS[si];
+    const n=Math.min(rem,shell.cap);
+    rem-=n;
+    const total=n*ptsPerE;
+    if(total<=0) continue;
+
+    const pos=new Float32Array(total*3);
+    const col=new Float32Array(total*3);
+    const sc = SHELL_COLORS[Math.min(SHELL_INDEX[si],SHELL_COLORS.length-1)];
+    const scale=1.0+shell.n*0.9; // shell radius scaling
+
+    for(let p=0;p<total;p++){
+      const r=_sampleR(shell.n,shell.l)*scale;
+      const theta=Math.acos(2*Math.random()-1);
+      const phi=Math.random()*Math.PI*2;
+      pos[p*3]  =cx+r*Math.sin(theta)*Math.cos(phi);
+      pos[p*3+1]=cy+r*Math.sin(theta)*Math.sin(phi);
+      pos[p*3+2]=cz+r*Math.cos(theta);
+      const bright=0.55+Math.random()*0.45;
+      col[p*3]=sc[0]*bright; col[p*3+1]=sc[1]*bright; col[p*3+2]=sc[2]*bright;
+    }
+
+    const geo=new T.BufferGeometry();
+    geo.setAttribute('position',new T.BufferAttribute(pos,3));
+    geo.setAttribute('color',   new T.BufferAttribute(col,3));
+    const mat=new T.PointsMaterial({size:0.028,vertexColors:true,transparent:true,opacity:0.75,sizeAttenuation:true,depthWrite:false});
+    const points=new T.Points(geo,mat);
+    // Store original positions for physics
+    points.userData.origPos=Float32Array.from(pos);
+    points.userData.cx=cx; points.userData.cy=cy; points.userData.cz=cz;
+    meshes.push(points);
+  }
+  return meshes;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let S=null;
+function _dispose(){if(!S)return;if(S.raf)cancelAnimationFrame(S.raf);if(S.ro)S.ro.disconnect();if(S.renderer)S.renderer.dispose();S=null;}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
 function _initScene(canvas){
-  const T = window.THREE;
-  if(!T || !canvas) return null;
+  const T=window.THREE;
+  if(!T||!canvas)return null;
+  const W=canvas.clientWidth||380, H=canvas.clientHeight||260;
+  const renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.setSize(W,H,false);
+  renderer.setClearColor(0x04070e,1);
 
-  const W = canvas.clientWidth  || canvas.offsetWidth  || 380;
-  const H = canvas.clientHeight || canvas.offsetHeight || 280;
+  const scene=new T.Scene();
+  const camera=new T.PerspectiveCamera(50,W/H,0.001,500);
+  camera.position.set(0,3,14);
+  scene.add(new T.AmbientLight(0x334466,1.2));
+  const d1=new T.DirectionalLight(0x00e5ff,1.5); d1.position.set(8,12,10); scene.add(d1);
+  const d2=new T.DirectionalLight(0x7c4dff,0.5); d2.position.set(-8,-4,-8); scene.add(d2);
 
-  const renderer = new T.WebGLRenderer({canvas, antialias:true, alpha:false});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-  renderer.setSize(W, H, false);
-  renderer.setClearColor(0x04070e, 1);
-  renderer.shadowMap.enabled = false;
-
-  const scene  = new T.Scene();
-  const camera = new T.PerspectiveCamera(50, W/H, 0.01, 500);
-  camera.position.set(0, 4, 18);
-  camera.lookAt(0,0,0);
-
-  // Lights
-  scene.add(new T.AmbientLight(0x223355, 1.0));
-  const sun = new T.DirectionalLight(0x00e5ff, 1.8);
-  sun.position.set(8, 12, 10); scene.add(sun);
-  const fill = new T.DirectionalLight(0x7c4dff, 0.6);
-  fill.position.set(-8, -4, -8); scene.add(fill);
-
-  // OrbitControls — proper mobile touch support
-  let controls = null;
+  let controls=null;
   if(T.OrbitControls){
-    controls = new T.OrbitControls(camera, canvas);
-    controls.enableDamping    = true;
-    controls.dampingFactor    = 0.08;
-    controls.enableZoom       = true;
-    controls.enablePan        = true;
-    controls.enableRotate     = true;
-    controls.touches = {
-      ONE: T.TOUCH ? T.TOUCH.ROTATE : 0,
-      TWO: T.TOUCH ? T.TOUCH.DOLLY_PAN : 1
-    };
-    controls.minDistance = 2;
-    controls.maxDistance = 80;
-    // Mobile: prevent canvas from eating scroll events
-    canvas.addEventListener('touchstart', e => { if(e.touches.length > 1) e.preventDefault(); }, {passive:false});
+    controls=new T.OrbitControls(camera,canvas);
+    controls.enableDamping=true; controls.dampingFactor=0.08;
+    controls.minDistance=1; controls.maxDistance=80;
+    controls.enableZoom=true; controls.enablePan=true; controls.enableRotate=true;
+    canvas.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
   }
 
-  // CFD particle field (atmospheric simulation)
-  const NCFD = 1200;
-  const cfdGeo = new T.BufferGeometry();
-  const cfdPos = new Float32Array(NCFD*3);
-  const cfdCol = new Float32Array(NCFD*3);
-  for(let i=0;i<NCFD;i++){
-    cfdPos[i*3]   = (_rng()-0.5)*24;
-    cfdPos[i*3+1] = (_rng()-0.5)*24;
-    cfdPos[i*3+2] = (_rng()-0.5)*24;
-    cfdCol[i*3]=0; cfdCol[i*3+1]=0.9; cfdCol[i*3+2]=1;
-  }
+  // CFD atmospheric particles
+  const NCFD=1000;
+  const cfdGeo=new T.BufferGeometry();
+  const cfdPos=new Float32Array(NCFD*3);
+  const cfdCol=new Float32Array(NCFD*3);
+  for(let i=0;i<NCFD;i++){cfdPos[i*3]=(_r()-0.5)*22;cfdPos[i*3+1]=(_r()-0.5)*22;cfdPos[i*3+2]=(_r()-0.5)*22;cfdCol[i*3]=0;cfdCol[i*3+1]=0.9;cfdCol[i*3+2]=1;}
   cfdGeo.setAttribute('position',new T.BufferAttribute(cfdPos,3));
   cfdGeo.setAttribute('color',   new T.BufferAttribute(cfdCol,3));
-  const cfdMat = new T.PointsMaterial({size:0.06,vertexColors:true,transparent:true,opacity:0.3,sizeAttenuation:true,depthWrite:false});
-  const cfdPoints = new T.Points(cfdGeo, cfdMat);
-  scene.add(cfdPoints);
-  const cfdVel = new Float32Array(NCFD*3);
-  for(let i=0;i<NCFD;i++){
-    cfdVel[i*3]   = (_rng()-0.5)*0.005;
-    cfdVel[i*3+1] = (_rng()-0.5)*0.005;
-    cfdVel[i*3+2] = (_rng()-0.5)*0.005;
-  }
+  const cfdMat=new T.PointsMaterial({size:0.055,vertexColors:true,transparent:true,opacity:0.25,sizeAttenuation:true,depthWrite:false});
+  const cfdPts=new T.Points(cfdGeo,cfdMat);
+  scene.add(cfdPts);
+  const cfdVel=new Float32Array(NCFD*3);
 
-  return {
-    T, renderer, scene, camera, controls, canvas,
-    cfdPoints, cfdGeo, cfdPos, cfdVel, cfdCol, NCFD,
-    atomGroups: [],    // array of {mesh, electronClouds, vel, def, el}
-    bondMeshes: [],
-    isSimulating: false,
-    recordedFrames: [], simTime: 0,
-    params: {temp:25, pressure:101325, windX:0, windY:0, windZ:0, ptsPerE:30}
-  };
+  return {T,renderer,scene,camera,controls,canvas,cfdPts,cfdGeo,cfdPos,cfdVel,cfdCol,NCFD,
+    atoms:[],isSimulating:false,recordedFrames:[],simTime:0,
+    params:{temp:25,pressure:101325,windX:0,windY:0,windZ:0,ptsPerE:30}};
 }
 
-// ── Build electron point cloud for one atom ───────────────────────────────────
-function _buildElectronCloud(T, el, center, ptsPerE){
-  const shells = _buildShells(el.e);
-  const allPos = [];
-  const allCol = [];
+function _r(){return Math.random();}
 
-  // Base electron color: complement of nucleus color + luminance
-  const [nr,ng,nb] = el.color;
-  const er = Math.min(1, ng*0.6 + nb*0.4 + 0.3);
-  const eg = Math.min(1, nr*0.3 + nb*0.6 + 0.3);
-  const eb = Math.min(1, nr*0.4 + ng*0.3 + 0.7);
-
-  for(const shell of shells){
-    const scale = 1.2 + shell.n * 0.8; // scale orbital radii to visible range
-    for(let ei=0; ei<shell.count; ei++){
-      for(let p=0; p<ptsPerE; p++){
-        // Sample orbital radius
-        const r = _sampleOrbitalRadius(shell.n, shell.l, _rng) * scale;
-        // Random direction on sphere
-        const theta = Math.acos(2*_rng()-1);
-        const phi   = _rng()*Math.PI*2;
-        allPos.push(
-          center[0] + r*Math.sin(theta)*Math.cos(phi),
-          center[1] + r*Math.sin(theta)*Math.sin(phi),
-          center[2] + r*Math.cos(theta)
-        );
-        // Vary brightness by shell distance
-        const bright = 0.6 + 0.4*_rng();
-        allCol.push(er*bright, eg*bright, eb*bright);
-      }
-    }
-  }
-
-  if(!allPos.length) return null;
-  const geo = new T.BufferGeometry();
-  geo.setAttribute('position', new T.BufferAttribute(new Float32Array(allPos),3));
-  geo.setAttribute('color',    new T.BufferAttribute(new Float32Array(allCol),3));
-  const mat = new T.PointsMaterial({
-    size:0.045, vertexColors:true, transparent:true, opacity:0.75,
-    sizeAttenuation:true, depthWrite:false
+// ── Build molecule ─────────────────────────────────────────────────────────────
+function _build(state,atomDefs,ptsPerE){
+  const T=state.T;
+  // Remove old
+  state.atoms.forEach(a=>{
+    state.scene.remove(a.nucleus);
+    a.eClouds.forEach(m=>state.scene.remove(m));
+    a.bonds&&a.bonds.forEach(m=>state.scene.remove(m));
   });
-  return new T.Points(geo, mat);
-}
+  state.atoms=[];
 
-// ── Build nucleus mesh ────────────────────────────────────────────────────────
-function _buildNucleus(T, el, center){
-  const r = Math.max(0.18, el.r * 0.28);
-  const geo = new T.SphereGeometry(r, 20, 16);
-  const [cr,cg,cb] = el.color;
-  const mat = new T.MeshPhongMaterial({
-    color: new T.Color(cr,cg,cb),
-    emissive: new T.Color(cr*0.2, cg*0.2, cb*0.2),
-    shininess: 80, transparent:false
-  });
-  const mesh = new T.Mesh(geo, mat);
-  mesh.position.set(...center);
-  return mesh;
-}
+  atomDefs.forEach((def,i)=>{
+    const sym=def.s||def.sym||'C';
+    const el=EL[sym]||EL.C;
+    const [cx,cy,cz]=def.p||[0,0,0];
 
-// ── Bond cylinder ─────────────────────────────────────────────────────────────
-function _addBond(T, scene, a, b, list){
-  const av = new T.Vector3(...a), bv = new T.Vector3(...b);
-  const dir = new T.Vector3().subVectors(bv, av);
-  const len = dir.length();
-  const mid = new T.Vector3().addVectors(av, bv).multiplyScalar(0.5);
-  const geo = new T.CylinderGeometry(0.04, 0.04, len, 8, 1);
-  const mat = new T.MeshPhongMaterial({color:0x334466, transparent:true, opacity:0.5});
-  const mesh = new T.Mesh(geo, mat);
-  mesh.position.copy(mid);
-  mesh.quaternion.setFromUnitVectors(new T.Vector3(0,1,0), dir.normalize());
-  scene.add(mesh); list.push(mesh);
-}
-
-// ── Build full molecule ───────────────────────────────────────────────────────
-function _buildMolecule(state, atomDefs, ptsPerE){
-  const T = state.T;
-  // Clear previous
-  state.atomGroups.forEach(ag => {
-    state.scene.remove(ag.nucleus);
-    if(ag.eCloud) state.scene.remove(ag.eCloud);
-  });
-  state.bondMeshes.forEach(m => state.scene.remove(m));
-  state.atomGroups = []; state.bondMeshes = [];
-
-  atomDefs.forEach((def, i) => {
-    const sym = def.s || def.sym || 'C';
-    const el  = EL[sym] || EL.C;
-    const pos = def.p || def.pos || [0,0,0];
-
-    const nucleus = _buildNucleus(T, el, pos);
+    const nucleus=_nucleusCloud(T,el,cx,cy,cz);
     state.scene.add(nucleus);
 
-    const eCloud = _buildElectronCloud(T, el, pos, ptsPerE||30);
-    if(eCloud) state.scene.add(eCloud);
+    const eClouds=_electronClouds(T,el,cx,cy,cz,ptsPerE);
+    eClouds.forEach(m=>state.scene.add(m));
 
-    state.atomGroups.push({
-      nucleus, eCloud, el, def:{s:sym,p:[...pos]},
-      origPos:[...pos],
-      vel: new T.Vector3((_rng()-0.5)*0.0002,(_rng()-0.5)*0.0002,(_rng()-0.5)*0.0002),
-      ePhase: _rng()*Math.PI*2,
-      ePhaseDrift: 0.008+_rng()*0.004
+    state.atoms.push({
+      nucleus,eClouds,el,
+      defP:[cx,cy,cz], origP:[cx,cy,cz],
+      vel:new T.Vector3((_r()-.5)*2e-4,(_r()-.5)*2e-4,(_r()-.5)*2e-4),
+      phase:_r()*Math.PI*2, phaseDrift:0.005+_r()*0.005
     });
   });
 
   // Bonds
-  for(let i=0;i<state.atomGroups.length;i++){
-    for(let j=i+1;j<state.atomGroups.length;j++){
-      const a=state.atomGroups[i], b=state.atomGroups[j];
-      const dist=Math.hypot(
-        a.def.p[0]-b.def.p[0], a.def.p[1]-b.def.p[1], a.def.p[2]-b.def.p[2]
-      );
-      const bondLen=(a.el.r+b.el.r)*3.2;
-      if(dist<bondLen) _addBond(T,state.scene,a.def.p,b.def.p,state.bondMeshes);
+  for(let i=0;i<state.atoms.length;i++){
+    for(let j=i+1;j<state.atoms.length;j++){
+      const a=state.atoms[i],b=state.atoms[j];
+      const dist=Math.hypot(a.defP[0]-b.defP[0],a.defP[1]-b.defP[1],a.defP[2]-b.defP[2]);
+      if(dist<(a.el.r+b.el.r)*3.5){
+        const av=new T.Vector3(...a.defP), bv=new T.Vector3(...b.defP);
+        const dir=new T.Vector3().subVectors(bv,av);
+        const len=dir.length();
+        const geo=new T.CylinderGeometry(0.03,0.03,len,8,1);
+        const mat=new T.MeshBasicMaterial({color:0x334466,transparent:true,opacity:0.4});
+        const mesh=new T.Mesh(geo,mat);
+        mesh.position.copy(new T.Vector3().addVectors(av,bv).multiplyScalar(0.5));
+        mesh.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir.normalize());
+        state.scene.add(mesh);
+        if(!a.bonds)a.bonds=[];
+        a.bonds.push(mesh);
+      }
     }
   }
-  state.simTime = 0;
-  state.recordedFrames = [];
+  state.simTime=0; state.recordedFrames=[];
 }
 
 // ── Simulation step ───────────────────────────────────────────────────────────
-function _simStep(state){
-  if(!state.isSimulating) return;
-  const T    = state.T;
-  const p    = state.params;
-  const tempK= p.temp + 273;
-  const kT   = tempK/6000;
-  const wind = new T.Vector3(p.windX, p.windY, p.windZ).multiplyScalar(0.00008);
+function _step(state){
+  if(!state.isSimulating)return;
+  const T=state.T, p=state.params;
+  const tempK=p.temp+273, kT=tempK/6000;
+  const wind=new T.Vector3(p.windX,p.windY,p.windZ).multiplyScalar(8e-5);
 
-  // Atom nucleus physics
-  state.atomGroups.forEach(ag => {
-    // Thermal random motion
-    ag.vel.x += (_rng()-0.5)*kT*0.001;
-    ag.vel.y += (_rng()-0.5)*kT*0.001;
-    ag.vel.z += (_rng()-0.5)*kT*0.001;
-    ag.vel.add(wind);
-    ag.vel.multiplyScalar(0.97);
-    // Clamp
-    const spd = ag.vel.length();
-    if(spd>0.12) ag.vel.multiplyScalar(0.12/spd);
-    // Move
-    ag.nucleus.position.add(ag.vel);
-    // Soft restore to original position
-    const orig = new T.Vector3(...ag.origPos);
-    ag.nucleus.position.lerp(orig, 0.0015);
-    // Update def.p for bond rebuilding
-    ag.def.p[0]=ag.nucleus.position.x;
-    ag.def.p[1]=ag.nucleus.position.y;
-    ag.def.p[2]=ag.nucleus.position.z;
+  state.atoms.forEach(a=>{
+    a.vel.x+=(_r()-.5)*kT*0.001; a.vel.y+=(_r()-.5)*kT*0.001; a.vel.z+=(_r()-.5)*kT*0.001;
+    a.vel.add(wind); a.vel.multiplyScalar(0.97);
+    const spd=a.vel.length(); if(spd>0.1)a.vel.multiplyScalar(0.1/spd);
+    a.defP[0]+=a.vel.x; a.defP[1]+=a.vel.y; a.defP[2]+=a.vel.z;
+    // Soft restore
+    a.defP[0]+=(a.origP[0]-a.defP[0])*0.002;
+    a.defP[1]+=(a.origP[1]-a.defP[1])*0.002;
+    a.defP[2]+=(a.origP[2]-a.defP[2])*0.002;
 
-    // Rotate electron cloud + drift phase
-    ag.ePhase += ag.ePhaseDrift * (1 + kT*4);
-    if(ag.eCloud){
-      ag.eCloud.position.copy(ag.nucleus.position);
-      ag.eCloud.rotation.y = ag.ePhase;
-      ag.eCloud.rotation.x = ag.ePhase*0.43;
-      // Scale cloud by temperature (thermal expansion)
-      const tempScale = 1 + kT * 0.8;
-      ag.eCloud.scale.setScalar(tempScale);
-    }
+    // Move nucleus
+    a.nucleus.position.set(a.defP[0],a.defP[1],a.defP[2]);
+
+    // Move+rotate electron clouds
+    a.phase+=a.phaseDrift*(1+kT*5);
+    const scale=1+kT*0.6;
+    a.eClouds.forEach((m,si)=>{
+      m.position.set(a.defP[0],a.defP[1],a.defP[2]);
+      m.rotation.y=a.phase*(1+si*0.3);
+      m.rotation.x=a.phase*(0.4+si*0.2);
+      m.scale.setScalar(scale);
+    });
   });
 
-  // Rebuild bonds each frame (atoms move)
-  state.bondMeshes.forEach(m => state.scene.remove(m));
-  state.bondMeshes = [];
-  for(let i=0;i<state.atomGroups.length;i++){
-    for(let j=i+1;j<state.atomGroups.length;j++){
-      const a=state.atomGroups[i], b=state.atomGroups[j];
-      const dist=Math.hypot(
-        a.def.p[0]-b.def.p[0], a.def.p[1]-b.def.p[1], a.def.p[2]-b.def.p[2]
-      );
-      const bondLen=(a.el.r+b.el.r)*4.5;
-      if(dist<bondLen) _addBond(T,state.scene,a.def.p,b.def.p,state.bondMeshes);
-    }
-  }
-
-  // CFD particle field physics
-  const pressBox = 12 * (101325/Math.max(1,p.pressure));
-  const tempFactor = Math.sqrt(tempK/298)*0.015;
-  const pos=state.cfdPos, vel=state.cfdVel, col=state.cfdCol;
+  // CFD
+  const box=11*(101325/Math.max(1,p.pressure));
+  const tf=Math.sqrt(tempK/298)*0.013;
+  const pos=state.cfdPos,vel=state.cfdVel,col=state.cfdCol;
   for(let i=0;i<state.NCFD;i++){
-    vel[i*3]   += (p.windX*0.00015) + (_rng()-0.5)*tempFactor;
-    vel[i*3+1] += (p.windY*0.00015) + (_rng()-0.5)*tempFactor;
-    vel[i*3+2] += (p.windZ*0.00015) + (_rng()-0.5)*tempFactor;
-    // Damping
-    vel[i*3]*=0.98; vel[i*3+1]*=0.98; vel[i*3+2]*=0.98;
-    pos[i*3]  +=vel[i*3];
-    pos[i*3+1]+=vel[i*3+1];
-    pos[i*3+2]+=vel[i*3+2];
-    // Wrap
-    for(let ax=0;ax<3;ax++){
-      if(pos[i*3+ax]>pressBox)  pos[i*3+ax]=-pressBox;
-      if(pos[i*3+ax]<-pressBox) pos[i*3+ax]= pressBox;
-    }
-    // Color by temperature
-    const hot=p.temp>800, vhot=p.temp>2000;
-    col[i*3]   = vhot?1:hot?1:0;
-    col[i*3+1] = vhot?0.3:hot?0.6:0.9;
-    col[i*3+2] = vhot?0:hot?0:1;
+    vel[i*3  ]+=(p.windX*1.5e-4)+(_r()-.5)*tf;
+    vel[i*3+1]+=(p.windY*1.5e-4)+(_r()-.5)*tf;
+    vel[i*3+2]+=(p.windZ*1.5e-4)+(_r()-.5)*tf;
+    vel[i*3  ]*=0.98;vel[i*3+1]*=0.98;vel[i*3+2]*=0.98;
+    pos[i*3  ]+=vel[i*3];pos[i*3+1]+=vel[i*3+1];pos[i*3+2]+=vel[i*3+2];
+    for(let ax=0;ax<3;ax++){if(pos[i*3+ax]>box)pos[i*3+ax]=-box;if(pos[i*3+ax]<-box)pos[i*3+ax]=box;}
+    col[i*3]  =p.temp>2000?1:p.temp>800?1:0;
+    col[i*3+1]=p.temp>2000?.25:p.temp>800?.55:.9;
+    col[i*3+2]=p.temp>2000?0:p.temp>800?0:1;
   }
   state.cfdGeo.attributes.position.needsUpdate=true;
   state.cfdGeo.attributes.color.needsUpdate=true;
-  state.cfdPoints.material.opacity = Math.min(0.5, 0.15 + p.pressure/600000);
-  state.cfdPoints.material.size    = Math.max(0.04, 0.12 - p.pressure/2000000);
+  state.cfdPts.material.opacity=Math.min(0.45,0.1+p.pressure/500000);
 
-  // Record frame
-  state.simTime += 1/60;
-  if(state.recordedFrames.length < 1800){
-    state.recordedFrames.push({
-      time: state.simTime,
-      atoms: state.atomGroups.map(ag=>({pos:[...ag.def.p]}))
-    });
-  }
+  state.simTime+=1/60;
+  if(state.recordedFrames.length<1800)
+    state.recordedFrames.push({time:state.simTime,atoms:state.atoms.map(a=>({p:[...a.defP]}))});
 }
 
-// ── GLB Export ────────────────────────────────────────────────────────────────
+// ── GLB export ────────────────────────────────────────────────────────────────
 async function _exportGLB(state){
-  const T = state.T;
+  const T=state.T;
   if(!T.GLTFExporter){
-    await new Promise((res,rej)=>{
-      const s=document.createElement('script');
-      s.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js';
-      s.onload=res; s.onerror=rej;
-      document.head.appendChild(s);
-    });
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
-  const exp = new T.Scene();
+  const exp=new T.Scene();
   exp.add(new T.AmbientLight(0x334466,0.8));
-
-  // Atoms
-  state.atomGroups.forEach((ag,i)=>{
-    const g=new T.Group(); g.name=`Atom_${ag.el.name}_${i}`;
-    g.add(ag.nucleus.clone());
-    if(ag.eCloud){ const ec=ag.eCloud.clone(); ec.name=`eCloud_${i}`; g.add(ec); }
+  state.atoms.forEach((a,i)=>{
+    const g=new T.Group(); g.name='Atom_'+a.el.name+'_'+i;
+    g.add(a.nucleus.clone());
+    a.eClouds.forEach((m,si)=>{const c=m.clone();c.name='Shell_'+si;g.add(c);});
     exp.add(g);
   });
-
-  // Build animation clips
-  const clips = [];
-  const frames = state.recordedFrames;
-  if(frames.length > 2){
-    const times = frames.map(f=>f.time);
-    state.atomGroups.forEach((ag,ai)=>{
+  const frames=state.recordedFrames;
+  const clips=[];
+  if(frames.length>2){
+    const times=frames.map(f=>f.time);
+    state.atoms.forEach((a,ai)=>{
       const positions=[];
-      frames.forEach(f=>{ const d=f.atoms[ai]; if(d) positions.push(d.pos[0],d.pos[1],d.pos[2]); });
+      frames.forEach(f=>{const d=f.atoms[ai];if(d){positions.push(d.p[0],d.p[1],d.p[2]);}});
       if(positions.length){
-        const name=`Atom_${ag.el.name}_${ai}`;
-        clips.push(new T.AnimationClip(name+'_Anim',-1,[
-          new T.VectorKeyframeTrack(name+'.position',times,positions)
-        ]));
+        const name='Atom_'+a.el.name+'_'+ai;
+        clips.push(new T.AnimationClip(name+'_Anim',-1,[new T.VectorKeyframeTrack(name+'.position',times,positions)]));
       }
     });
   }
-
   exp.updateMatrixWorld(true);
   return new Promise((res,rej)=>{
     new T.GLTFExporter().parse(exp,glb=>{
-      const blob=new Blob([glb],{type:'model/gltf-binary'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url; a.download=`arclake_${Date.now()}.glb`; a.click();
-      URL.revokeObjectURL(url); res(true);
-    },err=>rej(err),{binary:true, animations:clips.length?clips:undefined});
+      const url=URL.createObjectURL(new Blob([glb],{type:'model/gltf-binary'}));
+      const a=document.createElement('a');a.href=url;a.download='arclake_'+Date.now()+'.glb';a.click();URL.revokeObjectURL(url);res(true);
+    },rej,{binary:true,animations:clips.length?clips:undefined});
   });
 }
 
-// ── Render HTML ───────────────────────────────────────────────────────────────
-global.renderToolsArcLake = function(){
-  return `<div id="als-root" style="display:flex;flex-direction:column;height:100%;background:#04070e;color:#e8eaf0;font-family:Orbitron,monospace;overflow:hidden">
-  <div style="position:relative;flex:1;min-height:180px;overflow:hidden">
+// ── HTML ──────────────────────────────────────────────────────────────────────
+global.renderToolsArcLake=function(){
+  return`<div id="als-root" style="display:flex;flex-direction:column;height:100%;background:#04070e;color:#e8eaf0;font-family:Orbitron,monospace;overflow:hidden">
+  <div style="position:relative;flex:1;min-height:180px;overflow:hidden;background:#04070e">
     <canvas id="als-canvas" style="width:100%;height:100%;display:block;touch-action:none;outline:none" tabindex="0"></canvas>
-    <div style="position:absolute;top:8px;left:10px;font-size:8.5px;color:#00e5ff;opacity:0.85;line-height:1.9;pointer-events:none">
+    <div style="position:absolute;top:8px;left:10px;font-size:8.5px;color:#00e5ff;opacity:.85;line-height:1.9;pointer-events:none">
       <div id="als-hud-s" style="font-weight:700;letter-spacing:1px">&#9679; IDLE</div>
       <div id="als-hud-f">FRAMES: 0</div>
       <div id="als-hud-t">TIME: 0.00s</div>
-      <div id="als-hud-e" style="color:#c4a0ff"></div>
+      <div id="als-hud-e" style="color:#c4a0ff;font-size:8px"></div>
     </div>
     <div style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:5px;pointer-events:all">
-      <button onclick="window._alsStart&&window._alsStart()" title="Start" style="width:30px;height:30px;background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.45);color:#00e5ff;border-radius:6px;cursor:pointer;font-size:13px">&#9654;</button>
-      <button onclick="window._alsStop&&window._alsStop()"  title="Stop"  style="width:30px;height:30px;background:rgba(255,77,77,0.12);border:1px solid rgba(255,77,77,0.35);color:#ff4d4d;border-radius:6px;cursor:pointer;font-size:13px">&#9632;</button>
-      <button onclick="window._alsExport&&window._alsExport()" title="Export GLB" style="width:30px;height:30px;background:rgba(124,77,255,0.15);border:1px solid rgba(124,77,255,0.4);color:#c4a0ff;border-radius:6px;cursor:pointer;font-size:12px">&#x2B07;</button>
-      <button onclick="window._alsFullscreen&&window._alsFullscreen()" title="Expand" style="width:30px;height:30px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:#8a8fa8;border-radius:6px;cursor:pointer;font-size:11px">&#x26F6;</button>
-      <button onclick="window._alsReset&&window._alsReset()" title="Reset" style="width:30px;height:30px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#555;border-radius:6px;cursor:pointer;font-size:13px">&#x21BA;</button>
+      <button onclick="window._alsStart&&window._alsStart()" title="Start" style="width:30px;height:30px;background:rgba(0,229,255,.15);border:1px solid rgba(0,229,255,.45);color:#00e5ff;border-radius:6px;cursor:pointer;font-size:13px">&#9654;</button>
+      <button onclick="window._alsStop&&window._alsStop()"  title="Stop"  style="width:30px;height:30px;background:rgba(255,77,77,.12);border:1px solid rgba(255,77,77,.35);color:#ff4d4d;border-radius:6px;cursor:pointer;font-size:13px">&#9632;</button>
+      <button onclick="window._alsExport&&window._alsExport()" title="GLB" style="width:30px;height:30px;background:rgba(124,77,255,.15);border:1px solid rgba(124,77,255,.4);color:#c4a0ff;border-radius:6px;cursor:pointer;font-size:12px">&#x2B07;</button>
+      <button onclick="window._alsFullscreen&&window._alsFullscreen()" title="Expand" style="width:30px;height:30px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#8a8fa8;border-radius:6px;cursor:pointer;font-size:11px">&#x26F6;</button>
+      <button onclick="window._alsReset&&window._alsReset()" title="Reset" style="width:30px;height:30px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#555;border-radius:6px;cursor:pointer;font-size:13px">&#x21BA;</button>
     </div>
     <div style="position:absolute;bottom:6px;right:8px;font-size:8.5px;text-align:right;line-height:1.7;pointer-events:none">
       <span id="als-hud-tmp" style="color:#ff6644"></span><br>
       <span id="als-hud-prs" style="color:#7c4dff"></span>
     </div>
   </div>
-  <div style="flex-shrink:0;padding:8px 10px 10px;background:rgba(4,7,14,0.98);border-top:1px solid rgba(0,229,255,0.1);display:flex;flex-direction:column;gap:7px">
+  <div style="flex-shrink:0;padding:8px 10px 10px;background:rgba(4,7,14,.98);border-top:1px solid rgba(0,229,255,.1);display:flex;flex-direction:column;gap:7px">
     <div style="display:flex;gap:8px;align-items:center">
       <label style="font-size:8.5px;color:#8a8fa8;letter-spacing:1px;white-space:nowrap">SCENE</label>
-      <select id="als-preset" onchange="window._alsLoadPreset&&window._alsLoadPreset(this.value)" style="flex:1;background:rgba(0,229,255,0.07);border:1px solid rgba(0,229,255,0.22);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9.5px;font-family:inherit;cursor:pointer">
+      <select id="als-preset" onchange="window._alsLoadPreset&&window._alsLoadPreset(this.value)" style="flex:1;background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.22);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9.5px;font-family:inherit;cursor:pointer">
         ${PRESET_KEYS.map(k=>`<option value="${k}">${k}</option>`).join('')}
         <option value="__custom">Custom elements...</option>
       </select>
       <label style="font-size:8px;color:#8a8fa8;white-space:nowrap">pts/e&#x207B;</label>
-      <input id="als-pte" type="number" min="5" max="100" value="30" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:42px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
+      <input id="als-pte" type="number" min="5" max="200" value="30" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:44px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
     </div>
     <div id="als-custom-row" style="display:none;gap:6px;align-items:center">
-      <input id="als-custom-in" placeholder="Fe,Cu,Ni or describe compound..." style="flex:1;background:rgba(124,77,255,0.07);border:1px solid rgba(124,77,255,0.28);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9.5px;font-family:inherit" onkeydown="if(event.key==='Enter')window._alsParseCustom&&window._alsParseCustom()">
-      <button onclick="window._alsParseCustom&&window._alsParseCustom()" style="background:rgba(124,77,255,0.18);border:1px solid rgba(124,77,255,0.38);color:#c4a0ff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:9px;font-family:inherit">BUILD</button>
+      <input id="als-custom-in" placeholder="Fe,Cu,Ni or elements..." style="flex:1;background:rgba(124,77,255,.07);border:1px solid rgba(124,77,255,.28);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9.5px;font-family:inherit" onkeydown="if(event.key==='Enter')window._alsParseCustom&&window._alsParseCustom()">
+      <button onclick="window._alsParseCustom&&window._alsParseCustom()" style="background:rgba(124,77,255,.18);border:1px solid rgba(124,77,255,.38);color:#c4a0ff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:9px;font-family:inherit">BUILD</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
       <div><label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">TEMP (°C)</label>
@@ -515,10 +404,10 @@ global.renderToolsArcLake = function(){
         <span id="als-wy-v" style="font-size:8.5px;color:#00e5ff">0 m/s</span></div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
-      <button id="als-btn-s" onclick="window._alsStart&&window._alsStart()" style="flex:1;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.35);color:#00e5ff;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit;font-weight:700">&#9654; SIMULATE</button>
-      <button onclick="window._alsStop&&window._alsStop()" style="flex:1;background:rgba(255,77,77,0.1);border:1px solid rgba(255,77,77,0.3);color:#ff4d4d;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit">&#9632; STOP</button>
-      <button id="als-btn-glb" onclick="window._alsExport&&window._alsExport()" style="flex:1;background:rgba(124,77,255,0.12);border:1px solid rgba(124,77,255,0.3);color:#c4a0ff;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit">&#x2B07; GLB</button>
-      <button onclick="window._alsReset&&window._alsReset()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#555;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-family:inherit">&#x21BA;</button>
+      <button onclick="window._alsStart&&window._alsStart()" style="flex:1;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.35);color:#00e5ff;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit;font-weight:700">&#9654; SIMULATE</button>
+      <button onclick="window._alsStop&&window._alsStop()"   style="flex:1;background:rgba(255,77,77,.1);border:1px solid rgba(255,77,77,.3);color:#ff4d4d;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit">&#9632; STOP</button>
+      <button id="als-btn-glb" onclick="window._alsExport&&window._alsExport()" style="flex:1;background:rgba(124,77,255,.12);border:1px solid rgba(124,77,255,.3);color:#c4a0ff;padding:7px;border-radius:8px;cursor:pointer;font-size:9.5px;font-family:inherit">&#x2B07; GLB</button>
+      <button onclick="window._alsReset&&window._alsReset()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#555;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-family:inherit">&#x21BA;</button>
     </div>
     <div id="als-status" style="font-size:8.5px;color:#8a8fa8;text-align:center;min-height:13px"></div>
   </div>
@@ -526,193 +415,134 @@ global.renderToolsArcLake = function(){
 };
 
 // ── Mount ─────────────────────────────────────────────────────────────────────
-global._alsMounted = function(){
+global._alsMounted=function(){
   _dispose();
-  const canvas = document.getElementById('als-canvas');
-  if(!canvas){ console.warn('[ArcLake] canvas not found'); return; }
-  const container = canvas.parentElement;
+  const canvas=document.getElementById('als-canvas');
+  if(!canvas)return;
+  const cont=canvas.parentElement;
 
-  // Set canvas size explicitly
-  const setSize = () => {
-    const W = container.offsetWidth  || 380;
-    const H = Math.max(160, container.offsetHeight || 240);
-    canvas.width  = W * (window.devicePixelRatio||1);
-    canvas.height = H * (window.devicePixelRatio||1);
-    canvas.style.width  = W+'px';
-    canvas.style.height = H+'px';
-    if(S && S.renderer){
-      S.renderer.setSize(W, H, false);
-      S.camera.aspect = W/H;
-      S.camera.updateProjectionMatrix();
-      if(S.controls) S.controls.update();
-    }
+  const resize=()=>{
+    const W=cont.offsetWidth||380, H=Math.max(160,cont.offsetHeight||240);
+    canvas.width=W*(window.devicePixelRatio||1); canvas.height=H*(window.devicePixelRatio||1);
+    canvas.style.width=W+'px'; canvas.style.height=H+'px';
+    if(S&&S.renderer){S.renderer.setSize(W,H,false);S.camera.aspect=W/H;S.camera.updateProjectionMatrix();}
   };
-  setSize();
+  resize();
+  S=_initScene(canvas);
+  if(!S)return;
+  _build(S,PRESETS[PRESET_KEYS[0]],30);
 
-  S = _initScene(canvas);
-  if(!S){ document.getElementById('als-status').textContent='THREE.js not ready'; return; }
-  S.params.ptsPerE = 30;
-
-  // Load default preset
-  _buildMolecule(S, PRESETS[PRESET_KEYS[0]], 30);
-
-  // Animation loop
   function _loop(){
-    S.raf = requestAnimationFrame(_loop);
-    if(S.isSimulating) _simStep(S);
-    if(S.controls) S.controls.update();
-    S.renderer.render(S.scene, S.camera);
-    // HUD
+    S.raf=requestAnimationFrame(_loop);
+    _step(S);
+    if(S.controls)S.controls.update();
+    S.renderer.render(S.scene,S.camera);
+    const totalE=S.atoms.reduce((a,ag)=>a+(ag.el.e||0),0);
     const hs=document.getElementById('als-hud-s');
     const hf=document.getElementById('als-hud-f');
     const ht=document.getElementById('als-hud-t');
     const he=document.getElementById('als-hud-e');
     const htmp=document.getElementById('als-hud-tmp');
     const hprs=document.getElementById('als-hud-prs');
-    if(hs) hs.textContent = S.isSimulating ? '&#9679; SIMULATING' : '&#9679; IDLE';
-    if(hf) hf.textContent = 'FRAMES: '+S.recordedFrames.length;
-    if(ht) ht.textContent = 'TIME: '+S.simTime.toFixed(2)+'s';
-    if(he && S.atomGroups.length){
-      const totalE=S.atomGroups.reduce((a,ag)=>a+ag.el.e,0);
-      he.textContent='e&#x207B;: '+(totalE*S.params.ptsPerE).toLocaleString()+' pts';
-    }
-    if(htmp) htmp.textContent = S.params.temp+'°C';
-    if(hprs) hprs.textContent = S.params.pressure+' Pa';
+    if(hs)hs.innerHTML=S.isSimulating?'&#9679; SIMULATING':'&#9679; IDLE';
+    if(hf)hf.textContent='FRAMES: '+S.recordedFrames.length;
+    if(ht)ht.textContent='TIME: '+S.simTime.toFixed(2)+'s';
+    if(he)he.textContent='e\u207B: '+(totalE*S.params.ptsPerE).toLocaleString()+' pts';
+    if(htmp)htmp.textContent=S.params.temp+'°C';
+    if(hprs)hprs.textContent=S.params.pressure+' Pa';
   }
   _loop();
-
-  // Resize observer
-  S.ro = new ResizeObserver(setSize);
-  S.ro.observe(container);
+  S.ro=new ResizeObserver(resize);
+  S.ro.observe(cont);
 };
 
 // ── API ───────────────────────────────────────────────────────────────────────
-global._alsLoadPreset = function(key){
+global._alsLoadPreset=function(key){
   const row=document.getElementById('als-custom-row');
-  if(key==='__custom'){ if(row) row.style.display='flex'; return; }
-  if(row) row.style.display='none';
-  if(!S) return;
+  if(key==='__custom'){if(row)row.style.display='flex';return;}
+  if(row)row.style.display='none';
+  if(!S||!PRESETS[key])return;
   S.isSimulating=false;
   const pte=S.params.ptsPerE||30;
-  const defs=PRESETS[key];
-  if(!defs){ document.getElementById('als-status').textContent='Preset not found: '+key; return; }
-  _buildMolecule(S, defs, pte);
+  _build(S,PRESETS[key],pte);
   const el=document.getElementById('als-preset');
-  if(el) el.value=key;
-  const totalE=S.atomGroups.reduce((a,ag)=>a+(ag.el.e||0),0);
-  document.getElementById('als-status').textContent=key+' — '+S.atomGroups.length+' atoms, '+totalE+' electrons, '+(totalE*pte).toLocaleString()+' waveform particles';
+  if(el)el.value=key;
+  const totalE=S.atoms.reduce((a,ag)=>a+(ag.el.e||0),0);
+  document.getElementById('als-status').textContent=key+' — '+S.atoms.length+' atoms, '+totalE+' e\u207B, '+(totalE*pte).toLocaleString()+' waveform particles';
 };
 
-global._alsParseCustom = function(){
+global._alsParseCustom=function(){
   const raw=(document.getElementById('als-custom-in')||{}).value||'';
-  if(!S||!raw.trim()) return;
+  if(!S||!raw.trim())return;
   const syms=raw.split(',').map(s=>s.trim()).map(s=>s.charAt(0).toUpperCase()+s.slice(1).toLowerCase()).filter(s=>EL[s]);
-  if(!syms.length){ document.getElementById('als-status').textContent='Unknown elements. Try: Fe,Cu,Ni'; return; }
-  const defs=syms.map((s,i)=>{
-    const angle=(i/syms.length)*Math.PI*2;
-    const r2=syms.length>1?2.8:0;
-    return {s,p:[Math.cos(angle)*r2,0,Math.sin(angle)*r2]};
-  });
+  if(!syms.length){document.getElementById('als-status').textContent='Unknown elements. Try: Fe,Cu,Ni';return;}
+  const defs=syms.map((s,i)=>{const a=(i/syms.length)*Math.PI*2,r2=syms.length>1?2.8:0;return{s,p:[Math.cos(a)*r2,0,Math.sin(a)*r2]};});
   S.isSimulating=false;
-  _buildMolecule(S, defs, S.params.ptsPerE||30);
+  _build(S,defs,S.params.ptsPerE||30);
   document.getElementById('als-status').textContent='Custom: '+syms.join(', ');
 };
 
-global._alsSetPtsPerE = function(n){
-  if(!S) return;
-  S.params.ptsPerE=Math.max(5,Math.min(100,n||30));
+global._alsSetPtsPerE=function(n){
+  if(!S)return;
+  S.params.ptsPerE=Math.max(5,Math.min(200,n||30));
   const key=(document.getElementById('als-preset')||{}).value||PRESET_KEYS[0];
-  if(PRESETS[key]) _buildMolecule(S,PRESETS[key],S.params.ptsPerE);
+  if(PRESETS[key])_build(S,PRESETS[key],S.params.ptsPerE);
 };
 
-global._alsUpdateParam = function(key,val){
-  if(!S) return;
+global._alsUpdateParam=function(key,val){
+  if(!S)return;
   S.params[key]=val;
   const map={temp:['als-temp-v','°C','#ff6644'],pressure:['als-pres-v',' Pa','#7c4dff'],windX:['als-wx-v',' m/s','#00e5ff'],windY:['als-wy-v',' m/s','#00e5ff']};
-  if(map[key]){ const el=document.getElementById(map[key][0]); if(el){el.textContent=val+map[key][1]; el.style.color=map[key][2];} }
+  if(map[key]){const el=document.getElementById(map[key][0]);if(el){el.textContent=val+map[key][1];el.style.color=map[key][2];}}
 };
 
-global._alsStart = function(){
-  if(!S) return;
-  S.isSimulating=true;
-  document.getElementById('als-status').textContent='Simulation running — recording waveform frames...';
-};
-
-global._alsStop = function(){
-  if(!S) return;
-  S.isSimulating=false;
-  document.getElementById('als-status').textContent='Stopped. '+S.recordedFrames.length+' frames. Ready for GLB export.';
-};
-
-global._alsReset = function(){
-  if(!S) return;
-  S.isSimulating=false;
+global._alsStart=function(){if(!S)return;S.isSimulating=true;document.getElementById('als-status').textContent='Simulation running — recording waveform frames...';};
+global._alsStop =function(){if(!S)return;S.isSimulating=false;document.getElementById('als-status').textContent='Stopped. '+S.recordedFrames.length+' frames. Ready for GLB export.';};
+global._alsReset=function(){
+  if(!S)return;S.isSimulating=false;
   const key=(document.getElementById('als-preset')||{}).value||PRESET_KEYS[0];
-  if(PRESETS[key]) _buildMolecule(S,PRESETS[key],S.params.ptsPerE||30);
+  if(PRESETS[key])_build(S,PRESETS[key],S.params.ptsPerE||30);
   document.getElementById('als-status').textContent='Scene reset.';
 };
 
-global._alsExport = async function(){
-  if(!S) return;
+global._alsExport=async function(){
+  if(!S)return;
   const btn=document.getElementById('als-btn-glb');
-  if(btn) btn.textContent='&#x23F3; BUILDING...';
-  document.getElementById('als-status').textContent='Building GLB with waveform animation data...';
-  try{
-    await _exportGLB(S);
-    document.getElementById('als-status').textContent='GLB downloaded — '+S.recordedFrames.length+' animation frames.';
-  }catch(e){
-    document.getElementById('als-status').textContent='Export error: '+e.message;
-  }
-  if(btn) btn.textContent='&#x2B07; GLB';
+  if(btn)btn.textContent='&#x23F3; BUILDING...';
+  document.getElementById('als-status').textContent='Building GLB with animation data...';
+  try{await _exportGLB(S);document.getElementById('als-status').textContent='GLB downloaded.';}
+  catch(e){document.getElementById('als-status').textContent='Export error: '+e.message;}
+  if(btn)btn.textContent='&#x2B07; GLB';
 };
 
-global._alsFullscreen = function(){
-  const ex=document.getElementById('als-fs-overlay');
-  if(ex){ ex.remove(); if(S) _alsMounted_target('als-canvas'); return; }
-
+global._alsFullscreen=function(){
+  const ex=document.getElementById('als-fs-ov');
+  if(ex){ex.remove();return;}
   const ov=document.createElement('div');
-  ov.id='als-fs-overlay';
-  ov.style.cssText='position:fixed;inset:0;z-index:99998;background:#04070e;display:flex;align-items:stretch;justify-content:stretch';
-
-  const closeBtn=document.createElement('button');
-  closeBtn.innerHTML='&#x2715; CLOSE';
-  closeBtn.style.cssText='position:absolute;top:12px;right:12px;z-index:99999;background:rgba(255,77,77,0.15);border:1px solid rgba(255,77,77,0.35);color:#ff4d4d;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:Orbitron,monospace;font-size:11px';
-  closeBtn.onclick=()=>{ ov.remove(); };
-  ov.appendChild(closeBtn);
-
-  const fsCanvas=document.createElement('canvas');
-  fsCanvas.id='als-fs-canvas';
-  fsCanvas.style.cssText='width:100%;height:100%;display:block;touch-action:none';
-  ov.appendChild(fsCanvas);
-  document.body.appendChild(ov);
-
+  ov.id='als-fs-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:99998;background:#04070e;display:flex;';
+  const cb=document.createElement('button');
+  cb.innerHTML='&#x2715; CLOSE';
+  cb.style.cssText='position:absolute;top:12px;right:12px;z-index:99999;background:rgba(255,77,77,.15);border:1px solid rgba(255,77,77,.35);color:#ff4d4d;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:Orbitron,monospace;font-size:11px';
+  cb.onclick=()=>ov.remove();
+  ov.appendChild(cb);
+  const fc=document.createElement('canvas');fc.id='als-fs-c';fc.style.cssText='width:100%;height:100%;display:block;touch-action:none';
+  ov.appendChild(fc);document.body.appendChild(ov);
   requestAnimationFrame(()=>{
-    const W=ov.offsetWidth, H=ov.offsetHeight;
-    fsCanvas.width=W*(window.devicePixelRatio||1);
-    fsCanvas.height=H*(window.devicePixelRatio||1);
-    fsCanvas.style.width=W+'px'; fsCanvas.style.height=H+'px';
-    if(S && window.THREE){
-      if(S.raf) cancelAnimationFrame(S.raf);
-      if(S.controls) S.controls.dispose();
+    const W=ov.offsetWidth,H=ov.offsetHeight;
+    fc.width=W*(window.devicePixelRatio||1);fc.height=H*(window.devicePixelRatio||1);
+    fc.style.width=W+'px';fc.style.height=H+'px';
+    if(S&&window.THREE){
+      if(S.raf)cancelAnimationFrame(S.raf);
+      if(S.controls)S.controls.dispose();
       S.renderer.dispose();
       const T=window.THREE;
-      const r2=new T.WebGLRenderer({canvas:fsCanvas,antialias:true,alpha:false});
-      r2.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
-      r2.setSize(W,H,false); r2.setClearColor(0x04070e,1);
-      S.renderer=r2;
-      S.camera.aspect=W/H; S.camera.updateProjectionMatrix();
-      if(T.OrbitControls){
-        S.controls=new T.OrbitControls(S.camera,fsCanvas);
-        S.controls.enableDamping=true; S.controls.dampingFactor=0.08;
-      }
-      function _fsLoop(){
-        if(!document.getElementById('als-fs-overlay')){ return; }
-        S.raf=requestAnimationFrame(_fsLoop);
-        if(S.isSimulating) _simStep(S);
-        if(S.controls) S.controls.update();
-        S.renderer.render(S.scene,S.camera);
-      }
-      _fsLoop();
+      const r2=new T.WebGLRenderer({canvas:fc,antialias:true,alpha:false});
+      r2.setPixelRatio(Math.min(window.devicePixelRatio||1,2));r2.setSize(W,H,false);r2.setClearColor(0x04070e,1);
+      S.renderer=r2;S.camera.aspect=W/H;S.camera.updateProjectionMatrix();
+      if(T.OrbitControls){S.controls=new T.OrbitControls(S.camera,fc);S.controls.enableDamping=true;S.controls.dampingFactor=0.08;}
+      function _fl(){if(!document.getElementById('als-fs-ov'))return;S.raf=requestAnimationFrame(_fl);_step(S);if(S.controls)S.controls.update();S.renderer.render(S.scene,S.camera);}
+      _fl();
     }
   });
 };
