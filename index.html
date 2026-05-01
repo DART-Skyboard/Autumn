@@ -8919,8 +8919,18 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     /\b(users?|sessions?|people|visitors?)\b.{0,40}\b(total|all.?time|lifetime|ever|cumulative)\b/i.test(augmentedText) ||
     /\b(30\s+years?|20\s+years?|10\s+years?|years? from now|in the future)\b.{0,40}\b(users?|sessions?|how many)\b/i.test(augmentedText) ||
     /\b(how many).{0,40}(had|have had|used autumn|visited|come|been here)\b/i.test(augmentedText);
+  const _todayTrigger =
+    /\b(today|since midnight|this morning|so far today|today'?s?)\b.{0,40}\b(users?|sessions?|people|visitors?|active)\b/i.test(augmentedText) ||
+    /\b(users?|sessions?)\b.{0,20}\b(today|this\s+morning|since\s+midnight)\b/i.test(augmentedText);
+  const _peakTrigger =
+    /\b(peak|most|highest|busiest|record|max|maximum|best\s+day|biggest\s+day)\b.{0,40}\b(users?|sessions?|traffic|day|time)\b/i.test(augmentedText) ||
+    /\b(what.{0,10}day|which\s+day|when\s+was).{0,30}\b(most|peak|busiest|highest)\b/i.test(augmentedText);
+  // Date-specific query: "on April 21", "April 21st", "2026-04-21", "last Tuesday" etc.
+  const _dateMatch = augmentedText.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b/i) ||
+                     augmentedText.match(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/);
+  const _dateTrigger = !!_dateMatch && /\b(users?|sessions?|active|traffic|people|visitors?)\b/i.test(augmentedText);
 
-  if((_sessionCountTrigger || _lifetimeTrigger) && !_pendingImgs.length) {
+  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger) && !_pendingImgs.length) {
     // Kick off a live refresh in parallel (resolves within ~2s; we don't await it here
     // so the reply is immediate from cache, but the cache is updated for next time)
     if (typeof window._refreshAnalyticsNow === 'function') {
@@ -8937,6 +8947,83 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     var _lastEntry  = _dailyLog.length ? _dailyLog[_dailyLog.length - 1] : null;
 
     var _scReply;
+
+    // ── Helper: get today's date string ──────────────────────────────────────
+    var _todayStr = new Date().toISOString().slice(0,10);
+
+    // ── TODAY query ──────────────────────────────────────────────────────────
+    if (_todayTrigger) {
+      var _todayEntry = _dailyLog.find(function(e){ return e.date === _todayStr; });
+      if (_todayEntry) {
+        _scReply = '**Today (' + _todayStr + '):**\n\n'
+          + '— **' + _todayEntry.active_users + '** users active\n'
+          + '— **' + _todayEntry.active_sessions + '** sessions\n'
+          + '— **' + _todayEntry.session_files + '** session files written\n'
+          + (_todayEntry.cumulative_users ? '— Cumulative total to date: **' + _todayEntry.cumulative_users + '** unique users\n' : '')
+          + '\nRight now: **' + _liveCount + '** active node' + (_liveCount !== 1 ? 's' : '') + ' in the BRPN scene.';
+      } else {
+        // Today not yet in log — use live count + last known data
+        _scReply = "Today\'s snapshot hasn\'t been written to the log yet (it updates every 24 hours). "
+          + "Right now: **" + _liveCount + "** active node" + (_liveCount !== 1 ? "s" : "") + " live. "
+          + (_lastEntry ? "Yesterday (" + _lastEntry.date + "): **" + _lastEntry.active_users + "** users, **" + _lastEntry.active_sessions + "** sessions." : "");
+      }
+    }
+
+    // ── PEAK query ───────────────────────────────────────────────────────────
+    else if (_peakTrigger && _dailyLog.length > 0) {
+      var _peakDay = _dailyLog.reduce(function(best, e){
+        return (!best || e.active_users > best.active_users) ? e : best;
+      }, null);
+      var _peakSess = _dailyLog.reduce(function(best, e){
+        return (!best || e.active_sessions > best.active_sessions) ? e : best;
+      }, null);
+      _scReply = '**Peak activity across Autumn\'s full history:**\n\n'
+        + '**Most users in one day:** **' + _peakDay.active_users + ' users** on ' + _peakDay.date + '\n'
+        + '**Most sessions in one day:** **' + _peakSess.active_sessions + ' sessions** on ' + _peakSess.date + '\n'
+        + '\nLogged across **' + _dailyLog.length + ' days** since '
+        + (_totals && _totals.first_recorded ? _totals.first_recorded.slice(0,10) : 'logging began') + '.'
+        + (_totals ? '\n\nAll-time totals: **' + _totals.all_time_unique_users + '** unique users, **' + _totals.all_time_sessions + '** sessions.' : '');
+    }
+
+    // ── SPECIFIC DATE query ──────────────────────────────────────────────────
+    else if (_dateTrigger && _dateMatch) {
+      // Parse the matched date into YYYY-MM-DD
+      var _qDate = null;
+      if (_dateMatch[0].match(/\d{4}/)) {
+        // ISO format matched
+        var _iso = _dateMatch[0].replace(/[/]/g,'-');
+        _qDate = _iso.length === 10 ? _iso : null;
+      } else {
+        // Month name + day
+        var _months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',
+                       jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+        var _mKey = _dateMatch[1].toLowerCase().slice(0,3);
+        var _mNum = _months[_mKey];
+        var _dNum = ('0' + parseInt(_dateMatch[2])).slice(-2);
+        var _yr = new Date().getFullYear(); // assume current year
+        _qDate = _yr + '-' + _mNum + '-' + _dNum;
+      }
+      if (_qDate) {
+        var _found = _dailyLog.find(function(e){ return e.date === _qDate; });
+        if (_found) {
+          _scReply = '**' + _qDate + ':**\n\n'
+            + '— **' + _found.active_users + '** users active\n'
+            + '— **' + _found.active_sessions + '** sessions\n'
+            + '— **' + _found.session_files + '** session files\n'
+            + (_found.cumulative_users ? '— Cumulative unique users at that date: **' + _found.cumulative_users + '**' : '');
+        } else {
+          // Check if date is before logging started
+          var _started = _totals && _totals.first_recorded ? _totals.first_recorded.slice(0,10) : null;
+          if (_started && _qDate < _started) {
+            _scReply = 'No data for **' + _qDate + '** — Autumn\'s analytics log started on **' + _started + '**. That date is before logging began.';
+          } else if (_qDate > _todayStr) {
+            _scReply = '**' + _qDate + '** is in the future — no data yet.';
+          } else {
+            _scReply = 'No entry found for **' + _qDate + '** in the log. That day may have had zero activity or was between log snapshots.';
+          }
+        }
+      }
+    }
 
     if (_lifetimeTrigger && _totals && _totals.all_time_sessions > 0) {
       // All-time / historical question
