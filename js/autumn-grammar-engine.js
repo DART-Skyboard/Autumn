@@ -1204,7 +1204,6 @@ class ResponseBuilder {
 
     return builtResponse;
   }
-  }
 
   build(flowResult,knownFacts={}){
     const{intent,tense,negated,subTopics,centralTopic,emotion,pipelineResult}=flowResult;
