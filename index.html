@@ -9102,52 +9102,6 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
 
     // ── RANGE query: "past 48 hours", "last 3 days" ──────────────────────────
     // ── JOURNAL SIZE — check first since it can co-occur with range keywords ────
-    // ── GITHUB COMMANDS ──────────────────────────────────────────────────
-    if (_ghTrigger) {
-      var _ghOps = window._forgeGitHub;
-      var _tok   = window._ghAuth && window._ghAuth.token;
-      if (!_ghOps || !_tok) {
-        _scReply = 'To work with GitHub repositories, connect your Personal Access Token first — tap the key icon in the top nav and paste your PAT. It only needs repo read/write access.';
-      } else if (_ghListRepos) {
-        try {
-          var _repos = await _ghOps.listRepos();
-          if (_repos.error) {
-            _scReply = 'GitHub returned an error: ' + _repos.error;
-          } else if (Array.isArray(_repos)) {
-            var _sorted = _repos.sort(function(a,b){ return new Date(b.pushed_at)-new Date(a.pushed_at); });
-            var _lines = _sorted.slice(0,20).map(function(r,i){
-              return '**' + (i+1) + '. ' + r.full_name + '**'
-                + (r.private ? ' 🔒' : '')
-                + '\n   ' + (r.description || 'No description')
-                + ' · ' + (r.language || 'Unknown')
-                + ' · Updated: ' + r.pushed_at.slice(0,10);
-            });
-            _scReply = '**Your GitHub repositories (' + _repos.length + ' total):**\n\n' + _lines.join('\n\n');
-          }
-        } catch(e) {
-          _scReply = 'Could not reach GitHub — check your token and try again.';
-        }
-      } else if (_ghCreateRepo) {
-        var _repoNameMatch = augmentedText.match(/\b(?:called|named?|for)\s+([a-zA-Z0-9_-]{2,40})/i);
-        var _repoName = _repoNameMatch ? _repoNameMatch[1] : null;
-        if (!_repoName) {
-          _scReply = "What would you like to name the repository? Say something like \"create a repo called my-project\".";
-        } else {
-          try {
-            var _created = await _ghOps.createRepo(_repoName, '', false);
-            if (_created.error) {
-              _scReply = 'Could not create repository: ' + _created.error;
-            } else {
-              _scReply = '**Repository created:** [' + _created.full_name + '](' + _created.html_url + ')\n\n'
-                + 'It's live at `' + _created.html_url + '`. Ready to push code to it.';
-            }
-          } catch(e) {
-            _scReply = 'Repository creation failed — ' + e.message;
-          }
-        }
-      }
-    }
-
     // ── JOURNAL SELF-TEST ────────────────────────────────────────────────
     if (_journalTestTrigger) {
       var _dj=(typeof GE!=='undefined')?GE.dual:null;
