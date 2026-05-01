@@ -293,6 +293,181 @@ window._refreshAnalyticsNow = async function() {
   };
 };
 
+
+// ── ArcLake Studio overlay — matches Arc Edge draggable pattern ─────────────
+(function(){
+  var _visible = false;
+  var _collapsed = false;
+
+  function _getOverlay(){ return document.getElementById('als-overlay'); }
+
+  window.arcLakeStudioOpen = function(presetKey, autoStart) {
+    var el = _getOverlay(); if(!el) return;
+    el.style.display = 'flex';
+    _visible = true;
+    _collapsed = false;
+    document.getElementById('als-overlay-body').style.display = '';
+
+    // Mount the visualizer if not already done
+    var body = document.getElementById('als-overlay-body');
+    if (!body.dataset.mounted) {
+      body.dataset.mounted = '1';
+      // Load arclake_studio if needed
+      function _doMount(){
+        if (window.renderToolsArcLake) {
+          body.innerHTML = window.renderToolsArcLake();
+          setTimeout(function(){
+            window._alsMounted && window._alsMounted();
+            // Auto-load preset if specified
+            if (presetKey && window._alsLoadPreset) {
+              window._alsLoadPreset(presetKey);
+              if (autoStart) setTimeout(function(){ window._alsStart && window._alsStart(); }, 300);
+            }
+          }, 60);
+        }
+      }
+      if (window.renderToolsArcLake) {
+        _doMount();
+      } else {
+        var s = document.createElement('script');
+        s.src = 'js/arclake_studio.js?v=2026050104';
+        s.onload = _doMount;
+        document.head.appendChild(s);
+      }
+    } else if (presetKey && window._alsLoadPreset) {
+      window._alsLoadPreset(presetKey);
+      if (autoStart) setTimeout(function(){ window._alsStart && window._alsStart(); }, 200);
+    }
+
+    // HUD button highlight
+    var hbtn = document.getElementById('hud-arclake-btn');
+    if (hbtn) { hbtn.style.color='#00e5ff'; hbtn.style.borderColor='rgba(0,229,255,.7)'; hbtn.style.background='rgba(0,229,255,.18)'; }
+  };
+
+  window.arcLakeStudioClose = function() {
+    var el = _getOverlay(); if(!el) return;
+    el.style.display = 'none';
+    _visible = false;
+    var hbtn = document.getElementById('hud-arclake-btn');
+    if (hbtn) { hbtn.style.color='rgba(0,229,255,.55)'; hbtn.style.borderColor='rgba(0,229,255,.3)'; hbtn.style.background='rgba(0,229,255,.07)'; }
+    // Stop simulation when closed
+    if (window._alsStop) window._alsStop();
+  };
+
+  window.arcLakeStudioCollapse = function() {
+    var body = document.getElementById('als-overlay-body');
+    var btn  = document.getElementById('als-collapse-btn');
+    _collapsed = !_collapsed;
+    if (body) body.style.display = _collapsed ? 'none' : '';
+    if (btn)  btn.textContent = _collapsed ? '+' : '—';
+  };
+
+  window.arcLakeStudioToggle = function() {
+    _visible ? window.arcLakeStudioClose() : window.arcLakeStudioOpen();
+  };
+
+  // ── Drag logic ─────────────────────────────────────────────────────────────
+  (function(){
+    var el, hdr, ox=0, oy=0, sx=0, sy=0, dragging=false;
+    function _start(cx,cy){
+      el=_getOverlay(); if(!el)return;
+      dragging=true;
+      // Get current position
+      var rect=el.getBoundingClientRect();
+      // Switch from transform to explicit left/top
+      if(el.style.transform){
+        el.style.left=rect.left+'px';
+        el.style.top=rect.top+'px';
+        el.style.transform='none';
+      }
+      ox=rect.left; oy=rect.top;
+      sx=cx; sy=cy;
+      el.style.cursor='grabbing';
+    }
+    function _move(cx,cy){
+      if(!dragging||!el)return;
+      var nx=ox+(cx-sx), ny=oy+(cy-sy);
+      // Clamp to viewport
+      var mw=el.offsetWidth, mh=el.offsetHeight;
+      nx=Math.max(0,Math.min(nx,window.innerWidth-mw));
+      ny=Math.max(0,Math.min(ny,window.innerHeight-mh));
+      el.style.left=nx+'px'; el.style.top=ny+'px';
+    }
+    function _end(){
+      dragging=false;
+      if(el)el.style.cursor='';
+    }
+    document.addEventListener('DOMContentLoaded',function(){
+      hdr=document.getElementById('als-overlay-header');
+      if(!hdr)return;
+      hdr.addEventListener('mousedown',function(e){if(e.target.tagName!=='BUTTON')_start(e.clientX,e.clientY);});
+      hdr.addEventListener('touchstart',function(e){if(e.target.tagName!=='BUTTON'&&e.touches[0])_start(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+    });
+    document.addEventListener('mousemove',function(e){_move(e.clientX,e.clientY);});
+    document.addEventListener('touchmove',function(e){if(dragging&&e.touches[0])_move(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+    document.addEventListener('mouseup',_end);
+    document.addEventListener('touchend',_end);
+  })();
+
+  // ── Voice command router — ArcLake vs Arc Edge context detection ───────────
+  // Called from the main handleSend patch BEFORE regular processing
+  // Returns true if command was routed to ArcLake (prevents Arc Edge from firing)
+  window._arcLakeRouteCheck = function(rawText) {
+    var t = rawText.toLowerCase();
+
+    // Strong ArcLake signals: molecule, alloy, simulation, temperature, pressure, GLB export
+    var ALS_STRONG = /(arclake|arc lake|molecule|alloy|simulation|simulate|thermal|temperature|celsius|fahrenheit|kelvin|pressure|pascal|atmosphere|atm|wind velocity|cfd|fluid|particle cloud|hydrogen|oxygen|carbon|nitrogen|sodium|iron|copper|titanium|steel|hercules alloy|calcium|silicon)/;
+
+    // Strong Arc Edge signals: arc, deviation, induction, curve
+    var ARC_STRONG = /(arc edge|arcedge|arc|deviation|induction|curve|arcs?\.?\s*(per|count|resolution)|add arc|draw arc)/;
+
+    // If it mentions ArcLake/simulation AND NOT specifically arc edge
+    if (ALS_STRONG.test(t) && !ARC_STRONG.test(t)) {
+      // Determine preset from command
+      var preset = null;
+      var autoStart = /(simulate|run|start|show|play|visualize|render)/.test(t);
+
+      if (/hercules/i.test(t))                          preset = 'Hercules Alloy (6-el)';
+      else if (/water|h2o/i.test(t))                    preset = 'Water (H₂O)';
+      else if (/co2|carbon.?dioxide/i.test(t))          preset = 'CO₂';
+      else if (/salt|nacl/i.test(t))                    preset = 'NaCl (Salt)';
+      else if (/steel/i.test(t))                        preset = 'Steel (Fe+C+Cr)';
+      else if (/titanium/i.test(t))                     preset = 'Titanium Alloy (Ti+Al)';
+      else if (/copper.?oxide|cuo/i.test(t))            preset = 'Copper Oxide (CuO)';
+      else if (/calcium.?carb/i.test(t))                preset = 'Calcium Carbonate';
+      else if (/silicon.?dioxide|sio2/i.test(t))        preset = 'Silicon Dioxide';
+      else if (/iron.*copper|copper.*iron|fe.*cu/i.test(t)) preset = 'Iron + Copper Alloy';
+
+      // Temperature extraction
+      var tempMatch = t.match(/(-?\d+)\s*(?:degrees?|°)?\s*(?:celsius|c|fahrenheit|f|kelvin|k)/i);
+      if (tempMatch) {
+        var tempVal = parseInt(tempMatch[1]);
+        if (/fahrenheit|f/i.test(tempMatch[0])) tempVal = Math.round((tempVal-32)*5/9);
+        if (/kelvin|k/i.test(tempMatch[0]))     tempVal = tempVal - 273;
+        setTimeout(function(){
+          var tempSlider = document.getElementById('als-temp');
+          if (tempSlider) { tempSlider.value = tempVal; window._alsUpdateParam && window._alsUpdateParam('temp', tempVal); }
+        }, 500);
+      }
+
+      // Wind extraction
+      var windMatch = t.match(/wind.*?(-?\d+)\s*(?:m\/s|mph|knots?)/i);
+      if (windMatch) {
+        var windVal = parseInt(windMatch[1]);
+        setTimeout(function(){
+          var wx = document.getElementById('als-windx');
+          if (wx) { wx.value = windVal; window._alsUpdateParam && window._alsUpdateParam('windX', windVal); }
+        }, 500);
+      }
+
+      window.arcLakeStudioOpen(preset, autoStart);
+      return true; // command handled by ArcLake
+    }
+    return false; // let normal routing handle it
+  };
+
+})();
+
 // ── Forge IDE — GitHub repository operations ─────────────────────────────
 window._forgeGitHub = {
   // List repos for the connected user
@@ -2069,7 +2244,7 @@ select.ash-ctrl-input{cursor:pointer}
   <!-- BRPN 3D Shell -->
   <div id="brpn-region">
     <div id="brpn-canvas"></div>
-    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div></div>
+    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-arclake-btn" onclick="window.arcLakeStudioToggle&&window.arcLakeStudioToggle()" title="Open / Close ArcLake Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.55);border:1px solid rgba(0,229,255,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,229,255,.07)">⬡ ARCLAKE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div></div>
     <div id="thought-pulse"></div>
         <div id="brpn-hud">
       <div>GEO <span class="val" id="hud-geo">—</span></div>
@@ -10884,7 +11059,48 @@ window.forgeInlineRun=function(bid,pid,lang){
   if(rb)rb.style.display='none';if(sb)sb.style.display='';
   var doc=frm.contentDocument||frm.contentWindow.document;
   if(lang==='html'){doc.open();doc.write(code);doc.close();}
-  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre><script>var _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}<\/script></body></html>');doc.close();}
+  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre><script>var _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}<\/script>
+
+  <!-- ⬡ ARCLAKE STUDIO OVERLAY (draggable — matches Arc Edge pattern) -->
+  <div id="als-overlay" style="
+    display:none;position:fixed;z-index:9100;
+    top:60px;left:50%;transform:translateX(-50%);
+    width:min(720px,96vw);max-height:85vh;
+    background:rgba(6,10,16,0.97);
+    border:1px solid rgba(0,229,255,0.25);
+    border-radius:14px;
+    box-shadow:0 8px 40px rgba(0,0,0,0.7),0 0 0 1px rgba(0,229,255,0.1);
+    overflow:hidden;display:flex;flex-direction:column;
+    font-family:'Orbitron',monospace;
+    touch-action:none;user-select:none;
+  ">
+    <!-- Drag header -->
+    <div id="als-overlay-header" style="
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 14px;
+      background:rgba(0,229,255,0.06);
+      border-bottom:1px solid rgba(0,229,255,0.15);
+      cursor:grab;flex-shrink:0;
+    ">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:#00e5ff;font-size:16px">⬡</span>
+        <span style="font-size:11px;letter-spacing:2px;color:#00e5ff;font-weight:700">ARCLAKE STUDIO</span>
+        <span id="als-overlay-status" style="font-size:9px;color:#8a8fa8;letter-spacing:1px;margin-left:4px">● IDLE</span>
+      </div>
+      <div style="display:flex;gap:6px;pointer-events:all">
+        <button onclick="window.arcLakeStudioCollapse&&window.arcLakeStudioCollapse()" id="als-collapse-btn"
+          style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+          color:#8a8fa8;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px">—</button>
+        <button onclick="window.arcLakeStudioClose&&window.arcLakeStudioClose()"
+          style="background:rgba(255,77,77,0.1);border:1px solid rgba(255,77,77,0.3);
+          color:#ff4d4d;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:10px;font-family:inherit">✕ CLOSE</button>
+      </div>
+    </div>
+    <!-- Body injected by arclake_studio module -->
+    <div id="als-overlay-body" style="flex:1;overflow:hidden;min-height:400px"></div>
+  </div>
+
+</body></html>');doc.close();}
   else if(lang==='css'){doc.open();doc.write('<style>'+code+'</style><p style="font-family:sans-serif;padding:12px">CSS preview</p>');doc.close();}
   else if(lang==='markdown'){var h=code.replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/^# (.+)/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');doc.open();doc.write('<style>body{font-family:sans-serif;padding:14px;line-height:1.6}</style>'+h);doc.close();}
   else{doc.open();doc.write('<pre style="font-family:monospace;font-size:11px;padding:10px;background:#030810;color:#e0f4ff;margin:0;white-space:pre-wrap">['+lang.toUpperCase()+' requires local runtime]\n\n'+code.replace(/</g,'&lt;')+'</pre>');doc.close();}
@@ -17633,6 +17849,23 @@ _syncActionBtn();
               // ── Broad social/activity interceptor (inline — not cached) ────
               var _rawQ=text.toLowerCase();
               var _intercepted=false;
+
+              // ArcLake voice command router — check BEFORE Arc Edge and other handlers
+              if (!_intercepted && window._arcLakeRouteCheck && window._arcLakeRouteCheck(text)) {
+                // Command routed to ArcLake Studio — compose a brief acknowledgement
+                var _alsPresetName = (function(){
+                  var t2=text.toLowerCase();
+                  if(/hercules/i.test(t2)) return 'Hercules Alloy';
+                  if(/water|h2o/i.test(t2)) return 'Water';
+                  if(/steel/i.test(t2)) return 'Steel';
+                  if(/titanium/i.test(t2)) return 'Titanium Alloy';
+                  if(/copper/i.test(t2)) return 'Copper';
+                  return 'molecular simulation';
+                })();
+                var _alsAck = 'Opening ArcLake Studio — loading the **'+_alsPresetName+'** simulation now.';
+                _replaceLastAutumnMsg(_alsAck);
+                _intercepted = true;
+              }
 
               var _isActivityQ2=/\b(what would you|where would you|what do you want|what would autumn|where are you|where you at|how are you|how.{0,5}you doing|you okay|you good|you alright|how.{0,10}feeling|what.{0,5}your mood|is there anything you|anything you (want|like|feel|enjoy))\b/.test(_rawQ);
 
