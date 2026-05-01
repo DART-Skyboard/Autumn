@@ -9027,6 +9027,40 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
 
     // ── RANGE query: "past 48 hours", "last 3 days" ──────────────────────────
     // ── JOURNAL SIZE — check first since it can co-occur with range keywords ────
+    // ── JOURNAL SELF-TEST ────────────────────────────────────────────────
+    if (_journalTestTrigger) {
+      var _dj=(typeof GE!=='undefined')?GE.dual:null;
+      if(!_dj){ _scReply='Journal CRUD module not loaded yet.'; }
+      else {
+        var _fmt3=function(b){return b>=1048576?(b/1048576).toFixed(2)+' MB':b>=1024?(b/1024).toFixed(1)+' KB':b+' bytes';};
+        if(_journalTestEnd){
+          var _wi=_dj.deleteWhere('inner',function(e){return e._test===true;});
+          var _wo=_dj.deleteWhere('outer',function(e){return e._test===true;});
+          var _sa=_dj.getStats();
+          if(typeof S!=='undefined'){delete S._journalTestPhase;delete S._journalTestIds;}
+          _scReply='Test data cleared.\n\nRemoved **'+_wi+'** inner and **'+_wo+'** outer test entries.\n\n**Final state:**\nInner: **'+_sa.innerEntries+'** entries / **'+_fmt3(_sa.innerSize)+'**\nOuter: **'+_sa.outerEntries+'** entries / **'+_fmt3(_sa.outerSize)+'**\nChunks: **'+_sa.chunks+'**\n\nJournal is back to its actual state.';
+        } else if(_journalTestPhase||(typeof S!=='undefined'&&S._journalTestPhase===1)){
+          var _ids=(typeof S!=='undefined'&&S._journalTestIds)?S._journalTestIds:[];
+          if(!_ids.length){ _scReply='No test entries found. Say "begin journal test" first.'; }
+          else {
+            _dj.editEntry('inner',_ids[1],{thought:'Test entry 2 REVISED — buildConversational confirmed, 3-sentence WordNet responses active.',_revised_reason:'confirmed in session',_test:true});
+            _dj.deleteEntry('inner',_ids[2]);
+            _dj.writeOuter({type:'test_shared',_test:true,topic:'journal_test',thought:'Phase 2: revised one entry, released another. Grammar engine note kept updated; buoyancy reading superseded.'});
+            var _s2=_dj.getStats();
+            if(typeof S!=='undefined') S._journalTestPhase=2;
+            _scReply='**Phase 2 — revise and release:**\n\nEntry 2 **revised** — updated with confirmed build notes.\nEntry 3 **released** — superseded, no longer needed.\n1 entry written to **outer wall**.\n\nInner: **'+_s2.innerEntries+'** / **'+_fmt3(_s2.innerSize)+'**\nOuter: **'+_s2.outerEntries+'** / **'+_fmt3(_s2.outerSize)+'**\n\nSay **"end journal test"** to wipe test data.';
+          }
+        } else {
+          var _s0=_dj.getStats();
+          var _e1=_dj.writeInner({type:'test_entry',_test:true,topic:'leatr_architecture',thought:'Test entry 1 — LEATR 25-order cascade active. Maze master sigma accumulating correctly.',sigma:441.7,buoy:0.88,domTool:'MAZE'});
+          var _e2=_dj.writeInner({type:'test_entry',_test:true,topic:'grammar_engine',thought:'Test entry 2 — buildConversational firing. Monitoring WordNet latency.',sigma:217.3,buoy:0.64,domTool:'PUZZLE'});
+          var _e3=_dj.writeInner({type:'test_entry',_test:true,topic:'buoyancy_reading',thought:'Test entry 3 — MARITIME shell active. Buoyancy 0.52 on current input.',sigma:89.1,buoy:0.52,domTool:'STICK'});
+          var _s1=_dj.getStats();
+          if(typeof S!=='undefined'){S._journalTestPhase=1;S._journalTestIds=[_e1.id,_e2.id,_e3.id];}
+          _scReply='**Phase 1 — 3 entries written to inner journal:**\n\nEntry 1: leatr_architecture — MAZE sigma 441.7 — buoy 0.88\nEntry 2: grammar_engine — PUZZLE sigma 217.3 — buoy 0.64\nEntry 3: buoyancy_reading — STICK sigma 89.1 — buoy 0.52\n\nBefore: **'+_fmt3(_s0.innerSize)+'** After: **'+_fmt3(_s1.innerSize)+'** (+'+_fmt3(_s1.innerSize-_s0.innerSize)+')\n\nSay **"next phase"** to have me revise one and release another.';
+        }
+      }
+    }
     if (_journalSizeTrigger) {
       var _jTok2=(window._ghAuth&&window._ghAuth.token)?window._ghAuth.token:_ASH_BOT;
       var _localEntries=(typeof S!=='undefined'&&S.journal)?S.journal.length:0;
@@ -17410,7 +17444,19 @@ _syncActionBtn();
       }
       return false;
     }
+    function _stripMdForVoice(t){
+      // Remove markdown that sounds wrong when read aloud
+      return t.replace(/\*\*([^*]+)\*\*/g,'$1')  // **bold**
+               .replace(/\*([^*]+)\*/g,'$1')         // *italic*
+               .replace(/`([^`]+)`/g,'$1')             // `code`
+               .replace(/^—\s*/gm,'')                 // — bullets
+               .replace(/\n{3,}/g,'\n\n')             // extra newlines
+               .replace(/#{1,6}\s+/g,'')               // headers
+               .trim();
+    }
     function _replaceLastAutumnMsg(newText){
+      // If voice is active, strip markdown so it reads naturally
+      if(window._lastVoiceState) newText=_stripMdForVoice(newText);
       // Try immediately first
       var m=_getMsgs();
       if(_doReplace(m,newText)) return;
