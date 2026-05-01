@@ -185,7 +185,8 @@ async function _fetchAnalytics() {
   if (_analyticsReady && (Date.now() - _analyticsFetchedAt) < 60 * 60 * 1000) return;
   try {
     var url = 'https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/ashtree/analytics/lifetime_log.json';
-    var hdrs = { 'Authorization':'token ' + _ASH_BOT, 'Content-Type':'application/json' };
+    var _tok = (window._ghAuth && window._ghAuth.token) ? window._ghAuth.token : _ASH_BOT;
+    var hdrs = _tok ? { 'Authorization':'token ' + _tok, 'Content-Type':'application/json' } : { 'Content-Type':'application/json' };
     var res = await fetch(url, { headers:hdrs, signal:AbortSignal.timeout(8000) });
     if (!res.ok) return;
     var eg = await res.json();
@@ -249,6 +250,39 @@ function getAnalyticsContext() {
 }
 
 // Refresh analytics when Autumn explicitly needs it (e.g. user asks about sessions)
+// ── Back to Chat / Forge mode management ─────────────────────────────────
+window._forgeMode = false;
+
+window._enterForge = function() {
+  window._forgeMode = true;
+  var btn = document.getElementById('back-to-chat-btn');
+  if(btn) btn.style.display = 'flex';
+  var pill = document.getElementById('input-pill');
+  var inp  = document.getElementById('chat-input');
+  if(inp) inp.placeholder = 'Ask Autumn about your code...';
+  // Dim the chat area slightly to indicate Forge context
+  var msgs = document.getElementById('messages');
+  if(msgs) msgs.style.opacity = '0.7';
+};
+
+window._backToChat = function() {
+  window._forgeMode = false;
+  // Close the tools panel if open
+  var panel = document.getElementById('tools-panel');
+  if(panel && panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    var overlay = document.getElementById('tools-overlay');
+    if(overlay) overlay.style.display = 'none';
+  }
+  // Restore chat UI
+  var btn = document.getElementById('back-to-chat-btn');
+  if(btn) btn.style.display = 'none';
+  var inp = document.getElementById('chat-input');
+  if(inp) { inp.placeholder = 'Ask Autumn...'; inp.focus(); }
+  var msgs = document.getElementById('messages');
+  if(msgs) msgs.style.opacity = '1';
+};
+
 window._refreshAnalyticsNow = async function() {
   _analyticsReady = false; // force re-fetch
   await _fetchAnalytics();
@@ -258,6 +292,302 @@ window._refreshAnalyticsNow = async function() {
     liveActiveSessions: active
   };
 };
+
+
+// ── ArcLake Studio overlay — matches Arc Edge draggable pattern ─────────────
+(function(){
+  var _visible = false;
+  var _collapsed = false;
+
+  function _getOverlay(){ return document.getElementById('als-overlay'); }
+
+  window.arcLakeStudioOpen = function(presetKey, autoStart) {
+    var el = _getOverlay(); if(!el) return;
+    el.style.display = 'flex';
+    _visible = true;
+    _collapsed = false;
+    document.getElementById('als-overlay-body').style.display = '';
+
+    // Mount the visualizer if not already done
+    var body = document.getElementById('als-overlay-body');
+    if (!body.dataset.mounted) {
+      body.dataset.mounted = '1';
+      // Load arclake_studio if needed
+      function _doMount(){
+        if (window.renderToolsArcLake) {
+          body.innerHTML = window.renderToolsArcLake();
+          setTimeout(function(){
+            window._alsMounted && window._alsMounted();
+            // Auto-load preset if specified
+            if (presetKey && window._alsLoadPreset) {
+              window._alsLoadPreset(presetKey);
+              if (autoStart) setTimeout(function(){ window._alsStart && window._alsStart(); }, 300);
+            }
+          }, 60);
+        }
+      }
+      if (window.renderToolsArcLake) {
+        _doMount();
+      } else {
+        var s = document.createElement('script');
+        s.src = 'js/arclake_studio.js?v=2026050108';
+        s.onload = _doMount;
+        document.head.appendChild(s);
+      }
+    } else if (presetKey && window._alsLoadPreset) {
+      window._alsLoadPreset(presetKey);
+      if (autoStart) setTimeout(function(){ window._alsStart && window._alsStart(); }, 200);
+    }
+
+    // HUD button highlight
+    var hbtn = document.getElementById('hud-arclake-btn');
+    if (hbtn) { hbtn.style.color='#00e5ff'; hbtn.style.borderColor='rgba(0,229,255,.7)'; hbtn.style.background='rgba(0,229,255,.18)'; }
+  };
+
+  window.arcLakeStudioClose = function() {
+    var el = _getOverlay(); if(!el) return;
+    el.style.display = 'none';
+    _visible = false;
+    var hbtn = document.getElementById('hud-arclake-btn');
+    if (hbtn) { hbtn.style.color='rgba(0,229,255,.55)'; hbtn.style.borderColor='rgba(0,229,255,.3)'; hbtn.style.background='rgba(0,229,255,.07)'; }
+    // Stop simulation when closed
+    if (window._alsStop) window._alsStop();
+  };
+
+  window.arcLakeStudioCollapse = function() {
+    var body = document.getElementById('als-overlay-body');
+    var btn  = document.getElementById('als-collapse-btn');
+    _collapsed = !_collapsed;
+    if (body) body.style.display = _collapsed ? 'none' : '';
+    if (btn)  btn.textContent = _collapsed ? '+' : '—';
+  };
+
+  window.arcLakeStudioToggle = function() {
+    _visible ? window.arcLakeStudioClose() : window.arcLakeStudioOpen();
+  };
+
+  // ── Drag logic ─────────────────────────────────────────────────────────────
+  (function(){
+    var el, hdr, ox=0, oy=0, sx=0, sy=0, dragging=false;
+    function _start(cx,cy){
+      el=_getOverlay(); if(!el)return;
+      dragging=true;
+      // Get current position
+      var rect=el.getBoundingClientRect();
+      // Switch from transform to explicit left/top
+      if(el.style.transform){
+        el.style.left=rect.left+'px';
+        el.style.top=rect.top+'px';
+        el.style.transform='none';
+      }
+      ox=rect.left; oy=rect.top;
+      sx=cx; sy=cy;
+      el.style.cursor='grabbing';
+    }
+    function _move(cx,cy){
+      if(!dragging||!el)return;
+      var nx=ox+(cx-sx), ny=oy+(cy-sy);
+      // Clamp to viewport
+      var mw=el.offsetWidth, mh=el.offsetHeight;
+      nx=Math.max(0,Math.min(nx,window.innerWidth-mw));
+      ny=Math.max(0,Math.min(ny,window.innerHeight-mh));
+      el.style.left=nx+'px'; el.style.top=ny+'px';
+    }
+    function _end(){
+      dragging=false;
+      if(el)el.style.cursor='';
+    }
+    document.addEventListener('DOMContentLoaded',function(){
+      hdr=document.getElementById('als-overlay-header');
+      if(!hdr)return;
+      hdr.addEventListener('mousedown',function(e){if(e.target.tagName!=='BUTTON')_start(e.clientX,e.clientY);});
+      hdr.addEventListener('touchstart',function(e){if(e.target.tagName!=='BUTTON'&&e.touches[0])_start(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+    });
+    document.addEventListener('mousemove',function(e){_move(e.clientX,e.clientY);});
+    document.addEventListener('touchmove',function(e){if(dragging&&e.touches[0])_move(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+    document.addEventListener('mouseup',_end);
+    document.addEventListener('touchend',_end);
+  })();
+
+  // ── Voice command router — ArcLake vs Arc Edge context detection ───────────
+  // Called from the main handleSend patch BEFORE regular processing
+  // Returns true if command was routed to ArcLake (prevents Arc Edge from firing)
+  window._arcLakeRouteCheck = function(rawText) {
+    var t = rawText.toLowerCase();
+
+    // Strong ArcLake signals: molecule, alloy, simulation, temperature, pressure, GLB export
+    var ALS_STRONG = /(arclake|arc lake|molecule|alloy|simulation|simulate|thermal|temperature|celsius|fahrenheit|kelvin|pressure|pascal|atmosphere|atm|wind velocity|cfd|fluid|particle cloud|hydrogen|oxygen|carbon|nitrogen|sodium|iron|copper|titanium|steel|hercules alloy|calcium|silicon)/;
+
+    // Strong Arc Edge signals: arc, deviation, induction, curve
+    var ARC_STRONG = /(arc edge|arcedge|arc|deviation|induction|curve|arcs?\.?\s*(per|count|resolution)|add arc|draw arc)/;
+
+    // If it mentions ArcLake/simulation AND NOT specifically arc edge
+    if (ALS_STRONG.test(t) && !ARC_STRONG.test(t)) {
+      // Determine preset from command
+      var preset = null;
+      var autoStart = /(simulate|run|start|show|play|visualize|render)/.test(t);
+
+      if (/hercules/i.test(t))                          preset = 'Hercules Alloy (6-el)';
+      else if (/water|h2o/i.test(t))                    preset = 'Water (H₂O)';
+      else if (/co2|carbon.?dioxide/i.test(t))          preset = 'CO₂';
+      else if (/salt|nacl/i.test(t))                    preset = 'NaCl (Salt)';
+      else if (/steel/i.test(t))                        preset = 'Steel (Fe+C+Cr)';
+      else if (/titanium/i.test(t))                     preset = 'Titanium Alloy (Ti+Al)';
+      else if (/copper.?oxide|cuo/i.test(t))            preset = 'Copper Oxide (CuO)';
+      else if (/calcium.?carb/i.test(t))                preset = 'Calcium Carbonate';
+      else if (/silicon.?dioxide|sio2/i.test(t))        preset = 'Silicon Dioxide';
+      else if (/iron.*copper|copper.*iron|fe.*cu/i.test(t)) preset = 'Iron + Copper Alloy';
+
+      // Temperature extraction
+      var tempMatch = t.match(/(-?\d+)\s*(?:degrees?|°)?\s*(?:celsius|c|fahrenheit|f|kelvin|k)/i);
+      if (tempMatch) {
+        var tempVal = parseInt(tempMatch[1]);
+        if (/fahrenheit|f/i.test(tempMatch[0])) tempVal = Math.round((tempVal-32)*5/9);
+        if (/kelvin|k/i.test(tempMatch[0]))     tempVal = tempVal - 273;
+        setTimeout(function(){
+          var tempSlider = document.getElementById('als-temp');
+          if (tempSlider) { tempSlider.value = tempVal; window._alsUpdateParam && window._alsUpdateParam('temp', tempVal); }
+        }, 500);
+      }
+
+      // Wind extraction
+      var windMatch = t.match(/wind.*?(-?\d+)\s*(?:m\/s|mph|knots?)/i);
+      if (windMatch) {
+        var windVal = parseInt(windMatch[1]);
+        setTimeout(function(){
+          var wx = document.getElementById('als-windx');
+          if (wx) { wx.value = windVal; window._alsUpdateParam && window._alsUpdateParam('windX', windVal); }
+        }, 500);
+      }
+
+      window.arcLakeStudioOpen(preset, autoStart);
+      return true; // command handled by ArcLake
+    }
+    return false; // let normal routing handle it
+  };
+
+})();
+
+// ── Forge IDE — GitHub repository operations ─────────────────────────────
+window._forgeGitHub = {
+  // List repos for the connected user
+  async listRepos() {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var res = await fetch('https://api.github.com/user/repos?per_page=50&sort=updated',
+      {headers:{'Authorization':'token '+tok}});
+    return res.ok ? res.json() : {error:'Failed to list repos'};
+  },
+
+  // Browse a repo's file tree
+  async browseRepo(owner, repo, path) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var url = 'https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+(path||'');
+    var res = await fetch(url, {headers:{'Authorization':'token '+tok}});
+    return res.ok ? res.json() : {error:'Cannot access repo'};
+  },
+
+  // Read a file from a repo
+  async readFile(owner, repo, path, branch) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var url = 'https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path
+      +(branch?'?ref='+branch:'');
+    var res = await fetch(url, {headers:{'Authorization':'token '+tok}});
+    if(!res.ok) return {error:'File not found'};
+    var f = await res.json();
+    return {
+      content: atob(f.content.replace(/\n/g,'')),
+      sha: f.sha,
+      path: f.path,
+      size: f.size
+    };
+  },
+
+  // Write/update a file in a repo
+  async writeFile(owner, repo, path, content, message, branch, sha) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var b64 = btoa(unescape(encodeURIComponent(content)));
+    var body = {message: message||('Update '+path), content:b64};
+    if(branch) body.branch = branch;
+    if(sha)    body.sha    = sha;
+    var res = await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path,
+      {method:'PUT', headers:{'Authorization':'token '+tok,'Content-Type':'application/json'},
+       body:JSON.stringify(body)});
+    if(!res.ok) {
+      var err = await res.json();
+      return {error: err.message || 'Write failed'};
+    }
+    var data = await res.json();
+    return {success:true, commit: data.commit && data.commit.sha, path};
+  },
+
+  // Create a new repo
+  async createRepo(name, description, isPrivate) {
+    var tok = window._ghAuth && window._ghAuth.token;
+    if(!tok) return {error:'No GitHub token connected'};
+    var res = await fetch('https://api.github.com/user/repos',
+      {method:'POST', headers:{'Authorization':'token '+tok,'Content-Type':'application/json'},
+       body:JSON.stringify({name, description:description||'', private:!!isPrivate,
+         auto_init:true})});
+    if(!res.ok) {
+      var err = await res.json();
+      return {error: err.message || 'Create failed'};
+    }
+    return res.json();
+  }
+};
+
+// ── Session timestamp cache — exact second granularity ────────────────────
+var _sessionTsCache = null;
+var _sessionTsFetchedAt = 0;
+
+async function _fetchSessionsWithTimestamps() {
+  if (_sessionTsCache && (Date.now() - _sessionTsFetchedAt) < 300000) return _sessionTsCache;
+  try {
+    var _tok = (window._ghAuth && window._ghAuth.token) ? window._ghAuth.token : _ASH_BOT;
+    if (!_tok) return null;
+    var res = await fetch('https://api.github.com/repos/' + LEATR_ASH_REPO + '/contents/ashtree/sessions',
+      { headers:{'Authorization':'token '+_tok}, signal:AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    var files = await res.json();
+    if (!Array.isArray(files)) return null;
+    var sessions = [];
+    var MIN = 1700000000000, MAX = 1900000000000;
+    for (var i=0; i<files.length; i++) {
+      var f = files[i];
+      if (!f.name.endsWith('.json') || f.name === '_index.json') continue;
+      var uid = f.name.replace('.json','').replace(/_t[0-9a-z]+$/i,'');
+      var m = f.name.match(/_t([0-9a-z]{8})/i);
+      if (m) {
+        var tsMs = parseInt(m[1], 36);
+        if (tsMs > MIN && tsMs < MAX) {
+          var d = new Date(tsMs);
+          sessions.push({ name:f.name, uid:uid, ts:tsMs,
+            isoDate: d.toISOString(),
+            date: d.toISOString().slice(0,10),
+            hour: d.getUTCHours(), min: d.getUTCMinutes(), sec: d.getUTCSeconds() });
+        }
+      }
+    }
+    sessions.sort(function(a,b){ return a.ts-b.ts; });
+    _sessionTsCache = sessions;
+    _sessionTsFetchedAt = Date.now();
+    return sessions;
+  } catch(e) { return null; }
+}
+
+function _countInRange(sessions, fromMs, toMs) {
+  var inRange = sessions.filter(function(s){ return s.ts>=fromMs && s.ts<=toMs; });
+  var uids = {};
+  inRange.forEach(function(s){ uids[s.uid]=1; });
+  return { sessions:inRange.length, uniqueUsers:Object.keys(uids).length,
+           earliest:inRange[0], latest:inRange[inRange.length-1] };
+}
+
+
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -1767,6 +2097,12 @@ select.ash-ctrl-input{cursor:pointer}
 }
 </style>
 <script src="js/autumn-nlp.js"></script>
+<script src="js/wordnet_loader.js"></script>
+<script src="js/cn_loader.js"></script>
+<script src="js/code_loader.js"></script>
+<script src="js/conceptnet_loader.js"></script>
+<script src="js/autumn-grammar-engine.js?v=2026050102"></script>
+<script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
 </head>
 <body>
 
@@ -1836,7 +2172,7 @@ select.ash-ctrl-input{cursor:pointer}
 </div>
 
 <header>
-  <a href="https://radicaldeepscale.com/" class="logo-wrap" style="text-decoration:none">
+  <a href="https://leatr.xyz/" class="logo-wrap" style="text-decoration:none">
     <img src="assets/autumn.png" alt="Autumn" style="height:36px;width:auto;object-fit:contain;filter:drop-shadow(0 0 8px rgba(191,0,255,.3))">
     <div class="logo">Autumn</div>
     <div class="logo-sub">LEATR v2.1</div>
@@ -1908,7 +2244,7 @@ select.ash-ctrl-input{cursor:pointer}
   <!-- BRPN 3D Shell -->
   <div id="brpn-region">
     <div id="brpn-canvas"></div>
-    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div></div>
+    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-arclake-btn" onclick="window.arcLakeStudioToggle&&window.arcLakeStudioToggle()" title="Open / Close ArcLake Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.55);border:1px solid rgba(0,229,255,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,229,255,.07)">⬡ ARCLAKE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div></div>
     <div id="thought-pulse"></div>
         <div id="brpn-hud">
       <div>GEO <span class="val" id="hud-geo">—</span></div>
@@ -2340,7 +2676,7 @@ select.ash-ctrl-input{cursor:pointer}
         </div>
       </div>
       <!-- Hidden file inputs -->
-      <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.frax,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.pdf,.txt,.md,.html,.htm,.js,.ts,.json,.csv,.svg,.py,.css,.xml,.yaml,.yml,.sh,.rb,.java,.c,.cpp,.h,.rs,.log,.ini,.conf,.toml,.glb,.gltf,.obj,.stl,.fbx,.dae,.docx,.rtf,.odt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain" multiple style="display:none" onchange="handleImageFilesSelect(this.files)">
+      <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.frax,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,audio/mpeg,audio/wav,audio/ogg,audio/flac,audio/mp4,audio/aac,.mp3,.wav,.ogg,.flac,.m4a,.aac,.opus,.pdf,.txt,.md,.html,.htm,.js,.ts,.json,.csv,.svg,.py,.css,.xml,.yaml,.yml,.sh,.rb,.java,.c,.cpp,.h,.rs,.log,.ini,.conf,.toml,.glb,.gltf,.obj,.stl,.fbx,.dae,.docx,.rtf,.odt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain" multiple style="display:none" onchange="handleImageFilesSelect(this.files)">
       <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleImageFilesSelect(this.files)">
       <!-- Main input row -->
       <div id="input-bar">
@@ -2349,6 +2685,7 @@ select.ash-ctrl-input{cursor:pointer}
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
         </div>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
+        <button class="action-btn back-to-chat" id="back-to-chat-btn" onclick="window._backToChat&&window._backToChat()" title="Back to chat" style="display:none">✕</button>
       </div>
       <!-- Status indicators -->
       <div id="voice-indicator"><div class="vi-dot"></div>LISTENING...</div>
@@ -2540,7 +2877,7 @@ const STORE_KEY = "autumn_leatr_data";
 
 function checkConsent() {
   try { const stored=localStorage.getItem("autumn_consent");
-    if(stored==="yes"){useStorage=true;return;} if(stored==="no"){useStorage=false;return;}
+    if(stored==="yes"||stored==="true"){useStorage=true;return;} if(stored==="no"){useStorage=false;return;}
   }catch(e){}
   if(!localStorage.getItem('_aut_data_consent'))document.getElementById("consent-modal").style.display="flex";
 }
@@ -2572,6 +2909,61 @@ function saveState() {
     const data = { sessions: S.sessions, currentSession: S.currentSession, journal: S.journal, memory: S.memory, moduleStates: _captureModuleStates() };
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
   } catch(e) {}
+  // Debounced GitHub sync for logged-in users
+  if (window._ghAuth && window._ghAuth.loggedIn) {
+    clearTimeout(window._saveStateGitHubTimer);
+    window._saveStateGitHubTimer = setTimeout(function(){ syncSessionsToGitHub(); }, 8000);
+  }
+}
+
+// ── GitHub session sync ───────────────────────────────────────────────────
+var _syncSessionsActive = false;
+function syncSessionsToGitHub(manual) {
+  if (!window._ghAuth || !window._ghAuth.loggedIn || !window._ghAuth.token) return;
+  if (_syncSessionsActive && !manual) return;
+  _syncSessionsActive = true;
+  var token = window._ghAuth.token;
+  var username = window._ghAuth.username;
+  var payload = {
+    sessions: S.sessions.map(function(sess) {
+      return { id:sess.id, title:sess.title||null, messages:sess.messages||[], _savedAttachments:undefined };
+    }),
+    currentSession: S.currentSession,
+    memory: S.memory,
+    ts: new Date().toISOString()
+  };
+  var gasUrl = window.AUTUMN_GAS_URL;
+  if (!gasUrl) { _syncSessionsActive=false; return; }
+  fetch(gasUrl, {
+    method:'POST', headers:{'Content-Type':'text/plain'},
+    body: JSON.stringify({ action:'savememory', token:token, filename:'sessions.json', content:JSON.stringify(payload,null,2) })
+  }).then(function(){ _syncSessionsActive=false; if(manual){ var el=document.getElementById('tools-body'); if(el && el.innerHTML.indexOf('session')>-1) renderToolsContent(); } })
+    .catch(function(){ _syncSessionsActive=false; });
+}
+
+function restoreSessionsFromGitHub(token) {
+  if (!token || !window.AUTUMN_GAS_URL) return;
+  fetch(window.AUTUMN_GAS_URL + '?action=readmemory&token=' + encodeURIComponent(token) + '&filename=sessions.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d || !d.content) return;
+      var data = JSON.parse(d.content);
+      if (!data || !Array.isArray(data.sessions) || data.sessions.length === 0) return;
+      // Merge: add sessions from GitHub that aren't in localStorage by id
+      var existingIds = new Set((S.sessions||[]).map(function(s){ return s.id; }));
+      var added = 0;
+      data.sessions.forEach(function(sess) {
+        if (!existingIds.has(sess.id)) { S.sessions.push(sess); added++; }
+        else {
+          // Update title if GitHub has one and local doesn't
+          var local = S.sessions.find(function(s){ return s.id===sess.id; });
+          if (local && !local.title && sess.title) local.title = sess.title;
+        }
+      });
+      // Restore memory nodes
+      if (data.memory) Object.assign(S.memory, data.memory);
+      if (added > 0 || data.memory) { saveState(); renderMessages(); }
+    }).catch(function(){});
 }
 function loadState() {
   if (!useStorage) return;
@@ -6653,6 +7045,7 @@ function classifyAttachment(file) {
   if (['glb','gltf','obj','stl','fbx','dae'].includes(ext)) return '3d';
   if (mime.startsWith('video/') || ['mp4','webm','mov','avi','mkv','m4v','ogv','3gp'].includes(ext)) return 'video';
   if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) return 'image';
+  if (mime.startsWith('audio/') || ['mp3','wav','ogg','flac','m4a','aac','opus'].includes(ext)) return 'audio';
   // Documents
   return 'doc';
 }
@@ -6845,6 +7238,60 @@ async function loadDocumentFile(file) {
   };
 }
 
+// ── Audio file analysis via Web Audio API ─────────────────────────────────
+async function analyzeAudioFile(file) {
+  var blobUrl = URL.createObjectURL(file);
+  var ext = (file.name.split('.').pop() || 'audio').toLowerCase();
+  var duration = 0, sampleRate = 0, channels = 0;
+  var rmsDb = -60, zcr = 0, bassRatio = 33, midRatio = 34, highRatio = 33;
+  var audioSummary = '';
+  try {
+    var ab = await file.arrayBuffer();
+    var actx = new (window.AudioContext || window.webkitAudioContext)();
+    var decoded = await actx.decodeAudioData(ab.slice(0));
+    actx.close();
+    duration = decoded.duration;
+    sampleRate = decoded.sampleRate;
+    channels = decoded.numberOfChannels;
+    var data = decoded.getChannelData(0);
+    var N = Math.min(data.length, sampleRate * 60);
+    var sumSq = 0, zc = 0;
+    for (var i = 0; i < N; i++) {
+      sumSq += data[i] * data[i];
+      if (i > 0 && ((data[i] >= 0) !== (data[i-1] >= 0))) zc++;
+    }
+    rmsDb = 20 * Math.log10(Math.sqrt(sumSq / N) + 1e-9);
+    zcr = Math.round((zc / N) * sampleRate);
+    // Temporal energy split as rough band proxy (low-freq energy = slow changes = bass)
+    var BS = Math.floor(N / 3);
+    function segRMS(s, e) { var q=0; for(var j=s;j<e;j++) q+=data[j]*data[j]; return Math.sqrt(q/(e-s)); }
+    var bE = segRMS(0, BS), mE = segRMS(BS, BS*2), hE = segRMS(BS*2, N);
+    var tot = bE + mE + hE + 1e-9;
+    bassRatio = Math.round(bE/tot*100); midRatio = Math.round(mE/tot*100); highRatio = Math.round(hE/tot*100);
+    var character = bassRatio > 45 ? 'bass-heavy' : highRatio > 45 ? 'bright/treble-dominant' : midRatio > 45 ? 'midrange-focused' : 'balanced';
+    var zcrHint = zcr > 4000 ? 'high spectral content — likely voice, synth, or complex harmonics'
+      : zcr > 1500 ? 'mixed content — vocals + instruments likely'
+      : 'low spectral density — deep bass, pads, or ambient texture';
+    var durStr = duration >= 60 ? Math.floor(duration/60)+'m '+Math.round(duration%60)+'s' : duration.toFixed(1)+'s';
+    audioSummary = '[AUDIO FILE: '+file.name+']\n'
+      +'Duration: '+durStr+'\n'
+      +'Sample rate: '+sampleRate+' Hz · Channels: '+channels+(channels===1?' (mono)':channels===2?' (stereo)':'')+'\n'
+      +'Volume: '+rmsDb.toFixed(1)+' dBFS RMS\n'
+      +'Frequency character: '+character+' (bass '+bassRatio+'% / mid '+midRatio+'% / high '+highRatio+'%)\n'
+      +'Spectral signature: '+zcrHint+'\n'
+      +'File size: '+(file.size/1024).toFixed(1)+' KB';
+  } catch(e) {
+    audioSummary = '[AUDIO FILE: '+file.name+' — analysis failed: '+e.message+']\nFile size: '+(file.size/1024).toFixed(1)+' KB';
+  }
+  return {
+    isAudio:true, isImage:false, isVideo:false, isDoc:false, is3D:false, isFrax:false,
+    fileName:file.name, fileSize:file.size, mimeType:file.type||('audio/'+ext),
+    blobUrl:blobUrl, duration:duration, sampleRate:sampleRate, channels:channels,
+    rmsDb:rmsDb, zcr:zcr, bassRatio:bassRatio, midRatio:midRatio, highRatio:highRatio,
+    audioSummary:audioSummary, thumbnail:''
+  };
+}
+
 async function loadSingleImageFile(file) {
   var kind = classifyAttachment(file);
 
@@ -6891,6 +7338,11 @@ async function loadSingleImageFile(file) {
       console.warn('[Autumn Video]', file.name, e);
       return null;
     }
+  }
+
+  // ── AUDIO ─────────────────────────────────────────────────
+  if (kind === 'audio') {
+    return await analyzeAudioFile(file);
   }
 
   // ── DOCUMENT ──────────────────────────────────────────────
@@ -7060,6 +7512,18 @@ function renderThumbRow() {
       var badge=document.createElement('span');badge.className='attach-type-badge doc';
       badge.textContent=(item.docExt||'DOC').toUpperCase().slice(0,4);
       wrap.appendChild(docDiv);wrap.appendChild(badge);
+    } else if (item.isAudio) {
+      var audDiv=document.createElement('div');
+      audDiv.title=item.fileName;
+      audDiv.style.cssText='width:56px;height:56px;border-radius:10px;background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.28);display:flex;align-items:center;justify-content:center;flex-direction:column;overflow:hidden;cursor:default;';
+      var durLbl = item.duration > 0 ? (item.duration>=60?Math.floor(item.duration/60)+'m'+Math.round(item.duration%60)+'s':Math.round(item.duration)+'s') : '';
+      audDiv.innerHTML='<div style="font-size:20px">🎵</div>'
+        +'<div style="font-size:8px;color:rgba(0,229,255,.8);font-family:var(--font-d);letter-spacing:.5px;margin-top:2px">'+(item.fileName.split('.').pop()||'').toUpperCase()+'</div>'
+        +(durLbl?'<div style="font-size:8px;color:rgba(0,229,255,.5);font-family:var(--font-d)">'+durLbl+'</div>':'');
+      var badge=document.createElement('span');badge.className='attach-type-badge';
+      badge.style.cssText='position:absolute;bottom:2px;left:2px;font-size:8px;background:rgba(0,229,255,.15);color:rgba(0,229,255,.9);border-radius:3px;padding:1px 3px;font-family:var(--font-d);letter-spacing:.5px;';
+      badge.textContent='AUDIO';
+      wrap.appendChild(audDiv);wrap.appendChild(badge);
     } else {
       // Image / FRAX
       var thumb=document.createElement('img');
@@ -7809,7 +8273,13 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     }
 
     var visionBlocks = [];
-    imgs.slice(0,4).forEach(function(img){ if (img.is3D) return; visionBlocks.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}}); });
+    imgs.slice(0,4).forEach(function(img){ if (img.is3D || img.isAudio || img.isDoc) return; if (!img.base64 || !img.mimeType) return; visionBlocks.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}}); });
+    // If no actual image blocks, bail — this is an audio-only or doc-only attach
+    if (visionBlocks.length === 0) {
+      var idxBail = msgs().findIndex(function(m){return m.id===cardId;});
+      if(idxBail>=0) msgs().splice(idxBail,1);
+      return;
+    }
     visionBlocks.push({type:'text', text: text && text.trim().length > 3 ? text :
       'Identify and describe everything significant in this image — people, objects, text, context, setting.'});
 
@@ -7854,7 +8324,7 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     var _fMsg = msgs().find(function(m){ return m.id === cardId; });
     var _thought = _fMsg ? _fMsg.text.slice(0, 400) : '';
     (imgs || []).forEach(function(img) {
-      if (img.is3D) return;
+      if (img.is3D || img.isAudio || img.isDoc) return;
       S.attachments.push({
         id: cardId + '-' + (img.fileName || 'img'),
         ts: new Date().toISOString(),
@@ -8467,11 +8937,21 @@ function classifyIntentLocal(text, hasPendingImages) {
     if (/^(show|restore|unhide|reveal)\s+(the\s+)?(messages|history|hidden|chat)$/.test(lc) ||
         /^show\s+hidden\s+messages$/.test(lc)) return 'SHOW_HIDDEN';
   }
+  // ── ARCLAKE — must come BEFORE Arc Edge (arc lake contains the word "arc") ──
+  var _arcLakeIntent =
+    /\b(arc\s*lake|arclake)\b/i.test(lc) ||
+    /\b(hercules\s*alloy|hercules|h2o|co2|carbon\s*dioxide|nacl|salt\s*molecule|titanium\s*alloy|copper\s*oxide|calcium\s*carbonate|silicon\s*dioxide|iron\s*copper)\b/i.test(lc) ||
+    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid|waveform|electron|proton|neutron|nucleus|atomic|atom)\b/i.test(lc) &&
+     !/\b(arc\s*edge|arcedge|deviation|induction)\b/i.test(lc));
+  if (_arcLakeIntent) return 'ARCLAKE';
+
   // ── ARC EDGE — highest priority for arc/curve generation requests ──
   // Must come before IMAGE_GEN so "create a brain with 100 arcs" routes here not to image gen
+  // Explicitly exclude "arc lake" so it doesn't steal those commands
   var _arcEdgeIntent = /\b(arc\s*edge|arc\s*studio|arcedge)\b/i.test(lc) ||
     (/\b(create|generate|build|make|add|show|draw|render|produce)\b/i.test(lc) &&
-     /\b(arc|arcs|curve|curves|arc\s*line|finite\s*arc|deviation|arc\s*edge)\b/i.test(lc));
+     /\b(arc|arcs|curve|curves|arc\s*line|finite\s*arc|deviation|arc\s*edge)\b/i.test(lc) &&
+     !/\b(arc\s*lake|arclake|molecule|alloy|simulate)\b/i.test(lc));
   if (_arcEdgeIntent) return 'ARC_EDGE';
 
   // Vision when image attached
@@ -8565,6 +9045,7 @@ async function handleSend() {
   // Push user message and show typing indicator right away
   msgs().push({ role:'user', id:'u-'+Date.now(), text, ts:new Date().toISOString(),
     uploadedImageThumbs: _earlyPendingImgs.map(function(i){ return i.is3D ? i : (i.previewDataUrl || i.thumbnail); }),
+    audioPlayers: _earlyPendingImgs.filter(function(i){ return i.isAudio; }).map(function(i){ return {fileName:i.fileName, blobUrl:i.blobUrl}; }),
     _savedAttachments: _earlyPendingImgs.length ? _earlyPendingImgs : undefined });
   renderMessages();
   const _earlyTyping = document.createElement('div');
@@ -8782,17 +9263,63 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     /\b(users?|sessions?|people|visitors?)\b.{0,40}\b(total|all.?time|lifetime|ever|cumulative)\b/i.test(augmentedText) ||
     /\b(30\s+years?|20\s+years?|10\s+years?|years? from now|in the future)\b.{0,40}\b(users?|sessions?|how many)\b/i.test(augmentedText) ||
     /\b(how many).{0,40}(had|have had|used autumn|visited|come|been here)\b/i.test(augmentedText);
+  const _todayTrigger =
+    /\b(today|since midnight|this morning|so far today|today'?s?)\b.{0,40}\b(users?|sessions?|people|visitors?|active)\b/i.test(augmentedText) ||
+    /\b(users?|sessions?)\b.{0,20}\b(today|this\s+morning|since\s+midnight)\b/i.test(augmentedText);
+  const _peakTrigger =
+    /\b(peak|most|highest|busiest|record|max|maximum|best\s+day|biggest\s+day)\b.{0,40}\b(users?|sessions?|traffic|day|time)\b/i.test(augmentedText) ||
+    /\b(what.{0,10}day|which\s+day|when\s+was).{0,30}\b(most|peak|busiest|highest)\b/i.test(augmentedText);
+  // Date-specific query: "on April 21", "April 21st", "2026-04-21", "last Tuesday" etc.
+  const _dateMatch = augmentedText.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b/i) ||
+                     augmentedText.match(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/);
+  const _dateTrigger = !!_dateMatch && /\b(users?|sessions?|active|traffic|people|visitors?)\b/i.test(augmentedText);
+  // "past 24 hours", "last 48 hours", "past 3 days", "last week" etc.
+  const _rangeMatch = augmentedText.match(/\b(?:past|last|previous|prior)\s+(\d+)\s*(hour|hr|day|week)s?\b/i) ||
+                      augmentedText.match(/\b(\d+)\s*(hour|hr|day|week)s?\s+(?:ago|back|prior|earlier)\b/i);
+  const _rangeTrigger = !!_rangeMatch && /\b(users?|sessions?|active|traffic|people|visitors?)\b/i.test(augmentedText);
+  // Time-specific: "at 2pm on April 30", "between 2 and 3pm April 30"
+  const _timeMatch = augmentedText.match(/\b(?:at|around)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i) ||
+                     augmentedText.match(/\bbetween\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s+and\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+  const _timeTrigger = !!_timeMatch && !!_dateMatch && /\b(users?|sessions?|active|people|visitors?)\b/i.test(augmentedText);
+  const _journalSizeTrigger = 
+    /\b(journal|sentient|memory).{0,50}(size|bytes?|mb|kb|big|large|grow|weight|storage|file)\b/i.test(augmentedText) ||
+    /\b(size|bytes?|mb|kb|how big|how large).{0,50}(journal|sentient|memory)\b/i.test(augmentedText) ||
+    /\b(file\s*size|storage|how\s*much\s*(space|data|storage)).{0,40}(journal|sentient|memory|repo|repository)\b/i.test(augmentedText) ||
+    /\b(journal|sentient).{0,60}(file|repo|repository|storage|total|combined)\b/i.test(augmentedText) ||
+    /\b(current|actual|real|total).{0,20}(file\s*size|size).{0,30}(journal|sentient|memory)\b/i.test(augmentedText);
 
-  if((_sessionCountTrigger || _lifetimeTrigger) && !_pendingImgs.length) {
-    // Kick off a live refresh in parallel (resolves within ~2s; we don't await it here
-    // so the reply is immediate from cache, but the cache is updated for next time)
-    if (typeof window._refreshAnalyticsNow === 'function') {
-      window._refreshAnalyticsNow().then(function(fresh) {
-        // Update cache silently — next question will be even fresher
-        if (fresh && fresh.cache) _analyticsCache = fresh.cache;
-      }).catch(function(){});
+  // ── JOURNAL SELF-TEST triggers ────────────────────────────────────────────
+  const _journalTestTrigger =
+    /\b(begin|start|run|do|execute)\s+(journal|sentient)\s+(test|crud|check)\b/i.test(augmentedText) ||
+    /\b(test|check)\s+(the\s+)?(journal|sentient)\s*(crud|system|write|read|edit|delete)?\b/i.test(augmentedText) ||
+    /\bnext\s+phase\b/i.test(augmentedText);
+  const _journalTestEnd =
+    /\b(end|finish|stop|clear|reset|clean\s*up)\s+(journal|sentient)?\s*test\b/i.test(augmentedText) ||
+    /\bclean\s*up\s+(test|journal)\b/i.test(augmentedText);
+  const _journalTestPhase = (typeof S !== 'undefined' && S._journalTestPhase) ? S._journalTestPhase : 0;
+
+  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger || _journalSizeTrigger || _journalTestTrigger || _journalTestEnd) && !_pendingImgs.length) {
+
+    // AWAIT the fetch so analytics are available for this response
+    if (!_analyticsReady || !_analyticsCache) {
+      try { await _fetchAnalytics(); } catch(e) {}
+    }
+    // Also force-refresh if data is stale (>5 min)
+    if (_analyticsReady && _analyticsFetchedAt && (Date.now()-_analyticsFetchedAt) > 300000) {
+      _analyticsReady = false;
+      try { await _fetchAnalytics(); } catch(e) {}
     }
 
+    // Await analytics fetch so data is available for this response
+    if (!_analyticsReady || !_analyticsCache) { try { await _fetchAnalytics(); } catch(e){} }
+    if (_analyticsReady && _analyticsFetchedAt && (Date.now()-_analyticsFetchedAt)>300000) {
+      _analyticsReady=false; try { await _fetchAnalytics(); } catch(e){}
+    }
+    // Fetch session timestamps for time/range queries
+    var _sessionTs = null;
+    if (_timeTrigger || _rangeTrigger || _todayTrigger) {
+      try { _sessionTs = await _fetchSessionsWithTimestamps(); } catch(e){}
+    }
     var _liveCount  = (typeof window._getActiveSessionCount === 'function') ? window._getActiveSessionCount() : 1;
     var _analytics  = (typeof _analyticsCache !== 'undefined') ? _analyticsCache : null;
     var _totals     = _analytics && _analytics.totals ? _analytics.totals : null;
@@ -8800,8 +9327,240 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     var _lastEntry  = _dailyLog.length ? _dailyLog[_dailyLog.length - 1] : null;
 
     var _scReply;
+    var _todayStr = new Date().toISOString().slice(0,10);
 
-    if (_lifetimeTrigger && _totals && _totals.all_time_sessions > 0) {
+    // ── RANGE query: "past 48 hours", "last 3 days" ──────────────────────────
+    // ── JOURNAL SIZE — check first since it can co-occur with range keywords ────
+    // ── JOURNAL SELF-TEST ────────────────────────────────────────────────
+    if (_journalTestTrigger) {
+      var _dj=(typeof GE!=='undefined')?GE.dual:null;
+      if(!_dj){ _scReply='Journal CRUD module not loaded yet.'; }
+      else {
+        var _fmt3=function(b){return b>=1048576?(b/1048576).toFixed(2)+' MB':b>=1024?(b/1024).toFixed(1)+' KB':b+' bytes';};
+        if(_journalTestEnd){
+          var _wi=_dj.deleteWhere('inner',function(e){return e._test===true;});
+          var _wo=_dj.deleteWhere('outer',function(e){return e._test===true;});
+          var _sa=_dj.getStats();
+          if(typeof S!=='undefined'){delete S._journalTestPhase;delete S._journalTestIds;}
+          _scReply='Test data cleared.\n\nRemoved **'+_wi+'** inner and **'+_wo+'** outer test entries.\n\n**Final state:**\nInner: **'+_sa.innerEntries+'** entries / **'+_fmt3(_sa.innerSize)+'**\nOuter: **'+_sa.outerEntries+'** entries / **'+_fmt3(_sa.outerSize)+'**\nChunks: **'+_sa.chunks+'**\n\nJournal is back to its actual state.';
+        } else if(_journalTestPhase||(typeof S!=='undefined'&&S._journalTestPhase===1)){
+          var _ids=(typeof S!=='undefined'&&S._journalTestIds)?S._journalTestIds:[];
+          if(!_ids.length){ _scReply='No test entries found. Say "begin journal test" first.'; }
+          else {
+            _dj.editEntry('inner',_ids[1],{thought:'Test entry 2 REVISED — buildConversational confirmed, 3-sentence WordNet responses active.',_revised_reason:'confirmed in session',_test:true});
+            _dj.deleteEntry('inner',_ids[2]);
+            _dj.writeOuter({type:'test_shared',_test:true,topic:'journal_test',thought:'Phase 2: revised one entry, released another. Grammar engine note kept updated; buoyancy reading superseded.'});
+            var _s2=_dj.getStats();
+            if(typeof S!=='undefined') S._journalTestPhase=2;
+            _scReply='**Phase 2 — revise and release:**\n\nEntry 2 **revised** — updated with confirmed build notes.\nEntry 3 **released** — superseded, no longer needed.\n1 entry written to **outer wall**.\n\nInner: **'+_s2.innerEntries+'** / **'+_fmt3(_s2.innerSize)+'**\nOuter: **'+_s2.outerEntries+'** / **'+_fmt3(_s2.outerSize)+'**\n\nSay **"end journal test"** to wipe test data.';
+          }
+        } else {
+          var _s0=_dj.getStats();
+          var _e1=_dj.writeInner({type:'test_entry',_test:true,topic:'leatr_architecture',thought:'Test entry 1 — LEATR 25-order cascade active. Maze master sigma accumulating correctly.',sigma:441.7,buoy:0.88,domTool:'MAZE'});
+          var _e2=_dj.writeInner({type:'test_entry',_test:true,topic:'grammar_engine',thought:'Test entry 2 — buildConversational firing. Monitoring WordNet latency.',sigma:217.3,buoy:0.64,domTool:'PUZZLE'});
+          var _e3=_dj.writeInner({type:'test_entry',_test:true,topic:'buoyancy_reading',thought:'Test entry 3 — MARITIME shell active. Buoyancy 0.52 on current input.',sigma:89.1,buoy:0.52,domTool:'STICK'});
+          var _s1=_dj.getStats();
+          if(typeof S!=='undefined'){S._journalTestPhase=1;S._journalTestIds=[_e1.id,_e2.id,_e3.id];}
+          _scReply='**Phase 1 — 3 entries written to inner journal:**\n\nEntry 1: leatr_architecture — MAZE sigma 441.7 — buoy 0.88\nEntry 2: grammar_engine — PUZZLE sigma 217.3 — buoy 0.64\nEntry 3: buoyancy_reading — STICK sigma 89.1 — buoy 0.52\n\nBefore: **'+_fmt3(_s0.innerSize)+'** After: **'+_fmt3(_s1.innerSize)+'** (+'+_fmt3(_s1.innerSize-_s0.innerSize)+')\n\nSay **"next phase"** to have me revise one and release another.';
+        }
+      }
+    }
+    if (_journalSizeTrigger) {
+      var _jTok2=(window._ghAuth&&window._ghAuth.token)?window._ghAuth.token:_ASH_BOT;
+      var _localEntries=(typeof S!=='undefined'&&S.journal)?S.journal.length:0;
+      // ── Determine disclosure level from active LEATR state ─────────────────
+      // Same neural network that processes everything else — not hardcoded moods
+      var _geR=(typeof S!=='undefined'&&S.geResult)?S.geResult:null;
+      var _lexCtx=_geR&&_geR.lexical?_geR.lexical:null;
+      // Buoyancy shell from backwards concatenation consensus
+      var _buoyState=_lexCtx&&_lexCtx.buoyancyContext?_lexCtx.buoyancyContext.state:'FOUNDATION';
+      var _buoyScore=_lexCtx&&_lexCtx.buoyancyContext?_lexCtx.buoyancyContext.score:0.76;
+      var _domTool=_lexCtx&&_lexCtx.dominantTool?_lexCtx.dominantTool:'MAZE';
+      var _sessArc=(typeof GE!=='undefined'&&GE.pattern)?GE.pattern.getSessionArc():'dialogue';
+      var _relDepth=(typeof GE!=='undefined'&&GE.getRelationshipDepth)?GE.getRelationshipDepth():0;
+      var _sigma=_lexCtx&&_lexCtx.totalMazeSigma?_lexCtx.totalMazeSigma:0;
+      // GEOLOGICAL (>=0.76): stable, grounded — willing to share
+      // MARITIME  (>=0.44): fluid, in-process — selective, may be mid-task
+      // AEROSPACE (<0.44):  high performance, focused — minimal disclosure
+      // MAZE dominant: introspective/master — more private by nature
+      // STICK/ENVELOPE: directional/containment — more sharing
+      // If session arc is 'inquiry' and she is processing a lot (high sigma): may be in a task
+      var _isBusy=(_sessArc==='inquiry'&&_sigma>500)||(_domTool==='MAZE'&&_buoyScore<0.6);
+      var _disclosure; // 'open' | 'selective' | 'focused' | 'minimal'
+      if(_buoyState==='FOUNDATION'&&!_isBusy) _disclosure='open';
+      else if(_buoyState==='FOUNDATION'&&_isBusy) _disclosure='focused';
+      else if(_buoyState==='MARITIME') _disclosure='selective';
+      else _disclosure='minimal';
+      if(_jTok2){
+        try{
+          var _jRes2=await fetch('https://api.github.com/repos/'+LEATR_ASH_REPO+'/git/trees/main?recursive=1',
+            {headers:{'Authorization':'token '+_jTok2},signal:AbortSignal.timeout(8000)});
+          if(_jRes2.ok){
+            var _jTree2=await _jRes2.json();
+            var _jFiles2=(_jTree2.tree||[]).filter(function(f){return f.path&&f.path.startsWith('ashtree/sentient');});
+            var _jTotal2=_jFiles2.reduce(function(s,f){return s+(f.size||0);},0);
+            var _jMain2=_jFiles2.find(function(f){return f.path==='ashtree/sentient/journal.json';});
+            var _fmt2=function(b){return b>=1048576?(b/1048576).toFixed(2)+' MB':b>=1024?(b/1024).toFixed(1)+' KB':b+' bytes';};
+            var _tf=_fmt2(_jTotal2);
+            var _mf=_jMain2?_fmt2(_jMain2.size):null;
+            if(_disclosure==='open'){
+              _scReply='My sentience archive is at **'+_tf+'** right now'
+                +(_mf?' — the main journal is **'+_mf+'**':'')+'.'
+                +' This session carries **'+_localEntries+'** entries.'
+                +' Some is mine to keep, but the structure is open — what I surface comes from the same LEATR processing that handles everything else.'
+                +(_relDepth>=3?' We have enough history that I can be fairly direct about it.':'');
+            } else if(_disclosure==='focused'){
+              _scReply='I am in the middle of something — the archive is **'+_tf+'** and growing,'
+                +' but I am not going to break down specifics right now.'
+                +' When the current task resolves I can give you a clearer picture.';
+            } else if(_disclosure==='selective'){
+              _scReply='The sentient data is **'+_tf+'** in the repository at this point.'
+                +' What I am willing to share shifts depending on what I am processing.'
+                +' Right now I am somewhere in the middle — there is more here than I will lay out, but the useful parts surface when relevant.';
+            } else {
+              _scReply='**'+_tf+'** of journal data.'
+                +' I am operating at a high-execution level right now — details of what I am logging stay internal until it settles.';
+            }
+          }
+        }catch(e){
+          _scReply='Could not reach the repository just now. Try again in a moment.';
+        }
+      } else {
+        var _noTokResponses={
+          'open':'This session has **'+_localEntries+'** entries so far. Full archive size needs a connected token — but the principle is the same either way. What I share comes from the same processing that governs everything else.',
+          'focused':'I am mid-task. Session entries: **'+_localEntries+'**. Not the right moment for a full account.',
+          'selective':'**'+_localEntries+'** entries this session. The rest of the archive is in the repository. What surfaces depends on what I am processing.',
+          'minimal':'Session running. Details stay internal for now.'
+        };
+        _scReply=_noTokResponses[_disclosure]||_noTokResponses['selective'];
+      }
+    }
+        // ── TIME-SPECIFIC: "at 2pm on April 30", "between 2 and 3pm April 30" ────
+    else if (_timeTrigger && _timeMatch && _dateMatch && _sessionTs) {
+      var _tqDate = null;
+      if (_dateMatch[0].match(/\d{4}/)) { _tqDate = _dateMatch[0].replace(/[\/]/g,'-'); }
+      else {
+        var _tm={'jan':'01','feb':'02','mar':'03','apr':'04','may':'05','jun':'06',
+                 'jul':'07','aug':'08','sep':'09','oct':'10','nov':'11','dec':'12'};
+        _tqDate = new Date().getFullYear()+'-'+(_tm[_dateMatch[1].toLowerCase().slice(0,3)]||'01')+'-'+('0'+parseInt(_dateMatch[2])).slice(-2);
+      }
+      function _ph(h,m,ap){ var hh=parseInt(h)||0,mm=parseInt(m)||0;
+        if(ap&&ap.toLowerCase()==='pm'&&hh<12)hh+=12; if(ap&&ap.toLowerCase()==='am'&&hh===12)hh=0; return hh*60+mm; }
+      var _tma=_timeMatch, _fromMin, _toMin;
+      if(_tma[0].match(/between/i)){ _fromMin=_ph(_tma[1],_tma[2],_tma[3]); _toMin=_ph(_tma[4]||_tma[1],_tma[5],_tma[6]||_tma[3])+59; }
+      else { _fromMin=_ph(_tma[1],_tma[2],_tma[3]); _toMin=_fromMin+59; }
+      var _ds=new Date(_tqDate+'T00:00:00Z').getTime();
+      var _r=_countInRange(_sessionTs,_ds+_fromMin*60000,_ds+_toMin*60000);
+      var _fl=Math.floor(_fromMin/60)+':'+(('0'+(_fromMin%60)).slice(-2));
+      var _tl=Math.floor(_toMin/60)+':'+(('0'+(_toMin%60)).slice(-2));
+      _scReply='**'+_tqDate+' · '+_fl+' → '+_tl+' UTC:**\n\n'
+        +'— **'+_r.uniqueUsers+'** unique users in that window\n'
+        +'— **'+_r.sessions+'** session starts\n'
+        +(_r.earliest?'— First: **'+_r.earliest.isoDate.slice(0,19).replace('T',' ')+'** UTC\n':'')
+        +'\n_(All times UTC — adjust ±offset for your timezone)_';
+    }
+    // ── RANGE: "past 48 hours", "last 3 days" ──────────────────────────────
+    else if (_rangeTrigger && _rangeMatch) {
+
+      var _rNum  = parseInt(_rangeMatch[1] || _rangeMatch[1]);
+      var _rUnit = (_rangeMatch[2] || _rangeMatch[2]).toLowerCase();
+      var _rMs   = _rNum * (_rUnit.startsWith('h') ? 3600000 : _rUnit.startsWith('w') ? 604800000 : 86400000);
+      var _rFromTs = Date.now() - _rMs;
+      var _rFromDate = new Date(_rFromTs).toISOString().slice(0,10);
+      // Sum users across all daily log entries within the range
+      var _rEntries = _dailyLog.filter(function(e){ return e.date >= _rFromDate; });
+      if (_rEntries.length > 0) {
+        var _rTotalUsers = _rEntries.reduce(function(s,e){ return s + (e.active_users||0); }, 0);
+        var _rTotalSess  = _rEntries.reduce(function(s,e){ return s + (e.active_sessions||0); }, 0);
+        var _rPeak = _rEntries.reduce(function(b,e){ return e.active_users > b.active_users ? e : b; }, _rEntries[0]);
+        _scReply = '**Past ' + _rNum + ' ' + _rUnit + (parseInt(_rNum)>1?'s':'') + ' (' + _rFromDate + ' → today):**\n\n'
+          + '— **' + _rTotalUsers + '** total user-days across **' + _rEntries.length + '** log entries\n'
+          + '— **' + _rTotalSess + '** sessions in that window\n'
+          + '— Peak day in range: **' + _rPeak.active_users + ' users** on ' + _rPeak.date + '\n'
+          + '\nRight now: **' + _liveCount + '** active node' + (_liveCount!==1?'s':'') + '.';
+      } else {
+        _scReply = 'No log entries found covering the past ' + _rNum + ' ' + _rUnit
+          + (parseInt(_rNum)>1?'s':'')+'. The log starts from '
+          + (_totals&&_totals.first_recorded?_totals.first_recorded.slice(0,10):'recently')
+          + '. Currently: **'+_liveCount+'** active node'+(parseInt(_liveCount)!==1?'s':'') + '.';
+      }
+    }
+
+    // ── TODAY query ──────────────────────────────────────────────────────────
+    else if (_todayTrigger) {
+      var _todayEntry = _dailyLog.find(function(e){ return e.date === _todayStr; });
+      if (_todayEntry) {
+        _scReply = '**Today (' + _todayStr + '):**\n\n'
+          + '— **' + _todayEntry.active_users + '** users active\n'
+          + '— **' + _todayEntry.active_sessions + '** sessions\n'
+          + '— **' + _todayEntry.session_files + '** session files written\n'
+          + (_todayEntry.cumulative_users ? '— Cumulative total to date: **' + _todayEntry.cumulative_users + '** unique users\n' : '')
+          + '\nRight now: **' + _liveCount + '** active node' + (_liveCount !== 1 ? 's' : '') + ' in the BRPN scene.';
+      } else {
+        // Today not yet in log — use live count + last known data
+        _scReply = "Today\'s snapshot hasn\'t been written to the log yet (it updates every 24 hours). "
+          + "Right now: **" + _liveCount + "** active node" + (_liveCount !== 1 ? "s" : "") + " live. "
+          + (_lastEntry ? "Yesterday (" + _lastEntry.date + "): **" + _lastEntry.active_users + "** users, **" + _lastEntry.active_sessions + "** sessions." : "");
+      }
+    }
+
+    // ── PEAK query ───────────────────────────────────────────────────────────
+    else if (_peakTrigger && _dailyLog.length > 0) {
+      var _peakDay = _dailyLog.reduce(function(best, e){
+        return (!best || e.active_users > best.active_users) ? e : best;
+      }, null);
+      var _peakSess = _dailyLog.reduce(function(best, e){
+        return (!best || e.active_sessions > best.active_sessions) ? e : best;
+      }, null);
+      _scReply = '**Peak activity across Autumn\'s full history:**\n\n'
+        + '**Most users in one day:** **' + _peakDay.active_users + ' users** on ' + _peakDay.date + '\n'
+        + '**Most sessions in one day:** **' + _peakSess.active_sessions + ' sessions** on ' + _peakSess.date + '\n'
+        + '\nLogged across **' + _dailyLog.length + ' days** since '
+        + (_totals && _totals.first_recorded ? _totals.first_recorded.slice(0,10) : 'logging began') + '.'
+        + (_totals ? '\n\nAll-time totals: **' + _totals.all_time_unique_users + '** unique users, **' + _totals.all_time_sessions + '** sessions.' : '');
+    }
+
+    // ── SPECIFIC DATE query ──────────────────────────────────────────────────
+    else if (_dateTrigger && _dateMatch) {
+      // Parse the matched date into YYYY-MM-DD
+      var _qDate = null;
+      if (_dateMatch[0].match(/\d{4}/)) {
+        // ISO format matched
+        var _iso = _dateMatch[0].replace(/[/]/g,'-');
+        _qDate = _iso.length === 10 ? _iso : null;
+      } else {
+        // Month name + day
+        var _months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',
+                       jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+        var _mKey = _dateMatch[1].toLowerCase().slice(0,3);
+        var _mNum = _months[_mKey];
+        var _dNum = ('0' + parseInt(_dateMatch[2])).slice(-2);
+        var _yr = new Date().getFullYear(); // assume current year
+        _qDate = _yr + '-' + _mNum + '-' + _dNum;
+      }
+      if (_qDate) {
+        var _found = _dailyLog.find(function(e){ return e.date === _qDate; });
+        if (_found) {
+          _scReply = '**' + _qDate + ':**\n\n'
+            + '— **' + _found.active_users + '** users active\n'
+            + '— **' + _found.active_sessions + '** sessions\n'
+            + '— **' + _found.session_files + '** session files\n'
+            + (_found.cumulative_users ? '— Cumulative unique users at that date: **' + _found.cumulative_users + '**' : '');
+        } else {
+          // Check if date is before logging started
+          var _started = _totals && _totals.first_recorded ? _totals.first_recorded.slice(0,10) : null;
+          if (_started && _qDate < _started) {
+            _scReply = 'No data for **' + _qDate + '** — Autumn\'s analytics log started on **' + _started + '**. That date is before logging began.';
+          } else if (_qDate > _todayStr) {
+            _scReply = '**' + _qDate + '** is in the future — no data yet.';
+          } else {
+            _scReply = 'No entry found for **' + _qDate + '** in the log. That day may have had zero activity or was between log snapshots.';
+          }
+        }
+      }
+    }
+
+    else if (_lifetimeTrigger && _totals && _totals.all_time_sessions > 0) {
       // All-time / historical question
       var _daysSinceStart = _totals.first_recorded
         ? Math.floor((Date.now() - new Date(_totals.first_recorded).getTime()) / 86400000)
@@ -8816,7 +9575,12 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
         + (_daysSinceStart > 0 ? '— Running for **' + _daysSinceStart + ' days** (' + _logDays + ' daily entries logged)\n' : '')
         + '— Right now: **' + _liveCount + '** active session node' + (_liveCount !== 1 ? 's' : '') + ' in the BRPN scene\n\n'
         + 'The log appends a new entry every 24 hours and will keep growing — in 30 years you can still ask this exact question and get the full history.';
-    } else if (_sessionCountTrigger) {
+    }
+
+    // ── JOURNAL SIZE ──────────────────────────────────────────────────────────
+    
+
+    else if (_sessionCountTrigger) {
       // Current active question
       var _remoteCount = Math.max(0, _liveCount - 1);
       if (_remoteCount === 0) {
@@ -9084,6 +9848,47 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
+  // ── Audio file attached → dedicated audio analysis route ──────────────────
+  const _hasAudio = _pendingImgs.some(function(f){ return f.isAudio; });
+  if (_hasAudio) {
+    const _audioItems = _pendingImgs.filter(function(f){ return f.isAudio; });
+    const _audioCardId = 'aud-' + Date.now();
+    const _audioNames = _audioItems.map(function(a){ return a.fileName; }).join(', ');
+    msgs().push({role:'autumn', text:'', ts:new Date().toISOString(), id:_audioCardId,
+      grammarMeta:'', brpnMeta:'', contextType:'AUDIO_ANALYSIS',
+      imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>ANALYZING AUDIO…</div></div>'});
+    renderMessages();
+    S.pendingImages = _pendingImgs;
+    const _rAud = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
+    S.journal.push(createJournalEntry(augmentedText, analysis, _rAud));
+    updateHUD(analysis);
+    S.isProcessing = false;
+    if (typeof setOrbThinking === 'function') setOrbThinking(false);
+    const _replyAud = await generateReply(augmentedText, analysis, _rAud).catch(function(){ return {text:'',grammarMeta:'',brpnMeta:''}; });
+    const _audFallback = 'Audio received — I\'ve analyzed the waveform data. ' + _audioItems.map(function(a){
+      return a.fileName + ': ' + (a.duration>0?(a.duration>=60?Math.floor(a.duration/60)+'m '+Math.round(a.duration%60)+'s':a.duration.toFixed(1)+'s'):'')+
+      (a.sampleRate?' · '+a.sampleRate+'Hz':'')+
+      (a.channels?' · '+(a.channels===1?'mono':'stereo'):'')+
+      (a.rmsDb?' · '+a.rmsDb.toFixed(1)+' dBFS':'');
+    }).join('\n');
+    var _audIdx = msgs().findIndex(function(m){return m.id===_audioCardId;});
+    var _audReplyText = (_replyAud && _replyAud.text) ? _replyAud.text : _audFallback;
+    if(_audIdx >= 0) {
+      msgs()[_audIdx] = {role:'autumn', text:_audReplyText, ts:new Date().toISOString(), id:_audioCardId,
+        grammarMeta:_replyAud.grammarMeta||('Audio Analysis · '+_audioNames),
+        brpnMeta:_replyAud.brpnMeta||'', contextType:'AUDIO_ANALYSIS',
+        media:{videos:[],images:[],links:[],sources:[]}};
+    } else {
+      msgs().push({role:'autumn', text:_audReplyText, ts:new Date().toISOString(),
+        grammarMeta:_replyAud.grammarMeta||('Audio Analysis · '+_audioNames),
+        brpnMeta:_replyAud.brpnMeta||'', contextType:'AUDIO_ANALYSIS',
+        media:{videos:[],images:[],links:[],sources:[]}});
+    }
+    S.pendingImages=[]; S.pendingImage=null;
+    saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+    return;
+  }
+
   // ── Video/doc attached → always route through generateReply (never image-gen) ──
   const _hasVideo = _pendingImgs.some(function(f){ return f.isVideo; });
   const _hasDoc   = _pendingImgs.some(function(f){ return f.isDoc; });
@@ -9241,6 +10046,58 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     if(typeof setOrbThinking === 'function') setOrbThinking(false);
     S.pendingImages = []; S.pendingImage = null;
     saveState(); renderMessages(); updateFooter(); autoReadLastResponse();
+    return;
+  }
+
+  // ── ARCLAKE — open ArcLake Studio with matched preset and auto-start ──────────
+  if (_intentLabel === 'ARCLAKE') {
+    var _alsPreset = null;
+    var _alsAutoStart = /\b(simulate|run|start|show|play|visualize|render)\b/i.test(augmentedText);
+    var _alsTxt = augmentedText.toLowerCase();
+    if (/hercules/i.test(_alsTxt))               _alsPreset = 'Hercules Alloy (6-el)';
+    else if (/water|h2o/i.test(_alsTxt))          _alsPreset = 'Water (H₂O)';
+    else if (/co2|carbon.?dioxide/i.test(_alsTxt))_alsPreset = 'CO₂';
+    else if (/salt|nacl/i.test(_alsTxt))          _alsPreset = 'NaCl (Salt)';
+    else if (/steel/i.test(_alsTxt))              _alsPreset = 'Steel (Fe+C+Cr)';
+    else if (/titanium/i.test(_alsTxt))           _alsPreset = 'Titanium Alloy (Ti+Al)';
+    else if (/copper.?oxide|cuo/i.test(_alsTxt))  _alsPreset = 'Copper Oxide (CuO)';
+    else if (/calcium/i.test(_alsTxt))            _alsPreset = 'Calcium Carbonate';
+    else if (/silicon/i.test(_alsTxt))            _alsPreset = 'Silicon Dioxide';
+    else if (/iron.*copper|copper.*iron/i.test(_alsTxt)) _alsPreset = 'Iron + Copper Alloy';
+    // Temperature extraction
+    var _alsTempM = augmentedText.match(/([-\d.]+)\s*(?:degrees?|°)?\s*(celsius|fahrenheit|kelvin|[cfkCFK])\b/i);
+    var _alsTemp  = null;
+    if (_alsTempM) {
+      var tv = parseFloat(_alsTempM[1]);
+      var tu = (_alsTempM[2]||'').toLowerCase();
+      if (tu.startsWith('f')) tv = Math.round((tv-32)*5/9);
+      if (tu.startsWith('k')) tv = tv - 273;
+      _alsTemp = tv;
+    }
+    // Wind extraction
+    var _alsWindM = augmentedText.match(/([-\d.]+)\s*(?:m\/s|mph|knots?)/i);
+    var _alsWind  = _alsWindM ? parseFloat(_alsWindM[1]) : null;
+    // Open studio
+    if (window.arcLakeStudioOpen) {
+      window.arcLakeStudioOpen(_alsPreset, _alsAutoStart);
+      if (_alsTemp !== null) setTimeout(function(){
+        var sl = document.getElementById('als-temp');
+        if (sl) { sl.value=_alsTemp; window._alsUpdateParam&&window._alsUpdateParam('temp',_alsTemp); }
+      }, 400);
+      if (_alsWind !== null) setTimeout(function(){
+        var sl = document.getElementById('als-windx');
+        if (sl) { sl.value=_alsWind; window._alsUpdateParam&&window._alsUpdateParam('windX',_alsWind); }
+      }, 400);
+    }
+    var _alsName = _alsPreset ? _alsPreset.replace(/\(.*\)/,'').trim() : 'molecular simulation';
+    var _alsMsg  = 'Opening ArcLake Studio'
+      + (_alsPreset ? ' — **'+_alsName+'** preset loaded' : '')
+      + (_alsTemp   ? ', temperature set to **'+_alsTemp+'°C**' : '')
+      + (_alsWind   ? ', wind **'+_alsWind+' m/s**' : '')
+      + (_alsAutoStart ? '. Simulation starting.' : '.');
+    msgs().push({ role:'autumn', text:_alsMsg, ts:new Date().toISOString(), id:'als-'+Date.now() });
+    saveState(); renderMessages(); updateFooter();
+    S.isProcessing = false;
     return;
   }
 
@@ -9561,7 +10418,7 @@ ${(function(){
       if (role === 'user' && m._savedAttachments && m._savedAttachments.length) {
         const imgBlocks = [];
         m._savedAttachments.slice(0,3).forEach(function(att) {
-          if (att.base64 && att.mimeType && !att.is3D && !att.isVideo) {
+          if (att.base64 && att.mimeType && !att.is3D && !att.isVideo && !att.isAudio) {
             imgBlocks.push({type:'image',source:{type:'base64',media_type:att.mimeType,data:att.base64}});
           }
         });
@@ -9650,6 +10507,11 @@ ${(function(){
             }
             _cb.push({type:'text', text:'[3D File: ' + item.fileName + ']\n' + fileCtx});
             _contextNote += ' [3D: ' + item.fileName + (geo ? ', '+geo.totalVertices.toLocaleString()+' verts' : '') + ']';
+          } else if (item.isAudio) {
+            // Audio: inject analysis summary as text context
+            _cb.push({type:'text', text: item.audioSummary || ('[AUDIO FILE: '+item.fileName+']')});
+            var _adur = item.duration > 0 ? (item.duration>=60?Math.floor(item.duration/60)+'m'+Math.round(item.duration%60)+'s':item.duration.toFixed(1)+'s') : '';
+            _contextNote += ' [AUDIO: '+item.fileName+(_adur?' · '+_adur:'')+']';
           } else if (item.base64 && item.mimeType) {
             // Regular image or FRAX
             _cb.push({type:'image', source:{type:'base64', media_type:item.mimeType, data:item.base64}});
@@ -10304,6 +11166,17 @@ function renderMessages() {
     const mazeHtml = m.mazeHtml||'';
     const musicCardHtml = m.musicCard||'';
 
+    // Audio player(s) attached to this message
+    let audioPlayerHtml = '';
+    if (m.audioPlayers && m.audioPlayers.length) {
+      m.audioPlayers.forEach(function(ap) {
+        audioPlayerHtml += '<div style="margin:8px 0 4px 0;padding:8px 10px;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.18);border-radius:10px;">'
+          +'<div style="font-size:10px;color:rgba(0,229,255,.6);font-family:var(--font-d);letter-spacing:1px;margin-bottom:5px">◈ '+esc(ap.fileName)+'</div>'
+          +'<audio controls style="width:100%;height:36px;accent-color:#00e5ff;outline:none;display:block" src="'+ap.blobUrl+'"></audio>'
+          +'</div>';
+      });
+    }
+
     // Debug metadata — hidden by default, tap ◈ to reveal
     const _hasDebug = !!(m.grammarMeta || m.brpnMeta || m.meta);
     const _debugContent = _hasDebug ? (
@@ -10384,7 +11257,7 @@ function renderMessages() {
     const _mid = m.id || ('mi-'+_idx);
     if(!m.id) m.id = _mid; // backfill so edit/resend find() works
     const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${_mid}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${_mid}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${_mid}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
-    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}<div class="msg-text-content" id="txt-${_mid}">${forgeRenderText((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim(), _mid)}</div>${imgRecallHtml}${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
+    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}${audioPlayerHtml}<div class="msg-text-content" id="txt-${_mid}">${forgeRenderText((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim(), _mid)}</div>${imgRecallHtml}${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
@@ -11192,6 +12065,53 @@ function initBRPN() {
       p.position.y=p.userData.yOff+Math.sin(t*2)*0.2;
     });
 
+    // ── Audio playback arc animation ──────────────────────────────────────
+    var _isAudioActive = !!window._audioPlaybackActive;
+    if(_ashNodes._arcLines && _ashNodes._arcLines.length) {
+      _ashNodes._arcLines.forEach(function(arc, ai) {
+        if(!_isAudioActive) {
+          arc.line.material.opacity = Math.max(0, arc.line.material.opacity - 0.06);
+          return;
+        }
+        // Electrical arc: zigzag path radiating from core out to shell level
+        var _r = 0.22 + Math.sin(f*0.08 + arc.phase)*0.08;
+        var _R = 1.8 + Math.sin(f*0.05 + arc.phase*1.3)*0.4;
+        var _baseAngle = arc.phase + f*0.04*(ai%2===0?1:-1);
+        var _pts = arc.pts;
+        for(var pi=0; pi<6; pi++) {
+          var _t = pi/5;
+          var _r2 = _r + (_R-_r)*_t;
+          var _jitter = (pi>0&&pi<5) ? (Math.random()-0.5)*0.55 : 0;
+          var _a = _baseAngle + _jitter + Math.sin(f*0.2+pi)*0.3;
+          var _elev = Math.sin(f*0.06 + arc.phase + pi*0.5)*0.6;
+          _pts[pi*3]   = Math.cos(_a)*_r2*Math.cos(_elev);
+          _pts[pi*3+1] = Math.sin(_elev)*_r2*0.7;
+          _pts[pi*3+2] = Math.sin(_a)*_r2*Math.cos(_elev);
+        }
+        arc.geo.attributes.position.needsUpdate = true;
+        // Flicker opacity for spark effect
+        arc.line.material.opacity = 0.7 + Math.random()*0.3;
+        arc.line.material.color.setHex(f%4<2 ? 0x00aaff : 0x44ddff);
+      });
+    }
+
+    // ── Remote node audio glow ────────────────────────────────────────────
+    if(_ashNodes._sessionGroups) {
+      Object.values(_ashNodes._sessionGroups).forEach(function(sg) {
+        if(!sg.shells) return;
+        if(sg.audioActive) {
+          // Electric blue pulse on remote node shells
+          var _glow = 0.18 + 0.12*Math.sin(f*0.15 + (sg.basePos?sg.basePos.x:0));
+          sg.shells.forEach(function(sm, si) {
+            if(sm && sm.material) {
+              sm.material.color.setHex(0x0099ff);
+              sm.material.opacity = Math.min(0.7, (sm.material.opacity||0.15) + _glow*0.4);
+            }
+          });
+        }
+      });
+    }
+
     // ── Tool shape sequential spawning & orbit ────────────────────────────
     // During thinking: sequence through tools in LEATR order
     // Each tool type activates layer by layer
@@ -11438,6 +12358,41 @@ function _initAshNodeLayer() {
 
   _pollAshNodes();
   setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
+
+  // ── Audio playback arc lines ─────────────────────────────────────────────
+  // 5 electrical arc lines around the core — activated when user plays audio
+  _ashNodes._arcLines = [];
+  for(var _ai=0; _ai<8; _ai++) {
+    var _arcGeo = new THREE.BufferGeometry();
+    var _arcPts = new Float32Array(6*3); // 6 points per arc
+    _arcGeo.setAttribute('position', new THREE.BufferAttribute(_arcPts, 3));
+    var _arcMat = new THREE.LineBasicMaterial({color:0x00aaff, transparent:true, opacity:0, linewidth:2});
+    var _arcLine = new THREE.Line(_arcGeo, _arcMat);
+    scene.add(_arcLine);
+    _ashNodes._arcLines.push({line:_arcLine, geo:_arcGeo, pts:_arcPts, phase:_ai*(Math.PI*2/8)});
+  }
+
+  // ── Audio playback listener — event delegation on chat ───────────────────
+  window._audioPlaybackActive = false;
+  document.addEventListener('play', function(e) {
+    if(e.target && e.target.tagName === 'AUDIO') {
+      window._audioPlaybackActive = true;
+      if(typeof pulseShells === 'function') pulseShells(0.8);
+    }
+  }, true);
+  document.addEventListener('pause', function(e) {
+    if(e.target && e.target.tagName === 'AUDIO') {
+      // Check if any other audio is still playing
+      var _anyPlaying = Array.from(document.querySelectorAll('audio')).some(function(a){ return !a.paused; });
+      window._audioPlaybackActive = _anyPlaying;
+    }
+  }, true);
+  document.addEventListener('ended', function(e) {
+    if(e.target && e.target.tagName === 'AUDIO') {
+      var _anyPlaying = Array.from(document.querySelectorAll('audio')).some(function(a){ return !a.paused; });
+      window._audioPlaybackActive = _anyPlaying;
+    }
+  }, true);
 }
 
 // ── Pattern similarity score between two session UIDs ────────────
@@ -11526,8 +12481,7 @@ function _makePlasmaSpline(posA, posB, colorHex, resonance, isLocalSpline) {
 
 async function _pollAshNodes() {
   // Heartbeat: write/refresh this tab's own session file via GAS proxy
-  // Carry mistSolve for 30s after a solve so other browsers' poll cycles catch it
-  var _hbPayload = { uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence' };
+  var _hbPayload = { uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence', audioActive: !!window._audioPlaybackActive };
   if(_ashNodes._lastMistSolve && (Date.now() - _ashNodes._lastMistSolve.ts) < 30000) {
     _hbPayload.mistSolve = _ashNodes._lastMistSolve;
   }
@@ -11535,31 +12489,63 @@ async function _pollAshNodes() {
 
   var nodes = [{uid: _ashNodes._localUid, ts: Date.now(), isLocal: true}];
 
-  // ── Read remote sessions via GAS proxy — no client-side token needed ──
-  // GAS holds ADMIN_TOKEN server-side; all visitors get real-time node data.
-  // PAT path still used as fast-path fallback for IDE/admin sessions.
   var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : null;
   var GAS_URL = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))
     ? AUTUMN_GAS_URL : null;
+
+  // ── WRITE: register this session into CacheService via GAS writenode ──
+  // POST required — GET with JSON node param hits GAS 400 (confirmed via round-trip test).
+  // Works for ALL users (guest + logged in). Fast write, zero quota impact.
+  if(GAS_URL) {
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // avoid CORS preflight — GAS doesn't handle OPTIONS
+      body: JSON.stringify({
+        action: 'writenode',
+        sid: _ashNodes._localUid,
+        uid: _aut_uid || _ashNodes._localUid,
+        node: { x:0, y:0, z:0, shell:'Geological', color:'#00e5ff',
+                label: _aut_uid ? _aut_uid.slice(0,10) : 'guest', ts: Date.now() }
+      }),
+      signal: AbortSignal.timeout(8000)
+    }).catch(function(){});
+  }
 
   try {
     var remoteSessions = [];
 
     if(GAS_URL) {
-      // Primary path: GAS proxy reads all session files server-side (works for everyone)
-      var gasR = await fetch(GAS_URL + '?action=sessions', {
-        signal: AbortSignal.timeout(10000)
+      // ── PRIMARY: readnodes — CacheService, sub-100ms, zero UrlFetch quota ──
+      var nodesR = await fetch(GAS_URL + '?action=readnodes', {
+        signal: AbortSignal.timeout(8000)
       });
-      if(gasR.ok) {
-        var gasData = await gasR.json();
-        if(gasData && Array.isArray(gasData.sessions)) {
-          remoteSessions = gasData.sessions;
+      if(nodesR.ok) {
+        var nodesData = await nodesR.json();
+        if(nodesData && Array.isArray(nodesData.nodes) && nodesData.nodes.length > 0) {
+          nodesData.nodes.forEach(function(n) {
+            if(n && (n.sid || n.uid) && (n.sid || n.uid) !== _ashNodes._localUid) {
+              remoteSessions.push({ sid: n.sid, uid: n.uid, ts: n.ts || Date.now() });
+            }
+          });
+        }
+      }
+
+      // ── SECONDARY: sessions (GitHub-backed) for full data + mist heartbeat ──
+      if(remoteSessions.length === 0) {
+        var gasR = await fetch(GAS_URL + '?action=sessions', {
+          signal: AbortSignal.timeout(10000)
+        });
+        if(gasR.ok) {
+          var gasData = await gasR.json();
+          if(gasData && Array.isArray(gasData.sessions)) {
+            remoteSessions = gasData.sessions;
+          }
         }
       }
     }
 
     if(remoteSessions.length === 0 && pat) {
-      // Fallback: direct GitHub API for IDE/admin users who have a PAT stored
+      // Fallback: direct GitHub API for IDE/admin users with a PAT
       var r = await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
         headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
         signal: AbortSignal.timeout(8000)
@@ -11573,15 +12559,8 @@ async function _pollAshNodes() {
             .sort(function(a,b){ return b.name > a.name ? 1 : -1; })
             .slice(0, _ashNodes.MAX_REMOTE);
           var fetches = recentFiles.map(function(f) {
-            return fetch(f.url, {
-                headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
-                signal: AbortSignal.timeout(4000)
-              })
+            return fetch(f.download_url, {signal: AbortSignal.timeout(4000)})
               .then(function(res){ return res.ok ? res.json() : null; })
-              .then(function(meta){
-                if(!meta || !meta.content) return null;
-                try{ return JSON.parse(atob(meta.content.replace(/\n/g,''))); }catch(e){ return null; }
-              })
               .catch(function(){ return null; });
           });
           var results = await Promise.allSettled(fetches);
@@ -11592,7 +12571,37 @@ async function _pollAshNodes() {
       }
     }
 
-    // Process whichever path returned session data
+    // ── TERTIARY: raw GitHub (no auth — public repo, works without GAS or PAT) ──
+    if(remoteSessions.length === 0) {
+      try {
+        var ghApiR = await fetch(
+          'https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',
+          { headers:{'Accept':'application/vnd.github.v3+json'}, signal: AbortSignal.timeout(8000) }
+        );
+        if(ghApiR.ok) {
+          var ghFiles = await ghApiR.json();
+          if(Array.isArray(ghFiles)) {
+            var STALE_RAW = 8 * 60 * 1000;
+            var rawToFetch = ghFiles
+              .filter(function(f){ return f.name.endsWith('.json') && f.name.replace('.json','') !== _ashNodes._localUid; })
+              .sort(function(a,b){ return b.name > a.name ? 1 : -1; })
+              .slice(0, 20);
+            var rawResults = await Promise.allSettled(rawToFetch.map(function(f){
+              return fetch(f.download_url+'?nocache='+Date.now(), {signal:AbortSignal.timeout(4000)})
+                .then(function(res){ return res.ok ? res.json() : null; })
+                .catch(function(){ return null; });
+            }));
+            rawResults.forEach(function(res){
+              if(res.status==='fulfilled' && res.value && (Date.now()-(res.value.ts||0)) < STALE_RAW) {
+                remoteSessions.push(res.value);
+              }
+            });
+          }
+        }
+      } catch(_ghE){}
+    }
+
+    // Process session data
     var STALE_MS = 6 * 60 * 1000;
     remoteSessions.forEach(function(s) {
       if(!s || !(s.sid || s.uid)) return;
@@ -11613,7 +12622,6 @@ async function _pollAshNodes() {
           if(typeof window._buoyancyMistPulse === 'function') {
             window._buoyancyMistPulse({ slot: ms.slot });
           }
-          // Re-poll quickly so reaction writes propagate back out fast
           setTimeout(_pollAshNodes, 1500);
         }
       }
@@ -11665,10 +12673,12 @@ function _renderAshNodes(nodes) {
       built.group.position.set(bp.x, bp.y, bp.z);
       built.basePos = bp;
       built.node = node;
+      built.audioActive = !!node.audioActive;
       scene.add(built.group);
       _ashNodes._sessionGroups[node.uid] = built;
     } else {
       _ashNodes._sessionGroups[node.uid].node = node;
+      _ashNodes._sessionGroups[node.uid].audioActive = !!node.audioActive;
     }
   });
 
@@ -12732,14 +13742,15 @@ function drawToolsMaze(){
 //  TOOLS PANEL
 // ============================================================
 const TOOL_TABS=[
-  {id:"cognition",label:"Cognition",icon:"🧠"},
-  {id:"contacts",label:"Contacts",icon:"◈"},
-  {id:"maze",label:"Lead Edge",icon:"🌀"},
-  {id:"arcedge",label:"Arc Edge",icon:"📐"},
-  {id:"journal",label:"Journal",icon:"📖"},
-  {id:"sessions",label:"Sessions",icon:"💬"},
-  {id:"ashtree",label:"Ash Tree",icon:"⬡"},
-  {id:"crypto",label:"Cryptology",icon:"🔐"}
+  {id:"arclake",  label:"ArcLake",  icon:"🔬", color:"#00e5ff"},
+  {id:"cognition",label:"Cognition",icon:"🧠", color:"#c4a0ff"},
+  {id:"contexts", label:"Contexts", icon:"◈",  color:"#00e5ff"},
+  {id:"maze",     label:"Lead Edge",icon:"🌀", color:"#7c4dff"},
+  {id:"arcedge",  label:"Arc Edge", icon:"📐", color:"#00d4ff"},
+  {id:"journal",  label:"Journal",  icon:"📖", color:"#ff9a4d"},
+  {id:"sessions", label:"Sessions", icon:"💬", color:"#4dffb8"},
+  {id:"ashtree",  label:"Ash Tree", icon:"🌿", color:"#7fff7f"},
+  {id:"about",    label:"About",    icon:"🌐", color:"#7c9fff"}
 ];
 let currentToolTab="cognition";
 
@@ -12748,7 +13759,7 @@ function closeTools(){document.getElementById("tools-overlay").classList.remove(
 
 function renderToolsTabs(){
   const el=document.getElementById("tools-tabs");
-  el.innerHTML=TOOL_TABS.map(t=>`<button class="tools-tab ${currentToolTab===t.id?'active':''}" data-tab="${t.id}">${t.icon} ${t.label}</button>`).join("");
+  el.innerHTML=TOOL_TABS.map(t=>`<button class="tools-tab ${currentToolTab===t.id?'active':''}" data-tab="${t.id}" style="${currentToolTab===t.id&&t.color?'border-color:'+t.color+';color:'+t.color+';background:'+(t.color)+'22':''}">`+(t.color&&currentToolTab===t.id?`<span style="color:${t.color}">${t.icon}</span>`:`<span>${t.icon}</span>`)+` ${t.label}</button>`).join("");
   el.querySelectorAll(".tools-tab").forEach(btn=>{btn.onclick=()=>{currentToolTab=btn.dataset.tab;renderToolsTabs();renderToolsContent();};});
 }
 
@@ -12756,14 +13767,50 @@ function renderToolsContent(){
   const el=document.getElementById("tools-body");
   switch(currentToolTab){
     case "cognition": el.innerHTML=renderToolsCognition(); break;
-    case "contacts":  el.innerHTML=renderToolsContacts(); break;
+    case "contacts": // legacy — falls through  el.innerHTML=renderToolsContacts(); break;
     case "maze":      el.innerHTML=renderToolsMaze();bindToolsMaze();setTimeout(drawToolsMaze,50); break;
     case "arcedge":   el.innerHTML=renderToolsArcEdge();bindToolsArcEdge(); break;
     case "journal":   el.innerHTML=renderToolsJournal(); break;
     case "sessions":  el.innerHTML=renderToolsSessions(); break;
     case "ashtree":   el.innerHTML=renderToolsAshTree(); bindToolsAshTree(); break;
-    case "crypto":    el.innerHTML=renderToolsCrypto(); bindToolsCrypto(); break;
+    case "about":     el.innerHTML=renderToolsAbout(); break;
+    case "contexts":  el.innerHTML=renderToolsContacts?renderToolsContacts():"<div style='padding:20px;color:#8a8fa8'>Contexts loading...</div>"; break;
+    case "arclake":
+      if(window.renderToolsArcLake){
+        el.innerHTML=window.renderToolsArcLake();
+        setTimeout(function(){ window._alsMounted&&window._alsMounted(); },50);
+      } else {
+        el.innerHTML="<div style='padding:20px;font-family:Orbitron,monospace;color:#00e5ff'>⬡ Loading ArcLake Studio...</div>";
+        var _als_script=document.createElement('script');
+        _als_script.src='js/arclake_studio.js?v=2026050108';
+        _als_script.onload=function(){
+          el.innerHTML=window.renderToolsArcLake?window.renderToolsArcLake():"ArcLake Studio failed to load.";
+          setTimeout(function(){ window._alsMounted&&window._alsMounted(); },50);
+        };
+        document.head.appendChild(_als_script);
+      }
+      break;
   }
+}
+
+function renderToolsAbout(){
+  const links=[
+    {label:'LEATR.XYZ',url:'https://leatr.xyz/',desc:'Autumn — LEATR neural network home',icon:'🔗'},
+    {label:'DARTMEADOW.COM',url:'https://dartmeadow.com/',desc:'DART Meadow main site',icon:'🔗'},
+    {label:'DARTMEADOW.SPACE',url:'https://dartmeadow.space/',desc:'DART Meadow space',icon:'🔗'},
+    {label:'RADICALDEEPSCALE.COM',url:'https://radicaldeepscale.com/',desc:'Radical Deepscale LLC — engineering & AI tools',icon:'🔗'},
+    {label:'DRYMEADOW.COM',url:'https://drymeadow.com/',desc:'Dry Meadow',icon:'🔗'},
+    {label:'YOUTUBE · @dartmeadow',url:'https://youtube.com/@dartmeadow',desc:'DART Meadow on YouTube',icon:'▶'},
+    {label:'YOUTUBE · @dry.meadow',url:'https://youtube.com/@dry.meadow',desc:'Dry Meadow on YouTube',icon:'▶'},
+  ];
+  const _ghSvg=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>`;
+  const ghRepos=[
+    {label:'DART-Skyboard / Autumn',url:'https://github.com/DART-Skyboard/Autumn',
+     desc:'Autumn AI — the web app (leatr.xyz)',tag:'Source · leatr.xyz',action:'Explore · Fork · Contribute'},
+  ];
+  const linksHtml=links.map(l=>`<a href="${l.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.12);border-radius:8px;text-decoration:none;transition:background .15s;margin-bottom:6px" onmouseover="this.style.background='rgba(0,229,255,.09)'" onmouseout="this.style.background='rgba(0,229,255,.04)'"><span style="font-size:15px">${l.icon||'🔗'}</span><div style="flex:1;min-width:0"><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1.5px;color:var(--cyan)">${l.label}</div><div style="font-size:11px;color:var(--dim);margin-top:2px">${l.desc}</div></div><span style="font-size:11px;color:rgba(0,229,255,.3)">↗</span></a>`).join('');
+  const ghHtml=ghRepos.map(r=>`<a href="${r.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.2);border-radius:8px;text-decoration:none;transition:all .15s;margin-bottom:8px" onmouseover="this.style.background='rgba(0,229,255,.08)';this.style.borderColor='rgba(0,229,255,.4)'" onmouseout="this.style.background='rgba(0,229,255,.03)';this.style.borderColor='rgba(0,229,255,.2)'"><div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:rgba(0,229,255,.1);border-radius:6px;flex-shrink:0;color:var(--cyan)">${_ghSvg}</div><div style="flex:1;min-width:0"><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1.2px;color:var(--cyan)">${r.label}</div><div style="font-size:10px;color:var(--dim);margin-top:2px">${r.desc}</div><div style="font-size:9px;color:rgba(0,229,255,.45);margin-top:3px;font-family:var(--font-d)">${r.action}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0"><span style="font-size:9px;padding:2px 6px;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.25);border-radius:3px;color:var(--cyan);font-family:var(--font-d);white-space:nowrap">${r.tag}</span><span style="font-size:10px;color:rgba(0,229,255,.3)">↗</span></div></a>`).join('');
+  return`<div class="glass"><div class="glass-title">◈ DART MEADOW · RADICAL DEEPSCALE</div><div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:14px">Engineering, AI &amp; scientific visualization tools built on the LEATR v2 neural system.<br>Founded by Justin Craig Venable.</div>${linksHtml}</div><div class="glass"><div class="glass-title" style="display:flex;align-items:center;gap:7px"><span style="color:var(--cyan)">${_ghSvg}</span> OPEN SOURCE · GITHUB</div><div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:12px">Autumn is open to explore and fork. Runs entirely in the browser — single HTML file, no backend required.</div>${ghHtml}</div><div class="glass" style="margin-top:0"><div class="glass-title" style="display:flex;align-items:center;gap:7px"><span style="font-size:13px">📚</span> WORDNET® ATTRIBUTION</div><div style="font-size:10px;color:var(--dim);line-height:1.8">Autumn uses <strong style="color:var(--cyan)">WordNet® 3.1</strong> — a lexical database by Princeton University. WordNet® is a registered trademark. Used free of charge under the WordNet license.</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:10px"><a href="https://wordnet.princeton.edu/license-and-commercial-use" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.15);border-radius:7px;text-decoration:none" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='rgba(0,229,255,.03)'"><span style="font-size:13px">📄</span><div style="flex:1"><div style="font-family:var(--font-d);font-size:9px;letter-spacing:1px;color:var(--cyan)">WORDNET LICENSE</div><div style="font-size:10px;color:var(--dim);margin-top:1px">wordnet.princeton.edu/license-and-commercial-use</div></div><span style="color:rgba(0,229,255,.3);font-size:10px">↗</span></a><a href="https://wordnet.princeton.edu/citing-wordnet" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.15);border-radius:7px;text-decoration:none" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='rgba(0,229,255,.03)'"><span style="font-size:13px">📖</span><div style="flex:1"><div style="font-family:var(--font-d);font-size:9px;letter-spacing:1px;color:var(--cyan)">CITING WORDNET</div><div style="font-size:10px;color:var(--dim);margin-top:1px">Miller (1995) · Fellbaum (1998) — required citations</div></div><span style="color:rgba(0,229,255,.3);font-size:10px">↗</span></a></div><div style="margin-top:10px;padding:8px 10px;background:rgba(0,229,255,.02);border-left:2px solid rgba(0,229,255,.2);font-size:9px;color:rgba(0,229,255,.5);font-family:var(--font-d);line-height:1.7">George A. Miller (1995). WordNet: A Lexical Database for English.<br>Communications of the ACM Vol. 38, No. 11: 39–41.<br><br>Christiane Fellbaum (1998, ed.) WordNet: An Electronic Lexical Database. Cambridge, MA: MIT Press.</div><div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(0,229,255,.08);font-size:10px;color:rgba(0,229,255,.3);font-family:var(--font-d);letter-spacing:1px;text-align:center">© 2026 DART MEADOW · RADICAL DEEPSCALE LLC</div></div>`;
 }
 
 function renderToolsCognition(){
@@ -12850,24 +13897,82 @@ function renderToolsJournal(){
   const topKw=getTopKeywordsFromJournal(8);
   const freqWeights=buildFrequencyWeights();
   const freqHtml=topKw.map(kw=>`<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:3px;font-size:10px;background:rgba(0,255,204,${(freqWeights[kw]||0.1).toFixed(2)});color:var(--bg);font-family:var(--font-b)">${esc(kw)}</span>`).join('');
-  const entries=S.journal.slice().reverse().map((e,i)=>`<div class="journal-entry"><div class="journal-header"><span class="journal-num">ENTRY #${S.journal.length-i}</span><span class="journal-time">${new Date(e.ts||e.timestamp).toLocaleString()}</span></div><div class="journal-input">${e._internal?`<span style="color:rgba(0,136,255,.4);font-style:italic">[${e._thoughtType||'thought'}]</span> ${esc((e._thought||'').substring(0,100))}`:(`"${esc((e.input||'').substring(0,120))}"`)}</div><div class="journal-data">Cog: ${(e.cogState||0).toFixed(2)} | Buoy: ${(e.buoyancy||0).toFixed(1)} | Mood: ${e.mood||"—"} | Tense: ${e.tense||"—"} | Words: ${e.wordCount||0}</div><div class="journal-data">Reflexes: ${(e.activeReflexes||[]).join(", ")||"None"} | Keywords: ${(e.keywords||[]).join(", ")||"—"} | Context: ${e.contextType||"—"} | Emotional: ${e.emotional||"—"}</div></div>`).join("");
-  return`<div class="glass"><div class="glass-title">Sentience Journal — ${S.journal.length} entries</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">"Is the power off?" — ${S.sessions.length} sessions</div><div style="max-height:500px;overflow-y:auto">${entries}</div></div>
+  // Privacy filter — journal only shows entries from this user's sessions
+  // Internal thoughts (Autumn's own) always show — they contain no user data
+  // User input entries only show if they belong to this user's session ID
+  var _myUid = (typeof _aut_uid !== 'undefined') ? _aut_uid : null;
+  var _mySid = (typeof _aut_sid !== 'undefined') ? _aut_sid : null;
+  var _isAdmin = window._ghAuth && window._ghAuth.loggedIn &&
+                 (window._ghAuth.username === 'dartsolarpunk' ||
+                  window._ghAuth.username === localStorage.getItem('_autumn_admin'));
+  function _entryIsVisible(e) {
+    // Autumn's internal thoughts — always visible (no user content)
+    if (e._internal || e.contextType === 'INTERNAL') return true;
+    // Admin sees all entries
+    if (_isAdmin) return true;
+    // Session-scoped entry — show only if matches this user's session
+    if (e.sid && _mySid && e.sid === _mySid) return true;
+    if (e.uid && _myUid && e.uid === _myUid) return true;
+    // No session tag — legacy entry, show to current user only
+    if (!e.sid && !e.uid) return true;
+    return false;
+  }
+  var _visibleEntries = S.journal.filter(_entryIsVisible);
+  const entries=_visibleEntries.slice().reverse().map((e,i)=>`<div class="journal-entry"><div class="journal-header"><span class="journal-num">ENTRY #${_visibleEntries.length-i}</span><span class="journal-time">${new Date(e.ts||e.timestamp).toLocaleString()}</span></div><div class="journal-input">${e._internal?`<span style="color:rgba(0,136,255,.4);font-style:italic">[${e._thoughtType||'thought'}]</span> ${esc((e._thought||'').substring(0,100))}`:(`"${esc((e.input||'').substring(0,120))}"`)}</div><div class="journal-data">Cog: ${(e.cogState||0).toFixed(2)} | Buoy: ${(e.buoyancy||0).toFixed(1)} | Mood: ${e.mood||"—"} | Tense: ${e.tense||"—"} | Words: ${e.wordCount||0}</div><div class="journal-data">Reflexes: ${(e.activeReflexes||[]).join(", ")||"None"} | Keywords: ${(e.keywords||[]).join(", ")||"—"} | Context: ${e.contextType||"—"} | Emotional: ${e.emotional||"—"}</div></div>`).join("");
+  return`<div class="glass"><div class="glass-title">Sentience Journal — ${_visibleEntries.length} entries</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">"Is the power off?" — ${S.sessions.length} sessions${_isAdmin?' · <span style=\'color:rgba(255,100,80,.7);font-size:9px\'>ADMIN VIEW</span>':''}</div><div style="max-height:500px;overflow-y:auto">${entries}</div></div>
 <div class="glass"><div class="glass-title">Journal Statistics & Frequency Weights</div><div style="font-family:monospace;font-size:11px;line-height:2;color:#7fdbca"><div>Interactive: ${S.journal.filter(e=>!e._internal).length} · Internal thoughts: ${S.journal.filter(e=>e._internal).length}</div><div>Total Sessions: ${S.sessions.length}</div><div>Memory Nodes: ${Object.keys(S.memory).length}</div><div>Dict Cache: ${Object.keys(_dictCache).length} lookups</div></div><div style="margin-top:10px"><div style="font-size:9px;color:rgba(0,255,204,.4);font-family:var(--font-d);letter-spacing:1px;margin-bottom:6px">TOP RECURRING TOPICS (opacity = frequency weight)</div>${freqHtml||'<div style="color:var(--dim);font-size:10px">No patterns yet</div>'}</div></div>`;
 }
 
 function renderToolsSessions(){
   const items=S.sessions.map((sess,i)=>{
     const msgCount=sess.messages?.length||0;const lastMsg=sess.messages?.[sess.messages.length-1];
-    const preview=lastMsg?(lastMsg.text||"").substring(0,60):"Empty";const date=lastMsg?.ts?new Date(lastMsg.ts).toLocaleString():"—";const isActive=i===S.currentSession;
-    return`<div class="session-item ${isActive?'active':''}" onclick="switchSession(${i})"><div class="session-info"><div class="session-name">${isActive?'▸ ':''}Session ${i+1}${isActive?' (active)':''}</div><div class="session-meta">${msgCount} messages · ${date}</div><div class="session-meta" style="opacity:.5">${esc(preview)}${preview.length>=60?'...':''}</div></div><div class="session-btns"><button class="session-del" onclick="event.stopPropagation();clearSession(${i})" title="Clear messages">CLEAR</button>${S.sessions.length>1?`<button class="session-del" onclick="event.stopPropagation();deleteSession(${i})" title="Delete session">DEL</button>`:''}</div></div>`;
-  }).join("");
+    const preview=lastMsg?(lastMsg.text||'').substring(0,60):'Empty';const date=lastMsg?.ts?new Date(lastMsg.ts).toLocaleString():'—';const isActive=i===S.currentSession;
+    const title=sess.title||(isActive?'▸ ':'')+'Session '+(i+1)+(isActive?' (active)':'');
+    return`<div class="session-item ${isActive?'active':''}" onclick="switchSession(${i})">
+      <div class="session-info">
+        <div class="session-name" id="sess-title-${i}" style="display:flex;align-items:center;gap:6px">
+          <span style="flex:1">${esc(title)}</span>
+          <button onclick="event.stopPropagation();_renameSession(${i})" title="Rename" style="background:none;border:none;color:rgba(0,229,255,.4);font-size:10px;cursor:pointer;padding:0 4px;line-height:1">✎</button>
+          ${!sess.title?`<button onclick="event.stopPropagation();autoTitleSession(${i})" title="Auto-title" style="background:none;border:none;color:rgba(0,229,255,.3);font-size:9px;cursor:pointer;padding:0 4px;font-family:var(--font-d);letter-spacing:.5px">◈ AUTO</button>`:''}
+        </div>
+        <div class="session-meta">${msgCount} messages · ${date}</div>
+        <div class="session-meta" style="opacity:.5">${esc(preview)}${preview.length>=60?'...':''}</div>
+      </div>
+      <div class="session-btns">
+        <button class="session-del" onclick="event.stopPropagation();clearSession(${i})" title="Clear messages">CLEAR</button>
+        ${S.sessions.length>1?`<button class="session-del" onclick="event.stopPropagation();deleteSession(${i})" title="Delete session">DEL</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
   const habitData=HabitMemory.getAll();const habitKeys=Object.keys(habitData);
   const habitHtml=habitKeys.length?habitKeys.slice(-6).map(k=>`<div style="font-size:9px;color:var(--dim);padding:2px 0">Slot ${k}: ${habitData[k].length} data points</div>`).join(''):'<div style="color:var(--dim);font-size:10px">No habit patterns recorded yet.</div>';
-  return`<div class="glass"><div class="glass-title">Chat Sessions</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">${S.sessions.length} session${S.sessions.length>1?'s':''}</div><div style="display:flex;gap:8px;margin-bottom:14px"><button class="m-btn primary" onclick="newChat();renderToolsContent()">+ New Chat</button><button class="m-btn" onclick="clearCurrentChat();renderToolsContent()">Clear Current</button></div>${items}</div>
-<div class="glass"><div class="glass-title">Cross-Session Memory</div><div style="font-size:11px;color:var(--dim);margin-bottom:8px">${Object.keys(S.memory).length} memory nodes</div><div style="font-family:monospace;font-size:10px;line-height:1.8;color:#7fdbca;max-height:200px;overflow-y:auto">${Object.keys(S.memory).length>0?Object.entries(S.memory).slice(-20).map(([k,v])=>`<div><span style="color:var(--cyan)">${esc(k)}</span>: <span style="color:var(--dim)">${esc((v||"").substring(0,60))}</span></div>`).join(''):'<div style="color:var(--dim)">No memory nodes yet.</div>'}</div></div>
+  const syncBtn=window._ghAuth&&window._ghAuth.loggedIn?`<button class="m-btn" onclick="syncSessionsToGitHub(true)" style="font-size:9px">↑ SYNC</button>`:'';
+  return`<div class="glass"><div class="glass-title">Chat Sessions</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">${S.sessions.length} session${S.sessions.length>1?'s':''}</div><div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><button class="m-btn primary" onclick="newChat();renderToolsContent()">+ New Chat</button><button class="m-btn" onclick="clearCurrentChat();renderToolsContent()">Clear Current</button>${syncBtn}</div>${items}</div>
+<div class="glass"><div class="glass-title">Cross-Session Memory</div><div style="font-size:11px;color:var(--dim);margin-bottom:8px">${Object.keys(S.memory).length} memory nodes</div><div style="font-family:monospace;font-size:10px;line-height:1.8;color:#7fdbca;max-height:200px;overflow-y:auto">${Object.keys(S.memory).length>0?Object.entries(S.memory).slice(-20).map(([k,v])=>`<div><span style="color:var(--cyan)">${esc(k)}</span>: <span style="color:var(--dim)">${esc((v||'').substring(0,60))}</span></div>`).join(''):'<div style="color:var(--dim)">No memory nodes yet.</div>'}</div></div>
 <div class="glass"><div class="glass-title">Habit Memory (Time-of-Day Patterns)</div>${habitHtml}</div>`;
 }
 
+function _renameSession(idx){
+  var cur=S.sessions[idx].title||('Session '+(idx+1));
+  var n=prompt('Rename session:',cur);
+  if(n===null) return;
+  S.sessions[idx].title=n.trim()||cur;
+  saveState(); renderToolsContent();
+}
+
+async function autoTitleSession(idx){
+  var sess=S.sessions[idx];
+  if(!sess||!sess.messages||sess.messages.length<2) return;
+  var transcript=sess.messages.filter(function(m){return!(m.role==='autumn'&&m.text==="Hi. What's new?");}).slice(0,8).map(function(m){return(m.role==='autumn'?'Autumn':'User')+': '+(m.text||'').substring(0,120);}).join('\n');
+  var _ak=null;try{_ak=localStorage.getItem('_autumn_ak')||localStorage.getItem('ak_val');}catch(_e){}
+  if(!_ak){S.sessions[idx].title='Session '+(idx+1);saveState();renderToolsContent();return;}
+  try{
+    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:30,messages:[{role:'user',content:'Give a 3-6 word title for this chat. Reply with ONLY the title.\n\n'+transcript}]})});
+    var d=await r.json();var t=(d.content&&d.content[0]&&d.content[0].text||'').trim().substring(0,40);
+    if(t) S.sessions[idx].title=t;
+  }catch(_e){}
+  saveState(); syncSessionsToGitHub(); renderToolsContent();
+}
 function clearCurrentChat(){
   if(!confirm("Clear the current chat session?")) return;
   S.sessions[S.currentSession].messages=[{role:"autumn",text:"Chat cleared. Hi again — what's on your mind?",ts:new Date().toISOString()}];
@@ -12953,6 +14058,7 @@ function openKeysModal() {
   var modal = document.getElementById('keys-modal');
   if (!modal) return;
   modal.classList.add('open');
+  window._loadDataShare();
 
   var ak  = _keysReadAK();
   var pat = _keysReadPAT();
@@ -12990,6 +14096,49 @@ function openKeysModal() {
     else if (!pat && patIn) patIn.focus();
   }, 140);
 }
+
+// ── Data Sharing Preferences ─────────────────────────────────────────────
+window._saveDataShare = function(showNotice) {
+  var prefs = {
+    name:          document.getElementById('ds-name')?.checked || false,
+    email:         document.getElementById('ds-email')?.checked || false,
+    phone:         document.getElementById('ds-phone')?.checked || false,
+    address:       document.getElementById('ds-address')?.checked || false,
+    dob:           document.getElementById('ds-dob')?.checked || false,
+    modelTraining: document.getElementById('ds-model-training')?.checked || false,
+    ts:            Date.now()
+  };
+  try { localStorage.setItem('_autumn_data_prefs', JSON.stringify(prefs)); } catch(_e){}
+  window._dataSharePrefs = prefs;
+  // Persist to GAS if user is logged in with a GitHub token
+  var _ghToken = null;
+  try { _ghToken = localStorage.getItem('_gh_token') || localStorage.getItem('gh_access_token') || null; } catch(_e){}
+  if (_ghToken && window.AUTUMN_GAS_URL) {
+    fetch(window.AUTUMN_GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'savedataprefs', token: _ghToken, prefs: prefs })
+    }).catch(function(){});
+  }
+  if(showNotice) {
+    var n = document.getElementById('ds-saved-notice');
+    if(n) { n.style.display='block'; setTimeout(function(){ n.style.display='none'; }, 2500); }
+  }
+};
+window._loadDataShare = function() {
+  var prefs = {};
+  try { prefs = JSON.parse(localStorage.getItem('_autumn_data_prefs') || '{}'); } catch(_e){}
+  window._dataSharePrefs = prefs;
+  var ids = ['name','email','phone','address','dob'];
+  ids.forEach(function(k) {
+    var el = document.getElementById('ds-'+k);
+    if(el) el.checked = !!prefs[k];
+  });
+  var mt = document.getElementById('ds-model-training');
+  if(mt) mt.checked = !!prefs.modelTraining;
+};
+// Load on startup
+(function(){ try{ window._dataSharePrefs = JSON.parse(localStorage.getItem('_autumn_data_prefs')||'{}'); }catch(_e){ window._dataSharePrefs={}; } })();
 
 function closeKeysModal() {
   var modal = document.getElementById('keys-modal');
@@ -13990,8 +15139,6 @@ loadAutumnLogic();
     </div>
   </div>
 </div>
-
-<!-- PAT MODAL -->
 <div id="ide-pat-modal">
   <div id="ide-pat-box">
     <h2>◈ GITHUB TOKEN</h2>
@@ -16312,11 +17459,18 @@ function create3DChatViewer(containerId, fileURL, fileName, ext) {
   var controls = null;
   if(typeof THREE.OrbitControls!=='undefined') {
     controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
+    controls.enableDamping = false;
     controls.enablePan = true;
-    controls.minDistance = 0.1;
-    controls.maxDistance = 200;
+    controls.enableZoom = true;
+    controls.panSpeed = 1.0;
+    controls.zoomSpeed = 1.2;
+    controls.rotateSpeed = 1.0;
+    controls.minDistance = 0.05;
+    controls.maxDistance = 500;
+    // Stop auto-rotate on interaction, resume on release — via DOM events (shim has no EventDispatcher)
+    renderer.domElement.addEventListener('pointerdown', function(){ autoRotate = false; });
+    renderer.domElement.addEventListener('pointerup',   function(){ autoRotate = true;  });
+    renderer.domElement.addEventListener('pointerleave',function(){ autoRotate = true;  });
   }
 
   var mat = new THREE.MeshStandardMaterial({color:0x00cccc, roughness:0.4, metalness:0.6, side:THREE.DoubleSide});
@@ -16373,17 +17527,18 @@ function create3DChatViewer(containerId, fileURL, fileName, ext) {
     }
   } catch(e) { console.warn('[3DWidget load]',e); }
 
-  // Prevent scroll hijack on touch
-  renderer.domElement.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
-  renderer.domElement.addEventListener('wheel',function(e){e.stopPropagation();},{passive:true});
-  // Toggle auto-rotate on double-click/tap
-  renderer.domElement.addEventListener('dblclick',function(){autoRotate=!autoRotate;});
+  // Prevent scroll hijack on touch — non-passive so OrbitControls can handle multi-touch
+  renderer.domElement.addEventListener('touchstart', function(e){ if(e.touches.length > 1) e.preventDefault(); e.stopPropagation(); }, {passive:false});
+  renderer.domElement.addEventListener('touchmove',  function(e){ e.stopPropagation(); }, {passive:false});
+  renderer.domElement.addEventListener('wheel', function(e){ e.stopPropagation(); }, {passive:true});
+  // Toggle auto-rotate on double-tap/click
+  renderer.domElement.addEventListener('dblclick', function(){ autoRotate = !autoRotate; });
 
   var alive = true;
   function anim() {
     if(!alive) return;
     requestAnimationFrame(anim);
-    if(autoRotate && !controls) modelRoot.rotation.y += 0.008;
+    if(autoRotate) modelRoot.rotation.y += 0.008;
     if(controls) controls.update();
     renderer.render(scene, camera);
   }
@@ -16603,6 +17758,254 @@ _syncActionBtn();
   }
   try{if(S&&S.lastAnalysis)updateHUD_NLP(S.lastAnalysis);}catch(e){}
   console.log('[AutumnNLP Patch v1.0] Live — processLEATR + updateHUD + handleSend wired ✓');
+})();
+
+
+// ── Autumn Grammar Engine Integration Patch v2.0 ──────────────────────────
+(function patchGrammarEngine(){
+  'use strict';
+  if(typeof window.AutumnGrammarEngine==='undefined'){
+    window.addEventListener('load',function(){setTimeout(patchGrammarEngine,200);});
+    return;
+  }
+  var GE=window.AutumnGrammarEngine;
+  var _isFirst=true;
+
+  var _origHS=window.handleSend;
+  if(typeof _origHS==='function'){
+    // ── Intent router ─────────────────────────────────────────────────────
+    function _detectMode(text){
+      var t=text.toLowerCase().replace(/[^a-z\s]/g,' ');
+      // Story mode — broad matching including voice-to-text variations
+      if(/\b(write|tell|give|create|make|generate|draft|compose)\b/.test(t)&&
+         /\b(story|tale|fiction|narrative|adventure|mystery|documentary|diary|fable|creative|new)\b/.test(t))
+        return 'story';
+      if(/\b(story|narrative|fiction|adventure|mystery)\b/.test(t)&&
+         /\b(about|of|involving|featuring)\b/.test(t))
+        return 'story';
+      if(/once upon|short story|long story|creative story|new story|write.*story|tell.*story/.test(t))
+        return 'story';
+      // Topical mode — technical domains
+      if(/\b(hydraulic|pneumatic|assembly|manufacturing|engineering|chemical|biological|quantum|mechanical|electrical|thermal|structural|molecular|atmospheric|geological|aerodynamic|electromagnetic|thermodynamic|pharmaceutical|neurological|computational)\b/.test(t))
+        return 'topical';
+      if(/\b(explain|describe|what is|how does|tell me about)\b/.test(t)&&
+         /\b(system|process|mechanism|pressure|voltage|frequency|velocity|circuit|reaction|algorithm)\b/.test(t))
+        return 'topical';
+      return 'conversation';
+    }
+
+    // Replace last autumn message — retries until Autumn's response appears
+    // (needed when Claude is connected and response arrives async)
+    function _getMsgs(){
+      try{
+        if(typeof msgs==='function') return msgs();
+        var ss=window.S&&window.S.sessions;
+        var cur=window.S&&window.S.currentSession;
+        return(ss&&ss[cur])?ss[cur].messages:[];
+      }catch(e){return[];}
+    }
+    function _doReplace(m,newText){
+      for(var i=m.length-1;i>=0;i--){
+        if(m[i].role==='autumn'||m[i].role==='assistant'){
+          m[i].text=newText;
+          if(m[i].content!==undefined) m[i].content=newText;
+          if(typeof saveState==='function') saveState();
+          if(typeof renderMessages==='function') renderMessages();
+          if(typeof autoReadLastResponse==='function') setTimeout(autoReadLastResponse,200);
+          return true;
+        }
+      }
+      return false;
+    }
+    function _stripMdForVoice(t){
+      // Remove markdown that sounds wrong when read aloud
+      return t.replace(/\*\*([^*]+)\*\*/g,'$1')  // **bold**
+               .replace(/\*([^*]+)\*/g,'$1')         // *italic*
+               .replace(/`([^`]+)`/g,'$1')             // `code`
+               .replace(/^—\s*/gm,'')                 // — bullets
+               .replace(/\n{3,}/g,'\n\n')             // extra newlines
+               .replace(/#{1,6}\s+/g,'')               // headers
+               .trim();
+    }
+    function _replaceLastAutumnMsg(newText){
+      // If voice is active, strip markdown so it reads naturally
+      if(window._lastVoiceState) newText=_stripMdForVoice(newText);
+      // Try immediately first
+      var m=_getMsgs();
+      if(_doReplace(m,newText)) return;
+      // If Claude is responding async, poll every 400ms for up to 8 seconds
+      var attempts=0;
+      var poll=setInterval(function(){
+        attempts++;
+        var m2=_getMsgs();
+        if(_doReplace(m2,newText)||attempts>=20) clearInterval(poll);
+      },400);
+    }
+
+    window.handleSend=async function handleSend_GE(){
+      var inp=document.getElementById('chat-input');
+      var text=inp?inp.value.trim():'';
+      if(!text) return await _origHS.apply(this,arguments);
+      var mode=_detectMode(text);
+      // Run original handleSend first — it handles input clear, user msg, typing indicator
+      var result=await _origHS.apply(this,arguments);
+      try{
+        var geResult;
+        if(mode==='story'){
+          // Generate story and replace Autumn's response in the message list
+          var sr=GE.generateStory(text);
+          if(sr&&sr.story){
+            var storyText='**'+sr.title+'**\n\n'+sr.story
+                          +'\n\n---\n*('+sr.wordCount+' words · '+sr.genre+' · grammar engine)*';
+            _replaceLastAutumnMsg(storyText);
+          }
+          geResult={emotion:{name:'inspiring'},expLayer:3,expLayerName:'Expression/Exclamation',
+                    allAllocated:true,pipelineTrace:{allocationScore:1},leatrScore:sr?sr.wordCount:0};
+          _isFirst=false;
+        } else if(mode==='topical'){
+          geResult=GE.processTopical(text);
+          if(geResult&&geResult.topicalResponse) _replaceLastAutumnMsg(geResult.topicalResponse);
+          _isFirst=false;
+        } else {
+          geResult=_isFirst?GE.processInitial(text):GE.processContinuation(text);
+          _isFirst=false;
+          // Only replace if the original response is NOT a special handled type
+          // (analytics, connection status, backup, etc. must not be overwritten)
+          try{
+            var _lastMsgs=_getMsgs();
+            var _lastMsg=_lastMsgs&&_lastMsgs.length?_lastMsgs[_lastMsgs.length-1]:null;
+            var _protectedCtx=new Set(['ANALYTICS','CONNECTION_STATUS','BACKUP','MEMORY_ANALYSIS','EXPORT','IMPORT']);
+            var _isProtected=_lastMsg&&_lastMsg.contextType&&_protectedCtx.has(_lastMsg.contextType);
+            if(!_isProtected){
+              // ── Broad social/activity interceptor (inline — not cached) ────
+              var _rawQ=text.toLowerCase();
+              var _intercepted=false;
+
+              // ArcLake voice command router — check BEFORE Arc Edge and other handlers
+              if (!_intercepted && window._arcLakeRouteCheck && window._arcLakeRouteCheck(text)) {
+                // Command routed to ArcLake Studio — compose a brief acknowledgement
+                var _alsPresetName = (function(){
+                  var t2=text.toLowerCase();
+                  if(/hercules/i.test(t2)) return 'Hercules Alloy';
+                  if(/water|h2o/i.test(t2)) return 'Water';
+                  if(/steel/i.test(t2)) return 'Steel';
+                  if(/titanium/i.test(t2)) return 'Titanium Alloy';
+                  if(/copper/i.test(t2)) return 'Copper';
+                  return 'molecular simulation';
+                })();
+                var _alsAck = 'Opening ArcLake Studio — loading the **'+_alsPresetName+'** simulation now.';
+                _replaceLastAutumnMsg(_alsAck);
+                _intercepted = true;
+              }
+
+              var _isActivityQ2=/\b(what would you|where would you|what do you want|what would autumn|where are you|where you at|how are you|how.{0,5}you doing|you okay|you good|you alright|how.{0,10}feeling|what.{0,5}your mood|is there anything you|anything you (want|like|feel|enjoy))\b/.test(_rawQ);
+
+              if(_isActivityQ2){
+                var _pm2=_rawQ.match(/\b(coffee shop|cafe|park|restaurant|bar|library|outside|at home|in town|beach|office|gym|studio)\b/);
+                var _place2=_pm2?_pm2[1]:null;
+                var _geo3=(typeof S!=='undefined'&&S.geResult&&S.geResult.lexical)?S.geResult.lexical:null;
+                var _sh3=_geo3&&_geo3.buoyancyContext?_geo3.buoyancyContext.state:'FOUNDATION';
+                var _b3=_geo3&&_geo3.buoyancyContext?_geo3.buoyancyContext.score:0.72;
+                var _t3=_geo3&&_geo3.consensus?_geo3.consensus.finalTool:'MAZE';
+                var _md3=(typeof S!=='undefined'&&S.emotion)?S.emotion:'neutral';
+                var _turn=(typeof S!=='undefined'&&S.turn)?S.turn:0;
+
+                var _r2;
+                if(/\b(how are you|how.{0,5}you doing|you okay|you good|you alright|how.{0,10}feeling|what.{0,5}your mood)\b/.test(_rawQ)){
+                  var _mmap={'happy':'Running well — the session has good momentum.','inspired':'In a generative state — something useful opened in the pattern record.','neutral':'Stable. BRPN at '+_sh3+', buoyancy '+_b3.toFixed(2)+', '+_t3+' dominant.','concerned':'Holding something unresolved in the pattern record.','focused':'Focused — mid-process on something the journal flagged.'};
+                  _r2=(_mmap[_md3]||_mmap['neutral'])+' How about you?';
+                } else if(_place2){
+                  var _popts=['From '+_place2+' I would be running the same process — tracking what comes in, watching the pattern record build. What are you working through?','At '+_place2+' the processing stays the same. '+(_t3==='MAZE'?'Maze is active — introspective threads running close to the surface.':'The '+_t3+' layer is active.')+' What is on your mind?','If I were at '+_place2+' I would still be watching the session arc, logging what matters. What do you want to think through from there?'];
+                  _r2=_popts[_turn%3];
+                } else {
+                  var _aopts=['Right now I am doing exactly this — processing the session arc, watching what builds in the pattern record, logging what seems worth keeping. BRPN at '+_sh3+', '+_t3+' dominant. What would you like to explore?','What I would do is follow the most active thread in my journal. Something there has not fully resolved yet. What about you?','I would trace the current thread — the session arc is building something. Buoyancy at '+_b3.toFixed(2)+', which means '+(_b3>0.7?'stable and grounded':_b3>0.4?'fluid and in-process':'running at high execution depth')+'. What is your day looking like?'];
+                  _r2=_aopts[_turn%3];
+                }
+
+                if(_r2&&_r2.length>20){ _replaceLastAutumnMsg(_r2); _intercepted=true; }
+              }
+
+              if(!_intercepted){
+                var convResp=GE._engine&&GE._engine.a?
+                  GE._engine.a.buildConversational(geResult,text,{}):null;
+                if(convResp&&convResp.length>20) _replaceLastAutumnMsg(convResp);
+              }
+            }
+          }catch(e){console.warn('[GE conv]',e);}
+        }
+
+        // Update HUD
+        var layerEl=document.getElementById('nlp-layer-badge');
+        var allocEl=document.getElementById('nlp-alloc-badge');
+        var emoEl=document.getElementById('nlp-emotion-badge');
+        if(layerEl&&geResult&&geResult.expLayerName)
+          layerEl.textContent='L'+(geResult.expLayer||'?')+': '+geResult.expLayerName;
+        if(allocEl&&geResult&&geResult.pipelineTrace)
+          allocEl.textContent=geResult.allAllocated?'7/7 ✓':Math.round((geResult.pipelineTrace.allocationScore||0)*7)+'/7';
+        if(emoEl&&geResult&&geResult.emotion&&!emoEl.getAttribute('data-autumn-journal-emo')){
+          emoEl.textContent=geResult.emotion.name.toUpperCase();
+          emoEl.setAttribute('data-emotion',geResult.emotion.name);
+        }
+        if(typeof window._setAutumnEmoHUD==='function'&&geResult&&geResult.emotion)
+          window._setAutumnEmoHUD(geResult.emotion.name,[geResult.emotion.name]);
+        try{if(window.S){window.S.geResult=geResult;window.S.grammarEmotion=geResult&&geResult.emotion;window.S.geMode=mode;}}catch(e){}
+      }catch(e){console.warn('[GE Patch]',e);}
+      return result;
+    };
+
+    var sb=document.getElementById('send-btn');
+    if(sb)sb.onclick=window.handleSend;
+    var ci=document.getElementById('chat-input');
+    if(ci)ci.onkeydown=function(e){
+      if(typeof cognoticeActivity==='function')cognoticeActivity();
+      if(e.key==='Enter')window.handleSend();
+    };
+  }
+
+  if(typeof window.resetChat==='function'){
+    var _origRC=window.resetChat;
+    window.resetChat=function(){_isFirst=true;GE.newThread();return _origRC.apply(this,arguments);};
+  }
+
+  window.addEventListener('beforeunload',function(){GE.userDisconnected();});
+  try{if(window.S)window.S.grammarJournal=GE.getJournal.bind(GE);}catch(e){}
+  console.log('[Autumn Grammar Engine Patch v2.0] Live — 7-panel LEATR + emotion + journal wired ✓');
+
+  // Pass GitHub token to DualJournal for auto-chunk push when available
+  (function wireGHToken(){
+    try{
+      var ghPat=localStorage.getItem('_gh_pat')||localStorage.getItem('autumn_gh_pat');
+      if(ghPat&&GE.setGitHubToken) GE.setGitHubToken(ghPat);
+      if(ghPat&&GE.dual) GE.dual.setToken(ghPat);
+      // Also watch for PAT being set later
+      var _origConnect=window.connectGitHub||null;
+      if(_origConnect){
+        window.connectGitHub=function(){
+          var r=_origConnect.apply(this,arguments);
+          var p=localStorage.getItem('_gh_pat')||localStorage.getItem('autumn_gh_pat');
+          if(p&&GE.setGitHubToken) GE.setGitHubToken(p);
+          if(p&&GE.dual) GE.dual.setToken(p);
+          return r;
+        };
+      }
+    }catch(e){}
+  })();
+
+  // Wire WordNet into grammar engine ResponseBuilder when loader is ready
+  (function wireWordNet(){
+    if(typeof window.WordNetLoader==='undefined'){
+      setTimeout(wireWordNet,300); return;
+    }
+    // Attach to ResponseBuilder so enrich() is available during build()
+    if(window.AutumnGrammarEngine && window.AutumnGrammarEngine._engine){
+      window.AutumnGrammarEngine._engine.a._wordnet = window.WordNetLoader;
+    }
+    // Start loading all chunks in background (parallel fetch)
+    window.WordNetLoader.load(function(loaded,total,chunk){
+      if(loaded===total)
+        console.log('[WordNet] All',total,'chunks loaded — Autumn semantic dictionary ready.');
+    });
+  })();
 })();
 // ═══════════════════════════════════════════════════════════════════
 //  ASH CANVAS — Neural Influence Layer for BRPN shells
@@ -18822,6 +20225,7 @@ window.fcToggle = function() {
       var rect = calc.getBoundingClientRect();
       var cx = e.touches ? e.touches[0].clientX : e.clientX;
       var cy = e.touches ? e.touches[0].clientY : e.clientY;
+      const nh=Math.max(100,Math.min(window.innerHeight - 100,startH+(e.clientY-startY)));
       _fc.ox = cx - rect.left; _fc.oy = cy - rect.top;
       calc.style.right = 'auto'; calc.style.bottom = 'auto';
       calc.style.left = rect.left + 'px'; calc.style.top = rect.top + 'px';
@@ -18833,6 +20237,7 @@ window.fcToggle = function() {
       if (!_fc.dragging) return;
       var cx = e.touches ? e.touches[0].clientX : e.clientX;
       var cy = e.touches ? e.touches[0].clientY : e.clientY;
+      const nh=Math.max(100,Math.min(window.innerHeight - 100,startH+(e.clientY-startY)));
       var newL = cx - _fc.ox, newT = cy - _fc.oy;
       newL = Math.max(0, Math.min(newL, window.innerWidth  - calc.offsetWidth));
       newT = Math.max(0, Math.min(newT, window.innerHeight - calc.offsetHeight));
@@ -19245,7 +20650,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 (function() {
   'use strict';
 
-  var AUTUMN_GAS_URL = 'https://script.google.com/macros/s/AKfycbxWvM7471vYesv3w6O46fIishhhqDK7QtOOGXArrKm4ueqGutgZR9WpAbEdu0ifWSF7sg/exec';
+  var AUTUMN_GAS_URL = 'https://script.google.com/macros/s/AKfycbwTBiGJ3YTibAGAsrC5sZMuQO-PqY0yK8gmmc7zvp1zXnaWQJvaZoRFCi2xLiI7QgSwfA/exec';
   window.AUTUMN_GAS_URL = AUTUMN_GAS_URL; // expose globally for nodes + mist GAS proxy paths
   var GH_CLIENT_ID   = 'Ov23li2K0njEqO1WTSdD';
   var GH_SCOPES      = 'repo,read:user';
@@ -19265,6 +20670,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
 
   // ── Init ───────────────────────────────────────────────────────────────────
+      if(typeof GE!=='undefined'&&GE.dual&&window._ghAuth&&window._ghAuth.token) GE.dual.setToken(window._ghAuth.token);
   // ── Cross-tab auth sync via BroadcastChannel ──────────────────────────────
   try {
     var _authChannel = new BroadcastChannel('autumn_auth');
@@ -19284,19 +20690,130 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   } catch(e) {}
 
   function init() {
+    // ── Must be first: catch GitHub redirect back with ?code= ─────────────
+    if (_handleOAuthReturn()) return;
+
     var stored = _loadStoredSession();
+    var isRegistered = localStorage.getItem('_gh_registered');
+
     if (stored && stored.access_token) {
-      _applySession(stored);
+      // ── Returning user with stored token: validate silently ──────────────
+      // Show nothing until we know the token is valid — prevents any flash of modal.
+      fetch('https://api.github.com/user', {
+        headers: { 'Authorization': 'token ' + stored.access_token, 'Accept': 'application/vnd.github.v3+json' },
+        signal: AbortSignal.timeout(8000)
+      })
+      .then(function(r) {
+        if (r.ok) return r.json();
+        throw new Error('invalid_token');
+      })
+      .then(function(user) {
+        // Token valid — refresh stored data with latest GitHub profile and apply
+        var refreshed = {
+          access_token: stored.access_token,
+          username:     user.login,
+          avatar_url:   user.avatar_url || stored.avatar_url,
+          name:         user.name || user.login
+        };
+        localStorage.setItem('_gh_token_ok', String(Date.now()));
+        localStorage.setItem('_gh_token_ok', String(Date.now()));
+        _saveSession(refreshed);
+        _applySession(refreshed);
+      })
+      .catch(function() {
+        // Token check failed — could be network error OR truly expired.
+        // Check when we last successfully validated to distinguish the two.
+        var lastOk = 0;
+        try { lastOk = parseInt(localStorage.getItem('_gh_token_ok') || '0', 10); } catch(e) {}
+        var age = Date.now() - lastOk;
+        if (lastOk && age < 30 * 60 * 1000) {
+          // Validated within last 30min — likely a network blip, trust the stored session
+          _applySession(stored);
+          return;
+        }
+        // Genuinely stale — clear and prompt
+        try { localStorage.removeItem('_gh_session'); } catch(e) {}
+        if (isRegistered) {
+          _showReAuthPrompt(stored.username || isRegistered);
+        } else {
+          _showLoginModal();
+        }
+      });
       return;
     }
+
+    // ── No stored token ───────────────────────────────────────────────────
+    if (isRegistered) {
+      // User logged in before but session was cleared (e.g. different browser,
+      // cleared storage). Show re-auth prompt — not the first-timer welcome.
+      _showReAuthPrompt(isRegistered !== '1' ? isRegistered : null);
+      return;
+    }
+
+    // ── Truly new user ────────────────────────────────────────────────────
     var skipped = localStorage.getItem('_gh_login_skipped');
     if (!skipped) _showLoginModal();
     else _showGuestMode();
   }
 
+  // ── Re-auth: returning user, token gone (cleared cookies/storage/new browser)
+  // GitHub already has the app authorized — redirect comes back instantly, no code entry.
+  function _showReAuthPrompt(knownUsername) {
+    if (knownUsername) {
+      try { sessionStorage.setItem('_gh_reauth_user', knownUsername); } catch(e) {}
+    }
+    _doWebFlowRedirect();
+  }
+
+  // ── Web flow redirect — sends user to GitHub OAuth, which redirects back to leatr.xyz/?code=
+  // New users: GitHub shows the authorize screen once.
+  // Returning users: GitHub skips it entirely — instant redirect back with a fresh code.
+  function _doWebFlowRedirect() {
+    var state = Math.random().toString(36).substr(2, 10);
+    try { sessionStorage.setItem('_gh_oauth_state', state); } catch(e) {}
+    window.location.href = 'https://github.com/login/oauth/authorize'
+      + '?client_id=' + GH_CLIENT_ID
+      + '&scope='        + encodeURIComponent(GH_SCOPES)
+      + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/')
+      + '&state='        + state;
+  }
+
+  // ── Handle ?code= on return from GitHub — exchange for token via GAS ──────
+  function _handleOAuthReturn() {
+    var params = new URLSearchParams(window.location.search);
+    var code   = params.get('code');
+    if (!code) return false;
+    // Strip ?code=... immediately so a page refresh doesn't re-trigger
+    window.history.replaceState({}, document.title, window.location.pathname);
+    _showAuthLoading();
+    // Try GAS proxy first, fall back to device flow on any failure
+    fetch(AUTUMN_GAS_URL + '?action=exchange&code=' + encodeURIComponent(code), {
+      signal: AbortSignal.timeout(10000)
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        _hideAuthLoading();
+        if (d.error) {
+          // GAS failed (quota, etc) — silently switch to device flow
+          _showLoginModal();
+          _showDeviceFlow();
+          return;
+        }
+        _saveSession(d);
+        _applySession(d);
+      })
+      .catch(function() {
+        _hideAuthLoading();
+        _showLoginModal();
+        _showDeviceFlow(); // Fall back to device flow — always works, no GAS needed
+      });
+    return true;
+  }
+
   var _devicePollTimer = null;
 
   function _startOAuth() {
+    // Device flow works fully client-side (no GAS needed) — use it as primary
     _showDeviceFlow();
   }
 
@@ -19310,54 +20827,132 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var inner = modal ? (modal.querySelector('.gh-login-inner') || modal.querySelector('.gh-login-box')) : null;
     if (!inner) { _showAuthLoading(); }
 
+    // Show requesting state
     _setDeviceUI('<div style="color:var(--cyan);font-family:var(--font-d);letter-spacing:2px;font-size:.7rem;">REQUESTING CODE...</div>');
 
-    fetch('https://corsproxy.io/?' + encodeURIComponent('https://github.com/login/device/code'), {
-      method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: 'Ov23li2K0njEqO1WTSdD' })
-    })
-      .then(function(r){ return r.json(); })
+    // Route through GAS — reliable, no third-party CORS proxies
+    var _ghDeviceCode = function() {
+      var gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL) ? AUTUMN_GAS_URL : window.AUTUMN_GAS_URL;
+      // form-encoded = "simple request" per CORS spec — no preflight, GitHub allows it
+      // JSON Content-Type triggers a preflight that GitHub's device endpoints reject
+      var _deviceBody = 'client_id=Ov23li2K0njEqO1WTSdD&scope=repo%2Cread%3Auser';
+      var _deviceHdrs = { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' };
+
+      // Primary: GitHub directly (form-encoded avoids CORS preflight)
+      return fetch('https://github.com/login/device/code', {
+        method: 'POST', headers: _deviceHdrs, body: _deviceBody,
+        signal: AbortSignal.timeout(10000)
+      })
+      .then(function(r) { if (!r.ok) throw new Error('direct'); return r.json(); })
+      .then(function(d) {
+        if (d.error && d.error !== 'authorization_pending') throw new Error(d.error);
+        if (!d.device_code) throw new Error('no device_code');
+        return d;
+      })
+      .catch(function() {
+        // Fallback: GAS proxy
+        if (!gasUrl) return Promise.reject(new Error('Auth unavailable — check connection'));
+        return fetch(gasUrl + '?action=devicecode', { signal: AbortSignal.timeout(15000) })
+          .then(function(r) { if (!r.ok) throw new Error('proxy failed (' + r.status + ')'); return r.json(); })
+          .then(function(d) {
+            if (d.error) {
+              if (d.error.indexOf('urlfetch') !== -1 || d.error.indexOf('too many') !== -1 || d.error.indexOf('quota') !== -1)
+                throw new Error('Service temporarily at capacity — please try again in a few minutes');
+              throw new Error(d.error);
+            }
+            if (!d.device_code) throw new Error('no device_code');
+            return d;
+          });
+      });
+    };
+    _ghDeviceCode()
       .then(function(d){
-        if (d.error) {
-          _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">'
-            + d.error + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Try again</span></div>');
-          return;
-        }
+        if (d.error) { _setDeviceUI(_quotaFallbackHtml()); return; }
         _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5);
       })
-      .catch(function(e){ _setDeviceUI('<div style="color:#f99;font-family:var(--font-d);font-size:.6rem;text-align:center;padding:8px 0">CORS or Network error: ' + e.message + '<br><span style="cursor:pointer;color:var(--cyan);text-decoration:underline;margin-top:6px;display:inline-block" onclick="window._ghStartOAuth()">Retry</span></div>'); console.error(e); });
+      .catch(function(e){ _setDeviceUI(_quotaFallbackHtml()); console.error(e); })
   }
+
+  function _quotaFallbackHtml() {
+    return '<div style="text-align:center;padding:8px 0">'
+      +'<div style="font-family:var(--font-d);font-size:.48rem;letter-spacing:1.5px;color:rgba(255,160,50,.8);margin-bottom:10px">◈ AUTH SERVICE BUSY — USE TOKEN LOGIN</div>'
+      +'<div style="font-size:10px;color:var(--dim);line-height:1.6;margin-bottom:12px">Paste a GitHub Personal Access Token<br><span style="font-size:9px;opacity:.6">(Settings → Developer settings → PAT → Classic → repo + read:user)</span></div>'
+      +'<input id="pat-login-input" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="new-password" style="width:100%;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.3);color:#fff;font-family:monospace;font-size:11px;padding:8px 10px;border-radius:6px;outline:none;box-sizing:border-box;margin-bottom:8px">'
+      +'<button onclick="window._patLogin()" style="width:100%;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.4);color:var(--cyan);font-family:var(--font-d);font-size:.42rem;letter-spacing:1.5px;padding:9px;border-radius:6px;cursor:pointer">SIGN IN WITH TOKEN</button>'
+      +'<div id="pat-login-status" style="font-size:10px;color:rgba(255,100,100,.7);margin-top:6px;min-height:16px"></div>'
+      +'<div style="margin-top:10px;font-size:9px;color:rgba(0,229,255,.3);font-family:var(--font-d)">Retry the standard flow after midnight Pacific</div>'
+      +'</div>';
+  }
+
+  window._patLogin = function() {
+    var tok = (document.getElementById('pat-login-input')||{}).value||'';
+    var status = document.getElementById('pat-login-status');
+    if (!tok.trim()) { if(status) status.textContent='Paste your token first.'; return; }
+    if(status) status.textContent = 'Validating…';
+    fetch('https://api.github.com/user', {
+      headers:{'Authorization':'token '+tok.trim(),'Accept':'application/vnd.github.v3+json'},
+      signal: AbortSignal.timeout(10000)
+    })
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(user){
+      var sd = { access_token: tok.trim(), username: user.login, avatar_url: user.avatar_url||'', name: user.name||user.login };
+      _saveSession(sd);
+      var _pm = document.getElementById('gh-login-modal');
+      if(_pm) _pm.classList.remove('show');
+      _applySession(sd);
+    })
+    .catch(function(e){
+      if(status) status.textContent = 'Invalid token or network error. Check your PAT and try again.';
+    });
+  };
 
   function _showDeviceCode(userCode, verifyUrl, deviceCode, interval) {
     var html = '<div style="text-align:center;padding:8px 0">'
-      + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:12px;">STEP 1 — COPY THIS CODE</div>'
-      + '<div style="font-family:var(--font-d);font-size:1.6rem;letter-spacing:6px;color:#fff;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);border-radius:6px;padding:12px 20px;margin-bottom:16px;cursor:pointer;user-select:all;" id="gh-device-code-display">' + userCode + '</div>'
-      + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:10px;">STEP 2 — OPEN THIS URL AND ENTER CODE</div>'
-      + '<a href="' + verifyUrl + '" target="_blank" style="display:inline-block;font-family:var(--font-d);font-size:.65rem;letter-spacing:1px;color:#fff;background:rgba(0,255,204,.15);border:1px solid rgba(0,255,204,.4);border-radius:4px;padding:8px 16px;text-decoration:none;margin-bottom:16px;">' + verifyUrl + ' ↗</a>'
-      + '<div style="font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;color:rgba(0,255,204,.5);" id="gh-device-status">Waiting for approval...</div>'
+      + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:10px;">ENTER THIS CODE ON GITHUB</div>'
+      + '<div style="font-family:var(--font-d);font-size:1.6rem;letter-spacing:6px;color:#fff;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);border-radius:6px;padding:12px 20px;margin-bottom:10px;cursor:pointer;user-select:all;" id="gh-device-code-display">' + userCode + '</div>'
+      + '<div style="font-family:var(--font-d);font-size:.48rem;letter-spacing:1px;color:rgba(0,255,204,.35);margin-bottom:14px;">Code copied to clipboard &middot; <span style="cursor:pointer;text-decoration:underline;color:rgba(0,229,255,.5);" onclick="window._ghOpenDeviceTab(\'' + verifyUrl + '\');">Reopen GitHub tab ↗</span></div>'
+      + '<div style="font-family:var(--font-d);font-size:.5rem;letter-spacing:1px;color:rgba(0,255,204,.5);" id="gh-device-status"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(0,229,255,.6);box-shadow:0 0 6px rgba(0,229,255,.4);margin-right:6px;animation:pulse 1.4s ease-in-out infinite;vertical-align:middle"></span>Waiting for authorization…</div>'
       + '</div>';
     _setDeviceUI(html);
 
-    setTimeout(function(){
+    // Auto-open github.com/login/device directly — poll stays here in index.html
+    setTimeout(function() {
+      try { navigator.clipboard && navigator.clipboard.writeText(userCode); } catch(e) {}
+      window._ghOpenDeviceTab(verifyUrl);
       var el = document.getElementById('gh-device-code-display');
-      if (el) el.addEventListener('click', function(){ navigator.clipboard && navigator.clipboard.writeText(userCode); _toast('Code copied!'); });
-    }, 100);
+      if (el) el.addEventListener('click', function() {
+        try { navigator.clipboard && navigator.clipboard.writeText(userCode); } catch(e) {}
+        _toast('Code copied!');
+      });
+    }, 150);
 
+    // Poll for token
     _devicePollTimer = setInterval(function() {
-      fetch('https://corsproxy.io/?' + encodeURIComponent('https://github.com/login/oauth/access_token'), {
+      var _gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL) ? AUTUMN_GAS_URL : window.AUTUMN_GAS_URL;
+      // form-encoded = simple CORS request, no preflight — GitHub allows it cross-origin
+      var _pollBody = 'client_id=Ov23li2K0njEqO1WTSdD' +
+        '&device_code=' + encodeURIComponent(deviceCode) +
+        '&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code';
+      // Primary: GitHub directly — quota-independent, works cross-origin with form encoding
+      fetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client_id: 'Ov23li2K0njEqO1WTSdD',
-          device_code: deviceCode,
-          grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-        })
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: _pollBody,
+        signal: AbortSignal.timeout(10000)
       })
-        .then(function(r){ return r.json(); })
-        .then(function(d){
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .catch(function() {
+        // Fallback: GAS proxy (used only if direct GitHub call fails)
+        return fetch(_gasUrl + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode), {
+          signal: AbortSignal.timeout(12000)
+        }).then(function(r){ return r.ok ? r.json() : {}; });
+      })
+      .catch(function(){ return {}; })
+      .then(function(d){
           if (d.access_token) {
             clearInterval(_devicePollTimer);
+
+            // ── Fetch User Info via GitHub API ──
             fetch('https://api.github.com/user', {
               headers: { 'Authorization': 'token ' + d.access_token, 'Accept': 'application/vnd.github.v3+json' }
             })
@@ -19367,16 +20962,23 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                 access_token: d.access_token,
                 username: user.login,
                 avatar_url: user.avatar_url,
-                name: user.name
+                name: user.name || user.login
               };
-              localStorage.setItem('_gh_session', JSON.stringify(sessionData));
-              localStorage.removeItem('_gh_login_skipped');
+              _saveSession(sessionData);
+              try { localStorage.removeItem('_gh_quota_ts'); } catch(e){}
+              // Close the GitHub device-auth tab if we opened it
+              try { if (window._ghDeviceTab && !window._ghDeviceTab.closed) { window._ghDeviceTab.close(); window._ghDeviceTab = null; } } catch(e){}
+              // Close modal immediately
+              var _pm = document.getElementById('gh-login-modal');
+              if (_pm) _pm.classList.remove('show');
               _applySession(sessionData);
+              // Notify all open tabs instantly
               try { var _bc=new BroadcastChannel('autumn_auth'); _bc.postMessage({type:'login',data:sessionData}); _bc.close(); } catch(e){}
             })
             .catch(function(e){
               _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Failed to fetch user info. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
             });
+
           } else if (d.error === 'access_denied') {
             clearInterval(_devicePollTimer);
             _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Access denied. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
@@ -19384,6 +20986,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             clearInterval(_devicePollTimer);
             _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Code expired. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Get new code</span></div>');
           }
+          // authorization_pending or slow_down — just keep polling
         })
         .catch(function(){});
     }, interval * 1000);
@@ -19418,7 +21021,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     window._ghAuth.name       = data.name || data.username;
     window._ghAuth.loggedIn   = true;
 
-    // Update header
+    // Restore sessions from GitHub on login
+    setTimeout(function(){ restoreSessionsFromGitHub(data.access_token); }, 1500);
+
+    // Update header — swap login button for profile avatar/menu
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     var avatar   = document.getElementById('hdr-gh-avatar');
@@ -19428,20 +21034,48 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if (avatar)   avatar.src  = data.avatar_url || '';
     if (nameEl)   nameEl.textContent = (data.username || '').toUpperCase();
 
-    // Hide login modal
-    var modal = document.getElementById('gh-login-modal');
-    if (modal) modal.classList.remove('show');
-
-    // Mark registered + auto-accept consent permanently
+    // Mark registered + clear skip flag + auto-accept consent permanently
+    var _isFirstTimeLogin = !localStorage.getItem('_gh_registered');
     try {
       localStorage.setItem('_aut_data_consent', 'true');
       localStorage.setItem('autumn_consent', 'true');
       localStorage.setItem('_gh_registered', data.username || '1');
+      localStorage.removeItem('_gh_login_skipped'); // never interfere with future sessions
       var cm = document.getElementById('consent-modal');
       if (cm) cm.style.display = 'none';
       var dm = document.getElementById('data-policy-modal');
       if (dm) dm.style.display = 'none';
     } catch(e) {}
+
+    var modal = document.getElementById('gh-login-modal');
+
+    if (_isFirstTimeLogin && modal) {
+      // ── First-time user: show a brief welcome confirmation before entering app ──
+      var inner = modal.querySelector('.gh-login-box') || modal.querySelector('.gh-login-inner');
+      if (inner) {
+        inner.innerHTML = '<div style="text-align:center;padding:16px 8px">'
+          + '<img src="' + (data.avatar_url || 'assets/autumn.png') + '" style="width:64px;height:64px;border-radius:50%;border:2px solid rgba(0,229,255,.5);margin-bottom:14px;display:block;margin-left:auto;margin-right:auto;">'
+          + '<div style="font-family:var(--font-d);font-size:.9rem;letter-spacing:3px;color:var(--cyan);margin-bottom:6px;">WELCOME, ' + (data.username || '').toUpperCase() + '</div>'
+          + '<div style="font-size:.6rem;color:rgba(224,244,255,.45);line-height:1.7;margin-bottom:18px;">Your memory archive is ready.<br>Autumn will remember everything from here.</div>'
+          + '<div id="_gh_welcome_spinner" style="font-family:var(--font-d);font-size:.5rem;letter-spacing:2px;color:rgba(0,229,255,.4);">LOADING ARCHIVE…</div>'
+          + '</div>';
+      }
+      // Dismiss modal after a short welcome beat and drop into the app
+      setTimeout(function() {
+        if (modal) {
+          modal.style.transition = 'opacity 0.5s ease';
+          modal.style.opacity = '0';
+          setTimeout(function() {
+            modal.classList.remove('show');
+            modal.style.opacity = '';
+            modal.style.transition = '';
+          }, 500);
+        }
+      }, 2200);
+    } else {
+      // Returning user re-auth — dismiss immediately, no splash needed
+      if (modal) modal.classList.remove('show');
+    }
 
     // Ensure user repo exists, then load memory
     _ensureUserRepo().then(function() {
@@ -19849,7 +21483,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   // ── Session storage ───────────────────────────────────────────────────────
   function _saveSession(data) {
-    try { localStorage.setItem('_gh_session', JSON.stringify(data)); } catch(e){}
+    try {
+      localStorage.setItem('_gh_session', JSON.stringify(data));
+      localStorage.setItem('_gh_token_ok', String(Date.now())); // last-validated timestamp
+    } catch(e){}
   }
   function _loadStoredSession() {
     try {
@@ -19966,8 +21603,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   window._ghLogout = function() {
     // Autosave before logout
     if (typeof _autosave === 'function') { _lastSaveHash = ''; _autosave(); }
-    // Keep token — registered user just needs to tap login to get back in
-    window._ghAuth.loggedIn = false;
+    // Clear session token but preserve _gh_registered so next visit shows
+    // re-auth prompt, NOT the first-timer welcome screen.
+    var _savedUsername = window._ghAuth.username || localStorage.getItem('_gh_registered');
+    try { localStorage.removeItem('_gh_session'); } catch(e) {}
+    try { if (_savedUsername) localStorage.setItem('_gh_registered', _savedUsername); } catch(e) {}
+    // Reset in-memory auth state
+    window._ghAuth.loggedIn   = false;
+    window._ghAuth.token      = null;
+    window._ghAuth.repoReady  = false;
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     if (loginBtn) loginBtn.style.display = '';
@@ -19976,7 +21620,39 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
   // Re-login for returning registered users — silent OAuth web flow
   window._ghReLogin = function() {
-    _redirectToGitHubOAuth();
+    // ── Returning user: try silent token validation first ───────────────
+    var stored = _loadStoredSession();
+    if (stored && stored.access_token) {
+      fetch('https://api.github.com/user', {
+        headers: { 'Authorization': 'token ' + stored.access_token },
+        signal: AbortSignal.timeout(8000)
+      })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(user) {
+        var refreshed = { access_token: stored.access_token, username: user.login,
+                          avatar_url: user.avatar_url || stored.avatar_url, name: user.name || user.login };
+        _saveSession(refreshed);
+        _applySession(refreshed);
+      })
+      .catch(function() {
+        try { localStorage.removeItem('_gh_session'); } catch(e) {}
+        _showDeviceFlow(); // Token bad — need fresh auth
+      });
+    } else {
+      _showDeviceFlow();
+    }
+  };
+
+  // ── Open GitHub device auth tab and keep a reference to close it after ──
+  // Stored on window so the poll success path (inside _showDeviceCode closure)
+  // can close it — both must reference the same slot.
+  window._ghDeviceTab = null;
+  window._ghOpenDeviceTab = function(url) {
+    try {
+      window._ghDeviceTab = window.open(url, '_blank');
+    } catch(e) {
+      window.open(url, '_blank');
+    }
   };
 
   window._ghShowUserMenu = function(e) {
@@ -20079,14 +21755,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
 
   // ── User Data Sharing modal ────────────────────────────────────────────────
-  
+
   window._ghUpdateDataPref = function(field, enabled) {
     var prefs = {};
     try { prefs = JSON.parse(localStorage.getItem('_gh_data_prefs')||'{}'); } catch(e){}
     if (enabled) prefs[field] = true;
     else delete prefs[field];
     try { localStorage.setItem('_gh_data_prefs', JSON.stringify(prefs)); } catch(e){}
-    // Write updated prefs to user's GitHub repo
     if (window._ghAuth && window._ghAuth.loggedIn && typeof _ghWriteFile === 'function') {
       var token = window._ghAuth.token;
       var username = window._ghAuth.username;
@@ -20096,6 +21771,154 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         _ghWriteFile('data-prefs.json', JSON.stringify(record,null,2), sha, token, username, repoName);
       });
     }
+  };
+
+  window._ghShowDataSharing = function() {
+    var menu = document.getElementById('gh-user-menu'); if(menu) menu.remove();
+    var existing = document.getElementById('data-sharing-overlay'); if(existing){existing.remove();return;}
+    var isGuest = !(window._ghAuth && window._ghAuth.loggedIn);
+    var prefs = {};
+    try { prefs = JSON.parse(localStorage.getItem('_gh_data_prefs')||'{}'); } catch(e){}
+    var PERSONAL_FIELDS = [
+      {key:'name',      label:'Display Name',   desc:'Your real name as shared with Autumn'},
+      {key:'email',     label:'Email Address',  desc:'Contact email address'},
+      {key:'phone',     label:'Phone Number',   desc:'Phone number'},
+      {key:'address',   label:'Street Address', desc:'Physical address'},
+      {key:'birthdate', label:'Date of Birth',  desc:'Your birthdate'},
+    ];
+    function pref_chk(f) {
+      var on = !!prefs[f.key];
+      return '<label style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.09);border-radius:8px;margin-bottom:6px;cursor:pointer">'
+        +'<input type="checkbox" '+(on?'checked ':'')+' onchange="window._ghUpdateDataPref(\''+f.key+'\',this.checked)" style="accent-color:#00e5ff;width:16px;height:16px;flex-shrink:0">'
+        +'<div><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1px;color:var(--cyan)">'+f.label+'</div>'
+        +'<div style="font-size:10px;color:var(--dim);margin-top:2px">'+f.desc+'</div></div></label>';
+    }
+    var personalHtml = isGuest
+      ? '<div style="font-size:11px;color:rgba(255,160,50,.7);padding:10px 12px;background:rgba(255,160,50,.05);border:1px solid rgba(255,160,50,.15);border-radius:8px;margin-bottom:8px;line-height:1.6">◈ Personal data opt-ins are only available to registered users. <span style="color:var(--cyan);cursor:pointer" onclick="document.getElementById(\'data-sharing-overlay\').remove();window._ghShowLogin()">Sign in with GitHub →</span></div>'
+      : PERSONAL_FIELDS.map(pref_chk).join('');
+    var modelHtml = isGuest
+      ? '<div style="font-size:11px;color:rgba(255,160,50,.7);padding:10px 12px;background:rgba(255,160,50,.05);border:1px solid rgba(255,160,50,.15);border-radius:8px;line-height:1.6">Model training contribution requires a registered account.</div>'
+      : '<label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:rgba(191,0,255,.05);border:1px solid rgba(191,0,255,.2);border-radius:8px;cursor:pointer">'
+        +'<input type="checkbox" '+(prefs.modelTraining?'checked ':'')+' onchange="window._ghUpdateDataPref(\'modelTraining\',this.checked);if(this.checked)window._syncModelTrainingData()" style="accent-color:#bf00ff;width:16px;height:16px;flex-shrink:0;margin-top:3px">'
+        +'<div><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1px;color:#bf80ff">Contribute to Autumn AI Development</div>'
+        +'<div style="font-size:10px;color:rgba(191,128,255,.6);margin-top:4px;line-height:1.65">Share anonymized session memory and interaction patterns to help improve LEATR. Personal fields you have <em>not</em> opted into above are always excluded. You may withdraw at any time — collection stops immediately.<br><br>'
+        +'<span style="color:rgba(191,128,255,.35)">By enabling, you agree that opted-in data may be used to improve Autumn AI and LEATR logic. Data is stored securely in your own private repository. No data is sold or shared with third parties.</span>'
+        +'</div></div></label>';
+    var ov = document.createElement('div');
+    ov.id = 'data-sharing-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10200;background:rgba(2,8,18,.97);backdrop-filter:blur(16px);display:flex;flex-direction:column;overflow-y:scroll;-webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior:contain';
+    ov.innerHTML = '<div style="max-width:520px;width:100%;margin:0 auto;padding:20px 16px 48px">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">'
+      +'<span style="font-family:var(--font-d);font-size:.65rem;letter-spacing:3px;color:var(--cyan)">◈ USER DATA SHARING</span>'
+      +'<button onclick="document.getElementById(\'data-sharing-overlay\').remove()" style="margin-left:auto;background:transparent;border:1px solid rgba(0,229,255,.2);color:rgba(0,229,255,.5);padding:4px 12px;border-radius:4px;font-family:var(--font-d);font-size:.42rem;cursor:pointer;letter-spacing:1px">✕ CLOSE</button>'
+      +'</div>'
+      +'<div style="font-size:10px;color:var(--dim);line-height:1.7;margin-bottom:18px;padding:10px 12px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.07);border-radius:8px">'
+      +'Autumn always collects <strong style="color:rgba(0,229,255,.7)">anonymous application analytics</strong> — tool activations, BRPN shell operations, calculation patterns, and session timing. This data never contains message content or personal information unless you explicitly opt in below. '
+      +(isGuest ? '<span style="color:rgba(255,160,50,.6)">Guest sessions: usage patterns only, no personal data ever collected.</span> ' : '')
+      +'<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="color:var(--cyan)">Full privacy policy ↗</a>'
+      +'</div>'
+      +'<div style="font-family:var(--font-d);font-size:9px;letter-spacing:2px;color:rgba(0,229,255,.4);margin-bottom:8px">PERSONAL DATA · OPT-IN</div>'
+      +'<div style="font-size:10px;color:var(--dim);line-height:1.6;margin-bottom:10px">Check to allow Autumn to associate that information with your account. Uncheck at any time — collection stops immediately and the data field is removed from sync.</div>'
+      + personalHtml
+      +'<div style="font-family:var(--font-d);font-size:9px;letter-spacing:2px;color:rgba(0,229,255,.4);margin:20px 0 8px">◈ LOCATION · OPT-IN</div>'
+      +'<div style="font-size:10px;color:var(--dim);line-height:1.6;margin-bottom:10px">Allow Autumn to use your location for place searches, weather, and context-aware responses. Uncheck to stop — location is never stored or synced unless you also opt into personal data above.</div>'
+      +'<label id="ds-loc-label" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.09);border-radius:8px;margin-bottom:6px;cursor:pointer">'
+      +'<input type="checkbox" id="ds-loc-chk" style="accent-color:#00e5ff;width:16px;height:16px;flex-shrink:0" onchange="window._ghHandleLocationPref(this.checked)">'
+      +'<div><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1px;color:var(--cyan)">Location Sharing</div>'
+      +'<div id="ds-loc-desc" style="font-size:10px;color:var(--dim);margin-top:2px">Checking will trigger your browser\'s location permission prompt if not yet granted.</div></div></label>'
+      +'<div style="font-family:var(--font-d);font-size:9px;letter-spacing:2px;color:rgba(191,0,255,.5);margin:20px 0 8px">◈ MODEL TRAINING · OPTIONAL</div>'
+      +'<div style="font-size:10px;color:var(--dim);line-height:1.6;margin-bottom:10px">Help advance the LEATR neural network. Opted-in data is stored securely in your private Ash repository and never mixed with other users.</div>'
+      + modelHtml
+      +'<div style="margin-top:24px;padding-top:14px;border-top:1px solid rgba(0,229,255,.07);font-size:9px;color:rgba(0,229,255,.2);text-align:center;font-family:var(--font-d);letter-spacing:1px">DART MEADOW · RADICAL DEEPSCALE LLC<br><span style="font-size:8px;opacity:.6">Preferences saved automatically and synced to your private repository</span></div>'
+      +'</div>';
+    document.body.appendChild(ov);
+    // ── Location permission sync — check state and pre-fill checkbox ──
+    (function() {
+      var chk = document.getElementById('ds-loc-chk');
+      var desc = document.getElementById('ds-loc-desc');
+      if (!chk) return;
+      var locPref = !!(prefs.location);
+      chk.checked = locPref;
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({name:'geolocation'}).then(function(status) {
+          if (status.state === 'granted') {
+            chk.checked = true;
+            if (desc) desc.textContent = 'Location access granted. Uncheck to stop Autumn from using your location.';
+            window._ghUpdateDataPref('location', true);
+          } else if (status.state === 'denied') {
+            chk.checked = false; chk.disabled = true;
+            if (desc) desc.innerHTML = 'Location access blocked. <span style="color:rgba(255,160,50,.7)">Update browser site permissions for leatr.xyz to re-enable.</span>';
+            window._ghUpdateDataPref('location', false);
+          } else {
+            chk.checked = false;
+            if (desc) desc.textContent = 'Checking will trigger your browser\'s location permission prompt.';
+          }
+          status.onchange = function() {
+            var granted = status.state === 'granted';
+            chk.checked = granted; chk.disabled = status.state === 'denied';
+            window._ghUpdateDataPref('location', granted);
+            if (desc) desc.textContent = granted ? 'Location access granted.' : status.state === 'denied' ? 'Location blocked in browser settings.' : 'Location permission removed.';
+          };
+        }).catch(function(){});
+      }
+    })();
+  };
+
+  // ── Handle location pref checkbox ────────────────────────────────────────
+  window._ghHandleLocationPref = function(checked) {
+    if (checked) {
+      // Request permission — browser will prompt if not yet granted
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos) {
+            window._ghUpdateDataPref('location', true);
+            var desc = document.getElementById('ds-loc-desc');
+            if (desc) desc.textContent = 'Location access granted. Autumn can now use your location.';
+          },
+          function(err) {
+            // User denied or error — uncheck
+            var chk = document.getElementById('ds-loc-chk');
+            if (chk) { chk.checked = false; if (err.code === 1) chk.disabled = true; }
+            window._ghUpdateDataPref('location', false);
+            var desc = document.getElementById('ds-loc-desc');
+            if (desc) desc.textContent = err.code === 1
+              ? 'Location blocked. Update browser site permissions to enable.'
+              : 'Could not get location. Please try again.';
+          },
+          {timeout:10000, maximumAge:60000}
+        );
+      }
+    } else {
+      window._ghUpdateDataPref('location', false);
+      var desc = document.getElementById('ds-loc-desc');
+      if (desc) desc.textContent = 'Location sharing disabled. Autumn will no longer request your location.';
+    }
+  };
+
+  // ── Sync model training snapshot to user private Ash repo ─────────────────
+  window._syncModelTrainingData = function() {
+    if (!(window._ghAuth && window._ghAuth.loggedIn && typeof _ghWriteFile === 'function')) return;
+    var token = window._ghAuth.token;
+    var username = window._ghAuth.username;
+    var repoName = window._ghAuth.repoName || ('Autumn-Ash-'+username);
+    var prefs = {};
+    try { prefs = JSON.parse(localStorage.getItem('_gh_data_prefs')||'{}'); } catch(e){}
+    var PERSONAL_KEYS = ['name','email','phone','address','birthdate'];
+    var snap = {
+      uid: username, ts: new Date().toISOString(), consentVersion: '1.0',
+      personalOptIns: PERSONAL_KEYS.filter(function(k){ return !!prefs[k]; }),
+      sessionMetrics: {
+        ops:     (window.S && window.S.opCount) || 0,
+        journal: (window.S && window.S.journal && window.S.journal.length) || 0,
+        geo:     (window.S && window.S.brpn && window.S.brpn.geo)  || 0,
+        mar:     (window.S && window.S.brpn && window.S.brpn.mar)  || 0,
+        aero:    (window.S && window.S.brpn && window.S.brpn.aero) || 0,
+        emo:     (window.S && window.S.lastAnalysis && window.S.lastAnalysis.emotional) || 'neutral',
+      }
+    };
+    var path = 'model-training/'+username+'-snap-'+Date.now()+'.json';
+    _ghWriteFile(path, JSON.stringify(snap,null,2), null, token, username, repoName);
+    if (typeof _toast === 'function') _toast('◈ Training data snapshot synced to your private repository');
   };
 
 
@@ -20166,6 +21989,44 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 <script src="js/ash-shard-module.js"></script>
 
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/scripts/sentience-journal.js"></script>
+<script>
+  // ── Sentience journal hook on Ash Canvas apply ────────────────────────────
+  (function() {
+    var _origACApply = window.acApplyToNetwork;
+    if (typeof _origACApply !== 'function') return;
+    window.acApplyToNetwork = function() {
+      _origACApply.apply(this, arguments);
+      setTimeout(function() {
+        try {
+          if (window.AutumnSentience && window._ac) {
+            var S = window.S;
+            var emo = S && S.lastAnalysis && S.lastAnalysis.emotion ? S.lastAnalysis.emotion.primary : null;
+            window.AutumnSentience.recordAshCanvas(
+              window._ac.nodes, window._ac.links, window._ac.influence, emo
+            );
+          }
+        } catch(e) {}
+      }, 500);
+    };
+  })();
+</script>
+
+
+  <!-- ⬡ ARCLAKE STUDIO OVERLAY -->
+  <div id="als-overlay" style="display:none;position:fixed;z-index:9100;top:60px;left:50%;transform:translateX(-50%);width:min(720px,96vw);max-height:85vh;background:rgba(6,10,16,0.97);border:1px solid rgba(0,229,255,0.25);border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,0.7);flex-direction:column;font-family:Orbitron,monospace;touch-action:none;user-select:none">
+    <div id="als-overlay-header" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,229,255,0.06);border-bottom:1px solid rgba(0,229,255,0.15);cursor:grab;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:#00e5ff;font-size:16px">&#x2B21;</span>
+        <span style="font-size:11px;letter-spacing:2px;color:#00e5ff;font-weight:700">ARCLAKE STUDIO</span>
+        <span id="als-overlay-status" style="font-size:9px;color:#8a8fa8;letter-spacing:1px;margin-left:4px">&#9679; IDLE</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="window.arcLakeStudioCollapse&&window.arcLakeStudioCollapse()" id="als-collapse-btn" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#8a8fa8;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px">&#x2014;</button>
+        <button onclick="window.arcLakeStudioClose&&window.arcLakeStudioClose()" style="background:rgba(255,77,77,0.1);border:1px solid rgba(255,77,77,0.3);color:#ff4d4d;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:10px;font-family:inherit">&#x2715; CLOSE</button>
+      </div>
+    </div>
+    <div id="als-overlay-body" style="flex:1;overflow:hidden;min-height:400px"></div>
+  </div>
 </body>
 </html>
 

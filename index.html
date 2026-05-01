@@ -330,7 +330,7 @@ window._refreshAnalyticsNow = async function() {
         _doMount();
       } else {
         var s = document.createElement('script');
-        s.src = 'js/arclake_studio.js?v=2026050104';
+        s.src = 'js/arclake_studio.js?v=2026050108';
         s.onload = _doMount;
         document.head.appendChild(s);
       }
@@ -8940,7 +8940,8 @@ function classifyIntentLocal(text, hasPendingImages) {
   // ── ARCLAKE — must come BEFORE Arc Edge (arc lake contains the word "arc") ──
   var _arcLakeIntent =
     /\b(arc\s*lake|arclake)\b/i.test(lc) ||
-    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid)\b/i.test(lc) &&
+    /\b(hercules\s*alloy|hercules|h2o|co2|carbon\s*dioxide|nacl|salt\s*molecule|titanium\s*alloy|copper\s*oxide|calcium\s*carbonate|silicon\s*dioxide|iron\s*copper)\b/i.test(lc) ||
+    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid|waveform|electron|proton|neutron|nucleus|atomic|atom)\b/i.test(lc) &&
      !/\b(arc\s*edge|arcedge|deviation|induction)\b/i.test(lc));
   if (_arcLakeIntent) return 'ARCLAKE';
 
@@ -9287,7 +9288,17 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     /\b(journal|sentient).{0,60}(file|repo|repository|storage|total|combined)\b/i.test(augmentedText) ||
     /\b(current|actual|real|total).{0,20}(file\s*size|size).{0,30}(journal|sentient|memory)\b/i.test(augmentedText);
 
-  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger || _journalSizeTrigger) && !_pendingImgs.length) {
+  // ── JOURNAL SELF-TEST triggers ────────────────────────────────────────────
+  const _journalTestTrigger =
+    /\b(begin|start|run|do|execute)\s+(journal|sentient)\s+(test|crud|check)\b/i.test(augmentedText) ||
+    /\b(test|check)\s+(the\s+)?(journal|sentient)\s*(crud|system|write|read|edit|delete)?\b/i.test(augmentedText) ||
+    /\bnext\s+phase\b/i.test(augmentedText);
+  const _journalTestEnd =
+    /\b(end|finish|stop|clear|reset|clean\s*up)\s+(journal|sentient)?\s*test\b/i.test(augmentedText) ||
+    /\bclean\s*up\s+(test|journal)\b/i.test(augmentedText);
+  const _journalTestPhase = (typeof S !== 'undefined' && S._journalTestPhase) ? S._journalTestPhase : 0;
+
+  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger || _journalSizeTrigger || _journalTestTrigger || _journalTestEnd) && !_pendingImgs.length) {
 
     // AWAIT the fetch so analytics are available for this response
     if (!_analyticsReady || !_analyticsCache) {
@@ -13771,7 +13782,7 @@ function renderToolsContent(){
       } else {
         el.innerHTML="<div style='padding:20px;font-family:Orbitron,monospace;color:#00e5ff'>⬡ Loading ArcLake Studio...</div>";
         var _als_script=document.createElement('script');
-        _als_script.src='js/arclake_studio.js?v=2026050103';
+        _als_script.src='js/arclake_studio.js?v=2026050108';
         _als_script.onload=function(){
           el.innerHTML=window.renderToolsArcLake?window.renderToolsArcLake():"ArcLake Studio failed to load.";
           setTimeout(function(){ window._alsMounted&&window._alsMounted(); },50);
