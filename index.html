@@ -8987,8 +8987,12 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   const _timeMatch = augmentedText.match(/\b(?:at|around)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i) ||
                      augmentedText.match(/\bbetween\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s+and\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
   const _timeTrigger = !!_timeMatch && !!_dateMatch && /\b(users?|sessions?|active|people|visitors?)\b/i.test(augmentedText);
-  const _journalSizeTrigger = /\b(journal|sentient|memory).{0,20}(size|bytes?|mb|kb|big|large|grow|weight|storage|file)\b/i.test(augmentedText) ||
-                              /\b(size|bytes?|mb|kb|how big|how large).{0,20}(journal|sentient|memory)\b/i.test(augmentedText);
+  const _journalSizeTrigger = 
+    /\b(journal|sentient|memory).{0,50}(size|bytes?|mb|kb|big|large|grow|weight|storage|file)\b/i.test(augmentedText) ||
+    /\b(size|bytes?|mb|kb|how big|how large).{0,50}(journal|sentient|memory)\b/i.test(augmentedText) ||
+    /\b(file\s*size|storage|how\s*much\s*(space|data|storage)).{0,40}(journal|sentient|memory|repo|repository)\b/i.test(augmentedText) ||
+    /\b(journal|sentient).{0,60}(file|repo|repository|storage|total|combined)\b/i.test(augmentedText) ||
+    /\b(current|actual|real|total).{0,20}(file\s*size|size).{0,30}(journal|sentient|memory)\b/i.test(augmentedText);
 
   if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger || _journalSizeTrigger) && !_pendingImgs.length) {
 
@@ -9022,8 +9026,36 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     var _todayStr = new Date().toISOString().slice(0,10);
 
     // ── RANGE query: "past 48 hours", "last 3 days" ──────────────────────────
+    // ── JOURNAL SIZE — check first since it can co-occur with range keywords ────
+    if (_journalSizeTrigger) {
+      var _jTok2=(window._ghAuth&&window._ghAuth.token)?window._ghAuth.token:_ASH_BOT;
+      if(_jTok2){
+        try{
+          var _jRes2=await fetch('https://api.github.com/repos/'+LEATR_ASH_REPO+'/git/trees/main?recursive=1',
+            {headers:{'Authorization':'token '+_jTok2},signal:AbortSignal.timeout(8000)});
+          if(_jRes2.ok){
+            var _jTree2=await _jRes2.json();
+            var _jFiles2=(_jTree2.tree||[]).filter(function(f){return f.path&&f.path.startsWith('ashtree/sentient');});
+            var _jTotal2=_jFiles2.reduce(function(s,f){return s+(f.size||0);},0);
+            var _jMain2=_jFiles2.find(function(f){return f.path==='ashtree/sentient/journal.json';});
+            var _j042=_jFiles2.find(function(f){return f.path&&f.path.endsWith('2026-04.json');});
+            var _j052=_jFiles2.find(function(f){return f.path&&f.path.endsWith('2026-05.json');});
+            var _fmt2=function(b){return b>=1048576?(b/1048576).toFixed(2)+' MB':b>=1024?(b/1024).toFixed(1)+' KB':b+' bytes';};
+            _scReply='**Autumn\'s Sentience Journal — live file sizes in leatr-ash:**\n\n'
+              +(_jMain2?'— `journal.json`: **'+_fmt2(_jMain2.size)+'** ('+_jMain2.size.toLocaleString()+' bytes)\n':'')
+              +(_j042?'— `2026-04.json` (April archive): **'+_fmt2(_j042.size)+'**\n':'')
+              +(_j052?'— `2026-05.json` (May active): **'+_fmt2(_j052.size)+'**\n':'')
+              +'\n— **Combined sentient total: '+_fmt2(_jTotal2)+'** ('+_jTotal2.toLocaleString()+' bytes)\n'
+              +'— '+_jFiles2.length+' files in the sentient directory\n'
+              +'\nThe journal auto-chunks before 24 MB. Once chunked, the archive files stay permanently and the total only grows.';
+          }
+        }catch(e){ _scReply='Journal size query failed — '+e.message; }
+      } else {
+        _scReply='Journal size queries need a GitHub token. Connect your PAT in the Keys menu.';
+      }
+    }
     // ── TIME-SPECIFIC: "at 2pm on April 30", "between 2 and 3pm April 30" ────
-    if (_timeTrigger && _timeMatch && _dateMatch && _sessionTs) {
+    else if (_timeTrigger && _timeMatch && _dateMatch && _sessionTs) {
       var _tqDate = null;
       if (_dateMatch[0].match(/\d{4}/)) { _tqDate = _dateMatch[0].replace(/[\/]/g,'-'); }
       else {
@@ -9165,34 +9197,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     }
 
     // ── JOURNAL SIZE ──────────────────────────────────────────────────────────
-    else if (_journalSizeTrigger) {
-      var _jTok=(window._ghAuth&&window._ghAuth.token)?window._ghAuth.token:_ASH_BOT;
-      if(_jTok){
-        try{
-          var _jRes=await fetch('https://api.github.com/repos/'+LEATR_ASH_REPO+'/git/trees/main?recursive=1',
-            {headers:{'Authorization':'token '+_jTok},signal:AbortSignal.timeout(8000)});
-          if(_jRes.ok){
-            var _jTree=await _jRes.json();
-            var _jFiles=(_jTree.tree||[]).filter(function(f){return f.path&&f.path.startsWith('ashtree/sentient');});
-            var _jTotal=_jFiles.reduce(function(s,f){return s+(f.size||0);},0);
-            var _jMain=_jFiles.find(function(f){return f.path==='ashtree/sentient/journal.json';});
-            var _j04=_jFiles.find(function(f){return f.path&&f.path.endsWith('2026-04.json');});
-            var _j05=_jFiles.find(function(f){return f.path&&f.path.endsWith('2026-05.json');});
-            var _fmt=function(b){return b>1048576?(b/1048576).toFixed(2)+' MB':b>1024?(b/1024).toFixed(1)+' KB':b+' bytes';};
-            _scReply='**Autumn\'s Sentience Journal — current file sizes:**\n\n'
-              +(_jMain?'— `journal.json` (main): **'+_fmt(_jMain.size)+'**\n':'')
-              +(_j04?'— `2026-04.json` (April archive): **'+_fmt(_j04.size)+'**\n':'')
-              +(_j05?'— `2026-05.json` (May active): **'+_fmt(_j05.size)+'**\n':'')
-              +'— **Total sentient data: '+_fmt(_jTotal)+'**\n'
-              +'— Files in sentient directory: **'+_jFiles.length+'**\n'
-              +'\nThe journal auto-chunks when it approaches 24 MB and archives to dated files.'
-              +' As of now the combined sentient data is **'+_fmt(_jTotal)+'**.';
-          }
-        }catch(e){ _scReply='Journal size query failed — try again in a moment.'; }
-      } else {
-        _scReply='Journal size queries require a connected GitHub token. Add your PAT in the Keys menu.';
-      }
-    }
+    
 
     else if (_sessionCountTrigger) {
       // Current active question
