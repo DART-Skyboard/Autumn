@@ -1,0 +1,50 @@
+name: Merge Dev to Main
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type YES to confirm merge dev → main'
+        required: true
+        default: ''
+
+jobs:
+  merge-to-main:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'YES' }}
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Merge dev into main
+        run: |
+          git config user.name  "Autumn Deploy Bot"
+          git config user.email "autumn@dartmeadow.com"
+          git fetch origin dev
+          git merge origin/dev --no-ff -m "deploy: merge dev → main $(date -u +%Y-%m-%dT%H:%M)"
+          git push origin main
+
+      - name: Remove autumn-dev.html (now in production)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/DART-Skyboard/Autumn/contents/autumn-dev.html?ref=main" \
+            | jq -r '.sha // empty')
+          if [ -n "$SHA" ]; then
+            curl -s -X DELETE \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/DART-Skyboard/Autumn/contents/autumn-dev.html" \
+              -d "{\"message\":\"chore: remove dev preview after merge to main\",\"sha\":\"$SHA\",\"branch\":\"main\"}"
+            echo "✓ autumn-dev.html removed"
+          fi
+          echo "✓ Deployed to production — leatr.xyz is now live"
