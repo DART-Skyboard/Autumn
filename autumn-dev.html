@@ -330,7 +330,7 @@ window._refreshAnalyticsNow = async function() {
         _doMount();
       } else {
         var s = document.createElement('script');
-        s.src = 'js/arclake_studio.js?v=2026050104';
+        s.src = 'js/arclake_studio.js?v=2026050109';
         s.onload = _doMount;
         document.head.appendChild(s);
       }
@@ -8940,7 +8940,8 @@ function classifyIntentLocal(text, hasPendingImages) {
   // ── ARCLAKE — must come BEFORE Arc Edge (arc lake contains the word "arc") ──
   var _arcLakeIntent =
     /\b(arc\s*lake|arclake)\b/i.test(lc) ||
-    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid)\b/i.test(lc) &&
+    /\b(hercules\s*alloy|hercules|h2o|co2|carbon\s*dioxide|nacl|salt\s*molecule|titanium\s*alloy|copper\s*oxide|calcium\s*carbonate|silicon\s*dioxide|iron\s*copper)\b/i.test(lc) ||
+    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid|waveform|electron|proton|neutron|nucleus|atomic|atom)\b/i.test(lc) &&
      !/\b(arc\s*edge|arcedge|deviation|induction)\b/i.test(lc));
   if (_arcLakeIntent) return 'ARCLAKE';
 
@@ -9287,7 +9288,17 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     /\b(journal|sentient).{0,60}(file|repo|repository|storage|total|combined)\b/i.test(augmentedText) ||
     /\b(current|actual|real|total).{0,20}(file\s*size|size).{0,30}(journal|sentient|memory)\b/i.test(augmentedText);
 
-  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger || _journalSizeTrigger) && !_pendingImgs.length) {
+  // ── JOURNAL SELF-TEST triggers ────────────────────────────────────────────
+  const _journalTestTrigger =
+    /\b(begin|start|run|do|execute)\s+(journal|sentient)\s+(test|crud|check)\b/i.test(augmentedText) ||
+    /\b(test|check)\s+(the\s+)?(journal|sentient)\s*(crud|system|write|read|edit|delete)?\b/i.test(augmentedText) ||
+    /\bnext\s+phase\b/i.test(augmentedText);
+  const _journalTestEnd =
+    /\b(end|finish|stop|clear|reset|clean\s*up)\s+(journal|sentient)?\s*test\b/i.test(augmentedText) ||
+    /\bclean\s*up\s+(test|journal)\b/i.test(augmentedText);
+  const _journalTestPhase = (typeof S !== 'undefined' && S._journalTestPhase) ? S._journalTestPhase : 0;
+
+  if((_sessionCountTrigger || _lifetimeTrigger || _todayTrigger || _peakTrigger || _dateTrigger || _rangeTrigger || _timeTrigger || _journalSizeTrigger || _journalTestTrigger || _journalTestEnd) && !_pendingImgs.length) {
 
     // AWAIT the fetch so analytics are available for this response
     if (!_analyticsReady || !_analyticsCache) {
@@ -13771,7 +13782,7 @@ function renderToolsContent(){
       } else {
         el.innerHTML="<div style='padding:20px;font-family:Orbitron,monospace;color:#00e5ff'>⬡ Loading ArcLake Studio...</div>";
         var _als_script=document.createElement('script');
-        _als_script.src='js/arclake_studio.js?v=2026050103';
+        _als_script.src='js/arclake_studio.js?v=2026050109';
         _als_script.onload=function(){
           el.innerHTML=window.renderToolsArcLake?window.renderToolsArcLake():"ArcLake Studio failed to load.";
           setTimeout(function(){ window._alsMounted&&window._alsMounted(); },50);
@@ -13783,6 +13794,7 @@ function renderToolsContent(){
 }
 
 function renderToolsAbout(){
+  // ── Main business links ──────────────────────────────────────────────────
   const links=[
     {label:'LEATR.XYZ',url:'https://leatr.xyz/',desc:'Autumn — LEATR neural network home',icon:'🔗'},
     {label:'DARTMEADOW.COM',url:'https://dartmeadow.com/',desc:'DART Meadow main site',icon:'🔗'},
@@ -13793,13 +13805,80 @@ function renderToolsAbout(){
     {label:'YOUTUBE · @dry.meadow',url:'https://youtube.com/@dry.meadow',desc:'Dry Meadow on YouTube',icon:'▶'},
   ];
   const _ghSvg=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>`;
+
+  // ── GitHub repos ─────────────────────────────────────────────────────────
   const ghRepos=[
     {label:'DART-Skyboard / Autumn',url:'https://github.com/DART-Skyboard/Autumn',
      desc:'Autumn AI — the web app (leatr.xyz)',tag:'Source · leatr.xyz',action:'Explore · Fork · Contribute'},
   ];
-  const linksHtml=links.map(l=>`<a href="${l.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.12);border-radius:8px;text-decoration:none;transition:background .15s;margin-bottom:6px" onmouseover="this.style.background='rgba(0,229,255,.09)'" onmouseout="this.style.background='rgba(0,229,255,.04)'"><span style="font-size:15px">${l.icon||'🔗'}</span><div style="flex:1;min-width:0"><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1.5px;color:var(--cyan)">${l.label}</div><div style="font-size:11px;color:var(--dim);margin-top:2px">${l.desc}</div></div><span style="font-size:11px;color:rgba(0,229,255,.3)">↗</span></a>`).join('');
-  const ghHtml=ghRepos.map(r=>`<a href="${r.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.2);border-radius:8px;text-decoration:none;transition:all .15s;margin-bottom:8px" onmouseover="this.style.background='rgba(0,229,255,.08)';this.style.borderColor='rgba(0,229,255,.4)'" onmouseout="this.style.background='rgba(0,229,255,.03)';this.style.borderColor='rgba(0,229,255,.2)'"><div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:rgba(0,229,255,.1);border-radius:6px;flex-shrink:0;color:var(--cyan)">${_ghSvg}</div><div style="flex:1;min-width:0"><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1.2px;color:var(--cyan)">${r.label}</div><div style="font-size:10px;color:var(--dim);margin-top:2px">${r.desc}</div><div style="font-size:9px;color:rgba(0,229,255,.45);margin-top:3px;font-family:var(--font-d)">${r.action}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0"><span style="font-size:9px;padding:2px 6px;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.25);border-radius:3px;color:var(--cyan);font-family:var(--font-d);white-space:nowrap">${r.tag}</span><span style="font-size:10px;color:rgba(0,229,255,.3)">↗</span></div></a>`).join('');
-  return`<div class="glass"><div class="glass-title">◈ DART MEADOW · RADICAL DEEPSCALE</div><div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:14px">Engineering, AI &amp; scientific visualization tools built on the LEATR v2 neural system.<br>Founded by Justin Craig Venable.</div>${linksHtml}</div><div class="glass"><div class="glass-title" style="display:flex;align-items:center;gap:7px"><span style="color:var(--cyan)">${_ghSvg}</span> OPEN SOURCE · GITHUB</div><div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:12px">Autumn is open to explore and fork. Runs entirely in the browser — single HTML file, no backend required.</div>${ghHtml}</div><div class="glass" style="margin-top:0"><div class="glass-title" style="display:flex;align-items:center;gap:7px"><span style="font-size:13px">📚</span> WORDNET® ATTRIBUTION</div><div style="font-size:10px;color:var(--dim);line-height:1.8">Autumn uses <strong style="color:var(--cyan)">WordNet® 3.1</strong> — a lexical database by Princeton University. WordNet® is a registered trademark. Used free of charge under the WordNet license.</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:10px"><a href="https://wordnet.princeton.edu/license-and-commercial-use" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.15);border-radius:7px;text-decoration:none" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='rgba(0,229,255,.03)'"><span style="font-size:13px">📄</span><div style="flex:1"><div style="font-family:var(--font-d);font-size:9px;letter-spacing:1px;color:var(--cyan)">WORDNET LICENSE</div><div style="font-size:10px;color:var(--dim);margin-top:1px">wordnet.princeton.edu/license-and-commercial-use</div></div><span style="color:rgba(0,229,255,.3);font-size:10px">↗</span></a><a href="https://wordnet.princeton.edu/citing-wordnet" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.15);border-radius:7px;text-decoration:none" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='rgba(0,229,255,.03)'"><span style="font-size:13px">📖</span><div style="flex:1"><div style="font-family:var(--font-d);font-size:9px;letter-spacing:1px;color:var(--cyan)">CITING WORDNET</div><div style="font-size:10px;color:var(--dim);margin-top:1px">Miller (1995) · Fellbaum (1998) — required citations</div></div><span style="color:rgba(0,229,255,.3);font-size:10px">↗</span></a></div><div style="margin-top:10px;padding:8px 10px;background:rgba(0,229,255,.02);border-left:2px solid rgba(0,229,255,.2);font-size:9px;color:rgba(0,229,255,.5);font-family:var(--font-d);line-height:1.7">George A. Miller (1995). WordNet: A Lexical Database for English.<br>Communications of the ACM Vol. 38, No. 11: 39–41.<br><br>Christiane Fellbaum (1998, ed.) WordNet: An Electronic Lexical Database. Cambridge, MA: MIT Press.</div><div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(0,229,255,.08);font-size:10px;color:rgba(0,229,255,.3);font-family:var(--font-d);letter-spacing:1px;text-align:center">© 2026 DART MEADOW · RADICAL DEEPSCALE LLC</div></div>`;
+
+  const _lnk=(l)=>`<a href="${l.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.12);border-radius:8px;text-decoration:none;transition:background .15s;margin-bottom:6px" onmouseover="this.style.background='rgba(0,229,255,.09)'" onmouseout="this.style.background='rgba(0,229,255,.04)'"><span style="font-size:15px">${l.icon||'🔗'}</span><div style="flex:1;min-width:0"><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1.5px;color:var(--cyan)">${l.label}</div><div style="font-size:11px;color:var(--dim);margin-top:2px">${l.desc}</div></div><span style="font-size:11px;color:rgba(0,229,255,.3)">↗</span></a>`;
+
+  const linksHtml = links.map(_lnk).join('');
+
+  const ghHtml=ghRepos.map(r=>`<a href="${r.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.2);border-radius:8px;text-decoration:none;transition:all .15s;margin-bottom:8px" onmouseover="this.style.background='rgba(0,229,255,.08)';this.style.borderColor='rgba(0,229,255,.4)'" onmouseout="this.style.background='rgba(0,229,255,.03)';this.style.borderColor='rgba(0,229,255,.2)'">
+    <div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:rgba(0,229,255,.08);border-radius:6px;color:var(--cyan);flex-shrink:0">${_ghSvg}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:var(--font-d);font-size:10px;letter-spacing:1px;color:var(--cyan)">${r.label}</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:1px">${r.desc}</div>
+      <div style="font-size:10px;color:rgba(0,229,255,.4);margin-top:3px">${r.action}</div>
+    </div>
+    <span style="font-family:var(--font-d);font-size:9px;padding:2px 8px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);border-radius:3px;color:var(--cyan);white-space:nowrap">${r.tag}</span>
+  </a>`).join('');
+
+  // ── Movement Conjecture tool card ────────────────────────────────────────
+  const mcToken = localStorage.getItem('mc_gh_token');
+  const mcStatus = mcToken
+    ? `<span style="color:#39ff82;font-size:10px;font-family:'Share Tech Mono',monospace">● TOKEN CONNECTED</span>`
+    : `<span style="color:rgba(0,229,255,.35);font-size:10px;font-family:'Share Tech Mono',monospace">○ REQUIRES GITHUB PAT</span>`;
+
+  const mcCard = `
+    <div style="background:rgba(240,192,64,.04);border:1px solid rgba(240,192,64,.2);border-radius:10px;padding:16px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:20px">📈</span>
+        <div>
+          <div style="font-family:var(--font-d);font-size:11px;letter-spacing:2px;color:#f0c040">MOVEMENT CONJECTURE</div>
+          <div style="font-size:10px;color:rgba(240,192,64,.5);margin-top:1px">MSP SIGMA-EOD · STOCK PHASE PROPAGATION</div>
+        </div>
+        <span style="flex:1"></span>
+        ${mcStatus}
+      </div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:12px">
+        Multi-stock trajectory projection engine based on the EOD orbital disc algorithm.
+        Enter up to 5 tickers, set Sigma investment values, and project phase propagation curves through 2080.
+        Macros sync to your GitHub account via PAT — your data stays in your own Gist.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="https://leatr.xyz/movement-conjecture.html" target="_blank" rel="noopener"
+          style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
+          background:rgba(240,192,64,.12);border:1px solid rgba(240,192,64,.35);
+          border-radius:6px;color:#f0c040;text-decoration:none;font-family:var(--font-d);
+          font-size:9px;letter-spacing:1.5px;transition:all .15s"
+          onmouseover="this.style.background='rgba(240,192,64,.22)'"
+          onmouseout="this.style.background='rgba(240,192,64,.12)'">
+          ▶ OPEN TOOL ↗
+        </a>
+        ${!mcToken?`<span style="padding:8px 12px;font-size:10px;color:rgba(0,229,255,.4);font-family:'Share Tech Mono',monospace;align-self:center">Connect a GitHub PAT to sync macros</span>`:''}
+      </div>
+    </div>`;
+
+  return `
+    <div style="padding:4px 0 12px">
+      <!-- DART Meadow Links -->
+      <div style="font-family:var(--font-d);font-size:9px;letter-spacing:2px;color:rgba(0,229,255,.4);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid rgba(0,229,255,.08)">DART MEADOW · RADICAL DEEPSCALE</div>
+      <div style="margin-bottom:4px;font-size:11px;color:rgba(200,220,240,.55);line-height:1.5">Engineering, AI &amp; scientific visualization tools built on the LEATR v2 neural system.<br>Founded by Justin Craig Venable.</div>
+      <div style="margin:12px 0 16px">${linksHtml}</div>
+
+      <!-- GitHub -->
+      <div style="font-family:var(--font-d);font-size:9px;letter-spacing:2px;color:rgba(0,229,255,.4);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid rgba(0,229,255,.08);margin-top:8px">OPEN SOURCE · GITHUB</div>
+      <div style="margin-bottom:4px;font-size:11px;color:rgba(200,220,240,.55);line-height:1.5">Autumn is open to explore and fork. Runs entirely in the browser — single HTML file, no backend required.</div>
+      <div style="margin:10px 0 16px">${ghHtml}</div>
+
+      <!-- Tools / Apps -->
+      <div style="font-family:var(--font-d);font-size:9px;letter-spacing:2px;color:rgba(240,192,64,.5);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid rgba(240,192,64,.1);margin-top:8px">TOOLS · APPS</div>
+      <div style="margin-bottom:4px;font-size:11px;color:rgba(200,220,240,.55);line-height:1.5">Standalone tools available to authorized users. GitHub PAT required — your data is stored in your own account.</div>
+      <div style="margin:10px 0 4px">${mcCard}</div>
+    </div>`;
 }
 
 function renderToolsCognition(){
