@@ -20688,9 +20688,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   } catch(e) {}
 
   function init() {
-    // ── Must be first: catch GitHub redirect back with ?code= ─────────────
-    if (_handleOAuthReturn()) return;
-
     var stored = _loadStoredSession();
     var isRegistered = localStorage.getItem('_gh_registered');
 
@@ -20747,16 +20744,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       return;
     }
 
-    // ── No local session — could be cache-cleared returning user or truly new ──
-    // Use web OAuth flow: returning users get instant silent redirect (no device code).
-    // New users see the GitHub authorize screen once.
+    // ── Truly new user ────────────────────────────────────────────────────
     var skipped = localStorage.getItem('_gh_login_skipped');
-    if (!skipped) {
-      // Show modal with web flow button — returning users bounce back instantly
-      _showLoginModal();
-    } else {
-      _showGuestMode();
-    }
+    if (!skipped) _showLoginModal();
+    else _showGuestMode();
   }
 
   // ── Re-auth: returning user, token gone (cleared cookies/storage/new browser)
@@ -20819,7 +20810,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var _devicePollTimer = null;
 
   function _startOAuth() {
-    _doWebFlowRedirect();
+    _showDeviceFlow();
   }
 
   function _preWireBtn() {
@@ -21664,12 +21655,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         _applySession(refreshed);
       })
       .catch(function() {
-        // Token stale — silent web flow redirect (GitHub skips auth screen for registered users)
         try { localStorage.removeItem('_gh_session'); } catch(e) {}
-        _doWebFlowRedirect();
+        _showDeviceFlow();
       });
     } else {
-      _doWebFlowRedirect();
+      _showDeviceFlow();
     }
   };
 
