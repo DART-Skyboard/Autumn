@@ -308,7 +308,12 @@ _gateCheck();
             to pull 5 as close to 4 as possible — or reverse how their values read against one another.
             The lead stays, but the margin and the direction you are pushing toward is yours to set.
           </div>
-          <div><span style="color:var(--cyan)">Sigma</span> — weight of your experience in each area</div>
+          <div><span style="color:var(--cyan)">Sigma</span> — influence weight for each ticker</div>
+          <div style="margin-left:8px;margin-bottom:4px;padding:5px 8px;background:rgba(0,229,255,.05);border-left:2px solid rgba(0,229,255,.2);border-radius:0 4px 4px 0;font-size:.47rem;line-height:1.7;color:rgba(200,232,240,.5)">
+            This is the influence weight itself — not a price or a quantity. Use anywhere in the
+            decimal range up to 5. You can go higher, but it is generally unnecessary.
+            Up to six decimal places. Examples: 0.5, 1.25, 3.7, 4.000001.
+          </div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
             <span style="color:var(--gold)">EOD</span> — overall influence factor
           </div>
@@ -579,9 +584,10 @@ const slots = Array.from({length:STOCK_COUNT}, (_,i) => ({
       </div>
       <div class="inp-row full">
         <div class="inp-wrap">
-          <span class="inp-lbl">SIGMA INVESTMENT (radc)</span>
-          <input type="number" id="sigma-${i}" placeholder="0.0" step="any"
-            oninput="slots[${i}].sigma=parseFloat(this.value)||0"/>
+          <span class="inp-lbl">SIGMA INFLUENCE (0–5 · 6 dec)</span>
+          <input type="number" id="sigma-${i}" placeholder="0.000000" step="0.000001" min="0"
+            title="Influence weight — decimal up to 5 recommended, max 6 decimal places"
+            oninput="slots[${i}].sigma=parseFloat((+this.value).toFixed(6))||0"/>
         </div>
       </div>
       <button class="fetch-btn" id="fetch-${i}" onclick="fetchQuote(${i})">⬇ FETCH QUOTE</button>`;
