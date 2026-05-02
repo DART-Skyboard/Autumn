@@ -20745,7 +20745,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           name:         user.name || user.login
         };
         localStorage.setItem('_gh_token_ok', String(Date.now()));
-        localStorage.setItem('_gh_token_ok', String(Date.now()));
         _saveSession(refreshed);
         _applySession(refreshed);
       })
@@ -21050,6 +21049,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     window._ghAuth.avatar_url = data.avatar_url;
     window._ghAuth.name       = data.name || data.username;
     window._ghAuth.loggedIn   = true;
+    // Stamp token as valid immediately — prevents re-auth loop on next page load
+    try { localStorage.setItem('_gh_token_ok', String(Date.now())); } catch(e) {}
 
     // Restore sessions from GitHub on login
     setTimeout(function(){ restoreSessionsFromGitHub(data.access_token); }, 1500);
