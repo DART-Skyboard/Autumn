@@ -20225,7 +20225,6 @@ window.fcToggle = function() {
       var rect = calc.getBoundingClientRect();
       var cx = e.touches ? e.touches[0].clientX : e.clientX;
       var cy = e.touches ? e.touches[0].clientY : e.clientY;
-      const nh=Math.max(100,Math.min(window.innerHeight - 100,startH+(e.clientY-startY)));
       _fc.ox = cx - rect.left; _fc.oy = cy - rect.top;
       calc.style.right = 'auto'; calc.style.bottom = 'auto';
       calc.style.left = rect.left + 'px'; calc.style.top = rect.top + 'px';
@@ -20237,7 +20236,6 @@ window.fcToggle = function() {
       if (!_fc.dragging) return;
       var cx = e.touches ? e.touches[0].clientX : e.clientX;
       var cy = e.touches ? e.touches[0].clientY : e.clientY;
-      const nh=Math.max(100,Math.min(window.innerHeight - 100,startH+(e.clientY-startY)));
       var newL = cx - _fc.ox, newT = cy - _fc.oy;
       newL = Math.max(0, Math.min(newL, window.innerWidth  - calc.offsetWidth));
       newT = Math.max(0, Math.min(newT, window.innerHeight - calc.offsetHeight));
