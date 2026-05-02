@@ -20956,27 +20956,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       });
     }, 150);
 
-    // Poll for token
+    // Poll for token — always via GAS (has client_secret, handles exchange server-side)
     _devicePollTimer = setInterval(function() {
       var _gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL) ? AUTUMN_GAS_URL : window.AUTUMN_GAS_URL;
-      // form-encoded = simple CORS request, no preflight — GitHub allows it cross-origin
-      var _pollBody = 'client_id=Ov23li2K0njEqO1WTSdD' +
-        '&device_code=' + encodeURIComponent(deviceCode) +
-        '&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code';
-      // Primary: GitHub directly — quota-independent, works cross-origin with form encoding
-      fetch('https://github.com/login/oauth/access_token', {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: _pollBody,
-        signal: AbortSignal.timeout(10000)
+      fetch(_gasUrl + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode), {
+        signal: AbortSignal.timeout(12000)
       })
-      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
-      .catch(function() {
-        // Fallback: GAS proxy (used only if direct GitHub call fails)
-        return fetch(_gasUrl + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode), {
-          signal: AbortSignal.timeout(12000)
-        }).then(function(r){ return r.ok ? r.json() : {}; });
-      })
+      .then(function(r){ return r.ok ? r.json() : {}; })
       .catch(function(){ return {}; })
       .then(function(d){
           if (d.access_token) {
