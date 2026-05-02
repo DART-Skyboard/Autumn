@@ -679,14 +679,6 @@ global.renderToolsArcLake=function(){
     </div>
     <!-- Compound builder — always visible, supports multiple compounds -->
     <div style="display:flex;flex-direction:column;gap:5px">
-      <!-- Single element quick-add -->
-      <div style="display:flex;gap:6px;align-items:center">
-        <label style="font-size:8px;color:#8a8fa8;letter-spacing:1px;white-space:nowrap">ELEMENT</label>
-        <select id="als-el-drop" style="flex:1;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);color:#e8eaf0;padding:4px 6px;border-radius:5px;font-size:9px;font-family:'Share Tech Mono',monospace;cursor:pointer;max-height:120px">
-          <option value="">Loading elements...</option>
-        </select>
-        <button onclick="window._alsAddElementFromDrop&&window._alsAddElementFromDrop()" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:9px;font-family:inherit" title="Add selected element to scene">+ ADD</button>
-      </div>
       <!-- Compound / multi-compound text input -->
       <div style="display:flex;gap:6px;align-items:center">
         <input id="als-compound-in" placeholder="e.g. Fe2O3 and H2O · NaCl · Ti Al V" style="flex:1;background:rgba(124,77,255,.07);border:1px solid rgba(124,77,255,.28);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9px;font-family:'Share Tech Mono',monospace" onkeydown="if(event.key==='Enter')window._alsBuildCompounds&&window._alsBuildCompounds()">
