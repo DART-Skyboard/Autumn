@@ -7346,7 +7346,7 @@ async function loadSingleImageFile(file) {
         audioRmsDb = 20 * Math.log10(Math.sqrt(_vSumSq / _vN) + 1e-9);
         audioZcr = Math.round((_vZc / _vN) * audioSampleRate);
         var _vBS = Math.floor(_vN / 3);
-        function _vsegRMS(s,e){var q=0;for(var j=s;j<e;j++)q+=_vdata[j]*_vdata[j];return Math.sqrt(q/(e-s));}
+        var _vsegRMS=function(s,e){var q=0;for(var j=s;j<e;j++)q+=_vdata[j]*_vdata[j];return Math.sqrt(q/(e-s));};
         var _vbE=_vsegRMS(0,_vBS), _vmE=_vsegRMS(_vBS,_vBS*2), _vhE=_vsegRMS(_vBS*2,_vN);
         var _vtot=_vbE+_vmE+_vhE+1e-9;
         audioBass=Math.round(_vbE/_vtot*100); audioMid=Math.round(_vmE/_vtot*100); audioHigh=Math.round(_vhE/_vtot*100);
