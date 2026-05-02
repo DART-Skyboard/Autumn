@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Movement Conjecture EOD · Radical Deepscale</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#020c14;--bg2:#03111c;--bg3:#04192a;
+  --cyan:#00e5ff;--cyan2:rgba(0,229,255,.18);--cyan3:rgba(0,229,255,.08);
+  --gold:#f0c040;--green:#39ff82;--red:#ff4060;--violet:#a78bfa;
+  --txt:#cce8f0;--dim:rgba(200,232,240,.48);
+  --bdr:rgba(0,229,255,.15);--bdr2:rgba(0,229,255,.3);
+  --fh:'Orbitron',sans-serif;--fc:'Share Tech Mono',monospace;--fb:'Exo 2',sans-serif;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:14px;line-height:1.7;overflow-x:hidden}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--cyan2);border-radius:2px}
+
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(0,229,255,.055),transparent 60%),
+  linear-gradient(rgba(0,229,255,.018) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(0,229,255,.018) 1px,transparent 1px);
+  background-size:100% 100%,52px 52px,52px 52px}
+
+/* ── NAV ── */
+nav{position:sticky;top:0;z-index:500;background:rgba(2,10,18,.95);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--bdr);padding:10px 28px;display:flex;align-items:center;gap:16px}
+.nb{font-family:var(--fh);font-size:.48rem;letter-spacing:3px;color:var(--cyan);display:flex;align-items:center;gap:8px}
+.nb-dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+.nb-sep{flex:1}
+.nb-copy{font-family:var(--fc);font-size:.55rem;color:rgba(0,229,255,.28)}
+
+/* ── SECTIONS ── */
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 20px 80px}
+section{padding:56px 0 0}
+.sh{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.sh-num{font-family:var(--fh);font-size:.42rem;letter-spacing:2px;color:rgba(0,229,255,.4);border:1px solid rgba(0,229,255,.18);padding:3px 9px;border-radius:4px}
+.sh-title{font-family:var(--fh);font-size:.68rem;letter-spacing:4px;color:var(--cyan)}
+.sh-line{flex:1;height:1px;background:linear-gradient(90deg,var(--bdr),transparent);opacity:.6}
+
+/* ── HERO ── */
+#hero{min-height:45vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 20px 30px;position:relative;z-index:1}
+.hero-tag{font-family:var(--fh);font-size:.45rem;letter-spacing:5px;color:rgba(0,229,255,.55);margin-bottom:12px;animation:fu .7s ease both}
+.hero h1{font-family:var(--fh);font-size:clamp(1.8rem,5vw,3.4rem);font-weight:900;letter-spacing:2px;color:#fff;text-shadow:0 0 60px rgba(0,229,255,.22);animation:fu .7s .08s ease both}
+.hero h1 em{color:var(--cyan);font-style:normal}
+.hero-sub{font-family:var(--fh);font-size:.6rem;letter-spacing:5px;color:var(--gold);margin-top:8px;animation:fu .7s .16s ease both}
+.hero-desc{max-width:560px;color:var(--dim);font-size:.9rem;margin-top:16px;line-height:1.8;animation:fu .7s .24s ease both}
+.badges{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-top:18px;animation:fu .7s .3s ease both}
+.badge{font-family:var(--fh);font-size:.36rem;letter-spacing:1.5px;padding:4px 12px;border-radius:20px;border:1px solid var(--bdr);background:var(--cyan3);color:var(--cyan)}
+@keyframes fu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── CARD ── */
+.card{background:rgba(4,22,40,.82);border:1px solid var(--bdr);border-radius:var(--r);padding:24px 28px;margin-bottom:20px;backdrop-filter:blur(8px);transition:border-color .3s}
+.card:hover{border-color:var(--bdr2)}
+.card-title{font-family:var(--fh);font-size:.5rem;letter-spacing:3px;color:var(--cyan);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title::after{content:'';flex:1;height:1px;background:var(--bdr)}
+
+/* ── STOCK INPUTS ── */
+.stock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:18px}
+.stock-slot{background:rgba(0,229,255,.04);border:1px solid var(--bdr);border-radius:8px;padding:14px;transition:border-color .2s,background .2s}
+.stock-slot.active{border-color:rgba(0,229,255,.35);background:rgba(0,229,255,.07)}
+.ss-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ss-color{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.ss-label{font-family:var(--fh);font-size:.4rem;letter-spacing:2px;color:var(--dim)}
+.ss-live{font-family:var(--fc);font-size:.45rem;margin-left:auto;padding:2px 7px;border-radius:3px}
+.ss-live.ok{color:var(--green);background:rgba(57,255,130,.1)}
+.ss-live.stale{color:var(--gold);background:rgba(240,192,64,.1)}
+.ss-live.err{color:var(--red);background:rgba(255,64,96,.08)}
+.inp-row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.inp-row.full{grid-template-columns:1fr}
+.inp-wrap{display:flex;flex-direction:column;gap:3px}
+.inp-lbl{font-family:var(--fc);font-size:.42rem;color:rgba(0,229,255,.5);letter-spacing:1px}
+input[type=text],input[type=number]{width:100%;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.18);border-radius:5px;padding:7px 9px;color:#fff;font-family:var(--fc);font-size:.72rem;outline:none;transition:border-color .2s}
+input:focus{border-color:rgba(0,229,255,.5);background:rgba(0,229,255,.08)}
+input::placeholder{color:rgba(0,229,255,.2)}
+.fetch-btn{width:100%;padding:6px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.22);border-radius:5px;color:var(--cyan);font-family:var(--fh);font-size:.38rem;letter-spacing:1.5px;cursor:pointer;transition:all .2s}
+.fetch-btn:hover{background:rgba(0,229,255,.15);border-color:rgba(0,229,255,.4)}
+.fetch-btn:disabled{opacity:.4;cursor:default}
+
+/* ── TIMELINE ── */
+.tl-row{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin-bottom:18px}
+.tl-row select{background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.18);border-radius:5px;padding:7px 9px;color:#fff;font-family:var(--fc);font-size:.72rem;outline:none;cursor:pointer}
+.tl-row select:focus{border-color:rgba(0,229,255,.4)}
+
+/* ── RUN BUTTON ── */
+.run-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn-run{padding:12px 32px;background:linear-gradient(135deg,rgba(0,229,255,.22),rgba(0,180,200,.12));border:1px solid rgba(0,229,255,.5);border-radius:7px;color:var(--cyan);font-family:var(--fh);font-size:.5rem;letter-spacing:2px;cursor:pointer;transition:all .2s;box-shadow:0 0 20px rgba(0,229,255,.08)}
+.btn-run:hover{background:linear-gradient(135deg,rgba(0,229,255,.3),rgba(0,180,200,.2));box-shadow:0 0 30px rgba(0,229,255,.15)}
+.btn-run:active{transform:scale(.98)}
+.btn-sec{padding:10px 20px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:var(--dim);font-family:var(--fh);font-size:.42rem;letter-spacing:1.5px;cursor:pointer;transition:all .2s}
+.btn-sec:hover{border-color:rgba(0,229,255,.25);color:var(--txt)}
+.status-msg{font-family:var(--fc);font-size:.55rem;color:rgba(0,229,255,.55);margin-left:6px}
+
+/* ── RESULTS GRID ── */
+.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px}
+.rc{background:rgba(0,229,255,.04);border:1px solid var(--bdr);border-radius:8px;padding:14px 16px;transition:border-color .3s,background .3s}
+.rc.active{border-color:rgba(0,229,255,.32);background:rgba(0,229,255,.07)}
+.rc-lbl{font-family:var(--fh);font-size:.37rem;letter-spacing:2px;color:rgba(0,229,255,.5);margin-bottom:5px}
+.rc-val{font-family:var(--fc);font-size:1.05rem;color:#fff;word-break:break-all;transition:color .3s}
+.rc-val.flash{color:var(--cyan)}
+.rc-sub{font-family:var(--fc);font-size:.42rem;color:var(--dim);margin-top:3px}
+
+/* ── CHARTS ── */
+.chart-wrap{position:relative;width:100%;border-radius:var(--r);overflow:hidden;background:rgba(2,12,20,.6);border:1px solid var(--bdr);margin-bottom:20px}
+.chart-wrap canvas{display:block;width:100%!important}
+.chart-title{position:absolute;top:12px;left:16px;font-family:var(--fh);font-size:.42rem;letter-spacing:2px;color:rgba(0,229,255,.6);z-index:2;pointer-events:none}
+.chart-legend{display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--bdr);background:rgba(4,22,40,.6)}
+.cl-item{display:flex;align-items:center;gap:6px;font-family:var(--fc);font-size:.48rem;color:var(--dim)}
+.cl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ── STOCK TABLE ── */
+.stbl{width:100%;border-collapse:collapse;font-family:var(--fc);font-size:.6rem}
+.stbl th{font-family:var(--fh);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);text-align:left;padding:8px 10px;border-bottom:1px solid var(--bdr)}
+.stbl td{padding:8px 10px;border-bottom:1px solid rgba(0,229,255,.06);color:var(--txt)}
+.stbl tr:last-child td{border-bottom:none}
+.stbl .up{color:var(--green)}.stbl .dn{color:var(--red)}.stbl .neu{color:var(--gold)}
+
+/* ── MACROS ── */
+.macro-btn{display:flex;flex-direction:column;gap:3px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.15);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .2s;position:relative;text-align:left;width:100%}
+.macro-btn:hover{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.35)}
+.macro-btn.empty{border-style:dashed;opacity:.45}
+.macro-btn.empty:hover{opacity:.75}
+.mb-name{font-family:var(--fh);font-size:.42rem;letter-spacing:1.5px;color:var(--cyan)}
+.mb-tickers{font-family:var(--fc);font-size:.5rem;color:var(--txt)}
+.mb-meta{font-family:var(--fc);font-size:.4rem;color:var(--dim)}
+.mb-del{position:absolute;top:6px;right:7px;font-size:.55rem;color:rgba(255,64,96,.5);cursor:pointer;padding:2px 5px;border-radius:3px;line-height:1;transition:color .15s}
+.mb-del:hover{color:var(--red)}
+/* Macro manager modal */
+.modal-bg{position:fixed;inset:0;z-index:600;background:rgba(2,8,16,.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--bg3);border:1px solid var(--bdr2);border-radius:var(--r);padding:24px 28px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto}
+.modal h2{font-family:var(--fh);font-size:.58rem;letter-spacing:3px;color:var(--cyan);margin-bottom:18px}
+.modal-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.modal-row label{font-family:var(--fc);font-size:.5rem;color:var(--dim);width:72px;flex-shrink:0}
+.modal-row input{flex:1;min-width:80px}
+.modal-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+/* ── FOOTER ── */
+/* ── MACROS ── */
+.macro-btn{display:flex;flex-direction:column;gap:3px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.15);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .2s;position:relative;text-align:left;width:100%}
+.macro-btn:hover{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.35)}
+.macro-btn.empty{border-style:dashed;opacity:.45}
+.macro-btn.empty:hover{opacity:.75}
+.mb-name{font-family:var(--fh);font-size:.42rem;letter-spacing:1.5px;color:var(--cyan)}
+.mb-tickers{font-family:var(--fc);font-size:.5rem;color:var(--txt)}
+.mb-meta{font-family:var(--fc);font-size:.4rem;color:var(--dim)}
+.mb-del{position:absolute;top:6px;right:7px;font-size:.55rem;color:rgba(255,64,96,.5);cursor:pointer;padding:2px 5px;border-radius:3px;line-height:1;transition:color .15s}
+.mb-del:hover{color:var(--red)}
+footer{border-top:1px solid var(--bdr);padding:24px 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-family:var(--fc);font-size:.5rem;color:rgba(0,229,255,.28)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:640px){
+  .tl-row{grid-template-columns:1fr;gap:8px}
+  .inp-row{grid-template-columns:1fr}
+  .results-grid{grid-template-columns:repeat(2,1fr)}
+  .stock-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="auth-gate" style="display:none;position:fixed;inset:0;z-index:9999;
+  background:#020c14;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:20px;font-family:'Orbitron',sans-serif">
+  <div style="font-size:.42rem;letter-spacing:4px;color:rgba(0,229,255,.4)">RADICAL DEEPSCALE · MOVEMENT CONJECTURE</div>
+  <div style="font-size:1.8rem;color:#fff;font-weight:900;letter-spacing:2px">RESTRICTED ACCESS</div>
+  <div style="font-size:.55rem;letter-spacing:2px;color:rgba(0,229,255,.5)">CONNECT YOUR GITHUB ACCOUNT TO CONTINUE</div>
+  <div style="display:flex;flex-direction:column;gap:10px;align-items:center;width:100%;max-width:340px">
+    <input id="gate-token" type="password" placeholder="Paste GitHub Personal Access Token..."
+      style="width:100%;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);
+      border-radius:6px;padding:10px 14px;color:#fff;font-family:'Share Tech Mono',monospace;
+      font-size:.75rem;outline:none"/>
+    <button onclick="_gateLogin()" style="width:100%;padding:10px;background:rgba(0,229,255,.15);
+      border:1px solid rgba(0,229,255,.4);border-radius:6px;color:#00e5ff;
+      font-family:'Orbitron',sans-serif;font-size:.45rem;letter-spacing:2px;cursor:pointer">
+      ▶ ACCESS MOVEMENT CONJECTURE
+    </button>
+    <div id="gate-err" style="font-size:.48rem;color:#ff4060;font-family:'Share Tech Mono',monospace;display:none"></div>
+    <div style="font-size:.42rem;color:rgba(0,229,255,.28);text-align:center;line-height:1.8">
+      Token is stored locally in your browser.<br>Only the <code>public_repo</code> scope is needed.
+    </div>
+  </div>
+</div>
+<script>
+// ── Movement Conjecture Auth Gate ──────────────────────────────────────────────
+const _MC_TOKEN_KEY = 'mc_gh_token';
+const _MC_AUTH_USERS = null; // null = any valid GitHub token; set to ['dartsolarpunk'] to restrict
+
+async function _gateCheck(){
+  const tok = localStorage.getItem(_MC_TOKEN_KEY);
+  if(tok){
+    const ok = await _gateVerify(tok);
+    if(ok){ _gateUnlock(); return; }
+    localStorage.removeItem(_MC_TOKEN_KEY);
+  }
+  document.getElementById('auth-gate').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+async function _gateVerify(tok){
+  try{
+    const res = await fetch('https://api.github.com/user',
+      {headers:{Authorization:'token '+tok}});
+    if(!res.ok) return false;
+    const d = await res.json();
+    if(_MC_AUTH_USERS && !_MC_AUTH_USERS.includes(d.login)) return false;
+    // Store login for greeting
+    window._mcUser = d.login;
+    window._mcAvatar = d.avatar_url;
+    return true;
+  }catch(e){ return false; }
+}
+
+function _gateUnlock(){
+  document.getElementById('auth-gate').style.display='none';
+  document.body.style.overflow='';
+  // Show user greeting in nav
+  const nav = document.querySelector('nav');
+  if(nav && window._mcUser){
+    const chip = document.createElement('div');
+    chip.style.cssText='display:flex;align-items:center;gap:8px;font-family:var(--fc);font-size:.48rem;color:rgba(0,229,255,.55)';
+    chip.innerHTML=(window._mcAvatar?`<img src="${window._mcAvatar}" style="width:20px;height:20px;border-radius:50%;border:1px solid rgba(0,229,255,.3)">`:'')
+      +`<span>${window._mcUser.toUpperCase()}</span>`
+      +`<button onclick="_gateLogout()" style="background:none;border:none;color:rgba(255,64,96,.5);cursor:pointer;font-size:.55rem" title="Sign out">⏏</button>`;
+    nav.appendChild(chip);
+  }
+}
+
+async function _gateLogin(){
+  const tok = document.getElementById('gate-token').value.trim();
+  const err = document.getElementById('gate-err');
+  if(!tok){ err.style.display=''; err.textContent='Paste your GitHub PAT first.'; return; }
+  err.style.display='none';
+  const ok = await _gateVerify(tok);
+  if(ok){
+    localStorage.setItem(_MC_TOKEN_KEY, tok);
+    _gateUnlock();
+  } else {
+    err.style.display=''; err.textContent='Token invalid or user not authorized.';
+  }
+}
+
+function _gateLogout(){
+  localStorage.removeItem(_MC_TOKEN_KEY);
+  location.reload();
+}
+
+// Run on load
+_gateCheck();
+</script>
+
+
+<nav>
+  <div class="nb"><div class="nb-dot"></div>RADICAL DEEPSCALE · MOVEMENT CONJECTURE</div>
+  <span class="nb-sep"></span>
+  <span class="nb-copy" id="mkt-status">MARKET CLOSED</span>
+</nav>
+
+<div id="hero">
+  <div class="hero-tag">DART MEADOW LLC · 2020</div>
+  <h1>Movement <em>Conjecture</em></h1>
+  <div class="hero-sub">EARTH ORBITAL DISC</div>
+  <p class="hero-desc">Multi-stock trajectory projection engine based on the MSP Sigma-EOD algorithm. Enter up to 5 tickers for live pricing and long-range conjecture propagation through 2080.</p>
+  <div class="badges">
+    <span class="badge">STOCK PHONIC · MSP</span>
+    <span class="badge">EOD PROPAGATION</span>
+    <span class="badge">GEO GEOMETRY</span>
+    <span class="badge">ORBITAL NODE</span>
+    <span class="badge">LIVE QUOTES</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ═══ MACROS ═══ -->
+<section id="sec-macros" style="padding-top:24px">
+  <div class="sh"><span class="sh-num">⊞</span><span class="sh-title">PRESETS</span>
+    <span style="font-family:var(--fc);font-size:.45rem;color:var(--dim);margin-left:8px">LOAD SAVED CONFIGURATIONS</span>
+    <span class="sh-line"></span>
+    <button class="btn-sec" style="padding:5px 12px;font-size:.38rem" onclick="showMacroMgr()">⚙ MANAGE</button>
+  </div>
+  <div id="macro-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px;margin-bottom:8px"></div>
+</section>
+
+<!-- ═══ STOCK INPUTS ═══ -->
+<section id="sec-stocks">
+  <div class="sh"><span class="sh-num">01</span><span class="sh-title">SIGMA INPUTS</span><span class="sh-line"></span></div>
+  <div class="card">
+    <div class="card-title">STOCK TICKERS — UP TO 5</div>
+    <div class="stock-grid" id="stock-grid"></div>
+    
+    <div class="tl-row">
+      <div class="inp-wrap">
+        <span class="inp-lbl">PROJECTION START</span>
+        <select id="yr-start"></select>
+      </div>
+      <div class="inp-wrap">
+        <span class="inp-lbl">PROJECTION END</span>
+        <select id="yr-end"></select>
+      </div>
+      <div class="inp-wrap">
+        <span class="inp-lbl">EOD SIGMA</span>
+        <input type="number" id="inp-eod" placeholder="1.0" value="1" step="any"/>
+      </div>
+    </div>
+
+    <div class="run-row">
+      <button class="btn-run" onclick="runAll()">▶ COMPUTE CONJECTURE</button>
+      <button class="btn-sec" onclick="fetchAll()">⬇ FETCH ALL QUOTES</button>
+      <button class="btn-sec" onclick="resetAll()">↺ RESET</button>
+      <span class="status-msg" id="status-msg"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ RESULTS ═══ -->
+<section id="sec-results" style="display:none">
+  <div class="sh"><span class="sh-num">02</span><span class="sh-title">CONJECTURE OUTPUT</span><span class="sh-line"></span></div>
+
+  <div class="card">
+    <div class="card-title">MSP GEOMETRY PROPAGATION</div>
+    <div id="results-tables"></div>
+  </div>
+
+  <!-- Trajectory Chart -->
+  <div class="card">
+    <div class="card-title">LONG-RANGE TRAJECTORY PROJECTION</div>
+    <div class="chart-wrap" style="height:340px">
+      <span class="chart-title">SPNCRYNODE · ORBITAL PROPAGATION</span>
+      <canvas id="chart-trajectory"></canvas>
+    </div>
+    <div class="chart-legend" id="traj-legend"></div>
+  </div>
+
+  <!-- Geometry Chart -->
+  <div class="card">
+    <div class="card-title">MSP GEOMETRY COMPARISON</div>
+    <div class="chart-wrap" style="height:280px">
+      <span class="chart-title">SMSP / CMSP / RMSP PER STOCK</span>
+      <canvas id="chart-geo"></canvas>
+    </div>
+  </div>
+
+  <!-- Stock Comparison Table -->
+  <div class="card">
+    <div class="card-title">STOCK COMPARISON TABLE</div>
+    <div style="overflow-x:auto">
+      <table class="stbl" id="cmp-table">
+        <thead><tr>
+          <th>TICKER</th><th>PRICE</th><th>SIGMA INV</th><th>MEAN UNIT (a)</th>
+          <th>DLSS</th><th>MFMSP</th><th>SMSP²</th><th>CMSP³</th><th>SPNCRYNODE</th>
+        </tr></thead>
+        <tbody id="cmp-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Phase Chart — Interactive with tangent handles -->
+  <div class="card" id="phase-card">
+    <div class="card-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">
+      EOD PHASE PROPAGATION OVER TIME
+      <span style="flex:1"></span>
+      <!-- Mode controls -->
+      <div id="phase-mode-btns" style="display:flex;gap:6px;align-items:center">
+        <span style="font-family:var(--fc);font-size:.4rem;color:var(--dim);letter-spacing:1px">TANGENT MODE:</span>
+        <button id="btn-mode-add" onclick="phaseSetMode('add')"
+          style="font-family:var(--fh);font-size:.36rem;letter-spacing:1.5px;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid rgba(0,229,255,.35);background:rgba(0,229,255,.1);color:var(--cyan);transition:all .2s">+ ADD</button>
+        <button id="btn-mode-rm" onclick="phaseSetMode('remove')"
+          style="font-family:var(--fh);font-size:.36rem;letter-spacing:1.5px;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid rgba(255,64,96,.25);background:rgba(255,64,96,.06);color:var(--red);transition:all .2s">− REMOVE</button>
+        <button id="btn-mode-smooth" onclick="phaseToggleSmooth()"
+          style="font-family:var(--fh);font-size:.36rem;letter-spacing:1.5px;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid rgba(167,139,250,.35);background:rgba(167,139,250,.08);color:var(--violet);transition:all .2s" title="Toggle smooth/broken tangent handles">⌣ SMOOTH</button>
+        <button onclick="phaseClearSelected()"
+          style="font-family:var(--fh);font-size:.36rem;letter-spacing:1.5px;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--dim);transition:all .2s" title="Clear handles on selected curve">✕ CLEAR CURVE</button>
+        <button onclick="phaseReset()"
+          style="font-family:var(--fh);font-size:.36rem;letter-spacing:1.5px;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--dim);transition:all .2s">↺ RESET</button>
+      </div>
+    </div>
+    <!-- Hover info bar -->
+    <div id="phase-info" style="font-family:var(--fc);font-size:.48rem;color:rgba(0,229,255,.6);padding:4px 0 8px;min-height:20px;letter-spacing:1px"></div>
+    <div class="chart-wrap" style="height:300px;position:relative;cursor:crosshair">
+      <span class="chart-title">DLSS · EOD PROPAGATION CURVE</span>
+      <span style="position:absolute;top:12px;right:12px;font-family:var(--fc);font-size:.42rem;color:rgba(0,229,255,.35);z-index:2;pointer-events:none">
+        phase = DLSS·cos(t·ARR·π·2)·RMSP^(t·2)
+      </span>
+      <canvas id="chart-phase" style="touch-action:none"></canvas>
+    </div>
+    <!-- Selected curve + calculated readback -->
+    <div id="phase-recalc" style="display:none;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.12);border-radius:8px;padding:12px 16px;margin-top:12px">
+      <div style="font-family:var(--fh);font-size:.4rem;letter-spacing:2px;color:var(--cyan);margin-bottom:8px" id="phase-recalc-title">ADJUSTED CALCULATION</div>
+      <div id="phase-recalc-vals" style="display:flex;gap:14px;flex-wrap:wrap;font-family:var(--fc);font-size:.55rem;color:var(--txt)"></div>
+      <div style="margin-top:8px">
+        <button onclick="phaseReset()" style="font-family:var(--fh);font-size:.38rem;letter-spacing:1px;padding:4px 12px;border-radius:4px;cursor:pointer;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.06);color:var(--cyan)">↺ RESTORE DEFAULT CALCULATION</button>
+      </div>
+    </div>
+    <!-- Curve selector -->
+    <div id="phase-curve-sel" style="display:flex;gap:8px;padding:8px 0 0;flex-wrap:wrap"></div>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<footer>
+  <span>© DART MEADOW LLC 2020 · MOVEMENT CONJECTURE (EOD)</span>
+  <span>RADICAL DEEPSCALE · HTTPS://RADICALDEEPSCALE.COM</span>
+</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════
+   MOVEMENT CONJECTURE — CORE ALGORITHM
+   © DART Meadow LLC 2020 · JS port
+════════════════════════════════════════════════════════ */
+
+// ── Stock slot colors ──────────────────────────────────
+const COLORS = ['#00e5ff','#39ff82','#f0c040','#a78bfa','#ff6b6b'];
+const STOCK_COUNT = 5;
+
+// ── Slot state ─────────────────────────────────────────
+const slots = Array.from({length:STOCK_COUNT}, (_,i) => ({
+  ticker:'', price:null, priceStatus:'', sigma:0, result:null, active:false, color:COLORS[i]
+}));
+
+// ── Build year selectors ───────────────────────────────
+(function buildYears(){
+  const now = new Date().getFullYear();
+  const s = document.getElementById('yr-start');
+  const e = document.getElementById('yr-end');
+  for(let y=now; y<=2080; y++){
+    const os=document.createElement('option'); os.value=y; os.textContent=y;
+    const oe=document.createElement('option'); oe.value=y; oe.textContent=y;
+    s.appendChild(os); e.appendChild(oe);
+  }
+  e.value = 2050;
+})();
+
+// ── Build stock slot UI ────────────────────────────────
+(function buildSlots(){
+  const grid = document.getElementById('stock-grid');
+  slots.forEach((sl,i) => {
+    const div = document.createElement('div');
+    div.className = 'stock-slot';
+    div.id = `slot-${i}`;
+    div.innerHTML = `
+      <div class="ss-header">
+        <div class="ss-color" style="background:${sl.color}"></div>
+        <span class="ss-label">STOCK ${i+1}</span>
+        <span class="ss-live" id="live-${i}">—</span>
+      </div>
+      <div class="inp-row">
+        <div class="inp-wrap">
+          <span class="inp-lbl">TICKER</span>
+          <input type="text" id="ticker-${i}" placeholder="AAPL" maxlength="8"
+            oninput="slots[${i}].ticker=this.value.toUpperCase().trim();this.value=this.value.toUpperCase();updateSlotActive(${i})"/>
+        </div>
+        <div class="inp-wrap">
+          <span class="inp-lbl">PRICE ($)</span>
+          <input type="number" id="price-${i}" placeholder="auto" step="any" min="0"
+            oninput="slots[${i}].price=this.value?parseFloat(this.value):null;slots[${i}].priceStatus='manual'"/>
+        </div>
+      </div>
+      <div class="inp-row full">
+        <div class="inp-wrap">
+          <span class="inp-lbl">SIGMA INVESTMENT (radc)</span>
+          <input type="number" id="sigma-${i}" placeholder="0.0" step="any"
+            oninput="slots[${i}].sigma=parseFloat(this.value)||0"/>
+        </div>
+      </div>
+      <button class="fetch-btn" id="fetch-${i}" onclick="fetchQuote(${i})">⬇ FETCH QUOTE</button>`;
+    grid.appendChild(div);
+  });
+})();
+
+function updateSlotActive(i){
+  const s = slots[i];
+  const el = document.getElementById(`slot-${i}`);
+  s.active = !!s.ticker;
+  el.classList.toggle('active', s.active);
+}
+
+// ── Market status ──────────────────────────────────────
+(function checkMarket(){
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun,6=Sat
+  const h = now.getHours(), m = now.getMinutes();
+  const mins = h*60+m;
+  const open = day>=1&&day<=5 && mins>=570&&mins<960; // 9:30am–4pm ET (approx)
+  const el = document.getElementById('mkt-status');
+  el.textContent = open ? '● MARKET OPEN' : '○ MARKET CLOSED';
+  el.style.color = open ? '#39ff82' : 'rgba(0,229,255,.35)';
+})();
+
+// ── Quote fetch via Yahoo Finance proxy (free, no key) ─
+// Try multiple endpoints — Yahoo blocks direct requests when market closed;
+// proxy routes around CORS. Returns price or throws.
+async function tryFetchPrice(ticker){
+  const t = encodeURIComponent(ticker);
+  // 1. Yahoo v8 direct (works in some browsers/contexts)
+  const endpoints = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1d&range=5d&includePrePost=true`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${t}?interval=1d&range=5d&includePrePost=true`,
+    // 2. CORS proxies (free, no key)
+    `https://corsproxy.io/?https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1d&range=5d`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/'+ticker+'?interval=1d&range=5d')}`,
+  ];
+  for(const url of endpoints){
+    try{
+      const res = await fetch(url, {signal: AbortSignal.timeout(7000)});
+      if(!res.ok) continue;
+      const d = await res.json();
+      const meta = d?.chart?.result?.[0]?.meta;
+      if(!meta) continue;
+      // Prefer regularMarketPrice, fall back to previousClose, then last close
+      const price = meta.regularMarketPrice || meta.previousClose
+        || d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.filter(Boolean).at(-1);
+      if(price && price > 0) return {price, live: !!meta.regularMarketPrice};
+    }catch(e){ continue; }
+  }
+  throw new Error('all endpoints failed');
+}
+
+async function fetchQuote(i){
+  const ticker = slots[i].ticker;
+  if(!ticker){ setStatus(`Slot ${i+1}: enter a ticker first`); return; }
+  const btn = document.getElementById(`fetch-${i}`);
+  const live = document.getElementById(`live-${i}`);
+  btn.disabled = true; btn.textContent = '⟳ FETCHING…'; live.textContent='…'; live.className='ss-live';
+  try {
+    const {price, live:isLive} = await tryFetchPrice(ticker);
+    slots[i].price = price;
+    slots[i].priceStatus = isLive ? 'live' : 'close';
+    document.getElementById(`price-${i}`).value = price.toFixed(2);
+    live.textContent = isLive ? 'LIVE' : 'CLOSE';
+    live.className = 'ss-live ' + (isLive ? 'ok' : 'stale');
+    // Auto-set sigma to price if empty
+    const sEl = document.getElementById(`sigma-${i}`);
+    if(!sEl.value){ sEl.value = price.toFixed(2); slots[i].sigma = price; }
+    setStatus(`${ticker}: $${price.toFixed(2)} ${isLive?'(live)':'(last close)'} ✓`);
+  } catch(err) {
+    live.textContent = 'ERR'; live.className = 'ss-live err';
+    setStatus(`${ticker}: fetch failed — enter price manually`);
+  }
+  btn.disabled = false; btn.textContent = '⬇ FETCH QUOTE';
+}
+
+async function fetchAll(){
+  for(let i=0;i<STOCK_COUNT;i++){ if(slots[i].ticker) await fetchQuote(i); }
+}
+
+// ── Core algorithm ─────────────────────────────────────
+function stockphonic(radc, rads){
+  const c = Math.pow(radc, 2);
+  const s = rads;
+  const a = Math.sqrt(c / s);
+  return {c, s, a};
+}
+
+function eodpropg(radc_eod, a){
+  const dx   = radc_eod / a;
+  const ar   = Math.pow(dx, dx);
+  const arr  = Math.sqrt(dx / (ar||1e-300));
+  const gtx  = Math.pow(a, 2);
+  const rtx  = a * gtx;
+  const dlss = Math.pow(rtx, arr);
+  return {dx, ar, arr, gtx, rtx, dlss};
+}
+
+function geopropg(a, dlss){
+  const mfmsp = a * dlss;
+  const smsp  = Math.pow(mfmsp, 2);
+  const cmsp  = Math.pow(mfmsp, 3);
+  const rmsp  = Math.cbrt(mfmsp);
+  const spncrynode = Math.pow(rmsp, dlss * 3);
+  return {mfmsp, smsp, cmsp, rmsp, spncrynode};
+}
+
+function fmt(n,d=4){
+  if(!isFinite(n)||isNaN(n)) return 'N/A';
+  if(Math.abs(n)>1e12) return n.toExponential(3);
+  if(Math.abs(n)<1e-6&&n!==0) return n.toExponential(3);
+  return +n.toFixed(d)+'';
+}
+
+// ── Projection over years ──────────────────────────────
+// Conjecture projection: apply EOD compounding over time delta
+// Uses spncrynode as base, projects forward as power series
+function projectTrajectory(result, fromYear, toYear){
+  const pts = [];
+  const baseNode = result.spncrynode;
+  const growthFactor = result.rmsp; // cubic root as annual propagation scale
+  const years = toYear - fromYear;
+  for(let y=0; y<=years; y++){
+    // Orbital disc propagation: node raised to (1 + rmsp * t/10) power series
+    const t = y / Math.max(years, 1);
+    const val = baseNode * Math.pow(Math.abs(growthFactor), t * result.dlss * 0.01);
+    pts.push({year: fromYear + y, val: isFinite(val) ? val : 0});
+  }
+  return pts;
+}
+
+// ── Run all ────────────────────────────────────────────
+function runAll(){
+  const eodV = parseFloat(document.getElementById('inp-eod').value) || 1;
+  const yrS  = parseInt(document.getElementById('yr-start').value);
+  const yrE  = parseInt(document.getElementById('yr-end').value);
+  if(yrE <= yrS){ setStatus('End year must be after start year'); return; }
+
+  let ran = 0;
+  slots.forEach((sl,i) => {
+    if(!sl.ticker && !sl.sigma) return;
+    const radc = sl.sigma || sl.price || 1;
+    const rads = sl.price || sl.sigma || 1;
+    if(!radc || !rads){ return; }
+    const msp = stockphonic(radc, rads);
+    const eod = eodpropg(eodV, msp.a);
+    const geo = geopropg(msp.a, eod.dlss);
+    sl.result = {...msp, ...eod, ...geo, radc, rads};
+    sl.active = true;
+    ran++;
+  });
+
+  if(!ran){ setStatus('Enter at least one ticker with price and sigma'); return; }
+
+  renderResults(yrS, yrE);
+  document.getElementById('sec-results').style.display = '';
+  document.getElementById('sec-results').scrollIntoView({behavior:'smooth',block:'start'});
+  setStatus(`Computed ${ran} stock conjecture${ran>1?'s':''}`);
+}
+
+// ── Render results ─────────────────────────────────────
+function renderResults(yrS, yrE){
+  const active = slots.filter(s=>s.result);
+
+  // Table rows
+  const tbody = document.getElementById('cmp-tbody');
+  tbody.innerHTML = '';
+  active.forEach(sl => {
+    const r = sl.result;
+    const priceChg = r.spncrynode > r.radc ? 'up' : r.spncrynode < r.radc ? 'dn' : 'neu';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span style="color:${sl.color};font-weight:700">${sl.ticker||'—'}</span></td>
+      <td>$${fmt(r.rads,2)}</td>
+      <td>${fmt(r.radc,4)}</td>
+      <td>${fmt(r.a,6)}</td>
+      <td>${fmt(r.dlss,4)}</td>
+      <td>${fmt(r.mfmsp,4)}</td>
+      <td>${fmt(r.smsp,4)}</td>
+      <td>${fmt(r.cmsp,4)}</td>
+      <td class="${priceChg}">${fmt(r.spncrynode,6)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Per-stock results cards
+  const rt = document.getElementById('results-tables');
+  rt.innerHTML = '';
+  active.forEach(sl => {
+    const r = sl.result;
+    const div = document.createElement('div');
+    div.style.cssText='margin-bottom:16px';
+    div.innerHTML = `
+      <div style="font-family:var(--fh);font-size:.42rem;letter-spacing:2px;color:${sl.color};margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${sl.color};display:inline-block"></span>
+        ${sl.ticker||'STOCK'}
+      </div>
+      <div class="results-grid">
+        ${[['MEAN UNIT (a)',r.a],['DLSS',r.dlss],['MFMSP',r.mfmsp],['SMSP²',r.smsp],['CMSP³',r.cmsp],['CUBE ROOT',r.rmsp],['ORBITAL NODE',r.spncrynode]].map(([l,v])=>`
+        <div class="rc active"><div class="rc-lbl">${l}</div><div class="rc-val">${fmt(v)}</div></div>`).join('')}
+      </div>`;
+    rt.appendChild(div);
+  });
+
+  drawTrajectory(active, yrS, yrE);
+  drawGeo(active);
+  drawPhase(active, yrS, yrE);
+  buildLegend(active);
+}
+
+// ── CHART: Trajectory ─────────────────────────────────
+function drawTrajectory(stocks, yrS, yrE){
+  const canvas = document.getElementById('chart-trajectory');
+  const W = canvas.offsetWidth || 900, H = 320;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  const pad = {l:60,r:20,t:30,b:40};
+  const cW = W-pad.l-pad.r, cH = H-pad.t-pad.b;
+
+  // Build all trajectories
+  const trajs = stocks.map(sl => projectTrajectory(sl.result, yrS, yrE));
+  const allVals = trajs.flatMap(t=>t.map(p=>p.val)).filter(v=>isFinite(v)&&v!==0);
+  const minV = Math.min(...allVals), maxV = Math.max(...allVals);
+  const range = maxV - minV || 1;
+  const years = yrE - yrS;
+
+  const px = y => pad.l + ((y-yrS)/years)*cW;
+  const py = v => pad.t + (1-(v-minV)/range)*cH;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(0,229,255,.07)'; ctx.lineWidth = 1;
+  for(let g=0;g<=5;g++){
+    const y = pad.t + (g/5)*cH;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cW,y); ctx.stroke();
+    const v = minV + (1-g/5)*range;
+    ctx.fillStyle='rgba(0,229,255,.35)'; ctx.font=`9px 'Share Tech Mono'`;
+    ctx.fillText(fmt(v,2),4,y+4);
+  }
+  // Year labels
+  const yStep = Math.max(1, Math.floor(years/6));
+  ctx.fillStyle='rgba(0,229,255,.35)'; ctx.font=`9px 'Share Tech Mono'`;
+  for(let y=yrS; y<=yrE; y+=yStep){
+    ctx.fillText(y, px(y)-14, H-pad.b+16);
+    ctx.strokeStyle='rgba(0,229,255,.05)'; ctx.beginPath();
+    ctx.moveTo(px(y),pad.t); ctx.lineTo(px(y),pad.t+cH); ctx.stroke();
+  }
+
+  // Lines
+  trajs.forEach((traj,i) => {
+    const color = stocks[i].color;
+    // Glow pass
+    ctx.save(); ctx.shadowColor=color; ctx.shadowBlur=12;
+    ctx.strokeStyle=color; ctx.lineWidth=2.5; ctx.globalAlpha=0.85;
+    ctx.beginPath();
+    traj.forEach((p,j) => {
+      const x=px(p.year), y2=py(p.val);
+      j===0 ? ctx.moveTo(x,y2) : ctx.lineTo(x,y2);
+    });
+    ctx.stroke(); ctx.restore();
+    // Dots at key years
+    [yrS, Math.round((yrS+yrE)/2), yrE].forEach(yr => {
+      const pt = traj.find(p=>p.year===yr);
+      if(!pt) return;
+      ctx.beginPath(); ctx.arc(px(pt.year),py(pt.val),4,0,Math.PI*2);
+      ctx.fillStyle=color; ctx.fill();
+    });
+  });
+}
+
+// ── CHART: Geometry bars ──────────────────────────────
+function drawGeo(stocks){
+  const canvas = document.getElementById('chart-geo');
+  const W = canvas.offsetWidth || 900, H = 260;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  const metrics = ['smsp','cmsp','rmsp'];
+  const mlabels = ['SMSP²','CMSP³','RMSP∛'];
+  const n = stocks.length, m = metrics.length;
+  const pad = {l:50,r:20,t:20,b:40};
+  const cW = W-pad.l-pad.r, cH = H-pad.t-pad.b;
+  const groupW = cW/m, barW = Math.min(28, groupW/(n+1));
+
+  const allVals = stocks.flatMap(s=>metrics.map(k=>Math.abs(s.result[k])||0)).filter(v=>isFinite(v));
+  const maxV = Math.max(...allVals,1);
+
+  // Y axis labels
+  ctx.fillStyle='rgba(0,229,255,.35)'; ctx.font=`9px 'Share Tech Mono'`;
+  for(let g=0;g<=4;g++){
+    const y = pad.t + (g/4)*cH;
+    ctx.fillText(fmt(maxV*(1-g/4),1), 2, y+4);
+    ctx.strokeStyle='rgba(0,229,255,.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cW,y); ctx.stroke();
+  }
+
+  metrics.forEach((mk,mi) => {
+    const gx = pad.l + mi*groupW + groupW/2;
+    // Group label
+    ctx.fillStyle='rgba(0,229,255,.45)'; ctx.font=`9px 'Orbitron'`;
+    ctx.fillText(mlabels[mi], gx - mlabels[mi].length*3.5, H-pad.b+16);
+    // Bars per stock
+    stocks.forEach((sl,si) => {
+      const v = Math.abs(sl.result[mk]) || 0;
+      const bx = gx - (n*barW)/2 + si*barW + si*2;
+      const bh = Math.min((v/maxV)*cH, cH);
+      const by = pad.t + cH - bh;
+      // Gradient bar
+      const grad = ctx.createLinearGradient(0,by,0,by+bh);
+      grad.addColorStop(0, sl.color);
+      grad.addColorStop(1, sl.color+'22');
+      ctx.fillStyle = grad;
+      ctx.globalAlpha=0.85;
+      ctx.fillRect(bx, by, barW-1, bh);
+      ctx.globalAlpha=1;
+      // Top glow
+      ctx.fillStyle=sl.color; ctx.fillRect(bx,by,barW-1,2);
+    });
+  });
+}
+
+// ── CHART: EOD Phase — Interactive with Bezier Tangent Handles ───────────────
+// State
+let _phaseStocks=[], _phaseYrS=0, _phaseYrE=0, _phaseCurves=[];
+let _phaseHandles=[];    // [{curveIdx, t, y, cpL:{dx,dy}, cpR:{dx,dy}, smooth}]
+let _phaseMode='add';    // 'add' | 'remove'
+let _phaseSmooth=true;
+let _phaseSelCurve=-1;   // which curve is selected (-1 = all)
+let _phaseDragging=null; // {handleIdx, which:'main'|'cpL'|'cpR'}
+let _phaseDefaultCurves=[];
+let _phaseModified=false;
+
+const _PAD={l:56,r:20,t:20,b:36};
+const _STEPS=80;
+const _H_POINT_R=6, _CP_R=4;
+
+function _phaseBaseValue(sl, t){
+  const r=sl.result;
+  return r.dlss * Math.cos(t * r.arr * Math.PI * 2) * Math.pow(r.rmsp, t*2);
+}
+
+function _buildDefaultCurves(stocks, yrS, yrE){
+  return stocks.map(sl=>
+    Array.from({length:_STEPS+1},(_,j)=>{
+      const t=j/_STEPS;
+      return {t, yr:yrS+t*(yrE-yrS), v:_phaseBaseValue(sl,t)};
+    })
+  );
+}
+
+// Evaluate a curve at fractional step t, applying handles as Bezier offsets
+function _evalCurveAt(curveIdx, t, baseCurves){
+  const base = baseCurves[curveIdx];
+  // Find base sample
+  const j = Math.round(t*_STEPS);
+  const baseV = base[Math.min(j,_STEPS)].v;
+
+  // Get handles for this curve
+  const handles = _phaseHandles.filter(h=>h.curveIdx===curveIdx).sort((a,b)=>a.t-b.t);
+  if(!handles.length) return baseV;
+
+  // Find surrounding handles
+  let lh=null, rh=null;
+  for(const h of handles){
+    if(h.t<=t) lh=h;
+    if(h.t>=t && !rh) rh=h;
+  }
+  if(!lh && !rh) return baseV;
+  if(!lh) return baseV + rh.dy * Math.max(0,1-(t-rh.t)*_STEPS*0.3);
+  if(!rh) return baseV + lh.dy * Math.max(0,1-(t-lh.t)*_STEPS*0.3);
+  if(lh===rh) return baseV + lh.dy;
+
+  // Bezier interpolation between two handles
+  const span = rh.t - lh.t;
+  const localT = span>0 ? (t-lh.t)/span : 0;
+  const u=1-localT;
+  // Cubic bezier with tangent control points
+  const cpL_t = lh.t + span*0.33;
+  const cpR_t = rh.t - span*0.33;
+  const bL = lh.dy + (lh.smooth ? lh.cpR_dy||0 : lh.cpR_dy||0);
+  const bR = rh.dy + (rh.smooth ? rh.cpL_dy||0 : rh.cpL_dy||0);
+  const offset = u*u*u*lh.dy + 3*u*u*localT*bL + 3*u*localT*localT*bR + localT*localT*localT*rh.dy;
+  return baseV + offset;
+}
+
+function _buildModifiedCurves(stocks, baseCurves){
+  return stocks.map((sl,ci)=>
+    Array.from({length:_STEPS+1},(_,j)=>{
+      const t=j/_STEPS;
+      return {t, yr:_phaseYrS+t*(_phaseYrE-_phaseYrS), v:_evalCurveAt(ci,t,baseCurves)};
+    })
+  );
+}
+
+function _getCanvasDims(){
+  const canvas=document.getElementById('chart-phase');
+  const W=canvas.offsetWidth||900, H=280;
+  canvas.width=W; canvas.height=H;
+  return {W,H,cW:W-_PAD.l-_PAD.r, cH:H-_PAD.t-_PAD.b};
+}
+
+function _px(t,cW){ return _PAD.l+(t)*cW; }
+function _py(v,minV,range,cH){ return _PAD.t+(1-(v-minV)/range)*cH; }
+function _tv(px_val,cW){ return (px_val-_PAD.l)/cW; }
+function _vy(py_val,minV,range,cH){ return minV+(1-(py_val-_PAD.t)/cH)*range; }
+
+function _phaseRenderAll(){
+  const canvas=document.getElementById('chart-phase');
+  if(!canvas||!_phaseStocks.length) return;
+  const {W,H,cW,cH}=_getCanvasDims();
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  const curves=_phaseModified?_buildModifiedCurves(_phaseStocks,_phaseDefaultCurves):_phaseDefaultCurves;
+  const allV=curves.flatMap(c=>c.map(p=>p.v)).filter(isFinite);
+  if(!allV.length) return;
+  const minV=Math.min(...allV), maxV=Math.max(...allV);
+  const range=(maxV-minV)||1;
+  const py_=v=>_py(v,minV,range,cH);
+  const px_=t=>_px(t,cW);
+
+  // Store for hit-testing
+  canvas._minV=minV; canvas._range=range; canvas._cW=cW; canvas._cH=cH;
+
+  // Zero line
+  const zy=py_(0);
+  if(zy>=_PAD.t&&zy<=_PAD.t+cH){
+    ctx.strokeStyle='rgba(0,229,255,.15)'; ctx.lineWidth=1; ctx.setLineDash([4,6]);
+    ctx.beginPath(); ctx.moveTo(_PAD.l,zy); ctx.lineTo(_PAD.l+cW,zy); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Grid
+  for(let g=0;g<=4;g++){
+    const y=_PAD.t+(g/4)*cH;
+    ctx.strokeStyle='rgba(0,229,255,.05)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(_PAD.l,y); ctx.lineTo(_PAD.l+cW,y); ctx.stroke();
+    ctx.fillStyle='rgba(0,229,255,.35)'; ctx.font=`9px 'Share Tech Mono'`;
+    ctx.fillText(fmt(minV+(1-g/4)*range,2),2,y+4);
+  }
+
+  // Year labels + vertical guides
+  const yrRange=_phaseYrE-_phaseYrS;
+  const labelStep=Math.max(5,Math.round(yrRange/7/5)*5);
+  for(let y=_phaseYrS;y<=_phaseYrE;y+=labelStep){
+    const t=(y-_phaseYrS)/yrRange;
+    const x=px_(t);
+    ctx.fillStyle='rgba(0,229,255,.3)'; ctx.font=`9px 'Share Tech Mono'`;
+    ctx.fillText(y, x-14, H-_PAD.b+14);
+    ctx.strokeStyle='rgba(0,229,255,.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,_PAD.t); ctx.lineTo(x,_PAD.t+cH); ctx.stroke();
+  }
+
+  // Draw each curve
+  curves.forEach((curve,ci)=>{
+    const col=_phaseStocks[ci].color;
+    const isSel=_phaseSelCurve===ci;
+    ctx.save();
+    ctx.shadowColor=col; ctx.shadowBlur=isSel?14:6;
+    ctx.strokeStyle=col; ctx.lineWidth=isSel?2.5:1.6;
+    ctx.globalAlpha=(_phaseSelCurve===-1||isSel)?0.88:0.35;
+    ctx.beginPath();
+    curve.forEach((p,j)=>j===0?ctx.moveTo(px_(p.t),py_(p.v)):ctx.lineTo(px_(p.t),py_(p.v)));
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Draw tangent handles
+  _phaseHandles.forEach((h,hi)=>{
+    const col=_phaseStocks[h.curveIdx].color;
+    const isSel=_phaseSelCurve===h.curveIdx||_phaseSelCurve===-1;
+    if(!isSel) return;
+
+    // Base sample y
+    const baseV=_phaseDefaultCurves[h.curveIdx][Math.round(h.t*_STEPS)].v;
+    const hx=px_(h.t), hy=py_(baseV+h.dy);
+
+    // Control point lines
+    const cpSpan=cW*0.12;
+    const cpLx=hx-cpSpan, cpRx=hx+cpSpan;
+    const cpLy=py_(baseV+h.dy+(h.cpL_dy||0));
+    const cpRy=py_(baseV+h.dy+(h.cpR_dy||0));
+
+    ctx.strokeStyle=col+'88'; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(cpLx,cpLy); ctx.lineTo(hx,hy); ctx.lineTo(cpRx,cpRy); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // CP circles
+    ctx.fillStyle=col+'66'; ctx.strokeStyle=col;
+    ctx.beginPath(); ctx.arc(cpLx,cpLy,_CP_R,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cpRx,cpRy,_CP_R,0,Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // Main handle
+    ctx.shadowColor=col; ctx.shadowBlur=8;
+    ctx.fillStyle=col; ctx.strokeStyle='#fff';
+    ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(hx,hy,_H_POINT_R,0,Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    ctx.shadowBlur=0;
+
+    // Handle index label
+    ctx.fillStyle='#fff'; ctx.font=`bold 8px 'Share Tech Mono'`;
+    ctx.fillText(hi,hx-3,hy+3);
+  });
+
+  // Update recalc display if modified
+  if(_phaseModified) _phaseUpdateRecalc(curves);
+}
+
+function _phaseUpdateRecalc(curves){
+  const recalc=document.getElementById('phase-recalc');
+  const vals=document.getElementById('phase-recalc-vals');
+  const title=document.getElementById('phase-recalc-title');
+  if(!recalc) return;
+  recalc.style.display='';
+  title.textContent='ADJUSTED EOD PHASE — '+(_phaseSelCurve>=0?_phaseStocks[_phaseSelCurve].ticker:'ALL CURVES');
+
+  // For the selected curve (or first active), show adjusted DLSS-equivalent at midpoint
+  const ci=_phaseSelCurve>=0?_phaseSelCurve:0;
+  const curve=curves[ci];
+  if(!curve) return;
+  const midPt=curve[Math.round(_STEPS/2)];
+  const endPt=curve[_STEPS];
+  const sl=_phaseStocks[ci];
+  const r=sl.result;
+
+  // Back-calculate: if phase at midpoint is X, what DLSS would that imply?
+  // phase = dlss * cos(t*arr*π*2) * rmsp^(t*2) => dlss_equiv = phase / (cos * rmsp^(t*2))
+  const tmid=0.5;
+  const cospart=Math.cos(tmid*r.arr*Math.PI*2)||1e-10;
+  const rmsppart=Math.pow(r.rmsp,tmid*2)||1e-10;
+  const dlss_adj=midPt.v/(cospart*rmsppart);
+  const mfmsp_adj=r.a*dlss_adj;
+  const smsp_adj=Math.pow(mfmsp_adj,2);
+
+  vals.innerHTML=`
+    <span style="color:var(--cyan)">DLSS<sub>adj</sub>: <b>${fmt(dlss_adj,4)}</b></span>
+    <span style="color:var(--gold)">MFMSP<sub>adj</sub>: <b>${fmt(mfmsp_adj,4)}</b></span>
+    <span style="color:var(--green)">SMSP²<sub>adj</sub>: <b>${fmt(smsp_adj,4)}</b></span>
+    <span style="color:var(--violet)">Phase@mid: <b>${fmt(midPt.v,4)}</b></span>
+    <span style="color:var(--dim)">Phase@end: <b>${fmt(endPt.v,4)}</b></span>
+    <span style="color:rgba(200,232,240,.4);font-size:.42rem">vs default DLSS: ${fmt(r.dlss,4)}</span>
+  `;
+}
+
+function phaseSetMode(m){
+  _phaseMode=m;
+  document.getElementById('btn-mode-add').style.borderColor=m==='add'?'var(--cyan)':'rgba(0,229,255,.35)';
+  document.getElementById('btn-mode-add').style.background=m==='add'?'rgba(0,229,255,.25)':'rgba(0,229,255,.1)';
+  document.getElementById('btn-mode-rm').style.borderColor=m==='remove'?'var(--red)':'rgba(255,64,96,.25)';
+  document.getElementById('btn-mode-rm').style.background=m==='remove'?'rgba(255,64,96,.18)':'rgba(255,64,96,.06)';
+  document.getElementById('chart-phase').style.cursor=m==='remove'?'not-allowed':'crosshair';
+}
+
+function phaseToggleSmooth(){
+  _phaseSmooth=!_phaseSmooth;
+  const btn=document.getElementById('btn-mode-smooth');
+  btn.style.background=_phaseSmooth?'rgba(167,139,250,.2)':'rgba(167,139,250,.08)';
+  btn.textContent=_phaseSmooth?'⌣ SMOOTH':'⌒ BROKEN';
+  _phaseRenderAll();
+}
+
+function phaseClearSelected(){
+  if(_phaseSelCurve===-1){
+    if(!confirm('Clear tangent handles on ALL curves?')) return;
+    _phaseHandles=[];
+  } else {
+    _phaseHandles=_phaseHandles.filter(h=>h.curveIdx!==_phaseSelCurve);
+  }
+  _phaseModified=_phaseHandles.length>0;
+  if(!_phaseModified) document.getElementById('phase-recalc').style.display='none';
+  _phaseRenderAll();
+}
+
+function phaseReset(){
+  _phaseHandles=[];
+  _phaseModified=false;
+  document.getElementById('phase-recalc').style.display='none';
+  _phaseRenderAll();
+}
+
+// ── Canvas hit-testing ─────────────────────────────────
+function _phaseHitHandle(cx,cy,canvas){
+  const {_minV,_range,_cW,_cH}=canvas;
+  for(let hi=_phaseHandles.length-1;hi>=0;hi--){
+    const h=_phaseHandles[hi];
+    if(_phaseSelCurve>=0&&h.curveIdx!==_phaseSelCurve) continue;
+    const baseV=_phaseDefaultCurves[h.curveIdx][Math.round(h.t*_STEPS)].v;
+    const hx=_px(h.t,_cW), hy=_py(baseV+h.dy,_minV,_range,_cH);
+    if(Math.hypot(cx-hx,cy-hy)<=_H_POINT_R+3) return {hi,which:'main'};
+    const cpSpan=_cW*0.12;
+    const cpLx=hx-cpSpan, cpLy=_py(baseV+h.dy+(h.cpL_dy||0),_minV,_range,_cH);
+    const cpRx=hx+cpSpan, cpRy=_py(baseV+h.dy+(h.cpR_dy||0),_minV,_range,_cH);
+    if(Math.hypot(cx-cpLx,cy-cpLy)<=_CP_R+4) return {hi,which:'cpL'};
+    if(Math.hypot(cx-cpRx,cy-cpRy)<=_CP_R+4) return {hi,which:'cpR'};
+  }
+  return null;
+}
+
+function _phaseNearestCurve(cx,cy,canvas){
+  const {_minV,_range,_cW,_cH}=canvas;
+  let best=-1, bestD=20;
+  _phaseStocks.forEach((sl,ci)=>{
+    const curve=_phaseDefaultCurves[ci];
+    curve.forEach(p=>{
+      const px2=_px(p.t,_cW), py2=_py(p.v,_minV,_range,_cH);
+      const d=Math.hypot(cx-px2,cy-py2);
+      if(d<bestD){bestD=d;best=ci;}
+    });
+  });
+  return best;
+}
+
+// ── Canvas event wiring ────────────────────────────────
+function _phaseWireCanvas(){
+  const canvas=document.getElementById('chart-phase');
+  if(!canvas) return;
+
+  function getXY(e){
+    const r=canvas.getBoundingClientRect();
+    const src=e.touches?e.touches[0]:e;
+    return [src.clientX-r.left, src.clientY-r.top];
+  }
+
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('touchstart', e=>{e.preventDefault();onDown(e);},{passive:false});
+
+  function onDown(e){
+    const [cx,cy]=getXY(e);
+    const hit=_phaseHitHandle(cx,cy,canvas);
+    if(hit){
+      if(_phaseMode==='remove'&&hit.which==='main'){
+        _phaseHandles.splice(hit.hi,1);
+        _phaseModified=_phaseHandles.length>0;
+        if(!_phaseModified) document.getElementById('phase-recalc').style.display='none';
+        _phaseRenderAll(); return;
+      }
+      _phaseDragging=hit; return;
+    }
+
+    // Click on curve to select, or place handle in add mode
+    const ci=_phaseNearestCurve(cx,cy,canvas);
+    if(ci<0) return;
+
+    if(_phaseMode==='add'){
+      const t=_tv(cx,canvas._cW);
+      if(t<0||t>1) return;
+      const baseV=_phaseDefaultCurves[ci][Math.round(t*_STEPS)].v;
+      const clickV=_vy(cy,canvas._minV,canvas._range,canvas._cH);
+      _phaseHandles.push({curveIdx:ci,t:Math.max(0,Math.min(1,t)),dy:clickV-baseV,cpL_dy:0,cpR_dy:0,smooth:_phaseSmooth});
+      _phaseModified=true;
+      _phaseSelCurve=ci;
+      _phaseRenderAll();
+      _phaseUpdateCurveSelector();
+    } else {
+      _phaseSelCurve=_phaseSelCurve===ci?-1:ci;
+      _phaseRenderAll();
+      _phaseUpdateCurveSelector();
+    }
+  }
+
+  canvas.addEventListener('mousemove', onMove);
+  canvas.addEventListener('touchmove', e=>{e.preventDefault();onMove(e);},{passive:false});
+
+  function onMove(e){
+    const [cx,cy]=getXY(e);
+    if(_phaseDragging!==null){
+      const h=_phaseHandles[_phaseDragging.hi];
+      if(!h){_phaseDragging=null;return;}
+      const baseV=_phaseDefaultCurves[h.curveIdx][Math.round(h.t*_STEPS)].v;
+      const clickV=_vy(cy,canvas._minV,canvas._range,canvas._cH);
+      const newDy=clickV-baseV;
+      if(_phaseDragging.which==='main'){
+        const tNow=_tv(cx,canvas._cW);
+        h.t=Math.max(0,Math.min(1,tNow));
+        h.dy=newDy;
+        if(h.smooth){h.cpR_dy=-h.cpL_dy;} // mirror control points when smooth
+      } else if(_phaseDragging.which==='cpL'){
+        h.cpL_dy=newDy-h.dy;
+        if(h.smooth) h.cpR_dy=-h.cpL_dy;
+      } else {
+        h.cpR_dy=newDy-h.dy;
+        if(h.smooth) h.cpL_dy=-h.cpR_dy;
+      }
+      _phaseModified=true;
+      _phaseRenderAll();
+      return;
+    }
+    // Hover info
+    const ci=_phaseNearestCurve(cx,cy,canvas);
+    const info=document.getElementById('phase-info');
+    if(ci>=0&&canvas._cW){
+      const t=_tv(cx,canvas._cW);
+      const yr=Math.round(_phaseYrS+t*(_phaseYrE-_phaseYrS));
+      const v=_evalCurveAt(ci,t,_phaseDefaultCurves);
+      info.textContent=`${_phaseStocks[ci].ticker} · ${yr} · PHASE: ${fmt(v,4)}  [click to ${_phaseMode==='add'?'add handle':'select'}]`;
+    } else {
+      info.textContent='';
+    }
+  }
+
+  canvas.addEventListener('mouseup', ()=>{_phaseDragging=null;});
+  canvas.addEventListener('touchend', ()=>{_phaseDragging=null;});
+}
+
+function _phaseUpdateCurveSelector(){
+  const el=document.getElementById('phase-curve-sel');
+  if(!el) return;
+  el.innerHTML=`<span style="font-family:var(--fh);font-size:.38rem;letter-spacing:1.5px;color:var(--dim);line-height:2">SELECT CURVE:</span>
+  <button onclick="phaseSelectCurve(-1)" style="font-family:var(--fh);font-size:.36rem;letter-spacing:1px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid ${_phaseSelCurve===-1?'rgba(0,229,255,.6)':'rgba(0,229,255,.2)'};background:${_phaseSelCurve===-1?'rgba(0,229,255,.15)':'rgba(0,229,255,.04)'};color:var(--cyan)">ALL</button>`
+  +_phaseStocks.map((sl,ci)=>`
+  <button onclick="phaseSelectCurve(${ci})" style="font-family:var(--fh);font-size:.36rem;letter-spacing:1px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid ${_phaseSelCurve===ci?sl.color:sl.color+'44'};background:${_phaseSelCurve===ci?sl.color+'22':'rgba(0,0,0,0)'};color:${sl.color}">${sl.ticker||'S'+(ci+1)}</button>`).join('');
+}
+
+function phaseSelectCurve(ci){
+  _phaseSelCurve=ci;
+  _phaseRenderAll();
+  _phaseUpdateCurveSelector();
+}
+
+function drawPhase(stocks, yrS, yrE){
+  _phaseStocks=stocks;
+  _phaseYrS=yrS; _phaseYrE=yrE;
+  _phaseHandles=[];
+  _phaseModified=false;
+  _phaseSelCurve=-1;
+  _phaseDefaultCurves=_buildDefaultCurves(stocks,yrS,yrE);
+  // Reset UI
+  const recalc=document.getElementById('phase-recalc');
+  if(recalc) recalc.style.display='none';
+  // Wire canvas (safe to call multiple times — checks for existing listener via flag)
+  const canvas=document.getElementById('chart-phase');
+  if(canvas&&!canvas._phaseBound){canvas._phaseBound=true;_phaseWireCanvas();}
+  phaseSetMode('add');
+  _phaseRenderAll();
+  _phaseUpdateCurveSelector();
+}
+
+// ── Legend ─────────────────────────────────────────────
+function buildLegend(stocks){
+  const leg=document.getElementById('traj-legend');
+  leg.innerHTML=stocks.map(sl=>`
+    <div class="cl-item">
+      <div class="cl-dot" style="background:${sl.color}"></div>
+      <span>${sl.ticker||'—'}</span>
+      <span style="color:rgba(200,232,240,.3)">· $${sl.price?sl.price.toFixed(2):'—'}</span>
+    </div>`).join('');
+}
+
+// ── Helpers ─────────────────────────────────────────────
+function setStatus(msg){ document.getElementById('status-msg').textContent=msg; }
+
+function resetAll(){
+  slots.forEach((sl,i)=>{
+    sl.ticker=''; sl.price=null; sl.priceStatus=''; sl.sigma=0; sl.result=null; sl.active=false;
+    document.getElementById(`ticker-${i}`).value='';
+    document.getElementById(`price-${i}`).value='';
+    document.getElementById(`sigma-${i}`).value='';
+    document.getElementById(`live-${i}`).textContent='—'; document.getElementById(`live-${i}`).className='ss-live';
+    document.getElementById(`slot-${i}`).classList.remove('active');
+  });
+  document.getElementById('sec-results').style.display='none';
+  setStatus('Reset');
+}
+
+// ── Resize redraws ──────────────────────────────────────
+window.addEventListener('resize', ()=>{
+  const active=slots.filter(s=>s.result);
+  if(!active.length) return;
+  const yrS=parseInt(document.getElementById('yr-start').value);
+  const yrE=parseInt(document.getElementById('yr-end').value);
+  drawTrajectory(active,yrS,yrE);
+  drawGeo(active);
+  // Re-render phase without resetting handles
+  if(_phaseStocks.length) _phaseRenderAll();
+});
+
+/* ════════════════════════════════════════════════════════
+   MACRO / PRESET SYSTEM — localStorage, 6 slots
+════════════════════════════════════════════════════════ */
+const MACRO_KEY = 'mc_macros_v1';
+const MACRO_SLOTS = 6;
+
+const DEFAULT_MACRO = {
+  name: 'MY PORTFOLIO',
+  stocks: [
+    {ticker:'AAPL', sigma:3.7},
+    {ticker:'NVDA', sigma:2.7},
+    {ticker:'FORD', sigma:0.07},
+    {ticker:'TSLA', sigma:4},
+    {ticker:'AMD',  sigma:4},
+  ],
+  yrStart: 2026, yrEnd: 2080, eod: 1.3
+};
+
+function loadMacros(){
+  try{
+    const raw = localStorage.getItem(MACRO_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  // First run — populate slot 0 with default
+  const arr = Array(MACRO_SLOTS).fill(null);
+  arr[0] = DEFAULT_MACRO;
+  saveMacros(arr);
+  return arr;
+}
+function saveMacros(arr){
+  try{ localStorage.setItem(MACRO_KEY, JSON.stringify(arr)); }catch(e){}
+}
+function getMacros(){ return loadMacros(); }
+
+function renderMacroGrid(){
+  const macros = getMacros();
+  const grid = document.getElementById('macro-grid');
+  grid.innerHTML = '';
+  macros.forEach((m,i)=>{
+    const btn = document.createElement('div');
+    if(m){
+      btn.className='macro-btn';
+      const tickers=(m.stocks||[]).filter(s=>s.ticker).map(s=>s.ticker).join(' · ');
+      btn.innerHTML=`
+        <span class="mb-name">${m.name||'PRESET '+(i+1)}</span>
+        <span class="mb-tickers">${tickers||'—'}</span>
+        <span class="mb-meta">${m.yrStart}→${m.yrEnd} · EOD ${m.eod}</span>
+        <span class="mb-del" title="Clear this preset" onclick="clearMacro(event,${i})">✕</span>`;
+      btn.addEventListener('click', (e)=>{ if(e.target.classList.contains('mb-del')) return; loadMacro(i); });
+    } else {
+      btn.className='macro-btn empty';
+      btn.innerHTML=`<span class="mb-name">SLOT ${i+1}</span><span class="mb-meta">Empty · click to assign</span>`;
+      btn.addEventListener('click', ()=> showSaveMacroDialog(i));
+    }
+    grid.appendChild(btn);
+  });
+}
+
+function loadMacro(i){
+  const macros=getMacros(); const m=macros[i]; if(!m) return;
+  // Populate slots
+  (m.stocks||[]).forEach((s,si)=>{
+    if(si>=STOCK_COUNT) return;
+    slots[si].ticker=s.ticker||'';
+    slots[si].sigma=s.sigma||0;
+    const tEl=document.getElementById(`ticker-${si}`);
+    const sEl=document.getElementById(`sigma-${si}`);
+    if(tEl){tEl.value=slots[si].ticker; updateSlotActive(si);}
+    if(sEl){sEl.value=slots[si].sigma||'';}
+    // Clear old price
+    const pEl=document.getElementById(`price-${si}`);
+    if(pEl){pEl.value='';} slots[si].price=null;
+    document.getElementById(`live-${si}`).textContent='—';
+    document.getElementById(`live-${si}`).className='ss-live';
+  });
+  // Clear unused slots
+  for(let si=(m.stocks||[]).length;si<STOCK_COUNT;si++){
+    slots[si].ticker=''; slots[si].sigma=0; slots[si].price=null;
+    const tEl=document.getElementById(`ticker-${si}`);
+    if(tEl) tEl.value=''; updateSlotActive(si);
+    const sEl=document.getElementById(`sigma-${si}`); if(sEl) sEl.value='';
+    const pEl=document.getElementById(`price-${si}`); if(pEl) pEl.value='';
+    document.getElementById(`live-${si}`).textContent='—';
+    document.getElementById(`live-${si}`).className='ss-live';
+  }
+  // Timeline + EOD
+  const yrS=document.getElementById('yr-start');
+  const yrE=document.getElementById('yr-end');
+  const eodEl=document.getElementById('inp-eod');
+  if(yrS) yrS.value=m.yrStart||2026;
+  if(yrE) yrE.value=m.yrEnd||2080;
+  if(eodEl) eodEl.value=m.eod||1;
+  setStatus(`Loaded: ${m.name||'Preset '+(i+1)} — fetching quotes…`);
+  fetchAll();
+}
+
+function clearMacro(e, i){
+  e.stopPropagation();
+  if(!confirm(`Clear preset slot ${i+1}?`)) return;
+  const macros=getMacros(); macros[i]=null; saveMacros(macros); renderMacroGrid();
+}
+
+function showSaveMacroDialog(slot){
+  // Save current inputs into the given slot
+  const name = prompt(`Name for preset slot ${slot+1}:`, `PRESET ${slot+1}`);
+  if(!name && name!=='') return;
+  const stocks = slots.map(s=>({ticker:s.ticker,sigma:s.sigma})).filter(s=>s.ticker||s.sigma);
+  const yrS=parseInt(document.getElementById('yr-start').value)||2026;
+  const yrE=parseInt(document.getElementById('yr-end').value)||2080;
+  const eod=parseFloat(document.getElementById('inp-eod').value)||1;
+  const macros=getMacros();
+  macros[slot]={name:name.toUpperCase()||`PRESET ${slot+1}`,stocks,yrStart:yrS,yrEnd:yrE,eod};
+  saveMacros(macros); renderMacroGrid();
+  setStatus(`Saved to slot ${slot+1}: ${name}`);
+}
+
+function showMacroMgr(){
+  // Show which slot to save current state to
+  const macros=getMacros();
+  let msg='Save current settings to which slot?\n';
+  macros.forEach((m,i)=>{ msg+=`${i+1}: ${m?m.name:'(empty)'}\n`; });
+  msg+='0: Reset ALL presets\n-1: Cancel';
+  const ans=prompt(msg,'-1');
+  const n=parseInt(ans);
+  if(n===-1||isNaN(n)) return;
+  if(n===0){ if(confirm('Reset ALL presets to factory default?')){ localStorage.removeItem(MACRO_KEY); renderMacroGrid(); setStatus('All presets reset'); } return; }
+  if(n>=1&&n<=MACRO_SLOTS) showSaveMacroDialog(n-1);
+}
+
+// Init macros on load
+renderMacroGrid();
+</script>
+</body>
+</html>
