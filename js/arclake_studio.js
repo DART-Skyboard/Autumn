@@ -679,12 +679,26 @@ global.renderToolsArcLake=function(){
     <!-- Compound builder — always visible, supports multiple compounds -->
     <div style="display:flex;flex-direction:column;gap:5px">
       <!-- Single element quick-add -->
-      <div style="display:flex;gap:6px;align-items:center">
-        <label style="font-size:8px;color:#8a8fa8;letter-spacing:1px;white-space:nowrap">ELEMENT</label>
-        <select id="als-el-drop" style="flex:1;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);color:#e8eaf0;padding:4px 6px;border-radius:5px;font-size:9px;font-family:'Share Tech Mono',monospace;cursor:pointer;max-height:120px">
-          <option value="">Loading elements...</option>
-        </select>
-        <button onclick="window._alsAddElementFromDrop&&window._alsAddElementFromDrop()" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:9px;font-family:inherit" title="Add selected element to scene">+ ADD</button>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <!-- BUILD MODE toggle -->
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none">
+            <input type="checkbox" id="als-build-mode" onchange="window._alsBuildModeToggle&&window._alsBuildModeToggle(this.checked)" style="width:13px;height:13px;accent-color:#00e5ff;cursor:pointer">
+            <span style="font-family:Orbitron,monospace;font-size:8px;letter-spacing:1.5px;color:#00e5ff">BUILD MODE</span>
+          </label>
+          <span style="font-size:8px;color:rgba(0,229,255,.4);font-family:Share Tech Mono,monospace">pick elements from list</span>
+        </div>
+        <!-- Scrollable element checklist (shown when BUILD MODE on) -->
+        <div id="als-el-panel" style="display:none;flex-direction:column;gap:4px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.14);border-radius:6px;padding:6px 8px">
+          <input id="als-el-search" placeholder="Search symbol or name..." oninput="window._alsFilterElements&&window._alsFilterElements(this.value)" style="background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.18);color:#e8eaf0;padding:4px 8px;border-radius:4px;font-size:9px;font-family:Share Tech Mono,monospace;outline:none;width:100%;box-sizing:border-box">
+          <div id="als-el-list" style="max-height:130px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:3px;padding-top:4px">
+            <span style="font-size:8.5px;color:#8a8fa8;font-family:Orbitron,monospace;padding:4px">Loading 127 elements...</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:4px;border-top:1px solid rgba(0,229,255,.08)">
+            <span id="als-el-sel-count" style="font-size:8px;color:#8a8fa8;font-family:Share Tech Mono,monospace"></span>
+            <button onclick="window._alsClearElSel&&window._alsClearElSel()" style="font-size:8px;background:none;border:none;color:rgba(255,77,77,.6);cursor:pointer;font-family:Orbitron,monospace;letter-spacing:1px;padding:0">CLEAR</button>
+          </div>
+        </div>
       </div>
       <!-- Compound / multi-compound text input -->
       <div style="display:flex;gap:6px;align-items:center">
