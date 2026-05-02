@@ -815,7 +815,16 @@ global._alsRefreshCompoundList = function(){
 global._alsBuildModeToggle = function(on){
   var panel = document.getElementById('als-el-panel');
   if(panel) panel.style.display = on ? 'flex' : 'none';
-  if(on) _alsLoadElements().then(function(els){ if(els && els.length) _alsPopulateElList(els, ''); });
+  if(on){
+    _alsLoadElements().then(function(els){
+      if(els && els.length){
+        global._alsPopulateElList(els, '');
+      } else {
+        var list = document.getElementById('als-el-list');
+        if(list) list.innerHTML='<span style="font-size:8.5px;color:#ff6644;font-family:Orbitron,monospace;padding:4px">Failed to load elements — check console</span>';
+      }
+    });
+  }
 };
 
 // ── Populate the checkbox element list ────────────────────────────────────
@@ -823,21 +832,23 @@ global._alsPopulateElList = function(els, filter){
   var list = document.getElementById('als-el-list');
   if(!list) return;
   var f = (filter||'').toLowerCase().trim();
-  var visible = els.filter(function(e){
-    return !f || e.sym.toLowerCase().startsWith(f) || e.name.toLowerCase().includes(f);
+  var visible = (els||[]).filter(function(e){
+    if(!e||!e.sym) return false;
+    return !f || e.sym.toLowerCase().startsWith(f) || (e.name||'').toLowerCase().includes(f);
   });
   if(!visible.length){
     list.innerHTML='<span style="font-size:8.5px;color:#8a8fa8;font-family:Orbitron,monospace;padding:4px">No matches</span>';
     return;
   }
   list.innerHTML = visible.map(function(e){
-    return '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;'
+    return '<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;'
       +'background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.12);'
-      +'border-radius:4px;padding:2px 5px;font-size:8px;white-space:nowrap;user-select:none">'
-      +'<input type="checkbox" class="als-el-chk" data-sym="'+e.sym+'" data-name="'+e.name+'"'
-      +' onchange="window._alsElChkChange&&window._alsElChkChange()" style="width:11px;height:11px;accent-color:#00e5ff;cursor:pointer">'
-      +'<span style="font-family:Share Tech Mono,monospace;color:#00e5ff">'+e.sym+'</span>'
-      +'<span style="color:#8a8fa8"> '+e.name+'</span>'
+      +'border-radius:4px;padding:3px 6px;font-size:8px;white-space:nowrap;user-select:none">'
+      +'<input type="checkbox" class="als-el-chk" data-sym="'+e.sym+'" data-name="'+(e.name||e.sym)+'"'
+      +' onchange="window._alsElChkChange&&window._alsElChkChange()"'
+      +' style="width:11px;height:11px;accent-color:#00e5ff;cursor:pointer;flex-shrink:0">'
+      +'<span style="font-family:Share Tech Mono,monospace;color:#00e5ff;font-weight:bold">'+e.sym+'</span>'
+      +'<span style="color:#8a8fa8;font-family:Share Tech Mono,monospace"> '+(e.name||'')+'</span>'
       +'</label>';
   }).join('');
 };
@@ -845,7 +856,7 @@ global._alsPopulateElList = function(els, filter){
 // ── Filter element list ────────────────────────────────────────────────────
 global._alsFilterElements = function(val){
   _alsLoadElements().then(function(els){
-    if(els && els.length) _alsPopulateElList(els, val);
+    if(els && els.length) global._alsPopulateElList(els, val);
   });
 };
 
