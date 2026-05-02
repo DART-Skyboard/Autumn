@@ -52,47 +52,74 @@ function _alsGetEl(sym) {
 }
 
 // ── Compound text parser ──────────────────────────────────────────────────────
-// Parses strings like "Fe2O3", "H2O", "NaCl", "Ti Al V" into atom arrays
-// Returns [{sym, count}] for one formula
-function _parseFormula(formula) {
-  // Handle space-separated: "Fe Cu Ni" → [{sym:'Fe',count:1},{sym:'Cu',count:1}...]
-  if (/^[A-Z][a-z]?(\s+[A-Z][a-z]?)*$/.test(formula.trim())) {
-    return formula.trim().split(/\s+/).map(s => ({sym: s, count: 1}));
+// Handles: element names ("titanium calcium"), symbols ("Ti Ca"),
+// formulas ("Fe2O3"), mixed ("H2O and NaCl"), space-separated anything
+
+// Resolve a token to an element symbol — checks full name, symbol, case-insensitive
+function _resolveToken(token) {
+  if (!token || !token.trim()) return null;
+  const t = token.trim();
+  // Direct symbol match (Ti, Fe, etc)
+  if (_alsElements) {
+    const byName = _alsElements.find(e =>
+      e.name.toLowerCase() === t.toLowerCase() ||
+      e.sym.toLowerCase() === t.toLowerCase()
+    );
+    if (byName) return byName.sym;
   }
-  // Standard formula: Fe2O3, H2O, NaCl
+  // Fallback: capitalize first letter as symbol attempt
+  const cap = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+  if (EL[cap]) return cap;
+  const sym2 = t.charAt(0).toUpperCase() + (t[1]||'').toLowerCase();
+  if (EL[sym2] || (_alsElements && _alsElements.find(e=>e.sym===sym2))) return sym2;
+  return null;
+}
+
+// Parse one formula or name string → [{sym, count}]
+function _parseFormula(formula) {
+  const f = formula.trim();
+  if (!f) return [];
+
+  // Try splitting as space/comma-separated element names first
+  // e.g. "titanium calcium" or "Iron Copper Nickel"
+  const spaceTokens = f.split(/[\s,]+/).filter(Boolean);
+  const allResolved = spaceTokens.every(t => _resolveToken(t) !== null);
+  if (spaceTokens.length > 0 && allResolved) {
+    return spaceTokens.map(t => ({ sym: _resolveToken(t), count: 1 }));
+  }
+
+  // Standard chemical formula: Fe2O3, H2O, NaCl, TiAlV
   const result = [];
   const regex = /([A-Z][a-z]?)(\d*)/g;
   let m;
-  while ((m = regex.exec(formula)) !== null) {
-    if (m[1]) result.push({ sym: m[1], count: parseInt(m[2] || '1') });
+  while ((m = regex.exec(f)) !== null) {
+    if (m[1]) {
+      const sym = _resolveToken(m[1]) || m[1];
+      result.push({ sym, count: parseInt(m[2] || '1') });
+    }
   }
   return result;
 }
 
-// Parse multi-compound input: "Fe2O3 and H2O" or "NaCl, TiAl"
-// Returns array of compound definitions [{name, atoms:[{sym,pos}]}]
+// Parse multi-compound input: "Fe2O3 and H2O" | "NaCl, TiAl" | "titanium calcium"
+// Returns [{name, atoms:[{s,p}]}]
 function _parseMultiCompound(input) {
-  // Split on: "and", "&", "+", ",", ";", "with", "plus"
+  // Split on separators: "and", "&", "+", "with", ",", ";"
   const parts = input.split(/\s+(?:and|&|\+|with|plus)\s+|[,;]\s*/i)
     .map(s => s.trim()).filter(Boolean);
 
-  return parts.map((part, ci) => {
-    const atoms = [];
+  return parts.map(function(part, ci) {
     const parsed = _parseFormula(part);
-    let totalAtoms = 0;
-    parsed.forEach(({sym, count}) => {
-      for (let i = 0; i < count; i++) totalAtoms++;
-    });
-
-    // Place atoms in a cluster offset from each other compound
-    const clusterOffset = ci * 8; // 8 units apart per compound
+    const totalAtoms = parsed.reduce(function(a,p){ return a+p.count; }, 0);
+    const clusterOffset = ci * 9; // compounds spread apart
     let atomIdx = 0;
-    parsed.forEach(({sym, count}) => {
-      for (let i = 0; i < count; i++) {
+    const atoms = [];
+    parsed.forEach(function(p) {
+      for (let i = 0; i < p.count; i++) {
         const angle = (atomIdx / Math.max(totalAtoms, 1)) * Math.PI * 2;
         const r = totalAtoms > 1 ? 2.2 : 0;
         atoms.push({
-          s: sym,
+          s: p.sym,
           p: [
             clusterOffset + Math.cos(angle) * r,
             Math.sin(angle) * r * 0.5,
@@ -102,7 +129,6 @@ function _parseMultiCompound(input) {
         atomIdx++;
       }
     });
-
     return { name: part, atoms };
   });
 }
@@ -792,7 +818,8 @@ global._alsBuildCompounds = function(){
   if(!S || !raw.trim()) return;
   var compounds = _parseMultiCompound(raw);
   if(!compounds.length || !compounds[0].atoms.length){
-    document.getElementById('als-status').textContent = 'Could not parse: '+raw+' — try: Fe2O3 and H2O';
+    document.getElementById('als-status').textContent =
+      'Could not parse: "'+raw+'" — try: Fe2O3 and H2O  ·  titanium calcium  ·  Ti Ca Ni  ·  NaCl, TiAl';
     return;
   }
   // Validate all symbols
