@@ -471,33 +471,44 @@ async function _exportGLB(state){
     throw new Error('No geometry found in scene — add atoms first');
   }
 
+  // r128 GLTFExporter.parse() = (scene, onDone, options) — no separate onError arg.
+  // Passing 4 args makes arg3 (a function) treated as options → binary:true ignored
+  // → callback gets JSON object → Blob = "[object Object]" = 15 bytes. Fixed below.
   return new Promise((resolve,reject)=>{
-    new T.GLTFExporter().parse(
-      exp,
-      (glb)=>{
-        if(!glb||(glb instanceof ArrayBuffer && glb.byteLength<200)){
-          reject(new Error(`GLB is near-empty (${glb?glb.byteLength:0} bytes). Try stopping simulation first.`));
-          return;
+    try{
+      new T.GLTFExporter().parse(
+        exp,
+        (glb)=>{
+          try{
+            // Validate — should be ArrayBuffer when binary:true works
+            if(!(glb instanceof ArrayBuffer)){
+              reject(new Error('GLTFExporter returned non-binary output — Three.js r128 parse() signature mismatch'));
+              return;
+            }
+            if(glb.byteLength<100){
+              reject(new Error('GLB near-empty ('+glb.byteLength+' bytes). Add atoms and run simulation first.'));
+              return;
+            }
+            const blob=new Blob([glb],{type:'model/gltf-binary'});
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a');
+            a.href=url;
+            a.download='arclake_'+Date.now()+'.glb';
+            document.body.appendChild(a); a.click();
+            setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},300);
+            resolve((glb.byteLength/1024).toFixed(1));
+          }catch(e){ reject(e); }
+        },
+        // OPTIONS as 3rd arg — no 4th arg in r128
+        {
+          binary:true,
+          animations: hasAnim && clips.length ? clips : undefined,
+          embedImages: false,
+          forceIndices: true,
+          truncateDrawRange: false
         }
-        const blob=new Blob([glb],{type:'model/gltf-binary'});
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a');
-        a.href=url;
-        a.download='arclake_'+Date.now()+'.glb';
-        document.body.appendChild(a); a.click();
-        setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},200);
-        const kb=(glb.byteLength/1024).toFixed(1);
-        resolve(kb);
-      },
-      (err)=>reject(err),
-      {
-        binary:true,
-        animations: hasAnim && clips.length ? clips : undefined,
-        embedImages: false,
-        forceIndices: true,
-        truncateDrawRange: false
-      }
-    );
+      );
+    }catch(e){ reject(e); }
   });
 }
 
