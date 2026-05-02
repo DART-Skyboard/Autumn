@@ -20721,18 +20721,14 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   function init() {
     var stored = _loadStoredSession();
-    var isRegistered = localStorage.getItem('_gh_registered');
-
-    if (stored && stored.access_token) {
-      // ── Returning user with stored token: validate silently ──────────────
-      // Show nothing until we know the token is valid — prevents any flash of modal.
-      fetch('https://api.github.com/user', {
-        headers: { 'Authorization': 'token ' + stored.access_token, 'Accept': 'application/vnd.github.v3+json' },
-        signal: AbortSignal.timeout(8000)
-      })
-      .then(function(r) {
-        if (r.ok) return r.json();
-        throw new Error('invalid_token');
+    if (stored) {
+      _applySession(stored);
+    } else {
+      var skipped = localStorage.getItem('_gh_login_skipped');
+      if (!skipped) _showLoginModal();
+      else _showGuestMode();
+    }
+  }        throw new Error('invalid_token');
       })
       .then(function(user) {
         // Token valid — refresh stored data with latest GitHub profile and apply
@@ -21642,66 +21638,25 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
   };
   window._ghLogout = function() {
-    // Autosave before logout
     if (typeof _autosave === 'function') { _lastSaveHash = ''; _autosave(); }
-    // Clear session token but preserve _gh_registered so next visit shows
-    // re-auth prompt, NOT the first-timer welcome screen.
-    var _savedUsername = window._ghAuth.username || localStorage.getItem('_gh_registered');
-    try { localStorage.removeItem('_gh_session'); } catch(e) {}
-    try { if (_savedUsername) localStorage.setItem('_gh_registered', _savedUsername); } catch(e) {}
-    // Reset in-memory auth state
-    window._ghAuth.loggedIn   = false;
-    window._ghAuth.token      = null;
-    window._ghAuth.repoReady  = false;
+    // Keep token in localStorage — returning user taps LOGIN and is instantly back in
+    window._ghAuth.loggedIn  = false;
+    window._ghAuth.repoReady = false;
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     if (loginBtn) loginBtn.style.display = '';
     if (userBtn)  userBtn.style.display  = 'none';
     _toast('Logged out');
   };
-  // Re-login for returning registered users — silent OAuth web flow
-  window._ghReLogin = function() {
-    // After logout: _gh_session is cleared but _gh_registered remains.
-    // Just start device flow — one tab, user approves, polls via GAS, done.
+    window._ghReLogin = function() {
     var stored = _loadStoredSession();
     if (stored && stored.access_token) {
-      // Session still in memory (e.g. re-login without full logout) — validate silently
-      fetch('https://api.github.com/user', {
-        headers: { 'Authorization': 'token ' + stored.access_token },
-        signal: AbortSignal.timeout(8000)
-      })
-      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
-      .then(function(user) {
-        var refreshed = { access_token: stored.access_token, username: user.login,
-                          avatar_url: user.avatar_url || stored.avatar_url, name: user.name || user.login };
-        _saveSession(refreshed);
-        _applySession(refreshed);
-      })
-      .catch(function() {
-        try { localStorage.removeItem('_gh_session'); } catch(e) {}
-        _showDeviceFlow();
-      });
+      _applySession(stored); // instant — no device flow, no tabs
     } else {
-      // No stored session (after logout) — show WELCOME BACK then device flow
-      var isReg = localStorage.getItem('_gh_registered');
-      if (isReg) _showReAuthPrompt(isReg !== '1' ? isReg : null);
-      else _showDeviceFlow();
+      _showLoginModal();
     }
   };
-
-  // ── Open GitHub device auth tab and keep a reference to close it after ──
-  // Stored on window so the poll success path (inside _showDeviceCode closure)
-  // can close it — both must reference the same slot.
-  window._ghDeviceTab = null;
-  window._ghOpenDeviceTab = function(url) {
-    try {
-      window._ghDeviceTab = window.open(url, '_blank');
-    } catch(e) {
-      window.open(url, '_blank');
-    }
-  };
-
-  window._ghShowUserMenu = function(e) {
+    window._ghShowUserMenu = function(e) {
     e.preventDefault();
     var menu = document.getElementById('gh-user-menu');
     if (!menu) {
