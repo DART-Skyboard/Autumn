@@ -20796,8 +20796,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if (knownUsername) {
       try { sessionStorage.setItem('_gh_reauth_user', knownUsername); } catch(e) {}
     }
-    // Returning user — web flow redirect is instant and silent (GitHub already has app authorized)
-    // No device code, no loop. Comes straight back to leatr.xyz/?code= and exchanges for token.
+    // Silent web flow — GitHub already authorized the app so it redirects back instantly.
+    // No modal, no device code, no loop.
     _doWebFlowRedirect();
   }
 
@@ -20830,7 +20830,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .then(function(d) {
         _hideAuthLoading();
         if (d.error) {
-          // GAS quota exhausted — show PAT login instead of device flow loop
+          // GAS failed — show PAT login so user can get in without looping
           _showLoginModal();
           _setDeviceUI(_quotaFallbackHtml());
           return;
@@ -20849,8 +20849,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var _devicePollTimer = null;
 
   function _startOAuth() {
-    // Device flow works fully client-side (no GAS needed) — use it as primary
-    _showDeviceFlow();
+    _doWebFlowRedirect();
   }
 
   function _preWireBtn() {
@@ -22031,8 +22030,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   // Wire up OAuth button
   function _bindOAuthBtn() {
     _preWireBtn(); // Set real href immediately
-    var btn = document.getElementById('gh-oauth-btn');
-    if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); _startOAuth(); });
+    // gh-oauth-btn already has onclick in HTML — no second listener needed
     setTimeout(init, 800);
   }
   if (document.readyState === 'loading') {
