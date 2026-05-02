@@ -585,46 +585,87 @@ footer a{color:var(--cyan);text-decoration:none;}
 
   <div class="card">
     <div class="sub">ARCLAKE STUDIO — MOLECULAR WAVEFORM SIMULATOR</div>
-    <p class="cd" style="margin-bottom:10px;">A floating 3D physics overlay that renders atomic structure as quantum waveform particle clouds — nucleus proton/neutron clusters at center, per-shell electron orbital clouds radiating outward. Driven by a real-time CFD atmospheric field responding to temperature, pressure, and wind. Open by voice, the <span class="hl">⬡ ARCLAKE</span> HUD button, or ask Autumn to run a simulation.</p>
+    <p class="cd" style="margin-bottom:10px;">A floating draggable 3D physics overlay that renders atomic structure as quantum waveform particle clouds — proton/neutron clusters at the nucleus, per-shell electron orbital clouds radiating outward, and a CFD atmospheric field responding to temperature, pressure, and wind. Supports all 118 elements and any number of simultaneous compounds in one scene. Open by voice, the <span class="hl">⬡ ARCLAKE</span> HUD button, or by asking Autumn directly.</p>
+
     <div class="sub" style="margin-top:0">OPENING ARCLAKE STUDIO</div>
     <table class="ct">
-      <tr><td><span class="cp">⬡ ARCLAKE (HUD button)</span></td><td class="cd">Tap the <span class="hl">⬡ ARCLAKE</span> label in the top-left HUD to toggle the studio open or closed at any time.</td></tr>
-      <tr><td><span class="cp">create a simulation with Hercules alloy</span></td><td class="cd">Autumn opens ArcLake Studio and loads the Hercules Alloy preset automatically.</td></tr>
-      <tr><td><span class="cp">show me a water molecule</span></td><td class="cd">Loads the H₂O preset — 3 atoms, 10 electrons, waveform cloud rendered instantly.</td></tr>
-      <tr><td><span class="cp">simulate steel / titanium / copper oxide</span></td><td class="cd">Any preset name opens and loads that compound. Also: CO₂, NaCl, Silicon Dioxide, Calcium Carbonate, Iron + Copper Alloy.</td></tr>
-      <tr><td><span class="cp">— collapse button</span></td><td class="cd">Collapses panel body to a header bar — keeps simulation running in background.</td></tr>
-      <tr><td><span class="cp">✕ CLOSE</span></td><td class="cd">Closes and disposes the renderer. Scene state is cleared.</td></tr>
+      <tr><td><span class="cp">⬡ ARCLAKE (HUD button)</span></td><td class="cd">Tap the <span class="hl">⬡ ARCLAKE</span> label in the top-left HUD (below ARC EDGE) to toggle the studio open or closed. The button glows cyan when the overlay is active.</td></tr>
+      <tr><td><span class="cp">simulate the Hercules alloy</span></td><td class="cd">Autumn opens ArcLake Studio, loads the Hercules Alloy preset (Ti, W, Mo, Ta, Co, Ni — 6 elements), and starts the simulation automatically.</td></tr>
+      <tr><td><span class="cp">show me a water molecule</span></td><td class="cd">Loads H₂O — 3 atoms, 10 electrons, instant waveform render.</td></tr>
+      <tr><td><span class="cp">simulate steel / titanium alloy / copper oxide</span></td><td class="cd">Any preset name works. Also: CO₂, NaCl, Silicon Dioxide, Calcium Carbonate, Iron + Copper Alloy.</td></tr>
+      <tr><td><span class="cp">show Fe2O3 and H2O in arc lake</span></td><td class="cd">Autumn parses the compound text, builds both compounds in one scene with correct spacing.</td></tr>
+      <tr><td><span class="cp">grab some random elements like copper and iron</span></td><td class="cd">Autumn routes to ArcLake (not Arc Edge) and adds those elements to the scene.</td></tr>
+      <tr><td><span class="cp">Drag header bar</span></td><td class="cd">Drag the title bar to reposition the overlay anywhere on screen. Touch-friendly.</td></tr>
+      <tr><td><span class="cp">— collapse / ✕ CLOSE</span></td><td class="cd">Collapse hides the panel body while keeping the simulation running. Close stops simulation and disposes the renderer.</td></tr>
     </table>
-    <div class="sub" style="margin-top:14px;">SCENE CONTROLS</div>
+
+    <div class="sub" style="margin-top:14px;">ELEMENT SELECTOR (ALL 118 ELEMENTS)</div>
+    <p class="cd" style="margin-bottom:8px;">The <span class="hl">ELEMENT</span> dropdown lists all 118 elements from Hydrogen (Z1) to Oganesson (Z118) — loaded from <span style="font-family:var(--fc);color:var(--gold)">assets/elements.json</span> which is a merge of the Ariel Chemistry Lab element data and the full periodic table. Each entry shows symbol, name, and atomic number.</p>
     <table class="ct">
-      <tr><td><span class="cp">SCENE dropdown</span></td><td class="cd">Switch between preset molecular compounds — Hercules Alloy (6-el), Water, Steel, Titanium Alloy, Copper Oxide, Silicon Dioxide, Calcium Carbonate, Iron + Copper Alloy, CO₂, NaCl. Scene rebuilds instantly.</td></tr>
-      <tr><td><span class="cp">pts/e input</span></td><td class="cd">Waveform particle count per electron. Default: 150. Higher values produce denser orbital clouds. Adjustable up to 500 — heavy presets like Hercules at 150pts/e render ~133,000 particles.</td></tr>
-      <tr><td><span class="cp">TEMP (°C)</span></td><td class="cd">Atomic temperature — drives CFD atmospheric particle velocity and thermal diffusion across the waveform field. Range: −273°C to 3500°C.</td></tr>
-      <tr><td><span class="cp">PRESSURE (Pa)</span></td><td class="cd">Atmospheric pressure — scales particle field density and CFD collision forces. Range: 0 to 500,000 Pa.</td></tr>
-      <tr><td><span class="cp">WIND X / WIND Y</span></td><td class="cd">Directional wind force applied to CFD particles — visibly deforms the atmospheric field around the waveform cloud during simulation.</td></tr>
+      <tr><td><span class="cp">Element dropdown</span></td><td class="cd">Scroll and select any of the 118 elements. Shows as: <span style="font-family:var(--fc)">Fe — Iron (Z26)</span>. Includes real per-shell electron orbit data from the Ariel Chemistry Lab dataset.</td></tr>
+      <tr><td><span class="cp">+ ADD button</span></td><td class="cd">Places the selected element in the scene as a standalone atom at a new offset position. Adds without clearing other compounds already in the scene.</td></tr>
     </table>
-    <div class="sub" style="margin-top:14px;">SIMULATION ACTIONS</div>
+
+    <div class="sub" style="margin-top:14px;">COMPOUND BUILDER — MULTI-COMPOUND SCENES</div>
+    <p class="cd" style="margin-bottom:8px;">The compound text input accepts any combination of element names, symbols, or chemical formulas. Multiple compounds can be placed in the same scene simultaneously — each appears as its own atom cluster with space between them.</p>
     <table class="ct">
-      <tr><td><span class="cp">▶ SIMULATE</span></td><td class="cd">Starts the physics engine — atoms drift, electron clouds deform under CFD forces, wind and pressure animate the waveform field. Frame counter and elapsed time update live.</td></tr>
-      <tr><td><span class="cp">■ STOP</span></td><td class="cd">Pauses the simulation. Atom positions and waveform state are preserved.</td></tr>
-      <tr><td><span class="cp">↓ GLB</span></td><td class="cd">Exports the current scene snapshot as a .glb 3D file — downloadable for use in Blender, Three.js, or other 3D tools.</td></tr>
-      <tr><td><span class="cp">↺ Reset</span></td><td class="cd">Rebuilds the scene from the current preset and parameter values — restores atoms to default positions.</td></tr>
+      <tr><td><span class="cp">Element names</span></td><td class="cd"><span style="font-family:var(--fc)">titanium calcium</span> — Full element names, space-separated. Case-insensitive.</td></tr>
+      <tr><td><span class="cp">Chemical symbols</span></td><td class="cd"><span style="font-family:var(--fc)">Ti Ca Ni</span> — Standard symbols, space-separated.</td></tr>
+      <tr><td><span class="cp">Chemical formulas</span></td><td class="cd"><span style="font-family:var(--fc)">Fe2O3</span> or <span style="font-family:var(--fc)">H2O</span> — Standard notation. Subscript counts expand to that many atoms.</td></tr>
+      <tr><td><span class="cp">Multiple compounds</span></td><td class="cd"><span style="font-family:var(--fc)">Fe2O3 and H2O</span> — Use "and", "&amp;", "+", "with", comma, or semicolon to separate. Each compound gets its own cluster offset in the scene.</td></tr>
+      <tr><td><span class="cp">Mixed formats</span></td><td class="cd"><span style="font-family:var(--fc)">titanium and Fe2O3</span> — Names and formulas can be combined freely.</td></tr>
+      <tr><td><span class="cp">BUILD button / Enter</span></td><td class="cd">Parses the input, validates all element symbols, places the atoms in the 3D scene with orbital clouds, and shows the total atom, electron, and waveform particle count in the status bar.</td></tr>
+      <tr><td><span class="cp">Compound chips (✕)</span></td><td class="cd">Each compound appears as a labeled chip below the input. Tap ✕ on any chip to remove just that compound without disturbing the others.</td></tr>
     </table>
+
+    <div class="sub" style="margin-top:14px;">SCENE PRESETS</div>
+    <table class="ct">
+      <tr><td><span class="cp">SCENE dropdown</span></td><td class="cd">10 built-in compound presets: Hercules Alloy (6-el), Water (H₂O), CO₂, NaCl, Steel (Fe+C+Cr), Titanium Alloy (Ti+Al), Iron + Copper Alloy, Calcium Carbonate, Copper Oxide, Silicon Dioxide. Selecting one rebuilds the scene immediately.</td></tr>
+      <tr><td><span class="cp">pts/e⁻ input</span></td><td class="cd">Waveform particles per electron. Default: 30. Higher values produce denser orbital clouds — Hercules at 30pts/e = ~7,320 waveform particles across 6 atoms.</td></tr>
+    </table>
+
+    <div class="sub" style="margin-top:14px;">ENVIRONMENT PARAMETERS</div>
+    <table class="ct">
+      <tr><td><span class="cp">TEMP (°C)</span></td><td class="cd">Range −273°C to 3500°C. Drives thermal diffusion across the CFD field, electron cloud scale, and atomic drift velocity. Above 800°C the CFD field shifts orange. Above 2000°C it turns red.</td></tr>
+      <tr><td><span class="cp">PRESSURE (Pa)</span></td><td class="cd">Range 0 to 500,000 Pa. Compresses the atmospheric particle bounding box and increases CFD field density.</td></tr>
+      <tr><td><span class="cp">WIND X / WIND Y (m/s)</span></td><td class="cd">Range ±200 m/s. Applies directional force to both CFD atmospheric particles and atom positions — visibly deforms the cloud field during simulation.</td></tr>
+    </table>
+
+    <div class="sub" style="margin-top:14px;">SIMULATION CONTROLS</div>
+    <table class="ct">
+      <tr><td><span class="cp">▶ SIMULATE</span></td><td class="cd">Starts physics — atoms drift under thermal and wind forces, electron clouds rotate and scale, CFD field animates. Frame counter and elapsed time update live in the HUD overlay.</td></tr>
+      <tr><td><span class="cp">■ STOP</span></td><td class="cd">Pauses physics. All positions and state are preserved — frames are recorded and ready for GLB export.</td></tr>
+      <tr><td><span class="cp">↓ GLB export</span></td><td class="cd">Converts the full scene to a .glb 3D file and downloads it. Particles are converted to InstancedMesh geometry (real 3D spheres) grouped by type — each downloaded file opens directly in Blender, Nomad, or any glTF viewer. Animation keyframes from recorded frames are embedded if simulation was run before export.</td></tr>
+      <tr><td><span class="cp">↺ Reset</span></td><td class="cd">Rebuilds scene from current preset/compound, clears recorded frames, restores atoms to default positions.</td></tr>
+      <tr><td><span class="cp">⛶ Fullscreen</span></td><td class="cd">Opens the scene in a full-viewport overlay with fresh OrbitControls. Close to return to the panel view.</td></tr>
+    </table>
+
+    <div class="sub" style="margin-top:14px;">GLB EXPORT — 3D FILE HIERARCHY</div>
+    <p class="cd" style="margin-bottom:8px;">Exported GLB files open in Blender with a structured node hierarchy. Each atom group animates independently if simulation frames were recorded before export:</p>
+    <table class="ct">
+      <tr><td><span class="cp">Atom_[Name]_[i]_Z[n]</span></td><td class="cd">Top-level group per atom (e.g. <span style="font-family:var(--fc)">Atom_Iron_0_Z26</span>). Contains the nucleus and all electron shell groups. Carries position animation keyframes.</td></tr>
+      <tr><td><span class="cp">Nucleus → Protons</span></td><td class="cd">InstancedMesh of orange spheres. Count = atomic number Z. Fibonacci sphere packing.</td></tr>
+      <tr><td><span class="cp">Nucleus → Neutrons</span></td><td class="cd">InstancedMesh of gray spheres. Count ≈ Z × 1.25.</td></tr>
+      <tr><td><span class="cp">Electrons → Shell_K / Shell_L / Shell_M...</span></td><td class="cd">One InstancedMesh per electron shell, colored by shell (K=cyan, L=blue, M=green, N=teal...). Particle count = electrons in that shell × pts/e⁻.</td></tr>
+      <tr><td><span class="cp">Animation data</span></td><td class="cd">Each atom group carries VectorKeyframeTrack position data — full simulation motion arc from ▶ SIMULATE to ■ STOP. Opens in Blender NLA editor as individual clips.</td></tr>
+    </table>
+
     <div class="sub" style="margin-top:14px;">PARTICLE SYSTEM</div>
-    <p class="cd" style="margin-bottom:8px;">Each atom renders three particle layers stacked by physics order — data flows outward from the nucleus:</p>
     <table class="ct">
-      <tr><td><span class="cp">Protons (orange)</span></td><td class="cd">Packed in Fibonacci sphere arrangement at the nucleus. Count = atomic number Z.</td></tr>
-      <tr><td><span class="cp">Neutrons (gray)</span></td><td class="cd">Interleaved with protons in the nucleus cloud. Count ≈ Z × 1.25.</td></tr>
-      <tr><td><span class="cp">Electron clouds (per-shell color)</span></td><td class="cd">K=cyan, L=blue, M=green, N=teal, O=deep blue, P=purple. Each shell's electrons are sampled from quantum radial wavefunctions (hydrogen-like). At 150 pts/e default the orbital density closely matches quantum probability distributions.</td></tr>
-      <tr><td><span class="cp">CFD field (cyan)</span></td><td class="cd">1,000 atmospheric particles driven by temperature, pressure, and wind parameters — visually wraps around the molecule during simulation.</td></tr>
+      <tr><td><span class="cp">Protons (orange)</span></td><td class="cd">Fibonacci sphere packing at nucleus. Count = Z (atomic number).</td></tr>
+      <tr><td><span class="cp">Neutrons (gray)</span></td><td class="cd">Interleaved with protons. Count from Ariel elements.json (actual per-element neutron count).</td></tr>
+      <tr><td><span class="cp">Electron shells</span></td><td class="cd">K=cyan, L=blue, M=green, N=teal, O=deep blue, P=purple, Q=yellow-green, R=pink. Shell counts from real electronOrbits data (e.g. Iron: [2, 8, 14, 2]). Particles sampled from quantum radial wavefunction probability density.</td></tr>
+      <tr><td><span class="cp">CFD field</span></td><td class="cd">1,000 atmospheric particles. Color shifts with temperature: cyan (cold) → orange (hot) → red (extreme). Opacity scales with pressure.</td></tr>
     </table>
+
     <div class="sub" style="margin-top:14px;">VIEWPORT NAVIGATION</div>
     <table class="ct">
-      <tr><td><span class="cp">Drag (orbit)</span></td><td class="cd">Rotate the 3D scene around the molecule. Damping enabled for smooth response.</td></tr>
-      <tr><td><span class="cp">Pinch / scroll</span></td><td class="cd">Zoom in and out. Range: 1–80 units.</td></tr>
-      <tr><td><span class="cp">Two-finger drag</span></td><td class="cd">Pan the camera parallel to the screen.</td></tr>
+      <tr><td><span class="cp">Drag (orbit)</span></td><td class="cd">Rotate around the molecule. Camera: near=0.01, far=100,000 — supports both nucleus close-ups and zoomed-out full-field views.</td></tr>
+      <tr><td><span class="cp">Pinch / scroll</span></td><td class="cd">Zoom. Range: 1–80 units.</td></tr>
+      <tr><td><span class="cp">Two-finger drag</span></td><td class="cd">Pan parallel to screen.</td></tr>
     </table>
-    <div class="ki" style="margin-top:10px;">ArcLake Studio is the embedded version of the standalone ArcLake Chemistry Research Lab available at radicaldeepscale.com. The Autumn overlay uses the same particle engine and CFD system — optimized for the overlay viewport.</div>
+
+    <div class="ki" style="margin-top:10px;">ArcLake Studio is the embedded version of the standalone ArcLake Chemistry Research Lab at radicaldeepscale.com. The Autumn overlay uses the same particle engine, CFD system, and electronOrbits dataset from the Ariel repository — optimized for the overlay and tools panel viewport. The elements.json dataset covers all 127 elements in the Ariel dataset with full shell data and all 118 confirmed periodic table elements with color, radius, and category data.</div>
   </div>
 
   <div class="card">
