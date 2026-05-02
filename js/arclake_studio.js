@@ -797,19 +797,83 @@ global._alsRefreshCompoundList = function(){
   }).join('');
 };
 
-// ── Add element from dropdown into current scene ──────────────────────────
-global._alsAddElementFromDrop = function(){
-  var drop = document.getElementById('als-el-drop');
-  if(!drop || !drop.value || !S) return;
-  var sym = drop.value;
-  // Add as a solo compound at a new offset
-  var offset = (S._compounds ? S._compounds.length : 0) * 6;
-  var compounds = S._compounds || [];
-  compounds.push({ name: sym, atoms: [{s:sym, p:[offset,0,0]}] });
-  S._compounds = compounds;
-  _alsBuildFromCompounds(compounds, S.params.ptsPerE||30);
-  _alsRefreshCompoundList();
-  document.getElementById('als-status').textContent = 'Added: '+sym;
+// ── Build mode toggle ──────────────────────────────────────────────────────
+global._alsBuildModeToggle = function(on){
+  var panel = document.getElementById('als-el-panel');
+  if(panel) panel.style.display = on ? 'flex' : 'none';
+  if(on) _alsLoadElements().then(function(els){ if(els && els.length) _alsPopulateElList(els, ''); });
+};
+
+// ── Populate the checkbox element list ────────────────────────────────────
+global._alsPopulateElList = function(els, filter){
+  var list = document.getElementById('als-el-list');
+  if(!list) return;
+  var f = (filter||'').toLowerCase().trim();
+  var visible = els.filter(function(e){
+    return !f || e.sym.toLowerCase().startsWith(f) || e.name.toLowerCase().includes(f);
+  });
+  if(!visible.length){
+    list.innerHTML='<span style="font-size:8.5px;color:#8a8fa8;font-family:Orbitron,monospace;padding:4px">No matches</span>';
+    return;
+  }
+  list.innerHTML = visible.map(function(e){
+    return '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;'
+      +'background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.12);'
+      +'border-radius:4px;padding:2px 5px;font-size:8px;white-space:nowrap;user-select:none">'
+      +'<input type="checkbox" class="als-el-chk" data-sym="'+e.sym+'" data-name="'+e.name+'"'
+      +' onchange="window._alsElChkChange&&window._alsElChkChange()" style="width:11px;height:11px;accent-color:#00e5ff;cursor:pointer">'
+      +'<span style="font-family:Share Tech Mono,monospace;color:#00e5ff">'+e.sym+'</span>'
+      +'<span style="color:#8a8fa8"> '+e.name+'</span>'
+      +'</label>';
+  }).join('');
+};
+
+// ── Filter element list ────────────────────────────────────────────────────
+global._alsFilterElements = function(val){
+  _alsLoadElements().then(function(els){
+    if(els && els.length) _alsPopulateElList(els, val);
+  });
+};
+
+// ── Checkbox change — append symbol to compound input ────────────────────
+global._alsElChkChange = function(){
+  var checked = document.querySelectorAll('.als-el-chk:checked');
+  var count   = document.getElementById('als-el-sel-count');
+  if(count) count.textContent = checked.length ? checked.length+' selected' : '';
+
+  // Rebuild the compound input from checked elements
+  // Elements are grouped: space-separated within a compound, comma = new compound
+  // Current approach: append newly checked to input, respecting commas the user typed
+  var inp = document.getElementById('als-compound-in');
+  if(!inp) return;
+
+  // Get symbols in check order
+  var syms = Array.from(checked).map(function(c){ return c.dataset.sym; });
+  if(!syms.length){ inp.value=''; return; }
+
+  // Split current input on commas to preserve user-created compound separations
+  var parts = inp.value.split(',').map(function(p){ return p.trim(); });
+  // The last part is the active compound being built
+  // Replace it with the currently checked symbols (space-separated)
+  // Symbols that might relate to other comma-separated compounds are kept
+  var activePart = syms.join(' ');
+  parts[parts.length-1] = activePart;
+  inp.value = parts.join(', ');
+};
+
+// ── Clear all checkboxes ─────────────────────────────────────────────────
+global._alsClearElSel = function(){
+  document.querySelectorAll('.als-el-chk').forEach(function(c){ c.checked=false; });
+  var count = document.getElementById('als-el-sel-count');
+  if(count) count.textContent = '';
+  var inp = document.getElementById('als-compound-in');
+  if(inp){ var parts=inp.value.split(','); parts[parts.length-1]=''; inp.value=parts.filter(Boolean).join(', '); }
+};
+
+// ── Legacy add-from-drop stub (kept for compatibility) ────────────────────
+global._alsAddElementFromDrop = function(){};
+global._alsAddSelectedElements = function(){
+  window._alsBuildCompounds && window._alsBuildCompounds();
 };
 
 // ── Build scene from multi-compound text ──────────────────────────────────
