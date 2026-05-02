@@ -319,36 +319,185 @@ function _step(state){
 // ── GLB export ────────────────────────────────────────────────────────────────
 async function _exportGLB(state){
   const T=state.T;
+
+  // Load GLTFExporter
   if(!T.GLTFExporter){
-    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
-  }
-  const exp=new T.Scene();
-  exp.add(new T.AmbientLight(0x334466,0.8));
-  state.atoms.forEach((a,i)=>{
-    const g=new T.Group(); g.name='Atom_'+a.el.name+'_'+i;
-    g.add(a.nucleus.clone());
-    a.eClouds.forEach((m,si)=>{const c=m.clone();c.name='Shell_'+si;g.add(c);});
-    exp.add(g);
-  });
-  const frames=state.recordedFrames;
-  const clips=[];
-  if(frames.length>2){
-    const times=frames.map(f=>f.time);
-    state.atoms.forEach((a,ai)=>{
-      const positions=[];
-      frames.forEach(f=>{const d=f.atoms[ai];if(d){positions.push(d.p[0],d.p[1],d.p[2]);}});
-      if(positions.length){
-        const name='Atom_'+a.el.name+'_'+ai;
-        clips.push(new T.AnimationClip(name+'_Anim',-1,[new T.VectorKeyframeTrack(name+'.position',times,positions)]));
-      }
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js';
+      s.onload=res; s.onerror=rej; document.head.appendChild(s);
     });
   }
+
+  // ── Why InstancedMesh: THREE.Points are NOT valid glTF geometry. ─────────
+  // Every particle becomes a tiny sphere instance so Blender/Nomad can read it.
+  // Hierarchy per atom:
+  //   Atom_Iron_0_Z26  (Group — animates over time)
+  //     Nucleus        (Group)
+  //       Protons      (InstancedMesh — orange spheres)
+  //       Neutrons     (InstancedMesh — gray spheres)
+  //     Electrons      (Group)
+  //       Shell_K      (Group)
+  //         Shell_K_Cloud  (InstancedMesh — cyan)
+  //       Shell_L-s    (Group)  ...etc
+
+  const SHELL_COLORS_HEX=[0x00e5ff,0x4488ff,0x44ff88,0x00ffcc,0x0088ff,0xaa44ff,0xaaff44,0xff44aa];
+  const SHELL_NAMES=['K','L-s','L-p','M-s','M-p','M-d','N-s','N-p'];
+
+  // Shared sphere geometries (reused across all atoms — reduces file size)
+  const sgP = new T.SphereGeometry(0.022, 6, 4); // proton
+  const sgN = new T.SphereGeometry(0.019, 6, 4); // neutron
+  const sgE = new T.SphereGeometry(0.013, 5, 3); // electron
+
+  const dummy = new T.Object3D();
+
+  // Build InstancedMesh from a BufferAttribute slice
+  // Positions in geo are WORLD absolute. groupOrigin is subtracted to make them local.
+  function makeIM(posAttr, fromIdx, count, geo, colorHex, name, groupOrigin){
+    if(!count) return null;
+    const mat = new T.MeshPhongMaterial({color:colorHex, shininess:70, emissive:new T.Color(colorHex).multiplyScalar(0.08)});
+    const im = new T.InstancedMesh(geo, mat, count);
+    im.name = name;
+    const ox=groupOrigin.x, oy=groupOrigin.y, oz=groupOrigin.z;
+    for(let i=0;i<count;i++){
+      dummy.position.set(
+        posAttr.getX(fromIdx+i) - ox,
+        posAttr.getY(fromIdx+i) - oy,
+        posAttr.getZ(fromIdx+i) - oz
+      );
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      im.setMatrixAt(i, dummy.matrix);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    return im;
+  }
+
+  // ── Build export scene ───────────────────────────────────────────────────
+  const exp = new T.Scene();
+  exp.add(new T.AmbientLight(0x334466, 0.9));
+  const dl1=new T.DirectionalLight(0x00e5ff,1.2); dl1.position.set(5,10,8); exp.add(dl1);
+  const dl2=new T.DirectionalLight(0x7c4dff,0.5); dl2.position.set(-5,-4,-8); exp.add(dl2);
+  const dl3=new T.DirectionalLight(0xffffff,0.4); dl3.position.set(0,0,15); exp.add(dl3);
+
+  const clips = [];
+  const frames = state.recordedFrames;
+  const hasAnim = frames.length > 2;
+
+  state.atoms.forEach((atom,ai)=>{
+    // ── Atom group — placed at original position, animated to simulated pos ─
+    const origP = new T.Vector3(...atom.origP); // original preset position
+    const atomGroup = new T.Group();
+    atomGroup.name = `Atom_${atom.el.name}_${ai}_Z${atom.el.z}`;
+    atomGroup.position.copy(origP);
+    exp.add(atomGroup);
+
+    // ── Nucleus group ────────────────────────────────────────────────────
+    const nucleusGrp = new T.Group();
+    nucleusGrp.name = `Nucleus`;
+    atomGroup.add(nucleusGrp);
+
+    const nucPA = atom.nucleus.geometry.attributes.position;
+    const nucTotal = nucPA.count;
+    const protonCount  = Math.min(atom.el.z, nucTotal);
+    const neutronCount = Math.max(0, nucTotal - protonCount);
+
+    // Protons group
+    const protGrp = new T.Group(); protGrp.name = 'Protons';
+    const pm = makeIM(nucPA, 0, protonCount, sgP, 0xff7022, 'ProtonCloud', origP);
+    if(pm) protGrp.add(pm);
+    nucleusGrp.add(protGrp);
+
+    // Neutrons group
+    const neutGrp = new T.Group(); neutGrp.name = 'Neutrons';
+    const nm = makeIM(nucPA, protonCount, neutronCount, sgN, 0x8a8a99, 'NeutronCloud', origP);
+    if(nm) neutGrp.add(nm);
+    nucleusGrp.add(neutGrp);
+
+    // ── Electrons group ──────────────────────────────────────────────────
+    const eGrp = new T.Group();
+    eGrp.name = `Electrons`;
+    atomGroup.add(eGrp);
+
+    atom.eClouds.forEach((cloud,si)=>{
+      const shellGrp = new T.Group();
+      shellGrp.name = `Shell_${SHELL_NAMES[si]||si}`;
+      eGrp.add(shellGrp);
+
+      const ePA = cloud.geometry.attributes.position;
+      const eCount = ePA.count;
+      if(!eCount) return;
+
+      const shellColor = SHELL_COLORS_HEX[si % SHELL_COLORS_HEX.length];
+      // electron cloud positions include origP + orbital — subtract origP to localise
+      const em = makeIM(ePA, 0, eCount, sgE, shellColor,
+        `Shell_${SHELL_NAMES[si]||si}_Cloud`, origP);
+      if(em) shellGrp.add(em);
+    });
+
+    // ── Animation — atom group position keyframes from recorded frames ────
+    // Each atom group moves from origP toward defP. Keyframes give Blender
+    // the full motion arc so the whole grouped hierarchy animates together.
+    if(hasAnim){
+      const times = [];
+      const positions = [];
+      frames.forEach(f=>{
+        const d = f.atoms[ai];
+        if(d){
+          times.push(f.time);
+          // Keyframe is the DELTA from origP (since group is placed at origP)
+          positions.push(
+            d.p[0] - origP.x,
+            d.p[1] - origP.y,
+            d.p[2] - origP.z
+          );
+        }
+      });
+      if(times.length > 1){
+        const track = new T.VectorKeyframeTrack(
+          atomGroup.name+'.position', times, positions
+        );
+        clips.push(new T.AnimationClip(`Atom_${atom.el.name}_${ai}_Anim`, -1, [track]));
+      }
+    }
+  });
+
   exp.updateMatrixWorld(true);
-  return new Promise((res,rej)=>{
-    new T.GLTFExporter().parse(exp,glb=>{
-      const url=URL.createObjectURL(new Blob([glb],{type:'model/gltf-binary'}));
-      const a=document.createElement('a');a.href=url;a.download='arclake_'+Date.now()+'.glb';a.click();URL.revokeObjectURL(url);res(true);
-    },rej,{binary:true,animations:clips.length?clips:undefined});
+
+  // Validate scene has real geometry before exporting
+  let meshCount=0;
+  exp.traverse(o=>{ if(o.isInstancedMesh) meshCount++; });
+  if(meshCount===0){
+    throw new Error('No geometry found in scene — add atoms first');
+  }
+
+  return new Promise((resolve,reject)=>{
+    new T.GLTFExporter().parse(
+      exp,
+      (glb)=>{
+        if(!glb||(glb instanceof ArrayBuffer && glb.byteLength<200)){
+          reject(new Error(`GLB is near-empty (${glb?glb.byteLength:0} bytes). Try stopping simulation first.`));
+          return;
+        }
+        const blob=new Blob([glb],{type:'model/gltf-binary'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url;
+        a.download='arclake_'+Date.now()+'.glb';
+        document.body.appendChild(a); a.click();
+        setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},200);
+        const kb=(glb.byteLength/1024).toFixed(1);
+        resolve(kb);
+      },
+      (err)=>reject(err),
+      {
+        binary:true,
+        animations: hasAnim && clips.length ? clips : undefined,
+        embedImages: false,
+        forceIndices: true,
+        truncateDrawRange: false
+      }
+    );
   });
 }
 
