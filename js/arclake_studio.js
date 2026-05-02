@@ -8,6 +8,95 @@
 (function(global){
 'use strict';
 
+// ── MULTI-COMPOUND SCENE MANAGER (prepend to arclake_studio.js) ─────────────
+// Replaces the single-preset system with a scene-graph that supports:
+//   - Multiple independent compounds (each is a group of atoms)
+//   - Full 118-element dropdown from assets/elements.json
+//   - Natural-language compound parser: "Fe2O3 and H2O" → two groups
+//   - Voice command integration for Autumn
+
+const ALS_ELEMENTS_URL = 'assets/elements.json';
+let _alsElements = null; // loaded from JSON
+
+// ── Load elements from JSON ───────────────────────────────────────────────────
+async function _alsLoadElements() {
+  if (_alsElements) return _alsElements;
+  try {
+    const res = await fetch(ALS_ELEMENTS_URL + '?v=2026050201');
+    _alsElements = await res.json();
+  } catch(e) {
+    // Fallback to built-in subset if fetch fails
+    _alsElements = window._ALS_EL_FALLBACK || [];
+  }
+  return _alsElements;
+}
+
+function _alsGetEl(sym) {
+  if (!_alsElements) return null;
+  const s = sym.trim();
+  return _alsElements.find(e =>
+    e.sym.toLowerCase() === s.toLowerCase() ||
+    e.name.toLowerCase() === s.toLowerCase()
+  ) || null;
+}
+
+// ── Compound text parser ──────────────────────────────────────────────────────
+// Parses strings like "Fe2O3", "H2O", "NaCl", "Ti Al V" into atom arrays
+// Returns [{sym, count}] for one formula
+function _parseFormula(formula) {
+  // Handle space-separated: "Fe Cu Ni" → [{sym:'Fe',count:1},{sym:'Cu',count:1}...]
+  if (/^[A-Z][a-z]?(\s+[A-Z][a-z]?)*$/.test(formula.trim())) {
+    return formula.trim().split(/\s+/).map(s => ({sym: s, count: 1}));
+  }
+  // Standard formula: Fe2O3, H2O, NaCl
+  const result = [];
+  const regex = /([A-Z][a-z]?)(\d*)/g;
+  let m;
+  while ((m = regex.exec(formula)) !== null) {
+    if (m[1]) result.push({ sym: m[1], count: parseInt(m[2] || '1') });
+  }
+  return result;
+}
+
+// Parse multi-compound input: "Fe2O3 and H2O" or "NaCl, TiAl"
+// Returns array of compound definitions [{name, atoms:[{sym,pos}]}]
+function _parseMultiCompound(input) {
+  // Split on: "and", "&", "+", ",", ";", "with", "plus"
+  const parts = input.split(/\s+(?:and|&|\+|with|plus)\s+|[,;]\s*/i)
+    .map(s => s.trim()).filter(Boolean);
+
+  return parts.map((part, ci) => {
+    const atoms = [];
+    const parsed = _parseFormula(part);
+    let totalAtoms = 0;
+    parsed.forEach(({sym, count}) => {
+      for (let i = 0; i < count; i++) totalAtoms++;
+    });
+
+    // Place atoms in a cluster offset from each other compound
+    const clusterOffset = ci * 8; // 8 units apart per compound
+    let atomIdx = 0;
+    parsed.forEach(({sym, count}) => {
+      for (let i = 0; i < count; i++) {
+        const angle = (atomIdx / Math.max(totalAtoms, 1)) * Math.PI * 2;
+        const r = totalAtoms > 1 ? 2.2 : 0;
+        atoms.push({
+          s: sym,
+          p: [
+            clusterOffset + Math.cos(angle) * r,
+            Math.sin(angle) * r * 0.5,
+            Math.sin(angle * 1.3) * r * 0.5
+          ]
+        });
+        atomIdx++;
+      }
+    });
+
+    return { name: part, atoms };
+  });
+}
+
+
 // ── Shell colors matching live ArcLake ───────────────────────────────────────
 const SHELL_COLORS = [
   [0.0, 0.9, 1.0],   // K  — cyan
@@ -221,7 +310,12 @@ function _build(state,atomDefs,ptsPerE){
 
   atomDefs.forEach((def,i)=>{
     const sym=def.s||def.sym||'C';
-    const el=EL[sym]||EL.C;
+    const _elFromJSON = _alsGetEl ? _alsGetEl(sym) : null;
+    const el=(_elFromJSON ? {
+      z:_elFromJSON.z, e:_elFromJSON.e, r:_elFromJSON.r||0.77,
+      name:_elFromJSON.name,
+      color:_elFromJSON.color||[0.7,0.7,0.7]
+    } : null) || EL[sym] || EL.C;
     const [cx,cy,cz]=def.p||[0,0,0];
 
     const nucleus=_nucleusCloud(T,el,cx,cy,cz);
@@ -545,9 +639,23 @@ global.renderToolsArcLake=function(){
       <label style="font-size:8px;color:#8a8fa8;white-space:nowrap">pts/e&#x207B;</label>
       <input id="als-pte" type="number" min="5" max="200" value="30" onchange="window._alsSetPtsPerE&&window._alsSetPtsPerE(+this.value)" style="width:44px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);color:#e8eaf0;padding:4px;border-radius:5px;font-size:9px;font-family:inherit">
     </div>
-    <div id="als-custom-row" style="display:none;gap:6px;align-items:center">
-      <input id="als-custom-in" placeholder="Fe,Cu,Ni or elements..." style="flex:1;background:rgba(124,77,255,.07);border:1px solid rgba(124,77,255,.28);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9.5px;font-family:inherit" onkeydown="if(event.key==='Enter')window._alsParseCustom&&window._alsParseCustom()">
-      <button onclick="window._alsParseCustom&&window._alsParseCustom()" style="background:rgba(124,77,255,.18);border:1px solid rgba(124,77,255,.38);color:#c4a0ff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:9px;font-family:inherit">BUILD</button>
+    <!-- Compound builder — always visible, supports multiple compounds -->
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <!-- Single element quick-add -->
+      <div style="display:flex;gap:6px;align-items:center">
+        <label style="font-size:8px;color:#8a8fa8;letter-spacing:1px;white-space:nowrap">ELEMENT</label>
+        <select id="als-el-drop" style="flex:1;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);color:#e8eaf0;padding:4px 6px;border-radius:5px;font-size:9px;font-family:'Share Tech Mono',monospace;cursor:pointer;max-height:120px">
+          <option value="">Loading elements...</option>
+        </select>
+        <button onclick="window._alsAddElementFromDrop&&window._alsAddElementFromDrop()" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:9px;font-family:inherit" title="Add selected element to scene">+ ADD</button>
+      </div>
+      <!-- Compound / multi-compound text input -->
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="als-compound-in" placeholder="e.g. Fe2O3 and H2O · NaCl · Ti Al V" style="flex:1;background:rgba(124,77,255,.07);border:1px solid rgba(124,77,255,.28);color:#e8eaf0;padding:5px 8px;border-radius:6px;font-size:9px;font-family:'Share Tech Mono',monospace" onkeydown="if(event.key==='Enter')window._alsBuildCompounds&&window._alsBuildCompounds()">
+        <button onclick="window._alsBuildCompounds&&window._alsBuildCompounds()" style="background:rgba(124,77,255,.18);border:1px solid rgba(124,77,255,.38);color:#c4a0ff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:9px;font-family:inherit">BUILD</button>
+      </div>
+      <!-- Active compounds list -->
+      <div id="als-compounds-list" style="display:flex;gap:5px;flex-wrap:wrap;min-height:12px"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
       <div><label style="font-size:8px;color:#8a8fa8;letter-spacing:1px">TEMP (°C)</label>
@@ -618,17 +726,111 @@ global._alsMounted=function(){
 
 // ── API ───────────────────────────────────────────────────────────────────────
 global._alsLoadPreset=function(key){
-  const row=document.getElementById('als-custom-row');
+  const row=document.getElementById('als-compounds-list');
+  // (legacy row ref removed — compounds handled differently now)
+  const _row2=document.getElementById('als-custom-row');
   if(key==='__custom'){if(row)row.style.display='flex';return;}
   if(row)row.style.display='none';
   if(!S||!PRESETS[key])return;
   S.isSimulating=false;
   const pte=S.params.ptsPerE||150;
   _build(S,PRESETS[key],pte);
+  // Track as single compound
+  if(S) S._compounds=[{name:key, atoms:PRESETS[key]}];
+  _alsRefreshCompoundList();
   const el=document.getElementById('als-preset');
   if(el)el.value=key;
   const totalE=S.atoms.reduce((a,ag)=>a+(ag.el.e||0),0);
   document.getElementById('als-status').textContent=key+' — '+S.atoms.length+' atoms, '+totalE+' e\u207B, '+(totalE*pte).toLocaleString()+' waveform particles';
+};
+
+
+// ── Refresh compound chips below the input ────────────────────────────────
+global._alsRefreshCompoundList = function(){
+  var el = document.getElementById('als-compounds-list');
+  if(!el || !S) return;
+  if(!S._compounds || !S._compounds.length){ el.innerHTML=''; return; }
+  el.innerHTML = S._compounds.map(function(c,i){
+    return '<div style="display:flex;align-items:center;gap:4px;background:rgba(0,229,255,.08);'
+      +'border:1px solid rgba(0,229,255,.2);border-radius:4px;padding:2px 7px;font-size:8px;'
+      +'font-family:Share Tech Mono,monospace;color:#00e5ff">'
+      + c.name
+      +'<span onclick="window._alsRemoveCompound('+i+')" style="cursor:pointer;color:#ff4d4d;margin-left:3px;font-size:10px" title="Remove">&#x2715;</span>'
+      +'</div>';
+  }).join('');
+};
+
+// ── Add element from dropdown into current scene ──────────────────────────
+global._alsAddElementFromDrop = function(){
+  var drop = document.getElementById('als-el-drop');
+  if(!drop || !drop.value || !S) return;
+  var sym = drop.value;
+  // Add as a solo compound at a new offset
+  var offset = (S._compounds ? S._compounds.length : 0) * 6;
+  var compounds = S._compounds || [];
+  compounds.push({ name: sym, atoms: [{s:sym, p:[offset,0,0]}] });
+  S._compounds = compounds;
+  _alsBuildFromCompounds(compounds, S.params.ptsPerE||30);
+  _alsRefreshCompoundList();
+  document.getElementById('als-status').textContent = 'Added: '+sym;
+};
+
+// ── Build scene from multi-compound text ──────────────────────────────────
+global._alsBuildCompounds = function(){
+  var raw = (document.getElementById('als-compound-in')||{}).value||'';
+  if(!S || !raw.trim()) return;
+  var compounds = _parseMultiCompound(raw);
+  if(!compounds.length || !compounds[0].atoms.length){
+    document.getElementById('als-status').textContent = 'Could not parse: '+raw+' — try: Fe2O3 and H2O';
+    return;
+  }
+  // Validate all symbols
+  var unknown = [];
+  compounds.forEach(function(c){ c.atoms.forEach(function(a){
+    if(!_alsGetEl(a.s) && !EL[a.s]) unknown.push(a.s);
+  }); });
+  if(unknown.length){
+    document.getElementById('als-status').textContent = 'Unknown elements: '+unknown.join(', ');
+    return;
+  }
+  S._compounds = compounds;
+  S.isSimulating = false;
+  _alsBuildFromCompounds(compounds, S.params.ptsPerE||30);
+  _alsRefreshCompoundList();
+  var totalAtoms = compounds.reduce(function(a,c){return a+c.atoms.length;},0);
+  var totalE = 0;
+  compounds.forEach(function(c){ c.atoms.forEach(function(a){
+    var el = _alsGetEl(a.s)||EL[a.s]||EL.C;
+    totalE += el.e||el.z||6;
+  }); });
+  document.getElementById('als-status').textContent =
+    compounds.length+' compound'+(compounds.length>1?'s':'')+' — '
+    +totalAtoms+' atoms, '+totalE+' electrons, '
+    +(totalE*(S.params.ptsPerE||30)).toLocaleString()+' waveform particles';
+};
+
+// ── Build Three.js scene from compound array ──────────────────────────────
+function _alsBuildFromCompounds(compounds, ptsPerE){
+  if(!S) return;
+  // Flatten all atoms from all compounds with correct positions
+  var allAtoms = [];
+  compounds.forEach(function(c){ c.atoms.forEach(function(a){ allAtoms.push(a); }); });
+  _build(S, allAtoms, ptsPerE);
+}
+
+// ── Remove one compound by index ──────────────────────────────────────────
+global._alsRemoveCompound = function(idx){
+  if(!S || !S._compounds) return;
+  S._compounds.splice(idx, 1);
+  if(!S._compounds.length){
+    // Clear scene
+    S.atoms.forEach(function(a){ S.scene.remove(a.nucleus); a.eClouds.forEach(function(m){S.scene.remove(m);}); });
+    S.atoms = [];
+    document.getElementById('als-status').textContent = 'Scene cleared.';
+  } else {
+    _alsBuildFromCompounds(S._compounds, S.params.ptsPerE||30);
+  }
+  _alsRefreshCompoundList();
 };
 
 global._alsParseCustom=function(){
