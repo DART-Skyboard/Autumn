@@ -330,7 +330,7 @@ window._refreshAnalyticsNow = async function() {
         _doMount();
       } else {
         var s = document.createElement('script');
-        s.src = 'js/arclake_studio.js?v=2026050302';
+        s.src = 'js/arclake_studio.js?v=2026050109';
         s.onload = _doMount;
         document.head.appendChild(s);
       }
@@ -13813,7 +13813,7 @@ function renderToolsContent(){
       } else {
         el.innerHTML="<div style='padding:20px;font-family:Orbitron,monospace;color:#00e5ff'>⬡ Loading ArcLake Studio...</div>";
         var _als_script=document.createElement('script');
-        _als_script.src='js/arclake_studio.js?v=2026050302';
+        _als_script.src='js/arclake_studio.js?v=2026050109';
         _als_script.onload=function(){
           el.innerHTML=window.renderToolsArcLake?window.renderToolsArcLake():"ArcLake Studio failed to load.";
           setTimeout(function(){ window._alsMounted&&window._alsMounted(); },50);
@@ -19682,30 +19682,29 @@ window.emmToggle = function() {
 
 
   window.arcStudioSendToChat = function() {
-    var n = _as.arcs.length;
-    // Characterize the scene in natural language — no raw params
-    var avgDev = 0, avgCurve = 0, spread = {x:[], y:[], z:[]};
+    var p = _asGetParams();
+    var pts = _asCalcPoints(p);
+    var len = 0;
+    for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
+    // Build a compact scene summary grouped by unique params
+    var uniqueConfigs = [];
     _as.arcs.forEach(function(arc) {
-      avgDev   += arc.params.mainDev   || 0;
-      avgCurve += arc.params.curveInd  || 0;
-      spread.x.push(arc.params.x || 0);
-      spread.y.push(arc.params.y || 0);
-      spread.z.push(arc.params.z || 0);
+      var key = JSON.stringify({x:arc.params.x,y:arc.params.y,z:arc.params.z,dev:arc.params.mainDev,curve:arc.params.curveInd,devInd:arc.params.devInd,curves:arc.params.devCount});
+      if (!uniqueConfigs.find(function(u){return u.key===key;})) uniqueConfigs.push({key:key,params:arc.params,count:1});
+      else uniqueConfigs.find(function(u){return u.key===key;}).count++;
     });
-    if (n) { avgDev /= n; avgCurve /= n; }
-    var xRange = n ? Math.max.apply(null,spread.x) - Math.min.apply(null,spread.x) : 0;
-    var yRange = n ? Math.max.apply(null,spread.y) - Math.min.apply(null,spread.y) : 0;
-    var zRange = n ? Math.max.apply(null,spread.z) - Math.min.apply(null,spread.z) : 0;
-    var shape = xRange > 8 && yRange > 8 && zRange > 8 ? 'spread across all three axes'
-              : xRange > 8 && zRange > 8 ? 'spread across X and Z'
-              : yRange > 8 && zRange > 8 ? 'spread across Y and Z'
-              : 'clustered near center';
-    var feel = avgDev > 7 ? 'wildly bowed' : avgDev > 4 ? 'dramatically curved' : avgDev > 2 ? 'gently arcing' : 'nearly straight';
-    var msg = 'What do you think of the arc scene? There are ' + n + ' arcs in the viewport — '
-      + feel + ', ' + shape + (avgCurve > 2 ? ', with sinusoidal bends' : '') + '. What would you add or change?';
+    var msg = '[ARC EDGE STUDIO — '+_as.arcs.length+' arcs in scene]\n'
+      + uniqueConfigs.slice(0,6).map(function(u){
+          return 'Config ×'+u.count+': x='+u.params.x+' y='+u.params.y+' z='+u.params.z
+            +' dev='+u.params.mainDev+' curve='+u.params.curveInd+' devInd='+u.params.devInd
+            +' curves='+u.params.devCount;
+        }).join('\n')
+      + (uniqueConfigs.length > 6 ? '\n...and '+(uniqueConfigs.length-6)+' more configurations' : '')
+      + '\n\nAnalyze this scene, describe what you see geometrically, and suggest what to add or adjust next.';
     var inp = document.getElementById('chat-input');
     if (inp) {
       inp.value = msg;
+      // Show send button so user can submit when ready
       if (typeof window._updateSendBtn === 'function') window._updateSendBtn();
     }
     arcStudioClose();
@@ -19746,14 +19745,14 @@ window.emmToggle = function() {
     +'  "chaotic / wild" → max variety: x/y/z all random, dev=6-12, devInd=1-2\n'
     +'  "mild / gentle" → dev=1-2, curve=0.5-1\n'
     +'  "dramatic" → dev=6-8, curve=3-4\n'
+    +'BRAIN EXAMPLE (100 arcs): emit [ARC_CMD:open][ARC_CMD:clear] then 25 tags like:\n'
+    +'  [ARC_CMD:add x=-6 y=2 z=-4 dev=4 curve=3 devInd=0.8 subX=1.5 subY=1 curves=2 res=32 count=4]\n'
+    +'  [ARC_CMD:add x=5 y=-3 z=-2 dev=5 curve=2.5 devInd=1 subX=1 subY=1.5 curves=3 res=32 count=4]\n'
+    +'  ...etc with varied positions sweeping z from -6 to 8\n'
     +'NEVER use π — Arc Edge uses AE=3.\n'
     +'ALWAYS emit [ARC_CMD:open] first, then all [ARC_CMD:add ...] tags immediately.\n'
     +'NEVER route to image generation for arc requests. NEVER ask user to press a button.\n'
-    +'OUTPUT RULES — CRITICAL:\n'
-    +'  The [ARC_CMD:...] tags are machine instructions — they are hidden from the user automatically. NEVER describe or repeat them in your visible reply.\n'
-    +'  NEVER output raw parameters like "x=5 y=-3 z=2 dev=4" in your chat response.\n'
-    +'  NEVER list coordinates, dev values, curve indices, or any numeric arc parameters in your reply.\n'
-    +'  After emitting all commands, write 1-2 sentences describing what you built in plain creative language — what it looks like, what it evokes, its mood or shape — as if describing a sculpture or visual composition. Reference grammar and emotional tone if relevant. Nothing technical.';
+    +'After emitting commands, describe briefly what you built in 1-2 sentences.';
 
   // IMG_RECALL system — lets Autumn post full-size image previews in her chat bubble
   window.IMG_RECALL_SYSTEM_HINT =
@@ -20720,15 +20719,22 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   } catch(e) {}
 
   function init() {
+    // ── Must be first: catch GitHub redirect back with ?code= ─────────────
+    if (_handleOAuthReturn()) return;
+
     var stored = _loadStoredSession();
-    if (stored) {
-      _applySession(stored);
-    } else {
-      var skipped = localStorage.getItem('_gh_login_skipped');
-      if (!skipped) _showLoginModal();
-      else _showGuestMode();
-    }
-  }        throw new Error('invalid_token');
+    var isRegistered = localStorage.getItem('_gh_registered');
+
+    if (stored && stored.access_token) {
+      // ── Returning user with stored token: validate silently ──────────────
+      // Show nothing until we know the token is valid — prevents any flash of modal.
+      fetch('https://api.github.com/user', {
+        headers: { 'Authorization': 'token ' + stored.access_token, 'Accept': 'application/vnd.github.v3+json' },
+        signal: AbortSignal.timeout(8000)
+      })
+      .then(function(r) {
+        if (r.ok) return r.json();
+        throw new Error('invalid_token');
       })
       .then(function(user) {
         // Token valid — refresh stored data with latest GitHub profile and apply
@@ -20738,6 +20744,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           avatar_url:   user.avatar_url || stored.avatar_url,
           name:         user.name || user.login
         };
+        localStorage.setItem('_gh_token_ok', String(Date.now()));
         localStorage.setItem('_gh_token_ok', String(Date.now()));
         _saveSession(refreshed);
         _applySession(refreshed);
@@ -20781,16 +20788,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   // ── Re-auth: returning user, token gone (cleared cookies/storage/new browser)
   // GitHub already has the app authorized — redirect comes back instantly, no code entry.
   function _showReAuthPrompt(knownUsername) {
-    var modal = document.getElementById('gh-login-modal');
-    if (!modal) { _showLoginModal(); return; }
-    var inner = modal.querySelector('.gh-login-box') || modal.querySelector('.gh-login-inner');
-    if (inner) {
-      var titleEl = inner.querySelector('.gh-login-title, h2, h3');
-      var subEl   = inner.querySelector('.gh-login-sub, p');
-      if (titleEl) titleEl.textContent = knownUsername ? 'WELCOME BACK, ' + knownUsername.toUpperCase() : 'WELCOME BACK';
-      if (subEl)   subEl.textContent   = 'Re-authorize with GitHub to restore your memory archive and pick up where you left off.';
+    if (knownUsername) {
+      try { sessionStorage.setItem('_gh_reauth_user', knownUsername); } catch(e) {}
     }
-    modal.classList.add('show');
+    _doWebFlowRedirect();
   }
 
   // ── Web flow redirect — sends user to GitHub OAuth, which redirects back to leatr.xyz/?code=
@@ -20822,9 +20823,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .then(function(d) {
         _hideAuthLoading();
         if (d.error) {
-          // GAS failed — show PAT login so user can get in without looping
+          // GAS failed (quota, etc) — silently switch to device flow
           _showLoginModal();
-          _setDeviceUI(_quotaFallbackHtml());
+          _showDeviceFlow();
           return;
         }
         _saveSession(d);
@@ -20833,7 +20834,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .catch(function() {
         _hideAuthLoading();
         _showLoginModal();
-        _setDeviceUI(_quotaFallbackHtml()); // GAS unreachable — show PAT input
+        _showDeviceFlow(); // Fall back to device flow — always works, no GAS needed
       });
     return true;
   }
@@ -20841,6 +20842,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var _devicePollTimer = null;
 
   function _startOAuth() {
+    // Device flow works fully client-side (no GAS needed) — use it as primary
     _showDeviceFlow();
   }
 
@@ -20953,13 +20955,27 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       });
     }, 150);
 
-    // Poll for token — always via GAS (has client_secret, handles exchange server-side)
+    // Poll for token
     _devicePollTimer = setInterval(function() {
       var _gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL) ? AUTUMN_GAS_URL : window.AUTUMN_GAS_URL;
-      fetch(_gasUrl + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode), {
-        signal: AbortSignal.timeout(12000)
+      // form-encoded = simple CORS request, no preflight — GitHub allows it cross-origin
+      var _pollBody = 'client_id=Ov23li2K0njEqO1WTSdD' +
+        '&device_code=' + encodeURIComponent(deviceCode) +
+        '&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code';
+      // Primary: GitHub directly — quota-independent, works cross-origin with form encoding
+      fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: _pollBody,
+        signal: AbortSignal.timeout(10000)
       })
-      .then(function(r){ return r.ok ? r.json() : {}; })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .catch(function() {
+        // Fallback: GAS proxy (used only if direct GitHub call fails)
+        return fetch(_gasUrl + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode), {
+          signal: AbortSignal.timeout(12000)
+        }).then(function(r){ return r.ok ? r.json() : {}; });
+      })
       .catch(function(){ return {}; })
       .then(function(d){
           if (d.access_token) {
@@ -21033,8 +21049,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     window._ghAuth.avatar_url = data.avatar_url;
     window._ghAuth.name       = data.name || data.username;
     window._ghAuth.loggedIn   = true;
-    // Stamp token as valid immediately — prevents re-auth loop on next page load
-    try { localStorage.setItem('_gh_token_ok', String(Date.now())); } catch(e) {}
 
     // Restore sessions from GitHub on login
     setTimeout(function(){ restoreSessionsFromGitHub(data.access_token); }, 1500);
@@ -21090,28 +21104,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     } else {
       // Returning user re-auth — dismiss immediately, no splash needed
       if (modal) modal.classList.remove('show');
-    }
-
-    // Write registration identity to user's Autumn-Ash repo — survives cache clears
-    var _regToken = data.access_token;
-    var _regUser  = data.username;
-    if (_regToken && _regUser) {
-      var _regRepo = 'Autumn-Ash-' + _regUser;
-      var _regPayload = JSON.stringify({ username: _regUser, registered: new Date().toISOString(), client: 'leatr.xyz' });
-      var _regB64 = btoa(_regPayload);
-      // fire-and-forget — don't block login on this
-      fetch('https://api.github.com/repos/' + _regUser + '/' + _regRepo + '/contents/auth/identity.json', {
-        headers: { 'Authorization': 'token ' + _regToken, 'Accept': 'application/vnd.github.v3+json' }
-      }).then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(existing){
-        var body = { message: 'auth: update identity', content: _regB64 };
-        if (existing && existing.sha) body.sha = existing.sha;
-        return fetch('https://api.github.com/repos/' + _regUser + '/' + _regRepo + '/contents/auth/identity.json', {
-          method: 'PUT',
-          headers: { 'Authorization': 'token ' + _regToken, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-      }).catch(function(){});
     }
 
     // Ensure user repo exists, then load memory
@@ -21638,25 +21630,61 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
   };
   window._ghLogout = function() {
+    // Autosave before logout
     if (typeof _autosave === 'function') { _lastSaveHash = ''; _autosave(); }
-    // Keep token in localStorage — returning user taps LOGIN and is instantly back in
-    window._ghAuth.loggedIn  = false;
-    window._ghAuth.repoReady = false;
+    // Clear session token but preserve _gh_registered so next visit shows
+    // re-auth prompt, NOT the first-timer welcome screen.
+    var _savedUsername = window._ghAuth.username || localStorage.getItem('_gh_registered');
+    try { localStorage.removeItem('_gh_session'); } catch(e) {}
+    try { if (_savedUsername) localStorage.setItem('_gh_registered', _savedUsername); } catch(e) {}
+    // Reset in-memory auth state
+    window._ghAuth.loggedIn   = false;
+    window._ghAuth.token      = null;
+    window._ghAuth.repoReady  = false;
     var loginBtn = document.getElementById('hdr-gh-login');
     var userBtn  = document.getElementById('hdr-gh-user');
     if (loginBtn) loginBtn.style.display = '';
     if (userBtn)  userBtn.style.display  = 'none';
     _toast('Logged out');
   };
-    window._ghReLogin = function() {
+  // Re-login for returning registered users — silent OAuth web flow
+  window._ghReLogin = function() {
+    // ── Returning user: try silent token validation first ───────────────
     var stored = _loadStoredSession();
     if (stored && stored.access_token) {
-      _applySession(stored); // instant — no device flow, no tabs
+      fetch('https://api.github.com/user', {
+        headers: { 'Authorization': 'token ' + stored.access_token },
+        signal: AbortSignal.timeout(8000)
+      })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(user) {
+        var refreshed = { access_token: stored.access_token, username: user.login,
+                          avatar_url: user.avatar_url || stored.avatar_url, name: user.name || user.login };
+        _saveSession(refreshed);
+        _applySession(refreshed);
+      })
+      .catch(function() {
+        try { localStorage.removeItem('_gh_session'); } catch(e) {}
+        _showDeviceFlow(); // Token bad — need fresh auth
+      });
     } else {
-      _showLoginModal();
+      _showDeviceFlow();
     }
   };
-    window._ghShowUserMenu = function(e) {
+
+  // ── Open GitHub device auth tab and keep a reference to close it after ──
+  // Stored on window so the poll success path (inside _showDeviceCode closure)
+  // can close it — both must reference the same slot.
+  window._ghDeviceTab = null;
+  window._ghOpenDeviceTab = function(url) {
+    try {
+      window._ghDeviceTab = window.open(url, '_blank');
+    } catch(e) {
+      window.open(url, '_blank');
+    }
+  };
+
+  window._ghShowUserMenu = function(e) {
     e.preventDefault();
     var menu = document.getElementById('gh-user-menu');
     if (!menu) {
@@ -21972,7 +22000,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   // Wire up OAuth button
   function _bindOAuthBtn() {
     _preWireBtn(); // Set real href immediately
-    // gh-oauth-btn already has onclick in HTML — no second listener needed
+    var btn = document.getElementById('gh-oauth-btn');
+    if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); _startOAuth(); });
     setTimeout(init, 800);
   }
   if (document.readyState === 'loading') {
