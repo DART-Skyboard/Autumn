@@ -1,1 +1,1026 @@
-[{"z":1,"sym":"H","name":"Hydrogen","protons":1,"neutrons":1,"electrons":1,"orbits":1,"electronOrbits":[1],"r":0.53,"color":[1,1,1]},{"z":2,"sym":"He","name":"Helium","protons":2,"neutrons":2,"electrons":2,"orbits":1,"electronOrbits":[2],"r":0.31,"color":[0.85,1,1]},{"z":3,"sym":"Li","name":"Lithium","protons":3,"neutrons":4,"electrons":3,"orbits":2,"electronOrbits":[2,1],"r":1.67,"color":[0.8,0.5,1]},{"z":4,"sym":"Be","name":"Beryllium","protons":4,"neutrons":5,"electrons":4,"orbits":2,"electronOrbits":[2,2],"r":1.12,"color":[0.76,1,0]},{"z":5,"sym":"B","name":"Boron","protons":5,"neutrons":6,"electrons":5,"orbits":2,"electronOrbits":[2,3],"r":0.87,"color":[1,0.71,0.71]},{"z":6,"sym":"C","name":"Carbon","protons":6,"neutrons":6,"electrons":6,"orbits":2,"electronOrbits":[2,4],"r":0.77,"color":[0.56,0.56,0.56]},{"z":7,"sym":"N","name":"Nitrogen","protons":7,"neutrons":7,"electrons":7,"orbits":2,"electronOrbits":[2,5],"r":0.75,"color":[0.19,0.31,0.97]},{"z":8,"sym":"O","name":"Oxygen","protons":8,"neutrons":8,"electrons":8,"orbits":2,"electronOrbits":[2,6],"r":0.73,"color":[1,0.05,0.05]},{"z":9,"sym":"F","name":"Fluorine","protons":9,"neutrons":10,"electrons":9,"orbits":2,"electronOrbits":[2,7],"r":0.71,"color":[0.56,0.88,0.31]},{"z":10,"sym":"Ne","name":"Neon","protons":10,"neutrons":10,"electrons":10,"orbits":2,"electronOrbits":[2,8],"r":0.38,"color":[0.7,0.89,0.96]},{"z":11,"sym":"Na","name":"Sodium","protons":11,"neutrons":12,"electrons":11,"orbits":3,"electronOrbits":[2,8,1],"r":1.86,"color":[0.67,0.36,0.95]},{"z":12,"sym":"Mg","name":"Magnesium","protons":12,"neutrons":12,"electrons":12,"orbits":3,"electronOrbits":[2,8,2],"r":1.6,"color":[0.54,1,0]},{"z":13,"sym":"Al","name":"Aluminium","protons":13,"neutrons":14,"electrons":13,"orbits":3,"electronOrbits":[2,8,3],"r":1.43,"color":[0.75,0.65,0.65]},{"z":14,"sym":"Si","name":"Silicon","protons":14,"neutrons":14,"electrons":14,"orbits":3,"electronOrbits":[2,8,3],"r":1.17,"color":[0.94,0.78,0.63]},{"z":15,"sym":"P","name":"Phosphorus","protons":15,"neutrons":16,"electrons":15,"orbits":3,"electronOrbits":[2,8,4],"r":1.1,"color":[1,0.5,0]},{"z":16,"sym":"S","name":"Sulfur","protons":16,"neutrons":16,"electrons":16,"orbits":3,"electronOrbits":[2,8,5],"r":1.04,"color":[1,1,0.19]},{"z":17,"sym":"Cl","name":"Chlorine","protons":17,"neutrons":18,"electrons":17,"orbits":3,"electronOrbits":[2,8,6],"r":0.99,"color":[0.12,0.94,0.12]},{"z":18,"sym":"Ar","name":"Argon","protons":18,"neutrons":22,"electrons":18,"orbits":3,"electronOrbits":[2,8,8],"r":0.71,"color":[0.5,0.82,0.89]},{"z":19,"sym":"K","name":"Potassium","protons":19,"neutrons":20,"electrons":19,"orbits":4,"electronOrbits":[2,8,8,1],"r":2.27,"color":[0.56,0.25,0.83]},{"z":20,"sym":"Ca","name":"Calcium","protons":20,"neutrons":20,"electrons":20,"orbits":4,"electronOrbits":[2,8,8,2],"r":1.97,"color":[0.24,1,0]},{"z":21,"sym":"Sc","name":"Scandium","protons":21,"neutrons":24,"electrons":21,"orbits":4,"electronOrbits":[2,8,9,2],"r":1.62,"color":[0.9,0.9,0.9]},{"z":22,"sym":"Ti","name":"Titanium","protons":22,"neutrons":26,"electrons":22,"orbits":4,"electronOrbits":[2,8,10,2],"r":1.47,"color":[0.75,0.76,0.78]},{"z":23,"sym":"V","name":"Vanadium","protons":23,"neutrons":28,"electrons":23,"orbits":4,"electronOrbits":[2,8,11,2],"r":1.34,"color":[0.65,0.65,0.67]},{"z":24,"sym":"Cr","name":"Chromium","protons":24,"neutrons":28,"electrons":24,"orbits":4,"electronOrbits":[2,8,13,1],"r":1.28,"color":[0.54,0.6,0.78]},{"z":25,"sym":"Mn","name":"Manganese","protons":25,"neutrons":30,"electrons":25,"orbits":4,"electronOrbits":[2,8,13,2],"r":1.27,"color":[0.61,0.48,0.78]},{"z":26,"sym":"Fe","name":"Iron","protons":26,"neutrons":30,"electrons":26,"orbits":4,"electronOrbits":[2,8,14,2],"r":1.26,"color":[0.88,0.4,0.2]},{"z":27,"sym":"Co","name":"Cobalt","protons":27,"neutrons":32,"electrons":27,"orbits":4,"electronOrbits":[2,8,15,2],"r":1.25,"color":[0.94,0.56,0.63]},{"z":28,"sym":"Ni","name":"Nickel","protons":28,"neutrons":31,"electrons":28,"orbits":4,"electronOrbits":[2,8,16,2],"r":1.25,"color":[0.31,0.82,0.31]},{"z":29,"sym":"Cu","name":"Copper","protons":29,"neutrons":35,"electrons":29,"orbits":4,"electronOrbits":[2,8,18,1],"r":1.28,"color":[0.78,0.5,0.2]},{"z":30,"sym":"Zn","name":"Zinc","protons":30,"neutrons":35,"electrons":30,"orbits":4,"electronOrbits":[2,8,18,2],"r":1.22,"color":[0.49,0.5,0.69]},{"z":31,"sym":"Ga","name":"Gallium","protons":31,"neutrons":39,"electrons":31,"orbits":4,"electronOrbits":[2,8,18,3],"r":1.22,"color":[0.76,0.56,0.56]},{"z":32,"sym":"Ge","name":"Germanium","protons":32,"neutrons":41,"electrons":32,"orbits":4,"electronOrbits":[2,8,18,4],"r":1.22,"color":[0.4,0.56,0.56]},{"z":33,"sym":"As","name":"Arsenic","protons":33,"neutrons":42,"electrons":33,"orbits":4,"electronOrbits":[2,8,18,5],"r":1.19,"color":[0.74,0.5,0.89]},{"z":34,"sym":"Se","name":"Selenium","protons":34,"neutrons":45,"electrons":34,"orbits":4,"electronOrbits":[2,8,18,6],"r":1.2,"color":[1,0.63,0]},{"z":35,"sym":"Br","name":"Bromine","protons":35,"neutrons":45,"electrons":35,"orbits":4,"electronOrbits":[2,8,18,7],"r":1.2,"color":[0.65,0.16,0.16]},{"z":36,"sym":"Kr","name":"Krypton","protons":36,"neutrons":48,"electrons":36,"orbits":4,"electronOrbits":[2,8,18,8],"r":1.16,"color":[0.36,0.72,0.82]},{"z":37,"sym":"Rb","name":"Rubidium","protons":37,"neutrons":48,"electrons":37,"orbits":4,"electronOrbits":[2,8,18,8],"r":2.48,"color":[0.44,0.18,0.69]},{"z":38,"sym":"Sr","name":"Strontium","protons":38,"neutrons":50,"electrons":38,"orbits":4,"electronOrbits":[2,8,18,8],"r":2.15,"color":[0,1,0]},{"z":39,"sym":"Y","name":"Yttrium","protons":39,"neutrons":50,"electrons":39,"orbits":4,"electronOrbits":[2,8,18,9],"r":1.8,"color":[0.58,1,1]},{"z":40,"sym":"Zr","name":"Zirconium","protons":40,"neutrons":51,"electrons":40,"orbits":4,"electronOrbits":[2,8,18,10],"r":1.6,"color":[0.58,0.88,0.88]},{"z":41,"sym":"Nb","name":"Niobium","protons":41,"neutrons":52,"electrons":41,"orbits":4,"electronOrbits":[2,8,18,12],"r":1.46,"color":[0.45,0.76,0.79]},{"z":42,"sym":"Mo","name":"Molybdenum","protons":42,"neutrons":54,"electrons":42,"orbits":4,"electronOrbits":[2,8,18,13],"r":1.54,"color":[0.33,0.71,0.71]},{"z":43,"sym":"Tc","name":"Technetium","protons":43,"neutrons":55,"electrons":43,"orbits":4,"electronOrbits":[2,8,18,13],"r":1.47,"color":[0.23,0.62,0.62]},{"z":44,"sym":"Ru","name":"Ruthenium","protons":44,"neutrons":57,"electrons":44,"orbits":4,"electronOrbits":[2,8,18,15],"r":1.46,"color":[0.14,0.56,0.56]},{"z":45,"sym":"Rh","name":"Rhodium","protons":45,"neutrons":57,"electrons":45,"orbits":4,"electronOrbits":[2,8,18,16],"r":1.45,"color":[0.04,0.49,0.55]},{"z":46,"sym":"Pd","name":"Palladium","protons":46,"neutrons":60,"electrons":46,"orbits":4,"electronOrbits":[2,8,18,18],"r":1.44,"color":[0,0.41,0.52]},{"z":47,"sym":"Ag","name":"Silver","protons":47,"neutrons":61,"electrons":47,"orbits":4,"electronOrbits":[2,8,18,18],"r":1.53,"color":[0.75,0.75,0.75]},{"z":48,"sym":"Cd","name":"Cadmium","protons":48,"neutrons":64,"electrons":48,"orbits":4,"electronOrbits":[2,8,18,18],"r":1.51,"color":[1,0.85,0.56]},{"z":49,"sym":"In","name":"Indium","protons":49,"neutrons":66,"electrons":49,"orbits":4,"electronOrbits":[2,8,18,18],"r":1.67,"color":[0.65,0.46,0.45]},{"z":50,"sym":"Sn","name":"Tin","protons":50,"neutrons":69,"electrons":50,"orbits":4,"electronOrbits":[2,8,18,18],"r":1.4,"color":[0.4,0.5,0.5]},{"z":51,"sym":"Sb","name":"Antimony","protons":51,"neutrons":71,"electrons":51,"orbits":4,"electronOrbits":[2,8,18,18],"r":1.41,"color":[0.62,0.39,0.71]},{"z":52,"sym":"Te","name":"Tellurium","protons":52,"neutrons":75,"electrons":52,"orbits":4,"electronOrbits":[2,8,18,18],"r":1.43,"color":[0.83,0.48,0]},{"z":53,"sym":"I","name":"Iodine","protons":53,"neutrons":74,"electrons":53,"orbits":4,"electronOrbits":[2,8,18,18],"r":1.4,"color":[0.58,0,0.58]},{"z":54,"sym":"Xe","name":"Xenon","protons":54,"neutrons":77,"electrons":54,"orbits":4,"electronOrbits":[2,8,18,18],"r":1.36,"color":[0.26,0.62,0.69]},{"z":55,"sym":"Cs","name":"Caesium","protons":55,"neutrons":78,"electrons":55,"orbits":5,"electronOrbits":[2,8,18,18,8],"r":2.98,"color":[0.34,0.09,0.56]},{"z":56,"sym":"Ba","name":"Barium","protons":56,"neutrons":81,"electrons":56,"orbits":5,"electronOrbits":[2,8,18,18,8],"r":2.53,"color":[0,0.79,0]},{"z":57,"sym":"La","name":"Lanthanum","protons":57,"neutrons":82,"electrons":57,"orbits":5,"electronOrbits":[2,8,18,18,9],"r":1.95,"color":[0.44,0.83,1]},{"z":58,"sym":"Ce","name":"Cerium","protons":58,"neutrons":82,"electrons":58,"orbits":5,"electronOrbits":[2,8,18,19,9],"r":1.85,"color":[1,1,0.78]},{"z":59,"sym":"Pr","name":"Praseodymium","protons":59,"neutrons":82,"electrons":59,"orbits":5,"electronOrbits":[2,8,18,21,8],"r":1.85,"color":[0.85,1,0.78]},{"z":60,"sym":"Nd","name":"Neodymium","protons":60,"neutrons":84,"electrons":60,"orbits":5,"electronOrbits":[2,8,18,22,8],"r":1.85,"color":[0.78,1,0.78]},{"z":61,"sym":"Pm","name":"Promethium","protons":61,"neutrons":84,"electrons":61,"orbits":5,"electronOrbits":[2,8,18,23,8],"r":1.85,"color":[0.64,1,0.78]},{"z":62,"sym":"Sm","name":"Samarium","protons":62,"neutrons":88,"electrons":62,"orbits":5,"electronOrbits":[2,8,18,24,8],"r":1.85,"color":[0.56,1,0.78]},{"z":63,"sym":"Eu","name":"Europium","protons":63,"neutrons":89,"electrons":63,"orbits":5,"electronOrbits":[2,8,18,25,8],"r":1.85,"color":[0.38,1,0.78]},{"z":64,"sym":"Gd","name":"Gadolinium","protons":64,"neutrons":93,"electrons":64,"orbits":5,"electronOrbits":[2,8,18,25,9],"r":1.8,"color":[0.27,1,0.78]},{"z":65,"sym":"Tb","name":"Terbium","protons":65,"neutrons":94,"electrons":65,"orbits":5,"electronOrbits":[2,8,18,27,8],"r":1.75,"color":[0.19,1,0.78]},{"z":66,"sym":"Dy","name":"Dysprosium","protons":66,"neutrons":96,"electrons":66,"orbits":5,"electronOrbits":[2,8,18,28,8],"r":1.75,"color":[0.12,1,0.78]},{"z":67,"sym":"Ho","name":"Holmium","protons":67,"neutrons":98,"electrons":67,"orbits":5,"electronOrbits":[2,8,18,29,8],"r":1.75,"color":[0,1,0.61]},{"z":68,"sym":"Er","name":"Erbium","protons":68,"neutrons":99,"electrons":68,"orbits":5,"electronOrbits":[2,8,18,30,8],"r":1.75,"color":[0,0.9,0.46]},{"z":69,"sym":"Tm","name":"Thulium","protons":69,"neutrons":100,"electrons":69,"orbits":5,"electronOrbits":[2,8,18,31,8],"r":1.75,"color":[0,0.83,0.32]},{"z":70,"sym":"Yb","name":"Ytterbium","protons":70,"neutrons":103,"electrons":70,"orbits":5,"electronOrbits":[2,8,18,32,8],"r":1.75,"color":[0,0.75,0.22]},{"z":71,"sym":"Lu","name":"Lutetium","protons":71,"neutrons":104,"electrons":71,"orbits":5,"electronOrbits":[2,8,18,32,9],"r":1.75,"color":[0,0.67,0.14]},{"z":72,"sym":"Hf","name":"Hafnium","protons":72,"neutrons":106,"electrons":72,"orbits":5,"electronOrbits":[2,8,18,32,10],"r":1.55,"color":[0.3,0.76,1]},{"z":73,"sym":"Ta","name":"Tantalum","protons":73,"neutrons":108,"electrons":73,"orbits":5,"electronOrbits":[2,8,18,32,11],"r":1.46,"color":[0.3,0.65,1]},{"z":74,"sym":"W","name":"Tungsten","protons":74,"neutrons":110,"electrons":74,"orbits":5,"electronOrbits":[2,8,18,32,12],"r":1.39,"color":[0.13,0.58,0.84]},{"z":75,"sym":"Re","name":"Rhenium","protons":75,"neutrons":111,"electrons":75,"orbits":5,"electronOrbits":[2,8,18,32,13],"r":1.37,"color":[0.15,0.49,0.67]},{"z":76,"sym":"Os","name":"Osmium","protons":76,"neutrons":114,"electrons":76,"orbits":5,"electronOrbits":[2,8,18,32,14],"r":1.35,"color":[0.15,0.4,0.59]},{"z":77,"sym":"Ir","name":"Iridium","protons":77,"neutrons":115,"electrons":77,"orbits":5,"electronOrbits":[2,8,18,32,15],"r":1.36,"color":[0.09,0.33,0.53]},{"z":78,"sym":"Pt","name":"Platinum","protons":78,"neutrons":117,"electrons":78,"orbits":5,"electronOrbits":[2,8,18,32,17],"r":1.39,"color":[0.82,0.82,0.88]},{"z":79,"sym":"Au","name":"Gold","protons":79,"neutrons":118,"electrons":79,"orbits":5,"electronOrbits":[2,8,18,32,18],"r":1.44,"color":[1,0.82,0.14]},{"z":80,"sym":"Hg","name":"Mercury","protons":80,"neutrons":120,"electrons":80,"orbits":5,"electronOrbits":[2,8,18,32,18],"r":1.51,"color":[0.72,0.72,0.82]},{"z":81,"sym":"Tl","name":"Thallium","protons":81,"neutrons":123,"electrons":81,"orbits":5,"electronOrbits":[2,8,18,32,18],"r":1.7,"color":[0.65,0.33,0.3]},{"z":82,"sym":"Pb","name":"Lead","protons":82,"neutrons":125,"electrons":82,"orbits":5,"electronOrbits":[2,8,18,32,18],"r":1.75,"color":[0.34,0.35,0.38]},{"z":83,"sym":"Bi","name":"Bismuth","protons":83,"neutrons":126,"electrons":83,"orbits":5,"electronOrbits":[2,8,18,32,18],"r":1.56,"color":[0.62,0.31,0.71]},{"z":84,"sym":"Po","name":"Polonium","protons":84,"neutrons":125,"electrons":84,"orbits":5,"electronOrbits":[2,8,18,32,18],"r":1.67,"color":[0.67,0.36,0]},{"z":85,"sym":"At","name":"Astatine","protons":85,"neutrons":125,"electrons":85,"orbits":5,"electronOrbits":[2,8,18,32,18],"r":1.62,"color":[0.46,0.31,0.27]},{"z":86,"sym":"Rn","name":"Radon","protons":86,"neutrons":136,"electrons":86,"orbits":5,"electronOrbits":[2,8,18,32,18],"r":1.46,"color":[0.26,0.51,0.59]},{"z":87,"sym":"Fr","name":"Francium","protons":87,"neutrons":136,"electrons":87,"orbits":5,"electronOrbits":[2,8,18,32,18],"r":2.8,"color":[0.26,0,0.4]},{"z":88,"sym":"Ra","name":"Radium","protons":88,"neutrons":138,"electrons":88,"orbits":6,"electronOrbits":[2,8,18,32,18,8],"r":2.15,"color":[0,0.49,0]},{"z":89,"sym":"Ac","name":"Actinium","protons":89,"neutrons":138,"electrons":89,"orbits":6,"electronOrbits":[2,8,18,32,18,9],"r":1.95,"color":[0.44,0.67,0.98]},{"z":90,"sym":"Th","name":"Thorium","protons":90,"neutrons":142,"electrons":90,"orbits":6,"electronOrbits":[2,8,18,32,18,10],"r":1.8,"color":[0,0.73,1]},{"z":91,"sym":"Pa","name":"Protactinium","protons":91,"neutrons":140,"electrons":91,"orbits":6,"electronOrbits":[2,8,18,32,20,9],"r":1.6,"color":[0,0.63,1]},{"z":92,"sym":"U","name":"Uranium","protons":92,"neutrons":146,"electrons":92,"orbits":6,"electronOrbits":[2,8,18,32,21,9],"r":1.58,"color":[0,0.56,1]},{"z":93,"sym":"Np","name":"Neptunium","protons":93,"neutrons":144,"electrons":93,"orbits":6,"electronOrbits":[2,8,18,32,22,9],"r":1.55,"color":[0,0.5,0.69]},{"z":94,"sym":"Pu","name":"Plutonium","protons":94,"neutrons":150,"electrons":94,"orbits":6,"electronOrbits":[2,8,18,32,24,8],"r":1.53,"color":[0,0.42,0.42]},{"z":95,"sym":"Am","name":"Americium","protons":95,"neutrons":148,"electrons":95,"orbits":6,"electronOrbits":[2,8,18,32,25,8],"r":1.51,"color":[0.33,0.36,0.95]},{"z":96,"sym":"Cm","name":"Curium","protons":96,"neutrons":151,"electrons":96,"orbits":6,"electronOrbits":[2,8,18,32,25,9],"r":1.5,"color":[0.47,0.36,0.89]},{"z":97,"sym":"Bk","name":"Berkelium","protons":97,"neutrons":150,"electrons":97,"orbits":6,"electronOrbits":[2,8,18,32,27,8],"r":1.5,"color":[0.54,0.31,0.89]},{"z":98,"sym":"Cf","name":"Californium","protons":98,"neutrons":153,"electrons":98,"orbits":6,"electronOrbits":[2,8,18,32,28,8],"r":1.5,"color":[0.63,0.21,0.83]},{"z":99,"sym":"Es","name":"Einsteinium","protons":99,"neutrons":153,"electrons":99,"orbits":6,"electronOrbits":[2,8,18,32,29,8],"r":1.5,"color":[0.7,0.12,0.83]},{"z":100,"sym":"Fm","name":"Fermium","protons":100,"neutrons":157,"electrons":100,"orbits":6,"electronOrbits":[2,8,18,32,30,8],"r":1.5,"color":[0.7,0.12,0.73]},{"z":101,"sym":"Md","name":"Mendelevium","protons":101,"neutrons":157,"electrons":101,"orbits":6,"electronOrbits":[2,8,18,32,31,8],"r":1.5,"color":[0.7,0.05,0.65]},{"z":102,"sym":"No","name":"Nobelium","protons":102,"neutrons":157,"electrons":102,"orbits":6,"electronOrbits":[2,8,18,32,32,8],"r":1.5,"color":[0.74,0.05,0.53]},{"z":103,"sym":"Lr","name":"Lawrencium","protons":103,"neutrons":163,"electrons":103,"orbits":6,"electronOrbits":[2,8,18,32,32,8],"r":1.5,"color":[0.78,0.0,0.4]},{"z":104,"sym":"Rf","name":"Rutherfordium","protons":104,"neutrons":157,"electrons":104,"orbits":6,"electronOrbits":[2,8,18,32,32,10],"r":1.5,"color":[0.8,0.0,0.35]},{"z":105,"sym":"Db","name":"Dubnium","protons":105,"neutrons":157,"electrons":105,"orbits":6,"electronOrbits":[2,8,18,32,32,11],"r":1.5,"color":[0.82,0.0,0.31]},{"z":106,"sym":"Sg","name":"Seaborgium","protons":106,"neutrons":163,"electrons":106,"orbits":6,"electronOrbits":[2,8,18,32,32,12],"r":1.5,"color":[0.85,0.0,0.27]},{"z":107,"sym":"Bh","name":"Bohrium","protons":107,"neutrons":160,"electrons":107,"orbits":6,"electronOrbits":[2,8,18,32,32,13],"r":1.5,"color":[0.88,0.0,0.22]},{"z":108,"sym":"Hs","name":"Hassium","protons":108,"neutrons":161,"electrons":108,"orbits":6,"electronOrbits":[2,8,18,32,32,14],"r":1.5,"color":[0.9,0.0,0.18]},{"z":109,"sym":"Mt","name":"Meitnerium","protons":109,"neutrons":169,"electrons":109,"orbits":6,"electronOrbits":[2,8,18,32,32,15],"r":1.5,"color":[0.92,0.1,0.18]},{"z":110,"sym":"Ds","name":"Darmstadtium","protons":110,"neutrons":171,"electrons":110,"orbits":6,"electronOrbits":[2,8,18,32,32,17],"r":1.5,"color":[0.93,0.16,0.16]},{"z":111,"sym":"Rg","name":"Roentgenium","protons":111,"neutrons":171,"electrons":111,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.94,0.2,0.14]},{"z":112,"sym":"Cn","name":"Copernicium","protons":112,"neutrons":173,"electrons":112,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.95,0.26,0.12]},{"z":113,"sym":"Nh","name":"Nihonium","protons":113,"neutrons":173,"electrons":113,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.96,0.3,0.1]},{"z":114,"sym":"Fl","name":"Flerovium","protons":114,"neutrons":175,"electrons":114,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.97,0.34,0.08]},{"z":115,"sym":"Mc","name":"Moscovium","protons":115,"neutrons":173,"electrons":115,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.97,0.38,0.06]},{"z":116,"sym":"Lv","name":"Livermorium","protons":116,"neutrons":177,"electrons":116,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.98,0.42,0.04]},{"z":117,"sym":"Ts","name":"Tennessine","protons":117,"neutrons":177,"electrons":117,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.98,0.46,0.02]},{"z":118,"sym":"Og","name":"Oganesson","protons":118,"neutrons":176,"electrons":118,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.99,0.5,0]},{"z":119,"sym":"Uue","name":"Ununennium","protons":119,"neutrons":197,"electrons":119,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.7,0.7,0.7]},{"z":120,"sym":"Ubn","name":"Unbinilium","protons":120,"neutrons":200,"electrons":120,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.7,0.7,0.7]},{"z":121,"sym":"Ubu","name":"Unbiunium","protons":121,"neutrons":199,"electrons":121,"orbits":6,"electronOrbits":[2,8,18,32,34,18],"r":1.5,"color":[0.7,0.7,0.7]},{"z":122,"sym":"Ubb","name":"Unbibium","protons":122,"neutrons":199,"electrons":122,"orbits":6,"electronOrbits":[2,8,18,32,32,18],"r":1.5,"color":[0.7,0.7,0.7]},{"z":123,"sym":"Ubt","name":"Unbitrium","protons":123,"neutrons":202,"electrons":123,"orbits":6,"electronOrbits":[2,8,18,32,32,19],"r":1.5,"color":[0.7,0.7,0.7]},{"z":124,"sym":"Ubq","name":"Unbiquadi","protons":124,"neutrons":206,"electrons":124,"orbits":6,"electronOrbits":[2,8,18,32,32,19],"r":1.5,"color":[0.7,0.7,0.7]},{"z":125,"sym":"Ubp","name":"Unbipenti","protons":125,"neutrons":207,"electrons":125,"orbits":6,"electronOrbits":[2,8,18,32,36,18],"r":1.5,"color":[0.7,0.7,0.7]},{"z":126,"sym":"Ubh","name":"Unbihexiu","protons":126,"neutrons":208,"electrons":126,"orbits":6,"electronOrbits":[2,8,18,32,37,18],"r":1.5,"color":[0.7,0.7,0.7]},{"z":127,"sym":"Ubs","name":"Unbiseptium","protons":127,"neutrons":209,"electrons":127,"orbits":6,"electronOrbits":[2,8,18,32,38,18],"r":1.5,"color":[0.7,0.7,0.7]}]
+[
+  {
+    "elementName": "Element ",
+    "neutrons": "Nuetrons",
+    "protons": "Protons",
+    "electrons": "Electrons",
+    "orbits": "Orbits",
+    "electronOrbits": []
+  },
+  {
+    "elementName": "Hydrogen ",
+    "neutrons": 1,
+    "protons": 1,
+    "electrons": 1,
+    "orbits": 1,
+    "electronOrbits": [1]
+  },
+  {
+    "elementName": "Helium",
+    "neutrons": 2,
+    "protons": 2,
+    "electrons": 2,
+    "orbits": 1,
+    "electronOrbits": [2]
+  },
+  {
+    "elementName": "Lithium",
+    "neutrons": 4,
+    "protons": 3,
+    "electrons": 3,
+    "orbits": 2,
+    "electronOrbits": [2, 1]
+  },
+  {
+    "elementName": "Beryllium ",
+    "neutrons": 5,
+    "protons": 4,
+    "electrons": 4,
+    "orbits": 2,
+    "electronOrbits": [2, 2]
+  },
+  {
+    "elementName": "Boron",
+    "neutrons": 6,
+    "protons": 5,
+    "electrons": 5,
+    "orbits": 2,
+    "electronOrbits": [2, 3]
+  },
+  {
+    "elementName": "Carbon",
+    "neutrons": 6,
+    "protons": 6,
+    "electrons": 6,
+    "orbits": 2,
+    "electronOrbits": [2, 4]
+  },
+  {
+    "elementName": "Nitrogen",
+    "neutrons": 7,
+    "protons": 7,
+    "electrons": 7,
+    "orbits": 2,
+    "electronOrbits": [2, 5]
+  },
+  {
+    "elementName": "Oxygen",
+    "neutrons": 8,
+    "protons": 8,
+    "electrons": 8,
+    "orbits": 2,
+    "electronOrbits": [2, 6]
+  },
+  {
+    "elementName": "Fluorine",
+    "neutrons": 10,
+    "protons": 9,
+    "electrons": 9,
+    "orbits": 2,
+    "electronOrbits": [2, 7]
+  },
+  {
+    "elementName": "Neon",
+    "neutrons": 10,
+    "protons": 10,
+    "electrons": 10,
+    "orbits": 2,
+    "electronOrbits": [2, 8]
+  },
+  {
+    "elementName": "Sodium",
+    "neutrons": 12,
+    "protons": 11,
+    "electrons": 11,
+    "orbits": 3,
+    "electronOrbits": [2, 8, 1]
+  },
+  {
+    "elementName": "Magnesium",
+    "neutrons": 12,
+    "protons": 12,
+    "electrons": 12,
+    "orbits": 3,
+    "electronOrbits": [2, 8, 2]
+  },
+  {
+    "elementName": "Aluminium",
+    "neutrons": 14,
+    "protons": 13,
+    "electrons": 13,
+    "orbits": 3,
+    "electronOrbits": [2, 8, 3]
+  },
+  {
+    "elementName": "Silicon",
+    "neutrons": 14,
+    "protons": 14,
+    "electrons": 14,
+    "orbits": 3,
+    "electronOrbits": [2, 8, 3]
+  },
+  {
+    "elementName": "Phosphorus",
+    "neutrons": 16,
+    "protons": 15,
+    "electrons": 15,
+    "orbits": 3,
+    "electronOrbits": [2, 8, 4]
+  },
+  {
+    "elementName": "Sulfur",
+    "neutrons": 16,
+    "protons": 16,
+    "electrons": 16,
+    "orbits": 3,
+    "electronOrbits": [2, 8, 5]
+  },
+  {
+    "elementName": "Chlorine",
+    "neutrons": 18,
+    "protons": 17,
+    "electrons": 17,
+    "orbits": 3,
+    "electronOrbits": [2, 8, 6]
+  },
+  {
+    "elementName": "Argon",
+    "neutrons": 22,
+    "protons": 18,
+    "electrons": 18,
+    "orbits": 3,
+    "electronOrbits": [2, 8, 8]
+  },
+  {
+    "elementName": "Potassium",
+    "neutrons": 20,
+    "protons": 19,
+    "electrons": 19,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 8, 1]
+  },
+  {
+    "elementName": "Calcium",
+    "neutrons": 20,
+    "protons": 20,
+    "electrons": 20,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 8, 2]
+  },
+  {
+    "elementName": "Scandium",
+    "neutrons": 24,
+    "protons": 21,
+    "electrons": 21,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 9, 2]
+  },
+  {
+    "elementName": "Titanium",
+    "neutrons": 26,
+    "protons": 22,
+    "electrons": 22,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 10, 2]
+  },
+  {
+    "elementName": "Vanadium",
+    "neutrons": 28,
+    "protons": 23,
+    "electrons": 23,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 11, 2]
+  },
+  {
+    "elementName": "Chromium",
+    "neutrons": 28,
+    "protons": 24,
+    "electrons": 24,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 13, 1]
+  },
+  {
+    "elementName": "Manganese",
+    "neutrons": 30,
+    "protons": 25,
+    "electrons": 25,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 13, 2]
+  },
+  {
+    "elementName": "Iron",
+    "neutrons": 30,
+    "protons": 26,
+    "electrons": 26,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 14, 2]
+  },
+  {
+    "elementName": "Cobalt",
+    "neutrons": 32,
+    "protons": 27,
+    "electrons": 27,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 15, 2]
+  },
+  {
+    "elementName": "Nickel",
+    "neutrons": 31,
+    "protons": 28,
+    "electrons": 28,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 16, 2]
+  },
+  {
+    "elementName": "Copper",
+    "neutrons": 35,
+    "protons": 29,
+    "electrons": 29,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 1]
+  },
+  {
+    "elementName": "Zinc",
+    "neutrons": 35,
+    "protons": 30,
+    "electrons": 30,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 2]
+  },
+  {
+    "elementName": "Gallium",
+    "neutrons": 39,
+    "protons": 31,
+    "electrons": 31,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 3]
+  },
+  {
+    "elementName": "Germanium",
+    "neutrons": 41,
+    "protons": 32,
+    "electrons": 32,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 4]
+  },
+  {
+    "elementName": "Arsenic",
+    "neutrons": 42,
+    "protons": 33,
+    "electrons": 33,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 5]
+  },
+  {
+    "elementName": "Selenium",
+    "neutrons": 45,
+    "protons": 34,
+    "electrons": 34,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 6]
+  },
+  {
+    "elementName": "Bromine",
+    "neutrons": 45,
+    "protons": 35,
+    "electrons": 35,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 7]
+  },
+  {
+    "elementName": "Krypton",
+    "neutrons": 48,
+    "protons": 36,
+    "electrons": 36,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 8]
+  },
+  {
+    "elementName": "Rubidium",
+    "neutrons": 48,
+    "protons": 37,
+    "electrons": 37,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 8]
+  },
+  {
+    "elementName": "Strontium",
+    "neutrons": 50,
+    "protons": 38,
+    "electrons": 38,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 8]
+  },
+  {
+    "elementName": "Yttrium",
+    "neutrons": 50,
+    "protons": 39,
+    "electrons": 39,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 9]
+  },
+  {
+    "elementName": "Zirconium",
+    "neutrons": 51,
+    "protons": 40,
+    "electrons": 40,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 10]
+  },
+  {
+    "elementName": "Niobium",
+    "neutrons": 52,
+    "protons": 41,
+    "electrons": 41,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 12]
+  },
+  {
+    "elementName": "Molybdenum",
+    "neutrons": 54,
+    "protons": 42,
+    "electrons": 42,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 13]
+  },
+  {
+    "elementName": "Technetium",
+    "neutrons": 55,
+    "protons": 43,
+    "electrons": 43,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 13]
+  },
+  {
+    "elementName": "Ruthenium",
+    "neutrons": 57,
+    "protons": 44,
+    "electrons": 44,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 15]
+  },
+  {
+    "elementName": "Rhodium",
+    "neutrons": 57,
+    "protons": 45,
+    "electrons": 45,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 16]
+  },
+  {
+    "elementName": "Palladium",
+    "neutrons": 60,
+    "protons": 46,
+    "electrons": 46,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 18]
+  },
+  {
+    "elementName": "Silver",
+    "neutrons": 61,
+    "protons": 47,
+    "electrons": 47,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 18]
+  },
+  {
+    "elementName": "Cadmium",
+    "neutrons": 64,
+    "protons": 48,
+    "electrons": 48,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 18]
+  },
+  {
+    "elementName": "Indium",
+    "neutrons": 66,
+    "protons": 49,
+    "electrons": 49,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 18]
+  },
+  {
+    "elementName": "Tin",
+    "neutrons": 69,
+    "protons": 50,
+    "electrons": 50,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 18]
+  },
+  {
+    "elementName": "Antimony",
+    "neutrons": 71,
+    "protons": 51,
+    "electrons": 51,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 18]
+  },
+  {
+    "elementName": "Tellurium",
+    "neutrons": 75,
+    "protons": 52,
+    "electrons": 52,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 18]
+  },
+  {
+    "elementName": "Iodine",
+    "neutrons": 74,
+    "protons": 53,
+    "electrons": 53,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 18]
+  },
+  {
+    "elementName": "Xenon",
+    "neutrons": 77,
+    "protons": 54,
+    "electrons": 54,
+    "orbits": 4,
+    "electronOrbits": [2, 8, 18, 18]
+  },
+  {
+    "elementName": "Caesium",
+    "neutrons": 78,
+    "protons": 55,
+    "electrons": 55,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 18, 8]
+  },
+  {
+    "elementName": "Barium",
+    "neutrons": 81,
+    "protons": 56,
+    "electrons": 56,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 18, 8]
+  },
+  {
+    "elementName": "Lanthanum",
+    "neutrons": 82,
+    "protons": 57,
+    "electrons": 57,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 18, 9]
+  },
+  {
+    "elementName": "Cerium",
+    "neutrons": 82,
+    "protons": 58,
+    "electrons": 58,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 19, 9]
+  },
+  {
+    "elementName": "Praseodymium",
+    "neutrons": 82,
+    "protons": 59,
+    "electrons": 59,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 21, 8]
+  },
+  {
+    "elementName": "Neodymium",
+    "neutrons": 84,
+    "protons": 60,
+    "electrons": 60,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 22, 8]
+  },
+  {
+    "elementName": "Promethium",
+    "neutrons": 84,
+    "protons": 61,
+    "electrons": 61,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 23, 8]
+  },
+  {
+    "elementName": "Samarium",
+    "neutrons": 88,
+    "protons": 62,
+    "electrons": 62,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 24, 8]
+  },
+  {
+    "elementName": "Europium",
+    "neutrons": 89,
+    "protons": 63,
+    "electrons": 63,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 25, 8]
+  },
+  {
+    "elementName": "Gadolinium",
+    "neutrons": 93,
+    "protons": 64,
+    "electrons": 64,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 25, 9]
+  },
+  {
+    "elementName": "Terbium",
+    "neutrons": 94,
+    "protons": 65,
+    "electrons": 65,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 27, 8]
+  },
+  {
+    "elementName": "Dysprosium",
+    "neutrons": 96,
+    "protons": 66,
+    "electrons": 66,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 28, 8]
+  },
+  {
+    "elementName": "Holmium",
+    "neutrons": 98,
+    "protons": 67,
+    "electrons": 67,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 29, 8]
+  },
+  {
+    "elementName": "Erbium",
+    "neutrons": 99,
+    "protons": 68,
+    "electrons": 68,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 30, 8]
+  },
+  {
+    "elementName": "Thulium",
+    "neutrons": 100,
+    "protons": 69,
+    "electrons": 69,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 31, 8]
+  },
+  {
+    "elementName": "Ytterbium",
+    "neutrons": 103,
+    "protons": 70,
+    "electrons": 70,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 8]
+  },
+  {
+    "elementName": "Lutetium",
+    "neutrons": 104,
+    "protons": 71,
+    "electrons": 71,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 9]
+  },
+  {
+    "elementName": "Hafnium",
+    "neutrons": 106,
+    "protons": 72,
+    "electrons": 72,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 10]
+  },
+  {
+    "elementName": "Tantalum",
+    "neutrons": 108,
+    "protons": 73,
+    "electrons": 73,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 11]
+  },
+  {
+    "elementName": "Tungsten",
+    "neutrons": 110,
+    "protons": 74,
+    "electrons": 74,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 12]
+  },
+  {
+    "elementName": "Rhenium",
+    "neutrons": 111,
+    "protons": 75,
+    "electrons": 75,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 13]
+  },
+  {
+    "elementName": "Osmium",
+    "neutrons": 114,
+    "protons": 76,
+    "electrons": 76,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 14]
+  },
+  {
+    "elementName": "Iridium",
+    "neutrons": 115,
+    "protons": 77,
+    "electrons": 77,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 15]
+  },
+  {
+    "elementName": "Platinum",
+    "neutrons": 117,
+    "protons": 78,
+    "electrons": 78,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 17]
+  },
+  {
+    "elementName": "Gold",
+    "neutrons": 118,
+    "protons": 79,
+    "electrons": 79,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 18]
+  },
+  {
+    "elementName": "Mercury",
+    "neutrons": 120,
+    "protons": 80,
+    "electrons": 80,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 18]
+  },
+  {
+    "elementName": "Thallium",
+    "neutrons": 123,
+    "protons": 81,
+    "electrons": 81,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 18]
+  },
+  {
+    "elementName": "Lead",
+    "neutrons": 125,
+    "protons": 82,
+    "electrons": 82,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 18]
+  },
+  {
+    "elementName": "Bismuth",
+    "neutrons": 126,
+    "protons": 83,
+    "electrons": 83,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 18]
+  },
+  {
+    "elementName": "Polonium",
+    "neutrons": 125,
+    "protons": 84,
+    "electrons": 84,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 18]
+  },
+  {
+    "elementName": "Astatine",
+    "neutrons": 125,
+    "protons": 85,
+    "electrons": 85,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 18]
+  },
+  {
+    "elementName": "Radon",
+    "neutrons": 136,
+    "protons": 86,
+    "electrons": 86,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 18]
+  },
+  {
+    "elementName": "Francium",
+    "neutrons": 136,
+    "protons": 87,
+    "electrons": 87,
+    "orbits": 5,
+    "electronOrbits": [2, 8, 18, 32, 18]
+  },
+  {
+    "elementName": "Radium",
+    "neutrons": 138,
+    "protons": 88,
+    "electrons": 88,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 18, 8]
+  },
+  {
+    "elementName": "Actinium",
+    "neutrons": 138,
+    "protons": 89,
+    "electrons": 89,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 18, 9]
+  },
+  {
+    "elementName": "Thorium",
+    "neutrons": 142,
+    "protons": 90,
+    "electrons": 90,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 18, 10]
+  },
+  {
+    "elementName": "Protactinium",
+    "neutrons": 140,
+    "protons": 91,
+    "electrons": 91,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 20, 9]
+  },
+  {
+    "elementName": "Uranium",
+    "neutrons": 146,
+    "protons": 92,
+    "electrons": 92,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 21, 9]
+  },
+  {
+    "elementName": "Neptunium",
+    "neutrons": 144,
+    "protons": 93,
+    "electrons": 93,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 22, 9]
+  },
+  {
+    "elementName": "Plutonium",
+    "neutrons": 150,
+    "protons": 94,
+    "electrons": 94,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 24, 8]
+  },
+  {
+    "elementName": "Americium",
+    "neutrons": 148,
+    "protons": 95,
+    "electrons": 95,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 25, 8]
+  },
+  {
+    "elementName": "Curium",
+    "neutrons": 151,
+    "protons": 96,
+    "electrons": 96,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 25, 9]
+  },
+  {
+    "elementName": "Berkelium",
+    "neutrons": 150,
+    "protons": 97,
+    "electrons": 97,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 27, 8]
+  },
+  {
+    "elementName": "Californium",
+    "neutrons": 153,
+    "protons": 98,
+    "electrons": 98,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 28, 8]
+  },
+  {
+    "elementName": "Einsteinium",
+    "neutrons": 153,
+    "protons": 99,
+    "electrons": 99,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 29, 8]
+  },
+  {
+    "elementName": "Fermium",
+    "neutrons": 157,
+    "protons": 100,
+    "electrons": 100,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 30, 8]
+  },
+  {
+    "elementName": "Mendelevium",
+    "neutrons": 157,
+    "protons": 101,
+    "electrons": 101,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 31, 8]
+  },
+  {
+    "elementName": "Nobelium",
+    "neutrons": 157,
+    "protons": 102,
+    "electrons": 102,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 8]
+  },
+  {
+    "elementName": "Lawrencium",
+    "neutrons": 163,
+    "protons": 103,
+    "electrons": 103,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 8]
+  },
+  {
+    "elementName": "Rutherfordium",
+    "neutrons": 157,
+    "protons": 104,
+    "electrons": 104,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 10]
+  },
+  {
+    "elementName": "Dubnium",
+    "neutrons": 157,
+    "protons": 105,
+    "electrons": 105,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 11]
+  },
+  {
+    "elementName": "Seaborgium",
+    "neutrons": 163,
+    "protons": 106,
+    "electrons": 106,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 12]
+  },
+  {
+    "elementName": "Bohrium",
+    "neutrons": 160,
+    "protons": 107,
+    "electrons": 107,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 13]
+  },
+  {
+    "elementName": "Hassium",
+    "neutrons": 161,
+    "protons": 108,
+    "electrons": 108,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 14]
+  },
+  {
+    "elementName": "Meitnerium",
+    "neutrons": 169,
+    "protons": 109,
+    "electrons": 109,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 15]
+  },
+  {
+    "elementName": "Darmstadtium",
+    "neutrons": 171,
+    "protons": 110,
+    "electrons": 110,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 17]
+  },
+  {
+    "elementName": "Roentgenium",
+    "neutrons": 171,
+    "protons": 111,
+    "electrons": 111,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Copernicium",
+    "neutrons": 173,
+    "protons": 112,
+    "electrons": 112,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Nihonium",
+    "neutrons": 173,
+    "protons": 113,
+    "electrons": 113,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Flerovium",
+    "neutrons": 175,
+    "protons": 114,
+    "electrons": 114,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Moscovium",
+    "neutrons": 173,
+    "protons": 115,
+    "electrons": 115,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Livermorium",
+    "neutrons": 177,
+    "protons": 116,
+    "electrons": 116,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Tennessine",
+    "neutrons": 177,
+    "protons": 117,
+    "electrons": 117,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Oganesson",
+    "neutrons": 176,
+    "protons": 118,
+    "electrons": 118,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Ununennium",
+    "neutrons": 197,
+    "protons": 119,
+    "electrons": 119,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Unbinilium",
+    "neutrons": 200,
+    "protons": 120,
+    "electrons": 120,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Unbiunium",
+    "neutrons": 199,
+    "protons": 121,
+    "electrons": 121,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 34, 18]
+  },
+  {
+    "elementName": "Unbibium",
+    "neutrons": 199,
+    "protons": 122,
+    "electrons": 122,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 18]
+  },
+  {
+    "elementName": "Unbitrium",
+    "neutrons": 202,
+    "protons": 123,
+    "electrons": 123,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 19]
+  },
+  {
+    "elementName": "Unbiquadi",
+    "neutrons": 206,
+    "protons": 124,
+    "electrons": 124,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 32, 19]
+  },
+  {
+    "elementName": "Unbipenti",
+    "neutrons": 207,
+    "protons": 125,
+    "electrons": 125,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 36, 18]
+  },
+  {
+    "elementName": "Unbihexiu",
+    "neutrons": 208,
+    "protons": 126,
+    "electrons": 126,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 37, 18]
+  },
+  {
+    "elementName": "Unbiseptium",
+    "neutrons": 209,
+    "protons": 127,
+    "electrons": 127,
+    "orbits": 6,
+    "electronOrbits": [2, 8, 18, 32, 38, 18]
+  }
+]

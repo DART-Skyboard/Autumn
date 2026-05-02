@@ -32,7 +32,7 @@ async function _alsLoadElements() {
       res = await fetch(ALS_ELEMENTS_URL + '?v=2026050301');
       if(!res.ok) throw new Error('relative failed');
     } catch(e) {
-      res = await fetch('https://leatr.xyz/assets/elements.json?v=2026050301');
+      res = await fetch('https://leatr.xyz/assets/elements.json?v=2026050302');
     }
     _alsElements = await res.json();
   } catch(e) {

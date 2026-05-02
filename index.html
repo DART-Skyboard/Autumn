@@ -330,7 +330,7 @@ window._refreshAnalyticsNow = async function() {
         _doMount();
       } else {
         var s = document.createElement('script');
-        s.src = 'js/arclake_studio.js?v=2026050109';
+        s.src = 'js/arclake_studio.js?v=2026050302';
         s.onload = _doMount;
         document.head.appendChild(s);
       }
@@ -13813,7 +13813,7 @@ function renderToolsContent(){
       } else {
         el.innerHTML="<div style='padding:20px;font-family:Orbitron,monospace;color:#00e5ff'>⬡ Loading ArcLake Studio...</div>";
         var _als_script=document.createElement('script');
-        _als_script.src='js/arclake_studio.js?v=2026050109';
+        _als_script.src='js/arclake_studio.js?v=2026050302';
         _als_script.onload=function(){
           el.innerHTML=window.renderToolsArcLake?window.renderToolsArcLake():"ArcLake Studio failed to load.";
           setTimeout(function(){ window._alsMounted&&window._alsMounted(); },50);
@@ -21660,9 +21660,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
   // Re-login for returning registered users — silent OAuth web flow
   window._ghReLogin = function() {
-    // ── Returning user: try silent token validation first ───────────────
+    // After logout: _gh_session is cleared but _gh_registered remains.
+    // Just start device flow — one tab, user approves, polls via GAS, done.
     var stored = _loadStoredSession();
     if (stored && stored.access_token) {
+      // Session still in memory (e.g. re-login without full logout) — validate silently
       fetch('https://api.github.com/user', {
         headers: { 'Authorization': 'token ' + stored.access_token },
         signal: AbortSignal.timeout(8000)
@@ -21679,7 +21681,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         _showDeviceFlow();
       });
     } else {
-      _showDeviceFlow();
+      // No stored session (after logout) — show WELCOME BACK then device flow
+      var isReg = localStorage.getItem('_gh_registered');
+      if (isReg) _showReAuthPrompt(isReg !== '1' ? isReg : null);
+      else _showDeviceFlow();
     }
   };
 
