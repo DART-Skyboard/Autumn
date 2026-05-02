@@ -299,12 +299,14 @@ _gateCheck();
           <div style="margin-left:8px;margin-bottom:4px;padding:5px 8px;background:rgba(0,229,255,.05);border-left:2px solid rgba(0,229,255,.2);border-radius:0 4px 4px 0;font-size:.47rem;line-height:1.7;color:rgba(200,232,240,.5)">
             These carry the primary weight in the calculation. Their Sigma values form the foundation of the cross-product with 4 and 5.
           </div>
-          <div><span style="color:var(--cyan)">Ticker 4</span> — adjacent influence <em style="color:rgba(240,192,64,.7);font-style:normal;font-size:.45rem">(always leads over 5)</em></div>
+          <div><span style="color:var(--cyan)">Ticker 4</span> — adjacent influence <em style="color:rgba(240,192,64,.7);font-style:normal;font-size:.45rem">(structurally leads 5 in the math)</em></div>
           <div><span style="color:var(--cyan)">Ticker 5</span> — secondary adjacent influence</div>
           <div style="margin-left:8px;margin-bottom:4px;padding:5px 8px;background:rgba(240,192,64,.04);border-left:2px solid rgba(240,192,64,.2);border-radius:0 4px 4px 0;font-size:.47rem;line-height:1.7;color:rgba(200,232,240,.5)">
-            Ticker 4 always holds the lead influence over Ticker 5 in the algorithm — this is fixed by the math.
-            If you want 5 to carry more weight, adjust its Sigma input higher. Even then, 4 will still lead —
-            you are controlling the margin, not reversing the order.
+            Ticker 4 always holds the structural lead over Ticker 5 — that is fixed by the algorithm.
+            Having the lead is not necessarily the goal. How you set the inputs is entirely
+            about your intent. You may want 4 to dominate, or you may want to use the inputs
+            to pull 5 as close to 4 as possible — or reverse how their values read against one another.
+            The lead stays, but the margin and the direction you are pushing toward is yours to set.
           </div>
           <div><span style="color:var(--cyan)">Sigma</span> — weight of your experience in each area</div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
