@@ -7324,68 +7324,14 @@ async function loadSingleImageFile(file) {
     }
     try {
       var vd = await extractVideoFrames(file, 8);
-      // ── Extract audio track from video via Web Audio API ─────────────────
-      var audioSummary = '';
-      var audioDuration = 0, audioSampleRate = 0, audioChannels = 0;
-      var audioRmsDb = -60, audioZcr = 0, audioBass = 33, audioMid = 34, audioHigh = 33;
-      try {
-        var _vab = await file.arrayBuffer();
-        var _vactx = new (window.AudioContext || window.webkitAudioContext)();
-        var _vdec = await _vactx.decodeAudioData(_vab);
-        _vactx.close();
-        audioDuration = _vdec.duration;
-        audioSampleRate = _vdec.sampleRate;
-        audioChannels = _vdec.numberOfChannels;
-        var _vdata = _vdec.getChannelData(0);
-        var _vN = Math.min(_vdata.length, audioSampleRate * 90); // up to 90s
-        var _vSumSq = 0, _vZc = 0;
-        for (var _vi = 0; _vi < _vN; _vi++) {
-          _vSumSq += _vdata[_vi] * _vdata[_vi];
-          if (_vi > 0 && ((_vdata[_vi] >= 0) !== (_vdata[_vi-1] >= 0))) _vZc++;
-        }
-        audioRmsDb = 20 * Math.log10(Math.sqrt(_vSumSq / _vN) + 1e-9);
-        audioZcr = Math.round((_vZc / _vN) * audioSampleRate);
-        var _vBS = Math.floor(_vN / 3);
-        var _vsegRMS=function(s,e){var q=0;for(var j=s;j<e;j++)q+=_vdata[j]*_vdata[j];return Math.sqrt(q/(e-s));};
-        var _vbE=_vsegRMS(0,_vBS), _vmE=_vsegRMS(_vBS,_vBS*2), _vhE=_vsegRMS(_vBS*2,_vN);
-        var _vtot=_vbE+_vmE+_vhE+1e-9;
-        audioBass=Math.round(_vbE/_vtot*100); audioMid=Math.round(_vmE/_vtot*100); audioHigh=Math.round(_vhE/_vtot*100);
-        var _vChar = audioBass>45?'bass-heavy':audioHigh>45?'bright/treble-dominant':audioMid>45?'midrange-focused':'balanced';
-        var _vZcrHint = audioZcr>4000?'high spectral content — likely voice, synth, or complex harmonics'
-          : audioZcr>1500?'mixed content — vocals and instruments likely'
-          : 'low spectral density — music, ambient, or low-frequency content';
-        // Voice detection heuristic: ZCR 1500-4500 + moderate RMS = speech
-        var _vSpeechLikely = audioZcr > 1200 && audioZcr < 6000 && audioRmsDb > -40;
-        var _vDurStr = audioDuration >= 60 ? Math.floor(audioDuration/60)+'m '+Math.round(audioDuration%60)+'s' : audioDuration.toFixed(1)+'s';
-        audioSummary = '[VIDEO AUDIO TRACK: ' + file.name + ']
-'
-          + 'Duration: ' + _vDurStr + '
-'
-          + 'Sample rate: ' + audioSampleRate + ' Hz · Channels: ' + audioChannels + (audioChannels===1?' (mono)':audioChannels===2?' (stereo)':'') + '
-'
-          + 'Volume: ' + audioRmsDb.toFixed(1) + ' dBFS RMS
-'
-          + 'Frequency character: ' + _vChar + ' (bass ' + audioBass + '% / mid ' + audioMid + '% / high ' + audioHigh + '%)
-'
-          + 'Spectral signature: ' + _vZcrHint + '
-'
-          + (_vSpeechLikely ? 'Speech detection: LIKELY — audio profile consistent with human voice
-' : '')
-          + 'Note: Full speech-to-text transcription requires a server-side API. The above is acoustic analysis of the audio track. If the user is speaking in the video, I can describe what I hear acoustically and interpret context from the video frames.';
-      } catch(_ve) {
-        audioSummary = '[VIDEO AUDIO TRACK: could not decode — ' + _ve.message + ']';
-      }
       return {
         isVideo: true, isDoc: false, isImage: false, isFrax: false,
         fileName: file.name, fileSize: file.size,
         mimeType: file.type || 'video/mp4',
         thumbnail: vd.thumbnail,
-        videoFrames: vd.frames,
+        videoFrames: vd.frames,   // [{base64, ts, idx}]
         duration: vd.duration,
         width: vd.width, height: vd.height,
-        audioSummary: audioSummary,
-        audioRmsDb: audioRmsDb, audioZcr: audioZcr,
-        audioBass: audioBass, audioMid: audioMid, audioHigh: audioHigh,
         base64: '', analysis: null, fraxMeta: null, docText: null
       };
     } catch(e) {
@@ -10531,15 +10477,11 @@ ${(function(){
 
         _vImgs.slice(0,8).forEach(function(item) {
           if (item.isVideo && item.videoFrames && item.videoFrames.length) {
-            // Send video as labeled frames + audio analysis
+            // Send video as labeled frames — up to 8 frames
             const frameCount = item.videoFrames.length;
             const dur = item.duration ? item.duration.toFixed(1) + 's' : 'unknown duration';
             _contextNote += '\n[VIDEO FILE: ' + item.fileName + ' — ' + dur + ', ' + item.width + 'x' + item.height +
               ', ' + frameCount + ' frames sampled below]';
-            // Include audio track analysis if available
-            if (item.audioSummary) {
-              _contextNote += '\n' + item.audioSummary;
-            }
             item.videoFrames.forEach(function(f) {
               _cb.push({type:'image', source:{type:'base64', media_type:'image/jpeg', data:f.base64}});
             });
