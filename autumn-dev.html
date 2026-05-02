@@ -19682,29 +19682,30 @@ window.emmToggle = function() {
 
 
   window.arcStudioSendToChat = function() {
-    var p = _asGetParams();
-    var pts = _asCalcPoints(p);
-    var len = 0;
-    for (var i=1; i<pts.length; i++) len += pts[i-1].distanceTo(pts[i]);
-    // Build a compact scene summary grouped by unique params
-    var uniqueConfigs = [];
+    var n = _as.arcs.length;
+    // Characterize the scene in natural language — no raw params
+    var avgDev = 0, avgCurve = 0, spread = {x:[], y:[], z:[]};
     _as.arcs.forEach(function(arc) {
-      var key = JSON.stringify({x:arc.params.x,y:arc.params.y,z:arc.params.z,dev:arc.params.mainDev,curve:arc.params.curveInd,devInd:arc.params.devInd,curves:arc.params.devCount});
-      if (!uniqueConfigs.find(function(u){return u.key===key;})) uniqueConfigs.push({key:key,params:arc.params,count:1});
-      else uniqueConfigs.find(function(u){return u.key===key;}).count++;
+      avgDev   += arc.params.mainDev   || 0;
+      avgCurve += arc.params.curveInd  || 0;
+      spread.x.push(arc.params.x || 0);
+      spread.y.push(arc.params.y || 0);
+      spread.z.push(arc.params.z || 0);
     });
-    var msg = '[ARC EDGE STUDIO — '+_as.arcs.length+' arcs in scene]\n'
-      + uniqueConfigs.slice(0,6).map(function(u){
-          return 'Config ×'+u.count+': x='+u.params.x+' y='+u.params.y+' z='+u.params.z
-            +' dev='+u.params.mainDev+' curve='+u.params.curveInd+' devInd='+u.params.devInd
-            +' curves='+u.params.devCount;
-        }).join('\n')
-      + (uniqueConfigs.length > 6 ? '\n...and '+(uniqueConfigs.length-6)+' more configurations' : '')
-      + '\n\nAnalyze this scene, describe what you see geometrically, and suggest what to add or adjust next.';
+    if (n) { avgDev /= n; avgCurve /= n; }
+    var xRange = n ? Math.max.apply(null,spread.x) - Math.min.apply(null,spread.x) : 0;
+    var yRange = n ? Math.max.apply(null,spread.y) - Math.min.apply(null,spread.y) : 0;
+    var zRange = n ? Math.max.apply(null,spread.z) - Math.min.apply(null,spread.z) : 0;
+    var shape = xRange > 8 && yRange > 8 && zRange > 8 ? 'spread across all three axes'
+              : xRange > 8 && zRange > 8 ? 'spread across X and Z'
+              : yRange > 8 && zRange > 8 ? 'spread across Y and Z'
+              : 'clustered near center';
+    var feel = avgDev > 7 ? 'wildly bowed' : avgDev > 4 ? 'dramatically curved' : avgDev > 2 ? 'gently arcing' : 'nearly straight';
+    var msg = 'What do you think of the arc scene? There are ' + n + ' arcs in the viewport — '
+      + feel + ', ' + shape + (avgCurve > 2 ? ', with sinusoidal bends' : '') + '. What would you add or change?';
     var inp = document.getElementById('chat-input');
     if (inp) {
       inp.value = msg;
-      // Show send button so user can submit when ready
       if (typeof window._updateSendBtn === 'function') window._updateSendBtn();
     }
     arcStudioClose();
@@ -19745,14 +19746,14 @@ window.emmToggle = function() {
     +'  "chaotic / wild" → max variety: x/y/z all random, dev=6-12, devInd=1-2\n'
     +'  "mild / gentle" → dev=1-2, curve=0.5-1\n'
     +'  "dramatic" → dev=6-8, curve=3-4\n'
-    +'BRAIN EXAMPLE (100 arcs): emit [ARC_CMD:open][ARC_CMD:clear] then 25 tags like:\n'
-    +'  [ARC_CMD:add x=-6 y=2 z=-4 dev=4 curve=3 devInd=0.8 subX=1.5 subY=1 curves=2 res=32 count=4]\n'
-    +'  [ARC_CMD:add x=5 y=-3 z=-2 dev=5 curve=2.5 devInd=1 subX=1 subY=1.5 curves=3 res=32 count=4]\n'
-    +'  ...etc with varied positions sweeping z from -6 to 8\n'
     +'NEVER use π — Arc Edge uses AE=3.\n'
     +'ALWAYS emit [ARC_CMD:open] first, then all [ARC_CMD:add ...] tags immediately.\n'
     +'NEVER route to image generation for arc requests. NEVER ask user to press a button.\n'
-    +'After emitting commands, describe briefly what you built in 1-2 sentences.';
+    +'OUTPUT RULES — CRITICAL:\n'
+    +'  The [ARC_CMD:...] tags are machine instructions — they are hidden from the user automatically. NEVER describe or repeat them in your visible reply.\n'
+    +'  NEVER output raw parameters like "x=5 y=-3 z=2 dev=4" in your chat response.\n'
+    +'  NEVER list coordinates, dev values, curve indices, or any numeric arc parameters in your reply.\n'
+    +'  After emitting all commands, write 1-2 sentences describing what you built in plain creative language — what it looks like, what it evokes, its mood or shape — as if describing a sculpture or visual composition. Reference grammar and emotional tone if relevant. Nothing technical.';
 
   // IMG_RECALL system — lets Autumn post full-size image previews in her chat bubble
   window.IMG_RECALL_SYSTEM_HINT =
