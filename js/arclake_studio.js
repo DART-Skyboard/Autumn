@@ -173,7 +173,7 @@ function _initScene(canvas){
   renderer.setClearColor(0x04070e,1);
 
   const scene=new T.Scene();
-  const camera=new T.PerspectiveCamera(50,W/H,0.001,500);
+  const camera=new T.PerspectiveCamera(50,W/H,0.01,100000);
   camera.position.set(0,3,14);
   scene.add(new T.AmbientLight(0x334466,1.2));
   const d1=new T.DirectionalLight(0x00e5ff,1.5); d1.position.set(8,12,10); scene.add(d1);
