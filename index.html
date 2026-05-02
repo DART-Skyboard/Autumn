@@ -8938,11 +8938,23 @@ function classifyIntentLocal(text, hasPendingImages) {
         /^show\s+hidden\s+messages$/.test(lc)) return 'SHOW_HIDDEN';
   }
   // ── ARCLAKE — must come BEFORE Arc Edge (arc lake contains the word "arc") ──
+  // Catches: "arc lake", compound names, element symbols, chemistry vocab,
+  // "random elements", "build a compound", "generate a simulation" with chemistry
   var _arcLakeIntent =
     /\b(arc\s*lake|arclake)\b/i.test(lc) ||
-    /\b(hercules\s*alloy|hercules|h2o|co2|carbon\s*dioxide|nacl|salt\s*molecule|titanium\s*alloy|copper\s*oxide|calcium\s*carbonate|silicon\s*dioxide|iron\s*copper)\b/i.test(lc) ||
-    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid|waveform|electron|proton|neutron|nucleus|atomic|atom)\b/i.test(lc) &&
-     !/\b(arc\s*edge|arcedge|deviation|induction)\b/i.test(lc));
+    // Named compounds and alloys
+    /\b(hercules\s*alloy|h2o|co2|nacl|fe2o3|tial|silicon\s*dioxide|sio2|copper\s*oxide|cuo|calcium\s*carb|titanium\s*alloy|steel|iron.*copper|water\s*molecule|salt\s*molecule)\b/i.test(lc) ||
+    // Element names that wouldn't appear in arc edge context
+    /\b(hydrogen|helium|lithium|beryllium|boron|carbon\s*atom|nitrogen|oxygen|fluorine|neon|sodium|magnesium|phosphorus|sulfur|chlorine|argon|potassium|calcium|scandium|vanadium|manganese|zinc|gallium|germanium|arsenic|selenium|bromine|krypton|rubidium|strontium|yttrium|zirconium|niobium|ruthenium|rhodium|palladium|silver|cadmium|indium|tin|antimony|tellurium|iodine|xenon|platinum|gold|mercury|lead|bismuth|uranium)\b/i.test(lc) ||
+    // Chemistry / particle simulation vocabulary
+    /\b(compound|element\s*sim|atom\s*sim|periodic|molecular|waveform|electron\s*cloud|proton|neutron|nucleus|atomic|orbital|shell|cfd\s*sim|fluid\s*sim|particle\s*cloud)\b/i.test(lc) ||
+    // "simulate" or "generate" + chemistry context (not arc edge)
+    (/\b(simulate|simulation|generate|build|show|create|run)\b/i.test(lc) &&
+     /\b(molecule|compound|alloy|element|atom|thermal|temperature|celsius|pressure|pascal|fluid|cfd|waveform)\b/i.test(lc) &&
+     !/\b(arc\s*edge|arcedge|deviation|induction|arc\s*math|arc\s*curve)\b/i.test(lc)) ||
+    // "random elements", "grab some elements", etc
+    (/\b(random|some|grab|pick|choose|select)\b/i.test(lc) &&
+     /\b(element|atom|compound|molecule)\b/i.test(lc));
   if (_arcLakeIntent) return 'ARCLAKE';
 
   // ── ARC EDGE — highest priority for arc/curve generation requests ──
@@ -10049,14 +10061,17 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
-  // ── ARCLAKE — open ArcLake Studio with matched preset and auto-start ──────────
+  // ── ARCLAKE — open ArcLake Studio with matched preset / compound / elements ──
   if (_intentLabel === 'ARCLAKE') {
     var _alsPreset = null;
-    var _alsAutoStart = /\b(simulate|run|start|show|play|visualize|render)\b/i.test(augmentedText);
+    var _alsCompoundText = null; // for multi-compound / free-form
+    var _alsAutoStart = /\b(simulate|run|start|show|play|visualize|render|generate)\b/i.test(augmentedText);
     var _alsTxt = augmentedText.toLowerCase();
+
+    // Named presets
     if (/hercules/i.test(_alsTxt))               _alsPreset = 'Hercules Alloy (6-el)';
-    else if (/water|h2o/i.test(_alsTxt))          _alsPreset = 'Water (H₂O)';
-    else if (/co2|carbon.?dioxide/i.test(_alsTxt))_alsPreset = 'CO₂';
+    else if (/water|h2o/i.test(_alsTxt))          _alsPreset = 'Water (H\u2082O)';
+    else if (/co2|carbon.?dioxide/i.test(_alsTxt))_alsPreset = 'CO\u2082';
     else if (/salt|nacl/i.test(_alsTxt))          _alsPreset = 'NaCl (Salt)';
     else if (/steel/i.test(_alsTxt))              _alsPreset = 'Steel (Fe+C+Cr)';
     else if (/titanium/i.test(_alsTxt))           _alsPreset = 'Titanium Alloy (Ti+Al)';
@@ -10064,6 +10079,15 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     else if (/calcium/i.test(_alsTxt))            _alsPreset = 'Calcium Carbonate';
     else if (/silicon/i.test(_alsTxt))            _alsPreset = 'Silicon Dioxide';
     else if (/iron.*copper|copper.*iron/i.test(_alsTxt)) _alsPreset = 'Iron + Copper Alloy';
+
+    // Free-form compound text — extract formula-like patterns from the command
+    // e.g. "show Fe2O3 and H2O" → compound text
+    if(!_alsPreset){
+      var _formulaMatch = augmentedText.match(/([A-Z][a-z]?\d*(?:\s+(?:and|&|\+|with)\s+[A-Z][a-z]?\d*)*(?:\s+[A-Z][a-z]?\d*)*)/);
+      if(_formulaMatch && _formulaMatch[0].length > 1 && /[A-Z]/.test(_formulaMatch[0])){
+        _alsCompoundText = _formulaMatch[0].trim();
+      }
+    }
     // Temperature extraction
     var _alsTempM = augmentedText.match(/([-\d.]+)\s*(?:degrees?|°)?\s*(celsius|fahrenheit|kelvin|[cfkCFK])\b/i);
     var _alsTemp  = null;
@@ -10080,6 +10104,13 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     // Open studio
     if (window.arcLakeStudioOpen) {
       window.arcLakeStudioOpen(_alsPreset, _alsAutoStart);
+      // If free-form compound text, populate the compound input and trigger build
+      if(_alsCompoundText && !_alsPreset && window._alsBuildCompounds){
+        setTimeout(function(){
+          var inp=document.getElementById('als-compound-in');
+          if(inp){ inp.value=_alsCompoundText; window._alsBuildCompounds(); }
+        }, 600);
+      }
       if (_alsTemp !== null) setTimeout(function(){
         var sl = document.getElementById('als-temp');
         if (sl) { sl.value=_alsTemp; window._alsUpdateParam&&window._alsUpdateParam('temp',_alsTemp); }
