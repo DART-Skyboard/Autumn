@@ -1247,7 +1247,9 @@ window.addEventListener('resize', ()=>{
 });
 
 /* ════════════════════════════════════════════════════════
-   MACRO / PRESET SYSTEM — localStorage, 6 slots
+   MACRO / PRESET SYSTEM — GitHub Gist sync + localStorage fallback
+   When user is logged in with PAT, macros sync to their GitHub account
+   via a secret Gist (movement-conjecture-macros.json)
 ════════════════════════════════════════════════════════ */
 const MACRO_KEY = 'mc_macros_v1';
 const MACRO_SLOTS = 6;
@@ -1264,21 +1266,94 @@ const DEFAULT_MACRO = {
   yrStart: 2026, yrEnd: 2080, eod: 1.3
 };
 
-function loadMacros(){
+// ── Gist ID cache ─────────────────────────────────────────────────────────
+const GIST_KEY = 'mc_gist_id';
+const GIST_FILE = 'movement-conjecture-macros.json';
+
+async function _findOrCreateGist(tok){
+  const gistId = localStorage.getItem(GIST_KEY);
+  if(gistId) return gistId;
+  // Search existing gists for our file
+  try{
+    const res = await fetch('https://api.github.com/gists?per_page=30',
+      {headers:{Authorization:'token '+tok}});
+    const gists = await res.json();
+    const found = (gists||[]).find(g=>g.files&&g.files[GIST_FILE]);
+    if(found){ localStorage.setItem(GIST_KEY,found.id); return found.id; }
+  }catch(e){}
+  // Create new secret gist
+  try{
+    const res = await fetch('https://api.github.com/gists',{
+      method:'POST', headers:{Authorization:'token '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({description:'Movement Conjecture macros',public:false,
+        files:{[GIST_FILE]:{content:JSON.stringify(Array(MACRO_SLOTS).fill(null))}}})
+    });
+    const g = await res.json();
+    if(g.id){ localStorage.setItem(GIST_KEY,g.id); return g.id; }
+  }catch(e){}
+  return null;
+}
+
+async function saveMacros(arr){
+  // Always save to localStorage immediately (instant, offline-safe)
+  try{ localStorage.setItem(MACRO_KEY, JSON.stringify(arr)); }catch(e){}
+  // Async sync to Gist if token available
+  const tok = localStorage.getItem(_MC_TOKEN_KEY);
+  if(!tok) return;
+  try{
+    const gistId = await _findOrCreateGist(tok);
+    if(!gistId) return;
+    await fetch('https://api.github.com/gists/'+gistId,{
+      method:'PATCH', headers:{Authorization:'token '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({files:{[GIST_FILE]:{content:JSON.stringify(arr)}}})
+    });
+  }catch(e){ console.warn('[MC] Gist sync failed:',e.message); }
+}
+
+async function loadMacros(){
+  // 1. Try Gist (account-level, cross-device)
+  const tok = localStorage.getItem(_MC_TOKEN_KEY);
+  if(tok){
+    try{
+      const gistId = await _findOrCreateGist(tok);
+      if(gistId){
+        const res = await fetch('https://api.github.com/gists/'+gistId,
+          {headers:{Authorization:'token '+tok}});
+        const g = await res.json();
+        const raw = g?.files?.[GIST_FILE]?.content;
+        if(raw){
+          const arr = JSON.parse(raw);
+          localStorage.setItem(MACRO_KEY, JSON.stringify(arr)); // cache locally
+          return arr;
+        }
+      }
+    }catch(e){ console.warn('[MC] Gist load failed, using localStorage:',e.message); }
+  }
+  // 2. Fallback to localStorage
   try{
     const raw = localStorage.getItem(MACRO_KEY);
     if(raw) return JSON.parse(raw);
   }catch(e){}
-  // First run — populate slot 0 with default
+  // 3. First run — default
   const arr = Array(MACRO_SLOTS).fill(null);
   arr[0] = DEFAULT_MACRO;
-  saveMacros(arr);
+  await saveMacros(arr);
   return arr;
 }
-function saveMacros(arr){
-  try{ localStorage.setItem(MACRO_KEY, JSON.stringify(arr)); }catch(e){}
+
+function getMacros(){
+  // Sync version from localStorage (for immediate UI — Gist loads async)
+  try{ const raw=localStorage.getItem(MACRO_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+  return Array(MACRO_SLOTS).fill(null);
 }
-function getMacros(){ return loadMacros(); }
+
+// Reload from Gist when page becomes visible (cross-tab sync)
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden) loadMacros().then(arr=>{
+    localStorage.setItem(MACRO_KEY,JSON.stringify(arr));
+    renderMacroGrid();
+  });
+});
 
 function renderMacroGrid(){
   const macros = getMacros();
@@ -1375,8 +1450,23 @@ function showMacroMgr(){
   if(n>=1&&n<=MACRO_SLOTS) showSaveMacroDialog(n-1);
 }
 
-// Init macros on load
-renderMacroGrid();
+// Init macros on load — pull from Gist if token available
+(async()=>{
+  const arr = await loadMacros();
+  renderMacroGrid();
+  // Show gist sync status in nav if logged in
+  const tok = localStorage.getItem(_MC_TOKEN_KEY);
+  if(tok){
+    const gistId=localStorage.getItem(GIST_KEY);
+    if(gistId){
+      const syncEl=document.createElement('div');
+      syncEl.style.cssText='font-family:"Share Tech Mono",monospace;font-size:.42rem;color:rgba(0,229,255,.35);padding:0 12px';
+      syncEl.title='Macros synced to your GitHub Gist';
+      syncEl.textContent='⇅ GIST SYNC';
+      document.querySelector('nav')?.appendChild(syncEl);
+    }
+  }
+})();
 </script>
 </body>
 </html>
