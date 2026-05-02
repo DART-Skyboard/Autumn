@@ -15,14 +15,25 @@
 //   - Natural-language compound parser: "Fe2O3 and H2O" → two groups
 //   - Voice command integration for Autumn
 
-const ALS_ELEMENTS_URL = 'assets/elements.json';
+// Absolute URL — works whether loaded in tools panel, overlay, or directly
+const ALS_ELEMENTS_URL = (function(){
+  // Try relative first (works on leatr.xyz), fall back to raw GitHub
+  return 'assets/elements.json';
+})();
 let _alsElements = null; // loaded from JSON
 
 // ── Load elements from JSON ───────────────────────────────────────────────────
 async function _alsLoadElements() {
   if (_alsElements) return _alsElements;
   try {
-    const res = await fetch(ALS_ELEMENTS_URL + '?v=2026050201');
+    // Try relative path first, then absolute GitHub Pages URL
+    let res;
+    try {
+      res = await fetch(ALS_ELEMENTS_URL + '?v=2026050301');
+      if(!res.ok) throw new Error('relative failed');
+    } catch(e) {
+      res = await fetch('https://leatr.xyz/assets/elements.json?v=2026050301');
+    }
     _alsElements = await res.json();
   } catch(e) {
     // Fallback to built-in subset if fetch fails
