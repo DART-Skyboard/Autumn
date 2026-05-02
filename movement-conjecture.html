@@ -275,7 +275,64 @@ _gateCheck();
 
 <div class="wrap">
 
+<!-- ═══ ABOUT ═══ -->
+<section id="sec-about" style="padding-top:32px">
+  <div class="card" style="border-color:rgba(240,192,64,.2)">
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <div style="font-family:var(--fh);font-size:.55rem;letter-spacing:3px;color:var(--gold);margin-bottom:10px">WHAT IS MOVEMENT CONJECTURE?</div>
+        <p style="color:var(--dim);font-size:.88rem;line-height:1.9;margin-bottom:10px">
+          This tool is built on a simple idea: there is a difference between <em style="color:var(--txt)">knowing about something</em> and <em style="color:var(--txt)">having actually had a hand in it</em>. The person who helped lay the foundation of a facility, who worked the construction, who personally knows the people that built and ran that industry — their perspective carries a different weight than someone who read about it.
+        </p>
+        <p style="color:var(--dim);font-size:.88rem;line-height:1.9;margin-bottom:10px">
+          Movement Conjecture takes that idea and maps it onto stock/industry inputs. Your first three tickers represent areas where you have some degree of hands-on familiarity. The next two represent how those connect outward — adjacent industries or influences you have less direct experience with. The calculation crosses them at a Sigma investment point you choose, projecting how that personal familiarity advantage would propagate over time.
+        </p>
+        <p style="color:var(--dim);font-size:.88rem;line-height:1.9">
+          The <em style="color:var(--txt)">EOD value</em> is where you feel things stand right now — your current read on the balance between all the chosen sectors. Raising it emphasizes your confidence in the overall Sigma. This is not a financial model. It is a personal conjecture engine. The math is my own chosen format — it will always be for this particular conjecture.<br>
+          <span style="font-family:var(--fc);font-size:.42rem;color:rgba(240,192,64,.45);letter-spacing:1px">— Justin Craig Venable, DART Meadow LLC, 2020</span>
+        </p>
+      </div>
+      <div style="flex-shrink:0;width:100%;max-width:240px;background:rgba(240,192,64,.05);border:1px solid rgba(240,192,64,.15);border-radius:8px;padding:14px">
+        <div style="font-family:var(--fh);font-size:.38rem;letter-spacing:2px;color:rgba(240,192,64,.6);margin-bottom:10px">HOW TO READ THE OUTPUT</div>
+        <div style="font-family:var(--fc);font-size:.52rem;color:var(--dim);line-height:1.9">
+          <div><span style="color:var(--cyan)">Tickers 1–3</span> — hands-on familiarity</div>
+          <div><span style="color:var(--cyan)">Tickers 4–5</span> — adjacent influence</div>
+          <div><span style="color:var(--cyan)">Sigma</span> — weight of your experience</div>
+          <div><span style="color:var(--gold)">EOD</span> — your current read on the balance</div>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)"><span style="color:var(--violet)">SPNCRYNODE</span> — orbital propagation node</div>
+          <div><span style="color:var(--violet)">DLSS</span> — phase propagation coefficient</div>
+          <div><span style="color:var(--green)">Curves</span> — how familiarity plays out over time</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ANALYTICS OPT-IN ═══ -->
+<section id="sec-analytics-opt" style="padding-top:12px">
+  <div class="card" id="analytics-card" style="border-color:rgba(167,139,250,.15);padding:16px 20px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-family:var(--fh);font-size:.42rem;letter-spacing:2px;color:var(--violet);margin-bottom:4px">DATA SHARING · ANALYTICAL LOG</div>
+        <div style="font-size:.82rem;color:var(--dim);line-height:1.7">
+          No analytical data is collected by default. If you opt in, your calculation inputs (tickers, sigma values, EOD, outputs) are logged to your private GitHub Gist and build into a personal pattern record over time. You can view your history here and opt out at any time — logging stops immediately.
+        </div>
+      </div>
+      <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+          <div id="analytics-toggle" onclick="_analyticsToggle()" style="width:44px;height:24px;border-radius:12px;border:1px solid rgba(167,139,250,.4);background:rgba(167,139,250,.08);cursor:pointer;position:relative;transition:all .2s">
+            <div id="analytics-knob" style="position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:rgba(167,139,250,.4);transition:all .2s"></div>
+          </div>
+          <span id="analytics-label" style="font-family:var(--fh);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.5)">OFF</span>
+        </label>
+        <div id="analytics-sync-status" style="font-family:var(--fc);font-size:.38rem;color:rgba(167,139,250,.35)"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ═══ MACROS ═══ -->
+
 <section id="sec-macros" style="padding-top:24px">
   <div class="sh"><span class="sh-num">⊞</span><span class="sh-title">PRESETS</span>
     <span style="font-family:var(--fc);font-size:.45rem;color:var(--dim);margin-left:8px">LOAD SAVED CONFIGURATIONS</span>
@@ -401,6 +458,40 @@ _gateCheck();
 </section>
 
 </div><!-- /wrap -->
+
+<!-- ═══ ANALYTICS HISTORY (shown if opted in and has data) ═══ -->
+<div class="wrap" id="analytics-history-wrap" style="display:none;padding-bottom:40px">
+  <section style="padding-top:0">
+    <div class="sh"><span class="sh-num">⊕</span><span class="sh-title">YOUR PATTERN RECORD</span>
+      <span style="font-family:var(--fc);font-size:.45rem;color:var(--dim);margin-left:8px">CALCULATION HISTORY · PRIVATE</span>
+      <span class="sh-line"></span>
+      <button class="btn-sec" style="padding:5px 12px;font-size:.38rem" onclick="_analyticsClear()">✕ CLEAR LOG</button>
+    </div>
+    <div class="card">
+      <div id="analytics-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px"></div>
+      <!-- Run history chart -->
+      <div class="card-title">CALCULATION RUNS OVER TIME</div>
+      <div class="chart-wrap" style="height:200px;margin-bottom:16px">
+        <canvas id="chart-analytics-runs"></canvas>
+      </div>
+      <!-- DLSS trend chart -->
+      <div class="card-title">DLSS TREND BY TICKER</div>
+      <div class="chart-wrap" style="height:200px;margin-bottom:16px">
+        <canvas id="chart-analytics-dlss"></canvas>
+      </div>
+      <!-- Run log table -->
+      <div class="card-title">RUN LOG</div>
+      <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+        <table class="stbl" id="analytics-log-table">
+          <thead><tr>
+            <th>DATE</th><th>TICKERS</th><th>EOD</th><th>RANGE</th><th>AVG DLSS</th><th>PEAK NODE</th>
+          </tr></thead>
+          <tbody id="analytics-log-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
 
 <footer>
   <span>© DART MEADOW LLC 2020 · MOVEMENT CONJECTURE (EOD)</span>
@@ -626,6 +717,18 @@ function runAll(){
   document.getElementById('sec-results').style.display = '';
   document.getElementById('sec-results').scrollIntoView({behavior:'smooth',block:'start'});
   setStatus(`Computed ${ran} stock conjecture${ran>1?'s':''}`);
+
+  // ── Log to analytics if opted in ────────────────────────────────────────
+  _analyticsLog({
+    ts: new Date().toISOString(),
+    eod: eodV, yrStart: yrS, yrEnd: yrE,
+    stocks: slots.filter(s=>s.result).map(s=>({
+      ticker: s.ticker, price: s.price, sigma: s.sigma,
+      a: s.result.a, dlss: s.result.dlss, mfmsp: s.result.mfmsp,
+      smsp: s.result.smsp, cmsp: s.result.cmsp,
+      spncrynode: s.result.spncrynode, rmsp: s.result.rmsp
+    }))
+  });
 }
 
 // ── Render results ─────────────────────────────────────
@@ -1450,10 +1553,281 @@ function showMacroMgr(){
   if(n>=1&&n<=MACRO_SLOTS) showSaveMacroDialog(n-1);
 }
 
+
+/* ════════════════════════════════════════════════════════
+   ANALYTICS SYSTEM — opt-in, Gist-backed, private
+════════════════════════════════════════════════════════ */
+const ANALYTICS_GIST_FILE = 'movement-conjecture-analytics.json';
+const ANALYTICS_PREF_KEY  = 'mc_analytics_enabled';
+let _analyticsEnabled = false;
+let _analyticsData = { runs: [], enabled: false, lastUpdated: null };
+
+// ── Toggle ─────────────────────────────────────────────
+function _analyticsToggle(){
+  _analyticsEnabled = !_analyticsEnabled;
+  _analyticsData.enabled = _analyticsEnabled;
+  _analyticsUpdateUI();
+  _analyticsSync(); // persist preference to Gist
+  if(_analyticsEnabled){
+    _analyticsLoadHistory().then(_analyticsRenderHistory);
+  } else {
+    document.getElementById('analytics-history-wrap').style.display='none';
+  }
+}
+
+function _analyticsUpdateUI(){
+  const tog = document.getElementById('analytics-toggle');
+  const knob= document.getElementById('analytics-knob');
+  const lbl = document.getElementById('analytics-label');
+  if(!tog) return;
+  if(_analyticsEnabled){
+    tog.style.background='rgba(167,139,250,.25)';
+    tog.style.borderColor='rgba(167,139,250,.6)';
+    knob.style.left='23px'; knob.style.background='#a78bfa';
+    lbl.style.color='#a78bfa'; lbl.textContent='ON';
+  } else {
+    tog.style.background='rgba(167,139,250,.08)';
+    tog.style.borderColor='rgba(167,139,250,.4)';
+    knob.style.left='3px'; knob.style.background='rgba(167,139,250,.4)';
+    lbl.style.color='rgba(167,139,250,.5)'; lbl.textContent='OFF';
+  }
+}
+
+// ── Log a run ──────────────────────────────────────────
+async function _analyticsLog(runData){
+  if(!_analyticsEnabled) return;
+  _analyticsData.runs = _analyticsData.runs || [];
+  _analyticsData.runs.unshift(runData); // newest first
+  if(_analyticsData.runs.length > 500) _analyticsData.runs = _analyticsData.runs.slice(0,500);
+  _analyticsData.lastUpdated = new Date().toISOString();
+  await _analyticsSync();
+  _analyticsRenderHistory();
+}
+
+// ── Sync analytics data to Gist ────────────────────────
+async function _analyticsSync(){
+  const tok = localStorage.getItem(_MC_TOKEN_KEY);
+  if(!tok) return;
+  try{
+    // Find or create the analytics gist (separate from macros gist)
+    const analyticsGistKey='mc_analytics_gist_id';
+    let gistId=localStorage.getItem(analyticsGistKey);
+    if(!gistId){
+      // Search for existing analytics gist
+      const res=await fetch('https://api.github.com/gists?per_page=30',
+        {headers:{Authorization:'token '+tok}});
+      const gists=await res.json();
+      const found=(gists||[]).find(g=>g.files&&g.files[ANALYTICS_GIST_FILE]);
+      if(found){ gistId=found.id; localStorage.setItem(analyticsGistKey,gistId); }
+    }
+    const payload=JSON.stringify({..._analyticsData,enabled:_analyticsEnabled});
+    if(gistId){
+      await fetch('https://api.github.com/gists/'+gistId,{
+        method:'PATCH', headers:{Authorization:'token '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({files:{[ANALYTICS_GIST_FILE]:{content:payload}}})
+      });
+    } else {
+      // Create new analytics gist
+      const r2=await fetch('https://api.github.com/gists',{
+        method:'POST', headers:{Authorization:'token '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({description:'Movement Conjecture analytics (private)',public:false,
+          files:{[ANALYTICS_GIST_FILE]:{content:payload}}})
+      });
+      const g=await r2.json();
+      if(g.id) localStorage.setItem(analyticsGistKey,g.id);
+    }
+    document.getElementById('analytics-sync-status').textContent='⇅ synced '+new Date().toLocaleTimeString();
+  }catch(e){
+    document.getElementById('analytics-sync-status').textContent='⚠ sync failed';
+  }
+}
+
+// ── Load analytics from Gist ───────────────────────────
+async function _analyticsLoadHistory(){
+  const tok=localStorage.getItem(_MC_TOKEN_KEY);
+  if(!tok) return;
+  try{
+    const analyticsGistKey='mc_analytics_gist_id';
+    const gistId=localStorage.getItem(analyticsGistKey);
+    if(!gistId) return;
+    const res=await fetch('https://api.github.com/gists/'+gistId,
+      {headers:{Authorization:'token '+tok}});
+    const g=await res.json();
+    const raw=g?.files?.[ANALYTICS_GIST_FILE]?.content;
+    if(raw){
+      const d=JSON.parse(raw);
+      _analyticsData=d;
+      _analyticsEnabled=d.enabled||false;
+      _analyticsUpdateUI();
+      if(_analyticsEnabled)
+        document.getElementById('analytics-history-wrap').style.display='';
+    }
+  }catch(e){}
+}
+
+// ── Clear log ──────────────────────────────────────────
+async function _analyticsClear(){
+  if(!confirm('Clear your entire calculation log?')) return;
+  _analyticsData.runs=[];
+  _analyticsData.lastUpdated=new Date().toISOString();
+  await _analyticsSync();
+  _analyticsRenderHistory();
+}
+
+// ── Render history UI ──────────────────────────────────
+function _analyticsRenderHistory(){
+  const wrap=document.getElementById('analytics-history-wrap');
+  const runs=_analyticsData.runs||[];
+  if(!_analyticsEnabled||!runs.length){ wrap.style.display='none'; return; }
+  wrap.style.display='';
+
+  // Summary cards
+  const summ=document.getElementById('analytics-summary');
+  const allDlss=runs.flatMap(r=>r.stocks.map(s=>s.dlss)).filter(isFinite);
+  const allNode=runs.flatMap(r=>r.stocks.map(s=>s.spncrynode)).filter(isFinite);
+  const tickers=[...new Set(runs.flatMap(r=>r.stocks.map(s=>s.ticker)))].filter(Boolean);
+  summ.innerHTML=[
+    ['TOTAL RUNS',runs.length,''],
+    ['UNIQUE TICKERS',tickers.length,''],
+    ['AVG DLSS',allDlss.length?(allDlss.reduce((a,b)=>a+b,0)/allDlss.length).toFixed(4):'—',''],
+    ['PEAK NODE',allNode.length?Math.max(...allNode).toExponential(3):'—',''],
+    ['FIRST RUN',runs.length?new Date(runs[runs.length-1].ts).toLocaleDateString():'—',''],
+    ['LAST RUN',runs.length?new Date(runs[0].ts).toLocaleDateString():'—',''],
+  ].map(([l,v])=>`<div class="rc active"><div class="rc-lbl">${l}</div><div class="rc-val" style="font-size:.75rem">${v}</div></div>`).join('');
+
+  // Run log table
+  const tbody=document.getElementById('analytics-log-tbody');
+  tbody.innerHTML=runs.slice(0,100).map(r=>{
+    const ticks=r.stocks.map(s=>`<span style="color:${COLORS[r.stocks.indexOf(s)]||'#cce8f0'}">${s.ticker}</span>`).join(' ');
+    const avgDlss=r.stocks.length?(r.stocks.reduce((a,s)=>a+(s.dlss||0),0)/r.stocks.length).toFixed(4):'—';
+    const peakNode=r.stocks.length?Math.max(...r.stocks.map(s=>s.spncrynode||0)).toExponential(2):'—';
+    return `<tr>
+      <td style="white-space:nowrap;font-size:.55rem">${new Date(r.ts).toLocaleString()}</td>
+      <td>${ticks}</td>
+      <td>${r.eod}</td>
+      <td>${r.yrStart}→${r.yrEnd}</td>
+      <td>${avgDlss}</td>
+      <td style="color:var(--violet)">${peakNode}</td>
+    </tr>`;
+  }).join('');
+
+  // Runs-over-time chart
+  _drawAnalyticsRunsChart(runs);
+  // DLSS trend chart
+  _drawAnalyticsDlssChart(runs);
+}
+
+function _drawAnalyticsRunsChart(runs){
+  const canvas=document.getElementById('chart-analytics-runs');
+  const W=canvas.offsetWidth||800, H=180;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if(!runs.length) return;
+
+  // Group by date
+  const byDate={};
+  runs.forEach(r=>{
+    const d=new Date(r.ts).toLocaleDateString();
+    byDate[d]=(byDate[d]||0)+1;
+  });
+  const dates=Object.keys(byDate).sort((a,b)=>new Date(a)-new Date(b));
+  const counts=dates.map(d=>byDate[d]);
+  const maxC=Math.max(...counts,1);
+  const pad={l:40,r:16,t:16,b:28};
+  const cW=W-pad.l-pad.r, cH=H-pad.t-pad.b;
+
+  // Grid
+  ctx.strokeStyle='rgba(0,229,255,.06)'; ctx.lineWidth=1;
+  for(let g=0;g<=4;g++){const y=pad.t+(g/4)*cH;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cW,y);ctx.stroke();}
+  ctx.fillStyle='rgba(0,229,255,.4)'; ctx.font=`9px 'Share Tech Mono'`;
+  for(let g=0;g<=4;g++){
+    const y=pad.t+(g/4)*cH;
+    ctx.fillText(Math.round(maxC*(1-g/4)),2,y+4);
+  }
+
+  // Bars
+  const barW=Math.max(4, Math.min(28, (cW/dates.length)-2));
+  dates.forEach((d,i)=>{
+    const x=pad.l+i*(cW/dates.length);
+    const bh=(counts[i]/maxC)*cH;
+    const by=pad.t+cH-bh;
+    const grad=ctx.createLinearGradient(0,by,0,by+bh);
+    grad.addColorStop(0,'rgba(167,139,250,.8)'); grad.addColorStop(1,'rgba(167,139,250,.15)');
+    ctx.fillStyle=grad; ctx.fillRect(x,by,barW,bh);
+    if(i===0||i===dates.length-1){
+      ctx.fillStyle='rgba(0,229,255,.35)'; ctx.font=`8px 'Share Tech Mono'`;
+      ctx.fillText(d,x,H-pad.b+12);
+    }
+  });
+}
+
+function _drawAnalyticsDlssChart(runs){
+  const canvas=document.getElementById('chart-analytics-dlss');
+  const W=canvas.offsetWidth||800, H=180;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if(runs.length<2) return;
+
+  // Get all unique tickers across runs
+  const tickerSet=[...new Set(runs.flatMap(r=>r.stocks.map(s=>s.ticker)).filter(Boolean))].slice(0,5);
+  const pad={l:50,r:16,t:16,b:28};
+  const cW=W-pad.l-pad.r, cH=H-pad.t-pad.b;
+
+  const reversedRuns=[...runs].reverse(); // oldest first for left→right
+  const allDlss=reversedRuns.flatMap(r=>r.stocks.map(s=>s.dlss||0)).filter(isFinite);
+  const minD=Math.min(...allDlss), maxD=Math.max(...allDlss,minD+0.001);
+  const rangeD=maxD-minD;
+  const px=i=>pad.l+(i/(reversedRuns.length-1||1))*cW;
+  const py=v=>pad.t+(1-(v-minD)/rangeD)*cH;
+
+  ctx.strokeStyle='rgba(0,229,255,.06)'; ctx.lineWidth=1;
+  for(let g=0;g<=4;g++){const y=pad.t+(g/4)*cH;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cW,y);ctx.stroke();
+    ctx.fillStyle='rgba(0,229,255,.35)'; ctx.font=`9px 'Share Tech Mono'`;
+    ctx.fillText((minD+(1-g/4)*rangeD).toFixed(3),2,y+4);}
+
+  tickerSet.forEach((ticker,ti)=>{
+    const col=COLORS[ti]||'#cce8f0';
+    const pts=reversedRuns.map((r,i)=>{
+      const s=r.stocks.find(s=>s.ticker===ticker);
+      return s?{x:px(i),y:py(s.dlss||minD)}:null;
+    }).filter(Boolean);
+    if(pts.length<2) return;
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=1.6; ctx.globalAlpha=0.8;
+    ctx.shadowColor=col; ctx.shadowBlur=5;
+    ctx.beginPath();
+    pts.forEach((p,j)=>j===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+    ctx.stroke(); ctx.restore();
+    // Label
+    const last=pts[pts.length-1];
+    ctx.fillStyle=col; ctx.font=`9px 'Orbitron'`;
+    ctx.fillText(ticker,last.x+3,last.y+4);
+  });
+}
+
+// ── Init analytics on load ─────────────────────────────
+async function _analyticsInit(){
+  await _analyticsLoadHistory();
+  _analyticsUpdateUI();
+  if(_analyticsEnabled){
+    document.getElementById('analytics-history-wrap').style.display='';
+    _analyticsRenderHistory();
+  }
+}
+
+// ── Resize redraw ──────────────────────────────────────
+window.addEventListener('resize',()=>{
+  if(_analyticsEnabled&&(_analyticsData.runs||[]).length) _analyticsRenderHistory();
+});
+
+// Init macros on load — pull from Gist if token available
+
 // Init macros on load — pull from Gist if token available
 (async()=>{
   const arr = await loadMacros();
   renderMacroGrid();
+  await _analyticsInit();
   // Show gist sync status in nav if logged in
   const tok = localStorage.getItem(_MC_TOKEN_KEY);
   if(tok){
