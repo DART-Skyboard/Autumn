@@ -2103,6 +2103,35 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/conceptnet_loader.js"></script>
 <script src="js/autumn-grammar-engine.js?v=2026050102"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
+
+<!-- HUD Tools JS -->
+
+<script>
+(function(){
+  var _htoOpen=false;
+  window.hudToolsToggle=function(){
+    _htoOpen=!_htoOpen;
+    var ov=document.getElementById('hud-tools-overlay');
+    if(ov) ov.classList.toggle('hto-open',_htoOpen);
+    if(_htoOpen){
+      setTimeout(function(){
+        document.addEventListener('click',_htoOutside,true);
+      },50);
+    } else {
+      document.removeEventListener('click',_htoOutside,true);
+    }
+  };
+  function _htoOutside(e){
+    var ov=document.getElementById('hud-tools-overlay');
+    var tr=document.getElementById('hud-tools-trigger');
+    if(ov&&!ov.contains(e.target)&&(!tr||!tr.contains(e.target))){
+      _htoOpen=false;
+      ov.classList.remove('hto-open');
+      document.removeEventListener('click',_htoOutside,true);
+    }
+  }
+})();
+</script>
 </head>
 <body>
 
@@ -22096,7 +22125,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     <div id="als-overlay-body" style="flex:1;overflow:hidden;min-height:400px"></div>
   </div>
 
-<!-- ══════════════ HUD TOOLS LAUNCHER OVERLAY ══════════════ -->
+
+<!-- HUD TOOLS LAUNCHER OVERLAY -->
 <style>
 #hud-tools-overlay{
   position:fixed;left:0;top:68px;z-index:9600;
@@ -22167,7 +22197,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 .hto-btn.hto-violet{border-color:rgba(167,139,250,.28);background:rgba(167,139,250,.04);color:rgba(167,139,250,.7);}
 .hto-btn.hto-violet:hover{background:rgba(167,139,250,.14);color:#c4b5fd;border-color:rgba(167,139,250,.55);}
 </style>
-
 <div id="hud-tools-overlay">
   <div id="hud-tools-panel">
     <div class="hto-label">TOOLS</div>
@@ -22180,32 +22209,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   <div id="hud-tools-tab" onclick="hudToolsToggle()">TOOLS</div>
 </div>
 
-<script>
-(function(){
-  var _htoOpen=false;
-  window.hudToolsToggle=function(){
-    _htoOpen=!_htoOpen;
-    var ov=document.getElementById('hud-tools-overlay');
-    if(ov) ov.classList.toggle('hto-open',_htoOpen);
-    if(_htoOpen){
-      setTimeout(function(){
-        document.addEventListener('click',_htoOutside,true);
-      },50);
-    } else {
-      document.removeEventListener('click',_htoOutside,true);
-    }
-  };
-  function _htoOutside(e){
-    var ov=document.getElementById('hud-tools-overlay');
-    var tr=document.getElementById('hud-tools-trigger');
-    if(ov&&!ov.contains(e.target)&&(!tr||!tr.contains(e.target))){
-      _htoOpen=false;
-      ov.classList.remove('hto-open');
-      document.removeEventListener('click',_htoOutside,true);
-    }
-  }
-})();
-</script>
 </body>
 </html>
 
