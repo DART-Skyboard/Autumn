@@ -120,7 +120,6 @@ function _parseMultiCompound(input) {
         const r = totalAtoms > 1 ? 2.2 : 0;
         atoms.push({
           s: p.sym,
-          compoundIdx: ci,   // tag with compound index for bond isolation
           p: [
             clusterOffset + Math.cos(angle) * r,
             Math.sin(angle) * r * 0.5,
@@ -374,6 +373,7 @@ function _build(state,atomDefs,ptsPerE){
   for(let i=0;i<state.atoms.length;i++){
     for(let j=i+1;j<state.atoms.length;j++){
       const a=state.atoms[i],b=state.atoms[j];
+      if((a.compoundIdx!==undefined)&&(b.compoundIdx!==undefined)&&a.compoundIdx!==b.compoundIdx) continue;
       const dist=Math.hypot(a.defP[0]-b.defP[0],a.defP[1]-b.defP[1],a.defP[2]-b.defP[2]);
       if(dist<(a.el.r+b.el.r)*3.5){
         const av=new T.Vector3(...a.defP), bv=new T.Vector3(...b.defP);
@@ -680,26 +680,12 @@ global.renderToolsArcLake=function(){
     <!-- Compound builder — always visible, supports multiple compounds -->
     <div style="display:flex;flex-direction:column;gap:5px">
       <!-- Single element quick-add -->
-      <div style="display:flex;flex-direction:column;gap:5px">
-        <!-- BUILD MODE toggle -->
-        <div style="display:flex;align-items:center;gap:8px">
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none">
-            <input type="checkbox" id="als-build-mode" onchange="window._alsBuildModeToggle&&window._alsBuildModeToggle(this.checked)" style="width:13px;height:13px;accent-color:#00e5ff;cursor:pointer">
-            <span style="font-family:Orbitron,monospace;font-size:8px;letter-spacing:1.5px;color:#00e5ff">BUILD MODE</span>
-          </label>
-          <span style="font-size:8px;color:rgba(0,229,255,.4);font-family:Share Tech Mono,monospace">pick elements from list</span>
-        </div>
-        <!-- Scrollable element checklist (shown when BUILD MODE on) -->
-        <div id="als-el-panel" style="display:none;flex-direction:column;gap:4px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.14);border-radius:6px;padding:6px 8px">
-          <input id="als-el-search" placeholder="Search symbol or name..." oninput="window._alsFilterElements&&window._alsFilterElements(this.value)" style="background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.18);color:#e8eaf0;padding:4px 8px;border-radius:4px;font-size:9px;font-family:Share Tech Mono,monospace;outline:none;width:100%;box-sizing:border-box">
-          <div id="als-el-list" style="max-height:130px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:3px;padding-top:4px">
-            <span style="font-size:8.5px;color:#8a8fa8;font-family:Orbitron,monospace;padding:4px">Loading 127 elements...</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:4px;border-top:1px solid rgba(0,229,255,.08)">
-            <span id="als-el-sel-count" style="font-size:8px;color:#8a8fa8;font-family:Share Tech Mono,monospace"></span>
-            <button onclick="window._alsClearElSel&&window._alsClearElSel()" style="font-size:8px;background:none;border:none;color:rgba(255,77,77,.6);cursor:pointer;font-family:Orbitron,monospace;letter-spacing:1px;padding:0">CLEAR</button>
-          </div>
-        </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <label style="font-size:8px;color:#8a8fa8;letter-spacing:1px;white-space:nowrap">ELEMENT</label>
+        <select id="als-el-drop" style="flex:1;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);color:#e8eaf0;padding:4px 6px;border-radius:5px;font-size:9px;font-family:'Share Tech Mono',monospace;cursor:pointer;max-height:120px">
+          <option value="">Loading elements...</option>
+        </select>
+        <button onclick="window._alsAddElementFromDrop&&window._alsAddElementFromDrop()" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:9px;font-family:inherit" title="Add selected element to scene">+ ADD</button>
       </div>
       <!-- Compound / multi-compound text input -->
       <div style="display:flex;gap:6px;align-items:center">
@@ -812,94 +798,19 @@ global._alsRefreshCompoundList = function(){
   }).join('');
 };
 
-// ── Build mode toggle ──────────────────────────────────────────────────────
-global._alsBuildModeToggle = function(on){
-  var panel = document.getElementById('als-el-panel');
-  if(panel) panel.style.display = on ? 'flex' : 'none';
-  if(on){
-    _alsLoadElements().then(function(els){
-      if(els && els.length){
-        global._alsPopulateElList(els, '');
-      } else {
-        var list = document.getElementById('als-el-list');
-        if(list) list.innerHTML='<span style="font-size:8.5px;color:#ff6644;font-family:Orbitron,monospace;padding:4px">Failed to load elements — check console</span>';
-      }
-    });
-  }
-};
-
-// ── Populate the checkbox element list ────────────────────────────────────
-global._alsPopulateElList = function(els, filter){
-  var list = document.getElementById('als-el-list');
-  if(!list) return;
-  var f = (filter||'').toLowerCase().trim();
-  var visible = (els||[]).filter(function(e){
-    if(!e||!e.sym) return false;
-    return !f || e.sym.toLowerCase().startsWith(f) || (e.name||'').toLowerCase().includes(f);
-  });
-  if(!visible.length){
-    list.innerHTML='<span style="font-size:8.5px;color:#8a8fa8;font-family:Orbitron,monospace;padding:4px">No matches</span>';
-    return;
-  }
-  list.innerHTML = visible.map(function(e){
-    return '<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;'
-      +'background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.12);'
-      +'border-radius:4px;padding:3px 6px;font-size:8px;white-space:nowrap;user-select:none">'
-      +'<input type="checkbox" class="als-el-chk" data-sym="'+e.sym+'" data-name="'+(e.name||e.sym)+'"'
-      +' onchange="window._alsElChkChange&&window._alsElChkChange()"'
-      +' style="width:11px;height:11px;accent-color:#00e5ff;cursor:pointer;flex-shrink:0">'
-      +'<span style="font-family:Share Tech Mono,monospace;color:#00e5ff;font-weight:bold">'+e.sym+'</span>'
-      +'<span style="color:#8a8fa8;font-family:Share Tech Mono,monospace"> '+(e.name||'')+'</span>'
-      +'</label>';
-  }).join('');
-};
-
-// ── Filter element list ────────────────────────────────────────────────────
-global._alsFilterElements = function(val){
-  _alsLoadElements().then(function(els){
-    if(els && els.length) global._alsPopulateElList(els, val);
-  });
-};
-
-// ── Checkbox change — append symbol to compound input ────────────────────
-global._alsElChkChange = function(){
-  var checked = document.querySelectorAll('.als-el-chk:checked');
-  var count   = document.getElementById('als-el-sel-count');
-  if(count) count.textContent = checked.length ? checked.length+' selected' : '';
-
-  // Rebuild the compound input from checked elements
-  // Elements are grouped: space-separated within a compound, comma = new compound
-  // Current approach: append newly checked to input, respecting commas the user typed
-  var inp = document.getElementById('als-compound-in');
-  if(!inp) return;
-
-  // Get symbols in check order
-  var syms = Array.from(checked).map(function(c){ return c.dataset.sym; });
-  if(!syms.length){ inp.value=''; return; }
-
-  // Split current input on commas to preserve user-created compound separations
-  var parts = inp.value.split(',').map(function(p){ return p.trim(); });
-  // The last part is the active compound being built
-  // Replace it with the currently checked symbols (space-separated)
-  // Symbols that might relate to other comma-separated compounds are kept
-  var activePart = syms.join(' ');
-  parts[parts.length-1] = activePart;
-  inp.value = parts.join(', ');
-};
-
-// ── Clear all checkboxes ─────────────────────────────────────────────────
-global._alsClearElSel = function(){
-  document.querySelectorAll('.als-el-chk').forEach(function(c){ c.checked=false; });
-  var count = document.getElementById('als-el-sel-count');
-  if(count) count.textContent = '';
-  var inp = document.getElementById('als-compound-in');
-  if(inp){ var parts=inp.value.split(','); parts[parts.length-1]=''; inp.value=parts.filter(Boolean).join(', '); }
-};
-
-// ── Legacy add-from-drop stub (kept for compatibility) ────────────────────
-global._alsAddElementFromDrop = function(){};
-global._alsAddSelectedElements = function(){
-  window._alsBuildCompounds && window._alsBuildCompounds();
+// ── Add element from dropdown into current scene ──────────────────────────
+global._alsAddElementFromDrop = function(){
+  var drop = document.getElementById('als-el-drop');
+  if(!drop || !drop.value || !S) return;
+  var sym = drop.value;
+  // Add as a solo compound at a new offset
+  var offset = (S._compounds ? S._compounds.length : 0) * 6;
+  var compounds = S._compounds || [];
+  compounds.push({ name: sym, atoms: [{s:sym, p:[offset,0,0]}] });
+  S._compounds = compounds;
+  _alsBuildFromCompounds(compounds, S.params.ptsPerE||30);
+  _alsRefreshCompoundList();
+  document.getElementById('als-status').textContent = 'Added: '+sym;
 };
 
 // ── Build scene from multi-compound text ──────────────────────────────────
@@ -940,13 +851,9 @@ global._alsBuildCompounds = function(){
 // ── Build Three.js scene from compound array ──────────────────────────────
 function _alsBuildFromCompounds(compounds, ptsPerE){
   if(!S) return;
-  // Flatten all atoms, ensuring each carries its compoundIdx
+  // Flatten all atoms from all compounds with correct positions
   var allAtoms = [];
-  compounds.forEach(function(c, ci){
-    c.atoms.forEach(function(a){
-      allAtoms.push(Object.assign({}, a, {compoundIdx: a.compoundIdx !== undefined ? a.compoundIdx : ci}));
-    });
-  });
+  compounds.forEach(function(c){ c.atoms.forEach(function(a){ allAtoms.push(a); }); });
   _build(S, allAtoms, ptsPerE);
 }
 
