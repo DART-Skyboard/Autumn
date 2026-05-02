@@ -20778,10 +20778,16 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       return;
     }
 
-    // ── Truly new user ────────────────────────────────────────────────────
+    // ── No local session — could be cache-cleared returning user or truly new ──
+    // Use web OAuth flow: returning users get instant silent redirect (no device code).
+    // New users see the GitHub authorize screen once.
     var skipped = localStorage.getItem('_gh_login_skipped');
-    if (!skipped) _showLoginModal();
-    else _showGuestMode();
+    if (!skipped) {
+      // Show modal with web flow button — returning users bounce back instantly
+      _showLoginModal();
+    } else {
+      _showGuestMode();
+    }
   }
 
   // ── Re-auth: returning user, token gone (cleared cookies/storage/new browser)
@@ -20790,8 +20796,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if (knownUsername) {
       try { sessionStorage.setItem('_gh_reauth_user', knownUsername); } catch(e) {}
     }
-    // Show login modal with PAT option instead of triggering OAuth loop
-    _showLoginModal();
+    // Returning user — web flow redirect is instant and silent (GitHub already has app authorized)
+    // No device code, no loop. Comes straight back to leatr.xyz/?code= and exchanges for token.
+    _doWebFlowRedirect();
   }
 
   // ── Web flow redirect — sends user to GitHub OAuth, which redirects back to leatr.xyz/?code=
@@ -20823,9 +20830,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .then(function(d) {
         _hideAuthLoading();
         if (d.error) {
-          // GAS failed (quota, etc) — silently switch to device flow
+          // GAS quota exhausted — show PAT login instead of device flow loop
           _showLoginModal();
-          _showDeviceFlow();
+          _setDeviceUI(_quotaFallbackHtml());
           return;
         }
         _saveSession(d);
@@ -20834,7 +20841,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .catch(function() {
         _hideAuthLoading();
         _showLoginModal();
-        _showDeviceFlow(); // Fall back to device flow — always works, no GAS needed
+        _setDeviceUI(_quotaFallbackHtml()); // GAS unreachable — show PAT input
       });
     return true;
   }
@@ -21106,6 +21113,28 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     } else {
       // Returning user re-auth — dismiss immediately, no splash needed
       if (modal) modal.classList.remove('show');
+    }
+
+    // Write registration identity to user's Autumn-Ash repo — survives cache clears
+    var _regToken = data.access_token;
+    var _regUser  = data.username;
+    if (_regToken && _regUser) {
+      var _regRepo = 'Autumn-Ash-' + _regUser;
+      var _regPayload = JSON.stringify({ username: _regUser, registered: new Date().toISOString(), client: 'leatr.xyz' });
+      var _regB64 = btoa(_regPayload);
+      // fire-and-forget — don't block login on this
+      fetch('https://api.github.com/repos/' + _regUser + '/' + _regRepo + '/contents/auth/identity.json', {
+        headers: { 'Authorization': 'token ' + _regToken, 'Accept': 'application/vnd.github.v3+json' }
+      }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(existing){
+        var body = { message: 'auth: update identity', content: _regB64 };
+        if (existing && existing.sha) body.sha = existing.sha;
+        return fetch('https://api.github.com/repos/' + _regUser + '/' + _regRepo + '/contents/auth/identity.json', {
+          method: 'PUT',
+          headers: { 'Authorization': 'token ' + _regToken, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      }).catch(function(){});
     }
 
     // Ensure user repo exists, then load memory
