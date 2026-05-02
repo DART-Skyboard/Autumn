@@ -315,7 +315,15 @@ _gateCheck();
       <div style="flex:1;min-width:200px">
         <div style="font-family:var(--fh);font-size:.42rem;letter-spacing:2px;color:var(--violet);margin-bottom:4px">DATA SHARING · ANALYTICAL LOG</div>
         <div style="font-size:.82rem;color:var(--dim);line-height:1.7">
-          No analytical data is collected by default. If you opt in, your calculation inputs (tickers, sigma values, EOD, outputs) are logged to your private GitHub Gist and build into a personal pattern record over time. You can view your history here and opt out at any time — logging stops immediately.
+          No analytical data is collected by default. If you opt in, your calculation inputs (tickers, sigma values, EOD, and all output values) are logged to your private GitHub Gist and build into a personal pattern record over time.
+        <br><br>
+        <strong style="color:var(--txt)">When you opt out, data already collected is not purged.</strong>
+        Collected patterns are studied by the LEATR neural network for algorithm optimization —
+        we monitor our own tool and its execution patterns to improve the conjecture over time.
+        This data collection is specific to the Movement Conjecture algorithm and is collected solely in this manner.
+        Your pattern record stays private in your own GitHub Gist and is never shared publicly.
+        <br><br>
+        You can view and clear your personal log below at any time.
         </div>
       </div>
       <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px">
