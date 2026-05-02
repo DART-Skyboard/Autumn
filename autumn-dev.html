@@ -20791,7 +20791,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if (knownUsername) {
       try { sessionStorage.setItem('_gh_reauth_user', knownUsername); } catch(e) {}
     }
-    _doWebFlowRedirect();
+    // Show login modal with PAT option instead of triggering OAuth loop
+    _showLoginModal();
   }
 
   // ── Web flow redirect — sends user to GitHub OAuth, which redirects back to leatr.xyz/?code=
