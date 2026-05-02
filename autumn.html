@@ -21664,11 +21664,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         _applySession(refreshed);
       })
       .catch(function() {
+        // Token stale — silent web flow redirect (GitHub skips auth screen for registered users)
         try { localStorage.removeItem('_gh_session'); } catch(e) {}
-        _showDeviceFlow(); // Token bad — need fresh auth
+        _doWebFlowRedirect();
       });
     } else {
-      _showDeviceFlow();
+      _doWebFlowRedirect();
     }
   };
 
