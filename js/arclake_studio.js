@@ -120,6 +120,7 @@ function _parseMultiCompound(input) {
         const r = totalAtoms > 1 ? 2.2 : 0;
         atoms.push({
           s: p.sym,
+          compoundIdx: ci,   // tag with compound index for bond isolation
           p: [
             clusterOffset + Math.cos(angle) * r,
             Math.sin(angle) * r * 0.5,
@@ -939,9 +940,13 @@ global._alsBuildCompounds = function(){
 // ── Build Three.js scene from compound array ──────────────────────────────
 function _alsBuildFromCompounds(compounds, ptsPerE){
   if(!S) return;
-  // Flatten all atoms from all compounds with correct positions
+  // Flatten all atoms, ensuring each carries its compoundIdx
   var allAtoms = [];
-  compounds.forEach(function(c){ c.atoms.forEach(function(a){ allAtoms.push(a); }); });
+  compounds.forEach(function(c, ci){
+    c.atoms.forEach(function(a){
+      allAtoms.push(Object.assign({}, a, {compoundIdx: a.compoundIdx !== undefined ? a.compoundIdx : ci}));
+    });
+  });
   _build(S, allAtoms, ptsPerE);
 }
 
