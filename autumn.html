@@ -20792,9 +20792,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .then(function(d) {
         _hideAuthLoading();
         if (d.error) {
-          // GAS failed (quota, etc) — silently switch to device flow
-          _showLoginModal();
-          _showDeviceFlow();
+          _showLoginModal(); // GAS quota hit — let user enter PAT or retry
           return;
         }
         _saveSession(d);
@@ -20802,8 +20800,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       })
       .catch(function() {
         _hideAuthLoading();
-        _showLoginModal();
-        _showDeviceFlow(); // Fall back to device flow — always works, no GAS needed
+        _showLoginModal(); // Network error — show login modal, user can retry
       });
     return true;
   }
@@ -20811,8 +20808,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   var _devicePollTimer = null;
 
   function _startOAuth() {
-    // Device flow works fully client-side (no GAS needed) — use it as primary
-    _showDeviceFlow();
+    _doWebFlowRedirect(); // Web flow: redirect to GitHub, bounce back with ?code=, GAS exchanges
   }
 
   function _preWireBtn() {
@@ -21612,9 +21608,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   window._ghReLogin = function() {
     var stored = _loadStoredSession();
     if (stored && stored.access_token) {
-      _applySession(stored); // instant — token kept from logout, no device flow
+      _applySession(stored); // instant — token kept from logout
     } else {
-      _showLoginModal();
+      _doWebFlowRedirect(); // no stored token — silent web flow, GitHub skips auth for registered users
     }
   };
     window._ghShowUserMenu = function(e) {
