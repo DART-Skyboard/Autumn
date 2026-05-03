@@ -13353,11 +13353,16 @@ function autoReadLastResponse(){
   const m=msgs();const last=m[m.length-1];
   if(last&&last.role==='autumn'){
     if(Voice.isListening&&Voice.recognition){try{Voice.recognition.stop();}catch(e){}Voice.isListening=false;}
+    // Strip machine-instruction tags before TTS — same as display rendering does
+    const cleanText = (last.text||'')
+      .replace(/\[ARC_CMD:[^\]]*\]/g, '')
+      .replace(/\[IMG_RECALL:[^\]]*\]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     // Grab any interrupted remainder before clearing it
     const remainder = Voice._interruptedRemaining||'';
     Voice._interruptedRemaining = '';
-    speak(last.text,()=>{
-      // After new response finishes, resume what was interrupted (if anything left to say)
+    speak(cleanText,()=>{
       if(remainder){
         speak(remainder,()=>{if(Voice.active) restartListeningIfActive();});
       } else {
