@@ -144,20 +144,39 @@
   #spanel-wrap.collapsed { transform: translateX(-318px); }
   #spanel-tab { border-left: none; border-radius: 0 4px 4px 0; margin-top: 12px; }
 
-  /* Ray stats wrap — right side */
+  /* Ray stats wrap — right side (tab at bottom, panel collapses upward) */
   #rstats-wrap {
     position: fixed;
-    top: 56px; right: 0;
+    top: 56px; right: 8px;
     z-index: 90;
     display: flex;
-    align-items: flex-start;
-    flex-direction: row-reverse;
-    transition: transform 0.25s cubic-bezier(.22,1,.36,1);
+    flex-direction: column;
+    align-items: flex-end;
   }
-  #rstats-wrap.collapsed { transform: translateX(200px); }
-  #rstats-tab { border-right: none; border-radius: 4px 0 0 4px; margin-top: 12px; }
+  #ray-stats {
+    overflow: hidden;
+    max-height: 400px;
+    transition: max-height 0.25s cubic-bezier(.22,1,.36,1), opacity 0.2s;
+  }
+  #rstats-wrap.collapsed #ray-stats {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #rstats-tab {
+    writing-mode: horizontal-tb;
+    min-width: 176px;
+    width: 100%;
+    height: 18px;
+    min-height: 18px;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    font-size: 8px;
+    letter-spacing: 2px;
+    margin-top: 0;
+  }
 
-  /* Log wrap — bottom */
+  /* Log wrap — bottom (tab at top, panel collapses downward out bottom edge) */
   #log-wrap {
     position: fixed;
     bottom: 28px; left: 0;
@@ -165,14 +184,22 @@
     display: flex;
     flex-direction: column-reverse;
     width: 318px;
-    transition: transform 0.25s cubic-bezier(.22,1,.36,1);
   }
-  #log-wrap.collapsed { transform: translateY(172px); }
+  #log-panel {
+    overflow: hidden;
+    max-height: 200px;
+    transition: max-height 0.25s cubic-bezier(.22,1,.36,1), opacity 0.2s;
+  }
+  #log-wrap.collapsed #log-panel {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
   #log-tab {
     writing-mode: horizontal-tb;
     width: calc(100% - 16px);
-    height: 16px;
-    min-height: 16px;
+    height: 18px;
+    min-height: 18px;
     margin: 0 8px;
     border-bottom: none;
     border-radius: 4px 4px 0 0;
@@ -823,8 +850,7 @@
 </div>
 
 <!-- RAY STATS PANEL -->
-<div id="rstats-wrap" class="cpanel-wrap">
-<div id="rstats-tab" class="cpanel-tab" onclick="toggleRStats()" title="Toggle Render Stats">STATS ▶</div>
+<div id="rstats-wrap">
 <div id="ray-stats">
   <div class="panel-header" style="margin:-8px -12px 8px;padding:6px 10px;">
     <div class="panel-title" style="font-size:8px;">◈ RENDER STATS</div>
@@ -837,6 +863,7 @@
   <div class="ray-stat-row"><span class="ray-stat-key">WIND VEC</span><span class="ray-stat-val" id="rs-wind">0,0</span></div>
   <div class="ray-stat-row"><span class="ray-stat-key">VORTEX ω</span><span class="ray-stat-val" id="rs-omega">0.00</span></div>
 </div>
+<div id="rstats-tab" class="cpanel-tab" onclick="toggleRStats()" title="Toggle Render Stats">▲ STATS</div>
 </div>
 
 <!-- LOG PANEL -->
@@ -2731,21 +2758,11 @@ function animate() {
 <script>
 // ── Collapsible Panel System ───────────────────────────────────────
 (function() {
-  var _HUD_IDS = ['rstats-wrap','log-wrap','field-slice-canvas','info-overlay'];
-
   window.toggleSPanel = function() {
     var w = document.getElementById('spanel-wrap');
     if (!w) return;
     w.classList.toggle('collapsed');
     var col = w.classList.contains('collapsed');
-    // When main menu collapses: hide all other HUD; when expands: show
-    _HUD_IDS.forEach(function(id) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      el.style.transition = 'opacity 0.2s';
-      el.style.opacity = col ? '0' : '';
-      el.style.pointerEvents = col ? 'none' : '';
-    });
     var tab = document.getElementById('spanel-tab');
     if (tab) tab.textContent = col ? 'MENU ▶' : '◀ MENU';
   };
@@ -2755,7 +2772,7 @@ function animate() {
     if (w) {
       w.classList.toggle('collapsed');
       var tab = document.getElementById('rstats-tab');
-      if (tab) tab.textContent = w.classList.contains('collapsed') ? '◀ STATS' : 'STATS ▶';
+      if (tab) tab.textContent = w.classList.contains('collapsed') ? '▼ STATS' : '▲ STATS';
     }
   };
 
