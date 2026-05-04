@@ -105,15 +105,88 @@
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
   /* ── MAIN STUDIO PANEL ── */
-  #studio-panel {
+  /* ── COLLAPSIBLE PANEL WRAPPERS ──────────────────────────────────── */
+  .cpanel-wrap {
+    display: flex;
+    align-items: flex-start;
+    transition: transform 0.25s cubic-bezier(.22,1,.36,1);
+    pointer-events: all;
+  }
+  .cpanel-tab {
+    width: 20px;
+    min-height: 56px;
+    background: rgba(0,255,231,0.06);
+    border: 1px solid rgba(0,255,231,0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    writing-mode: vertical-rl;
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: rgba(0,255,231,0.6);
+    user-select: none;
+    flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+  }
+  .cpanel-tab:hover { color: var(--cyan); background: rgba(0,255,231,0.12); }
+
+  /* Studio panel wrap — left side */
+  #spanel-wrap {
     position: fixed;
-    top: 56px; left: 8px;
+    top: 56px; left: 0;
+    z-index: 90;
+    display: flex;
+    align-items: flex-start;
+    transition: transform 0.25s cubic-bezier(.22,1,.36,1);
+  }
+  #spanel-wrap.collapsed { transform: translateX(-318px); }
+  #spanel-tab { border-left: none; border-radius: 0 4px 4px 0; margin-top: 12px; }
+
+  /* Ray stats wrap — right side */
+  #rstats-wrap {
+    position: fixed;
+    top: 56px; right: 0;
+    z-index: 90;
+    display: flex;
+    align-items: flex-start;
+    flex-direction: row-reverse;
+    transition: transform 0.25s cubic-bezier(.22,1,.36,1);
+  }
+  #rstats-wrap.collapsed { transform: translateX(200px); }
+  #rstats-tab { border-right: none; border-radius: 4px 0 0 4px; margin-top: 12px; }
+
+  /* Log wrap — bottom */
+  #log-wrap {
+    position: fixed;
+    bottom: 28px; left: 0;
+    z-index: 90;
+    display: flex;
+    flex-direction: column-reverse;
+    width: 318px;
+    transition: transform 0.25s cubic-bezier(.22,1,.36,1);
+  }
+  #log-wrap.collapsed { transform: translateY(172px); }
+  #log-tab {
+    writing-mode: horizontal-tb;
+    width: calc(100% - 16px);
+    height: 16px;
+    min-height: 16px;
+    margin: 0 8px;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    font-size: 8px;
+    letter-spacing: 2px;
+  }
+
+  #studio-panel {
+    margin-left: 8px;
     width: 310px;
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
     border-radius: 3px;
     backdrop-filter: blur(12px);
-    z-index: 90;
     max-height: calc(100vh - 70px);
     overflow-y: auto;
     overflow-x: hidden;
@@ -294,14 +367,12 @@
 
   /* Log */
   #log-panel {
-    position: fixed;
-    bottom: 8px; left: 8px;
+    margin-left: 8px;
     width: 310px;
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
     border-radius: 3px;
     backdrop-filter: blur(12px);
-    z-index: 90;
     max-height: 140px;
     overflow-y: auto;
     padding: 8px 10px;
@@ -335,13 +406,11 @@
 
   /* Ray stats */
   #ray-stats {
-    position: fixed;
-    top: 56px; right: 8px;
+    margin-right: 8px;
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
     border-radius: 3px;
     padding: 8px 12px;
-    z-index: 90;
     backdrop-filter: blur(8px);
     min-width: 160px;
   }
@@ -619,6 +688,7 @@
 </div>
 
 <!-- STUDIO PANEL -->
+<div id="spanel-wrap" class="cpanel-wrap">
 <div id="studio-panel">
   <div class="panel-header">
     <div class="panel-title">◈ STORM CELL STUDIO</div>
@@ -749,8 +819,12 @@
     <button class="big-btn" style="color:var(--cyan);border-color:rgba(0,255,231,0.4);margin-top:4px;" onclick="resetView()">⌖ RESET VIEW</button>
   </div>
 </div>
+<div id="spanel-tab" class="cpanel-tab" onclick="toggleSPanel()" title="Toggle Menu">◀ MENU</div>
+</div>
 
 <!-- RAY STATS PANEL -->
+<div id="rstats-wrap" class="cpanel-wrap">
+<div id="rstats-tab" class="cpanel-tab" onclick="toggleRStats()" title="Toggle Render Stats">STATS ▶</div>
 <div id="ray-stats">
   <div class="panel-header" style="margin:-8px -12px 8px;padding:6px 10px;">
     <div class="panel-title" style="font-size:8px;">◈ RENDER STATS</div>
@@ -763,10 +837,14 @@
   <div class="ray-stat-row"><span class="ray-stat-key">WIND VEC</span><span class="ray-stat-val" id="rs-wind">0,0</span></div>
   <div class="ray-stat-row"><span class="ray-stat-key">VORTEX ω</span><span class="ray-stat-val" id="rs-omega">0.00</span></div>
 </div>
+</div>
 
 <!-- LOG PANEL -->
-<div id="log-panel" id="log-panel">
+<div id="log-wrap">
+<div id="log-panel">
   <div class="log-line info">◆ STORM CELL STUDIO INITIALIZED</div>
+</div>
+<div id="log-tab" class="cpanel-tab" onclick="toggleLog()" title="Toggle Log">▲ LOG</div>
 </div>
 
 <!-- BOTTOM BAR -->
@@ -2647,6 +2725,48 @@ function animate() {
 
   animate();
   LOG.info('◆ RENDER LOOP STARTED — STORM CELL STUDIO READY');
+})();
+</script>
+
+<script>
+// ── Collapsible Panel System ───────────────────────────────────────
+(function() {
+  var _HUD_IDS = ['rstats-wrap','log-wrap','field-slice-canvas','info-overlay'];
+
+  window.toggleSPanel = function() {
+    var w = document.getElementById('spanel-wrap');
+    if (!w) return;
+    w.classList.toggle('collapsed');
+    var col = w.classList.contains('collapsed');
+    // When main menu collapses: hide all other HUD; when expands: show
+    _HUD_IDS.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.style.transition = 'opacity 0.2s';
+      el.style.opacity = col ? '0' : '';
+      el.style.pointerEvents = col ? 'none' : '';
+    });
+    var tab = document.getElementById('spanel-tab');
+    if (tab) tab.textContent = col ? 'MENU ▶' : '◀ MENU';
+  };
+
+  window.toggleRStats = function() {
+    var w = document.getElementById('rstats-wrap');
+    if (w) {
+      w.classList.toggle('collapsed');
+      var tab = document.getElementById('rstats-tab');
+      if (tab) tab.textContent = w.classList.contains('collapsed') ? '◀ STATS' : 'STATS ▶';
+    }
+  };
+
+  window.toggleLog = function() {
+    var w = document.getElementById('log-wrap');
+    if (w) {
+      w.classList.toggle('collapsed');
+      var tab = document.getElementById('log-tab');
+      if (tab) tab.textContent = w.classList.contains('collapsed') ? '▼ LOG' : '▲ LOG';
+    }
+  };
 })();
 </script>
 </body>
