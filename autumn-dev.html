@@ -22049,6 +22049,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       'display:flex;flex-direction:column;pointer-events:all;overflow:hidden;}',
     '#ss-header{display:flex;align-items:center;justify-content:space-between;',
       'padding:7px 10px;border-bottom:1px solid rgba(0,255,231,.15);flex-shrink:0;',
+      'cursor:move;',
       'font-family:var(--font-d,monospace);font-size:.32rem;letter-spacing:2px;color:rgba(0,255,231,.8);}',
     '#ss-close-btn{font-size:.28rem;cursor:pointer;color:rgba(255,60,60,.7);pointer-events:all;',
       'border:1px solid rgba(255,60,60,.3);padding:2px 7px;border-radius:3px;}',
@@ -22080,15 +22081,26 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   window.stormStudioToggle = function() {
     _open = !_open;
     var w = document.getElementById('ss-wrap');
-    if(w) w.classList.toggle('ss-open', _open);
-    if(_open) setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
-    else document.removeEventListener('click',_outside,true);
+    if (!w) return;
+    if (_open) {
+      // Reset to right-side position when opening
+      w.style.transition = 'right .24s cubic-bezier(.22,1,.36,1)';
+      w.style.left = ''; w.style.top = '';
+      w.classList.add('ss-open');
+      setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
+      setTimeout(_initDrag, 100);
+    } else {
+      w.style.transition = '';
+      w.style.left = ''; w.style.right = '';
+      w.classList.remove('ss-open');
+      document.removeEventListener('click',_outside,true);
+    }
   };
 
   window.stormStudioClose = function() {
     _open = false;
     var w = document.getElementById('ss-wrap');
-    if(w) w.classList.remove('ss-open');
+    if(w){ w.style.left=''; w.style.right=''; w.classList.remove('ss-open'); }
     document.removeEventListener('click',_outside,true);
   };
 
@@ -22110,6 +22122,52 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   function _outside(e) {
     var w=document.getElementById('ss-wrap'), t=document.getElementById('ss-tab');
     if(w&&!w.contains(e.target)&&(!t||!t.contains(e.target))) window.stormStudioClose();
+  }
+
+  var _dragging=false, _ox=0, _oy=0, _dragInited=false;
+
+  function _initDrag() {
+    if (_dragInited) return;
+    _dragInited = true;
+    var hdr = document.getElementById('ss-header');
+    if (!hdr) return;
+
+    function _startDrag(e) {
+      if (e.target && e.target.id === 'ss-close-btn') return;
+      var wrap = document.getElementById('ss-wrap');
+      if (!wrap) return;
+      _dragging = true;
+      var r = wrap.getBoundingClientRect();
+      var cx = e.touches ? e.touches[0].clientX : e.clientX;
+      var cy = e.touches ? e.touches[0].clientY : e.clientY;
+      _ox = cx - r.left; _oy = cy - r.top;
+      wrap.style.transition = 'none';
+      wrap.style.right = 'auto';
+      wrap.style.left = r.left + 'px';
+      wrap.style.top  = r.top  + 'px';
+      document.body.style.userSelect = 'none';
+      if (e.preventDefault) e.preventDefault();
+    }
+    function _doDrag(e) {
+      if (!_dragging) return;
+      var wrap = document.getElementById('ss-wrap');
+      if (!wrap) return;
+      var cx = e.touches ? e.touches[0].clientX : e.clientX;
+      var cy = e.touches ? e.touches[0].clientY : e.clientY;
+      var newL = Math.max(0, Math.min(cx - _ox, window.innerWidth  - wrap.offsetWidth));
+      var newT = Math.max(0, Math.min(cy - _oy, window.innerHeight - 60));
+      wrap.style.left = newL + 'px';
+      wrap.style.top  = newT + 'px';
+      if (e.preventDefault) e.preventDefault();
+    }
+    function _stopDrag() { _dragging = false; document.body.style.userSelect = ''; }
+
+    hdr.addEventListener('mousedown',  _startDrag);
+    document.addEventListener('mousemove',  _doDrag);
+    document.addEventListener('mouseup',    _stopDrag);
+    hdr.addEventListener('touchstart', _startDrag, {passive:false});
+    document.addEventListener('touchmove',  _doDrag, {passive:false});
+    document.addEventListener('touchend',   _stopDrag);
   }
 
   function _init() {
