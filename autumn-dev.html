@@ -8957,18 +8957,6 @@ function classifyIntentLocal(text, hasPendingImages) {
      /\b(element|atom|compound|molecule)\b/i.test(lc));
   if (_arcLakeIntent) return 'ARCLAKE';
 
-  // ── STORM STUDIO — weather / storm queries ──────────────────────────────
-  var _stormIntent =
-    /\b(storm|hurricane|tornado|typhoon|cyclone|weather|forecast|rain|wind|lightning|thunder|atmospheric|pressure|live.*weather|weather.*live)\b/i.test(lc) ||
-    /\b(show.*storm|storm.*studio|open.*storm|weather.*in|storm.*in|weather.*near|weather.*for|what.*weather|how.*storm)\b/i.test(lc);
-  if (_stormIntent) {
-    // Extract city name if present
-    var _cityMatch = augmentedText.match(/\b(?:weather|storm|forecast|in|near|for|show me|around)\s+([A-Za-z][A-Za-z\s,]{2,30})(?:\?|$|\.|,)/i);
-    var _city = _cityMatch ? _cityMatch[1].trim() : '';
-    if (window.stormStudioOpen) window.stormStudioOpen(_city);
-    return 'STORM';
-  }
-
   // ── ARC EDGE — highest priority for arc/curve generation requests ──
   // Must come before IMAGE_GEN so "create a brain with 100 arcs" routes here not to image gen
   // Explicitly exclude "arc lake" so it doesn't steal those commands
@@ -21993,7 +21981,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 <script src="js/mist-module.js"></script>
 <script src="js/ash-shard-module.js"></script>
 <script src="js/hud-tools-module.js"></script>
-<script src="js/storm-studio-module.js"></script>
 
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/scripts/sentience-journal.js"></script>
 <script>
