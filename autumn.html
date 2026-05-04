@@ -8938,12 +8938,35 @@ function classifyIntentLocal(text, hasPendingImages) {
         /^show\s+hidden\s+messages$/.test(lc)) return 'SHOW_HIDDEN';
   }
   // ── ARCLAKE — must come BEFORE Arc Edge (arc lake contains the word "arc") ──
+  // Catches: "arc lake", compound names, element symbols, chemistry vocab,
+  // "random elements", "build a compound", "generate a simulation" with chemistry
   var _arcLakeIntent =
     /\b(arc\s*lake|arclake)\b/i.test(lc) ||
-    /\b(hercules\s*alloy|hercules|h2o|co2|carbon\s*dioxide|nacl|salt\s*molecule|titanium\s*alloy|copper\s*oxide|calcium\s*carbonate|silicon\s*dioxide|iron\s*copper)\b/i.test(lc) ||
-    (/\b(simulate|simulation|molecule|alloy|thermal|temperature|celsius|pressure|pascal|cfd|fluid|waveform|electron|proton|neutron|nucleus|atomic|atom)\b/i.test(lc) &&
-     !/\b(arc\s*edge|arcedge|deviation|induction)\b/i.test(lc));
+    // Named compounds and alloys
+    /\b(hercules\s*alloy|h2o|co2|nacl|fe2o3|tial|silicon\s*dioxide|sio2|copper\s*oxide|cuo|calcium\s*carb|titanium\s*alloy|steel|iron.*copper|water\s*molecule|salt\s*molecule)\b/i.test(lc) ||
+    // Element names that wouldn't appear in arc edge context
+    /\b(hydrogen|helium|lithium|beryllium|boron|carbon\s*atom|nitrogen|oxygen|fluorine|neon|sodium|magnesium|phosphorus|sulfur|chlorine|argon|potassium|calcium|scandium|vanadium|manganese|zinc|gallium|germanium|arsenic|selenium|bromine|krypton|rubidium|strontium|yttrium|zirconium|niobium|ruthenium|rhodium|palladium|silver|cadmium|indium|tin|antimony|tellurium|iodine|xenon|platinum|gold|mercury|lead|bismuth|uranium)\b/i.test(lc) ||
+    // Chemistry / particle simulation vocabulary
+    /\b(compound|element\s*sim|atom\s*sim|periodic|molecular|waveform|electron\s*cloud|proton|neutron|nucleus|atomic|orbital|shell|cfd\s*sim|fluid\s*sim|particle\s*cloud)\b/i.test(lc) ||
+    // "simulate" or "generate" + chemistry context (not arc edge)
+    (/\b(simulate|simulation|generate|build|show|create|run)\b/i.test(lc) &&
+     /\b(molecule|compound|alloy|element|atom|thermal|temperature|celsius|pressure|pascal|fluid|cfd|waveform)\b/i.test(lc) &&
+     !/\b(arc\s*edge|arcedge|deviation|induction|arc\s*math|arc\s*curve)\b/i.test(lc)) ||
+    // "random elements", "grab some elements", etc
+    (/\b(random|some|grab|pick|choose|select)\b/i.test(lc) &&
+     /\b(element|atom|compound|molecule)\b/i.test(lc));
   if (_arcLakeIntent) return 'ARCLAKE';
+
+  // ── STORM STUDIO ─────────────────────────────────────────────────────────
+  var _stormIntent =
+    /\b(storm|hurricane|tornado|typhoon|cyclone|weather|forecast|rain.*storm|lightning|thunder|atmospheric|live.*weather|weather.*live)\b/i.test(lc) ||
+    /\b(show.*storm|storm.*studio|open.*storm|weather.*in|storm.*in|weather.*near|weather.*for|what.*weather|how.*storm)\b/i.test(lc);
+  if (_stormIntent) {
+    var _cityM = augmentedText.match(/\b(?:weather|storm|forecast|in|near|for|show me|around)\s+([A-Za-z][A-Za-z\s,]{2,30})(?:\?|$|\.|,)/i);
+    var _city = _cityM ? _cityM[1].trim() : '';
+    if (window.stormStudioOpen) window.stormStudioOpen(_city);
+    return 'STORM';
+  }
 
   // ── ARC EDGE — highest priority for arc/curve generation requests ──
   // Must come before IMAGE_GEN so "create a brain with 100 arcs" routes here not to image gen
@@ -10049,14 +10072,17 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
-  // ── ARCLAKE — open ArcLake Studio with matched preset and auto-start ──────────
+  // ── ARCLAKE — open ArcLake Studio with matched preset / compound / elements ──
   if (_intentLabel === 'ARCLAKE') {
     var _alsPreset = null;
-    var _alsAutoStart = /\b(simulate|run|start|show|play|visualize|render)\b/i.test(augmentedText);
+    var _alsCompoundText = null; // for multi-compound / free-form
+    var _alsAutoStart = /\b(simulate|run|start|show|play|visualize|render|generate)\b/i.test(augmentedText);
     var _alsTxt = augmentedText.toLowerCase();
+
+    // Named presets
     if (/hercules/i.test(_alsTxt))               _alsPreset = 'Hercules Alloy (6-el)';
-    else if (/water|h2o/i.test(_alsTxt))          _alsPreset = 'Water (H₂O)';
-    else if (/co2|carbon.?dioxide/i.test(_alsTxt))_alsPreset = 'CO₂';
+    else if (/water|h2o/i.test(_alsTxt))          _alsPreset = 'Water (H\u2082O)';
+    else if (/co2|carbon.?dioxide/i.test(_alsTxt))_alsPreset = 'CO\u2082';
     else if (/salt|nacl/i.test(_alsTxt))          _alsPreset = 'NaCl (Salt)';
     else if (/steel/i.test(_alsTxt))              _alsPreset = 'Steel (Fe+C+Cr)';
     else if (/titanium/i.test(_alsTxt))           _alsPreset = 'Titanium Alloy (Ti+Al)';
@@ -10064,6 +10090,15 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     else if (/calcium/i.test(_alsTxt))            _alsPreset = 'Calcium Carbonate';
     else if (/silicon/i.test(_alsTxt))            _alsPreset = 'Silicon Dioxide';
     else if (/iron.*copper|copper.*iron/i.test(_alsTxt)) _alsPreset = 'Iron + Copper Alloy';
+
+    // Free-form compound text — extract formula-like patterns from the command
+    // e.g. "show Fe2O3 and H2O" → compound text
+    if(!_alsPreset){
+      var _formulaMatch = augmentedText.match(/([A-Z][a-z]?\d*(?:\s+(?:and|&|\+|with)\s+[A-Z][a-z]?\d*)*(?:\s+[A-Z][a-z]?\d*)*)/);
+      if(_formulaMatch && _formulaMatch[0].length > 1 && /[A-Z]/.test(_formulaMatch[0])){
+        _alsCompoundText = _formulaMatch[0].trim();
+      }
+    }
     // Temperature extraction
     var _alsTempM = augmentedText.match(/([-\d.]+)\s*(?:degrees?|°)?\s*(celsius|fahrenheit|kelvin|[cfkCFK])\b/i);
     var _alsTemp  = null;
@@ -10080,6 +10115,13 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     // Open studio
     if (window.arcLakeStudioOpen) {
       window.arcLakeStudioOpen(_alsPreset, _alsAutoStart);
+      // If free-form compound text, populate the compound input and trigger build
+      if(_alsCompoundText && !_alsPreset && window._alsBuildCompounds){
+        setTimeout(function(){
+          var inp=document.getElementById('als-compound-in');
+          if(inp){ inp.value=_alsCompoundText; window._alsBuildCompounds(); }
+        }, 600);
+      }
       if (_alsTemp !== null) setTimeout(function(){
         var sl = document.getElementById('als-temp');
         if (sl) { sl.value=_alsTemp; window._alsUpdateParam&&window._alsUpdateParam('temp',_alsTemp); }
@@ -13322,11 +13364,16 @@ function autoReadLastResponse(){
   const m=msgs();const last=m[m.length-1];
   if(last&&last.role==='autumn'){
     if(Voice.isListening&&Voice.recognition){try{Voice.recognition.stop();}catch(e){}Voice.isListening=false;}
+    // Strip machine-instruction tags before TTS — same as display rendering does
+    const cleanText = (last.text||'')
+      .replace(/\[ARC_CMD:[^\]]*\]/g, '')
+      .replace(/\[IMG_RECALL:[^\]]*\]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     // Grab any interrupted remainder before clearing it
     const remainder = Voice._interruptedRemaining||'';
     Voice._interruptedRemaining = '';
-    speak(last.text,()=>{
-      // After new response finishes, resume what was interrupted (if anything left to say)
+    speak(cleanText,()=>{
       if(remainder){
         speak(remainder,()=>{if(Voice.active) restartListeningIfActive();});
       } else {
@@ -21985,6 +22032,97 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     </div>
     <div id="als-overlay-body" style="flex:1;overflow:hidden;min-height:400px"></div>
   </div>
+
+<script>
+(function(){
+  'use strict';
+  var _open = false;
+
+  var _css = [
+    '#ss-wrap{position:fixed;right:-400px;top:110px;z-index:9350;width:340px;',
+      'transition:right .24s cubic-bezier(.22,1,.36,1);pointer-events:none;}',
+    '#ss-wrap.ss-open{right:0;}',
+    '#ss-panel{background:rgba(255,255,255,.05);',
+      'backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
+      'border:1px solid rgba(0,255,231,.22);border-radius:10px 0 0 10px;',
+      'width:100%;height:65vh;max-height:560px;',
+      'display:flex;flex-direction:column;pointer-events:all;overflow:hidden;}',
+    '#ss-header{display:flex;align-items:center;justify-content:space-between;',
+      'padding:7px 10px;border-bottom:1px solid rgba(0,255,231,.15);flex-shrink:0;',
+      'font-family:var(--font-d,monospace);font-size:.32rem;letter-spacing:2px;color:rgba(0,255,231,.8);}',
+    '#ss-close-btn{font-size:.28rem;cursor:pointer;color:rgba(255,60,60,.7);pointer-events:all;',
+      'border:1px solid rgba(255,60,60,.3);padding:2px 7px;border-radius:3px;}',
+    '#ss-iframe{flex:1;border:none;width:100%;background:#060810;}',
+    '#ss-tab{position:fixed;right:0;top:180px;z-index:9351;',
+      'background:rgba(255,255,255,.05);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
+      'border:1px solid rgba(0,255,231,.22);border-right:none;border-radius:7px 0 0 7px;',
+      'width:20px;min-height:70px;',
+      'display:flex;align-items:center;justify-content:center;',
+      'cursor:pointer;pointer-events:all;writing-mode:vertical-rl;',
+      'font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:2px;',
+      'color:rgba(0,255,231,.65);user-select:none;transition:color .2s,background .2s;}',
+    '#ss-tab:hover{color:#00ffe7;background:rgba(0,255,231,.1);}',
+  ].join('');
+
+  function _html() {
+    return '<div id="ss-wrap">' +
+        '<div id="ss-panel">' +
+          '<div id="ss-header">' +
+            '<span>&#9928; STORM STUDIO</span>' +
+            '<span id="ss-close-btn" onclick="window.stormStudioClose()">&#x2715; CLOSE</span>' +
+          '</div>' +
+          '<iframe id="ss-iframe" src="storm-studio.html" allow="geolocation" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>' +
+        '</div>' +
+      '</div>' +
+      '<div id="ss-tab" onclick="window.stormStudioToggle()">STORM</div>';
+  }
+
+  window.stormStudioToggle = function() {
+    _open = !_open;
+    var w = document.getElementById('ss-wrap');
+    if(w) w.classList.toggle('ss-open', _open);
+    if(_open) setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
+    else document.removeEventListener('click',_outside,true);
+  };
+
+  window.stormStudioClose = function() {
+    _open = false;
+    var w = document.getElementById('ss-wrap');
+    if(w) w.classList.remove('ss-open');
+    document.removeEventListener('click',_outside,true);
+  };
+
+  window.stormStudioOpen = function(city) {
+    if(!_open) window.stormStudioToggle();
+    var attempts = 0;
+    function _try() {
+      var fr = document.getElementById('ss-iframe');
+      if(!fr) return;
+      try {
+        var inp = fr.contentDocument && fr.contentDocument.getElementById('loc-input');
+        if(inp){ inp.value = city||''; var btn=fr.contentDocument.getElementById('loc-search-btn'); if(btn)btn.click(); return; }
+      } catch(e){}
+      if(++attempts<20) setTimeout(_try,300);
+    }
+    setTimeout(_try,500);
+  };
+
+  function _outside(e) {
+    var w=document.getElementById('ss-wrap'), t=document.getElementById('ss-tab');
+    if(w&&!w.contains(e.target)&&(!t||!t.contains(e.target))) window.stormStudioClose();
+  }
+
+  function _init() {
+    var s=document.createElement('style'); s.textContent=_css; document.head.appendChild(s);
+    var tmp=document.createElement('div'); tmp.innerHTML=_html();
+    while(tmp.firstChild) document.body.appendChild(tmp.firstChild);
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',_init);
+  else _init();
+})();
+
+</script>
 </body>
 </html>
 
