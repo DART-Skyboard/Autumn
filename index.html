@@ -22638,22 +22638,8 @@ window.AutumnVoiceExt = (function() {
     };
   }
 
-  /* ── Gemma audio button beside chat input ───────────────────── */
-  function _addAudioBtn() {
-    if (document.getElementById('avext-audio-btn')) return;
-    var inp = document.getElementById('chat-input');
-    if (!inp) return;
-    var btn = document.createElement('button');
-    btn.id = 'avext-audio-btn';
-    btn.title = 'Record & send to Gemma E4B audio model';
-    btn.innerHTML = '&#127897;';
-    btn.style.cssText = 'display:none;background:rgba(100,200,255,.1);border:1px solid rgba(100,200,255,.25);'
-      + 'color:#64c8ff;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:16px;'
-      + 'flex-shrink:0;transition:all .2s;align-items:center;justify-content:center';
-    btn.onclick = _audioRecord;
-    inp.parentNode && inp.parentNode.insertBefore(btn, inp.nextSibling);
-    _updateAudioBtn();
-  }
+  /* ── Gemma audio button disabled — using mic-toggle-btn instead ── */
+  function _addAudioBtn() { /* no-op */ }
 
   function _updateAudioBtn() {
     var btn = document.getElementById('avext-audio-btn');
