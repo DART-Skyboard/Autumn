@@ -2095,6 +2095,38 @@ select.ash-ctrl-input{cursor:pointer}
   color:#38beff;
   text-shadow:0 0 7px rgba(56,190,255,.55), 0 0 14px rgba(56,190,255,.25);
 }
+/* ── Gemma G4 header toggle button ── */
+#hdr-gemma-btn {
+  font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;
+  padding:4px 10px;border-radius:4px;
+  border:1px solid rgba(100,180,255,.25);
+  background:transparent;color:rgba(100,180,255,.35);
+  cursor:pointer;transition:all .25s;
+}
+#hdr-gemma-btn.gemma-on {
+  border-color:rgba(100,200,255,.8) !important;
+  color:#64c8ff !important;
+  background:rgba(100,200,255,.1) !important;
+  box-shadow:0 0 10px rgba(100,200,255,.35),0 0 20px rgba(100,200,255,.15);
+  animation:gemmaGlow 2s ease-in-out infinite;
+}
+@keyframes gemmaGlow {
+  0%,100%{box-shadow:0 0 8px rgba(100,200,255,.3),0 0 16px rgba(100,200,255,.1);}
+  50%    {box-shadow:0 0 14px rgba(100,200,255,.6),0 0 28px rgba(100,200,255,.25);}
+}
+/* Gemma keys-section button overrides (blue palette) */
+.keys-btn-save.gemma {
+  border-color:rgba(100,200,255,.4);color:rgba(100,200,255,.9);
+  background:rgba(100,200,255,.08);
+}
+.keys-btn-save.gemma:hover{background:rgba(100,200,255,.2);}
+.keys-btn-save.gemma:disabled{opacity:.3;cursor:not-allowed;}
+.keys-eye-btn {
+  background:rgba(100,200,255,.05);border:1px solid rgba(100,200,255,.2);
+  color:rgba(100,200,255,.6);padding:9px 10px;border-radius:5px;
+  font-size:12px;cursor:pointer;transition:all .18s;
+}
+.keys-eye-btn:hover{background:rgba(100,200,255,.12);}
 </style>
 <script src="js/autumn-nlp.js"></script>
 <script src="js/wordnet_loader.js"></script>
@@ -2193,7 +2225,7 @@ select.ash-ctrl-input{cursor:pointer}
     <button class="hdr-btn" onclick="openLiveMode()" title="Live conversation">LIVE</button>
     <button class="hdr-btn" onclick="openTools()" title="LEATR Tools &amp; Info" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">TOOLS</button>
     <button class="hdr-btn" id="hdr-key-btn" onclick="openKeysModal()" title="API Keys &amp; Memory — click to configure" style="color:rgba(255,179,71,.9);border-color:rgba(255,179,71,.3)">🔑 KEYS</button>
-    <button id="hdr-gemma-btn" onclick="window.GemmaAI.toggle()" title="Toggle Gemma 4 AI backend" style="font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;padding:4px 10px;border-radius:4px;border:1px solid rgba(100,180,255,.25);background:transparent;color:rgba(100,180,255,.35);cursor:pointer;transition:all .25s">G4</button>
+    <button id="hdr-gemma-btn" onclick="window.GemmaAI.toggle()" title="Toggle Gemma 4 AI backend">G4</button>
     <!-- Secondary buttons -->
     <button class="hdr-btn" onclick="openVoiceSettings()" title="Voice settings">VOICE</button>
     <button class="hdr-btn" onclick="exportData()" title="Export data">EXPORT</button>
@@ -15222,13 +15254,13 @@ loadAutumnLogic();
         <div class="keys-input-row">
           <input type="password" class="keys-input" id="keys-gemma-input" placeholder="AIza…"
             oninput="document.getElementById('keys-gemma-save').disabled=!this.value.trim()">
-          <button class="keys-eye" onclick="var i=document.getElementById('keys-gemma-input');i.type=i.type==='password'?'text':'password'">👁</button>
-          <button class="keys-save-btn" id="keys-gemma-save" disabled
+          <button class="keys-eye-btn" onclick="var i=document.getElementById('keys-gemma-input');i.type=i.type==='password'?'text':'password'">👁</button>
+          <button class="keys-btn-save gemma" id="keys-gemma-save" disabled
             onclick="window.GemmaAI.saveKey(document.getElementById('keys-gemma-input').value.trim())">SAVE</button>
+          <button class="keys-btn-clear" onclick="window.GemmaAI.clearKey()" title="Remove key">✕</button>
         </div>
         <div style="display:flex;gap:8px;margin-top:6px">
-          <button class="keys-clear-btn" onclick="window.GemmaAI.clearKey()" style="font-size:.58em">CLEAR KEY</button>
-          <button class="keys-clear-btn" onclick="window.GemmaAI.testKey()" style="font-size:.58em;color:rgba(100,200,255,.7);border-color:rgba(100,200,255,.3)">TEST CONNECTION</button>
+          <button class="keys-btn-save gemma" style="font-size:.55rem" onclick="window.GemmaAI.testKey()">TEST CONNECTION</button>
         </div>
       </div>
 
