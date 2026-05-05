@@ -2095,7 +2095,33 @@ select.ash-ctrl-input{cursor:pointer}
   color:#38beff;
   text-shadow:0 0 7px rgba(56,190,255,.55), 0 0 14px rgba(56,190,255,.25);
 }
-/* ── Gemma G4 header toggle button ── */
+/* ── Continuous mic toggle button ── */
+#mic-toggle-btn {
+  font-size: 15px;
+  color: rgba(0,229,255,.35);
+  border-color: rgba(0,229,255,.2);
+  background: transparent;
+  transition: all .2s;
+  flex-shrink: 0;
+}
+#mic-toggle-btn:hover {
+  color: rgba(0,229,255,.7);
+  border-color: rgba(0,229,255,.5);
+}
+#mic-toggle-btn.listening {
+  color: #ff4466;
+  border-color: rgba(255,68,102,.7);
+  background: rgba(255,68,102,.1);
+  font-size: 11px;
+  font-family: var(--font-d);
+  letter-spacing: 1px;
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+@keyframes micPulse {
+  0%,100%{ box-shadow: 0 0 6px rgba(255,68,102,.4); }
+  50%    { box-shadow: 0 0 14px rgba(255,68,102,.8), 0 0 22px rgba(255,68,102,.3); }
+}
+</style>
 #hdr-gemma-btn {
   font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;
   padding:4px 10px;border-radius:4px;
@@ -2717,6 +2743,7 @@ select.ash-ctrl-input{cursor:pointer}
         <div id="input-pill">
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
         </div>
+        <button class="action-btn" id="mic-toggle-btn" onclick="toggleContinuousListening()" title="Hold mic open — tap to start, tap again to stop">🎙</button>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
         <button class="action-btn back-to-chat" id="back-to-chat-btn" onclick="window._backToChat&&window._backToChat()" title="Back to chat" style="display:none">✕</button>
       </div>
@@ -13451,12 +13478,22 @@ function initSTT(){
   Voice.recognition.onend=()=>{
     Voice.isListening=false;
     if(Voice.active&&!Voice.speaking) restartListeningIfActive();
-    else if(!Voice.active){document.getElementById('mic-btn')?.classList.remove('recording');document.getElementById('voice-indicator')?.classList.remove('show');}
+    else if(!Voice.active){
+      document.getElementById('mic-btn')?.classList.remove('recording');
+      document.getElementById('voice-indicator')?.classList.remove('show');
+      var _mtb=document.getElementById('mic-toggle-btn');
+      if(_mtb){_mtb.textContent='🎙';_mtb.classList.remove('listening');}
+    }
     if(Voice.liveMode){document.getElementById('live-orb')?.classList.remove('listening');document.getElementById('live-status').textContent='PROCESSING...';}
   };
   Voice.recognition.onerror=(e)=>{
     Voice.isListening=false;
-    if(!Voice.active){document.getElementById('mic-btn')?.classList.remove('recording');document.getElementById('voice-indicator')?.classList.remove('show');}
+    if(!Voice.active){
+      document.getElementById('mic-btn')?.classList.remove('recording');
+      document.getElementById('voice-indicator')?.classList.remove('show');
+      var _mtb2=document.getElementById('mic-toggle-btn');
+      if(_mtb2){_mtb2.textContent='🎙';_mtb2.classList.remove('listening');}
+    }
     else if(e.error!=='aborted'&&e.error!=='no-speech') restartListeningIfActive();
     else if(e.error==='no-speech') restartListeningIfActive();
     if(Voice.liveMode){document.getElementById('live-orb')?.classList.remove('listening');if(e.error!=='aborted')document.getElementById('live-status').textContent='TAP ORB TO TALK';}
@@ -13585,6 +13622,26 @@ function restartListeningIfActive(){
     if(!Voice.active) return;
     try{Voice.recognition.lang=Voice.sttLang;Voice.recognition.start();Voice.isListening=true;document.getElementById('voice-indicator')?.classList.add('show');}catch(e){}
   },300);
+}
+
+// ── Continuous listen mode — mic stays hot, auto-sends on speech end, STOP to quit ──
+function toggleContinuousListening(){
+  var btn = document.getElementById('mic-toggle-btn');
+  if(Voice.active){
+    // STOP — kill the loop
+    Voice.active = false;
+    Voice.isListening = false;
+    try{ if(Voice.recognition) Voice.recognition.stop(); }catch(e){}
+    document.getElementById('voice-indicator')?.classList.remove('show');
+    if(btn){ btn.textContent='🎙'; btn.classList.remove('listening'); btn.title='Hold mic open — tap to start, tap again to stop'; }
+    return;
+  }
+  // START — initialise STT if not yet done, then activate loop
+  if(!Voice.recognition) initSTT();
+  if(!Voice.recognition){ ideToast('Speech recognition not available in this browser'); return; }
+  Voice.active = true;
+  if(btn){ btn.textContent='STOP'; btn.classList.add('listening'); btn.title='Mic is live — tap to stop listening'; }
+  restartListeningIfActive();
 }
 
 function openVoiceSettings(){
