@@ -1287,5 +1287,117 @@ function doSearch(q){
 }
 document.getElementById('srch').addEventListener('input',function(){if(!this.value)doSearch('');});
 </script>
+
+  <!-- ── GEMMA 4 AI BACKEND ───────────────────────────────────────────── -->
+  <section class="section" data-section="gemma">
+    <div class="section-header">
+      <h2 class="section-title">🔵 GEMMA 4 — GOOGLE AI BACKEND</h2>
+    </div>
+    <div class="card">
+      <div class="sub">WHAT IT IS</div>
+      <table class="ct">
+        <tr><td><span class="cp">Gemma 4</span></td><td class="cd">Google DeepMind's open-weight multimodal model, available free through Google AI Studio. Routes chat through <strong>gemma-4-27b-it</strong> instead of Claude when toggled on. Supports text and image input, 256K context window.</td></tr>
+        <tr><td><span class="cp">Toggle button</span></td><td class="cd">The <strong>G4</strong> button in the header, to the right of 🔑 KEYS. Dim steel-blue when off. Glowing neon cyan when on.</td></tr>
+        <tr><td><span class="cp">API key required</span></td><td class="cd">Free Google AI Studio key — get one at <a href="https://aistudio.google.com" target="_blank" style="color:var(--cyan)">aistudio.google.com</a> → Get API key. No billing required.</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="sub">SETUP</div>
+      <div class="steps">
+        <div class="step"><div class="sn">1</div><div class="sb"><div class="st">GET A KEY</div><div class="sd">Visit <a href="https://aistudio.google.com" target="_blank" style="color:var(--cyan)">aistudio.google.com</a>, sign in with your Google account, and click Get API key.</div></div></div>
+        <div class="step"><div class="sn">2</div><div class="sb"><div class="st">ADD TO AUTUMN</div><div class="sd">Tap 🔑 KEYS in the header → scroll to GOOGLE GEMMA 4 API KEY → paste your AIza… key → tap SAVE.</div></div></div>
+        <div class="step"><div class="sn">3</div><div class="sb"><div class="st">TEST &amp; TOGGLE</div><div class="sd">Tap TEST CONNECTION to verify. Then tap the G4 button in the header to enable Gemma. It glows cyan when active.</div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sub">BEHAVIOR</div>
+      <table class="ct">
+        <tr><td><span class="cp">When Gemma is ON</span></td><td class="cd">All chat messages route to Gemma 4. Your full conversation history, Autumn's system prompt, and any attached images are all passed through.</td></tr>
+        <tr><td><span class="cp">Fallback</span></td><td class="cd">If Gemma fails (rate limit, network issue), the call falls back to Claude silently. The UI never breaks.</td></tr>
+        <tr><td><span class="cp">Key security</span></td><td class="cd">Your key is stored in localStorage on your device only. It is never committed to any repository and is sent only directly to Google's API from your browser.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── GOOGLE NEURAL TTS + GEMMA AUDIO ──────────────────────────────── -->
+  <section class="section" data-section="voice-ext">
+    <div class="section-header">
+      <h2 class="section-title">🔵 GOOGLE VOICE &amp; GEMMA AUDIO INPUT</h2>
+    </div>
+    <div class="card">
+      <div class="sub">GOOGLE NEURAL TTS</div>
+      <table class="ct">
+        <tr><td><span class="cp">What it is</span></td><td class="cd">Uses Google's Cloud Text-to-Speech API to give Autumn a significantly more natural voice. Replaces the default Kokoro / browser TTS when active.</td></tr>
+        <tr><td><span class="cp">How to enable</span></td><td class="cd">Open Voice &amp; Language Settings → scroll to <strong>GOOGLE NEURAL VOICE OUTPUT</strong> → toggle ON → select a voice → tap Play Preview.</td></tr>
+        <tr><td><span class="cp">Same key</span></td><td class="cd">Uses the same Google AI Studio key as Gemma 4. No extra setup needed once the key is saved.</td></tr>
+      </table>
+      <div class="sub" style="margin-top:12px">AVAILABLE VOICES</div>
+      <table class="ct">
+        <tr><td><span class="cp">Chirp HD: Zephyr</span></td><td class="cd">Default. Google's highest-quality neural voice.</td></tr>
+        <tr><td><span class="cp">Chirp HD: Aoede / Puck</span></td><td class="cd">Additional Chirp HD neural options.</td></tr>
+        <tr><td><span class="cp">WaveNet D / F</span></td><td class="cd">WaveNet neural voices (male / female).</td></tr>
+        <tr><td><span class="cp">Neural2 C / J</span></td><td class="cd">Neural2 voices (female / male).</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="sub">GEMMA E4B AUDIO INPUT</div>
+      <table class="ct">
+        <tr><td><span class="cp">What it is</span></td><td class="cd">Sends mic audio directly to Gemma E4B (Google's edge model with native audio understanding) instead of converting to text first via browser speech recognition. Gemma hears the actual audio — tone, accent, context and all.</td></tr>
+        <tr><td><span class="cp">Requirements</span></td><td class="cd">Gemma G4 toggle must be ON. Open Voice &amp; Language Settings → toggle ON <strong>GEMMA AUDIO INPUT</strong>.</td></tr>
+        <tr><td><span class="cp">Usage</span></td><td class="cd">When both toggles are active, a 🎙 button appears in the chat bar. Tap it → records 5 seconds → Gemma understands the audio → sends as your message.</td></tr>
+        <tr><td><span class="cp">Model</span></td><td class="cd">gemma-4-e4b-it (effective 4B, native audio + image input, designed for edge/mobile deployment).</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── MIST HUD MODULE ───────────────────────────────────────────────── -->
+  <section class="section" data-section="mist">
+    <div class="section-header">
+      <h2 class="section-title">◈ MIST — LEAD EDGE MAZE HUD</h2>
+    </div>
+    <div class="card">
+      <div class="sub">OVERVIEW</div>
+      <table class="ct">
+        <tr><td><span class="cp">What it is</span></td><td class="cd">A collapsible right-side HUD panel with three interactive LEMAC mazes. Solving each slot fires a THREE.js volumetric effect over the main BRPN 3D scene.</td></tr>
+        <tr><td><span class="cp">How to open</span></td><td class="cd">Tap the ★ ♥ ◈ strip on the right edge of the screen. The panel slides in from the right.</td></tr>
+        <tr><td><span class="cp">Maze logic</span></td><td class="cd">All mazes are generated using the Lead Edge Ash Tree Reflex algorithm — DFS + randomized, entry and exit on random sides, at least 1 cell apart on the same side.</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="sub">SLOTS &amp; PROGRESSION</div>
+      <table class="ct">
+        <tr><td><span class="cp">★ STAR</span></td><td class="cd">Always unlocked. Solve to unlock Heart.</td></tr>
+        <tr><td><span class="cp">♥ HEART</span></td><td class="cd">Unlocked after solving Star. Solve to unlock Mist.</td></tr>
+        <tr><td><span class="cp">◈ MIST</span></td><td class="cd">Unlocked after solving Heart.</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="sub">DIFFICULTY</div>
+      <table class="ct">
+        <tr><td><span class="cp">I — Easy</span></td><td class="cd">7×7 grid.</td></tr>
+        <tr><td><span class="cp">II — Medium</span></td><td class="cd">11×11 grid.</td></tr>
+        <tr><td><span class="cp">III — Hard</span></td><td class="cd">15×15 grid.</td></tr>
+        <tr><td><span class="cp">Changing difficulty</span></td><td class="cd">Regenerates all three slots simultaneously. Tap NEW to generate a fresh maze at the current difficulty.</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="sub">HOW TO PLAY</div>
+      <div class="steps">
+        <div class="step"><div class="sn">1</div><div class="sb"><div class="st">START AT ENTRY</div><div class="sd">A wireframe circle sits at the entry point (▸). Drag it to begin. You must start from the entry — dragging from anywhere else does nothing.</div></div></div>
+        <div class="step"><div class="sn">2</div><div class="sb"><div class="st">NAVIGATE</div><div class="sd">Drag through open passages toward the exit (◂). You can backtrack. Hitting a wall stops your movement at that cell.</div></div></div>
+        <div class="step"><div class="sn">3</div><div class="sb"><div class="st">SOLVE</div><div class="sd">Reach the exit ◂ to solve. The THREE.js volumetric effect fires over the main 3D scene, the next slot unlocks, and the status updates.</div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sub">EFFECTS ON SOLVE</div>
+      <table class="ct">
+        <tr><td><span class="cp">★ Star</span></td><td class="cd">Gold wireframe octahedra burst and radiate outward over the BRPN 3D scene.</td></tr>
+        <tr><td><span class="cp">♥ Heart</span></td><td class="cd">Pink and red wireframe spheres arranged in a heart formation drift apart.</td></tr>
+        <tr><td><span class="cp">◈ Mist</span></td><td class="cd">Cyan wireframe tetrahedra swirl outward in a spiraling particle cloud.</td></tr>
+      </table>
+    </div>
+  </section>
+
+
 </body>
 </html>
