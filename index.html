@@ -22404,6 +22404,23 @@ window.GemmaAI = (function() {
         body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with exactly: GEMMA_OK' }] }] })
       });
       var d = await r.json();
+      if (!r.ok) {
+        var errMsg = d?.error?.message || ('HTTP ' + r.status);
+        // If model not found, try gemma-3-27b-it fallback
+        if (r.status === 404 || errMsg.includes('not found') || errMsg.includes('MODEL')) {
+          _toast('⚠ Model not found — trying gemma-3-27b-it…');
+          var r2 = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=' + _key, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with exactly: GEMMA_OK' }] }] })
+          });
+          var d2 = await r2.json();
+          if (r2.ok) { _toast('✅ Connected via gemma-3-27b-it — updating model…'); GEMMA_MODEL = 'gemma-3-27b-it'; GEMMA_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMMA_MODEL + ':generateContent'; }
+          else _toast('⚠ ' + (d2?.error?.message || 'Key invalid or no access'));
+        } else {
+          _toast('⚠ ' + errMsg);
+        }
+        return;
+      }
       var reply = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
       if (reply.includes('GEMMA_OK') || r.ok) _toast('✅ Gemma 4 connected!');
       else _toast('⚠ Key set but got unexpected response');
