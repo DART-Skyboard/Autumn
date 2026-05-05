@@ -22393,6 +22393,292 @@ window.GemmaAI = (function() {
 })();
 </script>
 
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   AUTUMN VOICE EXTENSION
+   1. Google Cloud TTS (Chirp/WaveNet/Neural2) — richer voices
+   2. Gemma E4B audio input — native mic audio understanding
+   ═══════════════════════════════════════════════════════════════ */
+window.AutumnVoiceExt = (function() {
+  'use strict';
+
+  var _googleTTSOn   = false;
+  var _googleTTSVoice = 'en-US-Chirp3-HD-Zephyr';
+  var _gemmaAudioOn  = false;
+  var _recording     = false;
+
+  var VOICES = [
+    { id: 'en-US-Chirp3-HD-Zephyr', label: 'Chirp HD: Zephyr (neural)' },
+    { id: 'en-US-Chirp3-HD-Aoede',  label: 'Chirp HD: Aoede (neural)'  },
+    { id: 'en-US-Chirp3-HD-Puck',   label: 'Chirp HD: Puck (neural)'   },
+    { id: 'en-US-Wavenet-D',         label: 'WaveNet D (male)'           },
+    { id: 'en-US-Wavenet-F',         label: 'WaveNet F (female)'         },
+    { id: 'en-US-Neural2-C',         label: 'Neural2 C (female)'         },
+    { id: 'en-US-Neural2-J',         label: 'Neural2 J (male)'           }
+  ];
+
+  function _key() {
+    return (window.GemmaAI && window.GemmaAI.getKey()) || '';
+  }
+
+  function _toast(msg) {
+    if (typeof ideToast === 'function') ideToast(msg, 2500);
+    else if (typeof _toast !== 'undefined') console.log(msg);
+  }
+
+  /* ── 1. Google Cloud TTS ────────────────────────────────────── */
+  async function _speakGoogle(text, onEnd) {
+    var key = _key();
+    if (!key) { _fallback(text, onEnd); return; }
+    var clean = (typeof cleanForTTS === 'function') ? cleanForTTS(text) : text;
+    if (!clean.trim()) { if (onEnd) onEnd(); return; }
+    try {
+      var res = await fetch(
+        'https://texttospeech.googleapis.com/v1/text:synthesize?key=' + key,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: { text: clean },
+            voice: { languageCode: _googleTTSVoice.slice(0, 5), name: _googleTTSVoice },
+            audioConfig: { audioEncoding: 'MP3', speakingRate: (window.Voice && Voice.speed) || 1.0, pitch: 0 }
+          })
+        }
+      );
+      var data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      var bytes  = atob(data.audioContent);
+      var buf    = new Uint8Array(bytes.length);
+      for (var i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+      var url    = URL.createObjectURL(new Blob([buf], { type: 'audio/mpeg' }));
+      var audio  = new Audio(url);
+      if (window.Voice) Voice.speaking = true;
+      audio.onended = function() { URL.revokeObjectURL(url); if (window.Voice) Voice.speaking = false; if (onEnd) onEnd(); };
+      audio.onerror = function() { _fallback(text, onEnd); };
+      audio.play();
+    } catch(e) {
+      console.warn('Google TTS error:', e.message);
+      _fallback(text, onEnd);
+    }
+  }
+
+  function _fallback(text, onEnd) {
+    if (window._kokoroReady && typeof _speakKokoro === 'function') _speakKokoro(text, onEnd);
+    else if (typeof _speakWebSpeech === 'function') _speakWebSpeech(text, onEnd);
+    else if (onEnd) onEnd();
+  }
+
+  function toggleGoogleTTS(on) {
+    _googleTTSOn = (on !== undefined) ? !!on : !_googleTTSOn;
+    try { localStorage.setItem('_goog_tts_on', _googleTTSOn ? '1' : '0'); } catch(e) {}
+    _patchSpeak();
+    _renderSections();
+    _toast(_googleTTSOn ? 'Google Chirp TTS active' : 'Switched to default TTS');
+  }
+
+  function setGoogleVoice(id) {
+    _googleTTSVoice = id;
+    try { localStorage.setItem('_goog_tts_voice', id); } catch(e) {}
+    _renderSections();
+  }
+
+  function previewGoogleTTS() {
+    _speakGoogle('Hello, I am Autumn. This is how I sound with Google neural voice.', null);
+  }
+
+  /* ── 2. Gemma E4B audio input ───────────────────────────────── */
+  function toggleGemmaAudio(on) {
+    _gemmaAudioOn = (on !== undefined) ? !!on : !_gemmaAudioOn;
+    try { localStorage.setItem('_gemma_audio_on', _gemmaAudioOn ? '1' : '0'); } catch(e) {}
+    _renderSections();
+    _updateAudioBtn();
+    _toast(_gemmaAudioOn ? 'Gemma audio input active' : 'Gemma audio input off');
+  }
+
+  function recordAudio(ms) {
+    return new Promise(function(resolve, reject) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        var chunks = [];
+        var mr = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+        mr.ondataavailable = function(e) { if (e.data.size) chunks.push(e.data); };
+        mr.onstop = function() {
+          stream.getTracks().forEach(function(t) { t.stop(); });
+          var reader = new FileReader();
+          reader.onload = function() { resolve(reader.result.split(',')[1]); };
+          reader.readAsDataURL(new Blob(chunks, { type: 'audio/webm' }));
+        };
+        mr.start();
+        setTimeout(function() { mr.stop(); }, ms || 5000);
+      }).catch(reject);
+    });
+  }
+
+  async function gemmaAudioQuery(audio64, prompt) {
+    var key = _key();
+    if (!key) throw new Error('No Google key');
+    var res = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemma-4-e4b-it:generateContent?key=' + key,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [
+            { inlineData: { mimeType: 'audio/webm', data: audio64 } },
+            { text: prompt || 'Transcribe and respond to the audio.' }
+          ]}],
+          generationConfig: { maxOutputTokens: 1024, temperature: 0.7 }
+        })
+      }
+    );
+    var data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.candidates && data.candidates[0] && data.candidates[0].content &&
+           data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+           data.candidates[0].content.parts[0].text || '';
+  }
+
+  /* ── Patch speak() dispatcher ───────────────────────────────── */
+  function _patchSpeak() {
+    if (!window._avext_origSpeak) window._avext_origSpeak = window.speak;
+    window.speak = function(text, onEnd) {
+      if (_googleTTSOn && _key()) { _speakGoogle(text, onEnd); }
+      else if (window._avext_origSpeak) { window._avext_origSpeak(text, onEnd); }
+    };
+  }
+
+  /* ── Gemma audio button beside chat input ───────────────────── */
+  function _addAudioBtn() {
+    if (document.getElementById('avext-audio-btn')) return;
+    var inp = document.getElementById('chat-input');
+    if (!inp) return;
+    var btn = document.createElement('button');
+    btn.id = 'avext-audio-btn';
+    btn.title = 'Record & send to Gemma E4B audio model';
+    btn.innerHTML = '&#127897;';
+    btn.style.cssText = 'display:none;background:rgba(100,200,255,.1);border:1px solid rgba(100,200,255,.25);'
+      + 'color:#64c8ff;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:16px;'
+      + 'flex-shrink:0;transition:all .2s;align-items:center;justify-content:center';
+    btn.onclick = _audioRecord;
+    inp.parentNode && inp.parentNode.insertBefore(btn, inp.nextSibling);
+    _updateAudioBtn();
+  }
+
+  function _updateAudioBtn() {
+    var btn = document.getElementById('avext-audio-btn');
+    if (!btn) return;
+    var show = _gemmaAudioOn && window.GemmaAI && window.GemmaAI.isOn();
+    btn.style.display = show ? 'inline-flex' : 'none';
+  }
+
+  async function _audioRecord() {
+    if (_recording) return;
+    if (!window.GemmaAI || !window.GemmaAI.isOn()) {
+      _toast('Enable Gemma toggle first'); return;
+    }
+    var btn = document.getElementById('avext-audio-btn');
+    _recording = true;
+    if (btn) btn.innerHTML = '&#9209; 5s';
+    try {
+      _toast('Recording 5s — speak now…');
+      var audio64 = await recordAudio(5000);
+      if (btn) btn.innerHTML = '&#8987;';
+      var reply = await gemmaAudioQuery(audio64);
+      if (reply) {
+        var inp = document.getElementById('chat-input');
+        if (inp) { inp.value = reply; }
+        if (typeof handleSend === 'function') handleSend();
+      }
+    } catch(e) {
+      _toast('Audio error: ' + e.message);
+    } finally {
+      _recording = false;
+      if (btn) btn.innerHTML = '&#127897;';
+    }
+  }
+
+  /* ── Inject sections into voice modal ───────────────────────── */
+  function _renderSections() {
+    var tts = document.getElementById('avext-tts-section');
+    var aud = document.getElementById('avext-audio-section');
+    if (tts) {
+      var opts = VOICES.map(function(v) {
+        return '<option value="' + v.id + '"' + (_googleTTSVoice === v.id ? ' selected' : '') + '>' + v.label + '</option>';
+      }).join('');
+      var sw = '<label style="position:relative;display:inline-block;width:34px;height:18px;flex-shrink:0">'
+        + '<input type="checkbox"' + (_googleTTSOn ? ' checked' : '') + ' onchange="window.AutumnVoiceExt.toggleGoogleTTS(this.checked)" style="opacity:0;width:0;height:0">'
+        + '<span style="position:absolute;inset:0;border-radius:18px;cursor:pointer;transition:.2s;border:1px solid ' + (_googleTTSOn ? 'rgba(100,200,255,.6);background:rgba(100,200,255,.25)' : 'rgba(255,255,255,.15);background:rgba(255,255,255,.08)') + '">'
+        + '<span style="position:absolute;height:12px;width:12px;left:' + (_googleTTSOn ? '18px' : '2px') + ';top:2px;background:' + (_googleTTSOn ? '#64c8ff' : 'rgba(255,255,255,.4)') + ';border-radius:50%;transition:.2s"></span></span></label>';
+      tts.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' + sw
+        + '<span style="font-size:.65em;color:' + (_googleTTSOn ? '#64c8ff' : 'rgba(255,255,255,.5)') + '">Google Neural TTS' + (_googleTTSOn ? ' — ACTIVE' : '') + '</span></div>'
+        + (_googleTTSOn
+            ? '<select onchange="window.AutumnVoiceExt.setGoogleVoice(this.value)" style="width:100%;background:rgba(0,0,0,.4);border:1px solid rgba(100,200,255,.25);color:#e0f0ff;padding:5px 8px;border-radius:4px;font-size:.65em;margin-bottom:6px">' + opts + '</select>'
+            + '<button onclick="window.AutumnVoiceExt.previewGoogleTTS()" style="font-size:.55em;padding:4px 12px;background:rgba(100,200,255,.1);border:1px solid rgba(100,200,255,.3);color:#64c8ff;border-radius:4px;cursor:pointer">Play Preview</button>'
+            : '<div style="font-size:.55em;color:rgba(255,255,255,.25)">Toggle on to use Chirp HD, WaveNet, or Neural2 — uses Gemma key</div>');
+    }
+    if (aud) {
+      var sw2 = '<label style="position:relative;display:inline-block;width:34px;height:18px;flex-shrink:0">'
+        + '<input type="checkbox"' + (_gemmaAudioOn ? ' checked' : '') + ' onchange="window.AutumnVoiceExt.toggleGemmaAudio(this.checked)" style="opacity:0;width:0;height:0">'
+        + '<span style="position:absolute;inset:0;border-radius:18px;cursor:pointer;transition:.2s;border:1px solid ' + (_gemmaAudioOn ? 'rgba(100,200,255,.6);background:rgba(100,200,255,.25)' : 'rgba(255,255,255,.15);background:rgba(255,255,255,.08)') + '">'
+        + '<span style="position:absolute;height:12px;width:12px;left:' + (_gemmaAudioOn ? '18px' : '2px') + ';top:2px;background:' + (_gemmaAudioOn ? '#64c8ff' : 'rgba(255,255,255,.4)') + ';border-radius:50%;transition:.2s"></span></span></label>';
+      aud.innerHTML = '<div style="display:flex;align-items:center;gap:10px">' + sw2
+        + '<span style="font-size:.65em;color:' + (_gemmaAudioOn ? '#64c8ff' : 'rgba(255,255,255,.5)') + '">Gemma E4B Audio Input' + (_gemmaAudioOn ? ' — ACTIVE' : '') + '</span></div>'
+        + '<div style="font-size:.55em;color:' + (_gemmaAudioOn ? 'rgba(100,200,255,.45)' : 'rgba(255,255,255,.2)') + ';margin-top:4px;line-height:1.6">'
+        + (_gemmaAudioOn
+            ? 'Mic button in chat records audio and sends directly to Gemma E4B. Requires Gemma G4 toggle ON.'
+            : 'When on, shows a mic button in the chat bar that sends audio to Gemma E4B natively.') + '</div>';
+    }
+  }
+
+  function _injectModalSections() {
+    if (document.getElementById('avext-tts-section')) return;
+    var modal = document.getElementById('voice-modal');
+    if (!modal) return;
+    var preview = modal.querySelector('.voice-preview');
+    if (!preview) return;
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'margin-top:16px;margin-bottom:12px;border-top:1px solid rgba(100,200,255,.1);padding-top:14px';
+    wrapper.innerHTML =
+      '<div style="font-family:var(--font-d);font-size:.55em;font-weight:700;letter-spacing:.08em;color:rgba(100,200,255,.6);margin-bottom:8px">GOOGLE NEURAL VOICE OUTPUT</div>'
+      + '<div id="avext-tts-section" style="margin-bottom:14px"></div>'
+      + '<div style="font-family:var(--font-d);font-size:.55em;font-weight:700;letter-spacing:.08em;color:rgba(100,200,255,.6);margin-bottom:6px">GEMMA AUDIO INPUT</div>'
+      + '<div id="avext-audio-section"></div>';
+    preview.parentNode.insertBefore(wrapper, preview);
+    _renderSections();
+  }
+
+  /* ── Init ───────────────────────────────────────────────────── */
+  function init() {
+    try { _googleTTSOn   = localStorage.getItem('_goog_tts_on')    === '1'; } catch(e) {}
+    try { _googleTTSVoice= localStorage.getItem('_goog_tts_voice') || _googleTTSVoice; } catch(e) {}
+    try { _gemmaAudioOn  = localStorage.getItem('_gemma_audio_on') === '1'; } catch(e) {}
+    _patchSpeak();
+    setTimeout(_addAudioBtn, 1000);
+
+    // Hook openVoiceSettings
+    var _origOVS = window.openVoiceSettings;
+    window.openVoiceSettings = function() {
+      if (_origOVS) _origOVS.apply(this, arguments);
+      setTimeout(_injectModalSections, 80);
+    };
+
+    // Hook GemmaAI toggle to update audio btn
+    if (window.GemmaAI) {
+      var _origGT = window.GemmaAI.toggle;
+      window.GemmaAI.toggle = function() {
+        if (_origGT) _origGT.apply(window.GemmaAI, arguments);
+        setTimeout(_updateAudioBtn, 150);
+      };
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else setTimeout(init, 300);
+
+  return { toggleGoogleTTS, setGoogleVoice, previewGoogleTTS, toggleGemmaAudio, gemmaAudioQuery, recordAudio };
+})();
+
+</script>
 </body>
 </html>
 
