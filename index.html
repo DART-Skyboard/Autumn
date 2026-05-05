@@ -2193,6 +2193,7 @@ select.ash-ctrl-input{cursor:pointer}
     <button class="hdr-btn" onclick="openLiveMode()" title="Live conversation">LIVE</button>
     <button class="hdr-btn" onclick="openTools()" title="LEATR Tools &amp; Info" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">TOOLS</button>
     <button class="hdr-btn" id="hdr-key-btn" onclick="openKeysModal()" title="API Keys &amp; Memory — click to configure" style="color:rgba(255,179,71,.9);border-color:rgba(255,179,71,.3)">🔑 KEYS</button>
+    <button id="hdr-gemma-btn" onclick="window.GemmaAI.toggle()" title="Toggle Gemma 4 AI backend" style="font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;padding:4px 10px;border-radius:4px;border:1px solid rgba(100,180,255,.25);background:transparent;color:rgba(100,180,255,.35);cursor:pointer;transition:all .25s">G4</button>
     <!-- Secondary buttons -->
     <button class="hdr-btn" onclick="openVoiceSettings()" title="Voice settings">VOICE</button>
     <button class="hdr-btn" onclick="exportData()" title="Export data">EXPORT</button>
@@ -10568,6 +10569,26 @@ ${(function(){
 
     const ak = _getAK?.() || '';
     // 25 second timeout so the UI doesn't hang forever
+    // ── Gemma 4 intercept — route to Google AI if toggled on ────────
+    if (window.GemmaAI && window.GemmaAI.isOn()) {
+      try {
+        var _gemmaImages = [];
+        if (S.pendingImages && S.pendingImages.length) {
+          S.pendingImages.forEach(function(img) {
+            if (img.data) _gemmaImages.push({ data: img.data.split(',')[1] || img.data, mediaType: img.type || 'image/jpeg' });
+          });
+        }
+        var _gemmaReply = await window.GemmaAI.call(systemPrompt, trimHistory, _gemmaImages);
+        if (_gemmaReply) {
+          const grammarMeta = buildGrammarMeta(analysis.grammar,analysis,analysis.toolReflexes.filter(t=>t.active).map(t=>t.tool));
+          const brpnMeta    = buildBRPNMeta(analysis);
+          return { text: _gemmaReply, grammarMeta, brpnMeta };
+        }
+      } catch(_ge) {
+        console.warn('Gemma call failed, falling back to Claude:', _ge.message);
+      }
+    }
+    // ── Claude (default) ─────────────────────────────────────────────
     const _ac = new AbortController();
     const _timeout = setTimeout(() => _ac.abort(), 25000);
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -15182,6 +15203,34 @@ loadAutumnLogic();
         </div>
       </div>
 
+
+
+
+      <!-- GEMMA 4 API KEY -->
+      <div class="keys-section" id="gemma-section">
+        <div class="keys-section-header">
+          <div class="keys-dot inactive" id="gemma-dot" style="background:rgba(100,180,255,.25);box-shadow:none"></div>
+          <span class="keys-label" style="color:rgba(100,200,255,.8)">GOOGLE GEMMA 4 API KEY</span>
+          <span class="keys-status-txt off" id="gemma-status-txt">NOT SET</span>
+        </div>
+        <p class="keys-desc">
+          <strong>Optional.</strong> Adds Google's Gemma 4 as a second AI backend.<br>
+          Get a free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> → Get API key.<br>
+          When Gemma is toggled on, all chat routes to <strong>gemma-4-27b-it</strong> via Google's Gemini API — text, images, and audio.<br>
+          <span style="color:rgba(255,179,71,.75);font-size:.9em">Your key is sent only to Google's API from your browser.</span>
+        </p>
+        <div class="keys-input-row">
+          <input type="password" class="keys-input" id="keys-gemma-input" placeholder="AIza…"
+            oninput="document.getElementById('keys-gemma-save').disabled=!this.value.trim()">
+          <button class="keys-eye" onclick="var i=document.getElementById('keys-gemma-input');i.type=i.type==='password'?'text':'password'">👁</button>
+          <button class="keys-save-btn" id="keys-gemma-save" disabled
+            onclick="window.GemmaAI.saveKey(document.getElementById('keys-gemma-input').value.trim())">SAVE</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button class="keys-clear-btn" onclick="window.GemmaAI.clearKey()" style="font-size:.58em">CLEAR KEY</button>
+          <button class="keys-clear-btn" onclick="window.GemmaAI.testKey()" style="font-size:.58em;color:rgba(100,200,255,.7);border-color:rgba(100,200,255,.3)">TEST CONNECTION</button>
+        </div>
+      </div>
 
     </div>
   </div>
@@ -21965,7 +22014,20 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       document.getElementById('adm-t1').style.color=tab==='data'?'#ffb347':'rgba(0,229,255,.5)';
       document.getElementById('adm-t2').style.background=tab==='ash'?'rgba(0,229,255,.08)':'transparent';
       document.getElementById('adm-t2').style.color=tab==='ash'?'var(--cyan)':'rgba(0,229,255,.5)';
-      frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
+      frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}
+/* Gemma 4 toggle button */
+#hdr-gemma-btn.gemma-on {
+  border-color: rgba(100,200,255,.8) !important;
+  color: #64c8ff !important;
+  background: rgba(100,200,255,.1) !important;
+  box-shadow: 0 0 10px rgba(100,200,255,.35), 0 0 20px rgba(100,200,255,.15);
+  animation: gemmaGlow 2s ease-in-out infinite;
+}
+@keyframes gemmaGlow {
+  0%,100% { box-shadow: 0 0 8px rgba(100,200,255,.3), 0 0 16px rgba(100,200,255,.1); }
+  50%      { box-shadow: 0 0 14px rgba(100,200,255,.6), 0 0 28px rgba(100,200,255,.25); }
+}
+</style></body>';
       fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
         .then(function(r){return r.json();})
         .then(function(f){frame.srcdoc=atob(f.content.replace(/\n/g,''));})
@@ -22172,6 +22234,165 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 })();
 
 </script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   GemmaAI — Gemma 4 backend toggle for Autumn
+   Routes chat through Google's Gemini API (gemma-4-27b-it)
+   when enabled. Text + image (base64) multimodal supported.
+   ═══════════════════════════════════════════════════════════════ */
+window.GemmaAI = (function() {
+  var _on  = false;
+  var _key = '';
+  var GEMMA_MODEL = 'gemma-4-27b-it';
+  var GEMMA_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMMA_MODEL + ':generateContent';
+
+  function _load() {
+    try {
+      _key = localStorage.getItem('_gemma_key') || '';
+      _on  = localStorage.getItem('_gemma_on') === '1' && !!_key;
+    } catch(e) {}
+    _updateUI();
+  }
+
+  function _updateUI() {
+    var btn = document.getElementById('hdr-gemma-btn');
+    var dot = document.getElementById('gemma-dot');
+    var txt = document.getElementById('gemma-status-txt');
+    var ksb = document.getElementById('ksb-ak');
+    if (btn) {
+      btn.classList.toggle('gemma-on', _on);
+      btn.title = _on ? 'Gemma 4 ON — click to switch back to Claude' : 'Gemma 4 OFF — click to enable';
+    }
+    if (dot) {
+      dot.style.background = _key ? (_on ? '#64c8ff' : 'rgba(100,200,255,.4)') : 'rgba(100,200,255,.15)';
+      dot.style.boxShadow  = _on ? '0 0 8px #64c8ff' : 'none';
+    }
+    if (txt) {
+      txt.textContent = _key ? (_on ? 'ACTIVE' : 'SET — OFF') : 'NOT SET';
+      txt.className   = 'keys-status-txt ' + (_key ? (_on ? 'on' : 'off') : 'off');
+    }
+    if (ksb) {
+      ksb.textContent = _on ? '◈ GEMMA 4 ACTIVE' : '◈ CLAUDE ACTIVE';
+      ksb.style.color = _on ? '#64c8ff' : '';
+    }
+  }
+
+  function toggle() {
+    if (!_key) { openKeysModal(); _toast('Add your Google AI Studio key to enable Gemma 4'); return; }
+    _on = !_on;
+    try { localStorage.setItem('_gemma_on', _on ? '1' : '0'); } catch(e) {}
+    _updateUI();
+    _toast(_on ? '🔵 Gemma 4 active — routing to Google AI' : '◈ Switched back to Claude');
+  }
+
+  function saveKey(k) {
+    if (!k) return;
+    _key = k;
+    try { localStorage.setItem('_gemma_key', k); } catch(e) {}
+    _updateUI();
+    var inp = document.getElementById('keys-gemma-input');
+    if (inp) { inp.value = ''; inp.placeholder = 'AIza•••'; }
+    _toast('Gemma 4 key saved');
+  }
+
+  function clearKey() {
+    _key = ''; _on = false;
+    try { localStorage.removeItem('_gemma_key'); localStorage.removeItem('_gemma_on'); } catch(e) {}
+    _updateUI();
+    _toast('Gemma key cleared');
+  }
+
+  async function testKey() {
+    if (!_key) { _toast('No key set'); return; }
+    _toast('Testing Gemma connection…');
+    try {
+      var r = await fetch(GEMMA_ENDPOINT + '?key=' + _key, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with exactly: GEMMA_OK' }] }] })
+      });
+      var d = await r.json();
+      var reply = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (reply.includes('GEMMA_OK') || r.ok) _toast('✅ Gemma 4 connected!');
+      else _toast('⚠ Key set but got unexpected response');
+    } catch(e) { _toast('❌ Connection failed: ' + e.message); }
+  }
+
+  /* ── Main API call — replaces Claude call when _on ────────────── */
+  async function call(systemPrompt, messages, images) {
+    if (!_key) throw new Error('No Gemma key');
+
+    // Build parts array — text + optional images
+    var parts = [];
+
+    // Images first (Gemma is multimodal)
+    if (images && images.length) {
+      images.forEach(function(img) {
+        // img.data is base64, img.mediaType is e.g. 'image/jpeg'
+        parts.push({
+          inlineData: { mimeType: img.mediaType || 'image/jpeg', data: img.data }
+        });
+      });
+    }
+
+    // System prompt folded into first user message (Gemma supports system role)
+    var userText = messages[messages.length - 1]?.content || '';
+    if (typeof userText !== 'string') {
+      userText = (Array.isArray(userText) ? userText.map(function(p){ return p.text||''; }).join('\n') : '');
+    }
+    parts.push({ text: userText });
+
+    // Build conversation history
+    var contents = [];
+    // System as first turn
+    if (systemPrompt) {
+      contents.push({ role: 'user', parts: [{ text: '[SYSTEM] ' + systemPrompt }] });
+      contents.push({ role: 'model', parts: [{ text: 'Understood.' }] });
+    }
+    // History (all but last message)
+    for (var i = 0; i < messages.length - 1; i++) {
+      var m = messages[i];
+      var role = m.role === 'assistant' ? 'model' : 'user';
+      var txt  = typeof m.content === 'string' ? m.content
+               : (Array.isArray(m.content) ? m.content.map(function(p){return p.text||'';}).join('\n') : '');
+      if (txt.trim()) contents.push({ role: role, parts: [{ text: txt }] });
+    }
+    // Current user message with images
+    contents.push({ role: 'user', parts: parts });
+
+    var body = {
+      contents: contents,
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.7 }
+    };
+
+    var res = await fetch(GEMMA_ENDPOINT + '?key=' + _key, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
+      signal:  AbortSignal.timeout(30000)
+    });
+    var data = await res.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  }
+
+  function _toast(msg) {
+    if (typeof window.ideToast === 'function') window.ideToast(msg, 2500);
+    else if (typeof window._toast === 'function') window._toast(msg);
+  }
+
+  function isOn()  { return _on; }
+  function getKey(){ return _key; }
+
+  // Init after DOM ready
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _load);
+  else _load();
+
+  return { toggle, saveKey, clearKey, testKey, call, isOn, getKey };
+})();
+</script>
+
 </body>
 </html>
 
