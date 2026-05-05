@@ -2095,26 +2095,29 @@ select.ash-ctrl-input{cursor:pointer}
   color:#38beff;
   text-shadow:0 0 7px rgba(56,190,255,.55), 0 0 14px rgba(56,190,255,.25);
 }
-/* ── Continuous mic toggle button ── */
+/* ── Continuous mic toggle button (inside pill) ── */
 #mic-toggle-btn {
-  font-size: 15px;
-  color: rgba(0,229,255,.35);
-  border-color: rgba(0,229,255,.2);
   background: transparent;
-  transition: all .2s;
+  border: none;
+  outline: none;
+  font-size: 17px;
+  color: rgba(0,229,255,.4);
+  cursor: pointer;
+  padding: 0 10px 0 6px;
   flex-shrink: 0;
+  transition: color .2s;
+  line-height: 1;
+  align-self: center;
 }
 #mic-toggle-btn:hover {
-  color: rgba(0,229,255,.7);
-  border-color: rgba(0,229,255,.5);
+  color: rgba(0,229,255,.8);
 }
 #mic-toggle-btn.listening {
   color: #ff4466;
-  border-color: rgba(255,68,102,.7);
-  background: rgba(255,68,102,.1);
   font-size: 11px;
   font-family: var(--font-d);
   letter-spacing: 1px;
+  padding: 0 8px;
   animation: micPulse 1.2s ease-in-out infinite;
 }
 @keyframes micPulse {
@@ -2742,8 +2745,8 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="plus-btn" id="plus-btn" onclick="toggleInputTray()" title="More options">+</button>
         <div id="input-pill">
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
+          <button id="mic-toggle-btn" onclick="toggleContinuousListening()" title="Tap to start listening — tap STOP to end">🎙</button>
         </div>
-        <button class="action-btn" id="mic-toggle-btn" onclick="toggleContinuousListening()" title="Hold mic open — tap to start, tap again to stop">🎙</button>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
         <button class="action-btn back-to-chat" id="back-to-chat-btn" onclick="window._backToChat&&window._backToChat()" title="Back to chat" style="display:none">✕</button>
       </div>
