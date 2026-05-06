@@ -22396,30 +22396,35 @@ window.GemmaAI = (function() {
 
   async function testKey() {
     if (!_key) { _toast('No key set'); return; }
-    _toast('Checking available models…');
+    _toast('Testing Gemma connection…');
     try {
-      // First: discover what models are actually available with this key
-      var lr = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + _key);
-      var ld = await lr.json();
-      if (!lr.ok) { _toast('⚠ ' + (ld?.error?.message || 'Key rejected')); return; }
-      var models = (ld.models || []).map(function(m){ return m.name.replace('models/',''); });
-      // Find the best Gemma model available
-      var prefer = ['gemma-3-27b-it','gemma-3-12b-it','gemma-3-4b-it','gemma-2-27b-it','gemma-2-9b-it','gemma-2-2b-it'];
-      var gemmaModels = models.filter(function(m){ return m.toLowerCase().includes('gemma'); });
-      var chosen = prefer.find(function(p){ return gemmaModels.includes(p); }) || gemmaModels[0];
-      if (!chosen) { _toast('⚠ No Gemma models on this key. Available: ' + models.slice(0,3).join(', ')); return; }
-      // Update the active model
-      GEMMA_MODEL = chosen;
-      GEMMA_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMMA_MODEL + ':generateContent';
-      // Now test a real call
       var r = await fetch(GEMMA_ENDPOINT + '?key=' + _key, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with exactly: GEMMA_OK' }] }] })
       });
       var d = await r.json();
-      if (r.ok) _toast('✅ Connected: ' + chosen);
-      else _toast('⚠ ' + (d?.error?.message || 'generateContent failed'));
-    } catch(e) { _toast('❌ ' + e.message); }
+      if (!r.ok) {
+        var errMsg = d?.error?.message || ('HTTP ' + r.status);
+        // If model not found, try gemma-3-27b-it fallback
+        if (r.status === 404 || errMsg.includes('not found') || errMsg.includes('MODEL')) {
+          _toast('⚠ Model not found — trying gemma-3-27b-it…');
+          var r2 = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=' + _key, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with exactly: GEMMA_OK' }] }] })
+          });
+          var d2 = await r2.json();
+          if (r2.ok) { _toast('✅ Connected via gemma-3-27b-it — updating model…'); GEMMA_MODEL = 'gemma-3-27b-it'; GEMMA_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMMA_MODEL + ':generateContent'; }
+          else _toast('⚠ ' + (d2?.error?.message || 'Key invalid or no access'));
+        } else {
+          _toast('⚠ ' + errMsg);
+        }
+        return;
+      }
+      var reply = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (reply.includes('GEMMA_OK') || r.ok) _toast('✅ Gemma 4 connected!');
+      else _toast('⚠ Key set but got unexpected response');
+    } catch(e) { _toast('❌ Connection failed: ' + e.message); }
   }
 
   /* ── Main API call — replaces Claude call when _on ────────────── */
