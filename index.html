@@ -22174,123 +22174,133 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 </script>
 
 <script>
-/* ═══════════════════════════════════════════════════════════════════════════
-   SYSTEM BROADCAST MODULE — Autumn · DART-Skyboard · Radical Deepscale LLC
-   - Right-side slide tab showing admin-posted system messages
-   - All users read from system-broadcast.json (public Autumn repo)
-   - Admin (dartsolarpunk) can post/clear via _sysBrdOpenAdmin()
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* SYSTEM BROADCAST MODULE — Autumn · DART-Skyboard
+   Tab visible to all users. Admin (dartsolarpunk) posts via user menu. */
 (function(){
   'use strict';
 
-  var BROADCAST_RAW = 'https://raw.githubusercontent.com/DART-Skyboard/Autumn/main/system-broadcast.json';
-  var BROADCAST_API = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/system-broadcast.json';
-  var DEFAULT_MSG   = 'No system updates today.';
+  var RAW = 'https://raw.githubusercontent.com/DART-Skyboard/Autumn/main/system-broadcast.json';
+  var API = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/system-broadcast.json';
+  var DEF = 'No system updates today.';
   var _open = false;
-  var _pollTimer = null;
-  var _fileSha = null;
 
-  /* ── CSS ─────────────────────────────────────────────────────────────── */
-  function _injectCSS(){
+  /* ── Helpers exposed as globals so onclick attrs need no embedded quotes ── */
+  window.sysBrdClose = function(){
+    _open = false;
+    var ov = document.getElementById('sysbrd-overlay');
+    if(ov) ov.classList.remove('sbd-open');
+    document.removeEventListener('click', _outside);
+  };
+  window.sysBrdAdminClose = function(){
+    var m = document.getElementById('sysbrd-admin-modal');
+    if(m) m.remove();
+  };
+  window._sysBrdPost = function(){
+    var ta = document.getElementById('sysbrd-admin-ta');
+    var msg = ta ? ta.value.trim() : '';
+    if(!msg){ _setStatus('Message cannot be empty'); return; }
+    _writeFile({ message:msg, updated:new Date().toISOString(), author:'dartsolarpunk' },
+               'broadcast: admin system message update');
+  };
+  window._sysBrdClear = function(){
+    _writeFile({ message:DEF, updated:new Date().toISOString(), author:'dartsolarpunk' },
+               'broadcast: clear system message');
+  };
+
+  /* ── CSS ── */
+  function _css(){
     var s = document.createElement('style');
-    s.textContent = [
-      '#sysbrd-trigger{position:fixed;right:0;top:360px;z-index:9498;display:flex;flex-direction:column;',
-        'align-items:center;justify-content:center;padding:9px 5px;gap:3px;',
-        'background:rgba(255,255,255,.05);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);',
-        'border:1px solid rgba(0,229,255,.18);border-right:none;border-radius:7px 0 0 7px;',
-        'cursor:pointer;transition:all .2s;user-select:none}',
-      '#sysbrd-trigger:hover{background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.4)}',
-      '#sysbrd-ticon{font-size:13px;color:rgba(0,229,255,.6);line-height:1}',
-      '#sysbrd-dot{width:5px;height:5px;border-radius:50%;background:rgba(0,229,255,.22);',
-        'box-shadow:0 0 3px rgba(0,229,255,.1);transition:all .4s;flex-shrink:0}',
-      '#sysbrd-dot.live{background:#00e5ff;box-shadow:0 0 7px rgba(0,229,255,.7);animation:sysdotpulse 2s infinite}',
-      '@keyframes sysdotpulse{0%,100%{opacity:1}50%{opacity:.4}}',
-      '#sysbrd-tlbl{font-family:var(--font-d,monospace);font-size:.21rem;letter-spacing:2px;',
-        'color:rgba(0,229,255,.38);writing-mode:vertical-rl;text-orientation:mixed}',
-      /* panel */
-      '#sysbrd-overlay{position:fixed;right:36px;top:352px;z-index:9397;width:min(290px,calc(100vw - 48px));',
-        'display:flex;flex-direction:column;',
-        'transform:translateX(calc(100% + 44px));',
-        'transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;',
-        'opacity:0;pointer-events:none}',
-      '#sysbrd-overlay.sbd-open{transform:translateX(0);opacity:1;pointer-events:all}',
-      '#sysbrd-panel{background:rgba(6,10,16,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);',
-        'border:1px solid rgba(0,229,255,.18);border-radius:9px;overflow:hidden}',
-      '#sysbrd-hd{display:flex;align-items:center;gap:7px;padding:7px 10px;',
-        'border-bottom:1px solid rgba(0,229,255,.1);background:rgba(0,229,255,.03)}',
-      '#sysbrd-hd-title{font-family:var(--font-d,monospace);font-size:.38rem;letter-spacing:3px;',
-        'color:rgba(0,229,255,.8);text-shadow:0 0 6px rgba(0,229,255,.25);flex:1}',
-      '#sysbrd-close{background:none;border:none;color:rgba(0,229,255,.25);font-size:11px;cursor:pointer;padding:2px 5px;line-height:1}',
-      '#sysbrd-close:hover{color:rgba(0,229,255,.7)}',
-      '#sysbrd-body{padding:10px 12px 12px}',
-      '#sysbrd-ts-row{font-family:var(--font-d,monospace);font-size:.22rem;letter-spacing:2px;',
-        'color:rgba(0,229,255,.28);margin-bottom:7px;display:flex;align-items:center;gap:6px}',
-      '#sysbrd-live-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}',
-      '#sysbrd-msg-text{font-size:.37rem;line-height:1.75;color:rgba(224,244,255,.82);',
-        'font-family:var(--font-b,sans-serif);min-height:36px;word-break:break-word}',
-      '#sysbrd-msg-text.default-msg{color:rgba(224,244,255,.38);font-style:italic}',
-      '#sysbrd-spinner{font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:2px;',
-        'color:rgba(0,229,255,.25);text-align:center;padding:14px 0}',
-      /* admin modal */
-      '#sysbrd-admin-modal{position:fixed;top:0;left:0;right:0;bottom:0;z-index:19000;',
-        'background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center}',
-      '#sysbrd-admin-box{background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.3);',
-        'border-radius:10px;padding:16px 18px;width:min(340px,90vw);',
-        'font-family:var(--font-d,monospace);display:flex;flex-direction:column;gap:10px}',
-      '#sysbrd-admin-title{font-size:.44rem;letter-spacing:3px;color:rgba(0,229,255,.9);',
-        'text-shadow:0 0 8px rgba(0,229,255,.3)}',
-      '#sysbrd-admin-sub{font-size:.28rem;letter-spacing:1.5px;color:rgba(0,229,255,.4)}',
-      '#sysbrd-admin-ta{width:100%;min-height:80px;background:rgba(0,229,255,.04);',
-        'border:1px solid rgba(0,229,255,.25);border-radius:5px;',
-        'color:rgba(224,244,255,.88);font-size:.34rem;line-height:1.65;',
-        'padding:8px 10px;resize:vertical;font-family:var(--font-b,sans-serif);outline:none;box-sizing:border-box}',
-      '#sysbrd-admin-ta:focus{border-color:rgba(0,229,255,.55)}',
-      '#sysbrd-admin-btns{display:flex;gap:8px}',
-      '.sbrd-btn{flex:1;padding:7px 0;border-radius:5px;cursor:pointer;',
-        'font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1.5px;transition:all .15s;border:1px solid}',
-      '.sbrd-btn.post{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.45);color:rgba(0,229,255,.9)}',
-      '.sbrd-btn.post:hover{background:rgba(0,229,255,.2);box-shadow:0 0 10px rgba(0,229,255,.2)}',
-      '.sbrd-btn.clear{background:rgba(255,100,80,.07);border-color:rgba(255,100,80,.35);color:rgba(255,100,100,.75)}',
-      '.sbrd-btn.clear:hover{background:rgba(255,100,80,.15)}',
-      '.sbrd-btn.cancel{background:transparent;border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.3)}',
-      '#sysbrd-admin-status{font-size:.26rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);min-height:14px;text-align:center}',
-    ].join('');
+    s.textContent =
+      '#sysbrd-trigger{position:fixed;right:0;top:360px;z-index:9498;display:flex;flex-direction:column;' +
+        'align-items:center;justify-content:center;padding:9px 5px;gap:3px;' +
+        'background:rgba(255,255,255,.05);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);' +
+        'border:1px solid rgba(0,229,255,.18);border-right:none;border-radius:7px 0 0 7px;' +
+        'cursor:pointer;transition:all .2s;user-select:none}' +
+      '#sysbrd-trigger:hover{background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.4)}' +
+      '#sysbrd-ticon{font-size:13px;color:rgba(0,229,255,.6);line-height:1}' +
+      '#sysbrd-dot{width:5px;height:5px;border-radius:50%;background:rgba(0,229,255,.2);transition:all .4s}' +
+      '#sysbrd-dot.live{background:#00e5ff;box-shadow:0 0 7px rgba(0,229,255,.7);animation:sbdpulse 2s infinite}' +
+      '@keyframes sbdpulse{0%,100%{opacity:1}50%{opacity:.4}}' +
+      '#sysbrd-tlbl{font-family:var(--font-d,monospace);font-size:.21rem;letter-spacing:2px;' +
+        'color:rgba(0,229,255,.38);writing-mode:vertical-rl;text-orientation:mixed}' +
+      '#sysbrd-overlay{position:fixed;right:36px;top:352px;z-index:9397;width:min(290px,calc(100vw - 48px));' +
+        'display:flex;flex-direction:column;' +
+        'transform:translateX(calc(100% + 44px));' +
+        'transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;opacity:0;pointer-events:none}' +
+      '#sysbrd-overlay.sbd-open{transform:translateX(0);opacity:1;pointer-events:all}' +
+      '#sysbrd-panel{background:rgba(6,10,16,.9);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);' +
+        'border:1px solid rgba(0,229,255,.2);border-radius:9px;overflow:hidden}' +
+      '#sysbrd-hd{display:flex;align-items:center;gap:7px;padding:7px 10px;' +
+        'border-bottom:1px solid rgba(0,229,255,.1);background:rgba(0,229,255,.03)}' +
+      '#sysbrd-hd-title{font-family:var(--font-d,monospace);font-size:.38rem;letter-spacing:3px;' +
+        'color:rgba(0,229,255,.8);flex:1}' +
+      '#sysbrd-close-btn{background:none;border:none;color:rgba(0,229,255,.3);font-size:12px;' +
+        'cursor:pointer;padding:2px 5px;line-height:1}' +
+      '#sysbrd-body{padding:10px 12px 12px}' +
+      '#sysbrd-ts-row{font-family:var(--font-d,monospace);font-size:.22rem;letter-spacing:2px;' +
+        'color:rgba(0,229,255,.3);margin-bottom:7px}' +
+      '#sysbrd-msg-text{font-size:.37rem;line-height:1.75;color:rgba(224,244,255,.82);' +
+        'font-family:var(--font-b,sans-serif);min-height:36px;word-break:break-word}' +
+      '#sysbrd-msg-text.def{color:rgba(224,244,255,.35);font-style:italic}' +
+      '#sysbrd-admin-modal{position:fixed;inset:0;z-index:19000;' +
+        'background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center}' +
+      '#sysbrd-admin-box{background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.3);' +
+        'border-radius:10px;padding:16px 18px;width:min(340px,90vw);' +
+        'display:flex;flex-direction:column;gap:10px;font-family:var(--font-d,monospace)}' +
+      '#sysbrd-admin-ttl{font-size:.44rem;letter-spacing:3px;color:rgba(0,229,255,.9)}' +
+      '#sysbrd-admin-sub{font-size:.27rem;letter-spacing:1.5px;color:rgba(0,229,255,.4)}' +
+      '#sysbrd-admin-ta{width:100%;min-height:80px;background:rgba(0,229,255,.04);' +
+        'border:1px solid rgba(0,229,255,.25);border-radius:5px;' +
+        'color:rgba(224,244,255,.88);font-size:.34rem;line-height:1.65;' +
+        'padding:8px 10px;resize:vertical;outline:none;box-sizing:border-box;' +
+        'font-family:var(--font-b,sans-serif)}' +
+      '#sysbrd-admin-ta:focus{border-color:rgba(0,229,255,.5)}' +
+      '#sysbrd-admin-btns{display:flex;gap:8px}' +
+      '.sbrd-btn{flex:1;padding:7px 0;border-radius:5px;cursor:pointer;' +
+        'font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1.5px;border:1px solid;transition:all .15s}' +
+      '.sbrd-post{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.45);color:rgba(0,229,255,.9)}' +
+      '.sbrd-clear{background:rgba(255,100,80,.07);border-color:rgba(255,100,80,.35);color:rgba(255,100,100,.8)}' +
+      '.sbrd-cancel{background:transparent;border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.3)}' +
+      '#sysbrd-status{font-size:.26rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);text-align:center;min-height:14px}';
     document.head.appendChild(s);
   }
 
-  /* ── HTML ────────────────────────────────────────────────────────────── */
-  function _injectHTML(){
-    // Trigger tab
+  /* ── HTML ── */
+  function _html(){
+    // Tab trigger
     var tr = document.createElement('div');
     tr.id = 'sysbrd-trigger';
-    tr.title = 'System Broadcast — Autumn Status Updates';
-    tr.innerHTML = '<div id="sysbrd-ticon">⚡</div><div id="sysbrd-dot"></div><div id="sysbrd-tlbl">SYS</div>';
+    tr.title = 'System Broadcast';
+    var ticon = document.createElement('div'); ticon.id = 'sysbrd-ticon'; ticon.textContent = '\u26a1';
+    var tdot  = document.createElement('div'); tdot.id  = 'sysbrd-dot';
+    var tlbl  = document.createElement('div'); tlbl.id  = 'sysbrd-tlbl'; tlbl.textContent = 'SYS';
+    tr.appendChild(ticon); tr.appendChild(tdot); tr.appendChild(tlbl);
     tr.addEventListener('click', function(e){ e.stopPropagation(); _toggle(); });
     document.body.appendChild(tr);
 
-    // Panel overlay
-    var ov = document.createElement('div');
-    ov.id = 'sysbrd-overlay';
-    ov.innerHTML =
-      '<div id="sysbrd-panel">' +
-        '<div id="sysbrd-hd">' +
-          '<span id="sysbrd-ticon2" style="font-size:13px;color:rgba(0,229,255,.5)">⚡</span>' +
-          '<span id="sysbrd-hd-title">SYSTEM BROADCAST</span>' +
-          '<button id="sysbrd-close" onclick="window.sysBrdClose()">✕</button>' +
-        '</div>' +
-        '<div id="sysbrd-body">' +
-          '<div id="sysbrd-ts-row">' +
-            '<div id="sysbrd-live-dot" style="background:rgba(0,229,255,.2)"></div>' +
-            '<span id="sysbrd-ts-lbl">—</span>' +
-          '</div>' +
-          '<div id="sysbrd-msg-text"><div id="sysbrd-spinner">LOADING...</div></div>' +
-        '</div>' +
-      '</div>';
+    // Slide-out panel
+    var ov = document.createElement('div'); ov.id = 'sysbrd-overlay';
+    var panel = document.createElement('div'); panel.id = 'sysbrd-panel';
+
+    var hd = document.createElement('div'); hd.id = 'sysbrd-hd';
+    var ic = document.createElement('span'); ic.textContent = '\u26a1'; ic.style.cssText = 'font-size:13px;color:rgba(0,229,255,.5)';
+    var ht = document.createElement('span'); ht.id = 'sysbrd-hd-title'; ht.textContent = 'SYSTEM BROADCAST';
+    var xb = document.createElement('button'); xb.id = 'sysbrd-close-btn'; xb.textContent = '\u2715';
+    xb.onclick = window.sysBrdClose;
+    hd.appendChild(ic); hd.appendChild(ht); hd.appendChild(xb);
+
+    var body = document.createElement('div'); body.id = 'sysbrd-body';
+    var ts   = document.createElement('div'); ts.id   = 'sysbrd-ts-row'; ts.textContent = '\u2014';
+    var msg  = document.createElement('div'); msg.id  = 'sysbrd-msg-text'; msg.textContent = 'LOADING...';
+    body.appendChild(ts); body.appendChild(msg);
+
+    panel.appendChild(hd); panel.appendChild(body);
+    ov.appendChild(panel);
     ov.addEventListener('click', function(e){ e.stopPropagation(); });
     document.body.appendChild(ov);
   }
 
-  /* ── Toggle ──────────────────────────────────────────────────────────── */
+  /* ── Toggle ── */
   function _toggle(){
     _open = !_open;
     var ov = document.getElementById('sysbrd-overlay');
@@ -22302,150 +22312,122 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       document.removeEventListener('click', _outside);
     }
   }
-
   function _outside(e){
     var ov = document.getElementById('sysbrd-overlay');
     var tr = document.getElementById('sysbrd-trigger');
-    if(ov && !ov.contains(e.target) && tr && !tr.contains(e.target)){
-      window.sysBrdClose();
-    }
+    if(ov && !ov.contains(e.target) && tr && !tr.contains(e.target)) window.sysBrdClose();
   }
 
-  window.sysBrdClose = function(){
-    _open = false;
-    var ov = document.getElementById('sysbrd-overlay');
-    if(ov) ov.classList.remove('sbd-open');
-    document.removeEventListener('click', _outside);
-  };
-
-  /* ── Fetch + render ──────────────────────────────────────────────────── */
+  /* ── Fetch / render ── */
   function _fetch(cb){
-    fetch(BROADCAST_RAW + '?cb=' + Date.now(), { cache: 'no-store' })
+    fetch(RAW + '?t=' + Date.now(), { cache:'no-store' })
       .then(function(r){ return r.json(); })
-      .then(function(d){ cb(null, d); })
-      .catch(function(e){ cb(e, null); });
+      .then(function(d){ cb(null,d); })
+      .catch(function(e){ cb(e,null); });
   }
-
   function _render(){
-    _fetch(function(err, data){
-      var msgEl  = document.getElementById('sysbrd-msg-text');
-      var tsEl   = document.getElementById('sysbrd-ts-lbl');
-      var dot    = document.getElementById('sysbrd-dot');
-      var liveDt = document.getElementById('sysbrd-live-dot');
+    _fetch(function(err,data){
+      var msgEl = document.getElementById('sysbrd-msg-text');
+      var tsEl  = document.getElementById('sysbrd-ts-row');
+      var dot   = document.getElementById('sysbrd-dot');
       if(!msgEl) return;
-      if(err || !data){
-        msgEl.textContent = DEFAULT_MSG;
-        msgEl.className = 'default-msg';
-        if(tsEl) tsEl.textContent = 'COULD NOT LOAD';
-        return;
-      }
-      var msg    = data.message || DEFAULT_MSG;
-      var isLive = msg !== DEFAULT_MSG;
-      var upd    = data.updated ? new Date(data.updated) : null;
-      var tsStr  = upd ? upd.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) + ' · ' + upd.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}) : '—';
-
+      var msg  = (data && data.message) ? data.message : DEF;
+      var live = msg !== DEF;
+      var upd  = (data && data.updated) ? new Date(data.updated) : null;
       msgEl.textContent = msg;
-      msgEl.className   = isLive ? '' : 'default-msg';
-      if(tsEl)   tsEl.textContent = isLive ? 'UPDATED ' + tsStr : 'NO ACTIVE BROADCAST';
-      if(dot)    dot.classList.toggle('live', isLive);
-      if(liveDt) liveDt.style.background = isLive ? '#00e5ff' : 'rgba(0,229,255,.18)';
+      msgEl.className   = live ? '' : 'def';
+      if(tsEl) tsEl.textContent = live && upd
+        ? 'UPDATED ' + upd.toLocaleDateString() + ' ' + upd.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+        : 'NO ACTIVE BROADCAST';
+      if(dot) dot.classList.toggle('live', live);
     });
   }
 
-  /* ── Admin editor ────────────────────────────────────────────────────── */
+  /* ── Admin editor ── */
   window._sysBrdOpenAdmin = function(){
-    var _gm=document.getElementById('gh-user-menu');if(_gm)_gm.remove();
-    var existing = document.getElementById('sysbrd-admin-modal');
-    if(existing){ existing.remove(); return; }
-
-    // Fetch current message first
-    _fetch(function(err, data){
-      var curMsg = (data && data.message) ? data.message : '';
-      if(curMsg === DEFAULT_MSG) curMsg = '';
-
-      var modal = document.createElement('div');
-      modal.id = 'sysbrd-admin-modal';
-      modal.innerHTML =
-        '<div id="sysbrd-admin-box">' +
-          '<div id="sysbrd-admin-title">⚡ SYSTEM BROADCAST</div>' +
-          '<div id="sysbrd-admin-sub">Message posted to all active sessions · persists until updated or cleared</div>' +
-          '<textarea id="sysbrd-admin-ta" placeholder="Type a system message for all users…">' + (curMsg||'') + '</textarea>' +
-          '<div id="sysbrd-admin-btns">' +
-            '<button class="sbrd-btn post" onclick="window._sysBrdPost()">▲ POST</button>' +
-            '<button class="sbrd-btn clear" onclick="window._sysBrdClear()">✕ CLEAR</button>' +
-            '<button class="sbrd-btn cancel" onclick="document.getElementById('sysbrd-admin-modal').remove()">CANCEL</button>' +
-          '</div>' +
-          '<div id="sysbrd-admin-status"></div>' +
-        '</div>';
+    var gm = document.getElementById('gh-user-menu'); if(gm) gm.remove();
+    var ex = document.getElementById('sysbrd-admin-modal'); if(ex){ ex.remove(); return; }
+    _fetch(function(err,data){
+      var cur = (data && data.message && data.message !== DEF) ? data.message : '';
+      var modal = document.createElement('div'); modal.id = 'sysbrd-admin-modal';
       modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+      var box  = document.createElement('div'); box.id = 'sysbrd-admin-box';
+      var ttl  = document.createElement('div'); ttl.id = 'sysbrd-admin-ttl'; ttl.textContent = '\u26a1 SYSTEM BROADCAST';
+      var sub  = document.createElement('div'); sub.id = 'sysbrd-admin-sub';
+      sub.textContent = 'Message posted to all active sessions \u00b7 persists until updated or cleared';
+      var ta   = document.createElement('textarea'); ta.id = 'sysbrd-admin-ta';
+      ta.placeholder = 'Type a system message for all users\u2026'; ta.value = cur;
+      var btns = document.createElement('div'); btns.id = 'sysbrd-admin-btns';
+
+      var bPost   = document.createElement('button');
+      bPost.className = 'sbrd-btn sbrd-post'; bPost.textContent = '\u25b2 POST';
+      bPost.onclick = window._sysBrdPost;
+
+      var bClear  = document.createElement('button');
+      bClear.className = 'sbrd-btn sbrd-clear'; bClear.textContent = '\u2715 CLEAR';
+      bClear.onclick = window._sysBrdClear;
+
+      var bCancel = document.createElement('button');
+      bCancel.className = 'sbrd-btn sbrd-cancel'; bCancel.textContent = 'CANCEL';
+      bCancel.onclick = window.sysBrdAdminClose;
+
+      btns.appendChild(bPost); btns.appendChild(bClear); btns.appendChild(bCancel);
+      var st = document.createElement('div'); st.id = 'sysbrd-status';
+
+      box.appendChild(ttl); box.appendChild(sub); box.appendChild(ta);
+      box.appendChild(btns); box.appendChild(st);
+      modal.appendChild(box);
       document.body.appendChild(modal);
-      setTimeout(function(){ var ta=document.getElementById('sysbrd-admin-ta'); if(ta){ta.focus();ta.selectionStart=ta.value.length;} },80);
+      setTimeout(function(){ ta.focus(); ta.selectionStart = ta.value.length; }, 80);
     });
   };
 
   function _setStatus(msg, color){
-    var el = document.getElementById('sysbrd-admin-status');
-    if(el){ el.textContent = msg; el.style.color = color||'rgba(0,229,255,.55)'; }
+    var el = document.getElementById('sysbrd-status');
+    if(el){ el.textContent = msg; el.style.color = color || 'rgba(0,229,255,.55)'; }
   }
 
-  function _writeFile(payload, statusMsg){
+  function _writeFile(payload, commitMsg){
     var token = window._ghAuth && window._ghAuth.token;
-    if(!token){ _setStatus('⚠ Not logged in', 'rgba(255,150,80,.8)'); return; }
-    _setStatus('SAVING...');
-    // Get current SHA first
-    fetch(BROADCAST_API, { headers:{ 'Authorization':'token '+token, 'User-Agent':'DART/1.0' } })
+    if(!token){ _setStatus('\u26a0 Not logged in','rgba(255,150,80,.8)'); return; }
+    _setStatus('SAVING\u2026');
+    fetch(API, { headers:{ Authorization:'token '+token, 'User-Agent':'DART/1.0' } })
       .then(function(r){ return r.json(); })
       .then(function(d){
         var sha = d.sha || null;
-        var body = JSON.stringify({
-          message: statusMsg,
-          content: btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2)))),
-          sha: sha
-        });
-        return fetch(BROADCAST_API, {
-          method: 'PUT',
-          headers: { 'Authorization':'token '+token, 'Content-Type':'application/json', 'User-Agent':'DART/1.0' },
-          body: body
+        return fetch(API, {
+          method:'PUT',
+          headers:{ Authorization:'token '+token, 'Content-Type':'application/json', 'User-Agent':'DART/1.0' },
+          body: JSON.stringify({
+            message: commitMsg,
+            content: btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2)))),
+            sha: sha
+          })
         });
       })
       .then(function(r){ return r.json(); })
       .then(function(d){
-        if(d.commit){ 
-          _setStatus('✓ BROADCAST UPDATED', 'rgba(0,229,255,.9)');
-          _render(); // refresh panel
-          setTimeout(function(){ var m=document.getElementById('sysbrd-admin-modal'); if(m) m.remove(); }, 1400);
+        if(d.commit){
+          _setStatus('\u2713 BROADCAST UPDATED','rgba(0,229,255,.9)');
+          _render();
+          setTimeout(window.sysBrdAdminClose, 1400);
         } else {
-          _setStatus('⚠ Write failed: '+(d.message||'unknown'), 'rgba(255,100,80,.8)');
+          _setStatus('\u26a0 Failed: '+(d.message||'unknown'),'rgba(255,100,80,.8)');
         }
       })
-      .catch(function(e){ _setStatus('⚠ Error: '+e.message, 'rgba(255,100,80,.8)'); });
+      .catch(function(e){ _setStatus('\u26a0 Error: '+e.message,'rgba(255,100,80,.8)'); });
   }
 
-  window._sysBrdPost = function(){
-    var ta = document.getElementById('sysbrd-admin-ta');
-    var msg = ta ? ta.value.trim() : '';
-    if(!msg){ _setStatus('⚠ Message cannot be empty'); return; }
-    _writeFile({ message: msg, updated: new Date().toISOString(), author: 'dartsolarpunk' }, 'broadcast: admin system message update');
-  };
-
-  window._sysBrdClear = function(){
-    _writeFile({ message: DEFAULT_MSG, updated: new Date().toISOString(), author: 'dartsolarpunk' }, 'broadcast: clear system message — reset to default');
-  };
-
-  /* ── Poll every 3 min ────────────────────────────────────────────────── */
-  function _startPoll(){
+  /* ── Init + poll ── */
+  function _init(){
+    _css(); _html();
     _render();
-    _pollTimer = setInterval(_render, 180000);
+    setInterval(_render, 180000);
   }
-
-  /* ── Init ────────────────────────────────────────────────────────────── */
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', function(){ _injectCSS(); _injectHTML(); _startPoll(); });
-  } else {
-    _injectCSS(); _injectHTML(); _startPoll();
-  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
+  else _init();
 })();
 </script>
 </body>
 </html>
-
