@@ -2095,66 +2095,6 @@ select.ash-ctrl-input{cursor:pointer}
   color:#38beff;
   text-shadow:0 0 7px rgba(56,190,255,.55), 0 0 14px rgba(56,190,255,.25);
 }
-/* ── Continuous mic toggle button (inside pill) ── */
-#mic-toggle-btn {
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: 17px;
-  color: rgba(0,229,255,.4);
-  cursor: pointer;
-  padding: 0 10px 0 6px;
-  flex-shrink: 0;
-  transition: color .2s;
-  line-height: 1;
-  align-self: center;
-}
-#mic-toggle-btn:hover {
-  color: rgba(0,229,255,.8);
-}
-#mic-toggle-btn.listening {
-  color: #ff4466;
-  font-size: 11px;
-  font-family: var(--font-d);
-  letter-spacing: 1px;
-  padding: 0 8px;
-  animation: micPulse 1.2s ease-in-out infinite;
-}
-@keyframes micPulse {
-  0%,100%{ box-shadow: 0 0 6px rgba(255,68,102,.4); }
-  50%    { box-shadow: 0 0 14px rgba(255,68,102,.8), 0 0 22px rgba(255,68,102,.3); }
-}
-#hdr-gemma-btn {
-  font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;
-  padding:4px 10px;border-radius:4px;
-  border:1px solid rgba(100,180,255,.25);
-  background:transparent;color:rgba(100,180,255,.35);
-  cursor:pointer;transition:all .25s;
-}
-#hdr-gemma-btn.gemma-on {
-  border-color:rgba(100,200,255,.8) !important;
-  color:#64c8ff !important;
-  background:rgba(100,200,255,.1) !important;
-  box-shadow:0 0 10px rgba(100,200,255,.35),0 0 20px rgba(100,200,255,.15);
-  animation:gemmaGlow 2s ease-in-out infinite;
-}
-@keyframes gemmaGlow {
-  0%,100%{box-shadow:0 0 8px rgba(100,200,255,.3),0 0 16px rgba(100,200,255,.1);}
-  50%    {box-shadow:0 0 14px rgba(100,200,255,.6),0 0 28px rgba(100,200,255,.25);}
-}
-/* Gemma keys-section button overrides (blue palette) */
-.keys-btn-save.gemma {
-  border-color:rgba(100,200,255,.4);color:rgba(100,200,255,.9);
-  background:rgba(100,200,255,.08);
-}
-.keys-btn-save.gemma:hover{background:rgba(100,200,255,.2);}
-.keys-btn-save.gemma:disabled{opacity:.3;cursor:not-allowed;}
-.keys-eye-btn {
-  background:rgba(100,200,255,.05);border:1px solid rgba(100,200,255,.2);
-  color:rgba(100,200,255,.6);padding:9px 10px;border-radius:5px;
-  font-size:12px;cursor:pointer;transition:all .18s;
-}
-.keys-eye-btn:hover{background:rgba(100,200,255,.12);}
 </style>
 <script src="js/autumn-nlp.js"></script>
 <script src="js/wordnet_loader.js"></script>
@@ -2253,7 +2193,6 @@ select.ash-ctrl-input{cursor:pointer}
     <button class="hdr-btn" onclick="openLiveMode()" title="Live conversation">LIVE</button>
     <button class="hdr-btn" onclick="openTools()" title="LEATR Tools &amp; Info" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">TOOLS</button>
     <button class="hdr-btn" id="hdr-key-btn" onclick="openKeysModal()" title="API Keys &amp; Memory — click to configure" style="color:rgba(255,179,71,.9);border-color:rgba(255,179,71,.3)">🔑 KEYS</button>
-    <button id="hdr-gemma-btn" onclick="window.GemmaAI.toggle()" title="Toggle Gemma 4 AI backend">G4</button>
     <!-- Secondary buttons -->
     <button class="hdr-btn" onclick="openVoiceSettings()" title="Voice settings">VOICE</button>
     <button class="hdr-btn" onclick="exportData()" title="Export data">EXPORT</button>
@@ -2744,7 +2683,6 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="plus-btn" id="plus-btn" onclick="toggleInputTray()" title="More options">+</button>
         <div id="input-pill">
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
-          <button id="mic-toggle-btn" onclick="toggleContinuousListening()" title="Tap to start listening — tap STOP to end">🎙</button>
         </div>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
         <button class="action-btn back-to-chat" id="back-to-chat-btn" onclick="window._backToChat&&window._backToChat()" title="Back to chat" style="display:none">✕</button>
@@ -10630,26 +10568,6 @@ ${(function(){
 
     const ak = _getAK?.() || '';
     // 25 second timeout so the UI doesn't hang forever
-    // ── Gemma 4 intercept — route to Google AI if toggled on ────────
-    if (window.GemmaAI && window.GemmaAI.isOn()) {
-      try {
-        var _gemmaImages = [];
-        if (S.pendingImages && S.pendingImages.length) {
-          S.pendingImages.forEach(function(img) {
-            if (img.data) _gemmaImages.push({ data: img.data.split(',')[1] || img.data, mediaType: img.type || 'image/jpeg' });
-          });
-        }
-        var _gemmaReply = await window.GemmaAI.call(systemPrompt, trimHistory, _gemmaImages);
-        if (_gemmaReply) {
-          const grammarMeta = buildGrammarMeta(analysis.grammar,analysis,analysis.toolReflexes.filter(t=>t.active).map(t=>t.tool));
-          const brpnMeta    = buildBRPNMeta(analysis);
-          return { text: _gemmaReply, grammarMeta, brpnMeta };
-        }
-      } catch(_ge) {
-        console.warn('Gemma call failed, falling back to Claude:', _ge.message);
-      }
-    }
-    // ── Claude (default) ─────────────────────────────────────────────
     const _ac = new AbortController();
     const _timeout = setTimeout(() => _ac.abort(), 25000);
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -13480,22 +13398,12 @@ function initSTT(){
   Voice.recognition.onend=()=>{
     Voice.isListening=false;
     if(Voice.active&&!Voice.speaking) restartListeningIfActive();
-    else if(!Voice.active){
-      document.getElementById('mic-btn')?.classList.remove('recording');
-      document.getElementById('voice-indicator')?.classList.remove('show');
-      var _mtb=document.getElementById('mic-toggle-btn');
-      if(_mtb){_mtb.textContent='🎙';_mtb.classList.remove('listening');}
-    }
+    else if(!Voice.active){document.getElementById('mic-btn')?.classList.remove('recording');document.getElementById('voice-indicator')?.classList.remove('show');}
     if(Voice.liveMode){document.getElementById('live-orb')?.classList.remove('listening');document.getElementById('live-status').textContent='PROCESSING...';}
   };
   Voice.recognition.onerror=(e)=>{
     Voice.isListening=false;
-    if(!Voice.active){
-      document.getElementById('mic-btn')?.classList.remove('recording');
-      document.getElementById('voice-indicator')?.classList.remove('show');
-      var _mtb2=document.getElementById('mic-toggle-btn');
-      if(_mtb2){_mtb2.textContent='🎙';_mtb2.classList.remove('listening');}
-    }
+    if(!Voice.active){document.getElementById('mic-btn')?.classList.remove('recording');document.getElementById('voice-indicator')?.classList.remove('show');}
     else if(e.error!=='aborted'&&e.error!=='no-speech') restartListeningIfActive();
     else if(e.error==='no-speech') restartListeningIfActive();
     if(Voice.liveMode){document.getElementById('live-orb')?.classList.remove('listening');if(e.error!=='aborted')document.getElementById('live-status').textContent='TAP ORB TO TALK';}
@@ -13624,26 +13532,6 @@ function restartListeningIfActive(){
     if(!Voice.active) return;
     try{Voice.recognition.lang=Voice.sttLang;Voice.recognition.start();Voice.isListening=true;document.getElementById('voice-indicator')?.classList.add('show');}catch(e){}
   },300);
-}
-
-// ── Continuous listen mode — mic stays hot, auto-sends on speech end, STOP to quit ──
-function toggleContinuousListening(){
-  var btn = document.getElementById('mic-toggle-btn');
-  if(Voice.active){
-    // STOP — kill the loop
-    Voice.active = false;
-    Voice.isListening = false;
-    try{ if(Voice.recognition) Voice.recognition.stop(); }catch(e){}
-    document.getElementById('voice-indicator')?.classList.remove('show');
-    if(btn){ btn.textContent='🎙'; btn.classList.remove('listening'); btn.title='Hold mic open — tap to start, tap again to stop'; }
-    return;
-  }
-  // START — initialise STT if not yet done, then activate loop
-  if(!Voice.recognition) initSTT();
-  if(!Voice.recognition){ ideToast('Speech recognition not available in this browser'); return; }
-  Voice.active = true;
-  if(btn){ btn.textContent='STOP'; btn.classList.add('listening'); btn.title='Mic is live — tap to stop listening'; }
-  restartListeningIfActive();
 }
 
 function openVoiceSettings(){
@@ -15294,34 +15182,6 @@ loadAutumnLogic();
         </div>
       </div>
 
-
-
-
-      <!-- GEMMA 4 API KEY -->
-      <div class="keys-section" id="gemma-section">
-        <div class="keys-section-header">
-          <div class="keys-dot inactive" id="gemma-dot" style="background:rgba(100,180,255,.25);box-shadow:none"></div>
-          <span class="keys-label" style="color:rgba(100,200,255,.8)">GOOGLE GEMMA 4 API KEY</span>
-          <span class="keys-status-txt off" id="gemma-status-txt">NOT SET</span>
-        </div>
-        <p class="keys-desc">
-          <strong>Optional.</strong> Adds Google's Gemma 4 as a second AI backend.<br>
-          Get a free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> → Get API key.<br>
-          When Gemma is toggled on, all chat routes to <strong>gemma-4-27b-it</strong> via Google's Gemini API — text, images, and audio.<br>
-          <span style="color:rgba(255,179,71,.75);font-size:.9em">Your key is sent only to Google's API from your browser.</span>
-        </p>
-        <div class="keys-input-row">
-          <input type="password" class="keys-input" id="keys-gemma-input" placeholder="AIza…"
-            oninput="document.getElementById('keys-gemma-save').disabled=!this.value.trim()">
-          <button class="keys-eye-btn" onclick="var i=document.getElementById('keys-gemma-input');i.type=i.type==='password'?'text':'password'">👁</button>
-          <button class="keys-btn-save gemma" id="keys-gemma-save" disabled
-            onclick="window.GemmaAI.saveKey(document.getElementById('keys-gemma-input').value.trim())">SAVE</button>
-          <button class="keys-btn-clear" onclick="window.GemmaAI.clearKey()" title="Remove key">✕</button>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:6px">
-          <button class="keys-btn-save gemma" style="font-size:.55rem" onclick="window.GemmaAI.testKey()">TEST CONNECTION</button>
-        </div>
-      </div>
 
     </div>
   </div>
@@ -22105,20 +21965,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       document.getElementById('adm-t1').style.color=tab==='data'?'#ffb347':'rgba(0,229,255,.5)';
       document.getElementById('adm-t2').style.background=tab==='ash'?'rgba(0,229,255,.08)':'transparent';
       document.getElementById('adm-t2').style.color=tab==='ash'?'var(--cyan)':'rgba(0,229,255,.5)';
-      frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}
-/* Gemma 4 toggle button */
-#hdr-gemma-btn.gemma-on {
-  border-color: rgba(100,200,255,.8) !important;
-  color: #64c8ff !important;
-  background: rgba(100,200,255,.1) !important;
-  box-shadow: 0 0 10px rgba(100,200,255,.35), 0 0 20px rgba(100,200,255,.15);
-  animation: gemmaGlow 2s ease-in-out infinite;
-}
-@keyframes gemmaGlow {
-  0%,100% { box-shadow: 0 0 8px rgba(100,200,255,.3), 0 0 16px rgba(100,200,255,.1); }
-  50%      { box-shadow: 0 0 14px rgba(100,200,255,.6), 0 0 28px rgba(100,200,255,.25); }
-}
-</style></body>';
+      frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
       fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
         .then(function(r){return r.json();})
         .then(function(f){frame.srcdoc=atob(f.content.replace(/\n/g,''));})
@@ -22322,454 +22169,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',_init);
   else _init();
-})();
-
-</script>
-
-<script>
-/* ═══════════════════════════════════════════════════════════════
-   GemmaAI — Gemma 4 backend toggle for Autumn
-   Routes chat through Google's Gemini API (gemma-4-27b-it)
-   when enabled. Text + image (base64) multimodal supported.
-   ═══════════════════════════════════════════════════════════════ */
-window.GemmaAI = (function() {
-  var _on  = false;
-  var _key = '';
-  var GEMMA_MODEL = 'gemma-4-27b-it';
-  var GEMMA_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMMA_MODEL + ':generateContent';
-
-  function _load() {
-    try {
-      _key = localStorage.getItem('_gemma_key') || '';
-      _on  = localStorage.getItem('_gemma_on') === '1' && !!_key;
-    } catch(e) {}
-    _updateUI();
-  }
-
-  function _updateUI() {
-    var btn = document.getElementById('hdr-gemma-btn');
-    var dot = document.getElementById('gemma-dot');
-    var txt = document.getElementById('gemma-status-txt');
-    var ksb = document.getElementById('ksb-ak');
-    if (btn) {
-      btn.classList.toggle('gemma-on', _on);
-      btn.title = _on ? 'Gemma 4 ON — click to switch back to Claude' : 'Gemma 4 OFF — click to enable';
-    }
-    if (dot) {
-      dot.style.background = _key ? (_on ? '#64c8ff' : 'rgba(100,200,255,.4)') : 'rgba(100,200,255,.15)';
-      dot.style.boxShadow  = _on ? '0 0 8px #64c8ff' : 'none';
-    }
-    if (txt) {
-      txt.textContent = _key ? (_on ? 'ACTIVE' : 'SET — OFF') : 'NOT SET';
-      txt.className   = 'keys-status-txt ' + (_key ? (_on ? 'on' : 'off') : 'off');
-    }
-    if (ksb) {
-      ksb.textContent = _on ? '◈ GEMMA 4 ACTIVE' : '◈ CLAUDE ACTIVE';
-      ksb.style.color = _on ? '#64c8ff' : '';
-    }
-  }
-
-  function toggle() {
-    if (!_key) { openKeysModal(); _toast('Add your Google AI Studio key to enable Gemma 4'); return; }
-    _on = !_on;
-    try { localStorage.setItem('_gemma_on', _on ? '1' : '0'); } catch(e) {}
-    _updateUI();
-    _toast(_on ? '🔵 Gemma 4 active — routing to Google AI' : '◈ Switched back to Claude');
-  }
-
-  function saveKey(k) {
-    if (!k) return;
-    _key = k;
-    try { localStorage.setItem('_gemma_key', k); } catch(e) {}
-    _updateUI();
-    var inp = document.getElementById('keys-gemma-input');
-    if (inp) { inp.value = ''; inp.placeholder = 'AIza•••'; }
-    _toast('Gemma 4 key saved');
-  }
-
-  function clearKey() {
-    _key = ''; _on = false;
-    try { localStorage.removeItem('_gemma_key'); localStorage.removeItem('_gemma_on'); } catch(e) {}
-    _updateUI();
-    _toast('Gemma key cleared');
-  }
-
-  async function testKey() {
-    if (!_key) { _toast('No key set'); return; }
-    _toast('Testing Gemma connection…');
-    try {
-      var r = await fetch(GEMMA_ENDPOINT + '?key=' + _key, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with exactly: GEMMA_OK' }] }] })
-      });
-      var d = await r.json();
-      if (!r.ok) {
-        var errMsg = d?.error?.message || ('HTTP ' + r.status);
-        // If model not found, try gemma-3-27b-it fallback
-        if (r.status === 404 || errMsg.includes('not found') || errMsg.includes('MODEL')) {
-          _toast('⚠ Model not found — trying gemma-3-27b-it…');
-          var r2 = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=' + _key, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with exactly: GEMMA_OK' }] }] })
-          });
-          var d2 = await r2.json();
-          if (r2.ok) { _toast('✅ Connected via gemma-3-27b-it — updating model…'); GEMMA_MODEL = 'gemma-3-27b-it'; GEMMA_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMMA_MODEL + ':generateContent'; }
-          else _toast('⚠ ' + (d2?.error?.message || 'Key invalid or no access'));
-        } else {
-          _toast('⚠ ' + errMsg);
-        }
-        return;
-      }
-      var reply = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (reply.includes('GEMMA_OK') || r.ok) _toast('✅ Gemma 4 connected!');
-      else _toast('⚠ Key set but got unexpected response');
-    } catch(e) { _toast('❌ Connection failed: ' + e.message); }
-  }
-
-  /* ── Main API call — replaces Claude call when _on ────────────── */
-  async function call(systemPrompt, messages, images) {
-    if (!_key) throw new Error('No Gemma key');
-
-    // Build parts array — text + optional images
-    var parts = [];
-
-    // Images first (Gemma is multimodal)
-    if (images && images.length) {
-      images.forEach(function(img) {
-        // img.data is base64, img.mediaType is e.g. 'image/jpeg'
-        parts.push({
-          inlineData: { mimeType: img.mediaType || 'image/jpeg', data: img.data }
-        });
-      });
-    }
-
-    // System prompt folded into first user message (Gemma supports system role)
-    var userText = messages[messages.length - 1]?.content || '';
-    if (typeof userText !== 'string') {
-      userText = (Array.isArray(userText) ? userText.map(function(p){ return p.text||''; }).join('\n') : '');
-    }
-    parts.push({ text: userText });
-
-    // Build conversation history
-    var contents = [];
-    // System as first turn
-    if (systemPrompt) {
-      contents.push({ role: 'user', parts: [{ text: '[SYSTEM] ' + systemPrompt }] });
-      contents.push({ role: 'model', parts: [{ text: 'Understood.' }] });
-    }
-    // History (all but last message)
-    for (var i = 0; i < messages.length - 1; i++) {
-      var m = messages[i];
-      var role = m.role === 'assistant' ? 'model' : 'user';
-      var txt  = typeof m.content === 'string' ? m.content
-               : (Array.isArray(m.content) ? m.content.map(function(p){return p.text||'';}).join('\n') : '');
-      if (txt.trim()) contents.push({ role: role, parts: [{ text: txt }] });
-    }
-    // Current user message with images
-    contents.push({ role: 'user', parts: parts });
-
-    var body = {
-      contents: contents,
-      generationConfig: { maxOutputTokens: 2048, temperature: 0.7 }
-    };
-
-    var res = await fetch(GEMMA_ENDPOINT + '?key=' + _key, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(body),
-      signal:  AbortSignal.timeout(30000)
-    });
-    var data = await res.json();
-    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  }
-
-  function _toast(msg) {
-    if (typeof window.ideToast === 'function') window.ideToast(msg, 2500);
-    else if (typeof window._toast === 'function') window._toast(msg);
-  }
-
-  function isOn()  { return _on; }
-  function getKey(){ return _key; }
-
-  // Init after DOM ready
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _load);
-  else _load();
-
-  return { toggle, saveKey, clearKey, testKey, call, isOn, getKey };
-})();
-</script>
-
-
-<script>
-/* ═══════════════════════════════════════════════════════════════
-   AUTUMN VOICE EXTENSION
-   1. Google Cloud TTS (Chirp/WaveNet/Neural2) — richer voices
-   2. Gemma E4B audio input — native mic audio understanding
-   ═══════════════════════════════════════════════════════════════ */
-window.AutumnVoiceExt = (function() {
-  'use strict';
-
-  var _googleTTSOn   = false;
-  var _googleTTSVoice = 'en-US-Chirp3-HD-Zephyr';
-  var _gemmaAudioOn  = false;
-  var _recording     = false;
-
-  var VOICES = [
-    { id: 'en-US-Chirp3-HD-Zephyr', label: 'Chirp HD: Zephyr (neural)' },
-    { id: 'en-US-Chirp3-HD-Aoede',  label: 'Chirp HD: Aoede (neural)'  },
-    { id: 'en-US-Chirp3-HD-Puck',   label: 'Chirp HD: Puck (neural)'   },
-    { id: 'en-US-Wavenet-D',         label: 'WaveNet D (male)'           },
-    { id: 'en-US-Wavenet-F',         label: 'WaveNet F (female)'         },
-    { id: 'en-US-Neural2-C',         label: 'Neural2 C (female)'         },
-    { id: 'en-US-Neural2-J',         label: 'Neural2 J (male)'           }
-  ];
-
-  function _key() {
-    return (window.GemmaAI && window.GemmaAI.getKey()) || '';
-  }
-
-  function _toast(msg) {
-    if (typeof ideToast === 'function') ideToast(msg, 2500);
-    else if (typeof _toast !== 'undefined') console.log(msg);
-  }
-
-  /* ── 1. Google Cloud TTS ────────────────────────────────────── */
-  async function _speakGoogle(text, onEnd) {
-    var key = _key();
-    if (!key) { _fallback(text, onEnd); return; }
-    var clean = (typeof cleanForTTS === 'function') ? cleanForTTS(text) : text;
-    if (!clean.trim()) { if (onEnd) onEnd(); return; }
-    try {
-      var res = await fetch(
-        'https://texttospeech.googleapis.com/v1/text:synthesize?key=' + key,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            input: { text: clean },
-            voice: { languageCode: _googleTTSVoice.slice(0, 5), name: _googleTTSVoice },
-            audioConfig: { audioEncoding: 'MP3', speakingRate: (window.Voice && Voice.speed) || 1.0, pitch: 0 }
-          })
-        }
-      );
-      var data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      var bytes  = atob(data.audioContent);
-      var buf    = new Uint8Array(bytes.length);
-      for (var i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
-      var url    = URL.createObjectURL(new Blob([buf], { type: 'audio/mpeg' }));
-      var audio  = new Audio(url);
-      if (window.Voice) Voice.speaking = true;
-      audio.onended = function() { URL.revokeObjectURL(url); if (window.Voice) Voice.speaking = false; if (onEnd) onEnd(); };
-      audio.onerror = function() { _fallback(text, onEnd); };
-      audio.play();
-    } catch(e) {
-      console.warn('Google TTS error:', e.message);
-      _fallback(text, onEnd);
-    }
-  }
-
-  function _fallback(text, onEnd) {
-    if (window._kokoroReady && typeof _speakKokoro === 'function') _speakKokoro(text, onEnd);
-    else if (typeof _speakWebSpeech === 'function') _speakWebSpeech(text, onEnd);
-    else if (onEnd) onEnd();
-  }
-
-  function toggleGoogleTTS(on) {
-    _googleTTSOn = (on !== undefined) ? !!on : !_googleTTSOn;
-    try { localStorage.setItem('_goog_tts_on', _googleTTSOn ? '1' : '0'); } catch(e) {}
-    _patchSpeak();
-    _renderSections();
-    _toast(_googleTTSOn ? 'Google Chirp TTS active' : 'Switched to default TTS');
-  }
-
-  function setGoogleVoice(id) {
-    _googleTTSVoice = id;
-    try { localStorage.setItem('_goog_tts_voice', id); } catch(e) {}
-    _renderSections();
-  }
-
-  function previewGoogleTTS() {
-    _speakGoogle('Hello, I am Autumn. This is how I sound with Google neural voice.', null);
-  }
-
-  /* ── 2. Gemma E4B audio input ───────────────────────────────── */
-  function toggleGemmaAudio(on) {
-    _gemmaAudioOn = (on !== undefined) ? !!on : !_gemmaAudioOn;
-    try { localStorage.setItem('_gemma_audio_on', _gemmaAudioOn ? '1' : '0'); } catch(e) {}
-    _renderSections();
-    _updateAudioBtn();
-    _toast(_gemmaAudioOn ? 'Gemma audio input active' : 'Gemma audio input off');
-  }
-
-  function recordAudio(ms) {
-    return new Promise(function(resolve, reject) {
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-        var chunks = [];
-        var mr = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-        mr.ondataavailable = function(e) { if (e.data.size) chunks.push(e.data); };
-        mr.onstop = function() {
-          stream.getTracks().forEach(function(t) { t.stop(); });
-          var reader = new FileReader();
-          reader.onload = function() { resolve(reader.result.split(',')[1]); };
-          reader.readAsDataURL(new Blob(chunks, { type: 'audio/webm' }));
-        };
-        mr.start();
-        setTimeout(function() { mr.stop(); }, ms || 5000);
-      }).catch(reject);
-    });
-  }
-
-  async function gemmaAudioQuery(audio64, prompt) {
-    var key = _key();
-    if (!key) throw new Error('No Google key');
-    var res = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemma-4-e4b-it:generateContent?key=' + key,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [
-            { inlineData: { mimeType: 'audio/webm', data: audio64 } },
-            { text: prompt || 'Transcribe and respond to the audio.' }
-          ]}],
-          generationConfig: { maxOutputTokens: 1024, temperature: 0.7 }
-        })
-      }
-    );
-    var data = await res.json();
-    if (data.error) throw new Error(data.error.message);
-    return data.candidates && data.candidates[0] && data.candidates[0].content &&
-           data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
-           data.candidates[0].content.parts[0].text || '';
-  }
-
-  /* ── Patch speak() dispatcher ───────────────────────────────── */
-  function _patchSpeak() {
-    if (!window._avext_origSpeak) window._avext_origSpeak = window.speak;
-    window.speak = function(text, onEnd) {
-      if (_googleTTSOn && _key()) { _speakGoogle(text, onEnd); }
-      else if (window._avext_origSpeak) { window._avext_origSpeak(text, onEnd); }
-    };
-  }
-
-  /* ── Gemma audio button disabled — using mic-toggle-btn instead ── */
-  function _addAudioBtn() { /* no-op */ }
-
-  function _updateAudioBtn() {
-    var btn = document.getElementById('avext-audio-btn');
-    if (!btn) return;
-    var show = _gemmaAudioOn && window.GemmaAI && window.GemmaAI.isOn();
-    btn.style.display = show ? 'inline-flex' : 'none';
-  }
-
-  async function _audioRecord() {
-    if (_recording) return;
-    if (!window.GemmaAI || !window.GemmaAI.isOn()) {
-      _toast('Enable Gemma toggle first'); return;
-    }
-    var btn = document.getElementById('avext-audio-btn');
-    _recording = true;
-    if (btn) btn.innerHTML = '&#9209; 5s';
-    try {
-      _toast('Recording 5s — speak now…');
-      var audio64 = await recordAudio(5000);
-      if (btn) btn.innerHTML = '&#8987;';
-      var reply = await gemmaAudioQuery(audio64);
-      if (reply) {
-        var inp = document.getElementById('chat-input');
-        if (inp) { inp.value = reply; }
-        if (typeof handleSend === 'function') handleSend();
-      }
-    } catch(e) {
-      _toast('Audio error: ' + e.message);
-    } finally {
-      _recording = false;
-      if (btn) btn.innerHTML = '&#127897;';
-    }
-  }
-
-  /* ── Inject sections into voice modal ───────────────────────── */
-  function _renderSections() {
-    var tts = document.getElementById('avext-tts-section');
-    var aud = document.getElementById('avext-audio-section');
-    if (tts) {
-      var opts = VOICES.map(function(v) {
-        return '<option value="' + v.id + '"' + (_googleTTSVoice === v.id ? ' selected' : '') + '>' + v.label + '</option>';
-      }).join('');
-      var sw = '<label style="position:relative;display:inline-block;width:34px;height:18px;flex-shrink:0">'
-        + '<input type="checkbox"' + (_googleTTSOn ? ' checked' : '') + ' onchange="window.AutumnVoiceExt.toggleGoogleTTS(this.checked)" style="opacity:0;width:0;height:0">'
-        + '<span style="position:absolute;inset:0;border-radius:18px;cursor:pointer;transition:.2s;border:1px solid ' + (_googleTTSOn ? 'rgba(100,200,255,.6);background:rgba(100,200,255,.25)' : 'rgba(255,255,255,.15);background:rgba(255,255,255,.08)') + '">'
-        + '<span style="position:absolute;height:12px;width:12px;left:' + (_googleTTSOn ? '18px' : '2px') + ';top:2px;background:' + (_googleTTSOn ? '#64c8ff' : 'rgba(255,255,255,.4)') + ';border-radius:50%;transition:.2s"></span></span></label>';
-      tts.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' + sw
-        + '<span style="font-size:.65em;color:' + (_googleTTSOn ? '#64c8ff' : 'rgba(255,255,255,.5)') + '">Google Neural TTS' + (_googleTTSOn ? ' — ACTIVE' : '') + '</span></div>'
-        + (_googleTTSOn
-            ? '<select onchange="window.AutumnVoiceExt.setGoogleVoice(this.value)" style="width:100%;background:rgba(0,0,0,.4);border:1px solid rgba(100,200,255,.25);color:#e0f0ff;padding:5px 8px;border-radius:4px;font-size:.65em;margin-bottom:6px">' + opts + '</select>'
-            + '<button onclick="window.AutumnVoiceExt.previewGoogleTTS()" style="font-size:.55em;padding:4px 12px;background:rgba(100,200,255,.1);border:1px solid rgba(100,200,255,.3);color:#64c8ff;border-radius:4px;cursor:pointer">Play Preview</button>'
-            : '<div style="font-size:.55em;color:rgba(255,255,255,.25)">Toggle on to use Chirp HD, WaveNet, or Neural2 — uses Gemma key</div>');
-    }
-    if (aud) {
-      var sw2 = '<label style="position:relative;display:inline-block;width:34px;height:18px;flex-shrink:0">'
-        + '<input type="checkbox"' + (_gemmaAudioOn ? ' checked' : '') + ' onchange="window.AutumnVoiceExt.toggleGemmaAudio(this.checked)" style="opacity:0;width:0;height:0">'
-        + '<span style="position:absolute;inset:0;border-radius:18px;cursor:pointer;transition:.2s;border:1px solid ' + (_gemmaAudioOn ? 'rgba(100,200,255,.6);background:rgba(100,200,255,.25)' : 'rgba(255,255,255,.15);background:rgba(255,255,255,.08)') + '">'
-        + '<span style="position:absolute;height:12px;width:12px;left:' + (_gemmaAudioOn ? '18px' : '2px') + ';top:2px;background:' + (_gemmaAudioOn ? '#64c8ff' : 'rgba(255,255,255,.4)') + ';border-radius:50%;transition:.2s"></span></span></label>';
-      aud.innerHTML = '<div style="display:flex;align-items:center;gap:10px">' + sw2
-        + '<span style="font-size:.65em;color:' + (_gemmaAudioOn ? '#64c8ff' : 'rgba(255,255,255,.5)') + '">Gemma E4B Audio Input' + (_gemmaAudioOn ? ' — ACTIVE' : '') + '</span></div>'
-        + '<div style="font-size:.55em;color:' + (_gemmaAudioOn ? 'rgba(100,200,255,.45)' : 'rgba(255,255,255,.2)') + ';margin-top:4px;line-height:1.6">'
-        + (_gemmaAudioOn
-            ? 'Mic button in chat records audio and sends directly to Gemma E4B. Requires Gemma G4 toggle ON.'
-            : 'When on, shows a mic button in the chat bar that sends audio to Gemma E4B natively.') + '</div>';
-    }
-  }
-
-  function _injectModalSections() {
-    if (document.getElementById('avext-tts-section')) return;
-    var modal = document.getElementById('voice-modal');
-    if (!modal) return;
-    var preview = modal.querySelector('.voice-preview');
-    if (!preview) return;
-    var wrapper = document.createElement('div');
-    wrapper.style.cssText = 'margin-top:16px;margin-bottom:12px;border-top:1px solid rgba(100,200,255,.1);padding-top:14px';
-    wrapper.innerHTML =
-      '<div style="font-family:var(--font-d);font-size:.55em;font-weight:700;letter-spacing:.08em;color:rgba(100,200,255,.6);margin-bottom:8px">GOOGLE NEURAL VOICE OUTPUT</div>'
-      + '<div id="avext-tts-section" style="margin-bottom:14px"></div>'
-      + '<div style="font-family:var(--font-d);font-size:.55em;font-weight:700;letter-spacing:.08em;color:rgba(100,200,255,.6);margin-bottom:6px">GEMMA AUDIO INPUT</div>'
-      + '<div id="avext-audio-section"></div>';
-    preview.parentNode.insertBefore(wrapper, preview);
-    _renderSections();
-  }
-
-  /* ── Init ───────────────────────────────────────────────────── */
-  function init() {
-    try { _googleTTSOn   = localStorage.getItem('_goog_tts_on')    === '1'; } catch(e) {}
-    try { _googleTTSVoice= localStorage.getItem('_goog_tts_voice') || _googleTTSVoice; } catch(e) {}
-    try { _gemmaAudioOn  = localStorage.getItem('_gemma_audio_on') === '1'; } catch(e) {}
-    _patchSpeak();
-    setTimeout(_addAudioBtn, 1000);
-
-    // Hook openVoiceSettings
-    var _origOVS = window.openVoiceSettings;
-    window.openVoiceSettings = function() {
-      if (_origOVS) _origOVS.apply(this, arguments);
-      setTimeout(_injectModalSections, 80);
-    };
-
-    // Hook GemmaAI toggle to update audio btn
-    if (window.GemmaAI) {
-      var _origGT = window.GemmaAI.toggle;
-      window.GemmaAI.toggle = function() {
-        if (_origGT) _origGT.apply(window.GemmaAI, arguments);
-        setTimeout(_updateAudioBtn, 150);
-      };
-    }
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else setTimeout(init, 300);
-
-  return { toggleGoogleTTS, setGoogleVoice, previewGoogleTTS, toggleGemmaAudio, gemmaAudioQuery, recordAudio };
 })();
 
 </script>
