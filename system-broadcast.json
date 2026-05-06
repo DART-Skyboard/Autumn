@@ -1,5 +1,5 @@
 {
   "message": "System Update — Autumn v2 · May 2026\nSeveral new features are now live. A weather tool has been added, allowing Autumn to pull real-time conditions directly into conversation. A formal GitHub login system is also active — logging in with your GitHub account enables personal memory storage that persists across sessions in a private repository only you can access.\nA developer branch is now in place so future updates can be tested before going live. On occasion you may notice direct live updates during active sessions — we appreciate your patience as we continue to refine the experience.\nComing soon: a more robust standalone NLP engine for Autumn. In the meantime, adding an Anthropic API key in your settings is recommended to significantly enhance Autumn's language processing and response quality.\n— Radical Deepscale LLC",
-  "updated": "2026-05-06T15:17:38.797Z",
+  "updated": "2026-05-06T15:18:25.346Z",
   "author": "dartsolarpunk"
 }
