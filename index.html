@@ -21670,7 +21670,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span><br><span style="font-size:.3rem;letter-spacing:1.5px;color:rgba(167,139,250,.45)">Author: L.E.A.T.R.</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
-        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div>' : '')
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="document.getElementById('gh-user-menu').remove();window._sysBrdOpenAdmin()">⚡ SYSTEM BROADCAST</div>' : '')
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
@@ -22171,6 +22171,279 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   else _init();
 })();
 
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   SYSTEM BROADCAST MODULE — Autumn · DART-Skyboard · Radical Deepscale LLC
+   - Right-side slide tab showing admin-posted system messages
+   - All users read from system-broadcast.json (public Autumn repo)
+   - Admin (dartsolarpunk) can post/clear via _sysBrdOpenAdmin()
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  var BROADCAST_RAW = 'https://raw.githubusercontent.com/DART-Skyboard/Autumn/main/system-broadcast.json';
+  var BROADCAST_API = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/system-broadcast.json';
+  var DEFAULT_MSG   = 'No system updates today.';
+  var _open = false;
+  var _pollTimer = null;
+  var _fileSha = null;
+
+  /* ── CSS ─────────────────────────────────────────────────────────────── */
+  function _injectCSS(){
+    var s = document.createElement('style');
+    s.textContent = [
+      '#sysbrd-trigger{position:fixed;right:0;top:360px;z-index:9498;display:flex;flex-direction:column;',
+        'align-items:center;justify-content:center;padding:9px 5px;gap:3px;',
+        'background:rgba(255,255,255,.05);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);',
+        'border:1px solid rgba(0,229,255,.18);border-right:none;border-radius:7px 0 0 7px;',
+        'cursor:pointer;transition:all .2s;user-select:none}',
+      '#sysbrd-trigger:hover{background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.4)}',
+      '#sysbrd-ticon{font-size:13px;color:rgba(0,229,255,.6);line-height:1}',
+      '#sysbrd-dot{width:5px;height:5px;border-radius:50%;background:rgba(0,229,255,.22);',
+        'box-shadow:0 0 3px rgba(0,229,255,.1);transition:all .4s;flex-shrink:0}',
+      '#sysbrd-dot.live{background:#00e5ff;box-shadow:0 0 7px rgba(0,229,255,.7);animation:sysdotpulse 2s infinite}',
+      '@keyframes sysdotpulse{0%,100%{opacity:1}50%{opacity:.4}}',
+      '#sysbrd-tlbl{font-family:var(--font-d,monospace);font-size:.21rem;letter-spacing:2px;',
+        'color:rgba(0,229,255,.38);writing-mode:vertical-rl;text-orientation:mixed}',
+      /* panel */
+      '#sysbrd-overlay{position:fixed;right:36px;top:352px;z-index:9397;width:min(290px,calc(100vw - 48px));',
+        'display:flex;flex-direction:column;',
+        'transform:translateX(calc(100% + 44px));',
+        'transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;',
+        'opacity:0;pointer-events:none}',
+      '#sysbrd-overlay.sbd-open{transform:translateX(0);opacity:1;pointer-events:all}',
+      '#sysbrd-panel{background:rgba(6,10,16,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);',
+        'border:1px solid rgba(0,229,255,.18);border-radius:9px;overflow:hidden}',
+      '#sysbrd-hd{display:flex;align-items:center;gap:7px;padding:7px 10px;',
+        'border-bottom:1px solid rgba(0,229,255,.1);background:rgba(0,229,255,.03)}',
+      '#sysbrd-hd-title{font-family:var(--font-d,monospace);font-size:.38rem;letter-spacing:3px;',
+        'color:rgba(0,229,255,.8);text-shadow:0 0 6px rgba(0,229,255,.25);flex:1}',
+      '#sysbrd-close{background:none;border:none;color:rgba(0,229,255,.25);font-size:11px;cursor:pointer;padding:2px 5px;line-height:1}',
+      '#sysbrd-close:hover{color:rgba(0,229,255,.7)}',
+      '#sysbrd-body{padding:10px 12px 12px}',
+      '#sysbrd-ts-row{font-family:var(--font-d,monospace);font-size:.22rem;letter-spacing:2px;',
+        'color:rgba(0,229,255,.28);margin-bottom:7px;display:flex;align-items:center;gap:6px}',
+      '#sysbrd-live-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}',
+      '#sysbrd-msg-text{font-size:.37rem;line-height:1.75;color:rgba(224,244,255,.82);',
+        'font-family:var(--font-b,sans-serif);min-height:36px;word-break:break-word}',
+      '#sysbrd-msg-text.default-msg{color:rgba(224,244,255,.38);font-style:italic}',
+      '#sysbrd-spinner{font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:2px;',
+        'color:rgba(0,229,255,.25);text-align:center;padding:14px 0}',
+      /* admin modal */
+      '#sysbrd-admin-modal{position:fixed;top:0;left:0;right:0;bottom:0;z-index:19000;',
+        'background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center}',
+      '#sysbrd-admin-box{background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.3);',
+        'border-radius:10px;padding:16px 18px;width:min(340px,90vw);',
+        'font-family:var(--font-d,monospace);display:flex;flex-direction:column;gap:10px}',
+      '#sysbrd-admin-title{font-size:.44rem;letter-spacing:3px;color:rgba(0,229,255,.9);',
+        'text-shadow:0 0 8px rgba(0,229,255,.3)}',
+      '#sysbrd-admin-sub{font-size:.28rem;letter-spacing:1.5px;color:rgba(0,229,255,.4)}',
+      '#sysbrd-admin-ta{width:100%;min-height:80px;background:rgba(0,229,255,.04);',
+        'border:1px solid rgba(0,229,255,.25);border-radius:5px;',
+        'color:rgba(224,244,255,.88);font-size:.34rem;line-height:1.65;',
+        'padding:8px 10px;resize:vertical;font-family:var(--font-b,sans-serif);outline:none;box-sizing:border-box}',
+      '#sysbrd-admin-ta:focus{border-color:rgba(0,229,255,.55)}',
+      '#sysbrd-admin-btns{display:flex;gap:8px}',
+      '.sbrd-btn{flex:1;padding:7px 0;border-radius:5px;cursor:pointer;',
+        'font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1.5px;transition:all .15s;border:1px solid}',
+      '.sbrd-btn.post{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.45);color:rgba(0,229,255,.9)}',
+      '.sbrd-btn.post:hover{background:rgba(0,229,255,.2);box-shadow:0 0 10px rgba(0,229,255,.2)}',
+      '.sbrd-btn.clear{background:rgba(255,100,80,.07);border-color:rgba(255,100,80,.35);color:rgba(255,100,100,.75)}',
+      '.sbrd-btn.clear:hover{background:rgba(255,100,80,.15)}',
+      '.sbrd-btn.cancel{background:transparent;border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.3)}',
+      '#sysbrd-admin-status{font-size:.26rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);min-height:14px;text-align:center}',
+    ].join('');
+    document.head.appendChild(s);
+  }
+
+  /* ── HTML ────────────────────────────────────────────────────────────── */
+  function _injectHTML(){
+    // Trigger tab
+    var tr = document.createElement('div');
+    tr.id = 'sysbrd-trigger';
+    tr.title = 'System Broadcast — Autumn Status Updates';
+    tr.innerHTML = '<div id="sysbrd-ticon">⚡</div><div id="sysbrd-dot"></div><div id="sysbrd-tlbl">SYS</div>';
+    tr.addEventListener('click', function(e){ e.stopPropagation(); _toggle(); });
+    document.body.appendChild(tr);
+
+    // Panel overlay
+    var ov = document.createElement('div');
+    ov.id = 'sysbrd-overlay';
+    ov.innerHTML =
+      '<div id="sysbrd-panel">' +
+        '<div id="sysbrd-hd">' +
+          '<span id="sysbrd-ticon2" style="font-size:13px;color:rgba(0,229,255,.5)">⚡</span>' +
+          '<span id="sysbrd-hd-title">SYSTEM BROADCAST</span>' +
+          '<button id="sysbrd-close" onclick="window.sysBrdClose()">✕</button>' +
+        '</div>' +
+        '<div id="sysbrd-body">' +
+          '<div id="sysbrd-ts-row">' +
+            '<div id="sysbrd-live-dot" style="background:rgba(0,229,255,.2)"></div>' +
+            '<span id="sysbrd-ts-lbl">—</span>' +
+          '</div>' +
+          '<div id="sysbrd-msg-text"><div id="sysbrd-spinner">LOADING...</div></div>' +
+        '</div>' +
+      '</div>';
+    ov.addEventListener('click', function(e){ e.stopPropagation(); });
+    document.body.appendChild(ov);
+  }
+
+  /* ── Toggle ──────────────────────────────────────────────────────────── */
+  function _toggle(){
+    _open = !_open;
+    var ov = document.getElementById('sysbrd-overlay');
+    if(ov) ov.classList.toggle('sbd-open', _open);
+    if(_open){
+      _render();
+      setTimeout(function(){ document.addEventListener('click', _outside); }, 60);
+    } else {
+      document.removeEventListener('click', _outside);
+    }
+  }
+
+  function _outside(e){
+    var ov = document.getElementById('sysbrd-overlay');
+    var tr = document.getElementById('sysbrd-trigger');
+    if(ov && !ov.contains(e.target) && tr && !tr.contains(e.target)){
+      window.sysBrdClose();
+    }
+  }
+
+  window.sysBrdClose = function(){
+    _open = false;
+    var ov = document.getElementById('sysbrd-overlay');
+    if(ov) ov.classList.remove('sbd-open');
+    document.removeEventListener('click', _outside);
+  };
+
+  /* ── Fetch + render ──────────────────────────────────────────────────── */
+  function _fetch(cb){
+    fetch(BROADCAST_RAW + '?cb=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ cb(null, d); })
+      .catch(function(e){ cb(e, null); });
+  }
+
+  function _render(){
+    _fetch(function(err, data){
+      var msgEl  = document.getElementById('sysbrd-msg-text');
+      var tsEl   = document.getElementById('sysbrd-ts-lbl');
+      var dot    = document.getElementById('sysbrd-dot');
+      var liveDt = document.getElementById('sysbrd-live-dot');
+      if(!msgEl) return;
+      if(err || !data){
+        msgEl.textContent = DEFAULT_MSG;
+        msgEl.className = 'default-msg';
+        if(tsEl) tsEl.textContent = 'COULD NOT LOAD';
+        return;
+      }
+      var msg    = data.message || DEFAULT_MSG;
+      var isLive = msg !== DEFAULT_MSG;
+      var upd    = data.updated ? new Date(data.updated) : null;
+      var tsStr  = upd ? upd.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) + ' · ' + upd.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}) : '—';
+
+      msgEl.textContent = msg;
+      msgEl.className   = isLive ? '' : 'default-msg';
+      if(tsEl)   tsEl.textContent = isLive ? 'UPDATED ' + tsStr : 'NO ACTIVE BROADCAST';
+      if(dot)    dot.classList.toggle('live', isLive);
+      if(liveDt) liveDt.style.background = isLive ? '#00e5ff' : 'rgba(0,229,255,.18)';
+    });
+  }
+
+  /* ── Admin editor ────────────────────────────────────────────────────── */
+  window._sysBrdOpenAdmin = function(){
+    var existing = document.getElementById('sysbrd-admin-modal');
+    if(existing){ existing.remove(); return; }
+
+    // Fetch current message first
+    _fetch(function(err, data){
+      var curMsg = (data && data.message) ? data.message : '';
+      if(curMsg === DEFAULT_MSG) curMsg = '';
+
+      var modal = document.createElement('div');
+      modal.id = 'sysbrd-admin-modal';
+      modal.innerHTML =
+        '<div id="sysbrd-admin-box">' +
+          '<div id="sysbrd-admin-title">⚡ SYSTEM BROADCAST</div>' +
+          '<div id="sysbrd-admin-sub">Message posted to all active sessions · persists until updated or cleared</div>' +
+          '<textarea id="sysbrd-admin-ta" placeholder="Type a system message for all users…">' + (curMsg||'') + '</textarea>' +
+          '<div id="sysbrd-admin-btns">' +
+            '<button class="sbrd-btn post" onclick="window._sysBrdPost()">▲ POST</button>' +
+            '<button class="sbrd-btn clear" onclick="window._sysBrdClear()">✕ CLEAR</button>' +
+            '<button class="sbrd-btn cancel" onclick="document.getElementById('sysbrd-admin-modal').remove()">CANCEL</button>' +
+          '</div>' +
+          '<div id="sysbrd-admin-status"></div>' +
+        '</div>';
+      modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+      document.body.appendChild(modal);
+      setTimeout(function(){ var ta=document.getElementById('sysbrd-admin-ta'); if(ta){ta.focus();ta.selectionStart=ta.value.length;} },80);
+    });
+  };
+
+  function _setStatus(msg, color){
+    var el = document.getElementById('sysbrd-admin-status');
+    if(el){ el.textContent = msg; el.style.color = color||'rgba(0,229,255,.55)'; }
+  }
+
+  function _writeFile(payload, statusMsg){
+    var token = window._ghAuth && window._ghAuth.token;
+    if(!token){ _setStatus('⚠ Not logged in', 'rgba(255,150,80,.8)'); return; }
+    _setStatus('SAVING...');
+    // Get current SHA first
+    fetch(BROADCAST_API, { headers:{ 'Authorization':'token '+token, 'User-Agent':'DART/1.0' } })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var sha = d.sha || null;
+        var body = JSON.stringify({
+          message: statusMsg,
+          content: btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2)))),
+          sha: sha
+        });
+        return fetch(BROADCAST_API, {
+          method: 'PUT',
+          headers: { 'Authorization':'token '+token, 'Content-Type':'application/json', 'User-Agent':'DART/1.0' },
+          body: body
+        });
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.commit){ 
+          _setStatus('✓ BROADCAST UPDATED', 'rgba(0,229,255,.9)');
+          _render(); // refresh panel
+          setTimeout(function(){ var m=document.getElementById('sysbrd-admin-modal'); if(m) m.remove(); }, 1400);
+        } else {
+          _setStatus('⚠ Write failed: '+(d.message||'unknown'), 'rgba(255,100,80,.8)');
+        }
+      })
+      .catch(function(e){ _setStatus('⚠ Error: '+e.message, 'rgba(255,100,80,.8)'); });
+  }
+
+  window._sysBrdPost = function(){
+    var ta = document.getElementById('sysbrd-admin-ta');
+    var msg = ta ? ta.value.trim() : '';
+    if(!msg){ _setStatus('⚠ Message cannot be empty'); return; }
+    _writeFile({ message: msg, updated: new Date().toISOString(), author: 'dartsolarpunk' }, 'broadcast: admin system message update');
+  };
+
+  window._sysBrdClear = function(){
+    _writeFile({ message: DEFAULT_MSG, updated: new Date().toISOString(), author: 'dartsolarpunk' }, 'broadcast: clear system message — reset to default');
+  };
+
+  /* ── Poll every 3 min ────────────────────────────────────────────────── */
+  function _startPoll(){
+    _render();
+    _pollTimer = setInterval(_render, 180000);
+  }
+
+  /* ── Init ────────────────────────────────────────────────────────────── */
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ _injectCSS(); _injectHTML(); _startPoll(); });
+  } else {
+    _injectCSS(); _injectHTML(); _startPoll();
+  }
+})();
 </script>
 </body>
 </html>
