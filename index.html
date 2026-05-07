@@ -22055,215 +22055,288 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       if(!frame) return;
 
       if(tab==='ash'){
-        /* ── Ash canvas tab: use live BRPN scene, no iframe ── */
         frame.style.display='none';
 
-        /* Inject CSS once */
+        /* ── CSS ─────────────────────────────────────────────────────────── */
         if(!document.getElementById('adm-ash-css')){
           var sty=document.createElement('style'); sty.id='adm-ash-css';
           sty.textContent=
-            '#adm-ash-panel{display:flex;flex-direction:column;flex:1;overflow:hidden;background:#060a10;font-family:"Orbitron",monospace}'+
-            '#adm-canvas-wrap{position:relative;flex-shrink:0;height:45vh;min-height:180px;max-height:320px;overflow:hidden;background:#020508}'+
-            '#adm-canvas-wrap #brpn-region{position:absolute!important;inset:0!important;height:100%!important;margin:0!important;border:none!important;border-radius:0!important;cursor:grab}'+
-            '#adm-ash-ctrl{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}'+
-            '#adm-mini-tabs{display:flex;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0;background:rgba(0,0,0,.4)}'+
-            '.adm-mt{flex:1;text-align:center;padding:7px 4px;font-size:.28rem;letter-spacing:2px;color:rgba(0,229,255,.35);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none}'+
-            '.adm-mt.on{color:rgba(0,229,255,.9);border-bottom-color:#00e5ff}'+
-            '#adm-mini-content{flex:1;overflow-y:auto;padding:10px 12px}'+
-            '.adm-sec-title{font-size:.26rem;letter-spacing:2.5px;color:rgba(0,229,255,.35);margin-bottom:7px}'+
-            '.adm-scope-btn{display:block;width:100%;text-align:left;padding:8px 10px;margin-bottom:5px;font-family:inherit;font-size:.35rem;letter-spacing:1.5px;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.15);border-radius:4px;color:rgba(0,229,255,.6);cursor:pointer;transition:all .15s}'+
-            '.adm-scope-btn.active{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.5);color:rgba(0,229,255,.95)}'+
-            '.adm-layer-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,229,255,.06)}'+
-            '.adm-layer-chk{width:14px;height:14px;accent-color:#00e5ff;cursor:pointer}'+
-            '.adm-layer-lbl{font-size:.35rem;letter-spacing:1.5px;flex:1}'+
-            '.adm-layer-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}'+
-            '#adm-sigma-row{display:flex;align-items:center;gap:6px;padding:6px 0;font-size:.28rem;letter-spacing:1.5px;color:rgba(0,229,255,.4)}'+
-            '#adm-sigma-dot{width:7px;height:7px;border-radius:50%;background:rgba(0,229,255,.25)}'+
-            '#adm-sigma-dot.live{background:#00e5ff;box-shadow:0 0 6px rgba(0,229,255,.7);animation:spulse 1.5s infinite}'+
-            '@keyframes spulse{0%,100%{opacity:1}50%{opacity:.3}}'+
-            '.adm-user-list{margin-top:6px}'+
-            '.adm-user-item{padding:5px 8px;font-size:.33rem;color:rgba(0,229,255,.55);cursor:pointer;border-radius:3px;transition:background .1s}'+
-            '.adm-user-item:hover,.adm-user-item.sel{background:rgba(0,229,255,.1);color:rgba(0,229,255,.9)}'+
-            '#adm-pattern-txt{font-size:.38rem;line-height:1.7;color:rgba(224,244,255,.65);font-family:sans-serif}'+
-            '#adm-ash-chat-log{flex:1;overflow-y:auto;padding:8px;min-height:80px;max-height:200px;background:rgba(0,229,255,.02);border:1px solid rgba(0,229,255,.08);border-radius:5px;margin-bottom:8px}'+
-            '.adm-chat-msg{font-size:.38rem;line-height:1.65;color:rgba(224,244,255,.8);font-family:sans-serif;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(0,229,255,.05)}'+
-            '#adm-ash-input-row{display:flex;gap:6px}'+
-            '#adm-ash-inp{flex:1;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.88);font-size:.4rem;padding:7px 10px;outline:none;font-family:sans-serif}'+
-            '#adm-ash-send{padding:7px 14px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:inherit;font-size:.3rem;cursor:pointer;letter-spacing:1px}';
+            /* Outer panel */
+            '#adm-ash-panel{position:absolute;inset:0;top:48px;display:flex;flex-direction:column;overflow:hidden;background:#000}'+
+            /* Video BG */
+            '#adm-ash-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;opacity:.55}'+
+            '#adm-ash-scrim{position:absolute;inset:0;z-index:1;background:rgba(2,8,18,.55);pointer-events:none}'+
+            /* Canvas viewport */
+            '#adm-canvas-wrap{position:relative;z-index:2;flex-shrink:0;height:46vh;min-height:160px;overflow:hidden}'+
+            '#adm-canvas-wrap #brpn-region{position:absolute!important;inset:0!important;height:100%!important;margin:0!important;border:none!important;border-radius:0!important;cursor:grab;background:transparent!important}'+
+            /* HUD overlay on canvas */
+            '#adm-canvas-hud{position:absolute;top:8px;left:0;right:0;z-index:10;display:flex;justify-content:space-between;align-items:flex-start;padding:0 10px;pointer-events:none}'+
+            '#adm-canvas-hud-l{font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2px;color:rgba(0,229,255,.6);line-height:1.8}'+
+            '#adm-canvas-hud-r{display:flex;gap:5px;pointer-events:all}'+
+            '.adm-hud-shell{font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:1.5px;padding:3px 8px;border-radius:3px;border:1px solid;cursor:pointer;transition:all .2s}'+
+            /* Main body below canvas */
+            '#adm-ash-body{position:relative;z-index:2;flex:1;display:flex;overflow:hidden;min-height:0}'+
+            /* Left panel */
+            '#adm-ash-left{width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.1);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(4,10,20,.82);gap:10px}'+
+            /* Right panel */
+            '#adm-ash-right{flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(3,8,16,.78)}'+
+            /* Right top: pattern report */
+            '#adm-rpt{padding:10px 12px;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0}'+
+            /* Right bottom: chat */
+            '#adm-chat{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:8px 10px}'+
+            '#adm-chat-log{flex:1;overflow-y:auto;margin-bottom:7px;padding-right:4px}'+
+            '.adm-chat-bub{font-size:.38rem;line-height:1.7;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid rgba(0,229,255,.06)}'+
+            '.adm-chat-bub.user{color:rgba(0,229,255,.75);font-family:var(--font-d,monospace);font-size:.33rem}'+
+            '.adm-chat-bub.autumn{color:rgba(224,244,255,.82);font-family:sans-serif}'+
+            '#adm-chat-row{display:flex;gap:6px;flex-shrink:0}'+
+            '#adm-chat-inp{flex:1;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.9);font-size:.4rem;padding:7px 10px;outline:none;font-family:sans-serif}'+
+            '#adm-chat-send{padding:7px 12px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:var(--font-d,monospace);font-size:.28rem;cursor:pointer;letter-spacing:1.5px;white-space:nowrap}'+
+            /* Sections */
+            '.adm-sec{display:flex;flex-direction:column;gap:5px}'+
+            '.adm-sec-h{font-family:var(--font-d,monospace);font-size:.22rem;letter-spacing:2.5px;color:rgba(0,229,255,.32);margin-bottom:3px}'+
+            '.adm-scope-b{font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1px;padding:6px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:rgba(0,229,255,.04);color:rgba(0,229,255,.55);cursor:pointer;text-align:left;transition:all .15s;width:100%}'+
+            '.adm-scope-b.on{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.5);color:rgba(0,229,255,.95)}'+
+            '.adm-chk-row{display:flex;align-items:center;gap:6px;padding:3px 0}'+
+            '.adm-chk-row input[type=checkbox]{accent-color:#00e5ff;width:13px;height:13px;cursor:pointer}'+
+            '.adm-chk-lbl{font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1px;cursor:pointer}'+
+            '.adm-emo-val{font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1px;color:rgba(0,229,255,.4);padding:3px 0}'+
+            '.adm-user-item{font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:.5px;color:rgba(0,229,255,.5);padding:4px 6px;border-radius:3px;cursor:pointer;transition:background .1s}'+
+            '.adm-user-item:hover,.adm-user-item.on{background:rgba(0,229,255,.1);color:rgba(0,229,255,.9)}'+
+            '#adm-rpt-txt{font-size:.36rem;line-height:1.65;color:rgba(224,244,255,.6);font-family:sans-serif;padding-top:4px}'+
+            '#adm-rpt-title{font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:5px}'+
+            /* Buoyancy nodes right */
+            '#adm-nodes-right{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:15;display:flex;flex-direction:column;gap:6px;padding:6px 4px}'+
+            '.adm-node-btn{width:34px;height:34px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid rgba(0,229,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s;color:rgba(0,229,255,.5)}'+
+            '.adm-node-btn:hover{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.5);color:#00e5ff}'+
+            /* Socket bar */
+            '#adm-socket-bar{position:relative;z-index:3;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:1px solid rgba(0,229,255,.12);background:rgba(2,6,14,.9)}'+
+            '.adm-socket{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;flex:1;max-width:80px}'+
+            '.adm-socket-node{width:28px;height:28px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .2s}'+
+            '.adm-socket-lbl{font-family:var(--font-d,monospace);font-size:.2rem;letter-spacing:1.5px;text-align:center}'+
+            '.adm-socket.live .adm-socket-node{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.6);color:#00e5ff;box-shadow:0 0 8px rgba(0,229,255,.3)}'+
+            '.adm-socket.placeholder .adm-socket-node{background:rgba(255,255,255,.03);border-color:rgba(0,229,255,.15);color:rgba(0,229,255,.2)}'+
+            '.adm-sigma{font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1.5px;color:rgba(0,229,255,.4);margin-left:auto;display:flex;align-items:center;gap:5px}'+
+            '.adm-sigma-dot{width:6px;height:6px;border-radius:50%;background:#00e5ff;box-shadow:0 0 5px rgba(0,229,255,.7);animation:admsigpulse 1.5s infinite}'+
+            '@keyframes admsigpulse{0%,100%{opacity:1}50%{opacity:.25}}';
           document.head.appendChild(sty);
         }
 
-        /* Build panel */
+        /* ── Build panel ──────────────────────────────────────────────────── */
+        _restoreBRPN();
         var ap=document.createElement('div'); ap.id='adm-ash-panel';
 
-        /* Canvas wrap — move the live #brpn-region here */
+        /* Video background */
+        var vid=document.createElement('video'); vid.id='adm-ash-video';
+        vid.src='assets/autumn.mp4'; vid.autoplay=true; vid.loop=true; vid.muted=true; vid.setAttribute('playsinline','');
+        var scrim=document.createElement('div'); scrim.id='adm-ash-scrim';
+        ap.appendChild(vid); ap.appendChild(scrim);
+
+        /* Canvas viewport — move live #brpn-region here */
         var cw=document.createElement('div'); cw.id='adm-canvas-wrap';
+
+        /* Canvas HUD overlay */
+        var hud=document.createElement('div'); hud.id='adm-canvas-hud';
+        var hudL=document.createElement('div'); hudL.id='adm-canvas-hud-l';
+        hudL.innerHTML='<div>GEO <span id="adm-hud-geo">--</span></div><div>MAR <span id="adm-hud-mar">--</span></div><div>AERO <span id="adm-hud-aero">--</span></div>';
+        var hudR=document.createElement('div'); hudR.id='adm-canvas-hud-r';
+        var shellDefs=[{key:'geo',color:'rgba(0,255,204,.6)',label:'GEO',idx:0},{key:'mar',color:'rgba(0,136,255,.6)',label:'MAR',idx:1},{key:'aero',color:'rgba(255,68,102,.6)',label:'AERO',idx:2}];
+        var _admLayers={geo:true,mar:true,aero:true};
+        shellDefs.forEach(function(sd){
+          var b=document.createElement('button'); b.className='adm-hud-shell';
+          b.style.borderColor=sd.color; b.style.color=sd.color; b.style.background='rgba(0,0,0,.4)';
+          b.textContent=sd.label;
+          b.onclick=function(){
+            _admLayers[sd.key]=!_admLayers[sd.key];
+            b.style.opacity=_admLayers[sd.key]?'1':'0.3';
+            var sh=window._brpnShells; if(sh&&sh[sd.idx]) sh[sd.idx].visible=_admLayers[sd.key];
+          };
+          hudR.appendChild(b);
+        });
+        hud.appendChild(hudL); hud.appendChild(hudR); cw.appendChild(hud);
+
+        /* Buoyancy node buttons — right side of canvas */
+        var nodesR=document.createElement('div'); nodesR.id='adm-nodes-right';
+        var nodeDefs=[{icon:'★',title:'Stars'},{icon:'♥',title:'Hearts'},{icon:'◆',title:'Maze'}];
+        nodeDefs.forEach(function(nd){
+          var b=document.createElement('div'); b.className='adm-node-btn'; b.title=nd.title; b.textContent=nd.icon;
+          b.onclick=function(){
+            window.pulseShells&&window.pulseShells(0.8);
+          };
+          nodesR.appendChild(b);
+        });
+        cw.appendChild(nodesR);
+
+        /* Move live BRPN region */
         var region=document.getElementById('brpn-region');
         if(region) cw.appendChild(region);
-        /* Resize renderer to fit new container */
+        ap.appendChild(cw);
+
+        /* Resize renderer after mount */
         setTimeout(function(){
           if(window._brpnRenderer&&region){
-            var w=cw.clientWidth||window.innerWidth, h=cw.clientHeight||240;
+            var w=cw.clientWidth||window.innerWidth, h=cw.clientHeight||220;
             window._brpnRenderer.setSize(w,h);
             if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
           }
-        },100);
+          /* Sync HUD values from live scene */
+          setInterval(function(){
+            var geo=document.getElementById('adm-hud-geo');
+            var mar=document.getElementById('adm-hud-mar');
+            var aero=document.getElementById('adm-hud-aero');
+            if(window._acShellBoost){
+              if(geo) geo.textContent=(window._acShellBoost[0]||0).toFixed(2);
+              if(mar) mar.textContent=(window._acShellBoost[1]||0).toFixed(2);
+              if(aero) aero.textContent=(window._acShellBoost[2]||0).toFixed(2);
+            }
+          }, 500);
+        }, 120);
 
-        /* Sigma live status row */
-        var sigRow=document.createElement('div'); sigRow.id='adm-sigma-row';
-        var sigDot=document.createElement('div'); sigDot.id='adm-sigma-dot'; sigDot.classList.add('live');
-        var sigLbl=document.createElement('span'); sigLbl.textContent='SIGMA LIVE — ALL SESSION DATA CONNECTED';
-        sigRow.appendChild(sigDot); sigRow.appendChild(sigLbl);
+        /* ── Main body ────────────────────────────────────────────────────── */
+        var body=document.createElement('div'); body.id='adm-ash-body';
 
-        /* Mini-tab system */
-        var ctrl=document.createElement('div'); ctrl.id='adm-ash-ctrl';
-        var mtabs=document.createElement('div'); mtabs.id='adm-mini-tabs';
-        var mtContent=document.createElement('div'); mtContent.id='adm-mini-content';
+        /* Left panel: scope + layers + users */
+        var left=document.createElement('div'); left.id='adm-ash-left';
 
-        function mkMT(label, key){
-          var b=document.createElement('div'); b.className='adm-mt'; b.textContent=label; b.dataset.key=key;
-          b.onclick=function(){
-            mtabs.querySelectorAll('.adm-mt').forEach(function(m){m.classList.remove('on');});
-            b.classList.add('on');
-            _renderMiniTab(key);
-          };
-          return b;
-        }
-        var mt1=mkMT('SCOPE','scope'), mt2=mkMT('LAYERS','layers'), mt3=mkMT('REPORT','report'), mt4=mkMT('CHAT','chat');
-        mtabs.appendChild(mt1); mtabs.appendChild(mt2); mtabs.appendChild(mt3); mtabs.appendChild(mt4);
-
-        /* Read sessions from leatr-ash */
-        var _sessions={};
+        var scopeSec=document.createElement('div'); scopeSec.className='adm-sec';
+        var scopeH=document.createElement('div'); scopeH.className='adm-sec-h'; scopeH.textContent='USER SCOPE';
+        scopeSec.appendChild(scopeH);
         var _curScope='all';
-        var _layers={geo:true,mar:true,aero:true};
+        [['ALL USERS','all'],['ACTIVE TODAY','today'],['GROUP TOP 5','group'],['INDIVIDUAL','indiv']].forEach(function(s){
+          var b=document.createElement('button'); b.className='adm-scope-b'+(_curScope===s[1]?' on':''); b.textContent=s[0];
+          b.onclick=function(){
+            left.querySelectorAll('.adm-scope-b').forEach(function(x){x.classList.remove('on');});
+            b.classList.add('on'); _curScope=s[1];
+            if(window._acShellBoost){
+              if(s[1]==='all') window._acShellBoost=[0,0,0];
+              else if(s[1]==='today') window._acShellBoost=[0.08,0.06,0.04];
+            }
+          };
+          scopeSec.appendChild(b);
+        });
+        left.appendChild(scopeSec);
 
-        function _loadSessions(){
-          fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
-            headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
-          })
-          .then(function(r){return r.json();})
-          .then(function(files){
-            if(Array.isArray(files)) files.forEach(function(f){
-              var u=f.name.replace('.json',''); _sessions[u]={name:u};
-            });
-          }).catch(function(){});
-        }
-        _loadSessions();
+        var layerSec=document.createElement('div'); layerSec.className='adm-sec';
+        var layH=document.createElement('div'); layH.className='adm-sec-h'; layH.textContent='SHELL LAYERS';
+        layerSec.appendChild(layH);
+        shellDefs.forEach(function(sd){
+          var row=document.createElement('div'); row.className='adm-chk-row';
+          var chk=document.createElement('input'); chk.type='checkbox'; chk.checked=true;
+          chk.onchange=function(){
+            _admLayers[sd.key]=chk.checked;
+            var sh=window._brpnShells; if(sh&&sh[sd.idx]) sh[sd.idx].visible=chk.checked;
+            /* Sync hud button */
+            var hudBtns=document.querySelectorAll('.adm-hud-shell');
+            if(hudBtns[sd.idx]) hudBtns[sd.idx].style.opacity=chk.checked?'1':'0.3';
+          };
+          var lbl=document.createElement('label'); lbl.className='adm-chk-lbl'; lbl.style.color=sd.color; lbl.textContent=sd.label;
+          lbl.onclick=function(){chk.click();};
+          row.appendChild(chk); row.appendChild(lbl);
+          layerSec.appendChild(row);
+        });
+        left.appendChild(layerSec);
 
-        function _applyLayers(){
-          var sh=window._brpnShells;
-          if(!sh) return;
-          [0,1,2].forEach(function(i){
-            var key=['geo','mar','aero'][i];
-            if(sh[i]) sh[i].visible=_layers[key];
+        var emoSec=document.createElement('div'); emoSec.className='adm-sec';
+        var emoH=document.createElement('div'); emoH.className='adm-sec-h'; emoH.textContent='EMOTIONAL STATES';
+        var emoVal=document.createElement('div'); emoVal.className='adm-emo-val'; emoVal.textContent=window._lastEmoState||'--';
+        emoSec.appendChild(emoH); emoSec.appendChild(emoVal);
+        left.appendChild(emoSec);
+
+        /* Individual users loaded from leatr-ash */
+        var userSec=document.createElement('div'); userSec.className='adm-sec';
+        var userH=document.createElement('div'); userH.className='adm-sec-h'; userH.textContent='INDIVIDUAL';
+        userSec.appendChild(userH);
+        fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
+          headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+        }).then(function(r){return r.json();}).then(function(files){
+          if(Array.isArray(files)) files.forEach(function(f){
+            var name=f.name.replace('.json','');
+            var d=document.createElement('div'); d.className='adm-user-item'; d.textContent=name;
+            d.onclick=function(){userSec.querySelectorAll('.adm-user-item').forEach(function(x){x.classList.remove('on');});d.classList.add('on');};
+            userSec.appendChild(d);
           });
-        }
+        }).catch(function(){});
+        left.appendChild(userSec);
+        body.appendChild(left);
 
-        function _renderMiniTab(key){
-          mtContent.innerHTML='';
-          if(key==='scope'){
-            var st=document.createElement('div'); st.className='adm-sec-title'; st.textContent='USER SCOPE';
-            mtContent.appendChild(st);
-            var scopes=[['ALL USERS','all'],['ACTIVE TODAY','today'],['GROUP TOP 5','group'],['INDIVIDUAL','individual']];
-            scopes.forEach(function(s){
-              var b=document.createElement('button'); b.className='adm-scope-btn'+(_curScope===s[1]?' active':''); b.textContent=s[0];
-              b.onclick=function(){
-                _curScope=s[1];
-                mtContent.querySelectorAll('.adm-scope-btn').forEach(function(x){x.classList.remove('active');});
-                b.classList.add('active');
-                /* Update BRPN node color/filter based on scope */
-                if(window._acShellBoost){
-                  if(s[1]==='all'){window._acShellBoost=[0,0,0];}
-                  else if(s[1]==='today'){window._acShellBoost=[0.08,0.06,0.04];}
-                }
-              };
-              mtContent.appendChild(b);
-            });
-            if(Object.keys(_sessions).length){
-              var uSt=document.createElement('div'); uSt.className='adm-sec-title'; uSt.style.marginTop='12px'; uSt.textContent='INDIVIDUAL SELECT';
-              mtContent.appendChild(uSt);
-              var ul=document.createElement('div'); ul.className='adm-user-list';
-              Object.keys(_sessions).forEach(function(u){
-                var d=document.createElement('div'); d.className='adm-user-item'; d.textContent=u;
-                d.onclick=function(){ ul.querySelectorAll('.adm-user-item').forEach(function(x){x.classList.remove('sel');}); d.classList.add('sel'); };
-                ul.appendChild(d);
-              });
-              mtContent.appendChild(ul);
-            }
-          } else if(key==='layers'){
-            var lt=document.createElement('div'); lt.className='adm-sec-title'; lt.textContent='SHELL LAYERS';
-            mtContent.appendChild(lt);
-            var layerDefs=[{key:'geo',label:'GEOLOGICAL',color:'#00ffcc'},{key:'mar',label:'MARITIME',color:'#0088ff'},{key:'aero',label:'AEROSPACE',color:'#ff4466'}];
-            layerDefs.forEach(function(ld){
-              var row=document.createElement('div'); row.className='adm-layer-row';
-              var chk=document.createElement('input'); chk.type='checkbox'; chk.className='adm-layer-chk'; chk.checked=_layers[ld.key];
-              chk.onchange=function(){ _layers[ld.key]=chk.checked; _applyLayers(); };
-              var dot=document.createElement('div'); dot.className='adm-layer-dot'; dot.style.background=ld.color;
-              var lbl=document.createElement('span'); lbl.className='adm-layer-lbl'; lbl.style.color=ld.color; lbl.textContent=ld.label;
-              row.appendChild(chk); row.appendChild(dot); row.appendChild(lbl);
-              mtContent.appendChild(row);
-            });
-            var et=document.createElement('div'); et.className='adm-sec-title'; et.style.marginTop='14px'; et.textContent='EMOTIONAL STATES';
-            mtContent.appendChild(et);
-            var emo=document.createElement('div'); emo.style.cssText='font-size:.35rem;color:rgba(0,229,255,.45);letter-spacing:1px;padding:4px 0';
-            emo.textContent=window._lastEmoState||'--';
-            mtContent.appendChild(emo);
-          } else if(key==='report'){
-            var rt=document.createElement('div'); rt.className='adm-sec-title'; rt.textContent='PATTERN REPORT';
-            mtContent.appendChild(rt);
-            var pt=document.createElement('div'); pt.id='adm-pattern-txt'; pt.textContent='Loading...';
-            mtContent.appendChild(pt);
-            /* Fetch pattern data from leatr-ash */
-            fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sentient/journal.json',{
-              headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+        /* Right panel */
+        var right=document.createElement('div'); right.id='adm-ash-right';
+
+        /* Pattern report */
+        var rpt=document.createElement('div'); rpt.id='adm-rpt';
+        var rptTitle=document.createElement('div'); rptTitle.id='adm-rpt-title'; rptTitle.textContent='[H] PATTERN REPORT';
+        var rptTxt=document.createElement('div'); rptTxt.id='adm-rpt-txt'; rptTxt.textContent='Loading...';
+        rpt.appendChild(rptTitle); rpt.appendChild(rptTxt); right.appendChild(rpt);
+        fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sentient/journal.json',{
+          headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+        }).then(function(r){return r.json();}).then(function(d){
+          rptTxt.textContent=d.size>0?'Sentience journal active — '+Math.round(d.size/1024)+'KB logged across all sessions.':'No sentience data found for this period.';
+        }).catch(function(){rptTxt.textContent='No sentience data found for this month.';});
+
+        /* Autumn ASH Canvas chat */
+        var chat=document.createElement('div'); chat.id='adm-chat';
+        var chatTitle=document.createElement('div'); chatTitle.style.cssText='font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:7px;flex-shrink:0';
+        chatTitle.textContent='[H] AUTUMN -- ASH CANVAS CHAT';
+        var chatLog=document.createElement('div'); chatLog.id='adm-chat-log';
+        var intro=document.createElement('div'); intro.className='adm-chat-bub autumn';
+        intro.textContent='Developer console active. I have access to ash canvas pattern aggregates. Ask me about patterns, sequences, or what I observe across sessions.';
+        chatLog.appendChild(intro);
+        var chatRow=document.createElement('div'); chatRow.id='adm-chat-row';
+        var chatInp=document.createElement('input'); chatInp.id='adm-chat-inp'; chatInp.placeholder='Ask Autumn about ash canvas patterns...'; chatInp.type='text';
+        var chatSend=document.createElement('button'); chatSend.id='adm-chat-send'; chatSend.textContent='SEND';
+        function _doAshChat(){
+          var q=chatInp.value.trim(); if(!q) return;
+          var ub=document.createElement('div'); ub.className='adm-chat-bub user'; ub.textContent=q;
+          chatLog.appendChild(ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
+          var snap=window._getBRPNSceneSnapshot?window._getBRPNSceneSnapshot():'';
+          var ab=document.createElement('div'); ab.className='adm-chat-bub autumn'; ab.textContent='...';
+          chatLog.appendChild(ab); chatLog.scrollTop=chatLog.scrollHeight;
+          fetch('https://api.anthropic.com/v1/messages',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              model:'claude-sonnet-4-20250514',max_tokens:1000,
+              system:'You are Autumn in admin developer console mode. BRPN live scene: '+snap+'\nYou have access to ash canvas pattern aggregates and sentience journal data. Be concise and analytical.',
+              messages:[{role:'user',content:q}]
             })
-            .then(function(r){return r.json();})
-            .then(function(d){
-              if(d.size>0) pt.textContent='Sentience journal active — '+d.size+' bytes logged. '+Math.round(d.size/1024)+'KB of behavioral data across all sessions.';
-              else pt.textContent='No sentience data found for this month.';
-            }).catch(function(){ pt.textContent='No sentience data found for this month.'; });
-          } else if(key==='chat'){
-            var ct=document.createElement('div'); ct.className='adm-sec-title'; ct.textContent='AUTUMN -- ASH CANVAS CHAT';
-            mtContent.appendChild(ct);
-            var intro=document.createElement('div'); intro.className='adm-chat-msg';
-            intro.textContent='Developer console active. I have access to ash canvas pattern aggregates. Ask me about patterns, sequences, or what I observe across sessions.';
-            var log=document.createElement('div'); log.id='adm-ash-chat-log'; log.appendChild(intro);
-            var inpRow=document.createElement('div'); inpRow.id='adm-ash-input-row';
-            var inp=document.createElement('input'); inp.id='adm-ash-inp'; inp.placeholder='Ask Autumn about ash canvas patterns...'; inp.type='text';
-            var sendBtn=document.createElement('button'); sendBtn.id='adm-ash-send'; sendBtn.textContent='SEND';
-            function _ashChatSend(){
-              var q=inp.value.trim(); if(!q) return;
-              var uBub=document.createElement('div'); uBub.className='adm-chat-msg'; uBub.style.color='rgba(0,229,255,.7)'; uBub.textContent=q;
-              log.appendChild(uBub); inp.value=''; log.scrollTop=log.scrollHeight;
-              /* Send to Autumn with ash canvas context */
-              var snap=window._getBRPNSceneSnapshot?window._getBRPNSceneSnapshot():'';
-              var prompt='[ADMIN ASH CANVAS CONSOLE] You are Autumn in developer mode. BRPN Scene: '+snap+'\n\nAdmin query: '+q;
-              var aBub=document.createElement('div'); aBub.className='adm-chat-msg'; aBub.textContent='...';
-              log.appendChild(aBub); log.scrollTop=log.scrollHeight;
-              if(window.handleSendRaw){
-                window.handleSendRaw(prompt,function(resp){aBub.textContent=resp;log.scrollTop=log.scrollHeight;});
-              } else {
-                aBub.textContent='API not connected -- operating in offline pattern mode.';
-              }
-            }
-            sendBtn.onclick=_ashChatSend;
-            inp.onkeydown=function(e){if(e.key==='Enter')_ashChatSend();};
-            inpRow.appendChild(inp); inpRow.appendChild(sendBtn);
-            mtContent.appendChild(log); mtContent.appendChild(inpRow);
-          }
+          }).then(function(r){return r.json();}).then(function(d){
+            ab.textContent=(d.content&&d.content[0])?d.content[0].text:'API not connected.';
+            chatLog.scrollTop=chatLog.scrollHeight;
+          }).catch(function(){ab.textContent='API not connected -- operating in offline pattern mode.'; chatLog.scrollTop=chatLog.scrollHeight;});
         }
+        chatSend.onclick=_doAshChat;
+        chatInp.onkeydown=function(e){if(e.key==='Enter')_doAshChat();};
+        chatRow.appendChild(chatInp); chatRow.appendChild(chatSend);
+        chat.appendChild(chatTitle); chat.appendChild(chatLog); chat.appendChild(chatRow);
+        right.appendChild(chat);
+        body.appendChild(right);
+        ap.appendChild(body);
 
-        ctrl.appendChild(sigRow); ctrl.appendChild(mtabs); ctrl.appendChild(mtContent);
-        ap.appendChild(cw); ap.appendChild(ctrl);
+        /* ── Socket bar ───────────────────────────────────────────────────── */
+        var socketBar=document.createElement('div'); socketBar.id='adm-socket-bar';
+        var socketDefs=[
+          {label:'USR DATA',icon:'◈',cls:'live',title:'User data socket — connected'},
+          {label:'SOCKET 2',icon:'◆',cls:'placeholder',title:'Placeholder — future'},
+          {label:'SOCKET 3',icon:'◆',cls:'placeholder',title:'Placeholder — future'},
+          {label:'SOCKET 4',icon:'◆',cls:'placeholder',title:'Placeholder — future'}
+        ];
+        socketDefs.forEach(function(sd){
+          var s=document.createElement('div'); s.className='adm-socket '+sd.cls; s.title=sd.title;
+          var n=document.createElement('div'); n.className='adm-socket-node'; n.textContent=sd.icon;
+          var l=document.createElement('div'); l.className='adm-socket-lbl'; l.style.color=sd.cls==='live'?'rgba(0,229,255,.6)':'rgba(0,229,255,.2)'; l.textContent=sd.label;
+          s.appendChild(n); s.appendChild(l); socketBar.appendChild(s);
+        });
+        var sigRow=document.createElement('div'); sigRow.className='adm-sigma';
+        var sigDot=document.createElement('div'); sigDot.className='adm-sigma-dot';
+        var sigLbl=document.createElement('span'); sigLbl.textContent='SIGMA LIVE';
+        sigRow.appendChild(sigDot); sigRow.appendChild(sigLbl);
+        socketBar.appendChild(sigRow);
+        ap.appendChild(socketBar);
 
-        var ov=document.getElementById('admin-console-overlay');
-        if(ov){ ov.appendChild(ap); }
-        frame.style.display='none';
-
-        /* Activate first mini-tab */
-        mt1.classList.add('on'); _renderMiniTab('scope');
+        var ov2=document.getElementById('admin-console-overlay');
+        if(ov2) ov2.appendChild(ap);
         return;
       }
+
 
       /* Other tabs — restore canvas if it was in ash panel */
       frame.style.display='';
