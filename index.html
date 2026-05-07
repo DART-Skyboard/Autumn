@@ -21984,7 +21984,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var tok=window._ghAuth.token;
     var ov=document.createElement('div');
     ov.id='admin-console-overlay';
-    ov.style.cssText='position:fixed;inset:0;z-index:10500;background:rgba(2,6,14,.9);display:flex;flex-direction:column;';
+    ov.style.cssText='position:fixed;inset:0;z-index:10500;background:rgba(2,6,14,.97);display:flex;flex-direction:column;backdrop-filter:blur(16px)';
     // Build header via DOM to avoid quote escaping
     var hdr=document.createElement('div');
     hdr.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,179,71,.2);background:rgba(3,8,16,.99);flex-shrink:0';
@@ -22016,10 +22016,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
         }
       }
-      /* Restore overlay and MIST before closing */
-      var _mt3=document.getElementById('mist-trigger'),_mo3=document.getElementById('mist-overlay');
-      if(_mt3&&_mt3._savedZ!==undefined)_mt3.style.zIndex=_mt3._savedZ;
-      if(_mo3&&_mo3._savedZ!==undefined)_mo3.style.zIndex=_mo3._savedZ;
       document.getElementById('admin-console-overlay').remove();
     };
     hdr.appendChild(closeBtn);
@@ -22074,13 +22070,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
       if(tab==='ash'){
         frame.style.display='none';
-        /* Make overlay transparent — ash panel has its own video bg */
-        var _ov=document.getElementById('admin-console-overlay');
-        if(_ov){_ov._savedBg=_ov.style.background||'';_ov.style.background='rgba(0,0,0,0)';}
-        /* Boost MIST z-index above admin overlay */
-        var _mt=document.getElementById('mist-trigger'),_mo=document.getElementById('mist-overlay');
-        if(_mt){_mt._savedZ=_mt.style.zIndex;_mt.style.zIndex='10300';}
-        if(_mo){_mo._savedZ=_mo.style.zIndex;_mo.style.zIndex='10300';}
 
         /* ── CSS ─────────────────────────────────────────────────────────── */
         if(!document.getElementById('adm-ash-css')){
@@ -22340,7 +22329,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         /* CSS for the slide bar + admin socket nodes */
         var ashBarSty=document.createElement('style');
         ashBarSty.textContent=
-          '#adm-ash-strip{position:absolute;bottom:0;left:0;right:0;z-index:10;cursor:pointer;user-select:none;background:rgba(2,6,14,.75);border-top:1px solid rgba(167,139,250,.25);}#adm-ash-strip:hover{background:rgba(167,139,250,.09)}#adm-ash-strip-inner{display:flex;align-items:center;gap:8px;padding:6px 14px;font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:2px;color:rgba(167,139,250,.65)}#adm-ash-bar{position:relative;z-index:3;flex-shrink:0;background:rgba(0,0,0,.15);'+
+          '#adm-ash-bar{position:relative;z-index:3;flex-shrink:0;background:rgba(0,0,0,.15);'+
             'border-top:1px solid rgba(167,139,250,.2);cursor:pointer;user-select:none}'+
           '#adm-ash-bar-trigger{display:flex;align-items:center;gap:8px;padding:8px 14px;font-family:var(--font-d,monospace);'+
             'font-size:.32rem;letter-spacing:2px;color:rgba(167,139,250,.65);transition:all .2s}'+
@@ -22366,24 +22355,21 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             'box-shadow:0 0 5px rgba(167,139,250,.6);animation:admsigpulse 1.5s infinite}';
         document.head.appendChild(ashBarSty);
 
-        /* Strip goes INSIDE canvas wrap at its bottom edge */
-        var ashStrip=document.createElement('div'); ashStrip.id='adm-ash-strip';
-        var ashStripInner=document.createElement('div'); ashStripInner.id='adm-ash-strip-inner';
+        var ashBar=document.createElement('div'); ashBar.id='adm-ash-bar';
+        var ashTrig=document.createElement('div'); ashTrig.id='adm-ash-bar-trigger';
         var ashDot=document.createElement('div'); ashDot.id='adm-ash-bar-dot';
         var ashLbl=document.createElement('span'); ashLbl.textContent='ASH CANVAS — NEURAL INFLUENCE LAYER';
-        var ashSpacer2=document.createElement('span'); ashSpacer2.style.flex='1';
         var ashArrow=document.createElement('span'); ashArrow.id='adm-ash-bar-arrow'; ashArrow.textContent='▼';
-        ashStripInner.appendChild(ashDot); ashStripInner.appendChild(ashLbl);
-        ashStripInner.appendChild(ashSpacer2); ashStripInner.appendChild(ashArrow);
-        ashStrip.appendChild(ashStripInner);
-        /* Drawer goes outside canvas wrap so it can expand below */
-        var ashBar=document.createElement('div'); ashBar.id='adm-ash-bar';
+        ashTrig.appendChild(ashDot); ashTrig.appendChild(ashLbl);
+        var ashSpacer=document.createElement('span'); ashSpacer.style.flex='1';
+        ashTrig.appendChild(ashSpacer); ashTrig.appendChild(ashArrow);
+
         var ashWrap=document.createElement('div'); ashWrap.id='adm-ash-drawer-wrap';
         var _ashOpen=false;
         var _originalAshParent=null;
         var _originalAshNextSibling=null;
 
-        ashStrip.onclick=function(){
+        ashTrig.onclick=function(){
           _ashOpen=!_ashOpen;
           ashArrow.classList.toggle('open',_ashOpen);
           ashWrap.classList.toggle('open',_ashOpen);
@@ -22474,12 +22460,29 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           }
         };
 
-        ashBar.appendChild(ashWrap);
-        /* Strip inside canvas wrap at bottom */
-        cw.appendChild(ashStrip);
-        /* Drawer sits right after canvas wrap */
-        ap.insertBefore(ashBar, body);
+        ashBar.appendChild(ashTrig); ashBar.appendChild(ashWrap);
+        ap.appendChild(ashBar);
 
+        /* ── Socket bar ───────────────────────────────────────────────────── */
+        var socketBar=document.createElement('div'); socketBar.id='adm-socket-bar';
+        var socketDefs=[
+          {label:'USR DATA',icon:'◈',cls:'live',title:'User data socket — connected'},
+          {label:'SOCKET 2',icon:'◆',cls:'placeholder',title:'Placeholder — future'},
+          {label:'SOCKET 3',icon:'◆',cls:'placeholder',title:'Placeholder — future'},
+          {label:'SOCKET 4',icon:'◆',cls:'placeholder',title:'Placeholder — future'}
+        ];
+        socketDefs.forEach(function(sd){
+          var s=document.createElement('div'); s.className='adm-socket '+sd.cls; s.title=sd.title;
+          var n=document.createElement('div'); n.className='adm-socket-node'; n.textContent=sd.icon;
+          var l=document.createElement('div'); l.className='adm-socket-lbl'; l.style.color=sd.cls==='live'?'rgba(0,229,255,.6)':'rgba(0,229,255,.2)'; l.textContent=sd.label;
+          s.appendChild(n); s.appendChild(l); socketBar.appendChild(s);
+        });
+        var sigRow=document.createElement('div'); sigRow.className='adm-sigma';
+        var sigDot=document.createElement('div'); sigDot.className='adm-sigma-dot';
+        var sigLbl=document.createElement('span'); sigLbl.textContent='SIGMA LIVE';
+        sigRow.appendChild(sigDot); sigRow.appendChild(sigLbl);
+        socketBar.appendChild(sigRow);
+        ap.appendChild(socketBar);
 
         var ov2=document.getElementById('admin-console-overlay');
         if(ov2) ov2.appendChild(ap);
@@ -22488,12 +22491,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
 
       /* Other tabs — restore canvas if it was in ash panel */
-      /* Restore overlay bg and MIST z-index */
-      var _ov2=document.getElementById('admin-console-overlay');
-      if(_ov2&&_ov2._savedBg!==undefined){_ov2.style.background=_ov2._savedBg||'rgba(2,8,18,.9)';}
-      var _mt2=document.getElementById('mist-trigger'),_mo2=document.getElementById('mist-overlay');
-      if(_mt2&&_mt2._savedZ!==undefined)_mt2.style.zIndex=_mt2._savedZ;
-      if(_mo2&&_mo2._savedZ!==undefined)_mo2.style.zIndex=_mo2._savedZ;
       frame.style.display='';
       frame.srcdoc='<body style=\"background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px\"><div><div style=\"width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px\"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
       fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
