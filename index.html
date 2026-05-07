@@ -21974,7 +21974,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
       fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
         .then(function(r){return r.json();})
-        .then(function(f){(function(){var b=atob(f.content.replace(/\\n/g,''));var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);frame.srcdoc=new TextDecoder('utf-8').decode(u);})();)
+        .then(function(f){frame.srcdoc=atob(f.content.replace(/\n/g,''));})
         .catch(function(){frame.srcdoc='<body style="background:#060a10;color:#ff4466;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:2px">Admin file not found</body>';});
     };
     window._admTab('data');
@@ -22224,7 +22224,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       /* Tab trigger */
       '#sysbrd-trigger{position:fixed;right:0;top:360px;z-index:9498;display:flex;flex-direction:column;' +
         'align-items:center;justify-content:center;padding:10px 6px;gap:4px;' +
-        'background:rgba(10,16,28,.85);' +
+        'background:rgba(255,255,255,.05);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);' +
         'border:1px solid rgba(0,229,255,.2);border-right:none;border-radius:8px 0 0 8px;' +
         'cursor:pointer;transition:all .2s;user-select:none}' +
       '#sysbrd-trigger:hover{background:rgba(0,229,255,.09);border-color:rgba(0,229,255,.5)}' +
@@ -22240,7 +22240,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         'transform:translateX(calc(100% + 44px));' +
         'transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;opacity:0;pointer-events:none}' +
       '#sysbrd-overlay.sbd-open{transform:translateX(0);opacity:1;pointer-events:all}' +
-      '#sysbrd-panel{background:rgba(5,9,16,.97);' +
+      '#sysbrd-panel{background:rgba(5,9,16,.93);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);' +
         'border:1px solid rgba(0,229,255,.22);border-radius:10px;overflow:hidden}' +
       '#sysbrd-hd{display:flex;align-items:center;gap:8px;padding:10px 12px;' +
         'border-bottom:1px solid rgba(0,229,255,.12);background:rgba(0,229,255,.04)}' +
@@ -22256,7 +22256,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       '#sysbrd-msg-text.def{color:rgba(224,244,255,.35);font-style:italic}' +
       /* Admin modal */
       '#sysbrd-admin-modal{position:fixed;inset:0;z-index:19000;' +
-        'background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center}' +
+        'background:rgba(0,0,0,.7);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center}' +
       '#sysbrd-admin-box{background:rgba(4,12,22,.98);border:1px solid rgba(0,229,255,.3);' +
         'border-radius:12px;padding:20px 20px 16px;width:min(360px,92vw);' +
         'display:flex;flex-direction:column;gap:12px;font-family:var(--font-d,monospace)}' +
@@ -22495,9 +22495,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   /* ── CSS ── */
   var sty = document.createElement('style');
   sty.textContent =
-    '#fb-modal{position:fixed;inset:0;z-index:18000;background:rgba(0,0,0,.85);' +
-      'display:flex;align-items:center;justify-content:center}' +
-    '#fb-box{background:rgba(4,10,20,.99);border:1px solid rgba(0,229,255,.25);' +
+    '#fb-modal{position:fixed;inset:0;z-index:18000;background:rgba(0,0,0,.72);' +
+      'backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center}' +
+    '#fb-box{background:rgba(4,10,20,.98);border:1px solid rgba(0,229,255,.25);' +
       'border-radius:12px;padding:20px 20px 16px;width:min(380px,94vw);' +
       'display:flex;flex-direction:column;gap:11px;font-family:var(--font-d,monospace)}' +
     '#fb-title{font-size:.72rem;letter-spacing:2.5px;color:rgba(0,229,255,.9)}' +
