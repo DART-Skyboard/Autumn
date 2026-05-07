@@ -22033,6 +22033,19 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     /* Restore BRPN canvas + ash canvas drawer to original parents */
     function _restoreBRPN(){
+      /* Clean up interval */
+      var oldAp=document.getElementById('adm-ash-panel');
+      if(oldAp&&oldAp._hudInterval) clearInterval(oldAp._hudInterval);
+      /* Restore main backdrop video */
+      var _bv=document.getElementById('backdrop-video');
+      if(_bv&&_bv._pausedByAdmin){_bv.play().catch(function(){});_bv._pausedByAdmin=false;}
+      /* Restore overlay bg */
+      var _ov=document.getElementById('admin-console-overlay');
+      if(_ov&&_ov._savedBg!==undefined){_ov.style.background=_ov._savedBg||'rgba(2,8,18,.9)';}
+      /* Restore MIST z-index */
+      var _mt=document.getElementById('mist-trigger'),_mo=document.getElementById('mist-overlay');
+      if(_mt&&_mt._savedZ!==undefined)_mt.style.zIndex=_mt._savedZ;
+      if(_mo&&_mo._savedZ!==undefined)_mo.style.zIndex=_mo._savedZ;
       /* Restore ash canvas drawer if moved */
       var drawer=document.getElementById('ash-canvas-drawer');
       var admWrap=document.getElementById('adm-ash-drawer-wrap');
@@ -22071,32 +22084,76 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       if(tab==='ash'){
         frame.style.display='none';
 
-        /* ── CSS ─────────────────────────────────────────────────────────── */
+        /* Make admin overlay transparent — ash panel has its own video bg */
+        var _ov=document.getElementById('admin-console-overlay');
+        if(_ov){_ov._savedBg=_ov.style.background;_ov.style.background='rgba(0,0,0,.05)';}
+        /* Pause main backdrop video to save GPU — ash panel has its own */
+        var _bv=document.getElementById('backdrop-video');
+        if(_bv&&!_bv.paused){_bv.pause();_bv._pausedByAdmin=true;}
+        /* Boost MIST above admin overlay */
+        var _mt=document.getElementById('mist-trigger'),_mo=document.getElementById('mist-overlay');
+        if(_mt){_mt._savedZ=_mt.style.zIndex||'';_mt.style.zIndex='10600';}
+        if(_mo){_mo._savedZ=_mo.style.zIndex||'';_mo.style.zIndex='10600';}
+
+        _restoreBRPN();
+
+        /* ── CSS (inject once) ── */
         if(!document.getElementById('adm-ash-css')){
           var sty=document.createElement('style'); sty.id='adm-ash-css';
           sty.textContent=
-            /* Outer panel */
             '#adm-ash-panel{position:absolute;inset:0;top:48px;display:flex;flex-direction:column;overflow:hidden;background:#000}'+
-            /* Video BG */
             '#adm-ash-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;opacity:.55}'+
-            '#adm-ash-scrim{position:absolute;inset:0;z-index:1;background:rgba(2,8,18,.55);pointer-events:none}'+
+            '#adm-ash-scrim{position:absolute;inset:0;z-index:1;background:rgba(2,10,18,.50);pointer-events:none}'+
             /* Canvas viewport */
             '#adm-canvas-wrap{position:relative;z-index:2;flex-shrink:0;height:46vh;min-height:160px;overflow:hidden}'+
             '#adm-canvas-wrap #brpn-region{position:absolute!important;inset:0!important;height:100%!important;margin:0!important;border:none!important;border-radius:0!important;cursor:grab;background:transparent!important}'+
-            /* HUD overlay on canvas */
+            /* Canvas HUD */
             '#adm-canvas-hud{position:absolute;top:8px;left:0;right:0;z-index:10;display:flex;justify-content:space-between;align-items:flex-start;padding:0 10px;pointer-events:none}'+
             '#adm-canvas-hud-l{font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2px;color:rgba(0,229,255,.6);line-height:1.8}'+
             '#adm-canvas-hud-r{display:flex;gap:5px;pointer-events:all}'+
             '.adm-hud-shell{font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:1.5px;padding:3px 8px;border-radius:3px;border:1px solid;cursor:pointer;transition:all .2s}'+
-            /* Main body below canvas */
+            /* Ash canvas strip — at very bottom of canvas viewport */
+            '#adm-ash-strip{position:absolute;bottom:0;left:0;right:0;z-index:20;cursor:pointer;user-select:none;'+
+              'background:rgba(2,6,14,.78);border-top:1px solid rgba(167,139,250,.3)}'+
+            '#adm-ash-strip:hover{background:rgba(167,139,250,.1)}'+
+            '#adm-ash-strip-inner{display:flex;align-items:center;gap:8px;padding:6px 14px;'+
+              'font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:2px;color:rgba(167,139,250,.65)}'+
+            '#adm-ash-strip .ac-dot2{width:6px;height:6px;border-radius:50%;background:rgba(167,139,250,.45);flex-shrink:0}'+
+            '#adm-ash-strip .ac-dot2.on{background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.6)}'+
+            '#adm-ash-arrow{transition:transform .25s;margin-left:auto;font-size:10px}'+
+            '#adm-ash-arrow.open{transform:rotate(180deg)}'+
+            /* Ash drawer — positioned right after canvas in flow, slides down */
+            '#adm-ash-drawer-zone{position:relative;z-index:3;flex-shrink:0;background:rgba(2,5,14,.88)}'+
+            '#adm-ash-drawer-wrap{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}'+
+            '#adm-ash-drawer-wrap.open{max-height:540px;overflow-y:auto}'+
+            /* When drawer open: hide body to give full space */
+            '#adm-ash-drawer-wrap.open ~ #adm-ash-body{display:none}'+
+            /* Drawer content overrides */
+            '#adm-ash-drawer-wrap #ash-canvas-drawer{max-height:none!important;overflow:visible!important}'+
+            '#adm-ash-drawer-wrap #ash-canvas-drawer.open{max-height:none!important}'+
+            '#adm-ash-drawer-wrap #ac-canvas-area{height:155px!important}'+
+            '#adm-ash-drawer-wrap .ac-tools-row{gap:4px;margin-bottom:6px}'+
+            '#adm-ash-drawer-wrap .ac-tool-btn{padding:4px 7px;font-size:.32rem}'+
+            '#adm-ash-drawer-wrap .ac-section-label{font-size:.28rem}'+
+            /* Admin mode strip inside drawer */
+            '#adm-ash-mode-strip{background:rgba(167,139,250,.07);border-bottom:1px solid rgba(167,139,250,.15);'+
+              'padding:5px 14px;font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:2px;'+
+              'color:rgba(167,139,250,.55);display:flex;align-items:center;gap:8px}'+
+            '#adm-ash-mode-strip .adm-mode-dot{width:5px;height:5px;border-radius:50%;background:#a78bfa;'+
+              'box-shadow:0 0 5px rgba(167,139,250,.6);animation:admsigpulse 1.5s infinite}'+
+            '@keyframes admsigpulse{0%,100%{opacity:1}50%{opacity:.25}}'+
+            /* Admin sockets in canvas left edge */
+            '#adm-admin-sockets{display:flex;flex-direction:column;gap:4px;position:absolute;left:6px;top:50%;transform:translateY(-50%)}'+
+            '.adm-ac-sock{width:26px;height:26px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;'+
+              'justify-content:center;font-size:9px;cursor:pointer;transition:all .2s;font-family:var(--font-d,monospace)}'+
+            '.adm-ac-sock.usr{border-color:rgba(0,229,255,.6);color:rgba(0,229,255,.7);background:rgba(0,229,255,.08)}'+
+            '.adm-ac-sock.usr:hover{background:rgba(0,229,255,.18);box-shadow:0 0 8px rgba(0,229,255,.4)}'+
+            '.adm-ac-sock.ph{border-color:rgba(0,229,255,.15);color:rgba(0,229,255,.2)}'+
+            /* Main body below drawer zone */
             '#adm-ash-body{position:relative;z-index:2;flex:1;display:flex;overflow:hidden;min-height:0}'+
-            /* Left panel */
-            '#adm-ash-left{width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.1);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(2,6,14,.75);gap:10px}'+
-            /* Right panel */
-            '#adm-ash-right{flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,5,12,.72)}'+
-            /* Right top: pattern report */
+            '#adm-ash-left{width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.1);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(2,6,14,.72);gap:10px}'+
+            '#adm-ash-right{flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,5,12,.68)}'+
             '#adm-rpt{padding:10px 12px;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0}'+
-            /* Right bottom: chat */
             '#adm-chat{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:8px 10px}'+
             '#adm-chat-log{flex:1;overflow-y:auto;margin-bottom:7px;padding-right:4px}'+
             '.adm-chat-bub{font-size:.38rem;line-height:1.7;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid rgba(0,229,255,.06)}'+
@@ -22105,7 +22162,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             '#adm-chat-row{display:flex;gap:6px;flex-shrink:0}'+
             '#adm-chat-inp{flex:1;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.9);font-size:.4rem;padding:7px 10px;outline:none;font-family:sans-serif}'+
             '#adm-chat-send{padding:7px 12px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:var(--font-d,monospace);font-size:.28rem;cursor:pointer;letter-spacing:1.5px;white-space:nowrap}'+
-            /* Sections */
             '.adm-sec{display:flex;flex-direction:column;gap:5px}'+
             '.adm-sec-h{font-family:var(--font-d,monospace);font-size:.22rem;letter-spacing:2.5px;color:rgba(0,229,255,.32);margin-bottom:3px}'+
             '.adm-scope-b{font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1px;padding:6px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:rgba(0,229,255,.04);color:rgba(0,229,255,.55);cursor:pointer;text-align:left;transition:all .15s;width:100%}'+
@@ -22118,37 +22174,28 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             '.adm-user-item:hover,.adm-user-item.on{background:rgba(0,229,255,.1);color:rgba(0,229,255,.9)}'+
             '#adm-rpt-txt{font-size:.36rem;line-height:1.65;color:rgba(224,244,255,.6);font-family:sans-serif;padding-top:4px}'+
             '#adm-rpt-title{font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:5px}'+
-            /* Buoyancy nodes right */
-            '#adm-nodes-right{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:15;display:flex;flex-direction:column;gap:6px;padding:6px 4px}'+
+            '#adm-ash-chat-log{flex:1;overflow-y:auto;padding:8px;min-height:80px;max-height:200px;background:rgba(0,229,255,.02);border:1px solid rgba(0,229,255,.08);border-radius:5px;margin-bottom:8px}'+
+            '.adm-chat-msg{font-size:.38rem;line-height:1.65;color:rgba(224,244,255,.8);font-family:sans-serif;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(0,229,255,.05)}'+
+            '#adm-ash-input-row{display:flex;gap:6px}'+
+            '#adm-ash-inp{flex:1;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.88);font-size:.4rem;padding:7px 10px;outline:none;font-family:sans-serif}'+
+            '#adm-ash-send{padding:7px 14px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:var(--font-d,monospace);font-size:.3rem;cursor:pointer;letter-spacing:1px}'+
             '.adm-node-btn{width:34px;height:34px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid rgba(0,229,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s;color:rgba(0,229,255,.5)}'+
-            '.adm-node-btn:hover{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.5);color:#00e5ff}'+
-            /* Socket bar */
-            '#adm-socket-bar{position:relative;z-index:3;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:1px solid rgba(0,229,255,.12);background:rgba(2,6,14,.7)}'+
-            '.adm-socket{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;flex:1;max-width:80px}'+
-            '.adm-socket-node{width:28px;height:28px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .2s}'+
-            '.adm-socket-lbl{font-family:var(--font-d,monospace);font-size:.2rem;letter-spacing:1.5px;text-align:center}'+
-            '.adm-socket.live .adm-socket-node{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.6);color:#00e5ff;box-shadow:0 0 8px rgba(0,229,255,.3)}'+
-            '.adm-socket.placeholder .adm-socket-node{background:rgba(255,255,255,.03);border-color:rgba(0,229,255,.15);color:rgba(0,229,255,.2)}'+
-            '.adm-sigma{font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1.5px;color:rgba(0,229,255,.4);margin-left:auto;display:flex;align-items:center;gap:5px}'+
-            '.adm-sigma-dot{width:6px;height:6px;border-radius:50%;background:#00e5ff;box-shadow:0 0 5px rgba(0,229,255,.7);animation:admsigpulse 1.5s infinite}'+
-            '@keyframes admsigpulse{0%,100%{opacity:1}50%{opacity:.25}}';
+            '.adm-node-btn:hover{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.5);color:#00e5ff}';
           document.head.appendChild(sty);
         }
 
-        /* ── Build panel ──────────────────────────────────────────────────── */
-        _restoreBRPN();
+        /* ── Build panel ── */
         var ap=document.createElement('div'); ap.id='adm-ash-panel';
-
-        /* Video background */
         var vid=document.createElement('video'); vid.id='adm-ash-video';
-        vid.src='assets/autumn.mp4'; vid.autoplay=true; vid.loop=true; vid.muted=true; vid.setAttribute('playsinline','');
+        vid.src='assets/autumn.mp4'; vid.autoplay=true; vid.loop=true; vid.muted=true;
+        vid.setAttribute('playsinline','');
         var scrim=document.createElement('div'); scrim.id='adm-ash-scrim';
         ap.appendChild(vid); ap.appendChild(scrim);
 
-        /* Canvas viewport — move live #brpn-region here */
+        /* Canvas viewport */
         var cw=document.createElement('div'); cw.id='adm-canvas-wrap';
 
-        /* Canvas HUD overlay */
+        /* HUD top */
         var hud=document.createElement('div'); hud.id='adm-canvas-hud';
         var hudL=document.createElement('div'); hudL.id='adm-canvas-hud-l';
         hudL.innerHTML='<div>GEO <span id="adm-hud-geo">--</span></div><div>MAR <span id="adm-hud-mar">--</span></div><div>AERO <span id="adm-hud-aero">--</span></div>';
@@ -22157,78 +22204,161 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         var _admLayers={geo:true,mar:true,aero:true};
         shellDefs.forEach(function(sd){
           var b=document.createElement('button'); b.className='adm-hud-shell';
-          b.style.borderColor=sd.color; b.style.color=sd.color; b.style.background='rgba(0,0,0,.4)';
+          b.style.borderColor=sd.color; b.style.color=sd.color; b.style.background='rgba(0,0,0,.5)';
           b.textContent=sd.label;
           b.onclick=function(){
             _admLayers[sd.key]=!_admLayers[sd.key];
-            b.style.opacity=_admLayers[sd.key]?'1':'0.3';
+            b.style.opacity=_admLayers[sd.key]?'1':'0.35';
             var sh=window._brpnShells; if(sh&&sh[sd.idx]) sh[sd.idx].visible=_admLayers[sd.key];
           };
           hudR.appendChild(b);
         });
         hud.appendChild(hudL); hud.appendChild(hudR); cw.appendChild(hud);
 
-        /* Buoyancy node buttons — right side of canvas */
-        var nodesR=document.createElement('div'); nodesR.id='adm-nodes-right';
-        var nodeDefs=[{icon:'★',title:'Stars'},{icon:'♥',title:'Hearts'},{icon:'◆',title:'Maze'}];
-        nodeDefs.forEach(function(nd){
-          var b=document.createElement('div'); b.className='adm-node-btn'; b.title=nd.title; b.textContent=nd.icon;
-          b.onclick=function(){
-            window.pulseShells&&window.pulseShells(0.8);
+        /* Buoyancy nodes — right side */
+        var nodesR=document.createElement('div');
+        nodesR.style.cssText='position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:15;display:flex;flex-direction:column;gap:6px;padding:6px 4px';
+        [{icon:'★'},{icon:'\u2665'},{icon:'\u25c6'}].forEach(function(nd){
+          var b=document.createElement('div'); b.className='adm-node-btn'; b.textContent=nd.icon;
+          b.onclick=function(e){
+            e.stopPropagation();
+            window.mistToggle&&window.mistToggle();
           };
           nodesR.appendChild(b);
         });
         cw.appendChild(nodesR);
 
-        /* Move live BRPN region */
+        /* Move live BRPN into canvas wrap */
         var region=document.getElementById('brpn-region');
         if(region) cw.appendChild(region);
+
+        /* Ash canvas strip — at bottom edge of canvas viewport */
+        var ashStrip=document.createElement('div'); ashStrip.id='adm-ash-strip';
+        var stripInner=document.createElement('div'); stripInner.id='adm-ash-strip-inner';
+        var acDot=document.createElement('div'); acDot.className='ac-dot2';
+        var acLbl=document.createElement('span'); acLbl.textContent='ASH CANVAS \u2014 NEURAL INFLUENCE LAYER';
+        var acArrow=document.createElement('span'); acArrow.id='adm-ash-arrow'; acArrow.textContent='\u25bd';
+        stripInner.appendChild(acDot); stripInner.appendChild(acLbl);
+        var sp=document.createElement('span'); sp.style.flex='1'; stripInner.appendChild(sp);
+        stripInner.appendChild(acArrow);
+        ashStrip.appendChild(stripInner);
+        cw.appendChild(ashStrip);
         ap.appendChild(cw);
 
-        /* Resize renderer after mount */
+        /* HUD interval */
+        var _hudInterval=setInterval(function(){
+          var g=document.getElementById('adm-hud-geo'),m=document.getElementById('adm-hud-mar'),a=document.getElementById('adm-hud-aero');
+          if(window._acShellBoost){
+            if(g)g.textContent=(window._acShellBoost[0]||0).toFixed(2);
+            if(m)m.textContent=(window._acShellBoost[1]||0).toFixed(2);
+            if(a)a.textContent=(window._acShellBoost[2]||0).toFixed(2);
+          }
+        },500);
+        ap._hudInterval=_hudInterval;
+
+        /* Ash drawer zone — slides out from under canvas strip */
+        var ashZone=document.createElement('div'); ashZone.id='adm-ash-drawer-zone';
+        var ashWrap=document.createElement('div'); ashWrap.id='adm-ash-drawer-wrap';
+        var _ashOpen2=false; var _origParent=null; var _origNext=null;
+
+        ashStrip.onclick=function(){
+          _ashOpen2=!_ashOpen2;
+          acArrow.classList.toggle('open',_ashOpen2);
+          acDot.classList.toggle('on',_ashOpen2);
+          ashWrap.classList.toggle('open',_ashOpen2);
+
+          if(_ashOpen2){
+            var drawer=document.getElementById('ash-canvas-drawer');
+            if(drawer && drawer.parentElement!==ashWrap){
+              _origParent=drawer.parentElement; _origNext=drawer.nextSibling;
+              drawer.classList.remove('open');
+              /* Admin mode strip */
+              if(!document.getElementById('adm-ash-mode-strip')){
+                var strip=document.createElement('div'); strip.id='adm-ash-mode-strip';
+                var mDot=document.createElement('div'); mDot.className='adm-mode-dot';
+                var mLbl=document.createElement('span'); mLbl.textContent='ADMIN MODE \u2014 FULL ANALYTICAL ACCESS';
+                strip.appendChild(mDot); strip.appendChild(mLbl);
+                ashWrap.appendChild(strip);
+              }
+              ashWrap.appendChild(drawer);
+              /* Add admin sockets to canvas area */
+              var sa=document.getElementById('ac-canvas-area');
+              if(sa && !document.getElementById('adm-admin-sockets')){
+                var admSocks=document.createElement('div'); admSocks.id='adm-admin-sockets';
+                var sockDefs=[
+                  {id:'s-usr',cls:'adm-ac-sock usr',t:'USR DATA'},
+                  {id:'s-2',cls:'adm-ac-sock ph',t:'Socket 2'},
+                  {id:'s-3',cls:'adm-ac-sock ph',t:'Socket 3'},
+                  {id:'s-4',cls:'adm-ac-sock ph',t:'Socket 4'}
+                ];
+                sockDefs.forEach(function(sd){
+                  var s=document.createElement('div'); s.className=sd.cls; s.title=sd.t; s.textContent='\u25c8';
+                  s.onclick=function(){
+                    if(sd.id==='s-usr'){
+                      ['geo','mar','aero'].forEach(function(sh){window.acConnectSocket&&window.acConnectSocket(sh);});
+                      window._acShellBoost=[0.12,0.09,0.07];
+                      window.pulseShells&&window.pulseShells(1.5);
+                    }
+                    s.style.boxShadow='0 0 12px rgba(0,229,255,.7)';
+                    setTimeout(function(){s.style.boxShadow='';},1000);
+                  };
+                  admSocks.appendChild(s);
+                });
+                sa.style.position='relative';
+                sa.appendChild(admSocks);
+              }
+              setTimeout(function(){
+                if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
+                else if(window._acInitCanvas) window._acInitCanvas();
+              },10);
+            }
+          } else {
+            var drawer=document.getElementById('ash-canvas-drawer');
+            if(drawer){
+              if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
+              var admSocks=document.getElementById('adm-admin-sockets'); if(admSocks) admSocks.remove();
+              var mStrip=document.getElementById('adm-ash-mode-strip'); if(mStrip) mStrip.remove();
+              if(_origParent) {
+                if(_origNext) _origParent.insertBefore(drawer,_origNext);
+                else _origParent.appendChild(drawer);
+                _origParent=null; _origNext=null;
+              }
+            }
+          }
+        };
+
+        ashZone.appendChild(ashWrap);
+        ap.appendChild(ashZone);
+
+        /* Resize renderer */
         setTimeout(function(){
           if(window._brpnRenderer&&region){
-            var w=cw.clientWidth||window.innerWidth, h=cw.clientHeight||220;
+            var w=cw.clientWidth||window.innerWidth,h=cw.clientHeight||220;
             window._brpnRenderer.setSize(w,h);
             if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
           }
-          /* Sync HUD values from live scene */
-          setInterval(function(){
-            var geo=document.getElementById('adm-hud-geo');
-            var mar=document.getElementById('adm-hud-mar');
-            var aero=document.getElementById('adm-hud-aero');
-            if(window._acShellBoost){
-              if(geo) geo.textContent=(window._acShellBoost[0]||0).toFixed(2);
-              if(mar) mar.textContent=(window._acShellBoost[1]||0).toFixed(2);
-              if(aero) aero.textContent=(window._acShellBoost[2]||0).toFixed(2);
-            }
-          }, 500);
-        }, 120);
+        },120);
 
-        /* ── Main body ────────────────────────────────────────────────────── */
+        /* Main body — scope / pattern / chat */
         var body=document.createElement('div'); body.id='adm-ash-body';
-
-        /* Left panel: scope + layers + users */
         var left=document.createElement('div'); left.id='adm-ash-left';
 
+        /* Scope */
         var scopeSec=document.createElement('div'); scopeSec.className='adm-sec';
         var scopeH=document.createElement('div'); scopeH.className='adm-sec-h'; scopeH.textContent='USER SCOPE';
         scopeSec.appendChild(scopeH);
-        var _curScope='all';
         [['ALL USERS','all'],['ACTIVE TODAY','today'],['GROUP TOP 5','group'],['INDIVIDUAL','indiv']].forEach(function(s){
-          var b=document.createElement('button'); b.className='adm-scope-b'+(_curScope===s[1]?' on':''); b.textContent=s[0];
+          var b=document.createElement('button'); b.className='adm-scope-b'+(s[1]==='all'?' on':''); b.textContent=s[0];
           b.onclick=function(){
             left.querySelectorAll('.adm-scope-b').forEach(function(x){x.classList.remove('on');});
-            b.classList.add('on'); _curScope=s[1];
-            if(window._acShellBoost){
-              if(s[1]==='all') window._acShellBoost=[0,0,0];
-              else if(s[1]==='today') window._acShellBoost=[0.08,0.06,0.04];
-            }
+            b.classList.add('on');
+            if(window._acShellBoost){window._acShellBoost=s[1]==='all'?[0,0,0]:[0.08,0.06,0.04];}
           };
           scopeSec.appendChild(b);
         });
         left.appendChild(scopeSec);
 
+        /* Shell layers */
         var layerSec=document.createElement('div'); layerSec.className='adm-sec';
         var layH=document.createElement('div'); layH.className='adm-sec-h'; layH.textContent='SHELL LAYERS';
         layerSec.appendChild(layH);
@@ -22238,9 +22368,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           chk.onchange=function(){
             _admLayers[sd.key]=chk.checked;
             var sh=window._brpnShells; if(sh&&sh[sd.idx]) sh[sd.idx].visible=chk.checked;
-            /* Sync hud button */
-            var hudBtns=document.querySelectorAll('.adm-hud-shell');
-            if(hudBtns[sd.idx]) hudBtns[sd.idx].style.opacity=chk.checked?'1':'0.3';
+            var hBtn=document.querySelectorAll('.adm-hud-shell')[sd.idx];
+            if(hBtn) hBtn.style.opacity=chk.checked?'1':'0.35';
           };
           var lbl=document.createElement('label'); lbl.className='adm-chk-lbl'; lbl.style.color=sd.color; lbl.textContent=sd.label;
           lbl.onclick=function(){chk.click();};
@@ -22249,13 +22378,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         });
         left.appendChild(layerSec);
 
+        /* Emotional state */
         var emoSec=document.createElement('div'); emoSec.className='adm-sec';
         var emoH=document.createElement('div'); emoH.className='adm-sec-h'; emoH.textContent='EMOTIONAL STATES';
         var emoVal=document.createElement('div'); emoVal.className='adm-emo-val'; emoVal.textContent=window._lastEmoState||'--';
-        emoSec.appendChild(emoH); emoSec.appendChild(emoVal);
-        left.appendChild(emoSec);
+        emoSec.appendChild(emoH); emoSec.appendChild(emoVal); left.appendChild(emoSec);
 
-        /* Individual users loaded from leatr-ash */
+        /* Individual users */
         var userSec=document.createElement('div'); userSec.className='adm-sec';
         var userH=document.createElement('div'); userH.className='adm-sec-h'; userH.textContent='INDIVIDUAL';
         userSec.appendChild(userH);
@@ -22272,10 +22401,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         left.appendChild(userSec);
         body.appendChild(left);
 
-        /* Right panel */
+        /* Right — report + chat */
         var right=document.createElement('div'); right.id='adm-ash-right';
-
-        /* Pattern report */
         var rpt=document.createElement('div'); rpt.id='adm-rpt';
         var rptTitle=document.createElement('div'); rptTitle.id='adm-rpt-title'; rptTitle.textContent='[H] PATTERN REPORT';
         var rptTxt=document.createElement('div'); rptTxt.id='adm-rpt-txt'; rptTxt.textContent='Loading...';
@@ -22283,21 +22410,23 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sentient/journal.json',{
           headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
         }).then(function(r){return r.json();}).then(function(d){
-          rptTxt.textContent=d.size>0?'Sentience journal active — '+Math.round(d.size/1024)+'KB logged across all sessions.':'No sentience data found for this period.';
+          rptTxt.textContent=d.size>0?'Sentience journal active \u2014 '+Math.round(d.size/1024)+'KB logged across all sessions.':'No sentience data found.';
         }).catch(function(){rptTxt.textContent='No sentience data found for this month.';});
 
-        /* Autumn ASH Canvas chat */
+        /* Chat */
         var chat=document.createElement('div'); chat.id='adm-chat';
-        var chatTitle=document.createElement('div'); chatTitle.style.cssText='font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:7px;flex-shrink:0';
-        chatTitle.textContent='[H] AUTUMN -- ASH CANVAS CHAT';
+        var chatTitleEl=document.createElement('div');
+        chatTitleEl.style.cssText='font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:7px;flex-shrink:0';
+        chatTitleEl.textContent='[H] AUTUMN \u2014 ASH CANVAS CHAT';
         var chatLog=document.createElement('div'); chatLog.id='adm-chat-log';
         var intro=document.createElement('div'); intro.className='adm-chat-bub autumn';
         intro.textContent='Developer console active. I have access to ash canvas pattern aggregates. Ask me about patterns, sequences, or what I observe across sessions.';
         chatLog.appendChild(intro);
         var chatRow=document.createElement('div'); chatRow.id='adm-chat-row';
-        var chatInp=document.createElement('input'); chatInp.id='adm-chat-inp'; chatInp.placeholder='Ask Autumn about ash canvas patterns...'; chatInp.type='text';
+        var chatInp=document.createElement('input'); chatInp.id='adm-chat-inp';
+        chatInp.placeholder='Ask Autumn about ash canvas patterns...'; chatInp.type='text';
         var chatSend=document.createElement('button'); chatSend.id='adm-chat-send'; chatSend.textContent='SEND';
-        function _doAshChat(){
+        function _doChat(){
           var q=chatInp.value.trim(); if(!q) return;
           var ub=document.createElement('div'); ub.className='adm-chat-bub user'; ub.textContent=q;
           chatLog.appendChild(ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
@@ -22305,190 +22434,26 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           var ab=document.createElement('div'); ab.className='adm-chat-bub autumn'; ab.textContent='...';
           chatLog.appendChild(ab); chatLog.scrollTop=chatLog.scrollHeight;
           fetch('https://api.anthropic.com/v1/messages',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-              model:'claude-sonnet-4-20250514',max_tokens:1000,
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,
               system:'You are Autumn in admin developer console mode. BRPN live scene: '+snap+'\nYou have access to ash canvas pattern aggregates and sentience journal data. Be concise and analytical.',
-              messages:[{role:'user',content:q}]
-            })
+              messages:[{role:'user',content:q}]})
           }).then(function(r){return r.json();}).then(function(d){
             ab.textContent=(d.content&&d.content[0])?d.content[0].text:'API not connected.';
             chatLog.scrollTop=chatLog.scrollHeight;
-          }).catch(function(){ab.textContent='API not connected -- operating in offline pattern mode.'; chatLog.scrollTop=chatLog.scrollHeight;});
+          }).catch(function(){ab.textContent='API not connected \u2014 offline pattern mode.';chatLog.scrollTop=chatLog.scrollHeight;});
         }
-        chatSend.onclick=_doAshChat;
-        chatInp.onkeydown=function(e){if(e.key==='Enter')_doAshChat();};
+        chatSend.onclick=_doChat; chatInp.onkeydown=function(e){if(e.key==='Enter')_doChat();};
         chatRow.appendChild(chatInp); chatRow.appendChild(chatSend);
-        chat.appendChild(chatTitle); chat.appendChild(chatLog); chat.appendChild(chatRow);
+        chat.appendChild(chatTitleEl); chat.appendChild(chatLog); chat.appendChild(chatRow);
         right.appendChild(chat);
         body.appendChild(right);
         ap.appendChild(body);
 
-        /* ── Ash Canvas slide bar ─────────────────────────────────────────── */
-        /* CSS for the slide bar + admin socket nodes */
-        var ashBarSty=document.createElement('style');
-        ashBarSty.textContent=
-          '#adm-ash-bar{position:relative;z-index:3;flex-shrink:0;background:rgba(0,0,0,.15);'+
-            'border-top:1px solid rgba(167,139,250,.2);cursor:pointer;user-select:none}'+
-          '#adm-ash-bar-trigger{display:flex;align-items:center;gap:8px;padding:8px 14px;font-family:var(--font-d,monospace);'+
-            'font-size:.32rem;letter-spacing:2px;color:rgba(167,139,250,.65);transition:all .2s}'+
-          '#adm-ash-bar-trigger:hover{color:rgba(167,139,250,.95);background:rgba(167,139,250,.06)}'+
-          '#adm-ash-bar-arrow{transition:transform .25s;font-size:10px}'+
-          '#adm-ash-bar-arrow.open{transform:rotate(180deg)}'+
-          '#adm-ash-bar-dot{width:6px;height:6px;border-radius:50%;background:rgba(167,139,250,.45);flex-shrink:0}'+
-          '#adm-ash-bar-dot.on{background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.6)}'+
-          '#adm-ash-drawer-wrap{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}'+
-          '#adm-ash-drawer-wrap.open{max-height:600px;overflow-y:auto}#adm-ash-drawer-wrap.open #ash-canvas-drawer{max-height:none!important;overflow:visible!important}#adm-ash-drawer-wrap.open #ash-canvas-drawer.open{max-height:none!important}#adm-ash-drawer-wrap.open #ac-canvas-area{height:155px!important}#adm-ash-drawer-wrap.open .ac-drawer-btns{margin-top:6px;padding-bottom:4px}#adm-ash-drawer-wrap.open .ac-section-label{font-size:.28rem}#adm-ash-drawer-wrap.open .ac-tools-row{gap:4px;margin-bottom:6px}#adm-ash-drawer-wrap.open .ac-tool-btn{padding:4px 7px;font-size:.32rem}'+
-          /* Admin-specific extra sockets */
-          '#adm-admin-sockets{display:flex;flex-direction:column;gap:4px;position:absolute;left:6px;top:50%;transform:translateY(-50%)}'+
-          '.adm-ac-sock{width:26px;height:26px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;'+
-            'justify-content:center;font-size:9px;cursor:pointer;transition:all .2s;font-family:var(--font-d,monospace)}'+
-          '.adm-ac-sock.usr{border-color:rgba(0,229,255,.6);color:rgba(0,229,255,.7);background:rgba(0,229,255,.08)}'+
-          '.adm-ac-sock.usr:hover{background:rgba(0,229,255,.18);box-shadow:0 0 8px rgba(0,229,255,.4)}'+
-          '.adm-ac-sock.ph{border-color:rgba(0,229,255,.15);color:rgba(0,229,255,.2);background:transparent}'+
-          /* Admin mode strip on the drawer */
-          '#adm-ash-mode-strip{background:rgba(167,139,250,.07);border-bottom:1px solid rgba(167,139,250,.15);'+
-            'padding:5px 14px;font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:2px;'+
-            'color:rgba(167,139,250,.55);display:flex;align-items:center;gap:8px}'+
-          '#adm-ash-mode-strip .adm-mode-dot{width:5px;height:5px;border-radius:50%;background:#a78bfa;'+
-            'box-shadow:0 0 5px rgba(167,139,250,.6);animation:admsigpulse 1.5s infinite}';
-        document.head.appendChild(ashBarSty);
-
-        var ashBar=document.createElement('div'); ashBar.id='adm-ash-bar';
-        var ashTrig=document.createElement('div'); ashTrig.id='adm-ash-bar-trigger';
-        var ashDot=document.createElement('div'); ashDot.id='adm-ash-bar-dot';
-        var ashLbl=document.createElement('span'); ashLbl.textContent='ASH CANVAS — NEURAL INFLUENCE LAYER';
-        var ashArrow=document.createElement('span'); ashArrow.id='adm-ash-bar-arrow'; ashArrow.textContent='▼';
-        ashTrig.appendChild(ashDot); ashTrig.appendChild(ashLbl);
-        var ashSpacer=document.createElement('span'); ashSpacer.style.flex='1';
-        ashTrig.appendChild(ashSpacer); ashTrig.appendChild(ashArrow);
-
-        var ashWrap=document.createElement('div'); ashWrap.id='adm-ash-drawer-wrap';
-        var _ashOpen=false;
-        var _originalAshParent=null;
-        var _originalAshNextSibling=null;
-
-        ashTrig.onclick=function(){
-          _ashOpen=!_ashOpen;
-          ashArrow.classList.toggle('open',_ashOpen);
-          ashWrap.classList.toggle('open',_ashOpen);
-          ashDot.classList.toggle('on',_ashOpen);
-
-          if(_ashOpen){
-            var drawer=document.getElementById('ash-canvas-drawer');
-            if(drawer && drawer.parentElement!==ashWrap){
-              /* Store original position for restore */
-              _originalAshParent=drawer.parentElement;
-              _originalAshNextSibling=drawer.nextSibling;
-              /* Close it in main app first */
-              drawer.classList.remove('open');
-
-              /* Admin mode strip */
-              if(!document.getElementById('adm-ash-mode-strip')){
-                var strip=document.createElement('div'); strip.id='adm-ash-mode-strip';
-                var modeDot=document.createElement('div'); modeDot.className='adm-mode-dot';
-                var modeLbl=document.createElement('span'); modeLbl.textContent='ADMIN MODE — FULL ANALYTICAL ACCESS';
-                strip.appendChild(modeDot); strip.appendChild(modeLbl);
-                ashWrap.appendChild(strip);
-              }
-              ashWrap.appendChild(drawer);
-
-              /* Add admin socket nodes to canvas right edge if not already there */
-              var sockArea=document.getElementById('ac-canvas-area');
-              if(sockArea && !document.getElementById('adm-admin-sockets')){
-                var admSocks=document.createElement('div'); admSocks.id='adm-admin-sockets';
-                var sockDefs=[
-                  {id:'adm-sock-usr',cls:'adm-ac-sock usr',label:'◈',title:'USR DATA — Connected user data socket'},
-                  {id:'adm-sock-s2',cls:'adm-ac-sock ph',label:'◆',title:'Socket 2 — Placeholder'},
-                  {id:'adm-sock-s3',cls:'adm-ac-sock ph',label:'◆',title:'Socket 3 — Placeholder'},
-                  {id:'adm-sock-s4',cls:'adm-ac-sock ph',label:'◆',title:'Socket 4 — Placeholder'}
-                ];
-                sockDefs.forEach(function(sd){
-                  var s=document.createElement('div'); s.id=sd.id; s.className=sd.cls; s.title=sd.title; s.textContent=sd.label;
-                  s.onclick=function(){
-                    /* USR DATA socket connects to the user scope data */
-                    if(sd.id==='adm-sock-usr'){
-                    ['geo','mar','aero'].forEach(function(sh){window.acConnectSocket&&window.acConnectSocket(sh);});
-                    window._acShellBoost=[0.12,0.09,0.07];
-                    window.pulseShells&&window.pulseShells(1.5);
-                    s.style.boxShadow='0 0 14px rgba(0,229,255,.8)';
-                    setTimeout(function(){s.style.boxShadow='';},1200);
-                  } else {
-                    s.style.boxShadow='0 0 8px rgba(0,229,255,.3)';
-                    setTimeout(function(){s.style.boxShadow='';},800);
-                  }
-                  };
-                  admSocks.appendChild(s);
-                });
-                sockArea.style.position='relative';
-                sockArea.appendChild(admSocks);
-              }
-
-              /* Use toggleAshCanvas to properly init the canvas click handlers */
-              setTimeout(function(){
-                if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
-                else if(window._acInitCanvas) window._acInitCanvas();
-                /* Shrink BRPN viewport to make room for ash tools */
-                var cw2=document.getElementById('adm-canvas-wrap');
-                if(cw2) cw2.style.height='28vh';
-                /* Hide the body panels when ash is open - give full width to ash tools */
-                var bd2=document.getElementById('adm-ash-body');
-                if(bd2) bd2.style.display='none';
-              },10);
-            }
-          } else {
-            /* Restore drawer to original position */
-            var drawer=document.getElementById('ash-canvas-drawer');
-            if(drawer && _originalAshParent){
-              if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
-              else drawer.classList.remove('open');
-              /* Remove admin additions */
-              var admSocks=document.getElementById('adm-admin-sockets');
-              if(admSocks) admSocks.remove();
-              var strip=document.getElementById('adm-ash-mode-strip');
-              if(strip) strip.remove();
-              if(_originalAshNextSibling) _originalAshParent.insertBefore(drawer,_originalAshNextSibling);
-              else _originalAshParent.appendChild(drawer);
-              _originalAshParent=null; _originalAshNextSibling=null;
-            }
-            /* Restore viewport height and body panels */
-            var cw3=document.getElementById('adm-canvas-wrap');
-            if(cw3) cw3.style.height='';
-            var bd3=document.getElementById('adm-ash-body');
-            if(bd3) bd3.style.display='';
-          }
-        };
-
-        ashBar.appendChild(ashTrig); ashBar.appendChild(ashWrap);
-        ap.appendChild(ashBar);
-
-        /* ── Socket bar ───────────────────────────────────────────────────── */
-        var socketBar=document.createElement('div'); socketBar.id='adm-socket-bar';
-        var socketDefs=[
-          {label:'USR DATA',icon:'◈',cls:'live',title:'User data socket — connected'},
-          {label:'SOCKET 2',icon:'◆',cls:'placeholder',title:'Placeholder — future'},
-          {label:'SOCKET 3',icon:'◆',cls:'placeholder',title:'Placeholder — future'},
-          {label:'SOCKET 4',icon:'◆',cls:'placeholder',title:'Placeholder — future'}
-        ];
-        socketDefs.forEach(function(sd){
-          var s=document.createElement('div'); s.className='adm-socket '+sd.cls; s.title=sd.title;
-          var n=document.createElement('div'); n.className='adm-socket-node'; n.textContent=sd.icon;
-          var l=document.createElement('div'); l.className='adm-socket-lbl'; l.style.color=sd.cls==='live'?'rgba(0,229,255,.6)':'rgba(0,229,255,.2)'; l.textContent=sd.label;
-          s.appendChild(n); s.appendChild(l); socketBar.appendChild(s);
-        });
-        var sigRow=document.createElement('div'); sigRow.className='adm-sigma';
-        var sigDot=document.createElement('div'); sigDot.className='adm-sigma-dot';
-        var sigLbl=document.createElement('span'); sigLbl.textContent='SIGMA LIVE';
-        sigRow.appendChild(sigDot); sigRow.appendChild(sigLbl);
-        socketBar.appendChild(sigRow);
-        ap.appendChild(socketBar);
-
-        var ov2=document.getElementById('admin-console-overlay');
-        if(ov2) ov2.appendChild(ap);
+        var ov3=document.getElementById('admin-console-overlay');
+        if(ov3) ov3.appendChild(ap);
         return;
       }
-
 
       /* Other tabs — restore canvas if it was in ash panel */
       frame.style.display='';
