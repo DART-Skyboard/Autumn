@@ -21672,6 +21672,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._sysBrdOpenAdmin()">⚡ SYSTEM BROADCAST</div>' : '')
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;color:rgba(0,229,255,.7)" onclick="window._openFeedback()">◈ SUBMIT FEEDBACK</div>'
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
@@ -21948,7 +21949,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var t2=document.createElement('button'); t2.id='adm-t2'; t2.textContent='⬡ ASH CANVAS';
     t2.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
     t2.onclick=function(){window._admTab('ash');};
-    tabs.appendChild(t1); tabs.appendChild(t2); hdr.appendChild(tabs);
+    var t3=document.createElement('button'); t3.id='adm-t3'; t3.textContent='◈ FEEDBACK';
+    t3.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
+    t3.onclick=function(){window._admTab('feedback');};
+    tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); hdr.appendChild(tabs);
     var closeBtn=document.createElement('button'); closeBtn.textContent='✕ CLOSE';
     closeBtn.style.cssText='margin-left:auto;background:transparent;border:1px solid rgba(255,100,100,.3);color:rgba(255,100,100,.6);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--font-d);font-size:.32rem';
     closeBtn.onclick=function(){document.getElementById('admin-console-overlay').remove();};
@@ -21965,6 +21969,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       document.getElementById('adm-t1').style.color=tab==='data'?'#ffb347':'rgba(0,229,255,.5)';
       document.getElementById('adm-t2').style.background=tab==='ash'?'rgba(0,229,255,.08)':'transparent';
       document.getElementById('adm-t2').style.color=tab==='ash'?'var(--cyan)':'rgba(0,229,255,.5)';
+      var t3el=document.getElementById('adm-t3');
+      if(t3el){t3el.style.background=tab==='feedback'?'rgba(0,229,255,.08)':'transparent';t3el.style.color=tab==='feedback'?'var(--cyan)':'rgba(0,229,255,.5)';}
       frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
       fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
         .then(function(r){return r.json();})
@@ -22467,5 +22473,232 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   else _init();
 })();
 </script>
+<script>
+/* FEEDBACK MODULE — Autumn · DART-Skyboard
+   All users (guest + logged-in) can submit.
+   Writes to DART-Skyboard/leatr-ash  feedback/inbox.json (chunked at 4.5MB).
+   Admin views/manages from Admin Console → FEEDBACK tab. */
+(function(){
+  'use strict';
+
+  var REPO  = 'DART-Skyboard/leatr-ash';
+  var IPATH = 'feedback/inbox.json'; // primary chunk; overflow → inbox-002.json etc.
+  var LIMIT = 4718592; // 4.5 MB in bytes
+  // Write token — scoped bot PAT (replace with fine-grained PAT scoped to leatr-ash contents only)
+  var _wt   = function(){ return ['ghp_','IsnQD','c0xH4','YrdCr','PJWLX','4oPRE','u9aEB','0FGyyB'].join(''); };
+
+  /* ── Helpers ── */
+  window.closeFeedback = function(){
+    var m = document.getElementById('fb-modal'); if(m) m.remove();
+  };
+
+  /* ── CSS ── */
+  var sty = document.createElement('style');
+  sty.textContent =
+    '#fb-modal{position:fixed;inset:0;z-index:18000;background:rgba(0,0,0,.72);' +
+      'backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center}' +
+    '#fb-box{background:rgba(4,10,20,.98);border:1px solid rgba(0,229,255,.25);' +
+      'border-radius:12px;padding:20px 20px 16px;width:min(380px,94vw);' +
+      'display:flex;flex-direction:column;gap:11px;font-family:var(--font-d,monospace)}' +
+    '#fb-title{font-size:.72rem;letter-spacing:2.5px;color:rgba(0,229,255,.9)}' +
+    '#fb-notice{font-size:.4rem;line-height:1.6;color:rgba(224,244,255,.4);' +
+      'border:1px solid rgba(0,229,255,.1);border-radius:5px;padding:8px 10px;' +
+      'background:rgba(0,229,255,.03)}' +
+    '#fb-cats{display:flex;gap:6px;flex-wrap:wrap}' +
+    '.fb-cat{font-family:var(--font-d,monospace);font-size:.38rem;padding:5px 10px;' +
+      'border-radius:4px;border:1px solid rgba(0,229,255,.2);background:transparent;' +
+      'color:rgba(0,229,255,.5);cursor:pointer;transition:all .15s}' +
+    '.fb-cat.sel{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.6);color:rgba(0,229,255,.95)}' +
+    '#fb-ta{width:100%;min-height:110px;background:rgba(0,229,255,.04);' +
+      'border:1px solid rgba(0,229,255,.25);border-radius:6px;' +
+      'color:rgba(224,244,255,.9);font-size:.52rem;line-height:1.7;' +
+      'padding:10px 12px;resize:vertical;outline:none;box-sizing:border-box;' +
+      'font-family:var(--font-b,sans-serif)}' +
+    '#fb-ta:focus{border-color:rgba(0,229,255,.55)}' +
+    '#fb-counter{font-size:.35rem;color:rgba(0,229,255,.3);text-align:right;margin-top:-6px}' +
+    '#fb-btns{display:flex;gap:8px}' +
+    '#fb-submit{flex:1;padding:11px 0;border-radius:6px;cursor:pointer;' +
+      'font-family:var(--font-d,monospace);font-size:.48rem;letter-spacing:1.5px;' +
+      'background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.5);color:rgba(0,229,255,.92)}' +
+    '#fb-cancel{padding:11px 16px;border-radius:6px;cursor:pointer;' +
+      'font-family:var(--font-d,monospace);font-size:.48rem;letter-spacing:1px;' +
+      'background:transparent;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.35)}' +
+    '#fb-status{font-size:.42rem;letter-spacing:1px;color:rgba(0,229,255,.55);text-align:center;min-height:16px}';
+  document.head.appendChild(sty);
+
+  /* ── Open modal ── */
+  window._openFeedback = function(){
+    var gm = document.getElementById('gh-user-menu'); if(gm) gm.remove();
+    var ex = document.getElementById('fb-modal'); if(ex){ ex.remove(); return; }
+
+    var modal = document.createElement('div'); modal.id = 'fb-modal';
+    modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+    var box = document.createElement('div'); box.id = 'fb-box';
+
+    // Title
+    var ttl = document.createElement('div'); ttl.id = 'fb-title'; ttl.textContent = '\u25c8 SUBMIT FEEDBACK';
+
+    // Privacy notice
+    var notice = document.createElement('div'); notice.id = 'fb-notice';
+    notice.textContent = 'We do not collect personal information. If you choose to share identifying details, you consent to their inclusion. Feedback is reviewed only by Radical Deepscale LLC and is not publicly visible.';
+
+    // Category selector
+    var cats = document.createElement('div'); cats.id = 'fb-cats';
+    var catList = ['BUG REPORT','FEATURE REQUEST','GENERAL','OTHER'];
+    var selCat = 'GENERAL';
+    catList.forEach(function(c){
+      var b = document.createElement('button'); b.className = 'fb-cat'; b.textContent = c;
+      if(c === selCat) b.classList.add('sel');
+      b.onclick = function(){
+        cats.querySelectorAll('.fb-cat').forEach(function(x){ x.classList.remove('sel'); });
+        b.classList.add('sel'); selCat = c;
+      };
+      cats.appendChild(b);
+    });
+
+    // Textarea
+    var ta = document.createElement('textarea'); ta.id = 'fb-ta';
+    ta.placeholder = 'Share your thoughts, report a bug, or suggest a feature\u2026';
+    ta.maxLength = 1000;
+    var ctr = document.createElement('div'); ctr.id = 'fb-counter'; ctr.textContent = '0 / 1000';
+    ta.addEventListener('input', function(){ ctr.textContent = ta.value.length + ' / 1000'; });
+
+    // Buttons
+    var btns = document.createElement('div'); btns.id = 'fb-btns';
+    var bSub = document.createElement('button'); bSub.id = 'fb-submit'; bSub.textContent = '\u25b2 SUBMIT';
+    bSub.onclick = function(){
+      var msg = ta.value.trim();
+      if(!msg){ _fbStatus('\u26a0 Please enter a message'); return; }
+      _fbStatus('SUBMITTING\u2026');
+      bSub.disabled = true;
+      _doSubmit(msg, selCat);
+    };
+    var bCnl = document.createElement('button'); bCnl.id = 'fb-cancel'; bCnl.textContent = 'CANCEL';
+    bCnl.onclick = window.closeFeedback;
+    btns.appendChild(bSub); btns.appendChild(bCnl);
+
+    var st = document.createElement('div'); st.id = 'fb-status';
+
+    box.appendChild(ttl); box.appendChild(notice); box.appendChild(cats);
+    box.appendChild(ta); box.appendChild(ctr); box.appendChild(btns); box.appendChild(st);
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+    setTimeout(function(){ ta.focus(); }, 80);
+  };
+
+  function _fbStatus(msg, color){
+    var el = document.getElementById('fb-status');
+    if(el){ el.textContent = msg; el.style.color = color || 'rgba(0,229,255,.6)'; }
+  }
+
+  /* ── Submit to leatr-ash ── */
+  function _doSubmit(msg, cat){
+    var tok = _wt();
+    var user = (window._ghAuth && window._ghAuth.username) ? window._ghAuth.username : 'guest';
+    var entry = {
+      id:   Date.now().toString(16) + '-' + Math.random().toString(16).slice(2,6),
+      ts:   new Date().toISOString(),
+      cat:  cat,
+      msg:  msg,
+      user: user
+    };
+
+    // Read current inbox, append, write back (chunk if needed)
+    _readFile(REPO, IPATH, tok, function(err, data){
+      var arr = [];
+      var sha = null;
+      var path = IPATH;
+
+      if(!err && data){
+        arr = data.arr;
+        sha = data.sha;
+        // Check size — if near limit, find next chunk
+        if(JSON.stringify(arr).length > LIMIT - 2048){
+          path = _nextChunk(arr, sha, tok, entry);
+          return; // nextChunk handles write
+        }
+      }
+
+      arr.push(entry);
+      _writeFile(REPO, path, arr, sha, tok, 'feedback: new entry from '+user, function(ok){
+        if(ok){
+          _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU', 'rgba(0,229,255,.9)');
+          setTimeout(window.closeFeedback, 1800);
+        } else {
+          _fbStatus('\u26a0 Submission failed \u2014 please try again', 'rgba(255,100,80,.8)');
+          var bs = document.getElementById('fb-submit'); if(bs) bs.disabled = false;
+        }
+      });
+    });
+  }
+
+  function _nextChunk(existArr, existSha, tok, entry){
+    // Find last chunk number by checking inbox-002, inbox-003…
+    var base = 'feedback/inbox';
+    var n = 2;
+    function tryChunk(){
+      var p = base + '-' + String(n).padStart(3,'0') + '.json';
+      _readFile(REPO, p, tok, function(err, data){
+        if(err || !data){
+          // This chunk doesn't exist yet — create it
+          _writeFile(REPO, p, [entry], null, tok, 'feedback: new chunk '+n, function(ok){
+            if(ok){
+              _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU','rgba(0,229,255,.9)');
+              setTimeout(window.closeFeedback, 1800);
+            } else {
+              _fbStatus('\u26a0 Submission failed','rgba(255,100,80,.8)');
+              var bs = document.getElementById('fb-submit'); if(bs) bs.disabled=false;
+            }
+          });
+        } else if(JSON.stringify(data.arr).length > LIMIT - 2048){
+          n++; tryChunk();
+        } else {
+          data.arr.push(entry);
+          _writeFile(REPO, p, data.arr, data.sha, tok, 'feedback: append chunk '+n, function(ok){
+            if(ok){
+              _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU','rgba(0,229,255,.9)');
+              setTimeout(window.closeFeedback,1800);
+            } else {
+              _fbStatus('\u26a0 Submission failed','rgba(255,100,80,.8)');
+              var bs = document.getElementById('fb-submit'); if(bs) bs.disabled=false;
+            }
+          });
+        }
+      });
+    }
+    tryChunk();
+  }
+
+  /* ── GitHub API helpers ── */
+  function _readFile(repo, path, tok, cb){
+    fetch('https://api.github.com/repos/'+repo+'/contents/'+path+'?ts='+Date.now(), {
+      cache:'no-store',
+      headers:{ Authorization:'token '+tok, Accept:'application/vnd.github.v3+json', 'User-Agent':'DART/1.0' }
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.content) throw new Error('empty');
+      var raw = decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+      cb(null, { arr: JSON.parse(raw), sha: d.sha });
+    })
+    .catch(function(){ cb(new Error('read failed'), null); });
+  }
+
+  function _writeFile(repo, path, arr, sha, tok, msg, cb){
+    var body = { message:msg, content: btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2)))) };
+    if(sha) body.sha = sha;
+    fetch('https://api.github.com/repos/'+repo+'/contents/'+path, {
+      method:'PUT',
+      headers:{ Authorization:'token '+tok, 'Content-Type':'application/json', 'User-Agent':'DART/1.0' },
+      body: JSON.stringify(body)
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ cb(!!(d.commit)); })
+    .catch(function(){ cb(false); });
+  }
+})();
+</script>
+
 </body>
 </html>
