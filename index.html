@@ -1421,7 +1421,16 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 /* Voice controls */
 .mic-btn,.speaker-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;flex-shrink:0}
 .mic-btn:hover,.speaker-btn:hover{color:var(--cyan);border-color:var(--cyan)}
-.mic-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse 1s infinite}/* Speaker (TTS) button — cyan when voice output is active */
+.mic-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse 1s infinite}
+.mic-btn.recording{color:#00e5ff!important;border-color:#00e5ff!important;background:rgba(0,229,255,.1)!important;animation:pulse 1s infinite,micglow 1.5s ease-in-out infinite}
+@keyframes micglow{0%,100%{box-shadow:0 0 6px rgba(0,229,255,.3)}50%{box-shadow:0 0 16px rgba(0,229,255,.7)}}
+.mic-icon{display:inline!important}
+.mic-wave{display:none!important}
+#mic-btn.recording .mic-icon{display:none!important}
+#mic-btn.recording .mic-wave{display:flex!important}
+.mic-bar{width:3px;background:#00e5ff;border-radius:2px;animation:micwv .55s ease-in-out infinite}
+.mic-bar:nth-child(1){height:5px;animation-delay:0s}.mic-bar:nth-child(2){height:11px;animation-delay:.1s}.mic-bar:nth-child(3){height:17px;animation-delay:.2s}.mic-bar:nth-child(4){height:11px;animation-delay:.3s}.mic-bar:nth-child(5){height:5px;animation-delay:.4s}
+@keyframes micwv{0%,100%{transform:scaleY(.35);opacity:.5}50%{transform:scaleY(1);opacity:1}}/* Speaker (TTS) button — cyan when voice output is active */
 .speaker-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,255,204,.1);box-shadow:0 0 10px rgba(0,255,204,.25)}
 .listen-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0}
 .listen-btn:hover{color:#ffb347;border-color:#ffb347;box-shadow:0 0 10px rgba(255,179,71,.15)}
@@ -2683,6 +2692,12 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="plus-btn" id="plus-btn" onclick="toggleInputTray()" title="More options">+</button>
         <div id="input-pill">
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
+          <button id="mic-btn" class="mic-btn" onclick="window.toggleMicMode()" title="Voice input — tap to start always-listening mode">
+            <span class="mic-icon" style="font-size:15px">&#127908;</span>
+            <span class="mic-wave" style="display:none;align-items:center;gap:2px;height:18px">
+              <span class="mic-bar"></span><span class="mic-bar"></span><span class="mic-bar"></span><span class="mic-bar"></span><span class="mic-bar"></span>
+            </span>
+          </button>
         </div>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
         <button class="action-btn back-to-chat" id="back-to-chat-btn" onclick="window._backToChat&&window._backToChat()" title="Back to chat" style="display:none">✕</button>
@@ -13526,6 +13541,21 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
   console.log('[SystemSTT] System dictation watcher active — no PTT button needed');
 })();
 
+window.toggleMicMode=function(){
+  if(!Voice.recognition) initSTT();
+  var mb=document.getElementById('mic-btn');
+  var vi=document.getElementById('voice-indicator');
+  if(Voice.active){
+    Voice.active=false; Voice.isListening=false;
+    try{Voice.recognition.stop();}catch(e){}
+    if(mb) mb.classList.remove('recording');
+    if(vi) vi.classList.remove('show');
+  } else {
+    Voice.active=true;
+    if(mb) mb.classList.add('recording');
+    restartListeningIfActive();
+  }
+};
 function restartListeningIfActive(){
   if(!Voice.active||!Voice.recognition) return;
   setTimeout(()=>{
