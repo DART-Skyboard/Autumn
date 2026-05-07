@@ -18139,6 +18139,7 @@ _syncActionBtn();
     document.querySelectorAll('.ac-tool-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tool === _ac.activeTool); });
   };
 
+  window._acInitCanvas = _acInitCanvas;
   function _acInitCanvas() {
     var area = document.getElementById('ac-canvas-area');
     if (!area || area._acBound) return;
@@ -22090,9 +22091,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             /* Main body below canvas */
             '#adm-ash-body{position:relative;z-index:2;flex:1;display:flex;overflow:hidden;min-height:0}'+
             /* Left panel */
-            '#adm-ash-left{width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.1);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(4,10,20,.82);gap:10px}'+
+            '#adm-ash-left{width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.1);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(2,6,14,.75);gap:10px}'+
             /* Right panel */
-            '#adm-ash-right{flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(3,8,16,.78)}'+
+            '#adm-ash-right{flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,5,12,.72)}'+
             /* Right top: pattern report */
             '#adm-rpt{padding:10px 12px;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0}'+
             /* Right bottom: chat */
@@ -22122,7 +22123,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             '.adm-node-btn{width:34px;height:34px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid rgba(0,229,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s;color:rgba(0,229,255,.5)}'+
             '.adm-node-btn:hover{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.5);color:#00e5ff}'+
             /* Socket bar */
-            '#adm-socket-bar{position:relative;z-index:3;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:1px solid rgba(0,229,255,.12);background:rgba(2,6,14,.9)}'+
+            '#adm-socket-bar{position:relative;z-index:3;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:1px solid rgba(0,229,255,.12);background:rgba(2,6,14,.7)}'+
             '.adm-socket{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;flex:1;max-width:80px}'+
             '.adm-socket-node{width:28px;height:28px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .2s}'+
             '.adm-socket-lbl{font-family:var(--font-d,monospace);font-size:.2rem;letter-spacing:1.5px;text-align:center}'+
@@ -22328,7 +22329,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         /* CSS for the slide bar + admin socket nodes */
         var ashBarSty=document.createElement('style');
         ashBarSty.textContent=
-          '#adm-ash-bar{position:relative;z-index:3;flex-shrink:0;background:rgba(3,7,16,.9);'+
+          '#adm-ash-bar{position:relative;z-index:3;flex-shrink:0;background:rgba(0,0,0,.15);'+
             'border-top:1px solid rgba(167,139,250,.2);cursor:pointer;user-select:none}'+
           '#adm-ash-bar-trigger{display:flex;align-items:center;gap:8px;padding:8px 14px;font-family:var(--font-d,monospace);'+
             'font-size:.32rem;letter-spacing:2px;color:rgba(167,139,250,.65);transition:all .2s}'+
@@ -22338,7 +22339,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           '#adm-ash-bar-dot{width:6px;height:6px;border-radius:50%;background:rgba(167,139,250,.45);flex-shrink:0}'+
           '#adm-ash-bar-dot.on{background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.6)}'+
           '#adm-ash-drawer-wrap{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}'+
-          '#adm-ash-drawer-wrap.open{max-height:560px;overflow-y:auto}'+
+          '#adm-ash-drawer-wrap.open{max-height:600px;overflow-y:auto}#adm-ash-drawer-wrap.open #ash-canvas-drawer{max-height:none!important;overflow:visible!important}#adm-ash-drawer-wrap.open #ash-canvas-drawer.open{max-height:none!important}#adm-ash-drawer-wrap.open #ac-canvas-area{height:155px!important}#adm-ash-drawer-wrap.open .ac-drawer-btns{margin-top:6px;padding-bottom:4px}#adm-ash-drawer-wrap.open .ac-section-label{font-size:.28rem}#adm-ash-drawer-wrap.open .ac-tools-row{gap:4px;margin-bottom:6px}#adm-ash-drawer-wrap.open .ac-tool-btn{padding:4px 7px;font-size:.32rem}'+
           /* Admin-specific extra sockets */
           '#adm-admin-sockets{display:flex;flex-direction:column;gap:4px;position:absolute;left:6px;top:50%;transform:translateY(-50%)}'+
           '.adm-ac-sock{width:26px;height:26px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;'+
@@ -22407,11 +22408,16 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                   var s=document.createElement('div'); s.id=sd.id; s.className=sd.cls; s.title=sd.title; s.textContent=sd.label;
                   s.onclick=function(){
                     /* USR DATA socket connects to the user scope data */
-                    if(sd.id==='adm-sock-usr' && window.acConnectSocket){
-                      window._acShellBoost=[0.1,0.08,0.06];
-                      /* Flash all shells */
-                      window.pulseShells&&window.pulseShells(1.2);
-                    }
+                    if(sd.id==='adm-sock-usr'){
+                    ['geo','mar','aero'].forEach(function(sh){window.acConnectSocket&&window.acConnectSocket(sh);});
+                    window._acShellBoost=[0.12,0.09,0.07];
+                    window.pulseShells&&window.pulseShells(1.5);
+                    s.style.boxShadow='0 0 14px rgba(0,229,255,.8)';
+                    setTimeout(function(){s.style.boxShadow='';},1200);
+                  } else {
+                    s.style.boxShadow='0 0 8px rgba(0,229,255,.3)';
+                    setTimeout(function(){s.style.boxShadow='';},800);
+                  }
                   };
                   admSocks.appendChild(s);
                 });
@@ -22419,15 +22425,25 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                 sockArea.appendChild(admSocks);
               }
 
-              /* Force open the drawer */
-              setTimeout(function(){ drawer.classList.add('open'); },10);
+              /* Use toggleAshCanvas to properly init the canvas click handlers */
+              setTimeout(function(){
+                if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
+                else if(window._acInitCanvas) window._acInitCanvas();
+                /* Shrink BRPN viewport to make room for ash tools */
+                var cw2=document.getElementById('adm-canvas-wrap');
+                if(cw2) cw2.style.height='28vh';
+                /* Hide the body panels when ash is open - give full width to ash tools */
+                var bd2=document.getElementById('adm-ash-body');
+                if(bd2) bd2.style.display='none';
+              },10);
             }
           } else {
             /* Restore drawer to original position */
             var drawer=document.getElementById('ash-canvas-drawer');
             if(drawer && _originalAshParent){
-              drawer.classList.remove('open');
-              /* Remove admin sockets */
+              if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
+              else drawer.classList.remove('open');
+              /* Remove admin additions */
               var admSocks=document.getElementById('adm-admin-sockets');
               if(admSocks) admSocks.remove();
               var strip=document.getElementById('adm-ash-mode-strip');
@@ -22436,6 +22452,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
               else _originalAshParent.appendChild(drawer);
               _originalAshParent=null; _originalAshNextSibling=null;
             }
+            /* Restore viewport height and body panels */
+            var cw3=document.getElementById('adm-canvas-wrap');
+            if(cw3) cw3.style.height='';
+            var bd3=document.getElementById('adm-ash-body');
+            if(bd3) bd3.style.display='';
           }
         };
 
