@@ -21673,6 +21673,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._sysBrdOpenAdmin()">⚡ SYSTEM BROADCAST</div>' : '')
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;color:rgba(0,229,255,.7)" onclick="window._openFeedback()">◈ SUBMIT FEEDBACK</div>'
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;color:rgba(0,229,255,.7)" onclick="window._openFeedback()">◈ SUBMIT FEEDBACK</div>'
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
@@ -21971,10 +21973,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       document.getElementById('adm-t2').style.color=tab==='ash'?'var(--cyan)':'rgba(0,229,255,.5)';
       var t3el=document.getElementById('adm-t3');
       if(t3el){t3el.style.background=tab==='feedback'?'rgba(0,229,255,.08)':'transparent';t3el.style.color=tab==='feedback'?'var(--cyan)':'rgba(0,229,255,.5)';}
+      var t3el=document.getElementById('adm-t3');
+      if(t3el){t3el.style.background=tab==='feedback'?'rgba(0,229,255,.08)':'transparent';t3el.style.color=tab==='feedback'?'var(--cyan)':'rgba(0,229,255,.5)';}
       frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
       fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
         .then(function(r){return r.json();})
-        .then(function(f){frame.srcdoc=atob(f.content.replace(/\n/g,''));})
+        .then(function(f){(function(){var b=atob(f.content.replace(/\n/g,''));var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);frame.srcdoc=new TextDecoder('utf-8').decode(u);})()})
         .catch(function(){frame.srcdoc='<body style="background:#060a10;color:#ff4466;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:2px">Admin file not found</body>';});
     };
     window._admTab('data');
