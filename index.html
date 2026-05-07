@@ -21974,7 +21974,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
       fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
         .then(function(r){return r.json();})
-        .then(function(f){frame.srcdoc=atob(f.content.replace(/\n/g,''));})
+        .then(function(f){(function(){var b=atob(f.content.replace(/\\n/g,''));var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);frame.srcdoc=new TextDecoder('utf-8').decode(u);})();)
         .catch(function(){frame.srcdoc='<body style="background:#060a10;color:#ff4466;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:2px">Admin file not found</body>';});
     };
     window._admTab('data');
