@@ -22030,8 +22030,21 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       var active=map[tab];if(active){var el=document.getElementById(active[0]);if(el){el.style.background=active[1];el.style.color=active[2];}}
     }
 
-    /* Restore BRPN canvas to original parent if it was moved */
+    /* Restore BRPN canvas + ash canvas drawer to original parents */
     function _restoreBRPN(){
+      /* Restore ash canvas drawer if moved */
+      var drawer=document.getElementById('ash-canvas-drawer');
+      var admWrap=document.getElementById('adm-ash-drawer-wrap');
+      if(drawer&&admWrap&&drawer.parentElement===admWrap){
+        drawer.classList.remove('open');
+        var admSocks=document.getElementById('adm-admin-sockets');
+        if(admSocks) admSocks.remove();
+        var strip=document.getElementById('adm-ash-mode-strip');
+        if(strip) strip.remove();
+        /* Move back to main-app-side-bar or similar — find its original parent */
+        var origParent=document.getElementById('ash-canvas-trigger');
+        if(origParent&&origParent.parentElement) origParent.parentElement.appendChild(drawer);
+      }
       var region=document.getElementById('brpn-region');
       var main=document.getElementById('main');
       if(region&&main&&region.parentElement!==main){
@@ -22039,7 +22052,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         main.insertBefore(region,firstChild);
         region.style.height='';region.style.margin='';region.style.borderRadius='';
         if(window._brpnRenderer){
-          var w=region.clientWidth||320, h=320;
+          var w=region.clientWidth||window.innerWidth, h=320;
           window._brpnRenderer.setSize(w,h);
           if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
         }
@@ -22310,6 +22323,124 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         right.appendChild(chat);
         body.appendChild(right);
         ap.appendChild(body);
+
+        /* ── Ash Canvas slide bar ─────────────────────────────────────────── */
+        /* CSS for the slide bar + admin socket nodes */
+        var ashBarSty=document.createElement('style');
+        ashBarSty.textContent=
+          '#adm-ash-bar{position:relative;z-index:3;flex-shrink:0;background:rgba(3,7,16,.9);'+
+            'border-top:1px solid rgba(167,139,250,.2);cursor:pointer;user-select:none}'+
+          '#adm-ash-bar-trigger{display:flex;align-items:center;gap:8px;padding:8px 14px;font-family:var(--font-d,monospace);'+
+            'font-size:.32rem;letter-spacing:2px;color:rgba(167,139,250,.65);transition:all .2s}'+
+          '#adm-ash-bar-trigger:hover{color:rgba(167,139,250,.95);background:rgba(167,139,250,.06)}'+
+          '#adm-ash-bar-arrow{transition:transform .25s;font-size:10px}'+
+          '#adm-ash-bar-arrow.open{transform:rotate(180deg)}'+
+          '#adm-ash-bar-dot{width:6px;height:6px;border-radius:50%;background:rgba(167,139,250,.45);flex-shrink:0}'+
+          '#adm-ash-bar-dot.on{background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.6)}'+
+          '#adm-ash-drawer-wrap{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}'+
+          '#adm-ash-drawer-wrap.open{max-height:560px;overflow-y:auto}'+
+          /* Admin-specific extra sockets */
+          '#adm-admin-sockets{display:flex;flex-direction:column;gap:4px;position:absolute;left:6px;top:50%;transform:translateY(-50%)}'+
+          '.adm-ac-sock{width:26px;height:26px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;'+
+            'justify-content:center;font-size:9px;cursor:pointer;transition:all .2s;font-family:var(--font-d,monospace)}'+
+          '.adm-ac-sock.usr{border-color:rgba(0,229,255,.6);color:rgba(0,229,255,.7);background:rgba(0,229,255,.08)}'+
+          '.adm-ac-sock.usr:hover{background:rgba(0,229,255,.18);box-shadow:0 0 8px rgba(0,229,255,.4)}'+
+          '.adm-ac-sock.ph{border-color:rgba(0,229,255,.15);color:rgba(0,229,255,.2);background:transparent}'+
+          /* Admin mode strip on the drawer */
+          '#adm-ash-mode-strip{background:rgba(167,139,250,.07);border-bottom:1px solid rgba(167,139,250,.15);'+
+            'padding:5px 14px;font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:2px;'+
+            'color:rgba(167,139,250,.55);display:flex;align-items:center;gap:8px}'+
+          '#adm-ash-mode-strip .adm-mode-dot{width:5px;height:5px;border-radius:50%;background:#a78bfa;'+
+            'box-shadow:0 0 5px rgba(167,139,250,.6);animation:admsigpulse 1.5s infinite}';
+        document.head.appendChild(ashBarSty);
+
+        var ashBar=document.createElement('div'); ashBar.id='adm-ash-bar';
+        var ashTrig=document.createElement('div'); ashTrig.id='adm-ash-bar-trigger';
+        var ashDot=document.createElement('div'); ashDot.id='adm-ash-bar-dot';
+        var ashLbl=document.createElement('span'); ashLbl.textContent='ASH CANVAS — NEURAL INFLUENCE LAYER';
+        var ashArrow=document.createElement('span'); ashArrow.id='adm-ash-bar-arrow'; ashArrow.textContent='▼';
+        ashTrig.appendChild(ashDot); ashTrig.appendChild(ashLbl);
+        var ashSpacer=document.createElement('span'); ashSpacer.style.flex='1';
+        ashTrig.appendChild(ashSpacer); ashTrig.appendChild(ashArrow);
+
+        var ashWrap=document.createElement('div'); ashWrap.id='adm-ash-drawer-wrap';
+        var _ashOpen=false;
+        var _originalAshParent=null;
+        var _originalAshNextSibling=null;
+
+        ashTrig.onclick=function(){
+          _ashOpen=!_ashOpen;
+          ashArrow.classList.toggle('open',_ashOpen);
+          ashWrap.classList.toggle('open',_ashOpen);
+          ashDot.classList.toggle('on',_ashOpen);
+
+          if(_ashOpen){
+            var drawer=document.getElementById('ash-canvas-drawer');
+            if(drawer && drawer.parentElement!==ashWrap){
+              /* Store original position for restore */
+              _originalAshParent=drawer.parentElement;
+              _originalAshNextSibling=drawer.nextSibling;
+              /* Close it in main app first */
+              drawer.classList.remove('open');
+
+              /* Admin mode strip */
+              if(!document.getElementById('adm-ash-mode-strip')){
+                var strip=document.createElement('div'); strip.id='adm-ash-mode-strip';
+                var modeDot=document.createElement('div'); modeDot.className='adm-mode-dot';
+                var modeLbl=document.createElement('span'); modeLbl.textContent='ADMIN MODE — FULL ANALYTICAL ACCESS';
+                strip.appendChild(modeDot); strip.appendChild(modeLbl);
+                ashWrap.appendChild(strip);
+              }
+              ashWrap.appendChild(drawer);
+
+              /* Add admin socket nodes to canvas right edge if not already there */
+              var sockArea=document.getElementById('ac-canvas-area');
+              if(sockArea && !document.getElementById('adm-admin-sockets')){
+                var admSocks=document.createElement('div'); admSocks.id='adm-admin-sockets';
+                var sockDefs=[
+                  {id:'adm-sock-usr',cls:'adm-ac-sock usr',label:'◈',title:'USR DATA — Connected user data socket'},
+                  {id:'adm-sock-s2',cls:'adm-ac-sock ph',label:'◆',title:'Socket 2 — Placeholder'},
+                  {id:'adm-sock-s3',cls:'adm-ac-sock ph',label:'◆',title:'Socket 3 — Placeholder'},
+                  {id:'adm-sock-s4',cls:'adm-ac-sock ph',label:'◆',title:'Socket 4 — Placeholder'}
+                ];
+                sockDefs.forEach(function(sd){
+                  var s=document.createElement('div'); s.id=sd.id; s.className=sd.cls; s.title=sd.title; s.textContent=sd.label;
+                  s.onclick=function(){
+                    /* USR DATA socket connects to the user scope data */
+                    if(sd.id==='adm-sock-usr' && window.acConnectSocket){
+                      window._acShellBoost=[0.1,0.08,0.06];
+                      /* Flash all shells */
+                      window.pulseShells&&window.pulseShells(1.2);
+                    }
+                  };
+                  admSocks.appendChild(s);
+                });
+                sockArea.style.position='relative';
+                sockArea.appendChild(admSocks);
+              }
+
+              /* Force open the drawer */
+              setTimeout(function(){ drawer.classList.add('open'); },10);
+            }
+          } else {
+            /* Restore drawer to original position */
+            var drawer=document.getElementById('ash-canvas-drawer');
+            if(drawer && _originalAshParent){
+              drawer.classList.remove('open');
+              /* Remove admin sockets */
+              var admSocks=document.getElementById('adm-admin-sockets');
+              if(admSocks) admSocks.remove();
+              var strip=document.getElementById('adm-ash-mode-strip');
+              if(strip) strip.remove();
+              if(_originalAshNextSibling) _originalAshParent.insertBefore(drawer,_originalAshNextSibling);
+              else _originalAshParent.appendChild(drawer);
+              _originalAshParent=null; _originalAshNextSibling=null;
+            }
+          }
+        };
+
+        ashBar.appendChild(ashTrig); ashBar.appendChild(ashWrap);
+        ap.appendChild(ashBar);
 
         /* ── Socket bar ───────────────────────────────────────────────────── */
         var socketBar=document.createElement('div'); socketBar.id='adm-socket-bar';
