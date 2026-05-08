@@ -22106,6 +22106,65 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       });
     }
 
+    /* ── EMO Neural socket — maps Autumn's emotional state to BRPN shell boosts ── */
+    function _emoSocketActivate(s){
+      /* Emotional state → shell boost mapping */
+      var emoMap={
+        'NEUTRAL':   [0.04, 0.04, 0.04],
+        'CURIOUS':   [0.06, 0.05, 0.12],
+        'CALM':      [0.10, 0.04, 0.03],
+        'REFLECTIVE':[0.08, 0.07, 0.05],
+        'ACTIVE':    [0.05, 0.12, 0.08],
+        'ALERT':     [0.04, 0.10, 0.13],
+        'ENGAGED':   [0.07, 0.09, 0.10],
+        'CREATIVE':  [0.06, 0.06, 0.14],
+        'TIRED':     [0.03, 0.03, 0.02],
+        'ANXIOUS':   [0.02, 0.11, 0.09],
+        'EXCITED':   [0.08, 0.14, 0.12],
+        'FOCUSED':   [0.09, 0.08, 0.06]
+      };
+      /* Read live emotional state */
+      var emoRaw = (window._lastEmoState||'NEUTRAL').toUpperCase().trim();
+      /* Check sentient journal for most recent emotional entry */
+      var journalEmo = null;
+      if(window.S && window.S.journal && window.S.journal.length){
+        var recent = window.S.journal.slice(-10);
+        for(var i=recent.length-1;i>=0;i--){
+          var entry = recent[i];
+          if(entry && entry.emo && typeof entry.emo==='string'){
+            journalEmo = entry.emo.toUpperCase().trim(); break;
+          }
+        }
+      }
+      /* Prefer live state, fall back to journal, then NEUTRAL */
+      var emo = emoRaw!=='NEUTRAL' ? emoRaw : (journalEmo||'NEUTRAL');
+      /* Find best matching map key */
+      var boost = emoMap[emo];
+      if(!boost){
+        /* Fuzzy match — find first key that appears in the emo string */
+        var keys=Object.keys(emoMap);
+        for(var k=0;k<keys.length;k++){
+          if(emo.indexOf(keys[k])!==-1){boost=emoMap[keys[k]];break;}
+        }
+        if(!boost) boost=emoMap['NEUTRAL'];
+      }
+      /* Also factor in buoyancy/sigma values if available */
+      var sig = window._lastSigma||0;
+      var sigScale = Math.min(1.4, 1 + (sig/500));
+      window._acShellBoost=[
+        Math.min(0.18, boost[0]*sigScale),
+        Math.min(0.15, boost[1]*sigScale),
+        Math.min(0.16, boost[2]*sigScale)
+      ];
+      window.pulseShells&&window.pulseShells(1.2);
+      /* Visual feedback */
+      s.style.background='rgba(180,100,255,.25)';
+      s.title='EMO NEURAL — '+emo+(journalEmo&&journalEmo!==emoRaw?' (journal: '+journalEmo+')':'');
+      setTimeout(function(){s.style.background='rgba(167,139,250,.12)';},1000);
+      /* Expose for chat */
+      window._emoSocketData={emo:emo, boosts:window._acShellBoost, sig:sig, ts:new Date().toISOString()};
+    }
+
     /* ── Admin tab switcher ── */
     function _styleAdmTabs(tab){
       var map={data:['adm-t1','rgba(255,179,71,.1)','#ffb347'],ash:['adm-t2','rgba(0,229,255,.08)','var(--cyan)'],feedback:['adm-t3','rgba(0,229,255,.08)','var(--cyan)']};
@@ -22322,6 +22381,21 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                 };
                 shellSock.appendChild(eodSock);
               }
+              /* EMO neural socket — emotional state drives shell boosts */
+              var shellSock2=document.querySelector('.ac-shell-socket');
+              if(shellSock2 && !document.getElementById('adm-emo-sock')){
+                var emoSock=document.createElement('div');
+                emoSock.id='adm-emo-sock';
+                emoSock.className='ac-socket';
+                emoSock.title='EMO NEURAL — Emotional state → BRPN';
+                emoSock.textContent='N';
+                emoSock.style.cssText='background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.55);color:rgba(180,150,255,.9);cursor:pointer';
+                emoSock.onclick=function(e){
+                  e.stopPropagation();
+                  _emoSocketActivate(emoSock);
+                };
+                shellSock2.appendChild(emoSock);
+              }
               setTimeout(function(){
                 if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
                 else if(window._acInitCanvas) window._acInitCanvas();
@@ -22332,6 +22406,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             if(drawer){
               if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
               var eodSockEl=document.getElementById('adm-eod-sock'); if(eodSockEl) eodSockEl.remove();
+              var emoSockEl=document.getElementById('adm-emo-sock'); if(emoSockEl) emoSockEl.remove();
               var mStrip=document.getElementById('adm-ash-mode-strip'); if(mStrip) mStrip.remove();
               if(_origParent) {
                 if(_origNext) _origParent.insertBefore(drawer,_origNext);
