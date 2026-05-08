@@ -22382,9 +22382,14 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                       ['geo','mar','aero'].forEach(function(sh){window.acConnectSocket&&window.acConnectSocket(sh);});
                       window._acShellBoost=[0.12,0.09,0.07];
                       window.pulseShells&&window.pulseShells(1.5);
+                      s.style.boxShadow='0 0 12px rgba(0,229,255,.7)';
+                      setTimeout(function(){s.style.boxShadow='';},1000);
+                    } else if(sd.id==='s-eod'){
+                      _eodSocketActivate(s);
+                    } else {
+                      s.style.boxShadow='0 0 8px rgba(0,229,255,.3)';
+                      setTimeout(function(){s.style.boxShadow='';},800);
                     }
-                    s.style.boxShadow='0 0 12px rgba(0,229,255,.7)';
-                    setTimeout(function(){s.style.boxShadow='';},1000);
                   };
                   admSocks.appendChild(s);
                 });
