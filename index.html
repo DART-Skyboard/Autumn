@@ -22168,7 +22168,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
         /* Make admin overlay transparent — ash panel has its own video bg */
         var _ov=document.getElementById('admin-console-overlay');
-        if(_ov){_ov._savedBg=_ov.style.background;_ov.style.background='rgba(0,0,0,.05)';}
+        if(_ov){_ov._savedBg=_ov.style.background;_ov.style.background='rgba(2,6,14,.0)';/* panel video covers body; overlay covers header */}
         /* Pause main backdrop video to save GPU — ash panel has its own */
         var _bv=document.getElementById('backdrop-video');
         if(_bv&&!_bv.paused){_bv.pause();_bv._pausedByAdmin=true;}
