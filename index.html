@@ -22386,7 +22386,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
               if(acArea && !document.getElementById('adm-left-socks')){
                 var ls=document.createElement('div');
                 ls.id='adm-left-socks';
-                ls.style.cssText='position:absolute;left:4px;top:50%;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:6px';
+                ls.style.cssText='position:absolute;left:6px;top:50%;transform:translateY(-50%);z-index:30;display:flex;flex-direction:column;gap:7px;pointer-events:all';
                 var lsDefs=[
                   {shell:'usr',label:'U',title:'USR DATA — Connect user scope to all shells',
                    color:'rgba(0,229,255,.7)',bg:'rgba(0,229,255,.1)',border:'rgba(0,229,255,.55)'},
@@ -22397,15 +22397,22 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                 ];
                 lsDefs.forEach(function(d){
                   var btn=document.createElement('div');
-                  btn.id='ac-sock-'+d.shell; /* match acConnectSocket's getElementById pattern */
+                  btn.id='ac-sock-'+d.shell;
+                  btn.className='ac-socket'; /* same class as G/M/A for canvas handler exclusion */
                   btn.title=d.title;
                   btn.textContent=d.label;
-                  btn.style.cssText='width:28px;height:28px;border-radius:50%;border:1.5px solid '+d.border+';background:'+d.bg+';color:'+d.color+';display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:10px;font-weight:700;cursor:pointer;transition:transform .15s';
-                  /* Use acConnectSocket for canvas link-mode participation (same as G/M/A) */
-                  btn.onclick=(function(shell,fn,b){return function(e){
-                    e.stopPropagation();
-                    if(window.acConnectSocket) window.acConnectSocket(shell);
-                  };})(d.shell,d.fn,btn);
+                  btn.style.cssText='width:32px;height:32px;border-radius:50%;border:1.5px solid '+d.border+';background:'+d.bg+';color:'+d.color+';display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:11px;font-weight:700;cursor:pointer;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent';
+                  /* Use inline setAttribute like G/M/A HTML sockets — most reliable on mobile */
+                  (function(shell){
+                    btn.addEventListener('touchend', function(e){
+                      e.preventDefault(); e.stopPropagation();
+                      window.acConnectSocket&&window.acConnectSocket(shell);
+                    }, {passive:false});
+                    btn.addEventListener('click', function(e){
+                      e.stopPropagation();
+                      window.acConnectSocket&&window.acConnectSocket(shell);
+                    });
+                  })(d.shell);
                   ls.appendChild(btn);
                 });
                 acArea.style.position='relative';
