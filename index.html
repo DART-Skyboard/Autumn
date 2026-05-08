@@ -22307,36 +22307,20 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                 ashWrap.appendChild(strip);
               }
               ashWrap.appendChild(drawer);
-              /* Add admin sockets to canvas area */
-              var sa=document.getElementById('ac-canvas-area');
-              if(sa && !document.getElementById('adm-admin-sockets')){
-                var admSocks=document.createElement('div'); admSocks.id='adm-admin-sockets';
-                var sockDefs=[
-                  {id:'s-usr',cls:'adm-ac-sock usr',t:'USR DATA'},
-                  {id:'s-eod',cls:'adm-ac-sock eod',t:'EOD ORBITAL — Movement Conjecture aggregate'},
-                  {id:'s-3',cls:'adm-ac-sock ph',t:'Socket 3'},
-                  {id:'s-4',cls:'adm-ac-sock ph',t:'Socket 4'}
-                ];
-                sockDefs.forEach(function(sd){
-                  var s=document.createElement('div'); s.className=sd.cls; s.title=sd.t; s.textContent='\u25c8';
-                  s.onclick=function(){
-                    if(sd.id==='s-usr'){
-                      ['geo','mar','aero'].forEach(function(sh){window.acConnectSocket&&window.acConnectSocket(sh);});
-                      window._acShellBoost=[0.12,0.09,0.07];
-                      window.pulseShells&&window.pulseShells(1.5);
-                      s.style.boxShadow='0 0 12px rgba(0,229,255,.7)';
-                      setTimeout(function(){s.style.boxShadow='';},1000);
-                    } else if(sd.id==='s-eod'){
-                      _eodSocketActivate(s);
-                    } else {
-                      s.style.boxShadow='0 0 8px rgba(0,229,255,.3)';
-                      setTimeout(function(){s.style.boxShadow='';},800);
-                    }
-                  };
-                  admSocks.appendChild(s);
-                });
-                sa.style.position='relative';
-                sa.appendChild(admSocks);
+              /* Add EOD socket alongside G/M/A in ac-shell-socket (same row, same pattern) */
+              var shellSock=document.querySelector('.ac-shell-socket');
+              if(shellSock && !document.getElementById('adm-eod-sock')){
+                var eodSock=document.createElement('div');
+                eodSock.id='adm-eod-sock';
+                eodSock.className='ac-socket';
+                eodSock.title='EOD ORBITAL — Movement Conjecture aggregate';
+                eodSock.textContent='E';
+                eodSock.style.cssText='background:rgba(255,179,71,.12);border-color:rgba(255,179,71,.6);color:rgba(255,179,71,.85);cursor:pointer';
+                eodSock.onclick=function(e){
+                  e.stopPropagation();
+                  _eodSocketActivate(eodSock);
+                };
+                shellSock.appendChild(eodSock);
               }
               setTimeout(function(){
                 if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
@@ -22347,7 +22331,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             var drawer=document.getElementById('ash-canvas-drawer');
             if(drawer){
               if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
-              var admSocks=document.getElementById('adm-admin-sockets'); if(admSocks) admSocks.remove();
+              var eodSockEl=document.getElementById('adm-eod-sock'); if(eodSockEl) eodSockEl.remove();
               var mStrip=document.getElementById('adm-ash-mode-strip'); if(mStrip) mStrip.remove();
               if(_origParent) {
                 if(_origNext) _origParent.insertBefore(drawer,_origNext);
