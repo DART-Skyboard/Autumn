@@ -22042,7 +22042,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     ov.appendChild(hdr); ov.appendChild(frame);
     document.body.appendChild(ov);
     /* ── EOD Orbital Aggregate socket function ── */
-    function _eodSocketActivate(s){
+    window._eodSocketActivate = function _eodSocketActivate(s){
       var tok=window._ghAuth&&window._ghAuth.token;
       if(!tok){s.title='Login required to access EOD data';return;}
       s.style.boxShadow='0 0 14px rgba(255,179,71,.9)';
@@ -22124,7 +22124,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
 
     /* ── EMO Neural socket — maps Autumn's emotional state to BRPN shell boosts ── */
-    function _emoSocketActivate(s){
+    window._emoSocketActivate = function _emoSocketActivate(s){
       /* Emotional state → shell boost mapping */
       var emoMap={
         'NEUTRAL':   [0.04, 0.04, 0.04],
