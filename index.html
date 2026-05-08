@@ -22430,7 +22430,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
         /* Main body — scope / pattern / chat */
         var body=document.createElement('div'); body.id='adm-ash-body';
+        body.style.cssText='position:relative;z-index:2;flex:1;display:flex;overflow:hidden;min-height:0;';
         var left=document.createElement('div'); left.id='adm-ash-left';
+        left.style.cssText='width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.12);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(2,6,14,.82);gap:8px;';
 
         /* Scope */
         var scopeSec=document.createElement('div'); scopeSec.className='adm-sec';
@@ -22482,6 +22484,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         }).then(function(r){return r.json();}).then(function(files){
           if(Array.isArray(files)) files.forEach(function(f){
             var name=f.name.replace('.json','');
+            /* Skip BRPN session keys — only show real GitHub usernames */
+            if(name.indexOf('u_')===0 || name==='_index') return;
             var d=document.createElement('div'); d.className='adm-user-item'; d.textContent=name;
             d.onclick=function(){userSec.querySelectorAll('.adm-user-item').forEach(function(x){x.classList.remove('on');});d.classList.add('on');};
             userSec.appendChild(d);
@@ -22492,6 +22496,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
         /* Right — report + chat */
         var right=document.createElement('div'); right.id='adm-ash-right';
+        right.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,5,12,.75);';
         var rpt=document.createElement('div'); rpt.id='adm-rpt';
         var rptTitle=document.createElement('div'); rptTitle.id='adm-rpt-title'; rptTitle.textContent='[H] PATTERN REPORT';
         var rptTxt=document.createElement('div'); rptTxt.id='adm-rpt-txt'; rptTxt.textContent='Loading...';
