@@ -18266,14 +18266,14 @@ _syncActionBtn();
     if (!targetId) return;
     var node = _ac.nodes.find(function(n){return n.id===targetId;});
     if (!node) return;
+    var _sockEl=document.getElementById('ac-sock-'+shell);
     if (!node.shellLinks.includes(shell)) {
       node.shellLinks.push(shell);
-      document.getElementById('ac-sock-'+shell).classList.add('connected');
+      if(_sockEl) _sockEl.classList.add('connected');
     } else {
       node.shellLinks = node.shellLinks.filter(function(s){return s!==shell;});
-      // Only remove connected class if no node links to this shell
       if (!_ac.nodes.some(function(n){return n.shellLinks.includes(shell);}))
-        document.getElementById('ac-sock-'+shell).classList.remove('connected');
+        if(_sockEl) _sockEl.classList.remove('connected');
     }
     if (_ac.pendingLink) {
       var el = document.getElementById(_ac.pendingLink);
@@ -18369,8 +18369,25 @@ _syncActionBtn();
 
   window.acApplyToNetwork = function() {
     if (!_ac.nodes.length) return;
+    /* Fire admin socket backends if any nodes are connected to them */
+    if(_ac.nodes.some(function(n){return n.shellLinks.includes('usr');})){
+      window._acShellBoost=[0.12,0.09,0.07];
+      ['geo','mar','aero'].forEach(function(sh){
+        var se=document.getElementById('ac-sock-'+sh);
+        if(se&&!se.classList.contains('connected')) window.acConnectSocket&&window.acConnectSocket(sh);
+      });
+      window.pulseShells&&window.pulseShells(1.3);
+    }
+    if(_ac.nodes.some(function(n){return n.shellLinks.includes('eod');})){
+      var eSock=document.getElementById('ac-sock-eod');
+      if(eSock) window._eodSocketActivate&&window._eodSocketActivate(eSock);
+    }
+    if(_ac.nodes.some(function(n){return n.shellLinks.includes('emo');})){
+      var nSock=document.getElementById('ac-sock-emo');
+      if(nSock) window._emoSocketActivate&&window._emoSocketActivate(nSock);
+    }
     // Compute influence weights per shell
-    var shellWeights = {geo:0, mar:0, aero:0};
+    var shellWeights = {geo:0, mar:0, aero:0, usr:0, eod:0, emo:0};
     var toolCounts = {};
     _ac.nodes.forEach(function(node) {
       var w = TOOL_WEIGHTS[node.tool] || 0.7;
@@ -22374,29 +22391,24 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                 ls.id='adm-left-socks';
                 ls.style.cssText='position:absolute;left:4px;top:50%;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:6px';
                 var lsDefs=[
-                  {id:'adm-sock-usr',label:'U',title:'USR DATA — Connect user scope to all shells',
-                   color:'rgba(0,229,255,.7)',bg:'rgba(0,229,255,.1)',border:'rgba(0,229,255,.55)',
-                   fn:function(s){
-                     ['geo','mar','aero'].forEach(function(sh){window.acConnectSocket&&window.acConnectSocket(sh);});
-                     window._acShellBoost=[0.12,0.09,0.07];
-                     window.pulseShells&&window.pulseShells(1.5);
-                     s.style.boxShadow='0 0 10px rgba(0,229,255,.7)';
-                     setTimeout(function(){s.style.boxShadow='';},1200);
-                   }},
-                  {id:'adm-sock-eod',label:'E',title:'EOD ORBITAL — Movement Conjecture aggregate',
-                   color:'rgba(255,179,71,.85)',bg:'rgba(255,179,71,.1)',border:'rgba(255,179,71,.6)',
-                   fn:function(s){_eodSocketActivate(s);}},
-                  {id:'adm-sock-emo',label:'N',title:'EMO NEURAL — Emotional state → BRPN shells',
-                   color:'rgba(180,150,255,.9)',bg:'rgba(167,139,250,.1)',border:'rgba(167,139,250,.55)',
-                   fn:function(s){_emoSocketActivate(s);}}
+                  {shell:'usr',label:'U',title:'USR DATA — Connect user scope to all shells',
+                   color:'rgba(0,229,255,.7)',bg:'rgba(0,229,255,.1)',border:'rgba(0,229,255,.55)'},
+                  {shell:'eod',label:'E',title:'EOD ORBITAL — Movement Conjecture aggregate',
+                   color:'rgba(255,179,71,.85)',bg:'rgba(255,179,71,.1)',border:'rgba(255,179,71,.6)'},
+                  {shell:'emo',label:'N',title:'EMO NEURAL — Emotional state → BRPN shells',
+                   color:'rgba(180,150,255,.9)',bg:'rgba(167,139,250,.1)',border:'rgba(167,139,250,.55)'}
                 ];
                 lsDefs.forEach(function(d){
                   var btn=document.createElement('div');
-                  btn.id=d.id;
+                  btn.id='ac-sock-'+d.shell; /* match acConnectSocket's getElementById pattern */
                   btn.title=d.title;
                   btn.textContent=d.label;
                   btn.style.cssText='width:28px;height:28px;border-radius:50%;border:1.5px solid '+d.border+';background:'+d.bg+';color:'+d.color+';display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:10px;font-weight:700;cursor:pointer;transition:transform .15s';
-                  btn.onclick=function(e){e.stopPropagation();d.fn(btn);};
+                  /* Use acConnectSocket for canvas link-mode participation (same as G/M/A) */
+                  btn.onclick=(function(shell,fn,b){return function(e){
+                    e.stopPropagation();
+                    if(window.acConnectSocket) window.acConnectSocket(shell);
+                  };})(d.shell,d.fn,btn);
                   ls.appendChild(btn);
                 });
                 acArea.style.position='relative';
@@ -22412,6 +22424,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             if(drawer){
               if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
               var lsEl=document.getElementById('adm-left-socks'); if(lsEl) lsEl.remove();
+              ['usr','eod','emo'].forEach(function(sh){
+                var se=document.getElementById('ac-sock-'+sh);if(se)se.remove();
+              });
               var mStrip=document.getElementById('adm-ash-mode-strip'); if(mStrip) mStrip.remove();
               if(_origParent) {
                 if(_origNext) _origParent.insertBefore(drawer,_origNext);
