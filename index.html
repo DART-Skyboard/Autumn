@@ -18109,6 +18109,8 @@ _syncActionBtn();
     links: [],        // [{a, b, el (line)}]
     linkMode: false,
     pendingLink: null,
+    sockPending: null,   /* custom socket source for socket-to-socket routing */
+    socketRoutes: [],    /* [{from:'usr', to:'geo'}] */
     applied: false,
     influence: {geo:0, mar:0, aero:0, tools:{}},
     nodeCounter: 0,
@@ -18170,6 +18172,17 @@ _syncActionBtn();
     var dragging = false, ox=0, oy=0;
     function onStart(ev) {
       if (_ac.linkMode) { _acHandleLinkTap(id, el); return; }
+      /* Non-link mode: toggle selected for deletion */
+      if(ev.target===el || ev.target.parentElement===el){
+        if(el.classList.contains('selected')){
+          el.classList.remove('selected');
+          if(_ac.pendingLink===id) _ac.pendingLink=null;
+        } else {
+          document.querySelectorAll('.ac-node.selected').forEach(function(x){x.classList.remove('selected');});
+          el.classList.add('selected');
+          _ac.pendingLink=id;
+        }
+      }
       ev.stopPropagation();
       dragging = true;
       var touch = ev.touches ? ev.touches[0] : ev;
@@ -18221,6 +18234,7 @@ _syncActionBtn();
     _acRedrawLinks();
   }
 
+  window._acRedrawLinks = _acRedrawLinks;
   function _acRedrawLinks() {
     var area = document.getElementById('ac-canvas-area');
     if (!area) return;
@@ -18266,10 +18280,36 @@ _syncActionBtn();
         svg.appendChild(sl);
       });
     });
+    /* Draw socket-to-socket route arcs */
+    (_ac.socketRoutes||[]).forEach(function(route){
+      var fromEl=document.getElementById('ac-sock-'+route.from);
+      var toEl=document.getElementById('ac-sock-'+route.to);
+      if(!fromEl||!toEl) return;
+      var fr=fromEl.getBoundingClientRect(),tr=toEl.getBoundingClientRect(),ar=area.getBoundingClientRect();
+      var sl2=document.createElementNS('http://www.w3.org/2000/svg','line');
+      sl2.className.baseVal='ac-shell-line';
+      sl2.setAttribute('x1',fr.left+11-ar.left);sl2.setAttribute('y1',fr.top+11-ar.top);
+      sl2.setAttribute('x2',tr.left+11-ar.left);sl2.setAttribute('y2',tr.top+11-ar.top);
+      sl2.style.stroke=SHELL_COLORS[route.from]||'rgba(255,255,255,.4)';
+      sl2.style.strokeWidth='1.5';sl2.style.strokeDasharray='6,3';
+      svg.appendChild(sl2);
+    });
   }
 
   window.acConnectSocket = function(shell) {
-    // Connect ALL selected/last-pending node to this shell socket
+    /* Handle socket-to-socket routing (custom sock → buoyancy shell) */
+    if(_ac.sockPending){
+      var fromSock=_ac.sockPending;
+      var prev=document.getElementById('ac-sock-'+fromSock);
+      if(prev) prev.style.outline='';
+      _ac.sockPending=null;
+      /* Add route if not already present */
+      var routeExists=_ac.socketRoutes.some(function(r){return r.from===fromSock&&r.to===shell;});
+      if(!routeExists) _ac.socketRoutes.push({from:fromSock,to:shell});
+      _acRedrawLinks();
+      return;
+    }
+    // Connect selected/last-pending tool node to this shell socket
     var targetId = _ac.pendingLink || (_ac.nodes.length && _ac.nodes[_ac.nodes.length-1].id);
     if (!targetId) return;
     var node = _ac.nodes.find(function(n){return n.id===targetId;});
@@ -18384,6 +18424,17 @@ _syncActionBtn();
   window.acApplyToNetwork = function() {
     if (!_ac.nodes.length) return;
     /* Fire admin socket backends if any nodes are connected to them */
+    /* Process socket-to-socket routes first — indirect shell connections */
+    (_ac.socketRoutes||[]).forEach(function(route){
+      /* Any node connected to 'from' socket is also treated as connected to 'to' shell */
+      if(_ac.nodes.some(function(n){return n.shellLinks.includes(route.from);})){
+        if(!_ac.nodes.some(function(n){return n.shellLinks.includes(route.to);})){
+          /* Virtually add the 'to' shell to one of the connected nodes for weight calculation */
+          var rn=_ac.nodes.find(function(n){return n.shellLinks.includes(route.from);});
+          if(rn&&!rn.shellLinks.includes(route.to)) rn.shellLinks.push(route.to+'__route');
+        }
+      }
+    });
     /* USR socket: boost all shells — NO auto-connect, user draws links manually */
     if(_ac.nodes.some(function(n){return n.shellLinks.includes('usr');})){
       window._acShellBoost=[0.12,0.09,0.07];
@@ -22418,14 +22469,28 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                   btn.style.cssText='width:32px;height:32px;border-radius:50%;border:1.5px solid '+d.border+';background:'+d.bg+';color:'+d.color+';display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:11px;font-weight:700;cursor:pointer;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent';
                   /* Use inline setAttribute like G/M/A HTML sockets — most reliable on mobile */
                   (function(shell){
-                    btn.addEventListener('touchend', function(e){
-                      e.preventDefault(); e.stopPropagation();
-                      window.acConnectSocket&&window.acConnectSocket(shell);
-                    }, {passive:false});
-                    btn.addEventListener('click', function(e){
+                    (function(sh,b){
+                    function handleSockTap(e){
+                      e.preventDefault&&e.preventDefault();
                       e.stopPropagation();
-                      window.acConnectSocket&&window.acConnectSocket(shell);
-                    });
+                      if(_ac.pendingLink){
+                        /* Connect pending tool node to this custom socket */
+                        window.acConnectSocket&&window.acConnectSocket(sh);
+                      } else if(_ac.sockPending && _ac.sockPending!==sh){
+                        /* Socket-to-socket: clear pending */
+                        var prev=document.getElementById('ac-sock-'+_ac.sockPending);
+                        if(prev) prev.style.outline='';
+                        _ac.sockPending=null;
+                      } else {
+                        /* Start socket-to-socket mode: this socket becomes source */
+                        _ac.sockPending=sh;
+                        b.style.outline='2px solid rgba(255,255,255,.7)';
+                        b.style.outlineOffset='2px';
+                      }
+                    }
+                    b.addEventListener('touchend',handleSockTap,{passive:false});
+                    b.addEventListener('click',handleSockTap);
+                  })(d.shell,btn);
                   })(d.shell);
                   ls.appendChild(btn);
                 });
@@ -22435,6 +22500,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
               setTimeout(function(){
                 if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
                 else if(window._acInitCanvas) window._acInitCanvas();
+                /* Redraw arcs now that custom sockets exist in DOM */
+                setTimeout(function(){window._acRedrawLinks&&window._acRedrawLinks();},80);
               },10);
             }
           } else {
