@@ -862,6 +862,58 @@ footer a{color:var(--cyan);text-decoration:none;}
 </section>
 
 <!-- 08 LEATR -->
+
+<section class="sec" id="movement-conjecture">
+  <div class="sec-hd"><span class="sec-num">MC</span><span class="sec-title">Movement Conjecture (EOD)</span><span class="sec-line"></span></div>
+
+  <div class="card">
+    <div class="sub">WHAT IS MOVEMENT CONJECTURE?</div>
+    <p class="cd" style="margin-bottom:10px;"><span class="hl">Movement Conjecture</span> is a multi-stock trajectory projection engine built on the <strong style="color:var(--gold)">MSP Sigma-EOD algorithm</strong>. It takes up to 5 stock tickers — inputs representing things you have varying degrees of familiarity with — and projects how your personal familiarity advantage would propagate across a long time horizon using orbital disc mechanics.</p>
+    <p class="cd" style="margin-bottom:0;">Access it from the <span class="hl">📈 MOVEMENT CONJECTURE</span> link in the Tools menu, or directly at <strong style="color:var(--cyan)">leatr.xyz/movement-conjecture.html</strong>.</p>
+  </div>
+
+  <div class="card">
+    <div class="sub">HOW TO USE IT</div>
+    <div class="steps">
+      <div class="step"><div class="sn">1</div><div class="sb"><div class="st">ENTER TICKERS</div><div class="sd">Add up to 5 stock ticker symbols. Tickers 1–3 represent areas you have direct familiarity with — these carry the primary weight. Tickers 4–5 are adjacent or external influences you have less direct experience with.</div></div></div>
+      <div class="step"><div class="sn">2</div><div class="sb"><div class="st">SET SIGMA AND EOD VALUES</div><div class="sd">Each ticker has a Sigma investment value (defaults to current price if left blank). The EOD Sigma input is your global investment cross-product — the amplifier applied to all ticker inputs. Price data is fetched live via Yahoo Finance.</div></div></div>
+      <div class="step"><div class="sn">3</div><div class="sb"><div class="st">SET PROJECTION RANGE</div><div class="sd">Choose start and end years for the conjecture propagation. The engine projects orbital disc trajectories using DLSS (Dynamic Log-Scale Sigma) compounding — all the way to 2080 if you want.</div></div></div>
+      <div class="step"><div class="sn">4</div><div class="sb"><div class="st">RUN CONJECTURE</div><div class="sd">Tap <span class="hl">▸ RUN CONJECTURE</span>. Results appear as a comparison table and trajectory charts. Each ticker shows MEAN UNIT (a), DLSS, MFMSP, SMSP², CMSP³, CUBE ROOT, and ORBITAL NODE values.</div></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sub">UNDERSTANDING THE OUTPUTS</div>
+    <table class="ct">
+      <tr><td><span class="cp">MEAN UNIT (a)</span></td><td class="cd">Base orbital unit derived from price × sigma cross-product. Foundation of all further calculations.</td></tr>
+      <tr><td><span class="cp">DLSS</span></td><td class="cd">Dynamic Log-Scale Sigma — the orbital propagation coefficient. Defines how strongly the trajectory compounds over time.</td></tr>
+      <tr><td><span class="cp">MFMSP</span></td><td class="cd">Mean Familiarity MSP — a × DLSS. First-order propagation value.</td></tr>
+      <tr><td><span class="cp">SMSP²</span></td><td class="cd">Squared MSP — second-order compounding of MFMSP.</td></tr>
+      <tr><td><span class="cp">CMSP³</span></td><td class="cd">Cubed MSP — third-order compounding, long-range trajectory driver.</td></tr>
+      <tr><td><span class="cp">CUBE ROOT (RMSP)</span></td><td class="cd">Cube root of MFMSP — the radial mean square propagation, used as the annual growth scale factor in the trajectory model.</td></tr>
+      <tr><td><span class="cp">ORBITAL NODE (spncrynode)</span></td><td class="cd">The projected end-state node value — where the orbital disc trajectory lands at the EOD horizon. The primary output for trajectory comparison.</td></tr>
+      <tr><td><span class="cp">EOD PROPAGATION CHART</span></td><td class="cd">Visual curve showing DLSS·cos(t·ARR·π·2)·RMSP^(t·2) over your selected year range. Each ticker gets its own color.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">ANALYTICS &amp; PERSONAL LOG</div>
+    <p class="cd" style="margin-bottom:10px;">Analytics collection is <strong>opt-in</strong>. When enabled, every run is logged to your private GitHub Gist — building a personal pattern record over time. You can view your run history, DLSS trend charts, and log table directly on the page. Your data is never shared publicly.</p>
+    <table class="ct">
+      <tr><td><span class="cp">ENABLE ANALYTICS toggle</span></td><td class="cd">Opt in to start logging. Requires GitHub login via the Movement Conjecture page (separate from your Autumn login).</td></tr>
+      <tr><td><span class="cp">Run log table</span></td><td class="cd">Shows date, tickers, EOD sigma, range, average DLSS, and peak orbital node for every recorded run.</td></tr>
+      <tr><td><span class="cp">DLSS trend chart</span></td><td class="cd">Visual history of DLSS values across all your runs — shows how your conjecture patterns evolve.</td></tr>
+      <tr><td><span class="cp">CLEAR LOG</span></td><td class="cd">Permanently removes your run history from your private Gist. This action cannot be undone.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px;">When logged in with your Autumn GitHub account and analytics are active, each run is also logged to your private Ash repository to power the <strong style="color:var(--gold)">EOD Orbital Aggregate</strong> socket in the Admin Ash Canvas — allowing the orbital outputs of all users to be aggregated via reverse trigonometry and fed into the BRPN neural network.</div>
+  </div>
+
+  <div class="card">
+    <div class="sub">PRIVACY</div>
+    <p class="cd">No data is collected without your explicit opt-in. If you share any personal information in your inputs, you consent to its inclusion in your private log. Calculation inputs and outputs are stored only in your own private GitHub Gist — Radical Deepscale LLC does not receive or store your individual calculation data. Full privacy details are on the Movement Conjecture page itself.</p>
+  </div>
+</section>
+
 <section class="sec" id="leatr">
   <div class="sec-hd"><span class="sec-num">09</span><span class="sec-title">LEATR Architecture Reference</span><span class="sec-line"></span></div>
   <div class="card">
