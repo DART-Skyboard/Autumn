@@ -22180,94 +22180,35 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         _restoreBRPN();
 
         /* ── CSS (inject once) ── */
-        var _oldSty=document.getElementById('adm-ash-css'); if(_oldSty)_oldSty.remove();
-        if(true){
-          var sty=document.createElement('style'); sty.id='adm-ash-css';
+        /* Inject minimal CSS for dynamic states and hover effects */
+        (function(){
+          var _s=document.getElementById('adm-ash-css-v4');
+          if(_s) _s.remove();
+          var sty=document.createElement('style');
+          sty.id='adm-ash-css-v4';
           sty.textContent=
-            '#adm-ash-panel{position:absolute;inset:0;top:48px;display:flex;flex-direction:column;overflow:hidden;background:#000}'+
-            '#adm-ash-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;opacity:.55}'+
-            '#adm-ash-scrim{position:absolute;inset:0;z-index:1;background:rgba(2,10,18,.50);pointer-events:none}'+
-            /* Canvas viewport */
-            '#adm-canvas-wrap{position:relative;z-index:2;flex-shrink:0;height:46vh;min-height:160px;overflow:hidden}'+
-            '#adm-canvas-wrap #brpn-region{position:absolute!important;inset:0!important;height:100%!important;margin:0!important;border:none!important;border-radius:0!important;cursor:grab;background:transparent!important}'+
-            /* Canvas HUD */
-            '#adm-canvas-hud{position:absolute;top:8px;left:0;right:0;z-index:10;display:flex;justify-content:space-between;align-items:flex-start;padding:0 10px;pointer-events:none}'+
-            '#adm-canvas-hud-l{font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2px;color:rgba(0,229,255,.6);line-height:1.8}'+
-            '#adm-canvas-hud-r{display:flex;gap:5px;pointer-events:all}'+
-            '.adm-hud-shell{font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:1.5px;padding:3px 8px;border-radius:3px;border:1px solid;cursor:pointer;transition:all .2s}'+
-            /* Ash canvas strip — at very bottom of canvas viewport */
-            '#adm-ash-strip{position:absolute;bottom:0;left:0;right:0;z-index:20;cursor:pointer;user-select:none;'+
-              'background:rgba(2,6,14,.78);border-top:1px solid rgba(167,139,250,.3)}'+
-            '#adm-ash-strip:hover{background:rgba(167,139,250,.1)}'+
-            '#adm-ash-strip-inner{display:flex;align-items:center;gap:8px;padding:6px 14px;'+
-              'font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:2px;color:rgba(167,139,250,.65)}'+
-            '#adm-ash-strip .ac-dot2{width:6px;height:6px;border-radius:50%;background:rgba(167,139,250,.45);flex-shrink:0}'+
-            '#adm-ash-strip .ac-dot2.on{background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.6)}'+
-            '#adm-ash-arrow{transition:transform .25s;margin-left:auto;font-size:10px}'+
-            '#adm-ash-arrow.open{transform:rotate(180deg)}'+
-            /* Ash drawer — positioned right after canvas in flow, slides down */
-            '#adm-ash-drawer-zone{position:relative;z-index:3;flex-shrink:0;background:rgba(2,5,14,.88)}'+
+            '#adm-canvas-wrap #brpn-region{position:absolute!important;inset:0!important;height:100%!important;margin:0!important;border:none!important;cursor:grab}'+
             '#adm-ash-drawer-wrap{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}'+
             '#adm-ash-drawer-wrap.open{max-height:540px;overflow-y:auto}'+
-            /* When drawer open: hide body to give full space */
-            '#adm-ash-drawer-wrap.open ~ #adm-ash-body{display:none}'+
-            /* Drawer content overrides */
             '#adm-ash-drawer-wrap #ash-canvas-drawer{max-height:none!important;overflow:visible!important}'+
             '#adm-ash-drawer-wrap #ash-canvas-drawer.open{max-height:none!important}'+
             '#adm-ash-drawer-wrap #ac-canvas-area{height:155px!important}'+
-            '#adm-ash-drawer-wrap .ac-tools-row{gap:4px;margin-bottom:6px}'+
-            '#adm-ash-drawer-wrap .ac-tool-btn{padding:4px 7px;font-size:.32rem}'+
-            '#adm-ash-drawer-wrap .ac-section-label{font-size:.28rem}'+
-            /* Admin mode strip inside drawer */
-            '#adm-ash-mode-strip{background:rgba(167,139,250,.07);border-bottom:1px solid rgba(167,139,250,.15);'+
-              'padding:5px 14px;font-family:var(--font-d,monospace);font-size:.26rem;letter-spacing:2px;'+
-              'color:rgba(167,139,250,.55);display:flex;align-items:center;gap:8px}'+
-            '#adm-ash-mode-strip .adm-mode-dot{width:5px;height:5px;border-radius:50%;background:#a78bfa;'+
-              'box-shadow:0 0 5px rgba(167,139,250,.6);animation:admsigpulse 1.5s infinite}'+
+            '.adm-scope-b:hover{background:rgba(0,229,255,.12)!important;border-color:rgba(0,229,255,.5)!important;color:#00e5ff!important}'+
+            '.adm-scope-b.on{background:rgba(0,229,255,.12)!important;border-color:rgba(0,229,255,.55)!important;color:#00e5ff!important}'+
+            '.adm-user-item:hover,.adm-user-item.on{background:rgba(0,229,255,.1)!important;color:#00e5ff!important}'+
+            '.adm-chat-bub.user{color:rgba(0,229,255,.75);font-family:Orbitron,monospace;font-size:10px}'+
+            '.adm-chat-bub.autumn{color:rgba(224,244,255,.82);font-family:sans-serif;font-size:13px}'+
             '@keyframes admsigpulse{0%,100%{opacity:1}50%{opacity:.25}}'+
-            /* Admin sockets in canvas left edge */
+            '#adm-ash-strip:hover{background:rgba(167,139,250,.12)!important}'+
+            '#adm-ash-strip .ac-dot2.on{background:#a78bfa!important;box-shadow:0 0 8px rgba(167,139,250,.6)!important}'+
+            '#adm-ash-arrow.open{transform:rotate(180deg)!important}'+
             '#adm-admin-sockets{display:flex;flex-direction:column;gap:4px;position:absolute;left:6px;top:50%;transform:translateY(-50%)}'+
-            '.adm-ac-sock{width:26px;height:26px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;'+
-              'justify-content:center;font-size:9px;cursor:pointer;transition:all .2s;font-family:var(--font-d,monospace)}'+
-            '.adm-ac-sock.usr{border-color:rgba(0,229,255,.6);color:rgba(0,229,255,.7);background:rgba(0,229,255,.08)}'+
-            '.adm-ac-sock.usr:hover{background:rgba(0,229,255,.18);box-shadow:0 0 8px rgba(0,229,255,.4)}'+
-            '.adm-ac-sock.ph{border-color:rgba(0,229,255,.15);color:rgba(0,229,255,.2)}'
-            '.adm-ac-sock.eod{border-color:rgba(255,179,71,.6);color:rgba(255,179,71,.75);background:rgba(255,179,71,.08)}'
-            '.adm-ac-sock.eod:hover{background:rgba(255,179,71,.18);box-shadow:0 0 10px rgba(255,179,71,.5)}'+
-            /* Main body below drawer zone */
-            '#adm-ash-body{position:relative;z-index:2;flex:1;display:flex;overflow:hidden;min-height:0}'+
-            '#adm-ash-left{width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.1);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(2,6,14,.72);gap:10px}'+
-            '#adm-ash-right{flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,5,12,.68)}'+
-            '#adm-rpt{padding:10px 12px;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0}'+
-            '#adm-chat{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:8px 10px}'+
-            '#adm-chat-log{flex:1;overflow-y:auto;margin-bottom:7px;padding-right:4px}'+
-            '.adm-chat-bub{font-size:.38rem;line-height:1.7;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid rgba(0,229,255,.06)}'+
-            '.adm-chat-bub.user{color:rgba(0,229,255,.75);font-family:var(--font-d,monospace);font-size:.33rem}'+
-            '.adm-chat-bub.autumn{color:rgba(224,244,255,.82);font-family:sans-serif}'+
-            '#adm-chat-row{display:flex;gap:6px;flex-shrink:0}'+
-            '#adm-chat-inp{flex:1;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.9);font-size:.4rem;padding:7px 10px;outline:none;font-family:sans-serif}'+
-            '#adm-chat-send{padding:7px 12px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:var(--font-d,monospace);font-size:.28rem;cursor:pointer;letter-spacing:1.5px;white-space:nowrap}'+
-            '.adm-sec{display:flex;flex-direction:column;gap:5px}'+
-            '.adm-sec-h{font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:3px;text-transform:uppercase}'+
-            '.adm-scope-b{font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;padding:5px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.18);background:rgba(0,229,255,.05);color:rgba(0,229,255,.65);cursor:pointer;text-align:left;transition:all .15s;width:100%;box-sizing:border-box}'+
-            '.adm-scope-b.on{background:rgba(0,229,255,.15);border-color:rgba(0,229,255,.6);color:#00e5ff}'+
-            '.adm-chk-row{display:flex;align-items:center;gap:6px;padding:3px 0}'+
-            '.adm-chk-row input[type=checkbox]{accent-color:#00e5ff;width:13px;height:13px;cursor:pointer}'+
-            '.adm-chk-lbl{font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;cursor:pointer}'+
-            '.adm-emo-val{font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;color:rgba(0,229,255,.45);padding:3px 0}'+
-            '.adm-user-item{font-family:Orbitron,monospace;font-size:9px;letter-spacing:.5px;color:rgba(0,229,255,.55);padding:4px 6px;border-radius:3px;cursor:pointer;transition:background .1s}'+
-            '.adm-user-item:hover,.adm-user-item.on{background:rgba(0,229,255,.12);color:#00e5ff}'+
-            '#adm-rpt-txt{font-size:.36rem;line-height:1.65;color:rgba(224,244,255,.6);font-family:sans-serif;padding-top:4px}'+
-            '#adm-rpt-title{font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:5px}'+
-            '#adm-ash-chat-log{flex:1;overflow-y:auto;padding:8px;min-height:80px;max-height:200px;background:rgba(0,229,255,.02);border:1px solid rgba(0,229,255,.08);border-radius:5px;margin-bottom:8px}'+
-            '.adm-chat-msg{font-size:.38rem;line-height:1.65;color:rgba(224,244,255,.8);font-family:sans-serif;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(0,229,255,.05)}'+
-            '#adm-ash-input-row{display:flex;gap:6px}'+
-            '#adm-ash-inp{flex:1;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.88);font-size:.4rem;padding:7px 10px;outline:none;font-family:sans-serif}'+
-            '#adm-ash-send{padding:7px 14px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:var(--font-d,monospace);font-size:.3rem;cursor:pointer;letter-spacing:1px}'+
-            '.adm-node-btn{width:34px;height:34px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid rgba(0,229,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s;color:rgba(0,229,255,.5)}'+
-            '.adm-node-btn:hover{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.5);color:#00e5ff}';
+            '.adm-ac-sock.usr{border-color:rgba(0,229,255,.6)!important;color:rgba(0,229,255,.7);background:rgba(0,229,255,.08)}'+
+            '.adm-ac-sock.eod{border-color:rgba(255,179,71,.6)!important;color:rgba(255,179,71,.8);background:rgba(255,179,71,.08)}'+
+            '.adm-ac-sock.ph{border-color:rgba(0,229,255,.15)!important;color:rgba(0,229,255,.2)}'+
+            '.adm-ac-sock:hover{transform:scale(1.1)}';
           document.head.appendChild(sty);
-        }
+        })();
 
         /* ── Build panel ── */
         var ap=document.createElement('div'); ap.id='adm-ash-panel';
@@ -22436,11 +22377,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         left.style.cssText='width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.12);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(2,6,14,.82);gap:8px;';
 
         /* Scope */
-        var scopeSec=document.createElement('div'); scopeSec.className='adm-sec';
-        var scopeH=document.createElement('div'); scopeH.className='adm-sec-h'; scopeH.textContent='USER SCOPE';
+        var scopeSec=document.createElement('div'); scopeSec.className='adm-sec'; scopeSec.style.cssText='display:flex;flex-direction:column;gap:3px;margin-bottom:10px';
+        var scopeH=document.createElement('div'); scopeH.className='adm-sec-h'; scopeH.textContent='USER SCOPE'; scopeH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
         scopeSec.appendChild(scopeH);
         [['ALL USERS','all'],['ACTIVE TODAY','today'],['GROUP TOP 5','group'],['INDIVIDUAL','indiv']].forEach(function(s){
-          var b=document.createElement('button'); b.className='adm-scope-b'+(s[1]==='all'?' on':''); b.textContent=s[0];
+          var b=document.createElement('button'); b.className='adm-scope-b'+(s[1]==='all'?' on':''); b.textContent=s[0]; b.style.cssText='font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;padding:5px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.04);color:rgba(0,229,255,.6);cursor:pointer;text-align:left;width:100%;box-sizing:border-box;margin-bottom:3px;display:block';
           b.onclick=function(){
             left.querySelectorAll('.adm-scope-b').forEach(function(x){x.classList.remove('on');});
             b.classList.add('on');
@@ -22451,11 +22392,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         left.appendChild(scopeSec);
 
         /* Shell layers */
-        var layerSec=document.createElement('div'); layerSec.className='adm-sec';
-        var layH=document.createElement('div'); layH.className='adm-sec-h'; layH.textContent='SHELL LAYERS';
+        var layerSec=document.createElement('div'); layerSec.className='adm-sec'; layerSec.style.cssText='display:flex;flex-direction:column;gap:3px;margin-bottom:10px';
+        var layH=document.createElement('div'); layH.className='adm-sec-h'; layH.textContent='SHELL LAYERS'; layH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
         layerSec.appendChild(layH);
         shellDefs.forEach(function(sd){
-          var row=document.createElement('div'); row.className='adm-chk-row';
+          var row=document.createElement('div'); row.className='adm-chk-row'; row.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 0';
           var chk=document.createElement('input'); chk.type='checkbox'; chk.checked=true;
           chk.onchange=function(){
             _admLayers[sd.key]=chk.checked;
@@ -22463,7 +22404,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             var hBtn=document.querySelectorAll('.adm-hud-shell')[sd.idx];
             if(hBtn) hBtn.style.opacity=chk.checked?'1':'0.35';
           };
-          var lbl=document.createElement('label'); lbl.className='adm-chk-lbl'; lbl.style.color=sd.color; lbl.textContent=sd.label;
+          var lbl=document.createElement('label'); lbl.className='adm-chk-lbl'; lbl.style.cssText='font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;cursor:pointer;color:'+sd.color;
           lbl.onclick=function(){chk.click();};
           row.appendChild(chk); row.appendChild(lbl);
           layerSec.appendChild(row);
@@ -22471,14 +22412,14 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         left.appendChild(layerSec);
 
         /* Emotional state */
-        var emoSec=document.createElement('div'); emoSec.className='adm-sec';
-        var emoH=document.createElement('div'); emoH.className='adm-sec-h'; emoH.textContent='EMOTIONAL STATES';
-        var emoVal=document.createElement('div'); emoVal.className='adm-emo-val'; emoVal.textContent=window._lastEmoState||'--';
+        var emoSec=document.createElement('div'); emoSec.className='adm-sec'; emoSec.style.cssText='display:flex;flex-direction:column;gap:3px;margin-bottom:10px';
+        var emoH=document.createElement('div'); emoH.className='adm-sec-h'; emoH.textContent='EMOTIONAL STATES'; emoH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
+        var emoVal=document.createElement('div'); emoVal.className='adm-emo-val'; emoVal.textContent=window._lastEmoState||'--'; emoVal.style.cssText='font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;color:rgba(0,229,255,.45);padding:3px 0';
         emoSec.appendChild(emoH); emoSec.appendChild(emoVal); left.appendChild(emoSec);
 
         /* Individual users */
-        var userSec=document.createElement('div'); userSec.className='adm-sec';
-        var userH=document.createElement('div'); userH.className='adm-sec-h'; userH.textContent='INDIVIDUAL';
+        var userSec=document.createElement('div'); userSec.className='adm-sec'; userSec.style.cssText='display:flex;flex-direction:column;gap:3px';
+        var userH=document.createElement('div'); userH.className='adm-sec-h'; userH.textContent='INDIVIDUAL'; userH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
         userSec.appendChild(userH);
         fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
           headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
@@ -22487,7 +22428,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             var name=f.name.replace('.json','');
             /* Skip BRPN session keys — only show real GitHub usernames */
             if(name.indexOf('u_')===0 || name==='_index') return;
-            var d=document.createElement('div'); d.className='adm-user-item'; d.textContent=name;
+            var d=document.createElement('div'); d.className='adm-user-item'; d.textContent=name; d.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:.5px;color:rgba(0,229,255,.55);padding:4px 6px;border-radius:3px;cursor:pointer;transition:background .1s';
             d.onclick=function(){userSec.querySelectorAll('.adm-user-item').forEach(function(x){x.classList.remove('on');});d.classList.add('on');};
             userSec.appendChild(d);
           });
@@ -22498,9 +22439,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         /* Right — report + chat */
         var right=document.createElement('div'); right.id='adm-ash-right';
         right.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,5,12,.75);';
-        var rpt=document.createElement('div'); rpt.id='adm-rpt';
-        var rptTitle=document.createElement('div'); rptTitle.id='adm-rpt-title'; rptTitle.textContent='[H] PATTERN REPORT';
-        var rptTxt=document.createElement('div'); rptTxt.id='adm-rpt-txt'; rptTxt.textContent='Loading...';
+        var rpt=document.createElement('div'); rpt.id='adm-rpt'; rpt.style.cssText='padding:10px 12px;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0';
+        var rptTitle=document.createElement('div'); rptTitle.id='adm-rpt-title'; rptTitle.textContent='[H] PATTERN REPORT'; rptTitle.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:5px';
+        var rptTxt=document.createElement('div'); rptTxt.id='adm-rpt-txt'; rptTxt.textContent='Loading...'; rptTxt.style.cssText='font-size:12px;line-height:1.65;color:rgba(224,244,255,.65);font-family:sans-serif;padding-top:4px';
         rpt.appendChild(rptTitle); rpt.appendChild(rptTxt); right.appendChild(rpt);
         fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sentient/journal.json',{
           headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
@@ -22519,8 +22460,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         chatLog.appendChild(intro);
         var chatRow=document.createElement('div'); chatRow.id='adm-chat-row';
         var chatInp=document.createElement('input'); chatInp.id='adm-chat-inp';
-        chatInp.placeholder='Ask Autumn about ash canvas patterns...'; chatInp.type='text';
-        var chatSend=document.createElement('button'); chatSend.id='adm-chat-send'; chatSend.textContent='SEND';
+        chatInp.placeholder='Ask Autumn about ash canvas patterns...'; chatInp.type='text'; chatInp.style.cssText='flex:1;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.9);font-size:12px;padding:7px 10px;outline:none;font-family:sans-serif';
+        var chatSend=document.createElement('button'); chatSend.id='adm-chat-send'; chatSend.textContent='SEND'; chatSend.style.cssText='padding:7px 12px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:Orbitron,monospace;font-size:9px;cursor:pointer;letter-spacing:1.5px;white-space:nowrap';
         function _doChat(){
           var q=chatInp.value.trim(); if(!q) return;
           var ub=document.createElement('div'); ub.className='adm-chat-bub user'; ub.textContent=q;
