@@ -22024,6 +22024,88 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     frame.src='about:blank';
     ov.appendChild(hdr); ov.appendChild(frame);
     document.body.appendChild(ov);
+    /* ── EOD Orbital Aggregate socket function ── */
+    function _eodSocketActivate(s){
+      var tok=window._ghAuth&&window._ghAuth.token;
+      if(!tok){s.title='Login required to access EOD data';return;}
+      s.style.boxShadow='0 0 14px rgba(255,179,71,.9)';
+      s.style.borderColor='rgba(255,179,71,.9)';
+      s.style.color='rgba(255,179,71,1)';
+      s.title='LOADING EOD ORBITAL DATA...';
+      /* Fetch all user session directories */
+      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
+        headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+      })
+      .then(function(r){return r.json();})
+      .then(function(sessions){
+        if(!Array.isArray(sessions)){throw new Error('no sessions');}
+        /* Fetch mc_log.json for each user */
+        return Promise.all(sessions.map(function(sess){
+          var uname=sess.name.replace('.json','');
+          return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions/'+uname+'/mc_log.json',{
+            headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+          })
+          .then(function(r){if(!r.ok)throw new Error('no log');return r.json();})
+          .then(function(d){
+            return JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g,'')))));
+          })
+          .catch(function(){return [];});
+        }));
+      })
+      .then(function(allLogs){
+        var allRuns=[]; allLogs.forEach(function(log){allRuns=allRuns.concat(log||[]);});
+        var allStocks=[];
+        allRuns.forEach(function(r){(r.stocks||[]).forEach(function(st){allStocks.push(st);});});
+        if(!allStocks.length){
+          s.title='No MC data found yet'; setTimeout(function(){s.style.boxShadow='';},800); return;
+        }
+        /* ── Reverse trig aggregation ──────────────────────── */
+        /* arccos(|dlss| / maxDlss) → orbital phase angle per stock */
+        var maxDlss=Math.max.apply(null,allStocks.map(function(st){return Math.abs(st.dlss||0);}));
+        var phaseAngles=allStocks.map(function(st){
+          return Math.acos(Math.min(1,Math.abs(st.dlss||0)/(maxDlss||1)));
+        });
+        /* arctan2(spncrynode, rmsp) → orbital direction vector */
+        var dirVectors=allStocks.map(function(st){
+          return Math.atan2(st.spncrynode||0, st.rmsp||1);
+        });
+        /* arcsin(|a| / maxA) → mean unit elevation angle */
+        var maxA=Math.max.apply(null,allStocks.map(function(st){return Math.abs(st.a||0);}));
+        var elevAngles=allStocks.map(function(st){
+          return Math.asin(Math.min(1,Math.abs(st.a||0)/(maxA||1)));
+        });
+        function mean(arr){return arr.reduce(function(a,b){return a+b;},0)/arr.length;}
+        var mPhase=mean(phaseAngles), mDir=mean(dirVectors), mElev=mean(elevAngles);
+        /* Map trig means to shell boost values (0 – 0.15) */
+        var gBoost=Math.abs(Math.sin(mPhase))*0.15;
+        var mBoost=Math.abs(Math.cos(mDir))*0.12;
+        var aBoost=Math.abs(Math.sin(mElev))*0.10;
+        window._acShellBoost=[
+          Math.min(0.15,gBoost),
+          Math.min(0.12,mBoost),
+          Math.min(0.10,aBoost)
+        ];
+        window.pulseShells&&window.pulseShells(1.3);
+        /* Expose for Autumn chat context */
+        window._eodAggData={
+          totalRuns:allRuns.length, totalUsers:allLogs.filter(function(l){return l.length;}).length,
+          totalStocks:allStocks.length,
+          meanPhase:+(mPhase*180/Math.PI).toFixed(2),
+          meanDir:+(mDir*180/Math.PI).toFixed(2),
+          meanElev:+(mElev*180/Math.PI).toFixed(2),
+          geoBoost:+gBoost.toFixed(4), marBoost:+mBoost.toFixed(4), aeroBoost:+aBoost.toFixed(4),
+          ts:new Date().toISOString()
+        };
+        s.title='EOD ORBITAL — '+allRuns.length+' runs / '+window._eodAggData.totalUsers+' users | GEO '+gBoost.toFixed(3)+' MAR '+mBoost.toFixed(3)+' AERO '+aBoost.toFixed(3);
+        s.style.boxShadow='0 0 10px rgba(255,179,71,.5)';
+      })
+      .catch(function(e){
+        s.title='EOD error: '+e.message;
+        s.style.boxShadow='0 0 6px rgba(255,80,60,.4)';
+        setTimeout(function(){s.style.boxShadow='';},1000);
+      });
+    }
+
     /* ── Admin tab switcher ── */
     function _styleAdmTabs(tab){
       var map={data:['adm-t1','rgba(255,179,71,.1)','#ffb347'],ash:['adm-t2','rgba(0,229,255,.08)','var(--cyan)'],feedback:['adm-t3','rgba(0,229,255,.08)','var(--cyan)']};
@@ -22148,7 +22230,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
               'justify-content:center;font-size:9px;cursor:pointer;transition:all .2s;font-family:var(--font-d,monospace)}'+
             '.adm-ac-sock.usr{border-color:rgba(0,229,255,.6);color:rgba(0,229,255,.7);background:rgba(0,229,255,.08)}'+
             '.adm-ac-sock.usr:hover{background:rgba(0,229,255,.18);box-shadow:0 0 8px rgba(0,229,255,.4)}'+
-            '.adm-ac-sock.ph{border-color:rgba(0,229,255,.15);color:rgba(0,229,255,.2)}'+
+            '.adm-ac-sock.ph{border-color:rgba(0,229,255,.15);color:rgba(0,229,255,.2)}'
+            '.adm-ac-sock.eod{border-color:rgba(255,179,71,.6);color:rgba(255,179,71,.75);background:rgba(255,179,71,.08)}'
+            '.adm-ac-sock.eod:hover{background:rgba(255,179,71,.18);box-shadow:0 0 10px rgba(255,179,71,.5)}'+
             /* Main body below drawer zone */
             '#adm-ash-body{position:relative;z-index:2;flex:1;display:flex;overflow:hidden;min-height:0}'+
             '#adm-ash-left{width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.1);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(2,6,14,.72);gap:10px}'+
@@ -22287,7 +22371,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                 var admSocks=document.createElement('div'); admSocks.id='adm-admin-sockets';
                 var sockDefs=[
                   {id:'s-usr',cls:'adm-ac-sock usr',t:'USR DATA'},
-                  {id:'s-2',cls:'adm-ac-sock ph',t:'Socket 2'},
+                  {id:'s-eod',cls:'adm-ac-sock eod',t:'EOD ORBITAL — Movement Conjecture aggregate'},
                   {id:'s-3',cls:'adm-ac-sock ph',t:'Socket 3'},
                   {id:'s-4',cls:'adm-ac-sock ph',t:'Socket 4'}
                 ];
