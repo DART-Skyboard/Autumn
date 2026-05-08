@@ -18231,6 +18231,7 @@ _syncActionBtn();
   }
 
   window._acRedrawLinks = _acRedrawLinks;
+  window._ac_state = _ac; /* expose for external state reset */
   function _acRedrawLinks() {
     var area = document.getElementById('ac-canvas-area');
     if (!area) return;
@@ -18360,6 +18361,13 @@ _syncActionBtn();
   };
 
   window.acResetCanvas = function() {
+    /* Clear admin socket state too */
+    window._acSockPending=null;
+    if(window._ac_state) window._ac_state.socketRoutes=[];
+    ['usr','eod','emo'].forEach(function(sh){
+      var s=document.getElementById('ac-sock-'+sh);
+      if(s){s.style.outline='';s.style.outlineOffset='';s.classList.remove('connected');}
+    });
     _ac.nodes.forEach(function(n){if(n.el)n.el.remove();});
     _ac.links = []; _ac.nodes = []; _ac.nodeCounter = 0;
     _ac.pendingLink = null; _ac.applied = false;
@@ -22476,22 +22484,22 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                     function handleSockTap(e){
                       e.preventDefault&&e.preventDefault();
                       e.stopPropagation();
-                      /* Check sockPending via window global (not _ac which is out of scope) */
-                      if(window._acSockPending && window._acSockPending!==sh){
-                        /* Second socket tapped — create route and clear */
-                        var prev=document.getElementById('ac-sock-'+window._acSockPending);
-                        if(prev){prev.style.outline='';prev.style.outlineOffset='';}
-                        window.acConnectSocket&&window.acConnectSocket(sh);
-                      } else if(window._acSockPending===sh){
-                        /* Same socket tapped again — cancel */
+                      if(window._acSockPending===sh){
+                        /* Same socket tapped again — cancel source mode */
                         b.style.outline=''; b.style.outlineOffset='';
                         window._acSockPending=null;
+                      } else if(window._acSockPending){
+                        /* A different custom socket tapped while source is set — switch source */
+                        var prev=document.getElementById('ac-sock-'+window._acSockPending);
+                        if(prev){prev.style.outline='';prev.style.outlineOffset='';}
+                        window._acSockPending=sh;
+                        b.style.outline='2px solid rgba(255,255,255,.6)';
+                        b.style.outlineOffset='2px';
                       } else {
-                        /* Normal: connect to pending tool node OR start socket-source mode */
-                        /* acConnectSocket itself handles pendingLink internally */
+                        /* Try to connect pending tool node first */
                         var connected=window.acConnectSocket&&window.acConnectSocket(sh);
-                        /* If nothing to connect (no tool node pending), enter socket-source mode */
                         if(!connected){
+                          /* No tool node pending — enter socket-source mode */
                           window._acSockPending=sh;
                           b.style.outline='2px solid rgba(255,255,255,.6)';
                           b.style.outlineOffset='2px';
@@ -22510,14 +22518,23 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
               setTimeout(function(){
                 if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
                 else if(window._acInitCanvas) window._acInitCanvas();
-                /* Redraw arcs now that custom sockets exist in DOM */
-                setTimeout(function(){window._acRedrawLinks&&window._acRedrawLinks();},80);
+                /* Fresh state each drawer session — clear stale routes */
+                if(window._ac_state) { window._ac_state.socketRoutes=[]; }
+                window._acSockPending=null;
+                /* Redraw after sockets exist */
+                setTimeout(function(){
+                  /* Only redraw if user has nodes/links — don't replay stale routes */
+                  window._acRedrawLinks&&window._acRedrawLinks();
+                },80);
               },10);
             }
           } else {
             var drawer=document.getElementById('ash-canvas-drawer');
             if(drawer){
               if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
+              /* Reset socket state on close */
+              window._acSockPending=null;
+              if(window._acRedrawLinks) window._acRedrawLinks(); /* clear route arcs */
               var lsEl=document.getElementById('adm-left-socks'); if(lsEl) lsEl.remove();
               ['usr','eod','emo'].forEach(function(sh){
                 var se=document.getElementById('ac-sock-'+sh);if(se)se.remove();
