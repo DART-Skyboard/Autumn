@@ -18172,16 +18172,12 @@ _syncActionBtn();
     var dragging = false, ox=0, oy=0;
     function onStart(ev) {
       if (_ac.linkMode) { _acHandleLinkTap(id, el); return; }
-      /* Non-link mode: toggle selected for deletion */
-      if(ev.target===el || ev.target.parentElement===el){
-        if(el.classList.contains('selected')){
-          el.classList.remove('selected');
-          if(_ac.pendingLink===id) _ac.pendingLink=null;
-        } else {
-          document.querySelectorAll('.ac-node.selected').forEach(function(x){x.classList.remove('selected');});
-          el.classList.add('selected');
-          _ac.pendingLink=id;
-        }
+      /* Non-link mode: toggle selected class for deletion (does NOT touch pendingLink) */
+      if(el.classList.contains('selected')){
+        el.classList.remove('selected');
+      } else {
+        document.querySelectorAll('.ac-node.selected').forEach(function(x){x.classList.remove('selected');});
+        el.classList.add('selected');
       }
       ev.stopPropagation();
       dragging = true;
@@ -18345,12 +18341,20 @@ _syncActionBtn();
   };
 
   window.acClearSelected = function() {
-    if (_ac.pendingLink) {
-      var toRemove = _ac.pendingLink;
-      _ac.links = _ac.links.filter(function(l){return l.a!==toRemove&&l.b!==toRemove;});
-      _ac.nodes = _ac.nodes.filter(function(n){return n.id!==toRemove;});
-      var el = document.getElementById(toRemove);
-      if (el) el.remove();
+    /* Collect IDs to remove: pendingLink + any class-selected nodes */
+    var toRemoveIds = [];
+    if(_ac.pendingLink) toRemoveIds.push(_ac.pendingLink);
+    document.querySelectorAll('.ac-node.selected').forEach(function(el){
+      if(el.dataset&&el.dataset.id&&toRemoveIds.indexOf(el.dataset.id)===-1)
+        toRemoveIds.push(el.dataset.id);
+    });
+    if(toRemoveIds.length){
+      toRemoveIds.forEach(function(toRemove){
+        _ac.links = _ac.links.filter(function(l){return l.a!==toRemove&&l.b!==toRemove;});
+        _ac.nodes = _ac.nodes.filter(function(n){return n.id!==toRemove;});
+        var el = document.getElementById(toRemove);
+        if (el) el.remove();
+      });
       _ac.pendingLink = null;
       _acRedrawLinks();
     }
