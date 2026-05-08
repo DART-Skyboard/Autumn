@@ -1627,6 +1627,9 @@ function _analyticsUpdateUI(){
 
 // ── Log a run ──────────────────────────────────────────
 async function _analyticsLog(runData){
+  // Always log to leatr-ash if user is logged in (admin aggregate data)
+  _mcLogToLeatrAsh(runData).catch(()=>{});
+
   if(!_analyticsEnabled) return;
   _analyticsData.runs = _analyticsData.runs || [];
   _analyticsData.runs.unshift(runData); // newest first
@@ -1634,6 +1637,31 @@ async function _analyticsLog(runData){
   _analyticsData.lastUpdated = new Date().toISOString();
   await _analyticsSync();
   _analyticsRenderHistory();
+}
+
+// ── Log run to leatr-ash for EOD aggregate node ────────
+async function _mcLogToLeatrAsh(runData){
+  const tok = (window._ghAuth && window._ghAuth.token) || localStorage.getItem('mc_gh_token');
+  const user = (window._ghAuth && window._ghAuth.username) || window._mcUser;
+  if(!tok || !user) return;
+  const REPO = 'DART-Skyboard/leatr-ash';
+  const PATH = 'ashtree/sessions/'+user+'/mc_log.json';
+  const HDR  = {Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'};
+  let existing=[], sha=null;
+  try{
+    const r=await fetch('https://api.github.com/repos/'+REPO+'/contents/'+PATH,{headers:HDR});
+    if(r.ok){
+      const d=await r.json(); sha=d.sha;
+      existing=JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g,'')))));
+    }
+  }catch(e){}
+  existing.unshift(runData);
+  if(existing.length>200) existing=existing.slice(0,200);
+  const body={message:'mc: log run',content:btoa(unescape(encodeURIComponent(JSON.stringify(existing,null,2))))};
+  if(sha) body.sha=sha;
+  await fetch('https://api.github.com/repos/'+REPO+'/contents/'+PATH,{
+    method:'PUT',headers:{...HDR,'Content-Type':'application/json'},body:JSON.stringify(body)
+  });
 }
 
 // ── Sync analytics data to Gist ────────────────────────
