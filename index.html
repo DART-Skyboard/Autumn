@@ -22180,7 +22180,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         _restoreBRPN();
 
         /* ── CSS (inject once) ── */
-        if(!document.getElementById('adm-ash-css')){
+        var _oldSty=document.getElementById('adm-ash-css'); if(_oldSty)_oldSty.remove();
+        if(true){
           var sty=document.createElement('style'); sty.id='adm-ash-css';
           sty.textContent=
             '#adm-ash-panel{position:absolute;inset:0;top:48px;display:flex;flex-direction:column;overflow:hidden;background:#000}'+
@@ -22247,15 +22248,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             '#adm-chat-inp{flex:1;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.9);font-size:.4rem;padding:7px 10px;outline:none;font-family:sans-serif}'+
             '#adm-chat-send{padding:7px 12px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:var(--font-d,monospace);font-size:.28rem;cursor:pointer;letter-spacing:1.5px;white-space:nowrap}'+
             '.adm-sec{display:flex;flex-direction:column;gap:5px}'+
-            '.adm-sec-h{font-family:var(--font-d,monospace);font-size:.22rem;letter-spacing:2.5px;color:rgba(0,229,255,.32);margin-bottom:3px}'+
-            '.adm-scope-b{font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1px;padding:6px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:rgba(0,229,255,.04);color:rgba(0,229,255,.55);cursor:pointer;text-align:left;transition:all .15s;width:100%}'+
-            '.adm-scope-b.on{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.5);color:rgba(0,229,255,.95)}'+
+            '.adm-sec-h{font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:3px;text-transform:uppercase}'+
+            '.adm-scope-b{font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;padding:5px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.18);background:rgba(0,229,255,.05);color:rgba(0,229,255,.65);cursor:pointer;text-align:left;transition:all .15s;width:100%;box-sizing:border-box}'+
+            '.adm-scope-b.on{background:rgba(0,229,255,.15);border-color:rgba(0,229,255,.6);color:#00e5ff}'+
             '.adm-chk-row{display:flex;align-items:center;gap:6px;padding:3px 0}'+
             '.adm-chk-row input[type=checkbox]{accent-color:#00e5ff;width:13px;height:13px;cursor:pointer}'+
-            '.adm-chk-lbl{font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1px;cursor:pointer}'+
-            '.adm-emo-val{font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:1px;color:rgba(0,229,255,.4);padding:3px 0}'+
-            '.adm-user-item{font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:.5px;color:rgba(0,229,255,.5);padding:4px 6px;border-radius:3px;cursor:pointer;transition:background .1s}'+
-            '.adm-user-item:hover,.adm-user-item.on{background:rgba(0,229,255,.1);color:rgba(0,229,255,.9)}'+
+            '.adm-chk-lbl{font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;cursor:pointer}'+
+            '.adm-emo-val{font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;color:rgba(0,229,255,.45);padding:3px 0}'+
+            '.adm-user-item{font-family:Orbitron,monospace;font-size:9px;letter-spacing:.5px;color:rgba(0,229,255,.55);padding:4px 6px;border-radius:3px;cursor:pointer;transition:background .1s}'+
+            '.adm-user-item:hover,.adm-user-item.on{background:rgba(0,229,255,.12);color:#00e5ff}'+
             '#adm-rpt-txt{font-size:.36rem;line-height:1.65;color:rgba(224,244,255,.6);font-family:sans-serif;padding-top:4px}'+
             '#adm-rpt-title{font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:5px}'+
             '#adm-ash-chat-log{flex:1;overflow-y:auto;padding:8px;min-height:80px;max-height:200px;background:rgba(0,229,255,.02);border:1px solid rgba(0,229,255,.08);border-radius:5px;margin-bottom:8px}'+
