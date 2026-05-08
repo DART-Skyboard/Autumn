@@ -22270,7 +22270,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         })();
 
         /* ── Build panel ── */
-        var ap=document.createElement('div'); ap.id='adm-ash-panel'; ap.style.cssText='position:absolute;inset:0;top:0;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,6,14,.97)';
+        var ap=document.createElement('div'); ap.id='adm-ash-panel'; ap.style.cssText='position:absolute;inset:0;top:48px;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,6,14,.97)';
         var vid=document.createElement('video'); vid.id='adm-ash-video'; vid.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;opacity:.5';
         vid.src='assets/autumn.mp4'; vid.autoplay=true; vid.loop=true; vid.muted=true;
         vid.setAttribute('playsinline','');
@@ -22278,7 +22278,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         ap.appendChild(vid); ap.appendChild(scrim);
 
         /* Canvas viewport */
-        var cw=document.createElement('div'); cw.id='adm-canvas-wrap'; cw.style.cssText='position:relative;z-index:2;flex-shrink:0;height:46vh;min-height:180px;overflow:hidden;margin-top:48px';
+        var cw=document.createElement('div'); cw.id='adm-canvas-wrap'; cw.style.cssText='position:relative;z-index:2;flex-shrink:0;height:46vh;min-height:180px;overflow:hidden';
 
         /* HUD top */
         var hud=document.createElement('div'); hud.id='adm-canvas-hud';
@@ -22367,34 +22367,40 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
               }
               ashWrap.appendChild(drawer);
               /* Add EOD socket alongside G/M/A in ac-shell-socket (same row, same pattern) */
-              var shellSock=document.querySelector('.ac-shell-socket');
-              if(shellSock && !document.getElementById('adm-eod-sock')){
-                var eodSock=document.createElement('div');
-                eodSock.id='adm-eod-sock';
-                eodSock.className='ac-socket';
-                eodSock.title='EOD ORBITAL — Movement Conjecture aggregate';
-                eodSock.textContent='E';
-                eodSock.style.cssText='background:rgba(255,179,71,.12);border-color:rgba(255,179,71,.6);color:rgba(255,179,71,.85);cursor:pointer';
-                eodSock.onclick=function(e){
-                  e.stopPropagation();
-                  _eodSocketActivate(eodSock);
-                };
-                shellSock.appendChild(eodSock);
-              }
-              /* EMO neural socket — emotional state drives shell boosts */
-              var shellSock2=document.querySelector('.ac-shell-socket');
-              if(shellSock2 && !document.getElementById('adm-emo-sock')){
-                var emoSock=document.createElement('div');
-                emoSock.id='adm-emo-sock';
-                emoSock.className='ac-socket';
-                emoSock.title='EMO NEURAL — Emotional state → BRPN';
-                emoSock.textContent='N';
-                emoSock.style.cssText='background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.55);color:rgba(180,150,255,.9);cursor:pointer';
-                emoSock.onclick=function(e){
-                  e.stopPropagation();
-                  _emoSocketActivate(emoSock);
-                };
-                shellSock2.appendChild(emoSock);
+              /* Admin sockets — LEFT side of canvas, opposite G/M/A */
+              var acArea=document.getElementById('ac-canvas-area');
+              if(acArea && !document.getElementById('adm-left-socks')){
+                var ls=document.createElement('div');
+                ls.id='adm-left-socks';
+                ls.style.cssText='position:absolute;left:4px;top:50%;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:6px';
+                var lsDefs=[
+                  {id:'adm-sock-usr',label:'U',title:'USR DATA — Connect user scope to all shells',
+                   color:'rgba(0,229,255,.7)',bg:'rgba(0,229,255,.1)',border:'rgba(0,229,255,.55)',
+                   fn:function(s){
+                     ['geo','mar','aero'].forEach(function(sh){window.acConnectSocket&&window.acConnectSocket(sh);});
+                     window._acShellBoost=[0.12,0.09,0.07];
+                     window.pulseShells&&window.pulseShells(1.5);
+                     s.style.boxShadow='0 0 10px rgba(0,229,255,.7)';
+                     setTimeout(function(){s.style.boxShadow='';},1200);
+                   }},
+                  {id:'adm-sock-eod',label:'E',title:'EOD ORBITAL — Movement Conjecture aggregate',
+                   color:'rgba(255,179,71,.85)',bg:'rgba(255,179,71,.1)',border:'rgba(255,179,71,.6)',
+                   fn:function(s){_eodSocketActivate(s);}},
+                  {id:'adm-sock-emo',label:'N',title:'EMO NEURAL — Emotional state → BRPN shells',
+                   color:'rgba(180,150,255,.9)',bg:'rgba(167,139,250,.1)',border:'rgba(167,139,250,.55)',
+                   fn:function(s){_emoSocketActivate(s);}}
+                ];
+                lsDefs.forEach(function(d){
+                  var btn=document.createElement('div');
+                  btn.id=d.id;
+                  btn.title=d.title;
+                  btn.textContent=d.label;
+                  btn.style.cssText='width:28px;height:28px;border-radius:50%;border:1.5px solid '+d.border+';background:'+d.bg+';color:'+d.color+';display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:10px;font-weight:700;cursor:pointer;transition:transform .15s';
+                  btn.onclick=function(e){e.stopPropagation();d.fn(btn);};
+                  ls.appendChild(btn);
+                });
+                acArea.style.position='relative';
+                acArea.appendChild(ls);
               }
               setTimeout(function(){
                 if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
@@ -22405,8 +22411,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             var drawer=document.getElementById('ash-canvas-drawer');
             if(drawer){
               if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
-              var eodSockEl=document.getElementById('adm-eod-sock'); if(eodSockEl) eodSockEl.remove();
-              var emoSockEl=document.getElementById('adm-emo-sock'); if(emoSockEl) emoSockEl.remove();
+              var lsEl=document.getElementById('adm-left-socks'); if(lsEl) lsEl.remove();
               var mStrip=document.getElementById('adm-ash-mode-strip'); if(mStrip) mStrip.remove();
               if(_origParent) {
                 if(_origNext) _origParent.insertBefore(drawer,_origNext);
