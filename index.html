@@ -18234,17 +18234,25 @@ _syncActionBtn();
       lnk.el.setAttribute('x1',ax); lnk.el.setAttribute('y1',ay);
       lnk.el.setAttribute('x2',bx); lnk.el.setAttribute('y2',by);
     });
-    // Draw shell connection lines (node → right edge socket)
+    // Draw shell connection lines (node → socket)
     var sockGeo  = document.getElementById('ac-sock-geo');
     var sockMar  = document.getElementById('ac-sock-mar');
     var sockAero = document.getElementById('ac-sock-aero');
+    var sockUsr  = document.getElementById('ac-sock-usr');
+    var sockEod  = document.getElementById('ac-sock-eod');
+    var sockEmo  = document.getElementById('ac-sock-emo');
     // Remove old shell lines
     document.querySelectorAll('.ac-shell-line').forEach(function(l){l.remove();});
     var svg = document.getElementById('ac-svg');
     if (!svg) return;
     _ac.nodes.forEach(function(node) {
       node.shellLinks.forEach(function(shell) {
-        var sock = shell==='geo'?sockGeo:shell==='mar'?sockMar:sockAero;
+        var sock = shell==='geo'?sockGeo:
+                   shell==='mar'?sockMar:
+                   shell==='aero'?sockAero:
+                   shell==='usr'?sockUsr:
+                   shell==='eod'?sockEod:
+                   shell==='emo'?sockEmo:null;
         if (!sock) return;
         var nx = parseFloat(node.el.style.left)+17, ny = parseFloat(node.el.style.top)+17;
         var sr = sock.getBoundingClientRect(), ar = area.getBoundingClientRect();
@@ -18281,6 +18289,12 @@ _syncActionBtn();
       _ac.pendingLink = null;
     }
     _acRedrawLinks();
+    /* Clear pending link after socket connection — same as node-to-node link */
+    if(_ac.pendingLink){
+      var prevEl=document.getElementById(_ac.pendingLink);
+      if(prevEl) prevEl.classList.remove('selected');
+      _ac.pendingLink=null;
+    }
   };
 
   window.acLinkMode = function() {
