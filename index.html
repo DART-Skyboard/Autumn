@@ -12327,9 +12327,18 @@ function initBRPN() {
   }
   animate();
 
+  // ── Expose pause/resume for mantisNav overlay ──────────────────────
+  window._brpnPause = function(){
+    cancelAnimationFrame(animId);
+    animId = null;
+  };
+  window._brpnResume = function(){
+    if(!animId && renderer && !document.hidden) animate();
+  };
+
   document.addEventListener('visibilitychange',function(){
     if(document.hidden){
-      cancelAnimationFrame(animId);
+      cancelAnimationFrame(animId); animId=null;
     } else {
       if(renderer&&!document.hidden) animate();
     }
