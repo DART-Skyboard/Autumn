@@ -1129,26 +1129,115 @@
         loadDefaultBtn.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/ArielNPU.glb', (gltf) => initializeSceneWithModel(gltf, true)));
         loadDefaultBtn2.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/Arrow.glb', (gltf) => initializeSceneWithModel(gltf, true)));
         loadDefaultBtn3.addEventListener('click', async function() {
-          loadDefaultBtn3.disabled = true;
-          var orig = loadDefaultBtn3.textContent;
-          loadDefaultBtn3.textContent = 'Fetching…';
-          var base = 'https://drive.google.com/uc?export=download&id=1JOl0zpxfEBaxx9DTT1vukKV3dp7Qf4OF';
-          var urls = [base, 'https://corsproxy.io/?url='+encodeURIComponent(base), 'https://api.allorigins.win/raw?url='+encodeURIComponent(base)];
-          var blob = null;
-          for (var i=0;i<urls.length;i++) {
+          var btn = loadDefaultBtn3;
+          var origLabel = 'Load | Ariel & Mantis Gimbal';
+          var fileId = '1KITW_ba-3l-yu2csz99ihWcRUPrq45wv';
+
+          /* ── STATE 1: Already have confirm URL — execute the load ── */
+          if (btn._driveConfirmUrl) {
+            btn.textContent = 'Loading…';
+            btn.disabled = true;
+            btn.style.borderColor = '';
+            btn.style.color = '';
+            var confirmUrl = btn._driveConfirmUrl;
+            btn._driveConfirmUrl = null;
             try {
-              var res = await fetch(urls[i], {signal:AbortSignal.timeout(20000)});
-              if (!res.ok) continue;
-              if ((res.headers.get('content-type')||'').includes('text/html')) continue;
-              var b = await res.blob();
-              if (b.size>1000) { blob=b; break; }
-            } catch(e) { continue; }
+              var res = await fetch(confirmUrl, {signal: AbortSignal.timeout(90000)});
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              var ct = res.headers.get('content-type') || '';
+              if (ct.includes('text/html')) throw new Error('Still HTML — Drive gate not bypassed');
+              var blob = await res.blob();
+              if (blob.size < 1000) throw new Error('File too small to be a valid GLB');
+              var blobUrl = URL.createObjectURL(blob);
+              loader.load(blobUrl, function(gltf) {
+                initializeSceneWithModel(gltf, initialFlipCheckbox.checked);
+                URL.revokeObjectURL(blobUrl);
+                btn.textContent = origLabel;
+                btn.disabled = false;
+              }, undefined, function(err) {
+                URL.revokeObjectURL(blobUrl);
+                btn.textContent = origLabel;
+                btn.disabled = false;
+                alert('Loaded but could not parse GLB: ' + err.message);
+              });
+            } catch(e) {
+              /* Fallback: open Drive download in new tab */
+              btn.textContent = '↓ Open in Drive ↗';
+              btn.disabled = false;
+              btn.style.borderColor = 'rgba(255,100,80,.5)';
+              btn.style.color = 'rgba(255,150,120,.9)';
+              btn.onclick = function() {
+                window.open('https://drive.google.com/uc?export=download&id=' + fileId + '&confirm=t', '_blank');
+                btn.textContent = origLabel;
+                btn.style.borderColor = '';
+                btn.style.color = '';
+                btn.onclick = null;
+              };
+            }
+            return;
           }
-          loadDefaultBtn3.disabled=false; loadDefaultBtn3.textContent=orig;
-          if (!blob) { alert('Could not load Mantis Gimbal from Drive.\nCheck that sharing is Anyone with the link.'); return; }
-          var blobUrl=URL.createObjectURL(blob);
-          loader.load(blobUrl,function(gltf){initializeSceneWithModel(gltf,initialFlipCheckbox.checked);URL.revokeObjectURL(blobUrl);},undefined,function(err){URL.revokeObjectURL(blobUrl);alert('Parse error: '+err.message);});
-        });
+
+          /* ── STATE 0: First tap — fetch confirm page, parse token ── */
+          btn.textContent = 'Connecting…';
+          btn.disabled = true;
+          var proxyBase = 'https://corsproxy.io/?url=';
+          var driveBase = 'https://drive.google.com/uc?export=download&id=' + fileId;
+          var ucBase    = 'https://drive.usercontent.google.com/download?id=' + fileId + '&export=download';
+          var confirmUrl = null;
+
+          /* Try usercontent with confirm=t directly first */
+          var directUrls = [
+            ucBase + '&confirm=t',
+            driveBase + '&confirm=t'
+          ];
+          for (var i = 0; i < directUrls.length; i++) {
+            try {
+              var r = await fetch(directUrls[i], {signal: AbortSignal.timeout(15000)});
+              if (r.ok && !(r.headers.get('content-type')||'').includes('text/html')) {
+                /* Got the file directly — load right away */
+                btn.textContent = 'Loading…';
+                var blob = await r.blob();
+                if (blob.size > 1000) {
+                  var blobUrl = URL.createObjectURL(blob);
+                  loader.load(blobUrl, function(gltf) {
+                    initializeSceneWithModel(gltf, initialFlipCheckbox.checked);
+                    URL.revokeObjectURL(blobUrl);
+                    btn.textContent = origLabel; btn.disabled = false;
+                  }, undefined, function(err) {
+                    URL.revokeObjectURL(blobUrl);
+                    btn.textContent = origLabel; btn.disabled = false;
+                    alert('Parse error: ' + err.message);
+                  });
+                  return;
+                }
+              }
+            } catch(e) {}
+          }
+
+          /* Need confirmation — fetch via proxy to parse confirm token */
+          try {
+            var pageRes = await fetch(proxyBase + encodeURIComponent(driveBase), {signal: AbortSignal.timeout(15000)});
+            var pageText = await pageRes.text();
+            /* Look for confirm token in the page */
+            var tokenMatch = pageText.match(/[?&]confirm=([0-9A-Za-z_-]+)/)
+                          || pageText.match(/name="confirm"[^>]*value="([^"]+)"/);
+            if (tokenMatch) {
+              confirmUrl = proxyBase + encodeURIComponent(driveBase + '&confirm=' + tokenMatch[1]);
+            } else {
+              /* No token but we got a page — try confirm=t via proxy */
+              confirmUrl = proxyBase + encodeURIComponent(driveBase + '&confirm=t');
+            }
+          } catch(e) {
+            confirmUrl = proxyBase + encodeURIComponent(driveBase + '&confirm=t');
+          }
+
+          /* Store confirm URL and update button to stage 1 */
+          btn._driveConfirmUrl = confirmUrl;
+          btn.textContent = '⬇ 209 MB — Tap to Confirm & Load';
+          btn.style.borderColor = 'rgba(255,179,71,.8)';
+          btn.style.color = 'rgba(255,210,100,1)';
+          btn.disabled = false;
+        })
 
         changeModelBtn.addEventListener('click', () => {
             uploadContainer.style.display = 'block';
