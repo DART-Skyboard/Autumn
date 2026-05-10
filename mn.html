@@ -909,6 +909,7 @@
         const initialFlipCheckbox = document.getElementById('initial-flip-checkbox');
         const infoPanel = document.getElementById('info-panel');
         const chemPropulsionBtn = document.getElementById('chem-propulsion-btn');
+        const envPhysicsBtn     = document.getElementById('env-physics-btn');
         const chemistryPanel = document.getElementById('chemistry-panel');
         const trajectoriesPanel = document.getElementById('trajectories-panel');
         const thrustContainer = document.getElementById('thrust-container');
@@ -1028,6 +1029,7 @@
             changeModelBtn.style.display = 'block';
             resetPositionBtn.style.display = 'block';
             chemPropulsionBtn.style.display = 'block';
+            if(envPhysicsBtn) envPhysicsBtn.style.display = 'block';
 
             document.querySelectorAll('#info-panel, #chemistry-panel, #trajectories-panel').forEach(p => p.classList.remove('minimized'));
         }
@@ -1135,6 +1137,7 @@
             changeModelBtn.style.display = 'none';
             resetPositionBtn.style.display = 'none';
             chemPropulsionBtn.style.display = 'none';
+            if(envPhysicsBtn) envPhysicsBtn.style.display = 'none';
             if (chemistryModeActive) {
                 toggleChemistryMode();
             }
