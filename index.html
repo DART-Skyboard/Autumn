@@ -23495,6 +23495,30 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
      ══════════════════════════════════════════════════════════════════ -->
 <style>
 /* ── Mantis Nav Overlay ──────────────────────────────────────── */
+/* Mantis overlay rendering isolation — prevents GPU context thrash */
+#mantis-nav-overlay, #mantis-radar-overlay {
+    contain: layout style;
+    isolation: isolate;
+}
+/* Desktop resize handles */
+@media (min-width: 768px) {
+    #mantis-nav-overlay, #mantis-radar-overlay {
+        resize: both;
+        overflow: hidden;
+        min-width: 340px;
+        min-height: 260px;
+    }
+}
+/* Mobile: full-width proportional overlay */
+@media (max-width: 767px) {
+    #mantis-nav-overlay, #mantis-radar-overlay {
+        width: 96vw !important;
+        height: 80vh !important;
+        left: 2vw !important;
+        transform: none !important;
+    }
+}
+
 #mantis-nav-overlay{
   position:fixed;top:64px;left:50%;
   transform:translateX(-50%);
@@ -23878,12 +23902,15 @@ window.mantisNav = {
     _mnInitDrag();
     _startAnalytics();
     _journalEvent('MANTIS_NAV_OPEN',{ ts:Date.now(), location:_analytics.location });
+    // Pause BRPN canvas RAF to free GPU for iframe WebGL
+    if(window._brpnPause) window._brpnPause();
   },
 
   close: function(){
     _ov.classList.remove('mn-open');
     _open=false; _analytics.sessionOpen=false;
     _stopAnalytics();
+    if(window._brpnResume) window._brpnResume();
     _journalEvent('MANTIS_NAV_CLOSE',{
       ts:Date.now(),
       aircraftSeen: _analytics.aircraft.count,
@@ -23910,9 +23937,9 @@ window.mantisNav = {
   refreshAircraft: function(){ _fetchAircraft(); },
   refreshSatellites: function(){ _fetchSatellites(); },
 
-  /* ── Autumn AI query handler ────────────────────────────────────────
-     Called from the MANTIS_NAV intent handler in handleSend.
-     Returns a rich reply string using live data, or null if no data yet.
+  /* ── Autumn AI query handler + Flight Commander ────────────────────
+     Returns response string or null. Also sends postMessage flight
+     commands to the mn.html iframe when flight intent detected.
   ─────────────────────────────────────────────────────────────────── */
   autumnQuery: function(msg){
     if(!msg) return null;
@@ -23920,48 +23947,100 @@ window.mantisNav = {
     var ac  = _analytics.aircraft;
     var sat = _analytics.satellite;
 
-    var wantsOpen    = /\b(open|show|launch|pull\s*up|activate|bring\s*up)\b/.test(m);
-    var isSatQuery   = /\b(satellite|satellites|in\s*orbit|orbital|tle|celestrak|leo|geo|meo)\b/.test(m);
-    var isAcQuery    = /\b(aircraft|plane|flight|adsb|ads-b|contact|contacts|drone|helicopter|aviation)\b/.test(m);
-    var isStatsQuery = /\b(how\s*many|count|total|number|stat|track|tracked)\b/.test(m);
+    var wantsOpen  = /\b(open|show|launch|pull\s*up|activate|bring\s*up)\b/.test(m);
+    var isSatQuery = /\b(satellite|satellites|in\s*orbit|orbital|tle|celestrak|leo|geo|meo)\b/.test(m);
+    var isAcQuery  = /\b(aircraft|plane|flight|adsb|ads-b|contact|drone|helicopter|aviation)\b/.test(m);
 
-    if(wantsOpen) this.open();
+    // ── FLIGHT COMMAND DETECTION ──────────────────────────────────────
+    var isFlightCmd = /\b(fly|flying|go|move|head|navigate|steer|thrust|throttle|altitude|yaw|turn|pitch|roll|land|hover|idle|stop|forward|backward|left|right|up|down|ascend|descend|cruise|full\s*power|half\s*power|quarter\s*power|cut\s*engine|zero\s*throttle|reverse)\b/i.test(m);
 
-    // Aircraft only
+    if(isFlightCmd){
+      if(!_open) this.open();
+      var fr=document.getElementById('mn-frame');
+      var fw=fr&&fr.contentWindow;
+      var reply='';
+
+      // Throttle/thrust
+      var thrMatch = m.match(/(?:throttle|thrust|power)[\s\w]*?(\d+)\s*%/) ||
+                     m.match(/(\d+)\s*%\s*(?:throttle|thrust|power)/);
+      if(thrMatch){
+        var tv=parseInt(thrMatch[1])/100;
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setThrust',value:tv},'*');
+        reply += 'Setting thrust to '+thrMatch[1]+'%. ';
+      } else if(/\b(full\s*power|max\s*thrust|100%)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setThrust',value:1},'*');
+        reply += 'Full thrust engaged. ';
+      } else if(/\b(half\s*(?:power|thrust)|50%)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setThrust',value:0.5},'*');
+        reply += 'Throttle at 50%. ';
+      } else if(/\b(quarter|25%)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setThrust',value:0.25},'*');
+        reply += 'Quarter throttle. ';
+      } else if(/\b(idle|hover)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'idle'},'*');
+        reply += 'Setting to hover idle. ';
+      } else if(/\b(land|set\s*down|touchdown|zero\s*throttle|cut\s*engine)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'land'},'*');
+        reply += 'Cutting thrust — landing sequence. ';
+      }
+
+      // Direction / joystick
+      var jx=0, jy=0, dur=2000;
+      var durMatch=m.match(/(\d+)\s*(?:second|sec|s\b)/);
+      if(durMatch) dur=parseInt(durMatch[1])*1000;
+
+      if(/\b(forward|ahead|straight|north)\b/.test(m)){    jy= 0.85; }
+      if(/\b(backward|back|reverse|south)\b/.test(m)){     jy=-0.85; }
+      if(/\b(turn\s*left|yaw\s*left|west|rotate\s*left)\b/.test(m)){  jx=-0.8; }
+      if(/\b(turn\s*right|yaw\s*right|east|rotate\s*right)\b/.test(m)){ jx= 0.8; }
+
+      if(jx!==0||jy!==0){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setJoystick',x:jx,y:jy,duration:dur},'*');
+        var dirs=[];
+        if(jy>0) dirs.push('forward');
+        if(jy<0) dirs.push('backward');
+        if(jx<0) dirs.push('yawing left');
+        if(jx>0) dirs.push('yawing right');
+        reply += 'Navigating '+dirs.join(' + ')+' for '+(dur/1000)+'s. ';
+      }
+
+      if(/\b(stop|halt|freeze|hold)\b/.test(m)&&!/\b(don.?t|no)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'stopJoystick'},'*');
+        reply += 'Joystick zeroed — holding position. ';
+      }
+      if(/\b(reset|return\s*to\s*origin|go\s*home)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'reset'},'*');
+        reply += 'Resetting to origin. ';
+      }
+
+      if(reply) return reply.trim();
+    }
+
+    // Aircraft query
     if(isAcQuery && !isSatQuery){
-      if(!ac.online || ac.count===null){
+      if(!ac.online||ac.count===null){
         this.open();
-        return 'Mantis Navigation is now open and pulling live ADS-B data. Give me a moment — I\'ll report back on aircraft contacts as soon as the feed syncs.';
+        return 'Opening Mantis Navigation and syncing ADS-B data now.';
       }
-      var src = (_lat!==null) ? 'within '+AIRCRAFT_RADIUS+'nm of your position' : 'from the worldwide military contacts feed';
-      var top5 = ac.contacts.slice(0,6).map(function(a){
-        var id = a.callsign||((a.hex||'UNK').toUpperCase());
-        var alt= a.alt  ? ' @ '+Math.round(a.alt).toLocaleString()+'ft' : '';
-        var spd= a.speed? ', '+Math.round(a.speed)+'kts' : '';
-        return '**'+id+'**'+alt+spd;
+      var src=(_lat!==null)?'within '+AIRCRAFT_RADIUS+'nm of your position':'from the worldwide feed';
+      var top5=ac.contacts.slice(0,6).map(function(a){
+        var id=a.callsign||(a.hex||'UNK').toUpperCase();
+        var alt=a.alt?' @ '+Math.round(a.alt).toLocaleString()+'ft':'';
+        return '**'+id+'**'+alt;
       }).join(' · ');
-      var more = ac.count>6 ? ' …and '+(ac.count-6)+' more.' : '.';
-      return 'I\'m tracking **'+ac.count+' aircraft contacts** '+src+' via ADS-B LOL. Notable: '+( top5||'none resolved')+more;
+      return 'Tracking **'+ac.count+' contacts** '+src+'. '+( top5||'None resolved')+'.';
+    }
+    if(isSatQuery&&!isAcQuery){
+      if(!sat.online||sat.total===null){ this.open(); _fetchSatellites(); return 'Syncing CelesTrak orbital catalog...'; }
+      return 'CelesTrak active TLE catalog: **'+sat.total.toLocaleString()+' orbital objects**. LEO constellations, MEO nav birds, GEO comms — all tracked.';
     }
 
-    // Satellite only
-    if(isSatQuery && !isAcQuery){
-      if(!sat.online || sat.total===null){
-        this.open();
-        _fetchSatellites();
-        return 'I\'m opening Mantis Navigation and syncing the CelesTrak active TLE catalog. Fetching orbital object count now — this takes a moment for the full dataset.';
-      }
-      var age = sat.timestamp ? Math.round((Date.now()-sat.timestamp)/60000) : null;
-      var ageS= age!==null ? ' (synced '+age+'m ago)' : '';
-      return 'The CelesTrak active TLE catalog reports **'+sat.total.toLocaleString()+' active orbital objects**'+ageS+'. This covers LEO constellations (Starlink, OneWeb, Planet), MEO navigation satellites (GPS, Galileo, GLONASS), and GEO communications birds.';
-    }
-
-    // Combined / general Mantis query
-    var acStr  = ac.online  ? ac.count+' aircraft contacts' : 'ADS-B feed syncing';
-    var satStr = sat.online ? sat.total.toLocaleString()+' orbital objects' : 'orbital catalog fetching';
-    var locStr = (_lat!==null) ? AIRCRAFT_RADIUS+'nm radius around your position' : 'worldwide military feed';
-    var openStr= wantsOpen ? 'Mantis Navigation is now open. ' : '';
-    return openStr+'I\'m currently tracking **'+acStr+' ('+locStr+')** and **'+satStr+'** in the CelesTrak TLE catalog. ADS-B refreshes every 30 seconds, orbital data every 5 minutes. Ask me about specific aircraft, satellite counts, or orbital categories for more detail.';
+    var acStr =ac.online?ac.count+' aircraft contacts':'ADS-B syncing';
+    var satStr=sat.online?sat.total.toLocaleString()+' orbital objects':'orbital catalog loading';
+    if(wantsOpen) this.open();
+    return (wantsOpen?'Mantis Navigation open. ':'')+
+           'Tracking **'+acStr+'** and **'+satStr+'** in TLE catalog. '+
+           'You can also give me flight commands — say things like \'fly forward at 50% thrust\', \'turn left\', \'hover\', or \'land\'.';
   },
 };
 
