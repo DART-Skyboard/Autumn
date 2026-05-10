@@ -141,7 +141,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="tb-nav">
     <a href="#start">Setup</a><a href="#chat">Chat</a><a href="#image">Images</a>
-    <a href="#keys">Keys</a><a href="#memory">Memory</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#mist">MIST</a><a href="#calc">Calculator</a><a href="#forge">FORGE</a><a href="#nate">N.A.T.E</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
+    <a href="#keys">Keys</a><a href="#memory">Memory</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#mist">MIST</a><a href="#calc">Calculator</a><a href="#forge">FORGE</a><a href="#nate">N.A.T.E</a><a href="#mantis-nav">Mantis Nav</a><a href="#mantis-radar">Mantis Radar</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
   </div>
   <a class="tb-open" href="https://leatr.xyz/">OPEN AUTUMN</a>
 </nav>
@@ -1307,6 +1307,146 @@ footer a{color:var(--cyan);text-decoration:none;}
     </table>
   </div>
 
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MANTIS NAVIGATION
+═══════════════════════════════════════════════════════════ -->
+<section class="section" id="mantis-nav" data-section="mantis-nav">
+  <div class="sec-hd">
+    <span class="sec-num" style="color:rgba(0,229,255,.7)">◈</span>
+    <span class="sec-title" style="background:linear-gradient(135deg,#00e5ff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Mantis Navigation</span>
+  </div>
+  <div class="sec-body">
+    <p>Mantis Navigation is Autumn's 3D drone and model flight simulator. It opens in a new window from the Autumn header and streams live flight commands from Autumn's chat engine. The viewer runs entirely in Three.js with real-time physics and supports multiple planetary environments.</p>
+
+    <h3>Loading a Model</h3>
+    <p>Three models are available at launch from the left info panel:</p>
+    <table class="cmd-table">
+      <tr><td class="cp">ArielNPU</td><td class="cd">Ariel Neural Processing Unit chassis — default flight model.</td></tr>
+      <tr><td class="cp">Arrow</td><td class="cd">High-speed arrow drone frame for ballistic trajectories.</td></tr>
+      <tr><td class="cp">Ariel &amp; Mantis Gimbal</td><td class="cd">Combined Ariel/Mantis gimbal rig for camera simulation.</td></tr>
+    </table>
+    <p>After a model loads, the Environment and Chemistry Propulsion buttons appear in the controls. The <strong>Change Model</strong> button lets you swap models mid-session.</p>
+
+    <h3>Camera Views</h3>
+    <p>Six camera angles are available via the gizmo cube in the top-right corner of the viewport:</p>
+    <table class="cmd-table">
+      <tr><td class="cp">FPV</td><td class="cd">First-person view from inside the drone. Full immersive cockpit perspective.</td></tr>
+      <tr><td class="cp">Top</td><td class="cd">Overhead plan view looking straight down.</td></tr>
+      <tr><td class="cp">Front</td><td class="cd">Forward-facing view from in front of the model.</td></tr>
+      <tr><td class="cp">Left / Right</td><td class="cd">Side profiles from each lateral axis.</td></tr>
+      <tr><td class="cp">Perspective</td><td class="cd">Default orbit camera — drag to rotate, pinch to zoom.</td></tr>
+    </table>
+
+    <h3>Flight Controls</h3>
+    <p>The on-screen controls in the bottom strip let you fly manually:</p>
+    <table class="cmd-table">
+      <tr><td class="cp">Joystick</td><td class="cd">Drag pad — X-axis yaws left/right, Y-axis moves forward/backward.</td></tr>
+      <tr><td class="cp">Altitude slider</td><td class="cd">Vertical thrust from 0 (ground) to 1 (full climb). Labeled "Altitude".</td></tr>
+      <tr><td class="cp">Launch</td><td class="cd">Spins up motors and lifts to hover altitude.</td></tr>
+      <tr><td class="cp">Idle</td><td class="cd">Cuts thrust to idle — drone descends slowly.</td></tr>
+      <tr><td class="cp">Shutdown</td><td class="cd">Full motor stop — immediate power-off.</td></tr>
+      <tr><td class="cp">Return to Origin</td><td class="cd">Flies the model back to its starting position and lands.</td></tr>
+      <tr><td class="cp">Plan Maneuver</td><td class="cd">Opens the waypoint/maneuver planner for scripted flight paths.</td></tr>
+    </table>
+
+    <h3>Environment Physics</h3>
+    <p>The Environment panel applies real planetary physics to the simulation using NASA/ESA published constants. Tap the <strong>Environment</strong> button (appears after model loads) to open it.</p>
+    <table class="cmd-table">
+      <tr><td class="cp">🌍 Earth</td><td class="cd">9.81 m/s² gravity · 101,325 Pa sea-level pressure · 1.225 kg/m³ air density.</td></tr>
+      <tr><td class="cp">🌙 Moon</td><td class="cd">1.62 m/s² gravity · Near-vacuum atmosphere · Negligible aerodynamic drag.</td></tr>
+      <tr><td class="cp">🔴 Mars</td><td class="cd">3.72 m/s² gravity · 636 Pa pressure · 0.02 kg/m³ thin CO₂ atmosphere.</td></tr>
+      <tr><td class="cp">🟠 Titan</td><td class="cd">1.35 m/s² gravity · 146,700 Pa pressure · 5.3 kg/m³ dense nitrogen haze.</td></tr>
+      <tr><td class="cp">⚙ Custom</td><td class="cd">Set your own gravity, pressure, air density, and atmospheric scale height.</td></tr>
+    </table>
+    <p>Wind speed and direction are also configurable in the Environment panel. The physics engine updates at 50ms intervals — thrust curves, drag, and lift all respond to the active preset.</p>
+
+    <h3>Chemistry Propulsion Mode</h3>
+    <p>Switch to Chemistry mode via the <strong>Chemistry Propulsion</strong> button. The mode replaces the joystick with a propellant design panel for calculating rocket-style propulsion:</p>
+    <table class="cmd-table">
+      <tr><td class="cp">Propellant Groups</td><td class="cd">Add multiple propellant groups, each with an oxidizer and fuel. Named and removable.</td></tr>
+      <tr><td class="cp">Oxidizer / Fuel</td><td class="cd">Set mass parts per in³, tank dimensions (X·Y·Z in inches), weight per part, and density. Volume and surface area compute automatically.</td></tr>
+      <tr><td class="cp">⟳ Random Seed</td><td class="cd">Generates a random propellant configuration as a starting point.</td></tr>
+    </table>
+    <p>Chemistry mode and Drone mode can both be active — the environment physics continue running in either mode.</p>
+
+    <h3>Autumn Chat Commands</h3>
+    <p>You can control Mantis Navigation directly from Autumn's chat without opening the panel. Autumn maps natural language to flight commands in real time:</p>
+    <table class="cmd-table">
+      <tr><td class="cp">Set [planet] environment</td><td class="cd">Apply a planetary preset. Say "set moon environment", "switch to mars", or "apply titan gravity".</td></tr>
+      <tr><td class="cp">No gravity / Zero-G</td><td class="cd">Disables gravity entirely for zero-g flight simulation.</td></tr>
+      <tr><td class="cp">Activate chemistry mode</td><td class="cd">Enables chemistry propulsion panel. Also triggered by "engage propulsion" or "start rocket mode".</td></tr>
+      <tr><td class="cp">Launch / Take off</td><td class="cd">Sends launch command to the drone.</td></tr>
+      <tr><td class="cp">Idle / Land / Hover</td><td class="cd">Reduces thrust; drone descends to ground.</td></tr>
+      <tr><td class="cp">Return / Reset</td><td class="cd">Returns to origin coordinates.</td></tr>
+      <tr><td class="cp">Forward / Back / Left / Right</td><td class="cd">Joystick axis commands with optional duration ("move forward for 3 seconds").</td></tr>
+      <tr><td class="cp">FPV / Top view / Front view</td><td class="cd">Camera angle commands.</td></tr>
+    </table>
+    <p>The flight command bridge uses the <code>postMessage</code> API — commands sent from Autumn's chat engine are received by the Mantis Navigation iframe in real time without any page reload.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MANTIS RADAR
+═══════════════════════════════════════════════════════════ -->
+<section class="section" id="mantis-radar" data-section="mantis-radar">
+  <div class="sec-hd">
+    <span class="sec-num" style="color:rgba(0,245,255,.7)">◈</span>
+    <span class="sec-title" style="background:linear-gradient(135deg,#00f5ff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Mantis Radar</span>
+  </div>
+  <div class="sec-body">
+    <p>Mantis Radar is a dual-mode aerial and orbital surveillance platform. It runs a live ADS-B aircraft scanner on a 2D Leaflet map alongside a real-time 3D orbital globe showing active satellites and space stations — both updating simultaneously from live public data feeds.</p>
+
+    <h3>Modes</h3>
+    <table class="cmd-table">
+      <tr><td class="cp">✈ AERIAL</td><td class="cd">2D map view (CartoDB dark tiles) with real-time ADS-B aircraft positions within a 50 km scan radius of your location. Updates every 30 seconds.</td></tr>
+      <tr><td class="cp">⊕ ORBITAL</td><td class="cd">3D rotating globe (Three.js) with live satellite positions calculated from CelesTrak TLE data using SGP4 orbit propagation.</td></tr>
+    </table>
+
+    <h3>ADS-B Aircraft Tracking</h3>
+    <p>In Aerial mode, Mantis Radar pulls live transponder data from multiple sources with automatic failover:</p>
+    <table class="cmd-table">
+      <tr><td class="cp">Primary</td><td class="cd">airplanes.live — free, no authentication required, strong CORS support.</td></tr>
+      <tr><td class="cp">Fallback 1</td><td class="cd">adsb.lol — community-sourced ADS-B network.</td></tr>
+      <tr><td class="cp">Fallback 2</td><td class="cd">opendata.adsb.fi — European ADS-B open data feed.</td></tr>
+      <tr><td class="cp">Fallback 3</td><td class="cd">OpenSky Network via CORS proxy — global research network.</td></tr>
+    </table>
+    <p>Each aircraft contact displays: callsign, altitude (m), speed (m/s), heading (°), vertical rate (▲/▼ m/s), and distance from your position (km). Tap any contact to select it and see full details. The scan radius is 50 km. A countdown shows the time to the next auto-refresh.</p>
+
+    <h3>Orbital Satellite Tracking</h3>
+    <p>In Orbital mode, TLEs (Two-Line Element sets) are fetched from CelesTrak and propagated using satellite.js for accurate real-time position. Three satellite catalogs are tracked:</p>
+    <table class="cmd-table">
+      <tr><td class="cp">Active Satellites</td><td class="cd">All currently operational spacecraft — thousands of objects across LEO, MEO, and GEO.</td></tr>
+      <tr><td class="cp">Stations</td><td class="cd">ISS, Tiangong, and other crewed stations.</td></tr>
+      <tr><td class="cp">Starlink</td><td class="cd">SpaceX Starlink constellation — hundreds of satellites in low Earth orbit.</td></tr>
+    </table>
+    <p>The 3D globe uses a day/night shader for the Earth surface. Swipe to rotate, pinch to zoom. The <strong>⟳ RELOAD TLEs</strong> button fetches fresh element sets from CelesTrak.</p>
+
+    <h3>Signal Status Bar</h3>
+    <p>The top status bar shows live feed health at a glance:</p>
+    <table class="cmd-table">
+      <tr><td class="cp">ADS-B · LIVE / SCANNING / OFFLINE</td><td class="cd">Whether the aircraft data feed is actively receiving contacts, currently scanning, or unreachable.</td></tr>
+      <tr><td class="cp">ORBITAL · LIVE / LOADING</td><td class="cd">Whether the satellite TLE catalog is loaded and positions are being computed.</td></tr>
+      <tr><td class="cp">BT/RF · NEEDS HW</td><td class="cd">Reserved for future Bluetooth/RF hardware integration (SDR, ADS-B receiver dongle). Currently a placeholder.</td></tr>
+    </table>
+    <p>Signal cards at the bottom of the left panel show bar-graph signal strength for each feed. Tap a signal card for a detail overlay explaining the data source.</p>
+
+    <h3>Your Position Panel</h3>
+    <p>The left panel displays your GPS-derived coordinates and accuracy radius. Position is obtained via the browser Geolocation API. The scan circle on the 2D map and the user marker on the globe both update from this position. If location access is denied, manual coordinate entry will be available.</p>
+
+    <h3>Controls Reference</h3>
+    <table class="cmd-table">
+      <tr><td class="cp">⟳ REFRESH SCAN</td><td class="cd">Immediately triggers a new ADS-B fetch without waiting for the 30-second timer.</td></tr>
+      <tr><td class="cp">⟳ RELOAD TLEs</td><td class="cd">Forces a fresh TLE catalog download from CelesTrak (Orbital mode only).</td></tr>
+      <tr><td class="cp">Swipe globe</td><td class="cd">Rotates the 3D Earth in any direction.</td></tr>
+      <tr><td class="cp">Pinch globe</td><td class="cd">Zooms the camera in or out on the orbital view.</td></tr>
+      <tr><td class="cp">Tap aircraft</td><td class="cd">Selects an aircraft and opens its data panel in the left sidebar.</td></tr>
+    </table>
+
+    <h3>Notes</h3>
+    <p>Mantis Radar requires location permission to center the scan area on your position. ADS-B coverage depends on the density of ground receiver stations near you — coverage is strongest in North America and Europe. Satellite tracking works globally at all times. Both modes run simultaneously; switching views does not stop data collection.</p>
+  </div>
 </section>
 
 </main>
