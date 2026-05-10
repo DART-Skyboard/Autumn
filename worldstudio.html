@@ -2,1121 +2,1031 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>World Studio — DART Meadow</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#020a14;--bg2:#0a1628;--panel:rgba(6,16,32,.82);
-  --cyan:#00e5ff;--blue:#0088ff;--red:#ff4466;--violet:#a78bfa;
-  --amber:#ffb347;--dim:#4a7a8a;--mid:#6a9aaa;--light:#a0c8d8;
-  --border:rgba(0,229,255,.12);--font-d:'Orbitron',monospace;--font-b:'Exo 2',sans-serif;
+  --bg:#020a14;--bg2:#0a1628;
+  --cyan:#00e5ff;--blue:#0088ff;--red:#ff4466;
+  --amber:#ffb347;--green:#00e676;--dim:#4a7a8a;--mid:#6a9aaa;--light:#a0c8d8;
+  --border:rgba(0,229,255,.12);--border2:rgba(0,229,255,.26);
+  --font-d:'Orbitron',monospace;--font-b:'Exo 2',sans-serif;
 }
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;min-height:100vh;background:var(--bg);color:var(--light);font-family:var(--font-b)}
-body{display:flex;flex-direction:column;overflow-x:hidden}
-
-/* ── Background grid ── */
-body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-  opacity:.025;
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--light);font-family:var(--font-b)}
+body{display:flex;flex-direction:column;position:fixed;inset:0}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.018;
   background-image:linear-gradient(var(--cyan) 1px,transparent 1px),linear-gradient(90deg,var(--cyan) 1px,transparent 1px);
   background-size:44px 44px}
 
-/* ── Top nav ── */
-#topnav{
-  position:sticky;top:0;z-index:900;
-  display:flex;align-items:center;gap:12px;
-  padding:10px 18px;height:52px;
-  background:rgba(2,10,20,.88);
-  border-bottom:1px solid var(--border);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-}
-#topnav-logo{font-family:var(--font-d);font-size:.68rem;font-weight:900;
+/* TOPNAV */
+#topnav{position:relative;z-index:300;flex-shrink:0;display:flex;align-items:center;gap:10px;
+  padding:0 14px;height:50px;background:rgba(2,10,20,.94);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+#topnav-logo{font-family:var(--font-d);font-size:.58rem;font-weight:900;line-height:1.25;
   background:linear-gradient(135deg,var(--cyan),var(--blue),var(--red));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  letter-spacing:1px}
-#topnav-sub{font-size:.4rem;letter-spacing:2px;color:rgba(0,229,255,.35);font-family:var(--font-d);margin-top:2px}
-#topnav-back{margin-left:auto;display:flex;align-items:center;gap:6px;
-  background:transparent;border:1px solid var(--border);border-radius:16px;
-  padding:5px 12px;font-family:var(--font-d);font-size:.4rem;letter-spacing:1px;
-  color:rgba(0,229,255,.7);cursor:pointer;text-decoration:none;transition:all .2s}
-#topnav-back:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 10px rgba(0,229,255,.2)}
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:1px}
+#topnav-sub{font-size:.29rem;letter-spacing:2px;color:rgba(0,229,255,.28);font-family:var(--font-d)}
+.nav-mid{flex:1;display:flex;align-items:center;gap:7px;justify-content:center;min-width:0;overflow:hidden}
+#nav-dot{width:7px;height:7px;border-radius:50%;background:var(--dim);box-shadow:0 0 5px var(--dim);transition:all .4s;flex-shrink:0}
+#nav-dot.busy{background:var(--amber);box-shadow:0 0 8px var(--amber);animation:dotpulse 1.1s ease-in-out infinite}
+#nav-dot.ok{background:var(--green);box-shadow:0 0 8px var(--green);animation:none}
+#nav-dot.err{background:var(--red);box-shadow:0 0 8px var(--red);animation:none}
+@keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.2}}
+#nav-status{font-family:var(--font-d);font-size:.27rem;letter-spacing:.8px;color:rgba(0,229,255,.42);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
+#topnav-back{flex-shrink:0;display:flex;align-items:center;gap:4px;background:transparent;
+  border:1px solid var(--border);border-radius:14px;padding:5px 10px;font-family:var(--font-d);
+  font-size:.29rem;letter-spacing:.8px;color:rgba(0,229,255,.55);cursor:pointer;text-decoration:none;transition:all .18s}
+#topnav-back:active{border-color:var(--cyan);color:var(--cyan)}
 
-/* ── Status strip ── */
-#status-strip{
-  font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;
-  padding:7px 18px;display:flex;align-items:center;gap:10px;
-  background:rgba(0,10,20,.6);border-bottom:1px solid rgba(0,229,255,.07);
-}
-#status-dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);
-  box-shadow:0 0 6px var(--cyan);animation:statusPulse 2s ease-in-out infinite}
-@keyframes statusPulse{0%,100%{opacity:1}50%{opacity:.3}}
-#status-txt{color:rgba(0,229,255,.55)}
-#status-model-badge{margin-left:auto;padding:3px 9px;border-radius:10px;
-  background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.18);
-  font-size:.35rem;color:rgba(0,229,255,.6)}
+/* BODY WRAP */
+#body-wrap{flex:1;position:relative;overflow:hidden;z-index:1}
 
-/* ── Main layout ── */
-#main{
-  flex:1;display:grid;
-  grid-template-columns:340px 1fr;
-  gap:0;
-  position:relative;z-index:1;
-}
-@media(max-width:700px){#main{grid-template-columns:1fr;}}
-
-/* ── Left sidebar (controls) ── */
-#sidebar{
-  border-right:1px solid var(--border);
-  overflow-y:auto;padding:18px 16px 32px;
-  display:flex;flex-direction:column;gap:16px;
-  scrollbar-width:thin;scrollbar-color:rgba(0,229,255,.15) transparent;
-}
-#sidebar::-webkit-scrollbar{width:3px}
-#sidebar::-webkit-scrollbar-thumb{background:rgba(0,229,255,.18);border-radius:2px}
-
-/* ── Section cards ── */
-.card{
-  background:rgba(10,22,42,.7);
-  border:1px solid rgba(0,229,255,.1);
-  border-radius:10px;padding:14px 14px 16px;
-}
-.card-title{
-  font-family:var(--font-d);font-size:.46rem;letter-spacing:1.5px;
-  color:var(--cyan);margin-bottom:12px;display:flex;align-items:center;gap:7px;
-}
-.card-title .ct-dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);
-  box-shadow:0 0 5px var(--cyan)}
-
-/* ── Mode tabs ── */
-#mode-tabs{display:flex;gap:6px;margin-bottom:4px}
-.mode-tab{
-  flex:1;padding:7px 4px;
-  background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.15);
-  border-radius:7px;font-family:var(--font-d);font-size:.37rem;letter-spacing:1px;
-  color:rgba(0,229,255,.5);cursor:pointer;text-align:center;transition:all .2s;
-}
-.mode-tab.active{background:rgba(0,229,255,.18);border-color:rgba(0,229,255,.6);
-  color:var(--cyan);box-shadow:0 0 8px rgba(0,229,255,.15)}
-.mode-tab:hover:not(.active){border-color:rgba(0,229,255,.3);color:rgba(0,229,255,.75)}
-
-/* ── Form elements ── */
-.field{margin-bottom:12px}
-.field-label{font-family:var(--font-d);font-size:.36rem;letter-spacing:1px;
-  color:rgba(0,229,255,.5);margin-bottom:5px;display:block}
-textarea,input[type=text],select{
-  width:100%;background:rgba(2,8,18,.75);
-  border:1px solid rgba(0,229,255,.18);border-radius:6px;
-  padding:8px 10px;font-family:var(--font-b);font-size:.72rem;color:var(--light);
-  outline:none;transition:border-color .2s;resize:vertical;
-  -webkit-appearance:none;
-}
-textarea:focus,input[type=text]:focus,select:focus{
-  border-color:rgba(0,229,255,.5);box-shadow:0 0 10px rgba(0,229,255,.08)}
-select option{background:#0a1628;color:var(--light)}
-
-/* ── Upload zone ── */
-#upload-zone{
-  border:2px dashed rgba(0,229,255,.2);border-radius:8px;
-  padding:20px 12px;text-align:center;cursor:pointer;
-  transition:all .22s;background:rgba(0,229,255,.03);
-  position:relative;overflow:hidden;
-}
-#upload-zone:hover,#upload-zone.drag-over{
-  border-color:rgba(0,229,255,.55);background:rgba(0,229,255,.08);
-  box-shadow:0 0 16px rgba(0,229,255,.12)}
-#upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
-#upload-icon{font-size:1.6rem;margin-bottom:6px;opacity:.4}
-#upload-label{font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;
-  color:rgba(0,229,255,.5)}
-#upload-sub{font-size:.6rem;color:rgba(0,229,255,.3);margin-top:4px}
-#file-previews{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.file-preview-chip{
-  display:flex;align-items:center;gap:5px;padding:3px 8px 3px 3px;
-  background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.2);border-radius:12px;
-  font-size:.6rem;color:rgba(0,229,255,.7);
-}
-.file-preview-thumb{width:22px;height:22px;border-radius:8px;object-fit:cover}
-.file-preview-remove{background:transparent;border:none;color:rgba(255,68,102,.5);
-  cursor:pointer;font-size:.7rem;padding:0 2px;transition:color .15s}
-.file-preview-remove:hover{color:#ff4466}
-
-/* ── Range sliders ── */
-.range-row{display:flex;align-items:center;gap:8px;margin-top:4px}
-input[type=range]{
-  flex:1;-webkit-appearance:none;height:3px;
-  background:linear-gradient(to right,var(--cyan) var(--pct,50%),rgba(0,229,255,.15) var(--pct,50%));
-  border-radius:3px;outline:none;cursor:pointer;
-}
-input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
-  background:var(--cyan);box-shadow:0 0 6px var(--cyan);
-  border:2px solid rgba(2,10,20,.8);transition:box-shadow .15s}
-input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 12px var(--cyan)}
-.range-val{font-family:var(--font-d);font-size:.38rem;color:var(--cyan);
-  min-width:36px;text-align:right;flex-shrink:0}
-
-/* ── Toggle row ── */
-.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.toggle-label{font-size:.68rem;color:var(--mid)}
-.toggle{position:relative;display:inline-block;width:34px;height:18px;flex-shrink:0}
-.toggle input{opacity:0;width:0;height:0}
-.toggle-slider{position:absolute;inset:0;background:rgba(0,229,255,.12);
-  border:1px solid rgba(0,229,255,.2);border-radius:18px;transition:all .25s;cursor:pointer}
-.toggle-slider::before{content:'';position:absolute;width:12px;height:12px;
-  border-radius:50%;background:rgba(0,229,255,.4);top:2px;left:2px;transition:all .25s}
-input:checked+.toggle-slider{background:rgba(0,229,255,.25);border-color:rgba(0,229,255,.6)}
-input:checked+.toggle-slider::before{transform:translateX(16px);background:var(--cyan);
-  box-shadow:0 0 6px var(--cyan)}
-
-/* ── Generate button ── */
-#gen-btn{
-  width:100%;padding:12px;
-  background:linear-gradient(135deg,rgba(0,229,255,.18),rgba(0,136,255,.12));
-  border:1px solid rgba(0,229,255,.4);border-radius:8px;
-  font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;
-  color:var(--cyan);cursor:pointer;transition:all .25s;
-  position:relative;overflow:hidden;
-}
-#gen-btn::before{content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(0,229,255,.12) 0%,transparent 60%);
-  opacity:0;transition:opacity .25s}
-#gen-btn:hover{box-shadow:0 0 22px rgba(0,229,255,.22);transform:translateY(-1px)}
-#gen-btn:hover::before{opacity:1}
-#gen-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
-#gen-btn-inner{display:flex;align-items:center;justify-content:center;gap:8px}
-#gen-btn-spin{display:none;width:14px;height:14px;border-radius:50%;
-  border:2px solid rgba(0,229,255,.2);border-top-color:var(--cyan);
-  animation:genSpin .7s linear infinite}
-@keyframes genSpin{to{transform:rotate(360deg)}}
-
-/* ── Right viewport ── */
-#viewport{
-  display:flex;flex-direction:column;
-  position:relative;overflow:hidden;
-}
-
-/* ── Queue / progress ── */
-#queue-bar{
-  display:none;padding:10px 18px;
-  background:rgba(0,10,25,.7);
-  border-bottom:1px solid rgba(0,229,255,.1);
-  font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;
-}
-#queue-bar.show{display:flex;align-items:center;gap:10px}
-#queue-progress{
-  flex:1;height:3px;background:rgba(0,229,255,.12);border-radius:3px;overflow:hidden}
-#queue-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--blue));
-  width:0%;transition:width .4s ease;border-radius:3px}
-#queue-txt{flex-shrink:0;color:rgba(0,229,255,.5);min-width:160px;text-align:right}
-
-/* ── Viewer area ── */
-#viewer-area{flex:1;position:relative;display:flex;align-items:center;justify-content:center;
-  background:rgba(2,8,18,.6)}
-#viewer-canvas-wrap{width:100%;height:100%;position:absolute;inset:0}
+/* VIEWER */
+#viewer-area{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+#viewer-canvas-wrap{position:absolute;inset:0;display:none}
 #viewer-canvas-wrap canvas{display:block;width:100%!important;height:100%!important}
-#viewer-hint{
-  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
-  font-family:var(--font-d);font-size:.32rem;letter-spacing:1px;
-  color:rgba(0,229,255,.3);pointer-events:none;white-space:nowrap;
-}
+#viewer-placeholder{display:flex;flex-direction:column;align-items:center;gap:8px;
+  text-align:center;padding:24px 20px;max-width:300px;pointer-events:none}
+.vp-hex{font-size:2rem;opacity:.07;line-height:1}
+#vp-title{font-family:var(--font-d);font-size:.54rem;letter-spacing:2.5px;color:rgba(0,229,255,.28);margin-top:4px}
+#vp-sub{font-size:.64rem;color:rgba(160,200,216,.2);line-height:1.6}
+.ps{display:flex;align-items:center;gap:8px;padding:6px 11px;width:100%;
+  background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.07);border-radius:7px;text-align:left}
+.ps-n{font-family:var(--font-d);font-size:.36rem;color:rgba(0,229,255,.28);flex-shrink:0;width:16px}
+.ps-t{font-size:.57rem;color:rgba(160,200,216,.32);line-height:1.3}
+.ps-m{font-family:var(--font-d);font-size:.25rem;letter-spacing:.5px;color:rgba(0,229,255,.2);display:block;margin-top:1px}
+#viewer-hint{position:absolute;bottom:140px;left:50%;transform:translateX(-50%);
+  font-family:var(--font-d);font-size:.27rem;letter-spacing:1px;
+  color:rgba(0,229,255,.2);pointer-events:none;white-space:nowrap;display:none}
 
-/* ── Placeholder ── */
-#viewer-placeholder{
-  display:flex;flex-direction:column;align-items:center;gap:12px;
-  text-align:center;padding:40px 20px;
-}
-#vp-icon{font-size:3rem;opacity:.12}
-#vp-title{font-family:var(--font-d);font-size:.65rem;letter-spacing:2px;color:rgba(0,229,255,.4)}
-#vp-sub{font-size:.7rem;color:rgba(160,200,216,.3);max-width:340px;line-height:1.6}
-.pipeline-step{
-  display:flex;align-items:center;gap:10px;
-  padding:8px 14px;background:rgba(0,229,255,.05);
-  border:1px solid rgba(0,229,255,.1);border-radius:8px;
-  width:100%;max-width:320px;text-align:left;
-}
-.ps-num{font-family:var(--font-d);font-size:.5rem;font-weight:700;
-  color:rgba(0,229,255,.4);flex-shrink:0;width:20px}
-.ps-text{font-size:.65rem;color:rgba(160,200,216,.5);line-height:1.4}
-.ps-model{font-family:var(--font-d);font-size:.3rem;letter-spacing:.8px;
-  color:rgba(0,229,255,.3);display:block;margin-top:2px}
-
-/* ── Result actions toolbar ── */
-#result-toolbar{
-  display:none;padding:10px 16px;
-  border-top:1px solid var(--border);
-  background:rgba(2,8,18,.8);
-  gap:8px;flex-wrap:wrap;
-}
-#result-toolbar.show{display:flex;align-items:center}
-.tb-btn{
-  padding:6px 13px;background:transparent;
-  border:1px solid var(--border);border-radius:6px;
-  font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;
-  color:var(--dim);cursor:pointer;transition:all .18s;
-}
-.tb-btn:hover{color:var(--cyan);border-color:var(--cyan)}
-.tb-btn.primary{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.35);color:var(--cyan)}
-.tb-btn.primary:hover{background:rgba(0,229,255,.22)}
-#result-meta{font-family:var(--font-d);font-size:.35rem;letter-spacing:.8px;
-  color:rgba(0,229,255,.35);margin-left:auto}
-
-/* ── Error state ── */
-#error-panel{
-  display:none;padding:20px;margin:16px;
-  background:rgba(255,68,102,.06);border:1px solid rgba(255,68,102,.2);border-radius:8px;
-  font-size:.72rem;color:rgba(255,150,170,.8);line-height:1.6;
-}
-#error-panel.show{display:block}
-#error-panel strong{color:#ff4466;font-family:var(--font-d);font-size:.4rem;letter-spacing:1px}
-
-/* ── HF Space iframe fallback ── */
-#space-iframe-wrap{display:none;position:absolute;inset:0}
+/* IFRAME OVERLAY */
+#space-iframe-wrap{display:none;position:absolute;inset:0;z-index:60}
 #space-iframe-wrap.show{display:block}
 #space-iframe-wrap iframe{width:100%;height:100%;border:none}
-#iframe-close{
-  position:absolute;top:10px;right:12px;z-index:10;
-  background:rgba(2,10,20,.85);border:1px solid var(--border);
-  border-radius:8px;padding:5px 10px;font-family:var(--font-d);font-size:.38rem;
-  color:rgba(0,229,255,.6);cursor:pointer;transition:all .18s;
-}
-#iframe-close:hover{border-color:var(--cyan);color:var(--cyan)}
+#iframe-close{position:absolute;top:10px;right:10px;z-index:10;background:rgba(2,10,20,.88);
+  border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-family:var(--font-d);
+  font-size:.32rem;color:rgba(0,229,255,.6);cursor:pointer;letter-spacing:1px}
 
-/* ── Footer note ── */
-#footer-note{
-  padding:8px 18px;background:rgba(0,10,20,.6);border-top:1px solid rgba(0,229,255,.06);
-  font-size:.58rem;color:rgba(0,229,255,.25);display:flex;align-items:center;gap:8px;
-  flex-shrink:0;position:relative;z-index:1;
+/* PROGRESS BAR */
+#progress-bar{position:absolute;left:0;right:0;z-index:210;bottom:68px;
+  display:none;padding:8px 14px;gap:10px;align-items:center;
+  background:rgba(2,8,18,.92);border-top:1px solid var(--border)}
+#progress-bar.show{display:flex}
+#prog-track{flex:1;height:3px;background:rgba(0,229,255,.1);border-radius:3px;overflow:hidden}
+#prog-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--blue));width:0%;transition:width .5s ease;border-radius:3px}
+#prog-txt{font-family:var(--font-d);font-size:.29rem;letter-spacing:.8px;color:rgba(0,229,255,.5);flex-shrink:0;min-width:120px;text-align:right}
+
+/* RESULT BAR */
+#result-bar{position:absolute;left:0;right:0;z-index:211;bottom:68px;
+  display:none;padding:9px 14px;gap:8px;flex-wrap:wrap;align-items:center;
+  background:rgba(2,8,18,.92);border-top:1px solid var(--border);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#result-bar.show{display:flex}
+.tb-btn{padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:7px;
+  font-family:var(--font-d);font-size:.32rem;letter-spacing:1px;color:var(--dim);cursor:pointer;transition:all .18s}
+.tb-btn:active{color:var(--cyan);border-color:var(--cyan)}
+.tb-btn.primary{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.35);color:var(--cyan)}
+.tb-btn.dl{background:rgba(0,230,118,.08);border-color:rgba(0,230,118,.28);color:var(--green)}
+.tb-btn.dl:active{background:rgba(0,230,118,.18)}
+#result-meta{font-family:var(--font-d);font-size:.28rem;letter-spacing:.6px;color:rgba(0,229,255,.28);margin-left:auto;white-space:nowrap}
+
+/* ERROR PANEL */
+#error-panel{display:none;position:absolute;left:12px;right:12px;z-index:212;bottom:140px;
+  padding:13px 15px;background:rgba(255,68,102,.07);border:1px solid rgba(255,68,102,.25);
+  border-radius:9px;font-size:.68rem;color:rgba(255,150,170,.8);line-height:1.6}
+#error-panel.show{display:block}
+#error-panel strong{color:#ff4466;font-family:var(--font-d);font-size:.33rem;letter-spacing:1px;display:block;margin-bottom:5px}
+#error-dismiss{margin-top:8px;padding:4px 10px;background:transparent;border:1px solid rgba(255,68,102,.3);
+  border-radius:6px;font-family:var(--font-d);font-size:.28rem;letter-spacing:.8px;color:rgba(255,68,102,.6);cursor:pointer}
+
+/* BOTTOM SHEET */
+#sheet-tabs{position:absolute;bottom:0;left:0;right:0;z-index:250;display:flex;height:68px;
+  background:rgba(2,8,20,.96);border-top:1px solid var(--border);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.stab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  cursor:pointer;transition:all .2s;border:none;background:transparent;padding:0;position:relative}
+.stab::after{content:'';position:absolute;top:0;left:15%;right:15%;height:2px;
+  background:var(--cyan);border-radius:0 0 3px 3px;opacity:0;transition:opacity .2s}
+.stab.active::after{opacity:1}
+.stab-icon{font-size:1.15rem;opacity:.4;transition:all .2s;line-height:1}
+.stab.active .stab-icon{opacity:1}
+.stab-label{font-family:var(--font-d);font-size:.27rem;letter-spacing:1px;color:rgba(0,229,255,.35);transition:color .2s}
+.stab.active .stab-label{color:var(--cyan)}
+
+#sheet{position:absolute;bottom:68px;left:0;right:0;z-index:240;
+  background:rgba(4,12,24,.97);border-top:1px solid var(--border2);border-radius:14px 14px 0 0;
+  transform:translateY(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);
+  max-height:calc(100vh - 120px);display:flex;flex-direction:column;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+#sheet.open{transform:translateY(0)}
+#sheet-handle{flex-shrink:0;padding:10px 0 6px;display:flex;justify-content:center;cursor:pointer}
+#sheet-handle-bar{width:36px;height:4px;border-radius:4px;background:rgba(0,229,255,.2)}
+#sheet-inner{flex:1;overflow-y:auto;padding:0 14px 24px;
+  scrollbar-width:thin;scrollbar-color:rgba(0,229,255,.12) transparent}
+#sheet-inner::-webkit-scrollbar{width:3px}
+#sheet-inner::-webkit-scrollbar-thumb{background:rgba(0,229,255,.15);border-radius:2px}
+.spanel{display:none}
+.spanel.active{display:block}
+
+/* CARDS */
+.card{background:rgba(10,22,42,.6);border:1px solid rgba(0,229,255,.09);
+  border-radius:10px;padding:13px 13px 15px;margin-bottom:12px}
+.card:last-child{margin-bottom:0}
+.card-title{font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;
+  color:var(--cyan);margin-bottom:11px;display:flex;align-items:center;gap:6px}
+.ctdot{width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 5px var(--cyan);flex-shrink:0}
+.ctdot.amber{background:var(--amber);box-shadow:0 0 5px var(--amber)}
+.ctdot.green{background:var(--green);box-shadow:0 0 5px var(--green)}
+
+/* MODE TABS */
+#mode-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px}
+.mode-tab{padding:9px 4px;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.13);
+  border-radius:8px;font-family:var(--font-d);font-size:.3rem;letter-spacing:1px;
+  color:rgba(0,229,255,.45);cursor:pointer;text-align:center;transition:all .2s;line-height:1.5;
+  -webkit-tap-highlight-color:transparent}
+.mode-tab.active{background:rgba(0,229,255,.16);border-color:rgba(0,229,255,.5);
+  color:var(--cyan);box-shadow:0 0 10px rgba(0,229,255,.12)}
+
+/* FIELDS */
+.field{margin-bottom:11px}
+.field:last-child{margin-bottom:0}
+.field-label{font-family:var(--font-d);font-size:.3rem;letter-spacing:1px;color:rgba(0,229,255,.45);margin-bottom:5px;display:block}
+textarea,input[type=text],input[type=number],select{
+  width:100%;background:rgba(2,8,18,.8);border:1px solid rgba(0,229,255,.16);border-radius:7px;
+  padding:9px 11px;font-family:var(--font-b);font-size:.82rem;color:var(--light);
+  outline:none;transition:border-color .2s;resize:none;-webkit-appearance:none}
+textarea:focus,input:focus,select:focus{border-color:rgba(0,229,255,.45);box-shadow:0 0 10px rgba(0,229,255,.07)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234a7a8a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;-webkit-appearance:none}
+select option{background:#0a1628;color:var(--light)}
+textarea{min-height:76px;line-height:1.5}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed rgba(0,229,255,.18);border-radius:8px;padding:18px 12px;
+  text-align:center;cursor:pointer;transition:all .22s;background:rgba(0,229,255,.03);position:relative}
+.upload-zone:active{border-color:rgba(0,229,255,.5);background:rgba(0,229,255,.07)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:1.4rem;opacity:.3;margin-bottom:5px}
+.uz-label{font-family:var(--font-d);font-size:.32rem;letter-spacing:1px;color:rgba(0,229,255,.4)}
+.uz-sub{font-size:.6rem;color:rgba(0,229,255,.25);margin-top:3px}
+#file-previews{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.fchip{display:flex;align-items:center;gap:4px;padding:3px 7px 3px 3px;
+  background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.18);border-radius:10px;font-size:.58rem;color:rgba(0,229,255,.65)}
+.fchip-thumb{width:20px;height:20px;border-radius:5px;object-fit:cover}
+.fchip-rm{background:transparent;border:none;color:rgba(255,68,102,.45);cursor:pointer;font-size:.7rem;padding:0 2px}
+#ref-wrap{margin-top:6px;display:none;align-items:center;gap:8px}
+#ref-thumb{width:52px;height:52px;object-fit:cover;border-radius:7px;border:1px solid rgba(0,229,255,.2)}
+#ref-clear{background:transparent;border:none;color:rgba(255,68,102,.45);cursor:pointer;font-size:.8rem}
+
+/* SLIDERS */
+.slider-field{margin-bottom:11px}
+.slider-field:last-child{margin-bottom:0}
+.slider-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.slider-name{font-family:var(--font-d);font-size:.3rem;letter-spacing:1px;color:rgba(0,229,255,.45)}
+.slider-val{font-family:var(--font-d);font-size:.36rem;color:var(--cyan);font-weight:700}
+input[type=range]{width:100%;-webkit-appearance:none;height:3px;
+  background:linear-gradient(to right,var(--cyan) var(--pct,50%),rgba(0,229,255,.13) var(--pct,50%));
+  border-radius:3px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--cyan);box-shadow:0 0 7px var(--cyan);border:2px solid rgba(2,10,20,.8)}
+
+/* TOGGLES */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 0;border-bottom:1px solid rgba(0,229,255,.06)}
+.toggle-row:last-child{border-bottom:none;padding-bottom:0}
+.toggle-name{font-size:.72rem;color:var(--mid)}
+.toggle-desc{font-family:var(--font-d);font-size:.26rem;letter-spacing:.5px;color:rgba(0,229,255,.25);display:block;margin-top:2px}
+.tog{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0}
+.tog-sl{position:absolute;inset:0;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.2);
+  border-radius:20px;transition:all .25s;cursor:pointer}
+.tog-sl::before{content:'';position:absolute;width:14px;height:14px;border-radius:50%;
+  background:rgba(0,229,255,.35);top:2px;left:2px;transition:all .25s}
+.tog input:checked+.tog-sl{background:rgba(0,229,255,.22);border-color:rgba(0,229,255,.55)}
+.tog input:checked+.tog-sl::before{transform:translateX(16px);background:var(--cyan);box-shadow:0 0 6px var(--cyan)}
+
+/* TOKEN */
+.token-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.token-row input{flex:1;font-family:var(--font-d);font-size:.58rem;letter-spacing:.5px}
+#token-save{flex-shrink:0;padding:8px 13px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);
+  border-radius:7px;font-family:var(--font-d);font-size:.3rem;letter-spacing:1px;
+  color:var(--cyan);cursor:pointer;white-space:nowrap;transition:all .18s}
+#token-save:active{background:rgba(0,229,255,.22)}
+#token-save.saved{background:rgba(0,230,118,.12);border-color:rgba(0,230,118,.3);color:var(--green)}
+#token-status{font-family:var(--font-d);font-size:.3rem;letter-spacing:.6px;color:rgba(0,229,255,.3);line-height:1.5}
+#token-status.ok{color:rgba(0,230,118,.7)}
+#token-status.err{color:rgba(255,68,102,.7)}
+
+/* GEN BUTTON */
+#gen-btn{width:100%;padding:14px 12px;margin-top:14px;
+  background:linear-gradient(135deg,rgba(0,229,255,.16),rgba(0,136,255,.1));
+  border:1px solid rgba(0,229,255,.38);border-radius:9px;
+  font-family:var(--font-d);font-size:.5rem;letter-spacing:2px;
+  color:var(--cyan);cursor:pointer;transition:all .25s;
+  display:flex;align-items:center;justify-content:center;gap:9px;position:relative;overflow:hidden}
+#gen-btn:disabled{opacity:.32;cursor:not-allowed}
+#gen-btn:not(:disabled):active{box-shadow:0 0 24px rgba(0,229,255,.2)}
+#gen-spin{display:none;width:14px;height:14px;border-radius:50%;
+  border:2px solid rgba(0,229,255,.2);border-top-color:var(--cyan);
+  animation:genspin .7s linear infinite;flex-shrink:0}
+@keyframes genspin{to{transform:rotate(360deg)}}
+
+/* MISC */
+.info-note{font-size:.62rem;color:rgba(160,200,216,.3);line-height:1.55;padding:2px 0}
+.info-note a{color:rgba(0,229,255,.45);text-decoration:none}
+.info-note strong{color:rgba(0,229,255,.5)}
+
+/* DESKTOP */
+@media(min-width:700px){
+  #body-wrap{display:grid;grid-template-columns:340px 1fr}
+  #sheet{position:static;transform:none!important;max-height:none;border-radius:0;
+    border-top:none;border-right:1px solid var(--border);height:100%;overflow-y:auto}
+  #sheet-handle{display:none}
+  #sheet-inner{padding:18px 16px 32px;overflow-y:auto;height:100%}
+  #sheet-tabs{display:none}
+  #viewer-area{position:relative;grid-column:2}
+  #progress-bar,#result-bar{bottom:0}
+  #error-panel{bottom:80px;left:0;right:0}
+  #viewer-hint{bottom:70px}
 }
-#footer-note a{color:rgba(0,229,255,.4);text-decoration:none;transition:color .15s}
-#footer-note a:hover{color:var(--cyan)}
 </style>
 </head>
 <body>
 
-<!-- ── Nav ── -->
 <nav id="topnav">
   <div>
     <div id="topnav-logo">⬡ WORLD STUDIO</div>
-    <div id="topnav-sub">HUNYUAN WORLD 2.0 · DART MEADOW</div>
+    <div id="topnav-sub">HUNYUAN 3D · DART MEADOW</div>
   </div>
-  <a id="topnav-back" href="https://leatr.xyz/">← RETURN TO AUTUMN</a>
+  <div class="nav-mid">
+    <div id="nav-dot"></div>
+    <span id="nav-status">READY</span>
+  </div>
+  <a id="topnav-back" href="https://leatr.xyz/">← AUTUMN</a>
 </nav>
 
-<!-- ── Status strip ── -->
-<div id="status-strip">
-  <div id="status-dot"></div>
-  <span id="status-txt">READY — SELECT MODE AND GENERATE</span>
-  <span id="status-model-badge">HunyuanWorld-Mirror · tencent/HunyuanWorld-Mirror</span>
-</div>
+<div id="body-wrap">
 
-<!-- ── Main ── -->
-<div id="main">
-
-  <!-- ── Sidebar ── -->
-  <div id="sidebar">
-
-    <!-- Mode selector -->
-    <div class="card">
-      <div class="card-title"><div class="ct-dot"></div>GENERATION MODE</div>
-      <div id="mode-tabs">
-        <div class="mode-tab active" data-mode="reconstruct" onclick="setMode('reconstruct')">
-          RECONSTRUCT<br><span style="font-size:.3rem;opacity:.6">PHOTOS → 3D</span>
-        </div>
-        <div class="mode-tab" data-mode="generate" onclick="setMode('generate')">
-          GENERATE<br><span style="font-size:.3rem;opacity:.6">TEXT → 3D</span>
-        </div>
-        <div class="mode-tab" data-mode="space" onclick="setMode('space')">
-          LIVE DEMO<br><span style="font-size:.3rem;opacity:.6">HF SPACE</span>
-        </div>
-      </div>
-      <div id="mode-desc" style="font-size:.62rem;color:rgba(160,200,216,.45);line-height:1.5;margin-top:8px">
-        Upload photos or a video of a scene to reconstruct it as a navigable 3D world (GLB + point cloud).
+  <!-- VIEWER -->
+  <div id="viewer-area">
+    <div id="viewer-canvas-wrap"></div>
+    <div id="viewer-placeholder">
+      <div class="vp-hex">⬡</div>
+      <div id="vp-title">WORLD STUDIO</div>
+      <div id="vp-sub">Describe a scene and hit Generate. Your 3D world renders here with full orbit controls.</div>
+      <div style="display:flex;flex-direction:column;gap:6px;width:100%;margin-top:8px">
+        <div class="ps"><div class="ps-n">01</div><div><div class="ps-t">Text → Panorama</div><span class="ps-m">Scene synthesis</span></div></div>
+        <div class="ps"><div class="ps-n">02</div><div><div class="ps-t">Shape Generation</div><span class="ps-m">Hunyuan3D-2.1 DiT</span></div></div>
+        <div class="ps"><div class="ps-n">03</div><div><div class="ps-t">PBR Texture Bake</div><span class="ps-m">Hunyuan3D-Paint</span></div></div>
+        <div class="ps"><div class="ps-n">04</div><div><div class="ps-t">Export GLB / PLY</div><span class="ps-m">Download to device</span></div></div>
       </div>
     </div>
-
-    <!-- RECONSTRUCT inputs -->
-    <div class="card" id="reconstruct-card">
-      <div class="card-title"><div class="ct-dot"></div>INPUT FILES</div>
-      <div id="upload-zone" ondragover="dzDrag(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
-        <input type="file" id="file-input" multiple accept="image/*,video/*" onchange="handleFiles(this.files)">
-        <div id="upload-icon">⬡</div>
-        <div id="upload-label">DROP IMAGES OR VIDEO HERE</div>
-        <div id="upload-sub">JPG / PNG / MP4 / WebM · up to 12 images or 1 video</div>
-      </div>
-      <div id="file-previews"></div>
+    <div id="viewer-hint">⬡ drag to orbit · pinch to zoom · double-tap auto-rotate</div>
+    <div id="space-iframe-wrap">
+      <button id="iframe-close" onclick="closeIframe()">✕ CLOSE</button>
+      <iframe id="space-iframe" src="" allow="accelerometer; camera; microphone"></iframe>
     </div>
+  </div>
 
-    <!-- GENERATE inputs -->
-    <div class="card" id="generate-card" style="display:none">
-      <div class="card-title"><div class="ct-dot"></div>SCENE DESCRIPTION</div>
-      <div class="field">
-        <label class="field-label">TEXT PROMPT</label>
-        <textarea id="text-prompt" rows="4" placeholder="A fog-covered medieval city at dawn, cobblestone streets, gothic architecture, amber lanterns..."></textarea>
-      </div>
-      <div class="field">
-        <label class="field-label">STYLE</label>
-        <select id="style-select">
-          <option value="">Auto-detect from prompt</option>
-          <option value="realistic">Realistic / Photographic</option>
-          <option value="cartoon">Cartoon / Animated</option>
-          <option value="game">Game Engine / Low-poly</option>
-          <option value="fantasy">Fantasy / Painterly</option>
-          <option value="scifi">Sci-Fi / Futuristic</option>
-          <option value="anime">Anime / Japanese art</option>
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label">REFERENCE IMAGE (optional)</label>
-        <div id="upload-zone-gen" style="padding:12px 12px" class="upload-zone-mini"
-          onclick="document.getElementById('ref-input').click()" 
-          style="border:1px dashed rgba(0,229,255,.2);border-radius:6px;padding:10px;text-align:center;cursor:pointer">
-          <input type="file" id="ref-input" accept="image/*" style="display:none" onchange="handleRefImg(this.files)">
-          <div style="font-size:.62rem;color:rgba(0,229,255,.35);font-family:var(--font-d);font-size:.36rem;letter-spacing:1px">+ ADD REFERENCE IMAGE</div>
-        </div>
-        <div id="ref-preview" style="margin-top:6px;display:none">
-          <img id="ref-thumb" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid rgba(0,229,255,.2)">
-          <button onclick="clearRef()" style="background:transparent;border:none;color:rgba(255,68,102,.5);cursor:pointer;font-size:.7rem;margin-left:6px">✕</button>
-        </div>
-      </div>
+  <!-- PROGRESS -->
+  <div id="progress-bar">
+    <div id="prog-track"><div id="prog-fill"></div></div>
+    <div id="prog-txt">INITIALISING…</div>
+  </div>
+
+  <!-- RESULT BAR -->
+  <div id="result-bar">
+    <button class="tb-btn dl" id="dl-glb-btn" onclick="downloadFile('glb')" style="display:none">↓ GLB</button>
+    <button class="tb-btn dl" id="dl-ply-btn" onclick="downloadFile('ply')" style="display:none">↓ PLY</button>
+    <button class="tb-btn primary" onclick="resetViewer()">⬡ RESET</button>
+    <button class="tb-btn" id="autorot-btn" onclick="toggleAutoRotate()">↻ ROTATE ON</button>
+    <div id="result-meta"></div>
+  </div>
+
+  <!-- ERROR -->
+  <div id="error-panel">
+    <strong>⚠ ERROR</strong>
+    <span id="error-msg"></span>
+    <br><button id="error-dismiss" onclick="clearError()">DISMISS</button>
+  </div>
+
+  <!-- SHEET -->
+  <div id="sheet">
+    <div id="sheet-handle" onclick="toggleSheet()">
+      <div id="sheet-handle-bar"></div>
     </div>
+    <div id="sheet-inner">
 
-    <!-- Shared advanced options -->
-    <div class="card">
-      <div class="card-title"><div class="ct-dot"></div>PARAMETERS</div>
+      <!-- GENERATE PANEL -->
+      <div id="spanel-gen" class="spanel active">
 
-      <div class="field">
-        <label class="field-label">INFERENCE RESOLUTION</label>
-        <select id="resolution-select">
-          <option value="low">Low (fast, ~512px)</option>
-          <option value="medium" selected>Medium (balanced, ~768px)</option>
-          <option value="high">High (slow, ~1024px)</option>
-        </select>
-      </div>
-
-      <div class="field" id="steps-field">
-        <label class="field-label">DIFFUSION STEPS — <span id="steps-val">30</span></label>
-        <div class="range-row">
-          <input type="range" id="steps-range" min="10" max="50" value="30"
-            oninput="updateRange('steps')">
+        <div class="card">
+          <div class="card-title"><div class="ctdot"></div>GENERATION MODE</div>
+          <div id="mode-tabs">
+            <div class="mode-tab active" data-mode="generate" onclick="setMode('generate')">GENERATE<br><span style="font-size:.25rem;opacity:.55">TEXT → 3D</span></div>
+            <div class="mode-tab" data-mode="reconstruct" onclick="setMode('reconstruct')">RECONSTRUCT<br><span style="font-size:.25rem;opacity:.55">PHOTOS → 3D</span></div>
+            <div class="mode-tab" data-mode="space" onclick="setMode('space')">LIVE DEMO<br><span style="font-size:.25rem;opacity:.55">HF SPACE</span></div>
+          </div>
+          <div id="mode-desc" style="font-size:.6rem;color:rgba(160,200,216,.3);line-height:1.5;margin-top:8px">
+            Describe a scene in text to generate a 3D world via Hunyuan3D-2.1. Text → Panorama → 3D pipeline.
+          </div>
         </div>
-      </div>
 
-      <div class="field">
-        <label class="field-label">GUIDANCE SCALE — <span id="guidance-val">7.5</span></label>
-        <div class="range-row">
-          <input type="range" id="guidance-range" min="1" max="15" step="0.5" value="7.5"
-            oninput="updateRange('guidance')">
+        <div class="card" id="gen-inputs">
+          <div class="card-title"><div class="ctdot"></div>SCENE DESCRIPTION</div>
+          <div class="field">
+            <label class="field-label">TEXT PROMPT</label>
+            <textarea id="text-prompt" rows="4" placeholder="A fog-covered alien city at dusk, bioluminescent spires, obsidian streets, cyberpunk aesthetic…" oninput="updateGenBtn()"></textarea>
+          </div>
+          <div class="field">
+            <label class="field-label">STYLE</label>
+            <select id="style-select">
+              <option value="">Auto-detect from prompt</option>
+              <option value="realistic">Realistic / Photographic</option>
+              <option value="game">Game / Low-poly</option>
+              <option value="fantasy">Fantasy / Painterly</option>
+              <option value="scifi">Sci-Fi / Futuristic</option>
+              <option value="anime">Anime</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">REFERENCE IMAGE (optional)</label>
+            <div class="upload-zone" onclick="document.getElementById('ref-input').click()">
+              <input type="file" id="ref-input" accept="image/*" onchange="handleRefImg(this.files)">
+              <div class="uz-icon">🖼</div>
+              <div class="uz-label">TAP TO ADD IMAGE</div>
+            </div>
+            <div id="ref-wrap">
+              <img id="ref-thumb" src="" alt="ref">
+              <button id="ref-clear" onclick="clearRef()">✕ Remove</button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div class="field">
-        <label class="field-label">SEED (−1 = random)</label>
-        <input type="text" id="seed-input" value="-1" placeholder="-1">
-      </div>
+        <div class="card" id="recon-inputs" style="display:none">
+          <div class="card-title"><div class="ctdot"></div>INPUT PHOTOS / VIDEO</div>
+          <div class="upload-zone" id="upload-zone" ondragover="dzDrag(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+            <input type="file" id="file-input" multiple accept="image/*,video/*" onchange="handleFiles(this.files)">
+            <div class="uz-icon">⬡</div>
+            <div class="uz-label">DROP IMAGES OR VIDEO</div>
+            <div class="uz-sub">JPG / PNG / MP4 · up to 12 images or 1 video</div>
+          </div>
+          <div id="file-previews"></div>
+          <div class="info-note" style="margin-top:8px">Routes to <strong>tencent/HunyuanWorld-Mirror</strong>. Falls back to Live Demo if the space is sleeping.</div>
+        </div>
 
-      <div class="toggle-row">
-        <span class="toggle-label">Export GLB (3D model)</span>
-        <label class="toggle"><input type="checkbox" id="export-glb" checked><span class="toggle-slider"></span></label>
-      </div>
-      <div class="toggle-row">
-        <span class="toggle-label">Export point cloud (.PLY)</span>
-        <label class="toggle"><input type="checkbox" id="export-ply" checked><span class="toggle-slider"></span></label>
-      </div>
-      <div class="toggle-row" id="remove-bg-row">
-        <span class="toggle-label">Remove background (rembg)</span>
-        <label class="toggle"><input type="checkbox" id="remove-bg"><span class="toggle-slider"></span></label>
-      </div>
-    </div>
+        <div class="card">
+          <div class="card-title"><div class="ctdot amber"></div>PARAMETERS</div>
+          <div class="field">
+            <label class="field-label">INFERENCE RESOLUTION</label>
+            <select id="resolution-select">
+              <option value="low">Low — fast (~512 px)</option>
+              <option value="medium" selected>Medium — balanced (~768 px)</option>
+              <option value="high">High — slow (~1024 px)</option>
+            </select>
+          </div>
+          <div class="slider-field" id="steps-field">
+            <div class="slider-top">
+              <span class="slider-name">DIFFUSION STEPS</span>
+              <span class="slider-val" id="steps-val">30</span>
+            </div>
+            <input type="range" id="steps-range" min="10" max="50" value="30" oninput="updateRange('steps')">
+          </div>
+          <div class="slider-field">
+            <div class="slider-top">
+              <span class="slider-name">GUIDANCE SCALE</span>
+              <span class="slider-val" id="guidance-val">7.5</span>
+            </div>
+            <input type="range" id="guidance-range" min="1" max="15" step="0.5" value="7.5" oninput="updateRange('guidance')">
+          </div>
+          <div class="field" style="margin-top:11px">
+            <label class="field-label">SEED (−1 = random)</label>
+            <input type="number" id="seed-input" value="-1" min="-1">
+          </div>
+          <div style="margin-top:10px">
+            <div class="toggle-row">
+              <div><span class="toggle-name">Export GLB (3D model)</span></div>
+              <label class="tog"><input type="checkbox" id="export-glb" checked><span class="tog-sl"></span></label>
+            </div>
+            <div class="toggle-row" id="rembg-row">
+              <div>
+                <span class="toggle-name">Remove background</span>
+                <span class="toggle-desc">rembg — adds processing time</span>
+              </div>
+              <label class="tog"><input type="checkbox" id="remove-bg"><span class="tog-sl"></span></label>
+            </div>
+          </div>
+        </div>
 
-    <!-- HF Token -->
-    <div class="card">
-      <div class="card-title"><div class="ct-dot"></div>HUGGING FACE TOKEN</div>
-      <div class="field">
-        <label class="field-label">HF TOKEN (improves rate limits)</label>
-        <input type="text" id="hf-token" placeholder="hf_xxxxxxxx — optional but recommended">
-      </div>
-      <div style="font-size:.6rem;color:rgba(160,200,216,.3);line-height:1.5">
-        Get a free token at huggingface.co/settings/tokens. Without one you share the public queue.
-      </div>
-    </div>
+        <button id="gen-btn" onclick="runGeneration()" disabled>
+          <div id="gen-spin"></div>
+          <span id="gen-btn-txt">⬡ GENERATE WORLD</span>
+        </button>
 
-    <!-- Generate -->
-    <button id="gen-btn" onclick="runGeneration()" disabled>
-      <div id="gen-btn-inner">
-        <div id="gen-btn-spin"></div>
-        <span id="gen-btn-txt">⬡ GENERATE WORLD</span>
-      </div>
+      </div><!-- /spanel-gen -->
+
+      <!-- SETTINGS PANEL -->
+      <div id="spanel-settings" class="spanel">
+
+        <div class="card">
+          <div class="card-title"><div class="ctdot"></div>YOUR HUGGING FACE TOKEN</div>
+          <div class="token-row">
+            <input type="password" id="hf-token" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" oninput="onTokenInput()">
+            <button id="token-save" onclick="saveToken()">SAVE</button>
+          </div>
+          <div id="token-status">No token — using anonymous public queue.</div>
+          <div class="info-note" style="margin-top:10px">
+            Each user brings their own token. It is stored <strong>in your browser only</strong> and never sent to our servers.<br><br>
+            Get a free Read token at <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a>.<br><br>
+            Without a token you share the free public queue — generation still works but may be slower or rate-limited.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><div class="ctdot amber"></div>API ROUTING</div>
+          <div class="info-note">
+            <strong>Generate mode</strong> → tencent/Hunyuan3D-2.1 via Gradio API<br>
+            Falls back to tencent/Hunyuan3D-2 if 2.1 is sleeping.<br><br>
+            <strong>Reconstruct mode</strong> → tencent/HunyuanWorld-Mirror<br>
+            Falls back to Live Demo iframe if paused.<br><br>
+            Free-tier HF spaces sleep after inactivity. If a job hangs at "Connecting…" for more than 30 s the space is paused — switch to Live Demo mode or try again in a few minutes.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><div class="ctdot green"></div>ABOUT</div>
+          <div class="info-note">
+            World Studio is part of the DART Meadow suite.<br>
+            3D generation by <a href="https://huggingface.co/tencent/Hunyuan3D-2.1" target="_blank">Tencent Hunyuan3D-2.1</a>.<br>
+            Viewer: Three.js r128 · GLTFLoader · OrbitControls.<br><br>
+            <a href="https://leatr.xyz/">← Return to Autumn</a>
+          </div>
+        </div>
+
+      </div><!-- /spanel-settings -->
+
+    </div><!-- /sheet-inner -->
+  </div><!-- /sheet -->
+
+  <!-- TAB BAR -->
+  <div id="sheet-tabs">
+    <button class="stab active" id="stab-gen" onclick="switchTab('gen')">
+      <span class="stab-icon">⬡</span>
+      <span class="stab-label">GENERATE</span>
     </button>
-
-    <!-- API source note -->
-    <div style="font-size:.55rem;color:rgba(0,229,255,.2);line-height:1.5;padding:0 2px">
-      ⬡ Reconstruct routes to <strong style="color:rgba(0,229,255,.4)">tencent/HunyuanWorld-Mirror</strong> via Gradio API<br>
-      ⬡ Generate routes to <strong style="color:rgba(0,229,255,.4)">tencent/Hunyuan3D-2.1</strong> via Gradio API<br>
-      ⬡ HY-World 2.0 full pipeline (text→panorama→world) has no public API yet — we'll auto-switch when it drops
-    </div>
-
+    <button class="stab" id="stab-viewer" onclick="switchTab('viewer')">
+      <span class="stab-icon">🌐</span>
+      <span class="stab-label">VIEWER</span>
+    </button>
+    <button class="stab" id="stab-settings" onclick="switchTab('settings')">
+      <span class="stab-icon">⚙</span>
+      <span class="stab-label">SETTINGS</span>
+    </button>
   </div>
-  <!-- end sidebar -->
 
-  <!-- ── Right viewport ── -->
-  <div id="viewport">
+</div><!-- /body-wrap -->
 
-    <!-- Queue bar -->
-    <div id="queue-bar">
-      <div id="queue-progress"><div id="queue-fill"></div></div>
-      <div id="queue-txt">QUEUED — POSITION —</div>
-    </div>
-
-    <!-- Viewer area -->
-    <div id="viewer-area">
-      <div id="viewer-canvas-wrap" style="display:none"></div>
-
-      <!-- Placeholder -->
-      <div id="viewer-placeholder">
-        <div id="vp-icon">⬡</div>
-        <div id="vp-title">WORLD STUDIO</div>
-        <div id="vp-sub">Configure inputs on the left and hit Generate World. Output renders here as an interactive Three.js GLB viewer.</div>
-        <br>
-        <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:340px">
-          <div class="pipeline-step">
-            <div class="ps-num">01</div>
-            <div>
-              <div class="ps-text">Panorama Generation</div>
-              <span class="ps-model">HY-Pano 2.0 / HunyuanWorld-1.0</span>
-            </div>
-          </div>
-          <div class="pipeline-step">
-            <div class="ps-num">02</div>
-            <div>
-              <div class="ps-text">Camera Trajectory Planning</div>
-              <span class="ps-model">WorldNav</span>
-            </div>
-          </div>
-          <div class="pipeline-step">
-            <div class="ps-num">03</div>
-            <div>
-              <div class="ps-text">World Expansion</div>
-              <span class="ps-model">WorldStereo 2.0</span>
-            </div>
-          </div>
-          <div class="pipeline-step">
-            <div class="ps-num">04</div>
-            <div>
-              <div class="ps-text">3D Composition → GLB / 3DGS</div>
-              <span class="ps-model">WorldMirror 2.0 · tencent/HunyuanWorld-Mirror</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Error -->
-      <div id="error-panel">
-        <strong>⚠ GENERATION ERROR</strong><br>
-        <span id="error-msg"></span>
-      </div>
-
-      <!-- iframe overlay -->
-      <div id="space-iframe-wrap">
-        <button id="iframe-close" onclick="closeIframe()">✕ CLOSE DEMO</button>
-        <iframe id="space-iframe" src="" allow="accelerometer; camera; microphone"></iframe>
-      </div>
-    </div>
-
-    <!-- Viewer controls hint -->
-    <div id="viewer-hint" style="display:none">
-      ⬡ drag to orbit · scroll to zoom · dbl-tap auto-rotate
-    </div>
-
-    <!-- Result toolbar -->
-    <div id="result-toolbar">
-      <button class="tb-btn primary" id="dl-glb-btn" onclick="downloadGLB()">↓ DOWNLOAD GLB</button>
-      <button class="tb-btn" id="dl-ply-btn" onclick="downloadPLY()">↓ DOWNLOAD PLY</button>
-      <button class="tb-btn" onclick="resetViewer()">⬡ RESET VIEW</button>
-      <button class="tb-btn" onclick="toggleAutoRotate()">↻ AUTO-ROTATE</button>
-      <button class="tb-btn" onclick="openInFRAX()">⬡ OPEN IN FRAX</button>
-      <div id="result-meta"></div>
-    </div>
-
-  </div>
-</div>
-
-<div id="footer-note">
-  ⬡ DART MEADOW / RADICAL DEEPSCALE LLC · 2026 ·
-  <a href="https://github.com/Tencent-Hunyuan/HY-World-2.0" target="_blank" rel="noopener">HY-World 2.0 GitHub</a> ·
-  <a href="https://huggingface.co/spaces/tencent/HunyuanWorld-Mirror" target="_blank" rel="noopener">HunyuanWorld-Mirror Space</a> ·
-  <a href="https://huggingface.co/spaces/tencent/Hunyuan3D-2.1" target="_blank" rel="noopener">Hunyuan3D-2.1 Space</a>
-</div>
-
-<!-- Three.js for GLB viewer -->
+<!-- Three.js -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
-<!-- Gradio JS Client -->
+<!-- Gradio client (ESM) -->
 <script type="module">
-import { Client, handle_file } from 'https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js';
-window._GradioClient  = Client;
-window._GradioHandle  = handle_file;
+  import { Client, handle_file } from 'https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js';
+  window._GradioClient = Client;
+  window._GradioHandle = handle_file;
 </script>
 
 <script>
-// ═══════════════════════════════════════════════════════
-//  WORLD STUDIO — Core Logic
-// ═══════════════════════════════════════════════════════
-var _mode          = 'reconstruct';
-var _files         = [];     // uploaded image/video Files
-var _refFile       = null;   // optional reference image
-var _glbUrl        = null;   // latest result GLB URL
-var _plyUrl        = null;   // latest result PLY URL
-var _viewer        = null;   // Three.js viewer instance
-var _autoRotate    = false;
-var _generating    = false;
+/* ── STATE ───────────────────────────────────────────────────── */
+var _mode       = 'generate';
+var _files      = [];
+var _refFile    = null;
+var _glbUrl     = null;
+var _plyUrl     = null;
+var _viewer     = null;
+var _autoRotate = true;
+var _sheetOpen  = false;
+var _activeTab  = 'gen';
+var _busy       = false;
 
-// ── Auto-fill prompt from URL param (when opened from Autumn) ─────────────────
-document.addEventListener('DOMContentLoaded', function() {
-  try {
-    var params = new URLSearchParams(window.location.search);
-    var prePrompt = params.get('prompt');
-    if(prePrompt && prePrompt.trim().length > 3) {
-      // Switch to generate mode and fill the prompt
-      setMode('generate');
-      var ta = document.getElementById('text-prompt');
-      if(ta) {
-        ta.value = decodeURIComponent(prePrompt);
-        updateGenBtn();
-      }
-      setStatus('PROMPT LOADED FROM AUTUMN — READY TO GENERATE', 'var(--violet)');
-    }
-  } catch(e) {}
-});
-function setMode(m) {
-  _mode = m;
-  document.querySelectorAll('.mode-tab').forEach(function(t){
-    t.classList.toggle('active', t.dataset.mode === m);
+/* ── TOKEN ───────────────────────────────────────────────────── */
+function loadToken(){
+  var t = localStorage.getItem('ws_hf_token') || '';
+  document.getElementById('hf-token').value = t;
+  renderTokenStatus(t);
+}
+function onTokenInput(){
+  document.getElementById('token-save').classList.remove('saved');
+  document.getElementById('token-save').textContent = 'SAVE';
+}
+function saveToken(){
+  var t = document.getElementById('hf-token').value.trim();
+  localStorage.setItem('ws_hf_token', t);
+  var btn = document.getElementById('token-save');
+  btn.classList.add('saved'); btn.textContent = 'SAVED ✓';
+  setTimeout(function(){ btn.classList.remove('saved'); btn.textContent = 'SAVE'; }, 2200);
+  renderTokenStatus(t);
+}
+function renderTokenStatus(t){
+  var el = document.getElementById('token-status');
+  if(t && t.startsWith('hf_') && t.length > 12){
+    el.textContent = '✓ Token saved — priority queue active.'; el.className = 'ok';
+  } else if(t){
+    el.textContent = '⚠ Format looks wrong — should start with hf_'; el.className = 'err';
+  } else {
+    el.textContent = 'No token — using anonymous public queue.'; el.className = '';
+  }
+}
+function getToken(){ return localStorage.getItem('ws_hf_token') || ''; }
+
+/* ── TABS & SHEET ────────────────────────────────────────────── */
+function switchTab(tab){
+  _activeTab = tab;
+  ['gen','viewer','settings'].forEach(function(t){
+    document.getElementById('stab-'+t).classList.toggle('active', t===tab);
   });
-  document.getElementById('reconstruct-card').style.display = m==='reconstruct'?'':'none';
-  document.getElementById('generate-card').style.display    = m==='generate'?'':'none';
-  document.getElementById('remove-bg-row').style.display    = m==='generate'?'':'none';
-  document.getElementById('steps-field').style.display      = m==='generate'?'':'none';
+  if(tab === 'viewer'){ setSheet(false); return; }
+  ['gen','settings'].forEach(function(t){
+    var el = document.getElementById('spanel-'+t);
+    if(el) el.classList.toggle('active', t===tab);
+  });
+  setSheet(true);
+}
+function setSheet(open){ _sheetOpen = open; document.getElementById('sheet').classList.toggle('open', open); }
+function toggleSheet(){ setSheet(!_sheetOpen); }
 
-  var descs = {
-    reconstruct:'Upload photos or a video of a scene to reconstruct it as a navigable 3D world using HunyuanWorld-Mirror (3DGS + GLB output).',
-    generate:   'Describe a scene in text (optionally add a reference image) to generate a 3D world using Hunyuan3D-2.1. Text→Panorama→3D pipeline.',
-    space:      'Open the official HuggingFace Gradio demo directly inside this panel for full access to all options.'
-  };
-  document.getElementById('mode-desc').textContent = descs[m];
-
-  var badges = {
-    reconstruct:'HunyuanWorld-Mirror · tencent/HunyuanWorld-Mirror',
-    generate:   'Hunyuan3D-2.1 · tencent/Hunyuan3D-2.1',
-    space:      'Official HF Space · Live Demo'
-  };
-  document.getElementById('status-model-badge').textContent = badges[m];
-
-  if(m === 'space') { openSpaceIframe(); }
-  else { closeIframe(); }
+/* ── MODE ────────────────────────────────────────────────────── */
+var MODE_DESC = {
+  generate:   'Describe a scene in text — generates a 3D world via Hunyuan3D-2.1 (Text → Panorama → 3D).',
+  reconstruct:'Upload photos or a video to reconstruct a 3D world (GLB) with HunyuanWorld-Mirror.',
+  space:      'Open the official Hunyuan3D HuggingFace Space in an iframe for direct use.'
+};
+function setMode(m){
+  _mode = m;
+  document.querySelectorAll('.mode-tab').forEach(function(el){
+    el.classList.toggle('active', el.dataset.mode === m);
+  });
+  document.getElementById('mode-desc').textContent = MODE_DESC[m] || '';
+  document.getElementById('gen-inputs').style.display   = m==='generate'    ? '' : 'none';
+  document.getElementById('recon-inputs').style.display = m==='reconstruct' ? '' : 'none';
+  document.getElementById('steps-field').style.display  = m==='generate'    ? '' : 'none';
+  document.getElementById('rembg-row').style.display    = m==='generate'    ? '' : 'none';
   updateGenBtn();
+  if(m==='space'){ openIframe('https://huggingface.co/spaces/tencent/Hunyuan3D-2'); }
 }
-window.setMode = setMode;
 
-// ── File upload ──────────────────────────────────────────
-function handleFiles(files) {
-  var arr = Array.from(files);
-  _files = _files.concat(arr).slice(0, 12);
-  renderFilePreviews();
-  updateGenBtn();
+/* ── STATUS / PROGRESS ───────────────────────────────────────── */
+function setStatus(txt, state){
+  document.getElementById('nav-status').textContent = txt;
+  document.getElementById('nav-dot').className = state || '';
 }
-window.handleFiles = handleFiles;
-
-function handleRefImg(files) {
-  if(!files.length) return;
-  _refFile = files[0];
-  var url = URL.createObjectURL(_refFile);
-  document.getElementById('ref-thumb').src = url;
-  document.getElementById('ref-preview').style.display = 'flex';
+function setProgress(pct, txt){
+  document.getElementById('progress-bar').classList.add('show');
+  document.getElementById('prog-fill').style.width = pct+'%';
+  if(txt) document.getElementById('prog-txt').textContent = txt;
 }
-window.handleRefImg = handleRefImg;
-
-function clearRef() {
-  _refFile = null;
-  document.getElementById('ref-preview').style.display = 'none';
+function clearProgress(){
+  document.getElementById('progress-bar').classList.remove('show');
+  document.getElementById('prog-fill').style.width = '0%';
 }
-window.clearRef = clearRef;
+function setError(msg){
+  document.getElementById('error-msg').textContent = msg;
+  document.getElementById('error-panel').classList.add('show');
+  setStatus('ERROR', 'err');
+}
+function clearError(){ document.getElementById('error-panel').classList.remove('show'); }
 
-function renderFilePreviews() {
+/* ── GEN BUTTON ──────────────────────────────────────────────── */
+function updateGenBtn(){
+  var ready = false;
+  if(_mode==='generate')    ready = document.getElementById('text-prompt').value.trim().length > 3;
+  if(_mode==='reconstruct') ready = _files.length > 0;
+  if(_mode==='space')       ready = true;
+  document.getElementById('gen-btn').disabled = !ready || _busy;
+}
+function setBusy(b){
+  _busy = b;
+  document.getElementById('gen-spin').style.display = b ? 'block' : 'none';
+  document.getElementById('gen-btn-txt').textContent = b ? 'GENERATING…' : '⬡ GENERATE WORLD';
+  document.getElementById('gen-btn').disabled = b;
+}
+
+/* ── FILES ───────────────────────────────────────────────────── */
+function handleFiles(fl){
+  _files = Array.from(fl).slice(0,12);
   var wrap = document.getElementById('file-previews');
   wrap.innerHTML = '';
-  _files.forEach(function(f, i) {
-    var chip = document.createElement('div');
-    chip.className = 'file-preview-chip';
-    if(f.type.startsWith('image/')) {
-      var img = document.createElement('img');
-      img.className = 'file-preview-thumb';
-      img.src = URL.createObjectURL(f);
-      chip.appendChild(img);
-    } else {
-      var ico = document.createElement('span');
-      ico.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.7rem;opacity:.6';
-      ico.textContent = '▶';
-      chip.appendChild(ico);
-    }
-    var name = document.createElement('span');
-    name.style.cssText = 'max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-    name.textContent = f.name;
-    chip.appendChild(name);
-    var rm = document.createElement('button');
-    rm.className = 'file-preview-remove';
-    rm.textContent = '✕';
-    rm.onclick = function(e){ e.stopPropagation(); _files.splice(i,1); renderFilePreviews(); updateGenBtn(); };
-    chip.appendChild(rm);
-    wrap.appendChild(chip);
+  _files.forEach(function(f,i){
+    var chip = document.createElement('div'); chip.className='fchip';
+    var img  = document.createElement('img');  img.className='fchip-thumb'; img.src=URL.createObjectURL(f);
+    var rm   = document.createElement('button'); rm.className='fchip-rm'; rm.textContent='✕';
+    rm.onclick=function(){ _files.splice(i,1); handleFiles([]); };
+    chip.appendChild(img); chip.appendChild(rm); wrap.appendChild(chip);
   });
+  updateGenBtn();
+}
+function dzDrag(e){ e.preventDefault(); document.getElementById('upload-zone').style.borderColor='rgba(0,229,255,.5)'; }
+function dzLeave(){ document.getElementById('upload-zone').style.borderColor=''; }
+function dzDrop(e){ e.preventDefault(); dzLeave(); handleFiles(e.dataTransfer.files); }
+function handleRefImg(fl){
+  if(!fl.length) return;
+  _refFile = fl[0];
+  document.getElementById('ref-thumb').src = URL.createObjectURL(_refFile);
+  document.getElementById('ref-wrap').style.display = 'flex';
+}
+function clearRef(){
+  _refFile = null;
+  document.getElementById('ref-wrap').style.display = 'none';
+  document.getElementById('ref-input').value = '';
 }
 
-// Drag-drop
-function dzDrag(e){ e.preventDefault(); document.getElementById('upload-zone').classList.add('drag-over'); }
-window.dzDrag = dzDrag;
-function dzLeave(){ document.getElementById('upload-zone').classList.remove('drag-over'); }
-window.dzLeave = dzLeave;
-function dzDrop(e){
-  e.preventDefault();
-  document.getElementById('upload-zone').classList.remove('drag-over');
-  handleFiles(e.dataTransfer.files);
-}
-window.dzDrop = dzDrop;
-
-// ── Range sliders ────────────────────────────────────────
-function updateRange(id) {
-  var r = document.getElementById(id+'-range');
-  var v = parseFloat(r.value);
-  document.getElementById(id+'-val').textContent = v;
-  var pct = (v - r.min) / (r.max - r.min) * 100;
-  r.style.setProperty('--pct', pct+'%');
-}
-window.updateRange = updateRange;
-// Init
-['steps','guidance'].forEach(function(id){ updateRange(id); });
-
-// ── Generate button state ─────────────────────────────────
-function updateGenBtn() {
-  var btn = document.getElementById('gen-btn');
-  if(_mode === 'space') { btn.disabled = true; return; }
-  var ready = (_mode === 'reconstruct' && _files.length > 0) ||
-              (_mode === 'generate'    && document.getElementById('text-prompt').value.trim().length > 3);
-  btn.disabled = !ready || _generating;
-}
-window.updateGenBtn = updateGenBtn;
-document.getElementById('text-prompt')?.addEventListener('input', updateGenBtn);
-
-// ── Status helpers ────────────────────────────────────────
-function setStatus(txt, dotColor) {
-  document.getElementById('status-txt').textContent = txt;
-  document.getElementById('status-dot').style.background = dotColor || 'var(--cyan)';
-  document.getElementById('status-dot').style.boxShadow  = '0 0 6px '+(dotColor||'var(--cyan)');
-}
-function setQueue(pct, txt) {
-  var bar = document.getElementById('queue-bar');
-  bar.classList.add('show');
-  document.getElementById('queue-fill').style.width = pct+'%';
-  document.getElementById('queue-txt').textContent = txt;
-}
-function clearQueue() {
-  document.getElementById('queue-bar').classList.remove('show');
-  document.getElementById('queue-fill').style.width = '0%';
-}
-function setError(msg) {
-  var p = document.getElementById('error-panel');
-  p.classList.add('show');
-  document.getElementById('error-msg').textContent = msg;
-  setStatus('ERROR — '+msg.slice(0,60), '#ff4466');
-}
-function clearError() {
-  document.getElementById('error-panel').classList.remove('show');
-}
-function setBtnLoading(loading) {
-  _generating = loading;
-  var btn  = document.getElementById('gen-btn');
-  var spin = document.getElementById('gen-btn-spin');
-  var txt  = document.getElementById('gen-btn-txt');
-  spin.style.display = loading ? 'block' : 'none';
-  txt.textContent    = loading ? 'GENERATING…' : '⬡ GENERATE WORLD';
-  btn.disabled       = loading;
+/* ── SLIDERS ─────────────────────────────────────────────────── */
+function updateRange(id){
+  var input = document.getElementById(id+'-range');
+  var val   = parseFloat(input.value);
+  document.getElementById(id+'-val').textContent = val;
+  var pct = ((val-parseFloat(input.min))/(parseFloat(input.max)-parseFloat(input.min))*100).toFixed(1)+'%';
+  input.style.setProperty('--pct', pct);
 }
 
-// ── HF Space iframe ───────────────────────────────────────
-function openSpaceIframe() {
-  var wrap   = document.getElementById('space-iframe-wrap');
-  var iframe = document.getElementById('space-iframe');
-  // Route to the space that's most likely awake — Hunyuan3D-2 (original, lighter)
-  var url = 'https://huggingface.co/spaces/tencent/Hunyuan3D-2';
-  iframe.src = url;
-  wrap.classList.add('show');
+/* ── IFRAME ──────────────────────────────────────────────────── */
+function openIframe(url){
+  document.getElementById('space-iframe').src = url || 'https://huggingface.co/spaces/tencent/Hunyuan3D-2';
+  document.getElementById('space-iframe-wrap').classList.add('show');
   document.getElementById('viewer-placeholder').style.display = 'none';
+  switchTab('viewer');
 }
-function closeIframe() {
-  var wrap   = document.getElementById('space-iframe-wrap');
-  wrap.classList.remove('show');
+function closeIframe(){
+  document.getElementById('space-iframe-wrap').classList.remove('show');
   document.getElementById('space-iframe').src = '';
-  if(_glbUrl) { /* keep viewer */ } else {
-    document.getElementById('viewer-placeholder').style.display = 'flex';
-  }
+  if(!_glbUrl) document.getElementById('viewer-placeholder').style.display = 'flex';
 }
 window.closeIframe = closeIframe;
 
-// ── Main generation entry point ───────────────────────────
-async function runGeneration() {
-  clearError();
-  setBtnLoading(true);
-  setStatus('CONNECTING TO HUGGING FACE API…', '#ffb347');
-  setQueue(5, 'INITIALISING…');
-
+/* ── GENERATION ENTRY ────────────────────────────────────────── */
+async function runGeneration(){
+  clearError(); clearProgress(); setBusy(true); setStatus('CONNECTING…','busy');
+  switchTab('viewer');
   try {
-    if(_mode === 'reconstruct') {
-      await runReconstruct();
-    } else if(_mode === 'generate') {
-      await runGenerate3D();
-    }
-  } catch(err) {
+    if     (_mode==='generate')    await doGenerate();
+    else if(_mode==='reconstruct') await doReconstruct();
+    else if(_mode==='space')       { openIframe(); setBusy(false); return; }
+  } catch(err){
+    console.error('[WorldStudio]', err);
     setError(err.message || String(err));
-    clearQueue();
   } finally {
-    setBtnLoading(false);
-    updateGenBtn();
+    setBusy(false); updateGenBtn(); clearProgress();
   }
 }
 window.runGeneration = runGeneration;
 
-// ── Reconstruct: HunyuanWorld-Mirror ─────────────────────
-async function runReconstruct() {
-  // Wait for Gradio client to load
-  var attempts = 0;
-  while(!window._GradioClient && attempts < 30) {
-    await new Promise(function(r){ setTimeout(r, 200); });
-    attempts++;
+function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+async function waitForGradio(){
+  for(var i=0; i<60; i++){
+    if(window._GradioClient) return;
+    await sleep(200);
   }
-  if(!window._GradioClient) throw new Error('Gradio client failed to load. Check your connection.');
-
-  var token  = document.getElementById('hf-token').value.trim() || undefined;
-  var Client = window._GradioClient;
-
-  setStatus('CONNECTING TO tencent/HunyuanWorld-Mirror…', '#ffb347');
-  setQueue(15, 'CONNECTING…');
-
-  var opts = {};
-  if(token) opts.hf_token = token;
-
-  var app;
-  try {
-    app = await Client.connect('tencent/HunyuanWorld-Mirror', opts);
-  } catch(e) {
-    throw new Error('Could not connect to HunyuanWorld-Mirror Space: '+e.message+'. The space may be sleeping — try again in 30s or use LIVE DEMO mode.');
-  }
-
-  setStatus('UPLOADING IMAGES…', '#ffb347');
-  setQueue(30, 'UPLOADING FILES…');
-
-  // Upload files as blobs
-  var fileHandles = _files.slice(0,12).map(function(f){
-    return window._GradioHandle ? window._GradioHandle(f) : f;
-  });
-
-  setStatus('RUNNING 3D RECONSTRUCTION…', '#00e5ff');
-  setQueue(45, 'RUNNING WORLDMIRROR…');
-
-  var resolution = document.getElementById('resolution-select').value;
-  var resMap = {low: 512, medium: 768, high: 1024};
-  var resVal = resMap[resolution] || 768;
-
-  // Submit using gradio_demo function (HunyuanWorld-Mirror's main entry)
-  // This space requires a complex stateful setup — use LIVE DEMO iframe instead
-  // For now route to the iframe embed since the API requires prior state
-  setStatus('HunyuanWorld-Mirror requires session state — opening Live Demo…', '#ffb347');
-  clearQueue();
-  setMode('space');
-  setBtnLoading(false);
-  updateGenBtn();
-  return;
+  throw new Error('Gradio client failed to load. Check your connection and reload the page.');
 }
 
-// ── Generate 3D: Hunyuan3D-2.1 ───────────────────────────
-async function runGenerate3D() {
-  var attempts = 0;
-  while(!window._GradioClient && attempts < 30) {
-    await new Promise(function(r){ setTimeout(r, 200); });
-    attempts++;
-  }
-  if(!window._GradioClient) throw new Error('Gradio client failed to load.');
-
-  var token  = document.getElementById('hf-token').value.trim() || undefined;
-  var Client = window._GradioClient;
-  var prompt = document.getElementById('text-prompt').value.trim();
-  var seed   = parseInt(document.getElementById('seed-input').value) || -1;
-  var steps  = parseInt(document.getElementById('steps-range').value)  || 30;
+/* ── GENERATE (text → Hunyuan3D-2.1 / 2.0 fallback) ─────────── */
+async function doGenerate(){
+  await waitForGradio();
+  var token    = getToken() || undefined;
+  var Client   = window._GradioClient;
+  var opts     = token ? {hf_token: token} : {};
+  var prompt   = document.getElementById('text-prompt').value.trim();
+  var steps    = parseInt(document.getElementById('steps-range').value) || 30;
   var guidance = parseFloat(document.getElementById('guidance-range').value) || 7.5;
+  var seed     = parseInt(document.getElementById('seed-input').value);
+  var rembg    = document.getElementById('remove-bg').checked;
+  var actualSeed = (seed === -1) ? Math.floor(Math.random()*2147483647) : seed;
 
-  setStatus('CONNECTING TO HUNYUAN3D…', '#ffb347');
-  setQueue(15, 'CONNECTING…');
+  var spaces = ['tencent/Hunyuan3D-2.1','tencent/Hunyuan3D-2'];
+  var app = null, usedSpace = '';
 
-  var opts = {};
-  if(token) opts.hf_token = token;
-
-  var app;
-  // Try 2.1 first, fall back to 2.0 if sleeping (503)
-  var spacesToTry = ['tencent/Hunyuan3D-2.1', 'tencent/Hunyuan3D-2'];
-  var lastErr = '';
-  for(var si = 0; si < spacesToTry.length; si++) {
+  for(var si=0; si<spaces.length; si++){
+    setStatus('CONNECTING TO '+spaces[si]+'…','busy');
+    setProgress(10+si*12,'CONNECTING TO '+spaces[si]+'…');
     try {
-      app = await Client.connect(spacesToTry[si], opts);
-      document.getElementById('status-model-badge').textContent = spacesToTry[si];
+      app = await Promise.race([
+        Client.connect(spaces[si], opts),
+        new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('timeout')); },18000); })
+      ]);
+      usedSpace = spaces[si];
       break;
-    } catch(e) {
-      lastErr = e.message;
+    } catch(e){
       app = null;
+      console.warn('[WorldStudio] '+spaces[si]+' unavailable:', e.message);
     }
   }
-  if(!app) throw new Error('Both Hunyuan3D spaces are unavailable. Try LIVE DEMO mode. Last error: '+lastErr);
 
-  setStatus('SUBMITTING GENERATION JOB…', '#ffb347');
-  setQueue(30, 'SUBMITTING JOB…');
+  if(!app){
+    setStatus('SPACES UNAVAILABLE','err');
+    if(confirm('Both Hunyuan3D spaces are currently sleeping or rate-limited.\n\nOpen the Live Demo iframe instead?\n(You can generate directly in the HuggingFace Space UI)')){
+      openIframe(); setMode('space');
+    } else {
+      throw new Error('Both Hunyuan3D spaces are unavailable. Try again in a few minutes or use Live Demo mode.');
+    }
+    return;
+  }
 
+  setStatus('SUBMITTING TO '+usedSpace+'…','busy');
+  setProgress(38,'SUBMITTING JOB…');
+
+  // Hunyuan3D-2.1 shape_generation endpoint args:
+  // caption, image, mv_front, mv_back, mv_left, mv_right,
+  // num_steps, cfg_scale, seed, octree_resolution, check_box_rembg, num_chunks, randomize_seed
   var inputs = [
-    prompt,      // caption
-    null,        // image
-    null,        // mv_front
-    null,        // mv_back
-    null,        // mv_left
-    null,        // mv_right
-    steps,       // num_steps
-    guidance,    // cfg_scale
-    seed,        // seed
-    256,         // octree_resolution
-    false,       // check_box_rembg
-    200000,      // num_chunks
-    seed === -1  // randomize_seed
+    prompt,     // caption
+    null,       // image (ref)
+    null,null,null,null, // mv views
+    steps,
+    guidance,
+    actualSeed,
+    256,        // octree_resolution
+    rembg,
+    200000,     // num_chunks
+    false       // randomize_seed (we handle it)
   ];
-  if(_refFile && window._GradioHandle) {
-    inputs[1] = window._GradioHandle(_refFile);
+
+  if(_refFile && window._GradioHandle){
+    try { inputs[1] = window._GradioHandle(_refFile); } catch(e){}
   }
 
   var job = app.submit('/shape_generation', inputs);
-
   var result = null;
-  for await (var msg of job) {
-    if(msg.type === 'status') {
+
+  for await (var msg of job){
+    if(msg.type === 'status'){
       var pos = msg.queue_position;
-      if(pos !== undefined && pos !== null) {
-        setQueue(50 + Math.min(30, (10-pos)*3), 'QUEUE POSITION '+pos);
-        setStatus('IN QUEUE — POSITION '+pos, '#ffb347');
+      if(pos != null && pos > 0){
+        setProgress(40 + Math.min(20, (20-Math.min(pos,20))), 'QUEUE POSITION '+pos+'…');
+        setStatus('IN QUEUE — POSITION '+pos,'busy');
       } else {
-        setQueue(75, 'GENERATING 3D WORLD…');
-        setStatus('GENERATING — PLEASE WAIT…', '#00e5ff');
+        setProgress(65,'GENERATING 3D WORLD…');
+        setStatus('GENERATING…','busy');
       }
-    } else if(msg.type === 'data') {
+    } else if(msg.type === 'data'){
       result = msg.data;
     }
   }
 
-  handleResult(result);
+  processResult(result);
 }
 
-// ── Handle result ─────────────────────────────────────────
-function handleResult(result) {
-  if(!result) throw new Error('No result returned from API. Try again or use the LIVE DEMO mode.');
+/* ── RECONSTRUCT ─────────────────────────────────────────────── */
+async function doReconstruct(){
+  await waitForGradio();
+  var token  = getToken() || undefined;
+  var Client = window._GradioClient;
+  var opts   = token ? {hf_token:token} : {};
 
-  setQueue(95, 'LOADING 3D MODEL…');
-  setStatus('PROCESSING RESULT…', '#00e5ff');
+  setStatus('CONNECTING TO HunyuanWorld-Mirror…','busy');
+  setProgress(15,'CONNECTING…');
 
-  // shape_generation returns: [gr.File({url,orig_name}), html_str, stats_dict, seed_int]
-  // We want result[0] — the file object
-  var glbData = null;
-
+  var app = null;
   try {
-    var fileOut = Array.isArray(result) ? result[0] : result;
-    if(fileOut && typeof fileOut === 'object') {
-      // Gradio 4.x file objects: {url, orig_name, size, ...} or {value, ...}
-      glbData = fileOut.url || fileOut.value || fileOut.path || fileOut.tmp_path || null;
-      // Sometimes nested under data
-      if(!glbData && fileOut.data && typeof fileOut.data === 'string') glbData = fileOut.data;
-    } else if(typeof fileOut === 'string' && fileOut.length > 5) {
-      glbData = fileOut;
-    }
-  } catch(e) { console.warn('[WorldStudio] result parse err', e); }
+    app = await Promise.race([
+      Client.connect('tencent/HunyuanWorld-Mirror', opts),
+      new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('timeout')); },15000); })
+    ]);
+  } catch(e){ app = null; }
 
-  // Log raw result for debugging
-  console.log('[WorldStudio] raw result:', JSON.stringify(result).slice(0, 300));
-
-  _glbUrl = glbData;
-  _plyUrl = null;
-
-  clearQueue();
-
-  if(glbData) {
-    setStatus('RENDERING 3D WORLD…', '#00e5ff');
-    loadGLBIntoViewer(glbData, function(info) {
-      setStatus('WORLD READY — '+info, '#00ff88');
-      document.getElementById('result-toolbar').classList.add('show');
-      document.getElementById('dl-glb-btn').style.display = '';
-      document.getElementById('dl-ply-btn').style.display = 'none';
-      document.getElementById('result-meta').textContent = info;
-      document.getElementById('viewer-hint').style.display = 'block';
-    });
-  } else {
-    throw new Error('Got a response but could not find GLB URL. Check console for raw result. Use LIVE DEMO mode for full output.');
+  if(!app){
+    openIframe('https://huggingface.co/spaces/tencent/HunyuanWorld-Mirror');
+    throw new Error('HunyuanWorld-Mirror is sleeping. Opened Live Demo iframe — use the space directly there.');
   }
+
+  // Reconstruction requires a complex session handshake beyond what the Gradio client
+  // exposes cleanly — route to iframe for now with an explanatory message.
+  openIframe('https://huggingface.co/spaces/tencent/HunyuanWorld-Mirror');
+  throw new Error('Reconstruction opened in Live Demo iframe — full direct API integration coming soon.');
 }
 
-// ── Three.js GLB viewer ───────────────────────────────────
-function loadGLBIntoViewer(url, onReady) {
+/* ── PROCESS RESULT ──────────────────────────────────────────── */
+function processResult(result){
+  if(!result){
+    throw new Error('No result from API — the space may have timed out. Try Live Demo mode.');
+  }
+  setProgress(92,'PROCESSING OUTPUT…');
+  setStatus('LOADING MODEL…','busy');
+
+  console.log('[WorldStudio] result:', JSON.stringify(result).slice(0,500));
+
+  // shape_generation returns [file_obj, html_preview, stats, seed]
+  var glbUrl = null;
+  try {
+    var out = Array.isArray(result) ? result[0] : result;
+    if(out && typeof out === 'object'){
+      glbUrl = out.url || out.value || out.path || out.tmp_path || null;
+      if(!glbUrl && out.data) glbUrl = out.data;
+    } else if(typeof out === 'string' && out.length > 4){
+      glbUrl = out;
+    }
+  } catch(e){ console.warn('[WorldStudio] result parse err', e); }
+
+  _glbUrl = glbUrl;
+
+  if(!glbUrl){
+    throw new Error(
+      'Got a response but could not locate the GLB URL.\n'+
+      'Raw preview: '+JSON.stringify(result).slice(0,240)+'\n'+
+      'Try Live Demo mode to download the file directly from the space.'
+    );
+  }
+
+  loadGLB(glbUrl, function(info){
+    setStatus('WORLD READY','ok');
+    document.getElementById('result-bar').classList.add('show');
+    document.getElementById('dl-glb-btn').style.display = '';
+    document.getElementById('result-meta').textContent = info;
+    document.getElementById('viewer-hint').style.display = 'block';
+  });
+}
+
+/* ── THREE.JS VIEWER ─────────────────────────────────────────── */
+function loadGLB(url, onReady){
   var wrap = document.getElementById('viewer-canvas-wrap');
   var placeholder = document.getElementById('viewer-placeholder');
 
-  // Dispose existing viewer
-  if(_viewer) {
-    if(_viewer.renderer) _viewer.renderer.dispose();
-    if(_viewer.animId)   cancelAnimationFrame(_viewer.animId);
+  if(_viewer){
+    try { _viewer.ro.disconnect(); } catch(e){}
+    cancelAnimationFrame(_viewer.animId);
+    _viewer.renderer.dispose();
     wrap.innerHTML = '';
   }
-
   placeholder.style.display = 'none';
   wrap.style.display = 'block';
 
-  var w = wrap.clientWidth || 800;
-  var h = wrap.clientHeight || 500;
+  var w = wrap.clientWidth  || window.innerWidth;
+  var h = wrap.clientHeight || window.innerHeight;
 
-  var scene    = new THREE.Scene();
+  var scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020a14);
+  scene.fog = new THREE.FogExp2(0x020a14, 0.035);
 
-  var renderer = new THREE.WebGLRenderer({antialias:true,alpha:false});
-  renderer.setSize(w, h);
+  var renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(w,h);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.toneMapping    = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.outputEncoding      = THREE.sRGBEncoding;
+  renderer.toneMapping         = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  renderer.shadowMap.enabled   = true;
+  renderer.shadowMap.type      = THREE.PCFSoftShadowMap;
   wrap.appendChild(renderer.domElement);
 
-  var camera = new THREE.PerspectiveCamera(45, w/h, 0.01, 1000);
-  camera.position.set(0, 1.5, 4);
+  var camera = new THREE.PerspectiveCamera(45, w/h, 0.005, 1000);
+  camera.position.set(0,1.5,4);
 
   var controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.minDistance   = 0.1;
-  controls.maxDistance   = 50;
-  controls.autoRotateSpeed = 1.2;
+  controls.enableDamping   = true;
+  controls.dampingFactor   = 0.07;
+  controls.minDistance     = 0.05;
+  controls.maxDistance     = 80;
+  controls.autoRotate      = _autoRotate;
+  controls.autoRotateSpeed = 1.0;
 
-  // Lighting
-  var ambient = new THREE.AmbientLight(0x4488aa, 0.8);
-  scene.add(ambient);
-  var dir1 = new THREE.DirectionalLight(0x00e5ff, 1.2);
-  dir1.position.set(3,5,3);
-  scene.add(dir1);
-  var dir2 = new THREE.DirectionalLight(0xa78bfa, 0.6);
-  dir2.position.set(-3,2,-3);
-  scene.add(dir2);
+  // Double-tap to toggle auto-rotate on mobile
+  var lastTap = 0;
+  renderer.domElement.addEventListener('touchend', function(){
+    var now = Date.now();
+    if(now - lastTap < 320){ _autoRotate = !_autoRotate; updateAutoRotBtn(); }
+    lastTap = now;
+  });
 
-  // Subtle grid floor
-  var grid = new THREE.GridHelper(20, 20, 0x004455, 0x002233);
-  grid.material.opacity = 0.25;
-  grid.material.transparent = true;
+  // Lighting — spacepunk palette
+  scene.add(new THREE.AmbientLight(0x4488aa, 0.6));
+  var sun = new THREE.DirectionalLight(0x00e5ff, 1.2);
+  sun.position.set(4,6,4); sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024); scene.add(sun);
+  var fill = new THREE.DirectionalLight(0xa78bfa, 0.45);
+  fill.position.set(-4,2,-4); scene.add(fill);
+  var rim = new THREE.PointLight(0xff4466, 0.28, 20);
+  rim.position.set(0,4,-6); scene.add(rim);
+
+  // Grid floor
+  var grid = new THREE.GridHelper(40,40,0x004455,0x001e2e);
+  grid.material.opacity=0.2; grid.material.transparent=true;
   scene.add(grid);
 
+  setProgress(94,'LOADING GLB FILE…');
+
   var loader = new THREE.GLTFLoader();
-  loader.load(url, function(gltf) {
+  loader.load(url, function(gltf){
     var model = gltf.scene;
-    // Auto-center and scale
+
+    // Auto-center and fit
     var box    = new THREE.Box3().setFromObject(model);
     var center = new THREE.Vector3();
     var size   = new THREE.Vector3();
-    box.getCenter(center);
-    box.getSize(size);
-    var maxDim = Math.max(size.x, size.y, size.z);
-    var scale  = maxDim > 0 ? 2.5 / maxDim : 1;
-    model.position.sub(center.multiplyScalar(scale));
+    box.getCenter(center); box.getSize(size);
+    var maxDim = Math.max(size.x,size.y,size.z)||1;
+    var scale  = 2.8/maxDim;
+    model.position.copy(center.clone().negate().multiplyScalar(scale));
     model.scale.setScalar(scale);
+
+    model.traverse(function(n){
+      if(n.isMesh){ n.castShadow=true; n.receiveShadow=true; }
+    });
     scene.add(model);
 
-    // Position camera
-    camera.position.set(0, size.y*scale*0.5, maxDim*scale*2);
-    controls.target.set(0, size.y*scale*0.3, 0);
+    // Position camera relative to model
+    camera.position.set(0, size.y*scale*0.6, maxDim*scale*2.4);
+    controls.target.set(0, size.y*scale*0.2, 0);
     controls.update();
 
-    var verts = 0, tris = 0;
+    // Stats
+    var verts=0, tris=0;
     model.traverse(function(n){
-      if(n.isMesh && n.geometry) {
-        var pos = n.geometry.attributes.position;
-        if(pos) verts += pos.count;
-        var idx = n.geometry.index;
-        tris += idx ? idx.count/3 : (pos ? pos.count/3 : 0);
+      if(n.isMesh && n.geometry){
+        var pos=n.geometry.attributes.position;
+        if(pos) verts+=pos.count;
+        var idx=n.geometry.index;
+        tris+=idx ? idx.count/3 : (pos ? pos.count/3 : 0);
       }
     });
-
     if(onReady) onReady(
-      Math.round(verts).toLocaleString()+' VERTS · '+Math.round(tris).toLocaleString()+' TRIS'
+      Math.round(verts).toLocaleString()+' V · '+Math.round(tris).toLocaleString()+' T'
     );
-  }, function(xhr) {
-    var pct = (xhr.loaded/xhr.total*100).toFixed(0);
-    setQueue(95+pct*0.05, 'LOADING MODEL '+pct+'%…');
-  }, function(err) {
-    setError('Failed to load GLB: '+err.message);
+    setProgress(100,'COMPLETE'); setTimeout(clearProgress,1200);
+
+  }, function(xhr){
+    if(xhr.total) setProgress(94+xhr.loaded/xhr.total*5,'STREAMING MODEL…');
+  }, function(err){
+    setError('GLB load error: '+(err.message||String(err)));
   });
 
+  // Render loop
   var animId;
-  function animate() {
-    animId = requestAnimationFrame(animate);
-    controls.autoRotate = _autoRotate;
+  function animate(){
+    animId=requestAnimationFrame(animate);
+    controls.autoRotate=_autoRotate;
     controls.update();
-    renderer.render(scene, camera);
+    renderer.render(scene,camera);
   }
   animate();
 
   // Resize
-  var ro = new ResizeObserver(function() {
-    var nw = wrap.clientWidth;
-    var nh = wrap.clientHeight;
-    if(!nw || !nh) return;
-    camera.aspect = nw/nh;
-    camera.updateProjectionMatrix();
-    renderer.setSize(nw, nh);
+  var ro = new ResizeObserver(function(){
+    var nw=wrap.clientWidth, nh=wrap.clientHeight;
+    if(!nw||!nh) return;
+    camera.aspect=nw/nh; camera.updateProjectionMatrix();
+    renderer.setSize(nw,nh);
   });
   ro.observe(wrap);
 
-  _viewer = {renderer, scene, camera, controls, animId, ro};
+  _viewer = {renderer,scene,camera,controls,animId,ro};
 }
 
-function resetViewer() {
-  if(_viewer) { _viewer.controls.reset(); }
-}
+/* ── VIEWER CONTROLS ─────────────────────────────────────────── */
+function resetViewer(){ if(_viewer){ _viewer.controls.reset(); } }
 window.resetViewer = resetViewer;
 
-function toggleAutoRotate() {
-  _autoRotate = !_autoRotate;
+function updateAutoRotBtn(){
+  document.getElementById('autorot-btn').textContent = _autoRotate ? '↻ ROTATE ON' : '↻ ROTATE OFF';
 }
+function toggleAutoRotate(){ _autoRotate=!_autoRotate; updateAutoRotBtn(); }
 window.toggleAutoRotate = toggleAutoRotate;
 
-function openInFRAX() {
-  if(_glbUrl) {
-    window.open('https://leatr.xyz/tests/frax.html?model='+encodeURIComponent(_glbUrl), '_blank');
+/* ── DOWNLOADS ───────────────────────────────────────────────── */
+function downloadFile(type){
+  var url = type==='glb' ? _glbUrl : _plyUrl;
+  if(!url) return;
+  setStatus('DOWNLOADING '+type.toUpperCase()+'…','busy');
+  if(url.startsWith('blob:')||url.startsWith('data:')){
+    var a=document.createElement('a'); a.href=url;
+    a.download='hunyuan_world.'+type; a.click();
+    setStatus('WORLD READY','ok');
+    return;
   }
+  fetch(url)
+    .then(function(r){ return r.blob(); })
+    .then(function(b){
+      var burl=URL.createObjectURL(b);
+      var a=document.createElement('a'); a.href=burl;
+      a.download='hunyuan_world.'+type; a.click();
+      setTimeout(function(){ URL.revokeObjectURL(burl); },5000);
+      setStatus('WORLD READY','ok');
+    })
+    .catch(function(e){ setError('Download failed: '+e.message); });
 }
-window.openInFRAX = openInFRAX;
+window.downloadFile = downloadFile;
 
-// ── Download helpers ──────────────────────────────────────
-function downloadGLB() {
-  if(!_glbUrl) return;
-  var a = document.createElement('a');
-  a.href = _glbUrl; a.download = 'hunyuan_world.glb'; a.click();
-}
-window.downloadGLB = downloadGLB;
-
-function downloadPLY() {
-  if(!_plyUrl) return;
-  var a = document.createElement('a');
-  a.href = _plyUrl; a.download = 'hunyuan_world.ply'; a.click();
-}
-window.downloadPLY = downloadPLY;
-
+/* ── INIT ────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded',function(){
+  loadToken();
+  setMode('generate');
+  ['steps','guidance'].forEach(updateRange);
+  // Mobile: open sheet by default so controls are visible
+  if(window.innerWidth < 700) setSheet(true);
+});
 </script>
 </body>
 </html>
