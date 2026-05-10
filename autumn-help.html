@@ -32,6 +32,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;bac
 .hero-desc{max-width:560px;color:var(--dim);font-weight:300;font-size:.9rem;margin-bottom:22px;}
 .badge-row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;}
 .badge{font-family:var(--fh);font-size:.37rem;letter-spacing:1.8px;padding:4px 11px;border-radius:99px;border:1px solid var(--border);background:var(--glass);color:var(--cyan);}
+    a.badge{text-decoration:none;cursor:pointer;}
 .divider{width:100%;max-width:840px;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);margin:0 auto 44px;opacity:.3;position:relative;z-index:1;}
 .search-wrap{position:relative;z-index:1;max-width:500px;margin:0 auto 36px;padding:0 20px;}
 .search-input{width:100%;background:rgba(0,229,255,.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--fb);font-size:.88rem;padding:10px 40px 10px 16px;outline:none;transition:border-color .2s;}
@@ -151,11 +152,14 @@ footer a{color:var(--cyan);text-decoration:none;}
   <div class="hero-logo"><img src="https://raw.githubusercontent.com/DART-Skyboard/Autumn/refs/heads/main/assets/autumn.png" alt="Autumn"/></div>
   <h1><span>AUTUMN</span></h1>
   <p class="hero-sub">USER GUIDE &amp; REFERENCE MANUAL · 2026</p>
-  <p class="hero-desc">An AI built on LEATR — a proprietary neural architecture by DART Meadow / Radical Deepscale LLC. Combining Claude Sonnet responses, real-time 3D BRPN visualization, image generation, vision, voice, drone flight simulation, live aerial and orbital surveillance, and a private Sentient Journal system.</p>
+  <p class="hero-desc">An AI built on LEATR — a proprietary neural architecture by DART Meadow / Radical Deepscale LLC. Combining Claude Sonnet responses, real-time 3D BRPN visualization, image generation, vision, voice, and a private Sentient Journal system.</p>
   <div class="badge-row">
-    <span class="badge">LEATR v2</span><span class="badge">BRPN Neural Architecture</span><span class="badge">Claude Sonnet</span>
-    <span class="badge">Sentient Journal</span><span class="badge">Image Gen · Vision · Voice</span><span class="badge">Multi-User</span>
-    <span class="badge">Ash Canvas</span><span class="badge">Arc Edge Studio</span><span class="badge">ArcLake Studio</span><span class="badge">AI Arc Generation</span><span class="badge">Mantis Navigation</span><span class="badge">Mantis Radar</span><span class="badge">N.A.T.E Audio Engine</span><span class="badge">Movement Conjecture</span><span class="badge">World Studio</span><span class="badge">Floating Calculator</span><span class="badge">Brave Search</span><span class="badge">Hold-to-Talk PTT</span>
+    <a class="badge" href="#leatr">LEATR v2</a><a class="badge" href="#leatr">BRPN Neural Architecture</a><a class="badge" href="#start">Claude Sonnet</a>
+    <a class="badge" href="#memory">Sentient Journal</a><a class="badge" href="#image">Image Gen · Vision · Voice</a><a class="badge" href="#advanced">Multi-User</a>
+    <a class="badge" href="#advanced">Ash Canvas</a><a class="badge" href="#tools">Arc Edge Studio</a><a class="badge" href="#tools">ArcLake Studio</a><a class="badge" href="#tools">AI Arc Generation</a>
+    <a class="badge" href="#mantis-nav">Mantis Navigation</a><a class="badge" href="#mantis-radar">Mantis Radar</a>
+    <a class="badge" href="#nate">N.A.T.E Audio Engine</a><a class="badge" href="#movement-conjecture">Movement Conjecture</a><a class="badge" href="#tools">World Studio</a>
+    <a class="badge" href="#calc">Floating Calculator</a><a class="badge" href="#chat">Brave Search</a><a class="badge" href="#chat">Hold-to-Talk PTT</a>
   </div>
 </header>
 
@@ -1465,7 +1469,7 @@ window.addEventListener('scroll',upNav,{passive:true});upNav();
 
 function doSearch(q){
   var all=document.querySelectorAll('.sec');
-  if(!q.trim()){all.forEach(function(s){s.style.display='';});document.querySelectorAll('tr,li,.qrr,.step,.ni,.pr').forEach(function(e){e.style.background='';});return;}
+  if(!q.trim()){all.forEach(function(s){s.style.display='';});document.querySelectorAll('tr,li,p,h3,.qrr,.step,.ni,.pr').forEach(function(e){e.style.background='';});return;}
   var lq=q.toLowerCase();
   all.forEach(function(s){
     var hit=false;
