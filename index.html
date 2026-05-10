@@ -23709,29 +23709,38 @@ if (navigator.geolocation) {
   }, { timeout:8000 });
 }
 
-// ── DRAGGING ───────────────────────────────────────────────────────────
-var _drag={active:false,sx:0,sy:0,ol:0,ot:0};
+// ── DRAGGING (touch + mouse, Storm Studio pattern) ──────────────────────
 var _hdr = document.getElementById('mn-hdr');
-if(_hdr){
-  _hdr.addEventListener('pointerdown',function(e){
+var _mnDragging=false,_mnOx=0,_mnOy=0,_mnDragInited=false;
+function _mnInitDrag(){
+  if(_mnDragInited||!_hdr) return; _mnDragInited=true;
+  function _start(e){
     var id=e.target.id;
     if(id==='mn-close-btn'||id==='mn-min-btn'||id==='mn-exp-btn') return;
-    _drag.active=true; _drag.sx=e.clientX; _drag.sy=e.clientY;
     var r=_ov.getBoundingClientRect();
-    _drag.ol=r.left; _drag.ot=r.top;
-    _ov.style.transform='none';
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    _mnDragging=true; _mnOx=cx-r.left; _mnOy=cy-r.top;
+    _ov.style.transition='none'; _ov.style.transform='none';
     _ov.style.left=r.left+'px'; _ov.style.top=r.top+'px';
-    _ov.classList.add('mn-dragging');
-    _hdr.setPointerCapture(e.pointerId);
-  });
-  _hdr.addEventListener('pointermove',function(e){
-    if(!_drag.active) return;
-    _ov.style.left=Math.max(0,_drag.ol+(e.clientX-_drag.sx))+'px';
-    _ov.style.top =Math.max(0,_drag.ot+(e.clientY-_drag.sy))+'px';
-  });
-  _hdr.addEventListener('pointerup',function(){
-    _drag.active=false; _ov.classList.remove('mn-dragging');
-  });
+    document.body.style.userSelect='none';
+    if(e.preventDefault) e.preventDefault();
+  }
+  function _move(e){
+    if(!_mnDragging) return;
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    _ov.style.left=Math.max(0,Math.min(cx-_mnOx,window.innerWidth -_ov.offsetWidth ))+'px';
+    _ov.style.top =Math.max(0,Math.min(cy-_mnOy,window.innerHeight-60             ))+'px';
+    if(e.preventDefault) e.preventDefault();
+  }
+  function _stop(){ _mnDragging=false; document.body.style.userSelect=''; }
+  _hdr.addEventListener('mousedown',  _start);
+  _hdr.addEventListener('touchstart', _start,{passive:false});
+  document.addEventListener('mousemove',  _move);
+  document.addEventListener('touchmove',  _move,{passive:false});
+  document.addEventListener('mouseup',    _stop);
+  document.addEventListener('touchend',   _stop);
 }
 
 // ── HELPERS ────────────────────────────────────────────────────────────
@@ -23841,10 +23850,14 @@ function _journalEvent(type,payload){
 
 // ── iframe LIFECYCLE ───────────────────────────────────────────────────
 if(_frame){
-  _frame.addEventListener('load',function(){
+  var _mnLoadTimer=null;
+  function _mnShowFrame(){
+    clearTimeout(_mnLoadTimer);
     if(_loading) _loading.style.display='none';
     if(_frame)   _frame.style.display='block';
-  });
+  }
+  _frame.addEventListener('load',_mnShowFrame);
+  _mnLoadTimer=setTimeout(_mnShowFrame,12000);
 }
 
 // ── PUBLIC API ─────────────────────────────────────────────────────────
@@ -23854,6 +23867,7 @@ window.mantisNav = {
     if(!_loaded){
       if(_loading) _loading.style.display='flex';
       if(_frame)  { _frame.style.display='none'; _frame.src=MN_URL; }
+      if(typeof _mnLoadTimer!=='undefined'){ clearTimeout(_mnLoadTimer); _mnLoadTimer=setTimeout(_mnShowFrame,12000); }
       _loaded=true;
     }
     _ov.classList.add('mn-open');
@@ -23861,6 +23875,7 @@ window.mantisNav = {
     _open=true; _minimized=false;
     _analytics.sessionOpen=true;
     _ov.style.height='';
+    _mnInitDrag();
     _startAnalytics();
     _journalEvent('MANTIS_NAV_OPEN',{ ts:Date.now(), location:_analytics.location });
   },
@@ -24147,28 +24162,37 @@ var _adsbBadge = document.getElementById('mr-adsb-badge');
 var _orbBadge  = document.getElementById('mr-orb-badge');
 var _hdr = document.getElementById('mr-hdr');
 
-// ── DRAGGING ───────────────────────────────────────────────────
-var _drag={active:false,sx:0,sy:0,ol:0,ot:0};
-if(_hdr){
-  _hdr.addEventListener('pointerdown',function(e){
+// ── DRAGGING (touch + mouse, Storm Studio pattern) ───────────────────
+var _mrDragging=false,_mrOx=0,_mrOy=0,_mrDragInited=false;
+function _mrInitDrag(){
+  if(_mrDragInited||!_hdr) return; _mrDragInited=true;
+  function _start(e){
     var id=e.target.id;
     if(id==='mr-close-btn'||id==='mr-min-btn'||id==='mr-exp-btn') return;
-    _drag.active=true; _drag.sx=e.clientX; _drag.sy=e.clientY;
     var r=_ov.getBoundingClientRect();
-    _drag.ol=r.left; _drag.ot=r.top;
-    _ov.style.transform='none';
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    _mrDragging=true; _mrOx=cx-r.left; _mrOy=cy-r.top;
+    _ov.style.transition='none'; _ov.style.transform='none';
     _ov.style.left=r.left+'px'; _ov.style.top=r.top+'px';
-    _ov.classList.add('mr-dragging');
-    _hdr.setPointerCapture(e.pointerId);
-  });
-  _hdr.addEventListener('pointermove',function(e){
-    if(!_drag.active) return;
-    _ov.style.left=Math.max(0,_drag.ol+(e.clientX-_drag.sx))+'px';
-    _ov.style.top =Math.max(0,_drag.ot+(e.clientY-_drag.sy))+'px';
-  });
-  _hdr.addEventListener('pointerup',function(){
-    _drag.active=false; _ov.classList.remove('mr-dragging');
-  });
+    document.body.style.userSelect='none';
+    if(e.preventDefault) e.preventDefault();
+  }
+  function _move(e){
+    if(!_mrDragging) return;
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    _ov.style.left=Math.max(0,Math.min(cx-_mrOx,window.innerWidth -_ov.offsetWidth ))+'px';
+    _ov.style.top =Math.max(0,Math.min(cy-_mrOy,window.innerHeight-60             ))+'px';
+    if(e.preventDefault) e.preventDefault();
+  }
+  function _stop(){ _mrDragging=false; document.body.style.userSelect=''; }
+  _hdr.addEventListener('mousedown',  _start);
+  _hdr.addEventListener('touchstart', _start,{passive:false});
+  document.addEventListener('mousemove',  _move);
+  document.addEventListener('touchmove',  _move,{passive:false});
+  document.addEventListener('mouseup',    _stop);
+  document.addEventListener('touchend',   _stop);
 }
 
 // ── iframe LIFECYCLE ──────────────────────────────────────────
@@ -24189,12 +24213,14 @@ window.mantisRadar = {
     if(!_loaded){
       if(_loading) _loading.style.display='flex';
       if(_frame)  { _frame.style.display='none'; _frame.src=MR_URL; }
+      if(typeof _mrLoadTimer!=='undefined'){ clearTimeout(_mrLoadTimer); _mrLoadTimer=setTimeout(_mrShowFrame,12000); }
       _loaded=true;
     }
     _ov.classList.add('mr-open');
     _ov.classList.remove('mr-minimized');
     _open=true; _minimized=false;
     _ov.style.height='';
+    _mrInitDrag();
     if(typeof window.autumnJournalEvent==='function'){
       window.autumnJournalEvent('MANTIS_RADAR_OPEN',{ ts:Date.now() });
     }
