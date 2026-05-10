@@ -320,44 +320,9 @@
     }
     body.iframe-mode #info-panel img { width: 90px; height: 90px; }
 
-    /* Hide trajectories panel in iframe; chemistry controlled by JS */
+    /* Hide chemistry & trajectory panels by default in iframe */
+    body.iframe-mode #chemistry-panel,
     body.iframe-mode #trajectories-panel { display: none !important; }
-
-    /* Chemistry panel — full-screen scrollable overlay when active */
-    body.iframe-mode #chemistry-panel {
-        position: fixed !important;
-        top: 0 !important; left: 0 !important;
-        width: 100% !important; height: 100% !important;
-        max-height: 100% !important;
-        overflow-y: auto !important;
-        background: rgba(3,7,12,.97) !important;
-        z-index: 998 !important;
-        border-radius: 0 !important;
-        border: none !important;
-    }
-    /* Chemistry thrust controls row — centred, launch visible */
-    body.iframe-mode #chem-thrust-container {
-        width: 100% !important;
-        display: flex !important;
-        flex-direction: row !important;
-        justify-content: center !important;
-        align-items: flex-end !important;
-        gap: 24px !important;
-        padding-bottom: 12px !important;
-    }
-    body.iframe-mode .chem-slider-wrapper { gap: 8px; }
-    body.iframe-mode .chem-slider { width: 90px; margin-bottom: 40px; }
-    body.iframe-mode #launch-btn {
-        padding: 14px 22px !important;
-        font-size: 1em !important;
-        border-radius: 8px !important;
-        margin-bottom: 0 !important;
-    }
-    /* Info panel slim sidebar — stays out of the way */
-    body.iframe-mode #info-panel {
-        max-width: 155px !important;
-        font-size: .68rem !important;
-    }
 
     /* Re-centre controls at bottom */
     body.iframe-mode #ui-container {
@@ -619,7 +584,15 @@
         // --- SCENE SETUP ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 100000);
-        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('threejs-canvas'), antialias: true });
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('threejs-canvas'), antialias: true, powerPreference: 'low-power' });
+        // Handle WebGL context loss gracefully (can happen on mobile with multiple GL contexts)
+        renderer.domElement.addEventListener('webglcontextlost', function(e){
+          e.preventDefault();
+          console.warn('[MantisNav] WebGL context lost — waiting to restore');
+        }, false);
+        renderer.domElement.addEventListener('webglcontextrestored', function(){
+          console.info('[MantisNav] WebGL context restored');
+        }, false);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         
@@ -830,13 +803,11 @@
             chemistryModeActive = !chemistryModeActive;
             
             if (chemistryModeActive) {
-                // In iframe-mode CSS controls positioning; skip inline top calc
-                if (!document.body.classList.contains('iframe-mode')) {
-                    const infoPanelRect = infoPanel.getBoundingClientRect();
-                    const topPosition = infoPanelRect.bottom + 10;
-                    chemistryPanel.style.top = `${topPosition}px`;
-                    chemistryPanel.style.maxHeight = `calc(100vh - ${topPosition}px - 20px)`;
-                }
+                const infoPanelRect = infoPanel.getBoundingClientRect();
+                const topPosition = infoPanelRect.bottom + 10;
+                chemistryPanel.style.top = `${topPosition}px`;
+                chemistryPanel.style.maxHeight = `calc(100vh - ${topPosition}px - 20px)`; 
+
                 chemistryPanel.style.display = 'flex';
                 trajectoriesPanel.style.display = 'block';
             } else {
@@ -1197,6 +1168,14 @@
 
       case 'reset':
         if(typeof reinitializeDroneState==='function') reinitializeDroneState();
+        break;
+
+      case 'pause':
+        window._mnPaused = true;
+        break;
+
+      case 'resume':
+        window._mnPaused = false;
         break;
 
       case 'getState':
