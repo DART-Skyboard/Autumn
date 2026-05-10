@@ -151,11 +151,11 @@ footer a{color:var(--cyan);text-decoration:none;}
   <div class="hero-logo"><img src="https://raw.githubusercontent.com/DART-Skyboard/Autumn/refs/heads/main/assets/autumn.png" alt="Autumn"/></div>
   <h1><span>AUTUMN</span></h1>
   <p class="hero-sub">USER GUIDE &amp; REFERENCE MANUAL · 2026</p>
-  <p class="hero-desc">An AI built on LEATR — a proprietary neural architecture by DART Meadow / Radical Deepscale LLC. Combining Claude Sonnet responses, real-time 3D BRPN visualization, image generation, vision, voice, and a private Sentient Journal system.</p>
+  <p class="hero-desc">An AI built on LEATR — a proprietary neural architecture by DART Meadow / Radical Deepscale LLC. Combining Claude Sonnet responses, real-time 3D BRPN visualization, image generation, vision, voice, drone flight simulation, live aerial and orbital surveillance, and a private Sentient Journal system.</p>
   <div class="badge-row">
     <span class="badge">LEATR v2</span><span class="badge">BRPN Neural Architecture</span><span class="badge">Claude Sonnet</span>
     <span class="badge">Sentient Journal</span><span class="badge">Image Gen · Vision · Voice</span><span class="badge">Multi-User</span>
-    <span class="badge">Ash Canvas</span><span class="badge">Arc Edge Studio</span><span class="badge">ArcLake Studio</span><span class="badge">AI Arc Generation</span><span class="badge">Floating Calculator</span><span class="badge">Brave Search</span><span class="badge">Hold-to-Talk PTT</span>
+    <span class="badge">Ash Canvas</span><span class="badge">Arc Edge Studio</span><span class="badge">ArcLake Studio</span><span class="badge">AI Arc Generation</span><span class="badge">Mantis Navigation</span><span class="badge">Mantis Radar</span><span class="badge">N.A.T.E Audio Engine</span><span class="badge">Movement Conjecture</span><span class="badge">World Studio</span><span class="badge">Floating Calculator</span><span class="badge">Brave Search</span><span class="badge">Hold-to-Talk PTT</span>
   </div>
 </header>
 
@@ -1312,7 +1312,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 <!-- ═══════════════════════════════════════════════════════════
      MANTIS NAVIGATION
 ═══════════════════════════════════════════════════════════ -->
-<section class="section" id="mantis-nav" data-section="mantis-nav">
+<section class="sec" id="mantis-nav">
   <div class="sec-hd">
     <span class="sec-num" style="color:rgba(0,229,255,.7)">◈</span>
     <span class="sec-title" style="background:linear-gradient(135deg,#00e5ff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Mantis Navigation</span>
@@ -1390,7 +1390,7 @@ footer a{color:var(--cyan);text-decoration:none;}
 <!-- ═══════════════════════════════════════════════════════════
      MANTIS RADAR
 ═══════════════════════════════════════════════════════════ -->
-<section class="section" id="mantis-radar" data-section="mantis-radar">
+<section class="sec" id="mantis-radar">
   <div class="sec-hd">
     <span class="sec-num" style="color:rgba(0,245,255,.7)">◈</span>
     <span class="sec-title" style="background:linear-gradient(135deg,#00f5ff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Mantis Radar</span>
@@ -1469,7 +1469,7 @@ function doSearch(q){
   var lq=q.toLowerCase();
   all.forEach(function(s){
     var hit=false;
-    s.querySelectorAll('tr,li,.qrr,.step,.ni,.pr').forEach(function(e){
+    s.querySelectorAll('tr,li,p,h3,.qrr,.step,.ni,.pr').forEach(function(e){
       var m=e.textContent.toLowerCase().includes(lq);
       e.style.background=m?'rgba(0,229,255,.07)':'';
       if(m)hit=true;
