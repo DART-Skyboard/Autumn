@@ -9019,6 +9019,18 @@ function classifyIntentLocal(text, hasPendingImages) {
   var _knownSite = /\b(spacex|nasa|google|microsoft|apple|amazon|wikipedia|github|twitter|reddit|youtube|netflix|spotify|bbc|cnn|nytimes|techcrunch|openai|anthropic|tesla|bing|duckduckgo|facebook|instagram|linkedin|x\.com|espn|nfl|nba|mlb|imdb|ebay|walmart|target|airbnb|booking|tripadvisor|twitch|discord|notion|figma|vercel|netlify|stripe|shopify|wordpress|medium|substack|hackernews|producthunt)\b/i.test(lc);
   if (_browseVerbs && (_siteNoun || _knownSite)) return 'BROWSE_SITE';
 
+  // ── MANTIS RADAR ──────────────────────────────────────────────────────
+  var _radarIntent =
+    /\b(mantis\s*radar|open\s*radar|show\s*radar|launch\s*radar)\b/i.test(lc) ||
+    /\b(adsb|ads-b|opensky|aerial\s*(map|view|scan)|aircraft\s*(map|live|near|around))\b/i.test(lc) ||
+    /\b(orbital\s*(globe|map|view|scan)|satellite\s*(globe|map|track|live)|tle\s*(globe|view))\b/i.test(lc) ||
+    /\b(show\s*(me\s*)?(aircraft|planes|flights|satellites)\s*(on|near|around|live))\b/i.test(lc) ||
+    /\b(radar\s*(view|overlay|scan|live)|surveillance|aerial\s*surveillance)\b/i.test(lc);
+  if (_radarIntent) {
+    if (window.mantisRadar) window.mantisRadar.open();
+    return 'MANTIS_RADAR';
+  }
+
   // ── MANTIS NAVIGATION ─────────────────────────────────────────────────
   var _mantisIntent =
     /\b(mantis[\s_-]*(nav|navigation|radar))\b/i.test(lc) ||
@@ -9190,6 +9202,20 @@ async function handleSend() {
     _doSessionReply('Messages restored.'); return;
   }
 
+
+  // ── MANTIS RADAR INTENT HANDLER ───────────────────────────────────────
+  if (_intentLabel === 'MANTIS_RADAR') {
+    const _mrReply = (window.mantisRadar && typeof window.mantisRadar.autumnQuery === 'function')
+      ? window.mantisRadar.autumnQuery(augmentedText)
+      : null;
+    if (_mrReply) {
+      _doSessionReply(_mrReply);
+      if (typeof window.autumnJournalEvent === 'function') {
+        window.autumnJournalEvent('MANTIS_RADAR_QUERY', { input: augmentedText, ts: Date.now() });
+      }
+      return;
+    }
+  }
 
   // ── MANTIS NAVIGATION INTENT HANDLER ────────────────────────────────
   if (_intentLabel === 'MANTIS_NAV') {
@@ -13873,6 +13899,7 @@ const TOOL_TABS=[
   {id:"journal",  label:"Journal",  icon:"📖", color:"#ff9a4d"},
   {id:"sessions", label:"Sessions", icon:"💬", color:"#4dffb8"},
   {id:"ashtree",  label:"Ash Tree", icon:"🌿", color:"#7fff7f"},
+  {id:"radar",    label:"Radar",    icon:"📡", color:"#00ff88"},
   {id:"mantis",   label:"Mantis",   icon:"🛸", color:"#00d4ff"},
   {id:"about",    label:"About",    icon:"🌐", color:"#7c9fff"}
 ];
@@ -13899,6 +13926,14 @@ function renderToolsContent(){
     case "ashtree":   el.innerHTML=renderToolsAshTree(); bindToolsAshTree(); break;
     case "about":     el.innerHTML=renderToolsAbout(); break;
     case "contexts":  el.innerHTML=renderToolsContacts?renderToolsContacts():"<div style='padding:20px;color:#8a8fa8'>Contexts loading...</div>"; break;
+    case "radar":
+      if (window.renderToolsRadar) {
+        el.innerHTML = window.renderToolsRadar();
+        if (window.mantisRadarTabMounted) setTimeout(window.mantisRadarTabMounted, 60);
+      } else {
+        el.innerHTML = "<div style='padding:20px;font-family:Orbitron,monospace;font-size:11px;color:#00ff88;letter-spacing:2px'>📡 MANTIS RADAR<br><span style=\'color:rgba(0,255,136,.4);font-size:9px;margin-top:8px;display:block\'>Initialising radar controller...</span></div>";
+      }
+      break;
     case "mantis":
       if (window.renderToolsMantis) {
         el.innerHTML = window.renderToolsMantis();
@@ -23983,6 +24018,277 @@ if(typeof window.autumnJournalEvent==='undefined'){
 
 console.info('[MantisNav] Controller ready. URL:',MN_URL);
 
+})();
+</script>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MANTIS RADAR OVERLAY — Autumn Integration
+     Aerial ADS-B map + CelesTrak orbital globe
+     ══════════════════════════════════════════════════════════════════ -->
+<style>
+#mantis-radar-overlay{
+  position:fixed;top:64px;left:50%;
+  transform:translateX(-50%);
+  width:min(920px,95vw);height:min(680px,84vh);
+  background:#030a0e;
+  border:1px solid rgba(0,255,136,.2);border-radius:10px;
+  display:none;flex-direction:column;z-index:9390;
+  box-shadow:0 0 0 1px rgba(0,255,136,.05),0 0 40px rgba(0,255,136,.08),0 24px 80px rgba(0,0,0,.9);
+  overflow:hidden;will-change:transform;
+}
+#mantis-radar-overlay.mr-open{display:flex}
+#mantis-radar-overlay.mr-minimized{height:38px!important}
+#mantis-radar-overlay.mr-expanded{
+  width:98vw!important;height:94vh!important;
+  top:2vh!important;left:1vw!important;transform:none
+}
+#mantis-radar-overlay.mr-dragging{
+  box-shadow:0 0 0 1px rgba(0,255,136,.18),0 0 60px rgba(0,255,136,.15),0 32px 100px rgba(0,0,0,.95);
+  transform:none
+}
+#mr-hdr{
+  height:38px;min-height:38px;
+  background:linear-gradient(90deg,rgba(0,255,136,.08) 0%,rgba(0,255,136,.02) 60%,transparent 100%);
+  border-bottom:1px solid rgba(0,255,136,.15);
+  display:flex;align-items:center;padding:0 8px 0 12px;
+  cursor:grab;user-select:none;gap:8px;flex-shrink:0;
+}
+#mr-hdr:active{cursor:grabbing}
+.mr-hdr-icon{font-size:15px;filter:drop-shadow(0 0 4px rgba(0,255,136,.55))}
+.mr-hdr-title{
+  font-family:'Orbitron','Exo 2',sans-serif;font-size:10px;font-weight:700;
+  color:#00ff88;letter-spacing:2.5px;flex:1;text-shadow:0 0 10px rgba(0,255,136,.4)
+}
+.mr-badge{
+  font-family:'Courier New',monospace;font-size:9px;padding:2px 6px;
+  background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.18);
+  border-radius:3px;color:rgba(0,255,136,.65);white-space:nowrap
+}
+.mr-cbtn{
+  width:22px;height:22px;background:rgba(0,255,136,.06);
+  border:1px solid rgba(0,255,136,.2);border-radius:4px;
+  color:rgba(0,255,136,.8);font-size:11px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,border-color .15s,color .15s;flex-shrink:0;
+}
+.mr-cbtn:hover{background:rgba(0,255,136,.18);border-color:rgba(0,255,136,.5)}
+#mr-close-btn:hover{background:rgba(255,50,50,.3);border-color:rgba(255,80,80,.6);color:#ff4444}
+#mr-frame{flex:1;width:100%;border:none;background:#030a0e;display:none;min-height:0}
+#mr-loading{
+  flex:1;display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:12px;background:#030a0e;
+  color:rgba(0,255,136,.5);font-family:'Courier New',monospace;
+  font-size:11px;letter-spacing:2px;
+}
+.mr-spinner{
+  width:28px;height:28px;border:2px solid rgba(0,255,136,.1);
+  border-top-color:#00ff88;border-radius:50%;
+  animation:mr-spin .8s linear infinite
+}
+@keyframes mr-spin{to{transform:rotate(360deg)}}
+
+/* Tools tab panel */
+.mr-tab-panel{padding:14px;font-family:'Courier New',monospace;font-size:11px}
+.mr-tab-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.mr-kv{background:rgba(0,255,136,.04);border:1px solid rgba(0,255,136,.12);border-radius:5px;padding:9px 11px}
+.mr-kv-label{color:rgba(0,255,136,.5);font-size:9px;letter-spacing:1.5px;margin-bottom:4px;text-transform:uppercase}
+.mr-kv-val{color:#00ff88;font-size:13px;font-weight:700}
+.mr-kv-sub{color:rgba(0,255,136,.4);font-size:9px;margin-top:2px}
+.mr-open-btn{
+  width:100%;padding:10px;margin-top:4px;
+  background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);
+  border-radius:6px;color:#00ff88;font-family:'Orbitron',monospace;
+  font-size:10px;letter-spacing:2px;cursor:pointer;
+  transition:background .18s,border-color .18s;text-transform:uppercase
+}
+.mr-open-btn:hover{background:rgba(0,255,136,.18);border-color:rgba(0,255,136,.6)}
+</style>
+
+<div id="mantis-radar-overlay" role="dialog" aria-label="Mantis Radar">
+  <div id="mr-hdr">
+    <span class="mr-hdr-icon">📡</span>
+    <span class="mr-hdr-title">MANTIS RADAR</span>
+    <span class="mr-badge" id="mr-adsb-badge">ADS-B –</span>
+    <span class="mr-badge" id="mr-orb-badge">ORBITAL –</span>
+    <button class="mr-cbtn" id="mr-exp-btn"   title="Expand / Restore">⛶</button>
+    <button class="mr-cbtn" id="mr-min-btn"   title="Minimize">▁</button>
+    <button class="mr-cbtn" id="mr-close-btn" title="Close">✕</button>
+  </div>
+  <div id="mr-loading">
+    <div class="mr-spinner"></div>
+    <span>INITIALISING MANTIS RADAR…</span>
+  </div>
+  <iframe id="mr-frame"
+    src="about:blank"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+    loading="lazy"
+    title="Mantis Radar — ADS-B + Orbital">
+  </iframe>
+</div>
+
+<script>
+/* ================================================================
+   MANTIS RADAR CONTROLLER  —  window.mantisRadar
+   Draggable overlay → iframe → /mr.html (same-origin)
+   Autumn AI hook: autumnQuery(), renderToolsRadar(), journal events
+   ================================================================ */
+(function(){
+'use strict';
+
+var MR_URL = '/mr.html';
+
+var _open=false, _loaded=false, _expanded=false, _minimized=false;
+
+var _ov      = document.getElementById('mantis-radar-overlay');
+var _frame   = document.getElementById('mr-frame');
+var _loading = document.getElementById('mr-loading');
+var _adsbBadge = document.getElementById('mr-adsb-badge');
+var _orbBadge  = document.getElementById('mr-orb-badge');
+var _hdr = document.getElementById('mr-hdr');
+
+// ── DRAGGING ───────────────────────────────────────────────────
+var _drag={active:false,sx:0,sy:0,ol:0,ot:0};
+if(_hdr){
+  _hdr.addEventListener('pointerdown',function(e){
+    var id=e.target.id;
+    if(id==='mr-close-btn'||id==='mr-min-btn'||id==='mr-exp-btn') return;
+    _drag.active=true; _drag.sx=e.clientX; _drag.sy=e.clientY;
+    var r=_ov.getBoundingClientRect();
+    _drag.ol=r.left; _drag.ot=r.top;
+    _ov.style.transform='none';
+    _ov.style.left=r.left+'px'; _ov.style.top=r.top+'px';
+    _ov.classList.add('mr-dragging');
+    _hdr.setPointerCapture(e.pointerId);
+  });
+  _hdr.addEventListener('pointermove',function(e){
+    if(!_drag.active) return;
+    _ov.style.left=Math.max(0,_drag.ol+(e.clientX-_drag.sx))+'px';
+    _ov.style.top =Math.max(0,_drag.ot+(e.clientY-_drag.sy))+'px';
+  });
+  _hdr.addEventListener('pointerup',function(){
+    _drag.active=false; _ov.classList.remove('mr-dragging');
+  });
+}
+
+// ── iframe LIFECYCLE ──────────────────────────────────────────
+if(_frame){
+  _frame.addEventListener('load',function(){
+    if(_loading) _loading.style.display='none';
+    if(_frame)   _frame.style.display='block';
+    // Mirror status from iframe via postMessage if radar publishes it
+    _adsbBadge.textContent = 'ADS-B LIVE';
+    _orbBadge.textContent  = 'ORBITAL LIVE';
+  });
+}
+
+// ── PUBLIC API ─────────────────────────────────────────────────
+window.mantisRadar = {
+
+  open: function(){
+    if(!_loaded){
+      if(_loading) _loading.style.display='flex';
+      if(_frame)  { _frame.style.display='none'; _frame.src=MR_URL; }
+      _loaded=true;
+    }
+    _ov.classList.add('mr-open');
+    _ov.classList.remove('mr-minimized');
+    _open=true; _minimized=false;
+    _ov.style.height='';
+    if(typeof window.autumnJournalEvent==='function'){
+      window.autumnJournalEvent('MANTIS_RADAR_OPEN',{ ts:Date.now() });
+    }
+  },
+
+  close: function(){
+    _ov.classList.remove('mr-open');
+    _open=false;
+    if(typeof window.autumnJournalEvent==='function'){
+      window.autumnJournalEvent('MANTIS_RADAR_CLOSE',{ ts:Date.now() });
+    }
+  },
+
+  toggleMinimize: function(){
+    _minimized=!_minimized;
+    _ov.classList.toggle('mr-minimized',_minimized);
+  },
+
+  toggleExpand: function(){
+    _expanded=!_expanded;
+    _ov.classList.toggle('mr-expanded',_expanded);
+    if(!_expanded){
+      _ov.style.width=''; _ov.style.height='';
+      _ov.style.top=''; _ov.style.left=''; _ov.style.transform='';
+    }
+  },
+
+  isOpen: function(){ return _open; },
+
+  /* Autumn AI response builder */
+  autumnQuery: function(msg){
+    if(!msg) return null;
+    var m = msg.toLowerCase();
+    var isAerial   = /\b(aerial|aircraft|plane|flight|adsb|ads-b|contact)\b/.test(m);
+    var isOrbital  = /\b(orbital|satellite|orbit|globe|tle|leo|geo)\b/.test(m);
+    var wantsOpen  = /\b(open|show|launch|pull\s*up|activate|bring\s*up|display)\b/.test(m);
+
+    if(wantsOpen) this.open();
+
+    // Use mantisAnalytics if available (shared with mantisNav controller)
+    var ana = window.mantisAnalytics || {};
+    var ac  = ana.aircraft  || {};
+    var sat = ana.satellite || {};
+
+    if(isAerial && !isOrbital){
+      var acStr = (ac.count != null) ? ac.count+' aircraft contacts' : 'aerial contacts (loading)';
+      return (wantsOpen ? 'Mantis Radar is now open. ' : '')
+        + 'The aerial view is showing live ADS-B traffic via OpenSky Network. I can see **'+acStr+'** in range. Use the Scan Radius slider inside the overlay to adjust coverage.';
+    }
+    if(isOrbital && !isAerial){
+      var satStr = (sat.total != null) ? sat.total.toLocaleString()+' tracked objects' : 'orbital catalog (loading)';
+      return (wantsOpen ? 'Mantis Radar is now open. ' : '')
+        + 'The orbital globe view is rendering live TLE data from CelesTrak — **'+satStr+' total**, categorised by LEO, MEO, and GEO. Click any dot on the globe to trace its orbit.';
+    }
+    return (wantsOpen ? 'Mantis Radar is now open. ' : '')
+      + 'Mantis Radar gives you two live views: **AERIAL** (ADS-B aircraft contacts via OpenSky, adjustable scan radius) and **ORBITAL** (full CelesTrak TLE satellite globe with LEO/MEO/GEO categorisation and orbit tracing). Switch views with the tabs inside the overlay.';
+  },
+};
+
+// ── BUTTON WIRING ──────────────────────────────────────────────
+document.getElementById('mr-close-btn')?.addEventListener('click', function(){ window.mantisRadar.close(); });
+document.getElementById('mr-min-btn')  ?.addEventListener('click', function(){ window.mantisRadar.toggleMinimize(); });
+document.getElementById('mr-exp-btn')  ?.addEventListener('click', function(){ window.mantisRadar.toggleExpand(); });
+
+// ── TOOLS TAB RENDERER ─────────────────────────────────────────
+window.renderToolsRadar = function(){
+  var ana = window.mantisAnalytics || {};
+  var ac  = ana.aircraft  || {};
+  var sat = ana.satellite || {};
+  var acVal  = (ac.count  != null) ? ac.count  : '–';
+  var satVal = (sat.total != null) ? sat.total.toLocaleString() : '–';
+  var acAge  = ac.timestamp  ? Math.round((Date.now()-ac.timestamp)/1000)+'s ago' : 'not synced';
+  var satAge = sat.timestamp ? Math.round((Date.now()-sat.timestamp)/60000)+'m ago' : 'not synced';
+
+  return '<div class="mr-tab-panel">'
+    +'<div class="mr-tab-grid">'
+    +'<div class="mr-kv"><div class="mr-kv-label">ADS-B Contacts</div><div class="mr-kv-val">'+acVal+'</div><div class="mr-kv-sub">'+acAge+' · OpenSky Network</div></div>'
+    +'<div class="mr-kv"><div class="mr-kv-label">Orbital Objects</div><div class="mr-kv-val">'+satVal+'</div><div class="mr-kv-sub">'+satAge+' · CelesTrak TLE</div></div>'
+    +'<div class="mr-kv"><div class="mr-kv-label">Aerial View</div><div class="mr-kv-val" style="font-size:10px">ADS-B Live Map</div><div class="mr-kv-sub">Leaflet · CartoDB dark</div></div>'
+    +'<div class="mr-kv"><div class="mr-kv-label">Orbital View</div><div class="mr-kv-val" style="font-size:10px">Three.js Globe</div><div class="mr-kv-sub">satellite.js TLE propagation</div></div>'
+    +'</div>'
+    +'<button class="mr-open-btn" onclick="window.mantisRadar&&window.mantisRadar.open()">📡 Open Mantis Radar</button>'
+    +'</div>';
+};
+
+window.mantisRadarTabMounted = function(){
+  // Re-render with latest analytics when tab opens
+  var el=document.getElementById('tools-body');
+  if(el && typeof currentToolTab!=='undefined' && currentToolTab==='radar'){
+    el.innerHTML=window.renderToolsRadar();
+  }
+};
+
+console.info('[MantisRadar] Controller ready. URL:', MR_URL);
 })();
 </script>
 
