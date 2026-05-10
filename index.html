@@ -12327,18 +12327,9 @@ function initBRPN() {
   }
   animate();
 
-  // ── Expose pause/resume for mantisNav overlay ──────────────────────
-  window._brpnPause = function(){
-    cancelAnimationFrame(animId);
-    animId = null;
-  };
-  window._brpnResume = function(){
-    if(!animId && renderer && !document.hidden) animate();
-  };
-
   document.addEventListener('visibilitychange',function(){
     if(document.hidden){
-      cancelAnimationFrame(animId); animId=null;
+      cancelAnimationFrame(animId);
     } else {
       if(renderer&&!document.hidden) animate();
     }
@@ -23575,7 +23566,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 }
 .mn-cbtn:hover{background:rgba(0,212,255,.18);border-color:rgba(0,212,255,.5)}
 #mn-close-btn:hover{background:rgba(255,50,50,.3);border-color:rgba(255,80,80,.6);color:#ff4444}
-#mn-frame{flex:1;width:100%;border:none;background:#060a10;display:none;min-height:0}
+#mn-frame{flex:1;width:100%;border:none;background:#060a10;display:none;min-height:0;transform:translateZ(0);will-change:transform}
 #mn-loading{
   flex:1;display:none;align-items:center;justify-content:center;
   flex-direction:column;gap:12px;background:#060a10;
@@ -23914,8 +23905,9 @@ window.mantisNav = {
     var mrFr=document.getElementById('mr-frame');
     if(mrFr&&mrFr.contentWindow) try{mrFr.contentWindow._mrPaused=true;}catch(e){}
     _journalEvent('MANTIS_NAV_OPEN',{ ts:Date.now(), location:_analytics.location });
-    // Pause BRPN canvas RAF to free GPU for iframe WebGL
+    // Pause BRPN canvas RAF + hide canvas to free GPU for iframe WebGL
     if(window._brpnPause) window._brpnPause();
+    var bc3=document.getElementById('brpn-canvas'); if(bc3) bc3.style.visibility='hidden';
   },
 
   close: function(){
@@ -23925,6 +23917,7 @@ window.mantisNav = {
     if(window._brpnResume) window._brpnResume();
     var mrFr2=document.getElementById('mr-frame');
     if(mrFr2&&mrFr2.contentWindow) try{mrFr2.contentWindow._mrPaused=false;}catch(e){}
+    var bc4=document.getElementById('brpn-canvas'); if(bc4) bc4.style.visibility='';
     _journalEvent('MANTIS_NAV_CLOSE',{
       ts:Date.now(),
       aircraftSeen: _analytics.aircraft.count,
@@ -24182,7 +24175,7 @@ console.info('[MantisNav] Controller ready. URL:',MN_URL);
 }
 .mr-cbtn:hover{background:rgba(0,255,136,.18);border-color:rgba(0,255,136,.5)}
 #mr-close-btn:hover{background:rgba(255,50,50,.3);border-color:rgba(255,80,80,.6);color:#ff4444}
-#mr-frame{flex:1;width:100%;border:none;background:#030a0e;display:none;min-height:0}
+#mr-frame{flex:1;width:100%;border:none;background:#030a0e;display:none;min-height:0;transform:translateZ(0);will-change:transform}
 #mr-loading{
   flex:1;display:none;align-items:center;justify-content:center;
   flex-direction:column;gap:12px;background:#030a0e;
@@ -24317,9 +24310,11 @@ window.mantisRadar = {
     _open=true; _minimized=false;
     _ov.style.height='';
     _mrInitDrag();
-    // Pause mantisNav WebGL if open (prevents dual WebGL flicker)
+    // Pause mantisNav iframe RAF + pause Autumn's BRPN renderer
     var mnFr=document.getElementById('mn-frame');
     if(mnFr&&mnFr.contentWindow) mnFr.contentWindow.postMessage({source:'autumn-flight',cmd:'pause'},'*');
+    if(window._brpnPause) window._brpnPause();
+    var bc=document.getElementById('brpn-canvas'); if(bc) bc.style.visibility='hidden';
     if(typeof window.autumnJournalEvent==='function'){
       window.autumnJournalEvent('MANTIS_RADAR_OPEN',{ ts:Date.now() });
     }
@@ -24328,6 +24323,8 @@ window.mantisRadar = {
   close: function(){
     _ov.classList.remove('mr-open');
     _open=false;
+    if(window._brpnResume) window._brpnResume();
+    var bc2=document.getElementById('brpn-canvas'); if(bc2) bc2.style.visibility='';
     if(typeof window.autumnJournalEvent==='function'){
       window.autumnJournalEvent('MANTIS_RADAR_CLOSE',{ ts:Date.now() });
     }
