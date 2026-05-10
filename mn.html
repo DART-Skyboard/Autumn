@@ -755,6 +755,7 @@
         <br>
         <button id="load-default-btn2">Load | Arrow</button>
         <button id="load-default-btn3">Load | Ariel & Mantis Gimbal</button>
+        <button id="load-drive-btn" style="margin-top:6px;border-color:rgba(255,179,71,.5);color:rgba(255,179,71,.9)">Load | Mantis Gimbal v2 ☁</button>
     </div>
 
     <div id="view-controls" style="display: none;">
@@ -1130,6 +1131,45 @@
         loadDefaultBtn2.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/Arrow.glb', (gltf) => initializeSceneWithModel(gltf, true)));
         loadDefaultBtn3.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/MantisGimbal.glb', (gltf) => initializeSceneWithModel(gltf, true)));
 
+        // ── Drive GLB loader — fetch with CORS proxy fallback ──────────────
+        const loadDriveBtn = document.getElementById('load-drive-btn');
+        if (loadDriveBtn) {
+          loadDriveBtn.addEventListener('click', async () => {
+            loadDriveBtn.textContent = 'Loading…';
+            loadDriveBtn.disabled = true;
+            const driveUrl  = 'https://drive.google.com/uc?export=download&id=1JOl0zpxfEBaxx9DTT1vukKV3dp7Qf4OF';
+            const proxyUrl  = 'https://corsproxy.io/?url=' + encodeURIComponent(driveUrl);
+            const proxyUrl2 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(driveUrl);
+            let blob = null;
+            for (const url of [driveUrl, proxyUrl, proxyUrl2]) {
+              try {
+                const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+                if (!res.ok) continue;
+                blob = await res.blob();
+                break;
+              } catch(e) { continue; }
+            }
+            if (!blob) {
+              loadDriveBtn.textContent = 'Load | Mantis Gimbal v2 ☁';
+              loadDriveBtn.disabled = false;
+              alert('Could not load from Drive. Make sure sharing is set to Anyone with the link.');
+              return;
+            }
+            const blobUrl = URL.createObjectURL(blob);
+            loader.load(blobUrl, (gltf) => {
+              initializeSceneWithModel(gltf, initialFlipCheckbox.checked);
+              URL.revokeObjectURL(blobUrl);
+              loadDriveBtn.textContent = 'Load | Mantis Gimbal v2 ☁';
+              loadDriveBtn.disabled = false;
+            }, undefined, (err) => {
+              URL.revokeObjectURL(blobUrl);
+              loadDriveBtn.textContent = 'Load | Mantis Gimbal v2 ☁';
+              loadDriveBtn.disabled = false;
+              alert('Model loaded but could not be parsed: ' + err.message);
+            });
+          });
+        }
+
         changeModelBtn.addEventListener('click', () => {
             uploadContainer.style.display = 'block';
             uiContainer.style.display = 'none';
@@ -1458,9 +1498,11 @@
           var btns=[
             document.getElementById('load-default-btn'),
             document.getElementById('load-default-btn2'),
-            document.getElementById('load-default-btn3')
+            document.getElementById('load-default-btn3'),
+            document.getElementById('load-drive-btn')
           ];
-          var i = (d.model===1||/arrow/i.test(d.model||''))?1
+          var i = (d.model===3||/drive|gimbal.*v2|v2.*gimbal/i.test(d.model||''))?3
+                : (d.model===1||/arrow/i.test(d.model||''))?1
                 : (d.model===2||/gimbal|mantis/i.test(d.model||''))?2:0;
           if(btns[i]) btns[i].click();
           // Queue flight command after model loads (~1.5s)
