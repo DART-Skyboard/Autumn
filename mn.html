@@ -459,7 +459,100 @@
         height: 100% !important;
     }
 
-    </style>
+    
+        /* ── Environment Physics Panel ──────────────────────────── */
+        #env-panel {
+            display: none; position: absolute;
+            top: 10px; right: 10px;
+            width: 230px;
+            background: rgba(3,8,14,.95);
+            border: 1px solid rgba(0,229,255,.22);
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 30;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: rgba(0,229,255,.8);
+        }
+        #env-panel.env-open { display: block; }
+        .env-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 8px;
+            font-family: 'Orbitron', monospace;
+            font-size: 9px; letter-spacing: 2px;
+            color: #00e5ff;
+            border-bottom: 1px solid rgba(0,229,255,.15);
+            padding-bottom: 6px;
+        }
+        /* Toggle switch */
+        .env-switch { display:flex; align-items:center; gap:6px; cursor:pointer; }
+        .env-switch-track {
+            width:28px; height:14px; background:rgba(0,229,255,.15);
+            border:1px solid rgba(0,229,255,.3); border-radius:7px;
+            position:relative; transition:background .2s;
+        }
+        .env-switch-thumb {
+            position:absolute; top:1px; left:1px;
+            width:10px; height:10px; border-radius:50%;
+            background:#00e5ff; transition:left .2s, opacity .2s;
+        }
+        .env-switch.on .env-switch-track { background:rgba(0,229,255,.3); }
+        .env-switch.off .env-switch-thumb { left:1px; opacity:.4; }
+        .env-switch.on  .env-switch-thumb { left:15px; }
+        /* Preset buttons */
+        .env-presets {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 4px; margin-bottom: 8px;
+        }
+        .env-preset-btn {
+            padding: 5px 4px; font-size: 9px;
+            background: rgba(0,229,255,.05);
+            border: 1px solid rgba(0,229,255,.18);
+            border-radius: 4px; color: rgba(0,229,255,.6);
+            cursor: pointer; text-align: center;
+            font-family: 'Orbitron', monospace; letter-spacing: .5px;
+            transition: background .15s, border-color .15s, color .15s;
+        }
+        .env-preset-btn:hover { background:rgba(0,229,255,.12); color:#00e5ff; }
+        .env-preset-btn.active { background:rgba(0,229,255,.18); border-color:rgba(0,229,255,.5); color:#00e5ff; }
+        /* Live stats bar */
+        #env-stats {
+            background: rgba(0,0,0,.4); border-radius:4px;
+            padding: 5px 7px; margin-bottom: 8px;
+            font-size: 9.5px; line-height: 1.6;
+        }
+        #env-stats span { color:#00e5ff; font-weight:bold; }
+        /* Wind section */
+        .env-section-title { font-size:8px; letter-spacing:1.5px; color:rgba(0,229,255,.5); text-transform:uppercase; margin-bottom:5px; }
+        .env-row { display:flex; align-items:center; gap:5px; margin-bottom:4px; }
+        .env-row label { flex:1; font-size:9.5px; color:rgba(0,229,255,.6); }
+        .env-row input[type=number] {
+            width:54px; background:rgba(0,229,255,.06);
+            border:1px solid rgba(0,229,255,.2); border-radius:3px;
+            color:#00e5ff; font-family:'Courier New',monospace;
+            font-size:9.5px; padding:2px 4px; text-align:right;
+        }
+        .env-row .unit { font-size:8.5px; color:rgba(0,229,255,.4); width:22px; }
+        .env-small-btn {
+            width:100%; padding:5px; margin-top:2px;
+            background:rgba(0,229,255,.06); border:1px solid rgba(0,229,255,.18);
+            border-radius:4px; color:rgba(0,229,255,.7); font-size:9px;
+            cursor:pointer; font-family:'Orbitron',monospace; letter-spacing:1px;
+            transition:background .15s;
+        }
+        .env-small-btn:hover { background:rgba(0,229,255,.16); color:#00e5ff; }
+        #env-custom-div { margin-top:6px; border-top:1px solid rgba(0,229,255,.1); padding-top:6px; }
+
+        /* iframe-mode: env panel fits inside overlay */
+        body.iframe-mode #env-panel {
+            top: 38px !important; right: 0 !important;
+            max-height: calc(100% - 150px) !important;
+            overflow-y: auto !important;
+            border-radius: 8px 0 0 8px !important;
+            border-right: none !important;
+            width: 220px !important;
+        }
+</style>
 </head>
 <body>
     <canvas id="threejs-canvas"></canvas>
@@ -488,6 +581,44 @@
         <button id="reset-position-btn" class="model-action-btn" title="Reset drone to starting position">Return to Origin</button>
         <button id="change-model-btn" class="model-action-btn">Change Model</button>
         <button id="chem-propulsion-btn" class="model-action-btn">Chemistry Propulsion</button>
+        <button id="env-physics-btn" class="model-action-btn" onclick="window.envPhysics&&window.envPhysics.togglePanel()">Environment</button>
+    </div>
+
+    <!-- ── Environment Physics Panel ─────────────────────────── -->
+    <div id="env-panel">
+      <div class="env-header">
+        <span>⬡ ENVIRONMENT</span>
+        <div class="env-switch on" id="env-toggle-sw" onclick="window.envPhysics.toggleEnabled()">
+          <div class="env-switch-track"><div class="env-switch-thumb"></div></div>
+          <span id="env-sw-label" style="font-size:8px">ON</span>
+        </div>
+      </div>
+      <div class="env-presets">
+        <button class="env-preset-btn active" data-preset="earth" onclick="window.envPhysics.applyPreset('earth')">🌍 EARTH</button>
+        <button class="env-preset-btn" data-preset="moon"  onclick="window.envPhysics.applyPreset('moon')">🌙 MOON</button>
+        <button class="env-preset-btn" data-preset="mars"  onclick="window.envPhysics.applyPreset('mars')">🔴 MARS</button>
+        <button class="env-preset-btn" data-preset="titan" onclick="window.envPhysics.applyPreset('titan')">🟠 TITAN</button>
+        <button class="env-preset-btn" data-preset="custom" onclick="window.envPhysics.applyPreset('custom')" style="grid-column:span 2">⚙ CUSTOM</button>
+      </div>
+      <div id="env-stats">Loading...</div>
+      <div class="env-section-title">Wind</div>
+      <div class="env-row">
+        <label>Speed</label>
+        <input type="number" id="env-wind-speed" value="0" min="0" max="200" step="0.1" onchange="window.envPhysics.setWind()">
+        <span class="unit">m/s</span>
+      </div>
+      <div class="env-row">
+        <label>Direction</label>
+        <input type="number" id="env-wind-dir" value="0" min="0" max="360" step="5" onchange="window.envPhysics.setWind()">
+        <span class="unit">°</span>
+      </div>
+      <button class="env-small-btn" onclick="window.envPhysics.randomWind()">⟳ RANDOM SEED</button>
+      <div id="env-custom-div" style="display:none">
+        <div class="env-section-title" style="margin-top:6px">Custom Values</div>
+        <div class="env-row"><label>Gravity</label><input type="number" id="env-custom-g" value="9.81" step="0.01" onchange="window.envPhysics.syncCustom()"><span class="unit">m/s²</span></div>
+        <div class="env-row"><label>Atm Press.</label><input type="number" id="env-custom-p0" value="101325" onchange="window.envPhysics.syncCustom()"><span class="unit">Pa</span></div>
+        <div class="env-row"><label>Scale H</label><input type="number" id="env-custom-h" value="8500" onchange="window.envPhysics.syncCustom()"><span class="unit">m</span></div>
+      </div>
     </div>
 
     <div id="chemistry-panel">
@@ -1363,6 +1494,274 @@
     if (window._mnPaused) return setTimeout(function(){ window.requestAnimationFrame(cb); }, 200);
     return _raf(cb);
   };
+})();
+</script>
+
+
+<script>
+/* ================================================================
+   ENVIRONMENT PHYSICS MODULE — window.envPhysics
+   Applies planet-specific gravity, atmospheric pressure vs altitude,
+   and wind forces to the Mantis Navigation physics engine.
+   Preset baselines from NASA/ESA public data.
+   ================================================================ */
+(function(){
+  // ── Planet presets (public NASA/ESA data) ──────────────────────
+  var PRESETS = {
+    earth: {
+      name:'Earth',   icon:'🌍',
+      g0:9.81,        // surface gravity m/s²
+      P0:101325,      // sea-level atm pressure Pa
+      H:8500,         // atmospheric scale height m
+      R:6371000,      // planetary radius m
+      rho0:1.225,     // sea-level air density kg/m³
+      desc:'9.81 m/s² · 14.7 PSI'
+    },
+    moon: {
+      name:'Moon',    icon:'🌙',
+      g0:1.62,        P0:0.001,    H:100,
+      R:1737000,      rho0:0.0000001,
+      desc:'1.62 m/s² · Vacuum'
+    },
+    mars: {
+      name:'Mars',    icon:'🔴',
+      g0:3.72,        P0:636,      H:10800,
+      R:3389000,      rho0:0.02,
+      desc:'3.72 m/s² · 0.092 PSI'
+    },
+    titan: {
+      name:'Titan',   icon:'🟠',
+      g0:1.35,        P0:146700,   H:18000,
+      R:2575000,      rho0:5.3,
+      desc:'1.35 m/s² · 21.3 PSI (thick N₂ atm)'
+    }
+  };
+
+  // ── Physics baselines (Earth at sea level in scene units) ──────
+  var BASE_G    = 0.00003;    // physics.baseGravity Earth baseline
+  var BASE_ML   = 0.03;       // physics.baseMaxLift Earth baseline
+  var BASE_LS   = 0.000001;   // physics.liftScalar Earth baseline
+  var BASE_DRAG = 0.98;       // physics.drag Earth baseline
+  var ALT_SCALE = 200;        // scene units → metres (1 unit = 200m)
+
+  // ── State ──────────────────────────────────────────────────────
+  var state = {
+    enabled: true,
+    preset: 'earth',
+    wind: { speed: 0, dir: 0 },
+    custom: { g: 9.81, P0: 101325, H: 8500 }
+  };
+
+  // ── Physics helpers ────────────────────────────────────────────
+  function gravAtAlt(h, g0, R){
+    return g0 * Math.pow(R / Math.max(R, R + h), 2);
+  }
+  function atmoAtAlt(h, P0, H){
+    return P0 * Math.exp(-h / Math.max(1, H));
+  }
+
+  // ── Per-frame update (called every 50ms) ──────────────────────
+  function update(){
+    if(!state.enabled){ return; }
+    if(typeof physics === 'undefined') return;
+
+    var pr = state.preset === 'custom' ? null : PRESETS[state.preset];
+    var g0 = pr ? pr.g0  : state.custom.g;
+    var P0 = pr ? pr.P0  : state.custom.P0;
+    var H  = pr ? pr.H   : state.custom.H;
+    var R  = pr ? pr.R   : 6371000;
+
+    // Altitude in metres from drone y position
+    var altM = 0;
+    if(typeof drone !== 'undefined' && drone.position){
+      altM = Math.max(0, drone.position.y) * ALT_SCALE;
+    }
+
+    var gH  = gravAtAlt(altM, g0, R);
+    var pH  = atmoAtAlt(altM, P0, H);
+    var pEarth = atmoAtAlt(altM, 101325, 8500); // Earth reference at same alt
+
+    // Scale gravity
+    physics.baseGravity = BASE_G * (gH / 9.81);
+
+    // Scale lift/drag by atmospheric density ratio vs Earth sea-level
+    var densRatio = pH / 101325;
+    physics.baseMaxLift = Math.max(0.001, BASE_ML * densRatio);
+    physics.liftScalar  = Math.max(0.0000001, BASE_LS * densRatio);
+    // Denser atmosphere → more drag; thinner → less
+    physics.drag = Math.min(0.9999, Math.max(0.9, BASE_DRAG + (densRatio - 1.0) * 0.005));
+
+    // Wind force applied each frame
+    if(state.wind.speed > 0){
+      var wr = state.wind.dir * Math.PI / 180;
+      var wf = state.wind.speed * 0.0000015;
+      physics.velocity.x += Math.cos(wr) * wf;
+      physics.velocity.z += Math.sin(wr) * wf;
+    }
+
+    // Update stats display
+    updateStats(altM, gH, pH);
+  }
+
+  var _statsThrottle = 0;
+  function updateStats(altM, gH, pH){
+    _statsThrottle++;
+    if(_statsThrottle % 8 !== 0) return; // ~6 fps update
+    var el = document.getElementById('env-stats');
+    if(!el) return;
+    var altKm = (altM / 1000).toFixed(1);
+    var psi   = (pH * 0.000145).toFixed(3);
+    var pr = state.preset === 'custom' ? 'Custom' : (PRESETS[state.preset] ? PRESETS[state.preset].name : '?');
+    el.innerHTML =
+      'ALT <span>'+altKm+'km</span> &nbsp; G <span>'+gH.toFixed(3)+'</span>m/s²<br>'+
+      'PRESS <span>'+psi+'</span> PSI &nbsp; ENV <span>'+pr+'</span>';
+  }
+
+  // ── Restore baselines ──────────────────────────────────────────
+  function restoreBaselines(){
+    if(typeof physics === 'undefined') return;
+    physics.baseGravity = BASE_G;
+    physics.baseMaxLift = BASE_ML;
+    physics.liftScalar  = BASE_LS;
+    physics.drag        = BASE_DRAG;
+  }
+
+  // ── Start loop ─────────────────────────────────────────────────
+  var _interval = setInterval(update, 50);
+
+  // ── Public API ─────────────────────────────────────────────────
+  window.envPhysics = {
+    PRESETS: PRESETS,
+    state:   state,
+
+    togglePanel: function(){
+      var p = document.getElementById('env-panel');
+      if(!p) return;
+      p.classList.toggle('env-open');
+    },
+
+    toggleEnabled: function(){
+      state.enabled = !state.enabled;
+      var sw  = document.getElementById('env-toggle-sw');
+      var lbl = document.getElementById('env-sw-label');
+      if(sw)  sw.classList.toggle('on', state.enabled);
+      if(sw)  sw.classList.toggle('off', !state.enabled);
+      if(lbl) lbl.textContent = state.enabled ? 'ON' : 'OFF';
+      if(!state.enabled) restoreBaselines();
+    },
+
+    setEnabled: function(v){
+      state.enabled = !!v;
+      if(!state.enabled) restoreBaselines();
+    },
+
+    applyPreset: function(name){
+      state.preset = name;
+      // Update button styles
+      document.querySelectorAll('.env-preset-btn').forEach(function(b){
+        b.classList.toggle('active', b.dataset.preset === name);
+      });
+      // Show/hide custom inputs
+      var cd = document.getElementById('env-custom-div');
+      if(cd) cd.style.display = (name === 'custom') ? 'block' : 'none';
+      // Random wind seed for this environment
+      var maxWind = name==='earth'?12 : name==='titan'?8 : name==='mars'?25 : 0;
+      state.wind.speed = Math.round(Math.random() * maxWind * 10) / 10;
+      state.wind.dir   = Math.round(Math.random() * 360);
+      var ws = document.getElementById('env-wind-speed');
+      var wd = document.getElementById('env-wind-dir');
+      if(ws) ws.value = state.wind.speed;
+      if(wd) wd.value = state.wind.dir;
+      // Update button text if it was closed
+      var envBtn = document.getElementById('env-physics-btn');
+      if(envBtn && PRESETS[name]) envBtn.textContent = PRESETS[name].icon+' '+PRESETS[name].name;
+    },
+
+    randomWind: function(){
+      state.wind.speed = Math.round(Math.random() * 30 * 10) / 10;
+      state.wind.dir   = Math.round(Math.random() * 360);
+      var ws = document.getElementById('env-wind-speed');
+      var wd = document.getElementById('env-wind-dir');
+      if(ws) ws.value = state.wind.speed;
+      if(wd) wd.value = state.wind.dir;
+    },
+
+    setWind: function(){
+      var ws = document.getElementById('env-wind-speed');
+      var wd = document.getElementById('env-wind-dir');
+      state.wind.speed = ws ? parseFloat(ws.value)||0 : 0;
+      state.wind.dir   = wd ? parseFloat(wd.value)||0 : 0;
+    },
+
+    syncCustom: function(){
+      var g  = document.getElementById('env-custom-g');
+      var p  = document.getElementById('env-custom-p0');
+      var h  = document.getElementById('env-custom-h');
+      state.custom.g  = g ? parseFloat(g.value)||9.81  : 9.81;
+      state.custom.P0 = p ? parseFloat(p.value)||101325: 101325;
+      state.custom.H  = h ? parseFloat(h.value)||8500  : 8500;
+    },
+
+    getInfo: function(){
+      var pr = state.preset==='custom' ? 'Custom' : (PRESETS[state.preset]||{}).name||'?';
+      var altM = 0;
+      if(typeof drone!=='undefined'&&drone.position) altM=Math.max(0,drone.position.y)*ALT_SCALE;
+      return {
+        enabled: state.enabled, preset: pr,
+        altitude_km: (altM/1000).toFixed(2),
+        wind: state.wind
+      };
+    }
+  };
+
+  // Apply Earth preset immediately on init (after brief delay for physics to load)
+  setTimeout(function(){ window.envPhysics.applyPreset('earth'); }, 600);
+
+  // ── postMessage integration ────────────────────────────────────
+  // Listen for commands from Autumn
+  (function(){
+    var origListener = window.onmessage;
+    window.addEventListener('message', function(e){
+      if(!e.data || e.data.source !== 'autumn-flight') return;
+      var d = e.data;
+      switch(d.cmd){
+        case 'setEnvPreset':
+          if(window.envPhysics) window.envPhysics.applyPreset(d.preset||'earth');
+          break;
+        case 'setEnvEnabled':
+          if(window.envPhysics) window.envPhysics.setEnabled(d.enabled!==false);
+          break;
+        case 'setWind':
+          if(window.envPhysics){
+            window.envPhysics.state.wind.speed = parseFloat(d.speed)||0;
+            window.envPhysics.state.wind.dir   = parseFloat(d.dir)||0;
+          }
+          break;
+        case 'randomWind':
+          if(window.envPhysics) window.envPhysics.randomWind();
+          break;
+        case 'activateChemistry':
+          if(typeof toggleChemistryMode==='function'&&!chemistryModeActive) toggleChemistryMode();
+          break;
+        case 'deactivateChemistry':
+          if(typeof toggleChemistryMode==='function'&&chemistryModeActive) toggleChemistryMode();
+          break;
+        case 'setChemFlow':
+          var os=document.getElementById('chem-oxi-slider');
+          var fs=document.getElementById('chem-fuel-slider');
+          if(os&&d.oxi!=null){ os.value=d.oxi*100; os.dispatchEvent(new Event('input')); }
+          if(fs&&d.fuel!=null){ fs.value=d.fuel*100; fs.dispatchEvent(new Event('input')); }
+          break;
+        case 'openEnvPanel':
+          if(window.envPhysics){ 
+            var p=document.getElementById('env-panel');
+            if(p&&!p.classList.contains('env-open')) p.classList.add('env-open');
+          }
+          break;
+      }
+    }, false);
+  })();
+
 })();
 </script>
 
