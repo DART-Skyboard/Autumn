@@ -307,6 +307,61 @@
         #gizmo-persp { grid-column: 2; grid-row: 2; }
         #gizmo-right { grid-column: 3; grid-row: 2; }
         #gizmo-front { grid-column: 2; grid-row: 3; }
+    
+    /* ── IFRAME / MOBILE MODE ────────────────────────────── */
+    body.iframe-mode { overflow: hidden; }
+
+    /* Shrink & reposition the info panel */
+    body.iframe-mode #info-panel {
+        top: 6px; left: 6px;
+        width: 160px;
+        padding: 7px;
+        font-size: .7rem;
+    }
+    body.iframe-mode #info-panel img { width: 90px; height: 90px; }
+
+    /* Hide chemistry & trajectory panels by default in iframe */
+    body.iframe-mode #chemistry-panel,
+    body.iframe-mode #trajectories-panel { display: none !important; }
+
+    /* Re-centre controls at bottom */
+    body.iframe-mode #ui-container {
+        width: 100%;
+        bottom: 8px;
+        left: 0;
+        justify-content: center;
+        gap: 16px;
+    }
+    body.iframe-mode .control-area { width: auto; }
+
+    /* Smaller joystick on mobile */
+    body.iframe-mode #joystick-base  { width: 110px; height: 110px; }
+    body.iframe-mode #joystick-stick { width: 50px;  height: 50px; top: 30px; left: 30px; }
+
+    /* Thrust slider more compact */
+    body.iframe-mode #thrust-container { height: 140px; gap: 8px; }
+    body.iframe-mode #thrust-slider    { width: 110px; }
+    body.iframe-mode #idle-button      { margin-top: 40px; }
+
+    /* Chem sliders compact */
+    body.iframe-mode .chem-slider      { width: 110px; }
+    body.iframe-mode #chem-thrust-container { gap: 8px; }
+
+    /* Launch button prominent */
+    body.iframe-mode #launch-btn { padding: 10px 18px; font-size: .9em; }
+
+    /* View controls top-right tighter */
+    body.iframe-mode #view-controls { top: 6px; right: 6px; gap: 6px; }
+    body.iframe-mode #fpv-toggle    { width: 32px; height: 32px; font-size: 8px; }
+    body.iframe-mode .gizmo-btn     { width: 22px; height: 22px; font-size: 8px; }
+    body.iframe-mode #view-gizmo    { grid-template-columns: 22px 22px 22px; gap: 2px; }
+
+    /* Resize renderer to fill available height */
+    body.iframe-mode canvas#threejs-canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
     </style>
 </head>
 <body>
@@ -1036,6 +1091,103 @@
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         animate();
     </script>
+
+<script>
+(function(){
+  // ── Iframe detection ───────────────────────────────────────────────
+  if (window !== window.top) {
+    document.body.classList.add('iframe-mode');
+  }
+
+  // ── Visibility change — pause/resume animation to save GPU ─────────
+  document.addEventListener('visibilitychange', function(){
+    // cancelAnimationFrame is handled by checking a global flag
+    window._mnPaused = document.hidden;
+  });
+
+  // ── postMessage flight command API ─────────────────────────────────
+  // Commands sent from Autumn's mantisNav controller via:
+  //   iframe.contentWindow.postMessage({source:'autumn-flight', cmd:'...', ...}, '*')
+  window.addEventListener('message', function(e){
+    if (!e.data || e.data.source !== 'autumn-flight') return;
+    var d = e.data;
+
+    // Wait until physics / controls are initialised
+    if (typeof controls === 'undefined' || typeof physics === 'undefined') return;
+
+    switch(d.cmd){
+
+      case 'setThrust':
+        // value 0-1
+        var v = Math.max(0, Math.min(1, parseFloat(d.value)||0));
+        controls.thrust = v;
+        var sl = document.getElementById('thrust-slider');
+        if(sl) sl.value = v * 100;
+        break;
+
+      case 'setJoystick':
+        // x = yaw (-1 left, +1 right), y = forward/back (-1 back, +1 fwd)
+        controls.joystick.x = Math.max(-1, Math.min(1, parseFloat(d.x)||0));
+        controls.joystick.y = Math.max(-1, Math.min(1, parseFloat(d.y)||0));
+        // Auto-zero joystick after duration if provided
+        if (d.duration) {
+          setTimeout(function(){
+            controls.joystick.x = 0;
+            controls.joystick.y = 0;
+          }, d.duration);
+        }
+        break;
+
+      case 'stopJoystick':
+        controls.joystick.x = 0;
+        controls.joystick.y = 0;
+        break;
+
+      case 'idle':
+        var idle = (physics.baseGravity * 2.2) / physics.baseMaxLift;
+        controls.thrust = idle;
+        var sl2 = document.getElementById('thrust-slider');
+        if(sl2) sl2.value = idle * 100;
+        controls.joystick.x = 0; controls.joystick.y = 0;
+        break;
+
+      case 'land':
+        controls.thrust = 0;
+        var sl3 = document.getElementById('thrust-slider');
+        if(sl3) sl3.value = 0;
+        controls.joystick.x = 0; controls.joystick.y = 0;
+        break;
+
+      case 'reset':
+        if(typeof reinitializeDroneState==='function') reinitializeDroneState();
+        break;
+
+      case 'getState':
+        // Reply with current state
+        var h = typeof drone !== 'undefined' ? drone.position.y.toFixed(2) : '?';
+        var spd = Math.sqrt(physics.velocity.x**2 + physics.velocity.z**2).toFixed(2);
+        e.source.postMessage({
+          source: 'mn-state',
+          thrust: controls.thrust,
+          joystick: controls.joystick,
+          altitude: h,
+          speed: spd,
+          cameraMode: typeof cameraMode !== 'undefined' ? cameraMode : '?'
+        }, '*');
+        break;
+    }
+  }, false);
+
+  // ── Patch animate() to respect _mnPaused ───────────────────────────
+  // We wrap requestAnimationFrame so pausing works without touching main code
+  var _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(cb){
+    if (window._mnPaused) return setTimeout(function(){ window.requestAnimationFrame(cb); }, 200);
+    return _raf(cb);
+  };
+})();
+</script>
+
 </body>
 </html>
 
