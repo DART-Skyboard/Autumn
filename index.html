@@ -24032,6 +24032,51 @@ window.mantisNav = {
         reply += 'Resetting to origin. ';
       }
 
+      // ── Environment preset commands ──────────────────────────────
+      var envMatch = m.match(/\b(earth|moon|mars|titan|custom)\b.*\b(grav|env|preset|atmo|planet)\b|\b(grav|env|preset|atmo|planet)\b.*\b(earth|moon|mars|titan)\b/i)
+        || /\b(set|use|apply|switch)\b.{0,20}\b(earth|moon|mars|titan)\b/i.test(m);
+      if(envMatch || /\b(no\s*gravity|zero\s*g|disable\s*gravity)\b/i.test(m)){
+        var emap={'earth':'earth','moon':'moon','mars':'mars','titan':'titan'};
+        var ePreset='earth';
+        for(var ep in emap){ if(m.indexOf(ep)>-1){ ePreset=emap[ep]; break; } }
+        if(/no\s*grav|zero\s*g|disable\s*grav/i.test(m)){
+          if(fw) fw.postMessage({source:'autumn-flight',cmd:'setEnvEnabled',enabled:false},'*');
+          reply += 'Environment physics disabled — zero-G mode. ';
+        } else {
+          if(fw) fw.postMessage({source:'autumn-flight',cmd:'setEnvPreset',preset:ePreset},'*');
+          var envNames={earth:'Earth (9.81 m/s², 14.7 PSI)',moon:'Moon (1.62 m/s², vacuum)',mars:'Mars (3.72 m/s², 0.09 PSI)',titan:'Titan (1.35 m/s², 21.3 PSI thick N₂)'};
+          reply += 'Environment set to '+( envNames[ePreset]||ePreset)+'. ';
+        }
+      }
+      if(/\b(random\s*wind|randomize\s*wind|seed\s*wind)\b/i.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'randomWind'},'*');
+        reply += 'Wind conditions randomised. ';
+      }
+      // ── Chemistry mode commands ───────────────────────────────────
+      if(/\b(activat|enabl|start|engag)\b.{0,15}\b(chemi|propulsion|rocket\s*mode)\b/i.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'activateChemistry'},'*');
+        reply += 'Chemistry propulsion mode activated. ';
+      }
+      if(/\b(deactivat|disabl|exit|stop)\b.{0,15}\b(chemi|propulsion|rocket\s*mode)\b/i.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'deactivateChemistry'},'*');
+        reply += 'Exiting chemistry mode — returning to drone flight. ';
+      }
+      var oxiMatch=m.match(/oxi(?:dizer)?\s*(?:to|at)?\s*(\d+)%?/i);
+      var fuelMatch=m.match(/fuel\s*(?:to|at|flow)?\s*(\d+)%?/i);
+      if(oxiMatch||fuelMatch){
+        var oxV=oxiMatch?parseInt(oxiMatch[1])/100:null;
+        var fuV=fuelMatch?parseInt(fuelMatch[1])/100:null;
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setChemFlow',oxi:oxV,fuel:fuV},'*');
+        if(oxV!=null) reply += 'Oxidizer flow set to '+(oxV*100)+'%. ';
+        if(fuV!=null) reply += 'Fuel flow set to '+(fuV*100)+'%. ';
+      }
+      if(/\b(launch|ignit|fire|blast\s*off|liftoff)\b/i.test(m)){
+        var lb=fw&&fw.document&&fw.document.getElementById('launch-btn');
+        if(lb) lb.click();
+        else if(fw) fw.postMessage({source:'autumn-flight',cmd:'activateChemistry'},'*');
+        reply += 'Launch sequence initiated. ';
+      }
+
       if(reply) return reply.trim();
     }
 
