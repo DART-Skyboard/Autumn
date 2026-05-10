@@ -23901,6 +23901,9 @@ window.mantisNav = {
     _ov.style.height='';
     _mnInitDrag();
     _startAnalytics();
+    // Signal radar iframe to pause its RAF if it's loaded
+    var mrFr=document.getElementById('mr-frame');
+    if(mrFr&&mrFr.contentWindow) try{mrFr.contentWindow._mrPaused=true;}catch(e){}
     _journalEvent('MANTIS_NAV_OPEN',{ ts:Date.now(), location:_analytics.location });
     // Pause BRPN canvas RAF to free GPU for iframe WebGL
     if(window._brpnPause) window._brpnPause();
@@ -23911,6 +23914,8 @@ window.mantisNav = {
     _open=false; _analytics.sessionOpen=false;
     _stopAnalytics();
     if(window._brpnResume) window._brpnResume();
+    var mrFr2=document.getElementById('mr-frame');
+    if(mrFr2&&mrFr2.contentWindow) try{mrFr2.contentWindow._mrPaused=false;}catch(e){}
     _journalEvent('MANTIS_NAV_CLOSE',{
       ts:Date.now(),
       aircraftSeen: _analytics.aircraft.count,
@@ -24303,6 +24308,9 @@ window.mantisRadar = {
     _open=true; _minimized=false;
     _ov.style.height='';
     _mrInitDrag();
+    // Pause mantisNav WebGL if open (prevents dual WebGL flicker)
+    var mnFr=document.getElementById('mn-frame');
+    if(mnFr&&mnFr.contentWindow) mnFr.contentWindow.postMessage({source:'autumn-flight',cmd:'pause'},'*');
     if(typeof window.autumnJournalEvent==='function'){
       window.autumnJournalEvent('MANTIS_RADAR_OPEN',{ ts:Date.now() });
     }
