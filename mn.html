@@ -755,7 +755,6 @@
         <br>
         <button id="load-default-btn2">Load | Arrow</button>
         <button id="load-default-btn3">Load | Ariel & Mantis Gimbal</button>
-        <button id="load-drive-btn" style="margin-top:6px;border-color:rgba(255,179,71,.5);color:rgba(255,179,71,.9)">Load | Mantis Gimbal v2 &#9729;</button>
     </div>
 
     <div id="view-controls" style="display: none;">
@@ -1506,8 +1505,7 @@
           var btns=[
             document.getElementById('load-default-btn'),
             document.getElementById('load-default-btn2'),
-            document.getElementById('load-default-btn3'),
-            document.getElementById('load-drive-btn')
+            document.getElementById('load-default-btn3')
           ];
           var i = (d.model===1||/arrow/i.test(d.model||''))?1
                 : (d.model===2||/gimbal|mantis/i.test(d.model||''))?2:0;
