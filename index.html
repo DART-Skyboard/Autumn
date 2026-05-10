@@ -23918,6 +23918,7 @@ window.mantisNav = {
     var mrFr2=document.getElementById('mr-frame');
     if(mrFr2&&mrFr2.contentWindow) try{mrFr2.contentWindow._mrPaused=false;}catch(e){}
     var bc4=document.getElementById('brpn-canvas'); if(bc4) bc4.style.visibility='';
+    window._mnModelLoaded = false; // reset so next open reloads
     _journalEvent('MANTIS_NAV_CLOSE',{
       ts:Date.now(),
       aircraftSeen: _analytics.aircraft.count,
@@ -23966,6 +23967,19 @@ window.mantisNav = {
       var fr=document.getElementById('mn-frame');
       var fw=fr&&fr.contentWindow;
       var reply='';
+
+      // ── Auto-load model if none loaded ─────────────────────────────
+      // Detect model request in message
+      var modelIdx=0; // default ArielNPU
+      if(/\b(arrow)\b/i.test(m)) modelIdx=1;
+      if(/\b(gimbal|mantis\s*gimbal)\b/i.test(m)) modelIdx=2;
+      var modelNames=['ArielNPU','Arrow','Mantis Gimbal'];
+      var needsLoad = !window._mnModelLoaded;
+      if(needsLoad){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'loadModel',model:modelIdx},'*');
+        window._mnModelLoaded = true;
+        reply += 'Loading '+modelNames[modelIdx]+' navigation model. ';
+      }
 
       // Throttle/thrust
       var thrMatch = m.match(/(?:throttle|thrust|power)[\s\w]*?(\d+)\s*%/) ||
