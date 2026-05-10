@@ -387,7 +387,7 @@
 
     /* ── Bottom controls ─────────────────────────────────────── */
     body.iframe-mode #ui-container {
-        position: fixed !important; bottom: 22px !important; left: 0 !important;
+        position: fixed !important; bottom: 4px !important; left: 0 !important;
         width: 100% !important; display: flex !important;
         flex-direction: row !important; justify-content: center !important;
         align-items: flex-end !important; gap: 16px !important;
@@ -399,7 +399,7 @@
     body.iframe-mode #joystick-stick { width: 44px !important; height: 44px !important; top: 28px !important; left: 28px !important; }
     body.iframe-mode #thrust-container { display: flex !important; gap: 6px !important; height: 130px !important; }
     body.iframe-mode #thrust-slider    { width: 100px !important; }
-    body.iframe-mode #idle-button      { margin-top: 32px !important; }
+    body.iframe-mode #idle-button      { margin-top: 36px !important; }
 
     /* Chemistry ACTIVE — hide joystick + thrust, show chem controls */
     body.iframe-mode.chem-mode-on .control-area:first-child { display: none !important; }
@@ -909,7 +909,6 @@
         const initialFlipCheckbox = document.getElementById('initial-flip-checkbox');
         const infoPanel = document.getElementById('info-panel');
         const chemPropulsionBtn = document.getElementById('chem-propulsion-btn');
-        const envPhysicsBtn     = document.getElementById('env-physics-btn');
         const chemistryPanel = document.getElementById('chemistry-panel');
         const trajectoriesPanel = document.getElementById('trajectories-panel');
         const thrustContainer = document.getElementById('thrust-container');
@@ -923,6 +922,8 @@
 
         // --- MODEL & PHYSICS VARIABLES ---
         let drone, modelMesh;
+        // Expose drone ref for envPhysics altitude tracking
+        Object.defineProperty(window,'_mnDrone',{get:function(){return drone;},configurable:true});
         const physics = {
             velocity: new THREE.Vector3(),
             baseGravity: 0.00003, 
@@ -934,6 +935,9 @@
             liftScalar: 0.000001 
         };
         const controls = { joystick: { x: 0, y: 0 }, thrust: 0 };
+        // Expose to window so non-module scripts (envPhysics, postMessage) can access
+        window._mnPhysics = physics;
+        window._mnControls = controls;
         let cameraMode = 'follow', chemistryModeActive = false, groupCounter = 0, isLaunched = false;
 
         // --- CALCULATION & UPDATE FUNCTIONS ---
@@ -1024,7 +1028,6 @@
             changeModelBtn.style.display = 'block';
             resetPositionBtn.style.display = 'block';
             chemPropulsionBtn.style.display = 'block';
-            if(envPhysicsBtn) envPhysicsBtn.style.display = 'block';
 
             document.querySelectorAll('#info-panel, #chemistry-panel, #trajectories-panel').forEach(p => p.classList.remove('minimized'));
         }
@@ -1132,7 +1135,6 @@
             changeModelBtn.style.display = 'none';
             resetPositionBtn.style.display = 'none';
             chemPropulsionBtn.style.display = 'none';
-            if(envPhysicsBtn) envPhysicsBtn.style.display = 'none';
             if (chemistryModeActive) {
                 toggleChemistryMode();
             }
@@ -1565,8 +1567,9 @@
 
   // ── Per-frame update (called every 50ms) ──────────────────────
   function update(){
-    if(!state.enabled){ return; }
-    if(typeof physics === 'undefined') return;
+    if(!state.enabled) return;
+    var ph = window._mnPhysics;   // exposed from module via window._mnPhysics
+    if(!ph) return;
 
     var pr = state.preset === 'custom' ? null : PRESETS[state.preset];
     var g0 = pr ? pr.g0  : state.custom.g;
@@ -1574,50 +1577,60 @@
     var H  = pr ? pr.H   : state.custom.H;
     var R  = pr ? pr.R   : 6371000;
 
-    // Altitude in metres from drone y position
+    // Altitude in metres — use window._mnDrone getter
     var altM = 0;
-    if(typeof drone !== 'undefined' && drone.position){
-      altM = Math.max(0, drone.position.y) * ALT_SCALE;
-    }
+    var d = window._mnDrone;
+    if(d && d.position) altM = Math.max(0, d.position.y) * ALT_SCALE;
 
     var gH  = gravAtAlt(altM, g0, R);
     var pH  = atmoAtAlt(altM, P0, H);
-    var pEarth = atmoAtAlt(altM, 101325, 8500); // Earth reference at same alt
 
-    // Scale gravity
-    physics.baseGravity = BASE_G * (gH / 9.81);
+    // Scale gravity (both drone + chemistry mode use physics.baseGravity)
+    ph.baseGravity = BASE_G * (gH / 9.81);
 
-    // Scale lift/drag by atmospheric density ratio vs Earth sea-level
-    var densRatio = pH / 101325;
-    physics.baseMaxLift = Math.max(0.001, BASE_ML * densRatio);
-    physics.liftScalar  = Math.max(0.0000001, BASE_LS * densRatio);
-    // Denser atmosphere → more drag; thinner → less
-    physics.drag = Math.min(0.9999, Math.max(0.9, BASE_DRAG + (densRatio - 1.0) * 0.005));
+    // Scale lift by atmospheric density ratio vs Earth sea-level
+    var densRatio = Math.max(0.00001, pH / 101325);
+    ph.baseMaxLift = Math.max(0.0001, BASE_ML * densRatio);
+    ph.liftScalar  = Math.max(0.00000001, BASE_LS * densRatio);
+    ph.drag = Math.min(0.9999, Math.max(0.90, BASE_DRAG + (densRatio - 1.0) * 0.005));
 
-    // Wind force applied each frame
+    // Wind force
     if(state.wind.speed > 0){
       var wr = state.wind.dir * Math.PI / 180;
       var wf = state.wind.speed * 0.0000015;
-      physics.velocity.x += Math.cos(wr) * wf;
-      physics.velocity.z += Math.sin(wr) * wf;
+      ph.velocity.x += Math.cos(wr) * wf;
+      ph.velocity.z += Math.sin(wr) * wf;
     }
 
-    // Update stats display
     updateStats(altM, gH, pH);
   }
 
-  var _statsThrottle = 0;
+  var _statsTick = 0;
   function updateStats(altM, gH, pH){
-    _statsThrottle++;
-    if(_statsThrottle % 8 !== 0) return; // ~6 fps update
+    _statsTick++;
+    if(_statsTick % 6 !== 0) return; // ~3 fps — light enough
     var el = document.getElementById('env-stats');
     if(!el) return;
     var altKm = (altM / 1000).toFixed(1);
-    var psi   = (pH * 0.000145).toFixed(3);
+    var psi   = (pH * 0.000145037).toFixed(3);
     var pr = state.preset === 'custom' ? 'Custom' : (PRESETS[state.preset] ? PRESETS[state.preset].name : '?');
     el.innerHTML =
-      'ALT <span>'+altKm+'km</span> &nbsp; G <span>'+gH.toFixed(3)+'</span>m/s²<br>'+
-      'PRESS <span>'+psi+'</span> PSI &nbsp; ENV <span>'+pr+'</span>';
+      '<span style="color:rgba(0,229,255,.5)">ALT</span> <span>'+altKm+'km</span> &nbsp; '
+      +'<span style="color:rgba(0,229,255,.5)">G</span> <span>'+gH.toFixed(3)+'</span> m/s²<br>'
+      +'<span style="color:rgba(0,229,255,.5)">PRESS</span> <span>'+psi+'</span> PSI &nbsp; '
+      +'<span style="color:rgba(0,229,255,.5)">ENV</span> <span>'+pr+'</span>';
+  }
+  // Render stats immediately on load with sea-level values
+  function renderInitialStats(){
+    var el = document.getElementById('env-stats');
+    if(!el) return;
+    var pr = PRESETS[state.preset] || PRESETS.earth;
+    var psi = (pr.P0 * 0.000145037).toFixed(3);
+    el.innerHTML =
+      '<span style="color:rgba(0,229,255,.5)">ALT</span> <span>0.0km</span> &nbsp; '
+      +'<span style="color:rgba(0,229,255,.5)">G</span> <span>'+pr.g0.toFixed(3)+'</span> m/s²<br>'
+      +'<span style="color:rgba(0,229,255,.5)">PRESS</span> <span>'+psi+'</span> PSI &nbsp; '
+      +'<span style="color:rgba(0,229,255,.5)">ENV</span> <span>'+pr.name+'</span>';
   }
 
   // ── Restore baselines ──────────────────────────────────────────
@@ -1678,6 +1691,7 @@
       // Update button text if it was closed
       var envBtn = document.getElementById('env-physics-btn');
       if(envBtn && PRESETS[name]) envBtn.textContent = PRESETS[name].icon+' '+PRESETS[name].name;
+      renderInitialStats(); // show stats immediately without waiting for interval
     },
 
     randomWind: function(){
@@ -1718,7 +1732,10 @@
   };
 
   // Apply Earth preset immediately on init (after brief delay for physics to load)
-  setTimeout(function(){ window.envPhysics.applyPreset('earth'); }, 600);
+  setTimeout(function(){
+    window.envPhysics.applyPreset('earth');
+    renderInitialStats();
+  }, 300);
 
   // ── postMessage integration ────────────────────────────────────
   // Listen for commands from Autumn
