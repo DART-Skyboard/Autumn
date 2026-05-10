@@ -23630,7 +23630,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   <iframe id="mn-frame"
     src="about:blank"
     sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
-    loading="lazy"
+    allow="geolocation"
     title="Mantis Navigation Simulator">
   </iframe>
   <div id="mn-sbar">
@@ -23849,13 +23849,13 @@ function _journalEvent(type,payload){
 }
 
 // ── iframe LIFECYCLE ───────────────────────────────────────────────────
+var _mnLoadTimer=null;
+function _mnShowFrame(){
+  clearTimeout(_mnLoadTimer);
+  if(_loading) _loading.style.display='none';
+  if(_frame)   _frame.style.display='block';
+}
 if(_frame){
-  var _mnLoadTimer=null;
-  function _mnShowFrame(){
-    clearTimeout(_mnLoadTimer);
-    if(_loading) _loading.style.display='none';
-    if(_frame)   _frame.style.display='block';
-  }
   _frame.addEventListener('load',_mnShowFrame);
   _mnLoadTimer=setTimeout(_mnShowFrame,12000);
 }
@@ -24137,7 +24137,7 @@ console.info('[MantisNav] Controller ready. URL:',MN_URL);
   <iframe id="mr-frame"
     src="about:blank"
     sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
-    loading="lazy"
+    allow="geolocation"
     title="Mantis Radar — ADS-B + Orbital">
   </iframe>
 </div>
@@ -24196,14 +24196,17 @@ function _mrInitDrag(){
 }
 
 // ── iframe LIFECYCLE ──────────────────────────────────────────
+var _mrLoadTimer=null;
+function _mrShowFrame(){
+  clearTimeout(_mrLoadTimer);
+  if(_loading) _loading.style.display='none';
+  if(_frame)   _frame.style.display='block';
+  if(_adsbBadge) _adsbBadge.textContent='ADS-B LIVE';
+  if(_orbBadge)  _orbBadge.textContent='ORBITAL LIVE';
+}
 if(_frame){
-  _frame.addEventListener('load',function(){
-    if(_loading) _loading.style.display='none';
-    if(_frame)   _frame.style.display='block';
-    // Mirror status from iframe via postMessage if radar publishes it
-    _adsbBadge.textContent = 'ADS-B LIVE';
-    _orbBadge.textContent  = 'ORBITAL LIVE';
-  });
+  _frame.addEventListener('load',_mrShowFrame);
+  _mrLoadTimer=setTimeout(_mrShowFrame,12000);
 }
 
 // ── PUBLIC API ─────────────────────────────────────────────────
@@ -24213,7 +24216,7 @@ window.mantisRadar = {
     if(!_loaded){
       if(_loading) _loading.style.display='flex';
       if(_frame)  { _frame.style.display='none'; _frame.src=MR_URL; }
-      if(typeof _mrLoadTimer!=='undefined'){ clearTimeout(_mrLoadTimer); _mrLoadTimer=setTimeout(_mrShowFrame,12000); }
+      clearTimeout(_mrLoadTimer); _mrLoadTimer=setTimeout(_mrShowFrame,12000);
       _loaded=true;
     }
     _ov.classList.add('mr-open');
