@@ -148,6 +148,148 @@ input[type=range]{flex:1;accent-color:var(--cyan);cursor:pointer;}
 .leaflet-container{background:#06111a!important;}
 .drone-marker-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:14px;filter:drop-shadow(0 0 5px #00f5ff);}
 .leaflet-control-zoom a{background:rgba(3,10,14,.9)!important;color:var(--cyan)!important;border-color:var(--border)!important;}
+
+/* ══════════════════════════════════════════════════════════════
+   IFRAME / MOBILE MODE — mr.html
+   When body.iframe-mode:
+   • Left panel slides in as a full-width drawer (off-screen default)
+   • Map/globe fills 100% width
+   • Header shrinks to 36px
+   • Footer collapses to 44px bar
+   • Drawer toggle button injected by JS
+   ══════════════════════════════════════════════════════════════ */
+body.iframe-mode { overflow: hidden; }
+
+body.iframe-mode header {
+    height: 36px;
+    padding: 0 8px;
+}
+body.iframe-mode .logo { font-size: .75rem; letter-spacing: .08em; }
+body.iframe-mode .logo sub { display: none; }
+body.iframe-mode .status-bar { gap: 8px; font-size: .56rem; }
+body.iframe-mode #clock { font-size: .54rem; }
+
+/* Left panel — slide-out drawer */
+body.iframe-mode #left-panel {
+    position: fixed !important;
+    top: 36px !important;
+    left: -105% !important;
+    width: 92vw !important;
+    max-width: 340px !important;
+    height: calc(100% - 36px - 44px) !important;
+    z-index: 800 !important;
+    transition: left .25s ease !important;
+    overflow-y: auto !important;
+    background: rgba(3,10,14,.98) !important;
+    border-right: 1px solid var(--border) !important;
+}
+body.iframe-mode #left-panel.mr-panel-open {
+    left: 0 !important;
+}
+body.iframe-mode #left-resizer { display: none !important; }
+
+/* Backdrop for open drawer */
+#mr-drawer-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 799;
+}
+#mr-drawer-backdrop.active { display: block; }
+
+/* Map area fills full width */
+body.iframe-mode #map-area {
+    width: 100% !important;
+    height: 100% !important;
+}
+body.iframe-mode #map-wrap,
+body.iframe-mode #globe-wrap {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* View tabs — more prominent */
+body.iframe-mode #view-tabs {
+    top: 44px;
+    font-size: .65rem;
+}
+body.iframe-mode .vtab {
+    padding: 7px 20px;
+    font-size: .6rem;
+}
+
+/* Footer — compact single bar */
+body.iframe-mode #footer {
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+body.iframe-mode #footer-resizer { display: none !important; }
+body.iframe-mode .fc { padding: 0 10px; border-right: 1px solid var(--border); }
+body.iframe-mode .fc:last-child { border-right: none; }
+body.iframe-mode .fc-label { display: none; }
+body.iframe-mode #fc1-aerial {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+body.iframe-mode #fc1-orbital { display: none; }
+body.iframe-mode .radius-row span { font-size: .65rem; }
+body.iframe-mode input[type=range] { width: 80px; }
+body.iframe-mode .stat-grid { display: none; }
+body.iframe-mode #detail-panel {
+    font-size: .6rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-height: 44px;
+}
+body.iframe-mode .fc:nth-child(3) { flex: .5; min-width: 60px; }
+body.iframe-mode .action-btn {
+    padding: 4px 6px;
+    font-size: .42rem;
+    margin-bottom: 0;
+}
+body.iframe-mode #footer-countdown { display: none; }
+
+/* Drawer toggle pill */
+#mr-panel-toggle {
+    display: none;
+    position: absolute;
+    top: 44px;
+    left: 8px;
+    z-index: 600;
+    background: rgba(0,245,255,.14);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: .52rem;
+    font-weight: 700;
+    letter-spacing: .15em;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+body.iframe-mode #mr-panel-toggle { display: block; }
+
+/* Drone list compact */
+body.iframe-mode .drone-item { padding: 5px 10px; }
+body.iframe-mode .drone-id   { font-size: .54rem; }
+body.iframe-mode .drone-meta { font-size: .48rem; }
+
+/* Sat tooltip readable in small overlay */
+body.iframe-mode #sat-tooltip { font-size: .58rem; max-width: 220px; }
+
+/* Globe controls hint shrink */
+body.iframe-mode #globe-hud { font-size: .52rem; padding: 4px 10px; gap: 10px; }
+body.iframe-mode #globe-time-hud { font-size: .52rem; padding: 6px 8px; }
+body.iframe-mode #globe-sat-count { font-size: .52rem; padding: 6px 8px; }
+
 </style>
 </head>
 <body>
@@ -1412,5 +1554,80 @@ function showSatDetail(s){
 startTracking();
 fetchSatelliteData(false);// pre-fetch TLEs in background before orbital tab opens
 </script>
+
+<script>
+/* ── Iframe-mode mobile drawer ──────────────────────────────── */
+(function(){
+  if (window === window.top) return;   // only in iframe
+  document.body.classList.add('iframe-mode');
+
+  // Backdrop
+  var backdrop = document.createElement('div');
+  backdrop.id = 'mr-drawer-backdrop';
+  document.body.appendChild(backdrop);
+
+  // Panel toggle button
+  var btn = document.createElement('button');
+  btn.id = 'mr-panel-toggle';
+  btn.textContent = '≡ INFO';
+  document.body.appendChild(btn);
+
+  var panel = document.getElementById('left-panel');
+
+  function openDrawer(){
+    panel.classList.add('mr-panel-open');
+    backdrop.classList.add('active');
+    btn.textContent = '✕ CLOSE';
+  }
+  function closeDrawer(){
+    panel.classList.remove('mr-panel-open');
+    backdrop.classList.remove('active');
+    btn.textContent = '≡ INFO';
+  }
+
+  btn.addEventListener('click', function(){
+    panel.classList.contains('mr-panel-open') ? closeDrawer() : openDrawer();
+  });
+  backdrop.addEventListener('click', closeDrawer);
+
+  // Re-size map when drawer opens/closes
+  panel.addEventListener('transitionend', function(){
+    if (typeof sizeViews === 'function') sizeViews();
+    if (typeof leafMap !== 'undefined' && leafMap) leafMap.invalidateSize();
+  });
+
+  // Compact footer: hide orbital fc1 controls when on aerial tab
+  var origSwitch = window.switchTab;
+  window.switchTab = function(tab){
+    if (origSwitch) origSwitch(tab);
+    var orb = document.getElementById('fc1-orbital');
+    var aer = document.getElementById('fc1-aerial');
+    if (orb && aer){
+      orb.style.display = tab === 'orbital' ? 'block' : 'none';
+      aer.style.display = tab === 'aerial'  ? 'flex'  : 'none';
+    }
+    var satBtn = document.getElementById('sat-refresh-btn');
+    var refBtn = document.getElementById('refresh-btn');
+    if(satBtn) satBtn.style.display = tab==='orbital'?'inline-block':'none';
+    if(refBtn) refBtn.style.display = tab==='aerial' ?'inline-block':'none';
+  };
+
+  // Trigger initial size after layout settles
+  setTimeout(function(){
+    if (typeof sizeViews === 'function') sizeViews();
+  }, 300);
+
+  // Visibility pause to reduce GPU load
+  document.addEventListener('visibilitychange', function(){
+    window._mrPaused = document.hidden;
+  });
+  var _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(cb){
+    if (window._mrPaused) return setTimeout(function(){ window.requestAnimationFrame(cb); }, 200);
+    return _raf(cb);
+  };
+})();
+</script>
+
 </body>
 </html>
