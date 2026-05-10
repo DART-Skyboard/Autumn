@@ -307,7 +307,6 @@
         #gizmo-persp { grid-column: 2; grid-row: 2; }
         #gizmo-right { grid-column: 3; grid-row: 2; }
         #gizmo-front { grid-column: 2; grid-row: 3; }
-        #gizmo-back  { grid-column: 3; grid-row: 3; }
     
     /* ── IFRAME / MOBILE MODE ────────────────────────────── */
     body.iframe-mode { overflow: hidden; }
@@ -765,8 +764,7 @@
             <div class="gizmo-btn" id="gizmo-left" title="Left View">L</div>
             <div class="gizmo-btn" id="gizmo-persp" title="Perspective View">P</div>
             <div class="gizmo-btn" id="gizmo-right" title="Right View">R</div>
-            <div class="gizmo-btn" id="gizmo-front" title="Front View (back of model)">F</div>
-            <div class="gizmo-btn" id="gizmo-back" title="Back View (face-on)">B</div>
+            <div class="gizmo-btn" id="gizmo-front" title="Front View">F</div>
         </div>
     </div>
 
@@ -1134,36 +1132,14 @@
           loadDefaultBtn3.disabled = true;
           var orig = loadDefaultBtn3.textContent;
           loadDefaultBtn3.textContent = 'Fetching…';
-          /* 208MB file: use usercontent endpoint + confirm=t to bypass virus-scan gate */
-          var fileId = '1KITW_ba-3l-yu2csz99ihWcRUPrq45wv';
-          var ucUrl = 'https://drive.usercontent.google.com/download?id='+fileId+'&export=download&confirm=t';
-          var ucOld = 'https://drive.google.com/uc?export=download&id='+fileId+'&confirm=t';
-          var urls = [
-            ucUrl,
-            ucOld,
-            'https://corsproxy.io/?url='+encodeURIComponent(ucUrl),
-            'https://api.allorigins.win/raw?url='+encodeURIComponent(ucOld)
-          ];
+          var base = 'https://drive.google.com/uc?export=download&id=1JOl0zpxfEBaxx9DTT1vukKV3dp7Qf4OF';
+          var urls = [base, 'https://corsproxy.io/?url='+encodeURIComponent(base), 'https://api.allorigins.win/raw?url='+encodeURIComponent(base)];
           var blob = null;
           for (var i=0;i<urls.length;i++) {
             try {
-              var res = await fetch(urls[i], {signal:AbortSignal.timeout(60000)});
+              var res = await fetch(urls[i], {signal:AbortSignal.timeout(20000)});
               if (!res.ok) continue;
-              var ct = res.headers.get('content-type')||'';
-              if (ct.includes('text/html')) {
-                /* Extract confirm token from warning page and retry */
-                var txt = await res.text();
-                var m2 = txt.match(/confirm=([0-9A-Za-z_-]+)/);
-                if (m2) {
-                  try {
-                    var r2 = await fetch('https://drive.google.com/uc?export=download&id='+fileId+'&confirm='+m2[1], {signal:AbortSignal.timeout(60000)});
-                    if (r2.ok && !(r2.headers.get('content-type')||'').includes('text/html')) {
-                      var b2 = await r2.blob(); if (b2.size>1000) { blob=b2; break; }
-                    }
-                  } catch(e2) {}
-                }
-                continue;
-              }
+              if ((res.headers.get('content-type')||'').includes('text/html')) continue;
               var b = await res.blob();
               if (b.size>1000) { blob=b; break; }
             } catch(e) { continue; }
