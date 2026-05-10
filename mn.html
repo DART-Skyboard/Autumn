@@ -321,8 +321,65 @@
     body.iframe-mode #info-panel img { width: 90px; height: 90px; }
 
     /* Hide chemistry & trajectory panels by default in iframe */
-    body.iframe-mode #chemistry-panel,
     body.iframe-mode #trajectories-panel { display: none !important; }
+
+    /* Chemistry panel — bottom sheet when active in iframe */
+    body.iframe-mode #chemistry-panel {
+        position: fixed !important;
+        bottom: 110px !important;
+        top: 36px !important;
+        left: 0 !important; right: 0 !important;
+        width: 100% !important;
+        max-height: calc(100% - 150px) !important;
+        overflow-y: auto !important;
+        background: rgba(4,8,14,.97) !important;
+        border: 1px solid rgba(0,229,255,.2) !important;
+        border-radius: 0 !important;
+        z-index: 998 !important;
+        font-size: .78rem !important;
+    }
+    body.iframe-mode #chemistry-panel .chem-section h3,
+    body.iframe-mode #chemistry-panel .chem-section h4 { font-size: .75em !important; }
+    body.iframe-mode #chemistry-panel .chem-input-group { font-size: .72em !important; }
+    body.iframe-mode #chemistry-panel input { font-size: .72em !important; padding: 3px !important; }
+    body.iframe-mode #chemistry-panel .dim-input-group input { width: 44px !important; }
+
+    /* Chemistry thrust row: joystick LEFT, sliders+launch centred */
+    body.iframe-mode #ui-container {
+        width: 100% !important;
+        bottom: 4px !important;
+        left: 0 !important;
+        flex-direction: row !important;
+        justify-content: center !important;
+        align-items: flex-end !important;
+        gap: 8px !important;
+    }
+    body.iframe-mode #chem-thrust-container {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: center !important;
+        align-items: flex-end !important;
+        gap: 10px !important;
+        width: auto !important;
+        padding-bottom: 4px !important;
+    }
+    body.iframe-mode .chem-slider-wrapper {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 4px !important;
+    }
+    body.iframe-mode .chem-slider {
+        width: 80px !important;
+        margin-bottom: 44px !important;
+    }
+    body.iframe-mode #launch-btn {
+        padding: 14px 16px !important;
+        font-size: .85em !important;
+        margin-bottom: 0 !important;
+        min-width: 68px !important;
+        border-radius: 6px !important;
+    }
 
     /* Re-centre controls at bottom */
     body.iframe-mode #ui-container {
@@ -803,11 +860,18 @@
             chemistryModeActive = !chemistryModeActive;
             
             if (chemistryModeActive) {
-                const infoPanelRect = infoPanel.getBoundingClientRect();
-                const topPosition = infoPanelRect.bottom + 10;
-                chemistryPanel.style.top = `${topPosition}px`;
-                chemistryPanel.style.maxHeight = `calc(100vh - ${topPosition}px - 20px)`; 
-
+                if (!document.body.classList.contains('iframe-mode')) {
+                    const infoPanelRect = infoPanel.getBoundingClientRect();
+                    const topPosition = infoPanelRect.bottom + 10;
+                    chemistryPanel.style.top = `${topPosition}px`;
+                    chemistryPanel.style.maxHeight = `calc(100vh - ${topPosition}px - 20px)`;
+                } else {
+                    // In iframe: clear any inline positioning so CSS takes over
+                    chemistryPanel.style.top = '';
+                    chemistryPanel.style.maxHeight = '';
+                    chemistryPanel.style.left = '';
+                    chemistryPanel.style.width = '';
+                }
                 chemistryPanel.style.display = 'flex';
                 trajectoriesPanel.style.display = 'block';
             } else {
@@ -1172,6 +1236,29 @@
 
       case 'pause':
         window._mnPaused = true;
+        break;
+
+      case 'loadModel':
+        // d.model: 0=ArielNPU (default), 1=Arrow, 2=MantisGimbal
+        (function(){
+          var btns=[
+            document.getElementById('load-default-btn'),
+            document.getElementById('load-default-btn2'),
+            document.getElementById('load-default-btn3')
+          ];
+          var i = (d.model===1||/arrow/i.test(d.model||''))?1
+                : (d.model===2||/gimbal|mantis/i.test(d.model||''))?2:0;
+          if(btns[i]) btns[i].click();
+          // Queue flight command after model loads (~1.5s)
+          if(d.then) setTimeout(function(){
+            window.dispatchEvent(new MessageEvent('message',{
+              data:{source:'autumn-flight',cmd:d.then.cmd,
+                    x:d.then.x,y:d.then.y,value:d.then.value,
+                    duration:d.then.duration},
+              origin:window.location.origin
+            }));
+          },1800);
+        })();
         break;
 
       case 'resume':
