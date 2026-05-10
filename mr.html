@@ -947,8 +947,20 @@ function initGlobe(){
   const canvas=document.getElementById('globe-canvas');
   const side=parseInt(document.getElementById('globe-wrap').style.width)||600;
 
-  glbRenderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
-  glbRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  glbRenderer=new THREE.WebGLRenderer({
+    canvas, antialias: window===window.top, alpha:false,
+    powerPreference:'low-power'
+  });
+  glbRenderer.setPixelRatio(Math.min(window.devicePixelRatio, window!==window.top?1:1.5));
+  canvas.addEventListener('webglcontextlost',function(e){
+    e.preventDefault();
+    if(glbFrame){ cancelAnimationFrame(glbFrame); glbFrame=null; }
+    console.warn('[MantisRadar] Globe WebGL context lost');
+  },false);
+  canvas.addEventListener('webglcontextrestored',function(){
+    console.info('[MantisRadar] Globe WebGL context restored');
+    initGlobe();
+  },false);
   glbRenderer.setClearColor(0x000508,1);
   glbRenderer.setSize(side,side);
 
