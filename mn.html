@@ -1128,37 +1128,54 @@
         // --- EVENT LISTENERS ---
         loadDefaultBtn.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/ArielNPU.glb', (gltf) => initializeSceneWithModel(gltf, true)));
         loadDefaultBtn2.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/Arrow.glb', (gltf) => initializeSceneWithModel(gltf, true)));
-        loadDefaultBtn3.addEventListener('click', async function() {
-          loadDefaultBtn3.disabled = true;
-          var orig = loadDefaultBtn3.textContent;
-          loadDefaultBtn3.textContent = 'Fetching…';
-          var base = 'https://drive.google.com/uc?export=download&id=1JOl0zpxfEBaxx9DTT1vukKV3dp7Qf4OF';
-          var urls = [base,
-            'https://corsproxy.io/?url=' + encodeURIComponent(base),
-            'https://api.allorigins.win/raw?url=' + encodeURIComponent(base)];
-          var blob = null;
-          for (var i = 0; i < urls.length; i++) {
-            try {
-              var res = await fetch(urls[i], {signal: AbortSignal.timeout(20000)});
-              if (!res.ok) continue;
-              if ((res.headers.get('content-type')||'').includes('text/html')) continue;
-              var b = await res.blob();
-              if (b.size > 1000) { blob = b; break; }
-            } catch(e) { continue; }
-          }
-          loadDefaultBtn3.disabled = false;
-          loadDefaultBtn3.textContent = orig;
-          if (!blob) { alert('Could not load from Drive.\nCheck sharing is set to Anyone with the link.'); return; }
-          var blobUrl = URL.createObjectURL(blob);
-          loader.load(blobUrl, function(gltf) {
-            initializeSceneWithModel(gltf, initialFlipCheckbox.checked);
-            URL.revokeObjectURL(blobUrl);
-          }, undefined, function(err) {
-            URL.revokeObjectURL(blobUrl);
-            alert('Parsed error: ' + err.message);
-          });
-        });
+        loadDefaultBtn3.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/MantisGimbal.glb', (gltf) => initializeSceneWithModel(gltf, true)));
 
+        // ── Drive GLB loader — silent background fetch, no download to device ──
+        (function() {
+          var btn = document.getElementById('load-drive-btn');
+          if (!btn) return;
+          var fileId = '1JOl0zpxfEBaxx9DTT1vukKV3dp7Qf4OF';
+          btn.addEventListener('click', async function() {
+            btn.textContent = 'Fetching…';
+            btn.disabled = true;
+            var base = 'https://drive.google.com/uc?export=download&id=' + fileId;
+            var urls = [
+              base,
+              'https://corsproxy.io/?url=' + encodeURIComponent(base),
+              'https://api.allorigins.win/raw?url=' + encodeURIComponent(base)
+            ];
+            var blob = null;
+            for (var i = 0; i < urls.length; i++) {
+              try {
+                var res = await fetch(urls[i], {signal: AbortSignal.timeout(20000)});
+                if (!res.ok) continue;
+                var ct = res.headers.get('content-type') || '';
+                if (ct.includes('text/html')) continue; // Drive large-file warning page
+                var b = await res.blob();
+                if (b.size > 1000) { blob = b; break; }
+              } catch(e) { continue; }
+            }
+            if (!blob) {
+              btn.textContent = 'Load | Mantis Gimbal v2 ☁';
+              btn.disabled = false;
+              alert('Could not load from Drive.\nMake sure sharing is set to Anyone with the link.');
+              return;
+            }
+            btn.textContent = 'Parsing…';
+            var blobUrl = URL.createObjectURL(blob);
+            loader.load(blobUrl, function(gltf) {
+              initializeSceneWithModel(gltf, initialFlipCheckbox.checked);
+              URL.revokeObjectURL(blobUrl);
+              btn.textContent = 'Load | Mantis Gimbal v2 ☁';
+              btn.disabled = false;
+            }, undefined, function(err) {
+              URL.revokeObjectURL(blobUrl);
+              btn.textContent = 'Load | Mantis Gimbal v2 ☁';
+              btn.disabled = false;
+              alert('Fetched but could not parse as GLB: ' + err.message);
+            });
+          });
+        })();
 
         changeModelBtn.addEventListener('click', () => {
             uploadContainer.style.display = 'block';
@@ -1488,8 +1505,7 @@
           var btns=[
             document.getElementById('load-default-btn'),
             document.getElementById('load-default-btn2'),
-            document.getElementById('load-default-btn3'),
-            document.getElementById('load-drive-btn')
+            document.getElementById('load-default-btn3')
           ];
           var i = (d.model===1||/arrow/i.test(d.model||''))?1
                 : (d.model===2||/gimbal|mantis/i.test(d.model||''))?2:0;
