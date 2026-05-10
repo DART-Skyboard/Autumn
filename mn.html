@@ -1130,6 +1130,1138 @@
         loadDefaultBtn2.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/Arrow.glb', (gltf) => initializeSceneWithModel(gltf, true)));
         loadDefaultBtn3.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/MantisGimbal.glb', (gltf) => initializeSceneWithModel(gltf, true)));
 
+ILE mn.html ---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="Mantis Navigation For Aerospace Technology and Transportation with the incorporation of Arc Edge Finite Dynamics Measurement by Radical Deepscale.">
+<link rel="alternate" type="application/rss+xml" title="Ariel &amp; Autumn Updates" href="/feed.xml">
+    <title>Mantis Navigation</title>
+    <style>
+    :root {
+        --chem-panel-width: 340px;
+    }
+    :root {
+        --chem-panel-height: 1050px;
+    }
+
+    body {
+        
+
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        #threejs-canvas {
+            
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 80%;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+        .control-area {
+            width: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #joystick-base {
+            width: 150px;
+            height: 150px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: all;
+        }
+        #joystick-stick {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            cursor: grab;
+        }
+        #thrust-container {
+            width: 100px;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: all;
+            gap: 15px;
+        }
+        #thrust-slider {
+            -webkit-appearance: none; appearance: none;
+            width: 150px; height: 15px; background: rgba(255, 255, 255, 0.2);
+            outline: none; border-radius: 10px; transform: rotate(-90deg);
+            cursor: pointer; margin: 0;
+        }
+        #thrust-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 25px; height: 25px; background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+        }
+        #idle-button {
+            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+            color: white; font-family: 'Courier New', Courier, monospace;
+            padding: 8px 12px; border-radius: 5px; cursor: pointer;
+            margin-top: 60px; transform: translateY(20px);
+        }
+        #info-panel {
+            position: absolute; top: 10px; left: 10px;
+            padding: 10px; background: rgba(0,0,0,0.5); border-radius: 5px;
+            display: flex; flex-direction: column; gap: 8px; width: 290px;
+            z-index: 10;
+        }
+        .model-action-btn {
+            display: none; width: 100%; padding: 8px;
+            background-color: rgba(255, 255, 255, 0.3); border: 1px solid rgba(255, 255, 255, 0.5);
+            color: white; border-radius: 5px; cursor: pointer;
+            font-family: 'Courier New', Courier, monospace; box-sizing: border-box;
+        }
+        .model-action-btn:hover { background-color: rgba(255, 255, 255, 0.5); }
+        
+        /* START: Chemistry Propulsion Styles */
+        #chemistry-panel {
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            top: 280px; /* Adjusted */
+            left: 45px;
+            width: var(--chem-panel-width); box-sizing: border-box;
+            height: var(--chem-panel-height); box-sizing: border-box;
+            padding: 15px; background: rgba(0,0,0,0.7);
+            border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);
+            max-height: calc(100vh - 850px); overflow-y: auto; display: none;
+            z-index: 10;
+        }
+        .chem-section {
+            margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 15px;
+        }
+        .chem-section:last-child { border-bottom: none; }
+        .chem-section h3, .chem-section h4 {
+            margin: 0 0 10px 0; font-size: 1em; color: #ddd;
+        }
+        .chem-input-group {
+            display: grid; grid-template-columns: auto 1fr;
+            gap: 8px 10px; font-size: 0.85em; align-items: center;
+        }
+        .chem-input-group label { text-align: right; color: #aaa; }
+        .chem-input-group input, .chem-input-group .output-span {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+            color: white; font-family: 'Courier New', Courier, monospace;
+            padding: 4px; border-radius: 3px; width: 100%; box-sizing: border-box;
+        }
+        .chem-input-group .output-span { background: transparent; border-color: transparent; padding-left: 0;}
+        .dim-input-group { grid-column: 2; display: flex; gap: 4px; }
+        .dim-input-group input { text-align: center; }
+        .valve-control-group { grid-column: 2; display: flex; align-items: center; gap: 8px; }
+        .valve-control-group input[type=range] { flex-grow: 1; }
+        .valve-control-group input[type=number] { width: 60px; }
+
+        .propellant-group {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px; padding: 10px; margin-bottom: 10px;
+        }
+        .propellant-group-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+        }
+        .propellant-group-header input { width: 70%; }
+        .remove-group-btn {
+            background: #800; color: white; border: 1px solid #c00;
+            border-radius: 50%; width: 22px; height: 22px;
+            cursor: pointer; line-height: 20px; text-align: center;
+        }
+        #chem-thrust-container {
+            width: 50%; display: none; justify-content: space-around;
+            align-items: flex-end; pointer-events: all;
+        }
+        .chem-slider-wrapper { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .chem-slider {
+            -webkit-appearance: none; appearance: none; width: 150px; height: 15px;
+            background: rgba(255, 255, 255, 0.2); outline: none; border-radius: 10px;
+            transform: rotate(-90deg); cursor: pointer; margin-bottom: 60px;
+        }
+        .chem-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 25px; height: 25px; border-radius: 50%;
+        }
+        #chem-oxi-slider::-webkit-slider-thumb { background: rgba(100, 150, 255, 0.8); }
+        #chem-fuel-slider::-webkit-slider-thumb { background: rgba(255, 100, 100, 0.8); }
+        #launch-btn {
+            background: midnightblue; border: 1px solid deepskyblue; color: white;
+            padding: 15px 25px; border-radius: 8px; cursor: pointer;
+            font-family: 'Courier New', Courier, monospace; font-size: 1.1em;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        #launch-btn:hover { background: deepskyblue; }
+        /* END: Chemistry Propulsion Styles */
+
+        /* START: Panel & Drawer Styles */
+
+#trajectories-panel {
+    display: none; 
+    position: absolute;
+    top: 10px;
+    
+    /* MODIFICATION: Center the panel horizontally at the top */
+    left: 65%;
+    transform: translateX(-50%); /* This centers it perfectly */
+    /* REMOVED: right: 10px; */
+
+    transition: transform 0.4s ease-in-out;
+    width: var(--chem-panel-width);
+    box-sizing: border-box;
+    padding: 15px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.2);
+    z-index: 100;
+}
+
+.drawer-handle {
+    position: absolute;
+    width: 20px; /* Base width */
+    height: 60px; /* Base height */
+    background-color: rgba(30, 30, 30, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 18px;
+    line-height: 18px;
+    color: #fff;
+    user-select: none;
+    z-index: 11;
+}
+
+.top-panel-handle {
+    /* Position at the bottom-center of the panel */
+    top: auto; /* Unset the 'top' from the base class */
+    bottom: -21px; /* (handle height + border) to place it just outside */
+    left: 50%;
+    
+    /* Change shape to be a horizontal tab */
+    width: 80px;
+    height: 20px;
+
+    /* Center it and round the correct corners */
+    transform: translateX(-50%); /* Center horizontally */
+    border-top: none;
+    border-radius: 0; /* Reset all corners first */
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+
+#info-panel.minimized, #chemistry-panel.minimized {
+    transform: translateX(calc(-100% - 10px)); /* slide left */
+}
+
+#trajectories-panel.minimized {
+   /* Animate vertically (translateY) instead of horizontally */
+   transform: translateX(-50%) translateY(calc(-100% - 10px));
+}
+
+        #trajectories-panel h3 {
+            margin: 0 0 10px 0; font-size: 1em; color: #ddd;
+        }
+        #trajectories-panel p {
+            font-size: 0.85em; color: #aaa; margin: 0 0 15px 0;
+        }
+
+        .drawer-handle:hover {
+            background-color: rgba(80, 80, 80, 0.6);
+        }
+        .left-panel-handle {
+            right: -21px; /* width + border */
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+            border-left: none;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        #upload-container {
+             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+             background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; text-align: center;
+             z-index: 20;
+        }
+        #initial-flip-container {
+            margin-top: 15px; display: flex; justify-content: center; align-items: center; gap: 5px;
+        }
+        #load-default-btn, #load-default-btn2, #load-default-btn3, #add-group-btn {
+            margin-top: 15px; padding: 8px 16px; cursor: pointer; background-color: #444;
+            color: white; border: 1px solid #666; border-radius: 5px;
+        }
+        #load-default-btn:hover, #load-default-btn2:hover, #load-default-btn3:hover, #add-group-btn:hover { background-color: #555; }
+        
+        #view-controls {
+            position: absolute; top: 10px; right: 10px; display: flex;
+            align-items: center; gap: 10px; pointer-events: all;
+            z-index: 10;
+        }
+        #fpv-toggle, .gizmo-btn {
+            background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.4);
+            cursor: pointer; display: flex; justify-content: center;
+            align-items: center; color: white;
+        }
+        #fpv-toggle { width: 40px; height: 40px; border-radius: 5px; font-size: 10px; }
+        #fpv-toggle:hover, .gizmo-btn:hover { background: rgba(255,255,255,0.3); }
+        
+        #view-gizmo { display: grid; grid-template-columns: 25px 25px 25px; grid-template-rows: 25px 25px 25px; gap: 2px; }
+        .gizmo-btn { font-size: 10px; user-select: none; }
+        #gizmo-top { grid-column: 2; grid-row: 1; }
+        #gizmo-left { grid-column: 1; grid-row: 2; }
+        #gizmo-persp { grid-column: 2; grid-row: 2; }
+        #gizmo-right { grid-column: 3; grid-row: 2; }
+        #gizmo-front { grid-column: 2; grid-row: 3; }
+    
+    /* ── IFRAME / MOBILE MODE ────────────────────────────── */
+    body.iframe-mode { overflow: hidden; }
+
+    /* Shrink & reposition the info panel */
+    body.iframe-mode #info-panel {
+        top: 6px; left: 6px;
+        width: 160px;
+        padding: 7px;
+        font-size: .7rem;
+    }
+    body.iframe-mode #info-panel img { width: 90px; height: 90px; }
+
+    /* Hide chemistry & trajectory panels by default in iframe */
+    body.iframe-mode #trajectories-panel { display: none !important; }
+
+    /* ── Chemistry right side-drawer wrapper ─────────────────── */
+    /* Wrapper: position:fixed, slides in/out, overflow:visible
+       so the tab child can protrude from its left edge.        */
+    #chem-wrap {
+        display: none;
+        position: fixed;
+        top: 38px; right: -240px;  /* closed: content off-screen */
+        left: auto;
+        bottom: 106px;
+        width: 268px; /* 28px tab + 240px panel */
+        z-index: 998;
+        transition: right .28s ease;
+        pointer-events: none;
+    }
+    body.iframe-mode #chem-wrap { display: flex; flex-direction: row; align-items: stretch; }
+    body.iframe-mode #chem-wrap.chem-drawer-open { right: 0; }
+
+    /* Tab lives at LEFT of wrapper — always visible as a tongue */
+    #chem-drawer-tab {
+        display: none;
+        flex-shrink: 0;
+        width: 28px;
+        background: rgba(0,229,255,.13);
+        border: 1px solid rgba(0,229,255,.3);
+        border-right: none;
+        border-radius: 6px 0 0 6px;
+        color: #00e5ff;
+        font-family: 'Orbitron', monospace;
+        font-size: 7px; letter-spacing: 2px;
+        writing-mode: vertical-rl;
+        text-align: center;
+        cursor: pointer;
+        pointer-events: all;
+        transition: background .2s;
+        align-self: center;
+        height: 60px;
+        line-height: 28px;
+    }
+    body.iframe-mode #chem-drawer-tab { display: flex; align-items: center; justify-content: center; }
+    body.iframe-mode #chem-wrap.chem-drawer-open #chem-drawer-tab { background: rgba(0,229,255,.24); }
+
+    /* Panel content fills right 240px of wrapper */
+    body.iframe-mode #chemistry-panel {
+        position: static !important;  /* inside the wrapper, not fixed */
+        top: auto !important; left: auto !important; right: auto !important;
+        bottom: auto !important;
+        width: 240px !important; flex-shrink: 0 !important;
+        height: 100% !important; max-height: none !important;
+        overflow-y: auto !important; overflow-x: hidden !important;
+        background: rgba(4,8,14,.97) !important;
+        border: 1px solid rgba(0,229,255,.18) !important;
+        border-radius: 0 !important;
+        font-size: .72rem !important;
+        padding: 6px 8px !important;
+        pointer-events: all;
+        box-sizing: border-box !important;
+    }
+    body.iframe-mode #chemistry-panel .chem-section h3 { font-size: .72em !important; }
+    body.iframe-mode #chemistry-panel .chem-section h4 { font-size: .68em !important; }
+    body.iframe-mode #chemistry-panel input { font-size: .68em !important; padding: 2px 4px !important; width: calc(100% - 10px) !important; }
+    body.iframe-mode #chemistry-panel .dim-input-group input { width: 36px !important; }
+
+    /* ── Bottom controls ─────────────────────────────────────── */
+    body.iframe-mode #ui-container {
+        position: fixed !important; bottom: 22px !important; left: 0 !important;
+        width: 100% !important; display: flex !important;
+        flex-direction: row !important; justify-content: center !important;
+        align-items: flex-end !important; gap: 16px !important;
+        pointer-events: none !important;
+    }
+    body.iframe-mode #ui-container > * { pointer-events: all; }
+    body.iframe-mode .control-area { width: auto !important; }
+    body.iframe-mode #joystick-base  { width: 100px !important; height: 100px !important; }
+    body.iframe-mode #joystick-stick { width: 44px !important; height: 44px !important; top: 28px !important; left: 28px !important; }
+    body.iframe-mode #thrust-container { display: flex !important; gap: 6px !important; height: 130px !important; }
+    body.iframe-mode #thrust-slider    { width: 100px !important; }
+    body.iframe-mode #idle-button      { margin-top: 36px !important; }
+
+    /* Chemistry ACTIVE — hide joystick + thrust, show chem controls */
+    body.iframe-mode.chem-mode-on .control-area:first-child { display: none !important; }
+    body.iframe-mode.chem-mode-on #thrust-container         { display: none !important; }
+    body.iframe-mode.chem-mode-on #chem-thrust-container {
+        display: flex !important; flex-direction: row !important;
+        justify-content: center !important; align-items: flex-end !important;
+        gap: 18px !important; width: 100% !important; padding-bottom: 4px !important;
+    }
+    body.iframe-mode.chem-mode-on .chem-slider-wrapper {
+        display: flex !important; flex-direction: column !important;
+        align-items: center !important; gap: 4px !important;
+    }
+    body.iframe-mode.chem-mode-on .chem-slider { width: 90px !important; margin-bottom: 48px !important; }
+    body.iframe-mode.chem-mode-on #launch-btn  {
+        padding: 16px 20px !important; font-size: .9em !important;
+        min-width: 80px !important; margin-bottom: 0 !important;
+    }
+    /* Chemistry INACTIVE — hide chem controls */
+    body.iframe-mode:not(.chem-mode-on) #chem-thrust-container { display: none !important; }
+
+    /* Re-centre controls at bottom */
+    body.iframe-mode #ui-container {
+        width: 100%;
+        bottom: 22px;
+        left: 0;
+        justify-content: center;
+        gap: 16px;
+    }
+    body.iframe-mode .control-area { width: auto; }
+
+    /* Smaller joystick on mobile */
+    body.iframe-mode #joystick-base  { width: 110px; height: 110px; }
+    body.iframe-mode #joystick-stick { width: 50px;  height: 50px; top: 30px; left: 30px; }
+
+    /* Thrust slider more compact */
+    body.iframe-mode #thrust-container { height: 140px; gap: 8px; }
+    body.iframe-mode #thrust-slider    { width: 110px; }
+    body.iframe-mode #idle-button      { margin-top: 40px; }
+
+    /* Chem sliders compact */
+    body.iframe-mode .chem-slider      { width: 110px; }
+    body.iframe-mode #chem-thrust-container { gap: 8px; }
+
+    /* Launch button prominent */
+    body.iframe-mode #launch-btn { padding: 10px 18px; font-size: .9em; }
+
+    /* View controls top-right tighter */
+    body.iframe-mode #view-controls { top: 6px; right: 6px; gap: 6px; }
+    body.iframe-mode #fpv-toggle    { width: 32px; height: 32px; font-size: 8px; }
+    body.iframe-mode .gizmo-btn     { width: 22px; height: 22px; font-size: 8px; }
+    body.iframe-mode #view-gizmo    { grid-template-columns: 22px 22px 22px; gap: 2px; }
+
+    /* Resize renderer to fill available height */
+    body.iframe-mode canvas#threejs-canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    
+        /* ── Environment Physics Panel ──────────────────────────── */
+        #env-panel {
+            display: none; position: absolute;
+            top: 10px; right: 10px;
+            width: 230px;
+            background: rgba(3,8,14,.95);
+            border: 1px solid rgba(0,229,255,.22);
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 30;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: rgba(0,229,255,.8);
+        }
+        #env-panel.env-open { display: block; }
+        .env-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 8px;
+            font-family: 'Orbitron', monospace;
+            font-size: 9px; letter-spacing: 2px;
+            color: #00e5ff;
+            border-bottom: 1px solid rgba(0,229,255,.15);
+            padding-bottom: 6px;
+        }
+        /* Toggle switch */
+        .env-switch { display:flex; align-items:center; gap:6px; cursor:pointer; }
+        .env-switch-track {
+            width:28px; height:14px; background:rgba(0,229,255,.15);
+            border:1px solid rgba(0,229,255,.3); border-radius:7px;
+            position:relative; transition:background .2s;
+        }
+        .env-switch-thumb {
+            position:absolute; top:1px; left:1px;
+            width:10px; height:10px; border-radius:50%;
+            background:#00e5ff; transition:left .2s, opacity .2s;
+        }
+        .env-switch.on .env-switch-track { background:rgba(0,229,255,.3); }
+        .env-switch.off .env-switch-thumb { left:1px; opacity:.4; }
+        .env-switch.on  .env-switch-thumb { left:15px; }
+        /* Preset buttons */
+        .env-presets {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 4px; margin-bottom: 8px;
+        }
+        .env-preset-btn {
+            padding: 5px 4px; font-size: 9px;
+            background: rgba(0,229,255,.05);
+            border: 1px solid rgba(0,229,255,.18);
+            border-radius: 4px; color: rgba(0,229,255,.6);
+            cursor: pointer; text-align: center;
+            font-family: 'Orbitron', monospace; letter-spacing: .5px;
+            transition: background .15s, border-color .15s, color .15s;
+        }
+        .env-preset-btn:hover { background:rgba(0,229,255,.12); color:#00e5ff; }
+        .env-preset-btn.active { background:rgba(0,229,255,.18); border-color:rgba(0,229,255,.5); color:#00e5ff; }
+        /* Live stats bar */
+        #env-stats {
+            background: rgba(0,0,0,.4); border-radius:4px;
+            padding: 5px 7px; margin-bottom: 8px;
+            font-size: 9.5px; line-height: 1.6;
+        }
+        #env-stats span { color:#00e5ff; font-weight:bold; }
+        /* Wind section */
+        .env-section-title { font-size:8px; letter-spacing:1.5px; color:rgba(0,229,255,.5); text-transform:uppercase; margin-bottom:5px; }
+        .env-row { display:flex; align-items:center; gap:5px; margin-bottom:4px; }
+        .env-row label { flex:1; font-size:9.5px; color:rgba(0,229,255,.6); }
+        .env-row input[type=number] {
+            width:54px; background:rgba(0,229,255,.06);
+            border:1px solid rgba(0,229,255,.2); border-radius:3px;
+            color:#00e5ff; font-family:'Courier New',monospace;
+            font-size:9.5px; padding:2px 4px; text-align:right;
+        }
+        .env-row .unit { font-size:8.5px; color:rgba(0,229,255,.4); width:22px; }
+        .env-small-btn {
+            width:100%; padding:5px; margin-top:2px;
+            background:rgba(0,229,255,.06); border:1px solid rgba(0,229,255,.18);
+            border-radius:4px; color:rgba(0,229,255,.7); font-size:9px;
+            cursor:pointer; font-family:'Orbitron',monospace; letter-spacing:1px;
+            transition:background .15s;
+        }
+        .env-small-btn:hover { background:rgba(0,229,255,.16); color:#00e5ff; }
+        #env-custom-div { margin-top:6px; border-top:1px solid rgba(0,229,255,.1); padding-top:6px; }
+
+        /* iframe-mode: env panel fits inside overlay */
+        body.iframe-mode #env-panel {
+            top: 38px !important; right: 0 !important;
+            max-height: calc(100% - 150px) !important;
+            overflow-y: auto !important;
+            border-radius: 8px 0 0 8px !important;
+            border-right: none !important;
+            width: 220px !important;
+        }
+</style>
+</head>
+<body>
+    <canvas id="threejs-canvas"></canvas>
+<div id="trajectories-panel">
+    <div class="drawer-handle top-panel-handle">↕</div>
+    <h3>Launch & Orbit Trajectories</h3>
+    <div class="chem-section" style="border-bottom: none;">
+        <p>Trajectory planning for engine burns.</p>
+        <div class="chem-input-group">
+            <label>Target Apoapsis (km):</label> <input type="number" value="100">
+            <label>Target Periapsis (km):</label> <input type="number" value="100">
+            <label>Inclination (°):</label> <input type="number" value="0">
+            <label>Target Body:</label> <span class="output-span">Earth</span>
+        </div>
+        <button class="model-action-btn" style="display: block; margin-top: 15px;">Plan Maneuver</button>
+    </div>
+</div>
+    <div id="info-panel">
+         <div class="drawer-handle left-panel-handle">&#9776;</div>
+         <div>
+           <img src="https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/static/mn.png" alt="Mantis Navigation Logo" width="200" height="200" style="display: block; margin: 0 auto 5px auto;"><br><br>
+            <span id="camera-mode-info">View: Follow</span><br>
+            <span id="velocity-info">Velocity: (0, 0, 0)</span><br>
+            <span id="thrust-info">Thrust: 0%</span>
+        </div>
+        <button id="reset-position-btn" class="model-action-btn" title="Reset drone to starting position">Return to Origin</button>
+        <button id="change-model-btn" class="model-action-btn">Change Model</button>
+        <button id="chem-propulsion-btn" class="model-action-btn">Chemistry Propulsion</button>
+        <button id="env-physics-btn" class="model-action-btn" onclick="window.envPhysics&&window.envPhysics.togglePanel()">Environment</button>
+    </div>
+
+    <!-- ── Environment Physics Panel ─────────────────────────── -->
+    <div id="env-panel">
+      <div class="env-header">
+        <span>⬡ ENVIRONMENT</span>
+        <div class="env-switch on" id="env-toggle-sw" onclick="window.envPhysics.toggleEnabled()">
+          <div class="env-switch-track"><div class="env-switch-thumb"></div></div>
+          <span id="env-sw-label" style="font-size:8px">ON</span>
+        </div>
+      </div>
+      <div class="env-presets">
+        <button class="env-preset-btn active" data-preset="earth" onclick="window.envPhysics.applyPreset('earth')">🌍 EARTH</button>
+        <button class="env-preset-btn" data-preset="moon"  onclick="window.envPhysics.applyPreset('moon')">🌙 MOON</button>
+        <button class="env-preset-btn" data-preset="mars"  onclick="window.envPhysics.applyPreset('mars')">🔴 MARS</button>
+        <button class="env-preset-btn" data-preset="titan" onclick="window.envPhysics.applyPreset('titan')">🟠 TITAN</button>
+        <button class="env-preset-btn" data-preset="custom" onclick="window.envPhysics.applyPreset('custom')" style="grid-column:span 2">⚙ CUSTOM</button>
+      </div>
+      <div id="env-stats">Loading...</div>
+      <div class="env-section-title">Wind</div>
+      <div class="env-row">
+        <label>Speed</label>
+        <input type="number" id="env-wind-speed" value="0" min="0" max="200" step="0.1" onchange="window.envPhysics.setWind()">
+        <span class="unit">m/s</span>
+      </div>
+      <div class="env-row">
+        <label>Direction</label>
+        <input type="number" id="env-wind-dir" value="0" min="0" max="360" step="5" onchange="window.envPhysics.setWind()">
+        <span class="unit">°</span>
+      </div>
+      <button class="env-small-btn" onclick="window.envPhysics.randomWind()">⟳ RANDOM SEED</button>
+      <div id="env-custom-div" style="display:none">
+        <div class="env-section-title" style="margin-top:6px">Custom Values</div>
+        <div class="env-row"><label>Gravity</label><input type="number" id="env-custom-g" value="9.81" step="0.01" onchange="window.envPhysics.syncCustom()"><span class="unit">m/s²</span></div>
+        <div class="env-row"><label>Atm Press.</label><input type="number" id="env-custom-p0" value="101325" onchange="window.envPhysics.syncCustom()"><span class="unit">Pa</span></div>
+        <div class="env-row"><label>Scale H</label><input type="number" id="env-custom-h" value="8500" onchange="window.envPhysics.syncCustom()"><span class="unit">m</span></div>
+      </div>
+    </div>
+
+    <div id="chemistry-panel">
+        <div class="drawer-handle left-panel-handle">&#9776;</div>
+        <div id="model-settings-container" class="chem-section">
+            <h3>Model Settings</h3>
+            <div class="chem-input-group">
+                <label>Mass parts/in³:</label> <input type="number" class="mass-parts-input" value="1000">
+                   <label>Dims (in):</label>
+                <div class="dim-input-group">
+                    <input type="number" class="dim-input dim-x" placeholder="X" value="12.4">
+                    <input type="number" class="dim-input dim-y" placeholder="Y" value="12.4">
+                    <input type="number" class="dim-input dim-z" placeholder="Z" value="12.4">
+                </div>
+                                <label>Volume (in³):</label> <span class="output-span volume-output">0</span>
+                <label>Surf. Area (in²):</label> <span class="output-span surface-area-output">0</span>
+              
+                <label>Weight/part (g):</label> <input type="number" class="weight-per-part-input" value="0.01">
+             
+  <label>Density:</label> <input type="number" class="density-input" value="1.225">
+                <label>Total weight (lbs):</label> <span class="output-span total-weight-output">0</span>
+                <label>Pressure (PSI):</label> <input type="number" class="pressure-input" value="0">
+                <label>ATM Press.:</label> <input type="number" class="atm-pressure-input" value="14.7">
+                <label>Total Press.:</label> <span class="output-span total-pressure-output">0</span>
+            </div>
+        </div>
+        <div id="depressurization-chamber-section" class="chem-section">
+            <h3>Depressurization Chamber</h3>
+            <div class="chem-input-group">
+                <label>Mass parts/in³:</label> <input type="number" class="mass-parts-input" value="10">
+   <label>Dims (in):</label>
+                <div class="dim-input-group">
+                    <input type="number" class="dim-input dim-x" placeholder="X" value="5">
+                    <input type="number" class="dim-input dim-y" placeholder="Y" value="5">
+                    <input type="number" class="dim-input dim-z" placeholder="Z" value="5">
+                </div>
+                <label>Volume (in³):</label> <span class="output-span volume-output">0</span>
+                                <label>Weight/part (g):</label> <input type="number" class="weight-per-part-input" value="0.01">
+             
+                <label>Density:</label> <input type="number" class="density-input" value="1.0">
+                <label>Total weight (lbs):</label> <span class="output-span total-weight-output">0</span>
+                <label>Pressure (PSI):</label> <input type="number" class="pressure-input" value="0">
+                <label>ATM Press.:</label> <input type="number" class="atm-pressure-input" value="14.7">
+                <label>Total Press.:</label> <span class="output-span total-pressure-output">0</span>
+            </div>
+        </div>
+        <div id="propellant-groups-container">
+             <h3>Propellant Groups</h3>
+             <div id="propellant-groups-list"></div>
+             <button id="add-group-btn" style="width:100%; margin-top: 5px;">+ Add Group</button>
+        </div>
+    </div>
+    
+        
+
+    <template id="propellant-group-template">
+        <div class="propellant-group">
+            <div class="propellant-group-header">
+                <input type="text" class="group-name-input" value="Group Name">
+                <button class="remove-group-btn">-</button>
+            </div>
+            
+            <div class="chem-section prop-section" data-prop-type="oxidizer" style="padding-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.2);">
+                 <h4>Oxidizer</h4>
+                 <div class="chem-input-group">
+                    <label>Mass parts/in³:</label> <input type="number" class="mass-parts-input" value="2000">
+    <label>Dims (in):</label>
+                    <div class="dim-input-group">
+                        <input type="number" class="dim-input dim-x" placeholder="X" value="100">
+                        <input type="number" class="dim-input dim-y" placeholder="Y" value="100">
+                        <input type="number" class="dim-input dim-z" placeholder="Z" value="180">
+                    </div>
+                    <label>Volume (in³):</label> <span class="output-span volume-output">0</span>
+                    <label>Surf. Area (in²):</label> <span class="output-span surface-area-output">0</span>
+                                        <label>Weight/part (g):</label> <input type="number" class="weight-per-part-input" value="1.0">
+                
+                    <label>Density:</label> <input type="number" class="density-input" value="1.24">
+                    <label>Total weight (lbs):</label> <span class="output-span total-weight-output">0</span>
+                    <label>Temp. (°F):</label> <input type="number" class="temp-input" value="-297">
+                    <label>Pressure (PSI):</label> <input type="number" class="pressure-input" value="2500">
+                    <label>ATM Press.:</label> <input type="number" class="atm-pressure-input" value="14.7">
+                    <label>Total Press.:</label> <span class="output-span total-pressure-output">0</span>
+                    <label>Valve Angle:</label>
+                    <div class="valve-control-group">
+                         <input type="range" class="valve-angle-slider" min="0" max="180" value="90">
+                         <input type="number" class="valve-angle-input" min="0" max="180" value="90">
+                    </div>
+                    <label>Max Flow (lbs):</label> <input type="number" class="max-flow-input" value="45000">
+                 </div>
+            </div>
+             <div class="chem-section prop-section" data-prop-type="fuel" style="border-bottom:none; padding-bottom:0; margin-bottom: 10px;">
+                 <h4>Fuel</h4>
+                 <div class="chem-input-group">
+                    <label>Mass parts/in³:</label> <input type="number" class="mass-parts-input" value="1900">
+        <label>Dims (in):</label>
+                    <div class="dim-input-group">
+                        <input type="number" class="dim-input dim-x" placeholder="X" value="100">
+                        <input type="number" class="dim-input dim-y" placeholder="Y" value="100">
+                        <input type="number" class="dim-input dim-z" placeholder="Z" value="77.5">
+                    </div>
+                    <label>Volume (in³):</label> <span class="output-span volume-output">0</span>
+                    <label>Surf. Area (in²):</label> <span class="output-span surface-area-output">0</span>
+                                        <label>Weight/part (g):</label> <input type="number" class="weight-per-part-input" value="1.0">
+            
+                    <label>Density:</label> <input type="number" class="density-input" value="1.15">
+                    <label>Total weight (lbs):</label> <span class="output-span total-weight-output">0</span>
+                    <label>Temp. (°F):</label> <input type="number" class="temp-input" value="77">
+                    <label>Pressure (PSI):</label> <input type="number" class="pressure-input" value="130">
+                    <label>ATM Press.:</label> <input type="number" class="atm-pressure-input" value="14.7">
+                    <label>Total Press.:</label> <span class="output-span total-pressure-output">0</span>
+                    <label>Valve Angle:</label>
+                    <div class="valve-control-group">
+                         <input type="range" class="valve-angle-slider" min="0" max="180" value="90">
+                         <input type="number" class="valve-angle-input" min="0" max="180" value="90">
+                    </div>
+                    <label>Max Flow (lbs):</label> <input type="number" class="max-flow-input" value="45000">
+                 </div>
+            </div>
+            <label style="font-size: 0.85em; color: #aaa;">Combined Temp:</label> <span class="output-span group-temp-output" style="font-size: 0.85em;">0 °F</span>
+        </div>
+        
+    </template>
+
+    <div id="upload-container">
+        <h2>Upload Navigation Model</h2>
+        <p>Please select a .glb or .gltf file.</p>
+        <input type="file" id="model-upload" accept=".glb, .gltf">
+        <div id="initial-flip-container">
+            <input type="checkbox" id="initial-flip-checkbox">
+            <label for="initial-flip-checkbox">Flip Model 180° on Load</label>
+        </div>
+        <br>
+        <button id="load-default-btn">Load | ArielNPU</button>
+        <br>
+        <button id="load-default-btn2">Load | Arrow</button>
+        <button id="load-default-btn3">Load | Ariel & Mantis Gimbal</button>
+    </div>
+
+    <div id="view-controls" style="display: none;">
+        <div id="fpv-toggle" title="Toggle First-Person View">FPV</div>
+        <div id="view-gizmo">
+            <div class="gizmo-btn" id="gizmo-top" title="Top View">T</div>
+            <div class="gizmo-btn" id="gizmo-left" title="Left View">L</div>
+            <div class="gizmo-btn" id="gizmo-persp" title="Perspective View">P</div>
+            <div class="gizmo-btn" id="gizmo-right" title="Right View">R</div>
+            <div class="gizmo-btn" id="gizmo-front" title="Front View">F</div>
+        </div>
+    </div>
+
+    <div id="ui-container" style="display: none;">
+        <div class="control-area">
+            <div id="joystick-base">
+                <div id="joystick-stick"></div>
+            </div>
+        </div>
+        <div class="control-area">
+            <div id="thrust-container">
+                <label for="thrust-slider">Altitude</label>
+                <input type="range" min="0" max="100" value="0" id="thrust-slider">
+                <button id="idle-button" title="Set altitude to hover">Idle</button>
+            </div>
+            <div id="chem-thrust-container">
+                <div class="chem-slider-wrapper">
+                    <label for="chem-oxi-slider">Oxi. Flow</label>
+                    <input type="range" min="0" max="100" value="0" id="chem-oxi-slider" class="chem-slider">
+                </div>
+                 <div class="chem-slider-wrapper">
+                    <label for="chem-fuel-slider">Fuel Flow</label>
+                    <input type="range" min="0" max="100" value="0" id="chem-fuel-slider" class="chem-slider">
+                </div>
+                 <div class="chem-slider-wrapper">
+                    <button id="launch-btn">Launch</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 100000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('threejs-canvas'), antialias: true, powerPreference: 'low-power' });
+        // Handle WebGL context loss gracefully (can happen on mobile with multiple GL contexts)
+        renderer.domElement.addEventListener('webglcontextlost', function(e){
+          e.preventDefault();
+          console.warn('[MantisNav] WebGL context lost — waiting to restore');
+        }, false);
+        renderer.domElement.addEventListener('webglcontextrestored', function(){
+          console.info('[MantisNav] WebGL context restored');
+        }, false);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        
+        // Define loader early so it is available for both drone and environment
+        const loader = new GLTFLoader();
+
+        // --- BACKGROUND ---
+        let skybox;
+        const textureLoader = new THREE.TextureLoader();
+        const backgroundFileUrl = 'https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/templates/2.jpg';
+        textureLoader.load(backgroundFileUrl, (texture) => {
+            const skyboxGeometry = new THREE.SphereGeometry(6000, 60, 40);
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            const skyboxMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide });
+            skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+            scene.add(skybox);
+        });
+
+        function updateSkybox() {
+            if (skybox) {
+                const backgroundScale = 1, backgroundRotationX = 1, backgroundRotationY = 1.5, backgroundRotationZ = 0;
+                const textureZoom = 0.4, texturePanX = 0.0, texturePanY = 0.0;
+                skybox.scale.set(backgroundScale, backgroundScale, backgroundScale);
+                skybox.rotation.set(backgroundRotationX, backgroundRotationY, backgroundRotationZ);
+                const texture = skybox.material.map;
+                if (texture) {
+                    const repeatX = 1 / textureZoom, repeatY = 1 / textureZoom;
+                    texture.repeat.set(repeatX, repeatY);
+                    const offsetX = (1 - repeatX) / 2 + texturePanX, offsetY = (1 - repeatY) / 2 + texturePanY;
+                    texture.offset.set(offsetX, offsetY);
+                }
+            }
+        }
+
+        // --- LIGHTING & ENVIRONMENT ---
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+
+        // --- ORIGIN ENVIRONMENT OBJECT & GRID ---
+        scene.add(new THREE.GridHelper(200, 50));
+        
+        // Load the environment mesh (e.g., Spaceport) at (0,0,0)
+        // This is the code block updated to replace the previous Environment Map logic
+        const envUrl = 'mars.glb'; // Replace with your actual URL
+        loader.load(envUrl, (gltf) => {
+            const envMesh = gltf.scene;
+            envMesh.position.set(0, 0, 0);
+            scene.add(envMesh);
+            
+            // Check for lights inside the GLB to use for scene illumination
+            envMesh.traverse((node) => {
+                if (node.isLight) {
+                    // Optionally clone or reactivate light logic here
+                }
+            });
+        }, undefined, (error) => {
+            console.error("Environment GLB failed to load:", error);
+        });
+
+        const ground = new THREE.Mesh( new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9, transparent: true, opacity: 0.1 }) );
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // --- UI ELEMENTS ---
+        const uploadContainer = document.getElementById('upload-container');
+        const uiContainer = document.getElementById('ui-container');
+        const viewControls = document.getElementById('view-controls');
+        const modelUploadInput = document.getElementById('model-upload');
+        const changeModelBtn = document.getElementById('change-model-btn');
+        const loadDefaultBtn = document.getElementById('load-default-btn');
+        const loadDefaultBtn2 = document.getElementById('load-default-btn2');
+        const loadDefaultBtn3 = document.getElementById('load-default-btn3');
+        const joystickBase = document.getElementById('joystick-base');
+        const joystickStick = document.getElementById('joystick-stick');
+        const thrustSlider = document.getElementById('thrust-slider');
+        const idleButton = document.getElementById('idle-button');
+        const fpvToggle = document.getElementById('fpv-toggle');
+        const gizmoContainer = document.getElementById('view-gizmo');
+        const cameraModeInfo = document.getElementById('camera-mode-info');
+        const resetPositionBtn = document.getElementById('reset-position-btn');
+        const initialFlipCheckbox = document.getElementById('initial-flip-checkbox');
+        const infoPanel = document.getElementById('info-panel');
+        const chemPropulsionBtn = document.getElementById('chem-propulsion-btn');
+        const envPhysicsBtn     = document.getElementById('env-physics-btn');
+        const chemistryPanel = document.getElementById('chemistry-panel');
+        const trajectoriesPanel = document.getElementById('trajectories-panel');
+        const thrustContainer = document.getElementById('thrust-container');
+        const chemThrustContainer = document.getElementById('chem-thrust-container');
+        const propellantGroupsList = document.getElementById('propellant-groups-list');
+        const propellantGroupTemplate = document.getElementById('propellant-group-template');
+        const chemOxiSlider = document.getElementById('chem-oxi-slider');
+        const chemFuelSlider = document.getElementById('chem-fuel-slider');
+        const launchBtn = document.getElementById('launch-btn');
+
+
+        // --- MODEL & PHYSICS VARIABLES ---
+        let drone, modelMesh;
+        // Expose drone ref for envPhysics altitude tracking
+        Object.defineProperty(window,'_mnDrone',{get:function(){return drone;},configurable:true});
+        const physics = {
+            velocity: new THREE.Vector3(),
+            baseGravity: 0.00003, 
+            drag: 0.98,
+            lift: 0,
+            baseMaxLift: 0.03,
+            thrustPower: 0.01,
+            yawSpeed: 0.1,
+            liftScalar: 0.000001 
+        };
+        const controls = { joystick: { x: 0, y: 0 }, thrust: 0 };
+        // Expose to window so non-module scripts (envPhysics, postMessage) can access
+        window._mnPhysics = physics;
+        window._mnControls = controls;
+        let cameraMode = 'follow', chemistryModeActive = false, groupCounter = 0, isLaunched = false;
+
+        // --- CALCULATION & UPDATE FUNCTIONS ---
+        function updateDerivedValues(container) {
+            const dimX = parseFloat(container.querySelector('.dim-x')?.value) || 0;
+            const dimY = parseFloat(container.querySelector('.dim-y')?.value) || 0;
+            const dimZ = parseFloat(container.querySelector('.dim-z')?.value) || 0;
+            const psi = parseFloat(container.querySelector('.pressure-input')?.value) || 0;
+            const atmPsi = parseFloat(container.querySelector('.atm-pressure-input')?.value) || 0;
+            
+            const volume = dimX * dimY * dimZ;
+            const surfaceArea = 2 * ((dimX * dimY) + (dimX * dimZ) + (dimY * dimZ));
+            const totalPressure = psi + atmPsi;
+
+            container.querySelector('.volume-output').textContent = volume.toFixed(2);
+            if(container.querySelector('.surface-area-output')) {
+                container.querySelector('.surface-area-output').textContent = surfaceArea.toFixed(2);
+            }
+            if(container.querySelector('.total-pressure-output')) {
+                container.querySelector('.total-pressure-output').textContent = totalPressure.toFixed(2);
+            }
+            
+            const massPartsInput = container.querySelector('.mass-parts-input');
+            const weightPerPartInput = container.querySelector('.weight-per-part-input');
+            const densityInput = container.querySelector('.density-input');
+            const totalWeightOutput = container.querySelector('.total-weight-output');
+
+            if (massPartsInput && weightPerPartInput && densityInput && totalWeightOutput) {
+                const massParts = parseFloat(massPartsInput.value) || 0;
+                const weightPerPartG = parseFloat(weightPerPartInput.value) || 0;
+                const density = parseFloat(densityInput.value) || 1; 
+                
+                const totalGrams = (massParts * weightPerPartG * volume) / density;
+                const totalLbs = totalGrams / 453.592;
+                totalWeightOutput.textContent = totalLbs.toFixed(4);
+            }
+
+            const group = container.closest('.propellant-group');
+            if (group) {
+                const tempOxi = parseFloat(group.querySelector('[data-prop-type="oxidizer"] .temp-input')?.value) || 0;
+                const tempFuel = parseFloat(group.querySelector('[data-prop-type="fuel"] .temp-input')?.value) || 0;
+                const combinedTemp = (tempOxi + tempFuel) / 2;
+                group.querySelector('.group-temp-output').textContent = `${combinedTemp.toFixed(1)} °F`;
+            }
+        }
+
+        function setupInputListeners(container) {
+            container.querySelectorAll('.dim-input, .pressure-input, .atm-pressure-input, .temp-input, .mass-parts-input, .weight-per-part-input, .density-input').forEach(input => {
+                input.addEventListener('input', () => updateDerivedValues(container));
+            });
+            if (container.classList.contains('propellant-group')) {
+                 container.querySelectorAll('.prop-section').forEach(section => setupInputListeners(section));
+            } else {
+                 updateDerivedValues(container);
+            }
+        }
+
+        function reinitializeDroneState() {
+            if (!drone) return;
+            physics.velocity.set(0, 0, 0);
+            controls.thrust = 0;
+            thrustSlider.value = 0;
+            resetJoystick();
+            drone.quaternion.identity();
+            cameraMode = 'follow';
+            const cameraOffset = new THREE.Vector3(0, 4, 10);
+            cameraOffset.applyQuaternion(drone.quaternion);
+            const cameraPosition = new THREE.Vector3().addVectors(drone.position, cameraOffset);
+            camera.position.copy(cameraPosition);
+            camera.lookAt(drone.position);
+        }
+
+        function initializeSceneWithModel(gltf, shouldFlipOnLoad) {
+            if (drone) scene.remove(drone);
+            drone = new THREE.Group();
+            drone.position.set(0, 0, 0);
+            modelMesh = gltf.scene;
+            if (shouldFlipOnLoad) {
+                modelMesh.rotateY(Math.PI);
+            }
+            drone.add(modelMesh);
+            scene.add(drone);
+            reinitializeDroneState();
+            resetChemistryPanel(); 
+            uploadContainer.style.display = 'none';
+            uiContainer.style.display = 'flex';
+            viewControls.style.display = 'flex';
+            changeModelBtn.style.display = 'block';
+            resetPositionBtn.style.display = 'block';
+            chemPropulsionBtn.style.display = 'block';
+            if(envPhysicsBtn) envPhysicsBtn.style.display = 'block';
+
+            document.querySelectorAll('#info-panel, #chemistry-panel, #trajectories-panel').forEach(p => p.classList.remove('minimized'));
+        }
+        
+        function toggleChemistryMode() {
+            chemistryModeActive = !chemistryModeActive;
+            
+            if (chemistryModeActive) {
+                if (!document.body.classList.contains('iframe-mode')) {
+                    const infoPanelRect = infoPanel.getBoundingClientRect();
+                    const topPosition = infoPanelRect.bottom + 10;
+                    chemistryPanel.style.top = `${topPosition}px`;
+                    chemistryPanel.style.maxHeight = `calc(100vh - ${topPosition}px - 20px)`;
+                } else {
+                    chemistryPanel.style.top=''; chemistryPanel.style.maxHeight='';
+                    chemistryPanel.style.left=''; chemistryPanel.style.width='';
+                    if(window._chemWrap) window._chemWrap.classList.add('chem-drawer-open');
+                    document.body.classList.add('chem-mode-on');
+                }
+                chemistryPanel.style.display = 'flex';
+                trajectoriesPanel.style.display = 'block';
+            } else {
+                 chemistryPanel.style.display = 'none';
+                 if(window._chemWrap) window._chemWrap.classList.remove('chem-drawer-open');
+                 document.body.classList.remove('chem-mode-on');
+                 trajectoriesPanel.style.display = 'none';
+                 if (isLaunched) {
+                    isLaunched = false;
+                    launchBtn.textContent = 'Launch';
+                    launchBtn.style.background = '#282';
+                    launchBtn.style.borderColor = '#4c4';
+                 }
+            }
+            
+            thrustContainer.style.display = chemistryModeActive ? 'none' : 'flex';
+            chemThrustContainer.style.display = chemistryModeActive ? 'flex' : 'none';
+            chemPropulsionBtn.style.background = chemistryModeActive ? 'rgba(100, 200, 100, 0.5)' : '';
+            chemPropulsionBtn.textContent = chemistryModeActive ? 'Exit Chemistry' : 'Chemistry Propulsion';
+        }
+
+        function addPropellantGroup() {
+            groupCounter++;
+            const groupClone = propellantGroupTemplate.content.cloneNode(true);
+            const groupDiv = groupClone.querySelector('.propellant-group');
+            groupDiv.querySelector('.group-name-input').value = `Propellant ${groupCounter}`;
+            groupDiv.querySelector('.remove-group-btn').addEventListener('click', () => groupDiv.remove());
+
+            groupDiv.querySelectorAll('.prop-section').forEach(section => {
+                setupInputListeners(section);
+                updateDerivedValues(section); 
+
+                const angleSlider = section.querySelector('.valve-angle-slider');
+                const angleInput = section.querySelector('.valve-angle-input');
+                angleSlider.addEventListener('input', () => angleInput.value = angleSlider.value);
+                angleInput.addEventListener('input', () => angleSlider.value = angleInput.value);
+            });
+            updateDerivedValues(groupDiv.querySelector('[data-prop-type="oxidizer"]'));
+            updateDerivedValues(groupDiv.querySelector('[data-prop-type="fuel"]'));
+
+            propellantGroupsList.appendChild(groupClone);
+        }
+        
+        function resetChemistryPanel() {
+            const modelSettings = document.getElementById('model-settings-container');
+            modelSettings.querySelectorAll('input').forEach(input => {
+                if(input.type !== 'button' && input.defaultValue !== undefined) input.value = input.defaultValue;
+            });
+            setupInputListeners(modelSettings);
+            updateDerivedValues(modelSettings);
+
+            const depressChamber = document.getElementById('depressurization-chamber-section');
+            if (depressChamber) {
+                depressChamber.querySelectorAll('input').forEach(input => {
+                    if(input.type !== 'button' && input.defaultValue !== undefined) input.value = input.defaultValue;
+                });
+                setupInputListeners(depressChamber);
+                updateDerivedValues(depressChamber);
+            }
+
+            propellantGroupsList.innerHTML = ''; 
+            groupCounter = 0; 
+            addPropellantGroup();
+            
+            chemOxiSlider.value = 0;
+            chemFuelSlider.value = 0;
+            isLaunched = false;
+            launchBtn.textContent = 'Launch';
+            launchBtn.style.background = '#282';
+            launchBtn.style.borderColor = '#4c4';
+
+            if (chemistryModeActive) {
+                toggleChemistryMode();
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        loadDefaultBtn.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/ArielNPU.glb', (gltf) => initializeSceneWithModel(gltf, true)));
+        loadDefaultBtn2.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/Arrow.glb', (gltf) => initializeSceneWithModel(gltf, true)));
+        loadDefaultBtn3.addEventListener('click', () => loader.load('https://raw.githubusercontent.com/DART-Skyboard/Ariel/main/templates/MantisGimbal.glb', (gltf) => initializeSceneWithModel(gltf, true)));
+
         // ── Drive GLB loader — silent background fetch, no download to device ──
         (function() {
           var btn = document.getElementById('load-drive-btn');
