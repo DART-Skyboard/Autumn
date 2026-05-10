@@ -323,63 +323,83 @@
     /* Hide chemistry & trajectory panels by default in iframe */
     body.iframe-mode #trajectories-panel { display: none !important; }
 
-    /* Chemistry panel — bottom sheet when active in iframe */
+    /* ── Chemistry right side-drawer ────────────────────────── */
     body.iframe-mode #chemistry-panel {
         position: fixed !important;
-        bottom: 110px !important;
-        top: 36px !important;
-        left: 0 !important; right: 0 !important;
-        width: 100% !important;
-        max-height: calc(100% - 150px) !important;
-        overflow-y: auto !important;
+        top: 38px !important; right: -244px !important;
+        bottom: 106px !important; width: 240px !important;
+        max-height: none !important;
+        overflow-y: auto !important; overflow-x: hidden !important;
         background: rgba(4,8,14,.97) !important;
-        border: 1px solid rgba(0,229,255,.2) !important;
-        border-radius: 0 !important;
+        border: 1px solid rgba(0,229,255,.18) !important;
+        border-right: none !important;
+        border-radius: 8px 0 0 8px !important;
         z-index: 998 !important;
-        font-size: .78rem !important;
+        transition: right .28s ease !important;
+        font-size: .72rem !important;
+        padding: 6px 8px !important;
     }
-    body.iframe-mode #chemistry-panel .chem-section h3,
-    body.iframe-mode #chemistry-panel .chem-section h4 { font-size: .75em !important; }
-    body.iframe-mode #chemistry-panel .chem-input-group { font-size: .72em !important; }
-    body.iframe-mode #chemistry-panel input { font-size: .72em !important; padding: 3px !important; }
-    body.iframe-mode #chemistry-panel .dim-input-group input { width: 44px !important; }
+    body.iframe-mode #chemistry-panel.chem-drawer-open { right: 0 !important; }
+    body.iframe-mode #chemistry-panel .chem-section h3 { font-size: .72em !important; }
+    body.iframe-mode #chemistry-panel .chem-section h4 { font-size: .68em !important; }
+    body.iframe-mode #chemistry-panel input { font-size: .68em !important; padding: 2px 4px !important; width: calc(100% - 10px) !important; }
+    body.iframe-mode #chemistry-panel .dim-input-group input { width: 36px !important; }
 
-    /* Chemistry thrust row: joystick LEFT, sliders+launch centred */
+    /* ── Drawer tab pill ──────────────────────────────────────── */
+    #chem-drawer-tab {
+        display: none;
+        position: fixed; right: 0; top: 50%;
+        transform: translateY(-50%);
+        z-index: 999;
+        writing-mode: vertical-rl;
+        background: rgba(0,229,255,.12);
+        border: 1px solid rgba(0,229,255,.3);
+        border-right: none;
+        border-radius: 6px 0 0 6px;
+        color: #00e5ff;
+        font-family: 'Orbitron', monospace;
+        font-size: 8px; letter-spacing: 2px;
+        padding: 10px 5px; cursor: pointer;
+        transition: right .28s ease, background .2s;
+    }
+    body.iframe-mode #chem-drawer-tab { display: block; }
+    #chem-drawer-tab.tab-open { right: 240px; background: rgba(0,229,255,.22); }
+
+    /* ── Bottom controls ─────────────────────────────────────── */
     body.iframe-mode #ui-container {
-        width: 100% !important;
-        bottom: 4px !important;
-        left: 0 !important;
-        flex-direction: row !important;
-        justify-content: center !important;
-        align-items: flex-end !important;
-        gap: 8px !important;
+        position: fixed !important; bottom: 4px !important; left: 0 !important;
+        width: 100% !important; display: flex !important;
+        flex-direction: row !important; justify-content: center !important;
+        align-items: flex-end !important; gap: 16px !important;
+        pointer-events: none !important;
     }
-    body.iframe-mode #chem-thrust-container {
-        display: flex !important;
-        flex-direction: row !important;
-        justify-content: center !important;
-        align-items: flex-end !important;
-        gap: 10px !important;
-        width: auto !important;
-        padding-bottom: 4px !important;
+    body.iframe-mode #ui-container > * { pointer-events: all; }
+    body.iframe-mode .control-area { width: auto !important; }
+    body.iframe-mode #joystick-base  { width: 100px !important; height: 100px !important; }
+    body.iframe-mode #joystick-stick { width: 44px !important; height: 44px !important; top: 28px !important; left: 28px !important; }
+    body.iframe-mode #thrust-container { display: flex !important; gap: 6px !important; height: 130px !important; }
+    body.iframe-mode #thrust-slider    { width: 100px !important; }
+    body.iframe-mode #idle-button      { margin-top: 36px !important; }
+
+    /* Chemistry ACTIVE — hide joystick + thrust, show chem controls */
+    body.iframe-mode.chem-mode-on .control-area:first-child { display: none !important; }
+    body.iframe-mode.chem-mode-on #thrust-container         { display: none !important; }
+    body.iframe-mode.chem-mode-on #chem-thrust-container {
+        display: flex !important; flex-direction: row !important;
+        justify-content: center !important; align-items: flex-end !important;
+        gap: 18px !important; width: 100% !important; padding-bottom: 4px !important;
     }
-    body.iframe-mode .chem-slider-wrapper {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        gap: 4px !important;
+    body.iframe-mode.chem-mode-on .chem-slider-wrapper {
+        display: flex !important; flex-direction: column !important;
+        align-items: center !important; gap: 4px !important;
     }
-    body.iframe-mode .chem-slider {
-        width: 80px !important;
-        margin-bottom: 44px !important;
+    body.iframe-mode.chem-mode-on .chem-slider { width: 90px !important; margin-bottom: 48px !important; }
+    body.iframe-mode.chem-mode-on #launch-btn  {
+        padding: 16px 20px !important; font-size: .9em !important;
+        min-width: 80px !important; margin-bottom: 0 !important;
     }
-    body.iframe-mode #launch-btn {
-        padding: 14px 16px !important;
-        font-size: .85em !important;
-        margin-bottom: 0 !important;
-        min-width: 68px !important;
-        border-radius: 6px !important;
-    }
+    /* Chemistry INACTIVE — hide chem controls */
+    body.iframe-mode:not(.chem-mode-on) #chem-thrust-container { display: none !important; }
 
     /* Re-centre controls at bottom */
     body.iframe-mode #ui-container {
@@ -866,16 +886,19 @@
                     chemistryPanel.style.top = `${topPosition}px`;
                     chemistryPanel.style.maxHeight = `calc(100vh - ${topPosition}px - 20px)`;
                 } else {
-                    // In iframe: clear any inline positioning so CSS takes over
-                    chemistryPanel.style.top = '';
-                    chemistryPanel.style.maxHeight = '';
-                    chemistryPanel.style.left = '';
-                    chemistryPanel.style.width = '';
+                    chemistryPanel.style.top=''; chemistryPanel.style.maxHeight='';
+                    chemistryPanel.style.left=''; chemistryPanel.style.width='';
+                    chemistryPanel.classList.add('chem-drawer-open');
+                    document.body.classList.add('chem-mode-on');
+                    if(window._chemTab) window._chemTab.classList.add('tab-open');
                 }
                 chemistryPanel.style.display = 'flex';
                 trajectoriesPanel.style.display = 'block';
             } else {
                  chemistryPanel.style.display = 'none';
+                 chemistryPanel.classList.remove('chem-drawer-open');
+                 document.body.classList.remove('chem-mode-on');
+                 if(window._chemTab) window._chemTab.classList.remove('tab-open');
                  trajectoriesPanel.style.display = 'none';
                  if (isLaunched) {
                     isLaunched = false;
@@ -1169,6 +1192,16 @@
   // ── Iframe detection ───────────────────────────────────────────────
   if (window !== window.top) {
     document.body.classList.add('iframe-mode');
+    var chemTab=document.createElement('button');
+    chemTab.id='chem-drawer-tab'; chemTab.textContent='CHEM';
+    document.body.appendChild(chemTab);
+    chemTab.addEventListener('click',function(){
+      var p=document.getElementById('chemistry-panel');
+      if(!p) return;
+      var open=p.classList.toggle('chem-drawer-open');
+      chemTab.classList.toggle('tab-open',open);
+    });
+    window._chemTab=chemTab;
   }
 
   // ── Visibility change — pause/resume animation to save GPU ─────────
