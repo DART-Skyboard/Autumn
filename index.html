@@ -23907,7 +23907,6 @@ window.mantisNav = {
     _journalEvent('MANTIS_NAV_OPEN',{ ts:Date.now(), location:_analytics.location });
     // Pause BRPN canvas RAF + hide canvas to free GPU for iframe WebGL
     if(window._brpnPause) window._brpnPause();
-    var bc3=document.getElementById('brpn-canvas'); if(bc3) bc3.style.visibility='hidden';
   },
 
   close: function(){
@@ -23917,7 +23916,6 @@ window.mantisNav = {
     if(window._brpnResume) window._brpnResume();
     var mrFr2=document.getElementById('mr-frame');
     if(mrFr2&&mrFr2.contentWindow) try{mrFr2.contentWindow._mrPaused=false;}catch(e){}
-    var bc4=document.getElementById('brpn-canvas'); if(bc4) bc4.style.visibility='';
     window._mnModelLoaded = false; // reset so next open reloads
     _journalEvent('MANTIS_NAV_CLOSE',{
       ts:Date.now(),
@@ -24328,7 +24326,6 @@ window.mantisRadar = {
     var mnFr=document.getElementById('mn-frame');
     if(mnFr&&mnFr.contentWindow) mnFr.contentWindow.postMessage({source:'autumn-flight',cmd:'pause'},'*');
     if(window._brpnPause) window._brpnPause();
-    var bc=document.getElementById('brpn-canvas'); if(bc) bc.style.visibility='hidden';
     if(typeof window.autumnJournalEvent==='function'){
       window.autumnJournalEvent('MANTIS_RADAR_OPEN',{ ts:Date.now() });
     }
@@ -24338,7 +24335,6 @@ window.mantisRadar = {
     _ov.classList.remove('mr-open');
     _open=false;
     if(window._brpnResume) window._brpnResume();
-    var bc2=document.getElementById('brpn-canvas'); if(bc2) bc2.style.visibility='';
     if(typeof window.autumnJournalEvent==='function'){
       window.autumnJournalEvent('MANTIS_RADAR_CLOSE',{ ts:Date.now() });
     }
