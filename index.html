@@ -12327,11 +12327,28 @@ function initBRPN() {
   }
   animate();
 
+  // ── BRPN pause/resume — called by Mantis Nav & Radar to free GPU context ─
+  // These were referenced but never defined, causing silent no-ops and WebGL
+  // context exhaustion on mobile when multiple Three.js scenes ran simultaneously.
+  var _brpnPaused = false;
+  window._brpnPause = function(){
+    if(_brpnPaused) return;
+    _brpnPaused = true;
+    cancelAnimationFrame(animId);
+    animId = null;
+  };
+  window._brpnResume = function(){
+    if(!_brpnPaused) return;
+    _brpnPaused = false;
+    if(!animId) animate();
+  };
+
   document.addEventListener('visibilitychange',function(){
     if(document.hidden){
       cancelAnimationFrame(animId);
+      animId = null;
     } else {
-      if(renderer&&!document.hidden) animate();
+      if(!_brpnPaused && !animId) animate();
     }
   });
 
