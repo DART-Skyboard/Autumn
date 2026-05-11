@@ -24452,6 +24452,14 @@ if(_frame){
 }
 
 // ── PUBLIC API ─────────────────────────────────────────────────
+// ── postMessage bridge: receive live contact data from mr.html iframe ──────
+window.addEventListener('message',function(e){
+  if(!e.data||e.data.source!=='mantis-radar') return;
+  if(e.data.type==='contacts'&&Array.isArray(e.data.contacts)&&e.data.contacts.length){
+    if(window._brpnInjectMantisContacts) window._brpnInjectMantisContacts(e.data.contacts);
+  }
+});
+
 window.mantisRadar = {
 
   open: function(){

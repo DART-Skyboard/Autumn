@@ -825,6 +825,11 @@ async function fetchAircraft(){
     document.getElementById('drone-list').innerHTML='<div class="empty-state">⚠ All ADS-B sources unavailable.<br>Check connection or try again in 30s.</div>';
   }
   aerialLoading=false;btn.disabled=false;btn.textContent='⟳ REFRESH SCAN';refreshCountdown=30;
+  // Pipe aircraft contacts to parent orb world scene
+  try{
+    var _acContacts=aircraftData.filter(function(a){return a.latitude&&a.longitude;}).slice(0,50).map(function(a){return{type:'aircraft',lat:a.latitude,lon:a.longitude,alt:a.altitude||0,id:a.icao24};});
+    if(_acContacts.length&&window.parent&&window.parent!==window) window.parent.postMessage({source:'mantis-radar',type:'contacts',contacts:_acContacts},'*');
+  }catch(e){}
 }
 
 function updateUI(){
@@ -1206,6 +1211,18 @@ async function fetchSatelliteData(forceReload){
   if(sb)sb.textContent=`${satData.length} SATELLITES TRACKED`;
 
   if(globeInited)buildSatPoints();
+  // Pipe satellite sample to parent orb world scene
+  try{
+    var _step=Math.max(1,Math.floor(satData.length/35));
+    var _satContacts=[];
+    for(var _si=0;_si<satData.length&&_satContacts.length<35;_si+=_step){
+      var _s=satData[_si];
+      if(_s&&_s.lat!=null&&_s.lon!=null){
+        _satContacts.push({type:'satellite',lat:_s.lat,lon:_s.lon,alt:(_s.alt||600),id:_s.name||('SAT'+_si)});
+      }
+    }
+    if(_satContacts.length&&window.parent&&window.parent!==window) window.parent.postMessage({source:'mantis-radar',type:'contacts',contacts:_satContacts},'*');
+  }catch(e){}
 }
 
 function parseTLEs(text){
