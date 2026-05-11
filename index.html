@@ -12322,25 +12322,105 @@ function initBRPN() {
       // Single gentle bump — shellPulse decays naturally (×0.994/frame)
       if(peakFlash > 0) shellPulse = Math.min(shellPulse + 0.18, 1.2);
     }
+    if(window._brpnTickMantisNodes) window._brpnTickMantisNodes(orbFrame);
     renderer.render(scene,camera);
     animId=requestAnimationFrame(animate);
   }
   animate();
 
-  // ── BRPN pause/resume — called by Mantis Nav & Radar to free GPU context ─
-  // These were referenced but never defined, causing silent no-ops and WebGL
-  // context exhaustion on mobile when multiple Three.js scenes ran simultaneously.
-  var _brpnPaused = false;
-  window._brpnPause = function(){
-    if(_brpnPaused) return;
-    _brpnPaused = true;
-    cancelAnimationFrame(animId);
-    animId = null;
+  // ── Mantis injection API ─────────────────────────────────────────────────
+  // Mantis Radar/Nav inject real-time geometry INTO the live orb scene.
+  // The orb RAF never pauses — it's an independent world scene.
+  // _brpnPause/_brpnResume are no-ops kept for call-site compatibility.
+  window._brpnPause  = function(){};
+  window._brpnResume = function(){};
+
+  // Pool of injected Mantis geometry nodes (wireframe volumetric)
+  var _mantisNodes = [];
+  var _mantisNodeMax = 120; // cap so mobile GPU isn't overwhelmed
+
+  // Called by Mantis Radar with live aviation/satellite contact data
+  // contacts: [{type:'aircraft'|'satellite', lat, lon, alt, id}]
+  window._brpnInjectMantisContacts = function(contacts){
+    if(!scene) return;
+    // Remove oldest nodes if over cap
+    while(_mantisNodes.length + contacts.length > _mantisNodeMax){
+      var old = _mantisNodes.shift();
+      if(old && old.parent) scene.remove(old);
+      if(old && old.geometry) old.geometry.dispose();
+      if(old && old.material) old.material.dispose();
+    }
+    contacts.forEach(function(c){
+      // Map lat/lon/alt onto buoyancy shell sphere surface
+      var phi   = (90 - c.lat)  * (Math.PI / 180);
+      var theta = (c.lon + 180) * (Math.PI / 180);
+      // Aircraft cluster near inner shells (r~0.9-1.4), satellites near outer (r~1.6-2.2)
+      var r = c.type === 'satellite'
+        ? 1.6 + (c.alt || 0) / 50000 * 0.6   // scale altitude to shell radius
+        : 0.9 + Math.random() * 0.5;
+      r = Math.min(r, 2.4);
+      var x = r * Math.sin(phi) * Math.cos(theta);
+      var y = r * Math.cos(phi);
+      var z = r * Math.sin(phi) * Math.sin(theta);
+
+      // Aircraft: small tetrahedron wireframe (cyan)
+      // Satellite: octahedron wireframe (magenta)
+      var geo, color;
+      if(c.type === 'satellite'){
+        geo   = new THREE.OctahedronGeometry(0.045, 0);
+        color = 0xff2d78;
+      } else {
+        geo   = new THREE.TetrahedronGeometry(0.032, 0);
+        color = 0x00e5ff;
+      }
+      var mat  = new THREE.MeshBasicMaterial({color:color, wireframe:true, transparent:true, opacity:0.55});
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      // Store spawn time for lifecycle fade
+      mesh.userData._mantisSpawn  = orbFrame;
+      mesh.userData._mantisType   = c.type;
+      mesh.userData._mantisOrbitR = r;
+      mesh.userData._mantisOrbitSpd = (c.type === 'satellite' ? 0.0008 : 0.0022) + Math.random() * 0.001;
+      mesh.userData._mantisOrbitOff = Math.random() * Math.PI * 2;
+      mesh.userData._mantisAlt    = y;
+      scene.add(mesh);
+      _mantisNodes.push(mesh);
+    });
+    // Pulse shells to signal new activity
+    if(typeof pulseShells === 'function') pulseShells(0.15);
   };
-  window._brpnResume = function(){
-    if(!_brpnPaused) return;
-    _brpnPaused = false;
-    if(!animId) animate();
+
+  // Per-frame tick for injected nodes — called inside animate()
+  window._brpnTickMantisNodes = function(frame){
+    var toRemove = [];
+    _mantisNodes.forEach(function(m){
+      var age = frame - (m.userData._mantisSpawn || frame);
+      // Nodes live for ~1800 frames (~30s at 60fps) then fade out
+      var life = 1800;
+      var t    = age / life;
+      if(t >= 1){ toRemove.push(m); return; }
+      // Fade opacity curve: hold full then fade last 20%
+      var op = t < 0.8 ? 0.55 : 0.55 * (1 - (t - 0.8) / 0.2);
+      m.material.opacity = op;
+      // Slow orbital drift around shell surface
+      var spd = m.userData._mantisOrbitSpd || 0.001;
+      var off = m.userData._mantisOrbitOff || 0;
+      var r   = m.userData._mantisOrbitR   || 1.2;
+      var alt = m.userData._mantisAlt      || 0;
+      m.position.x = r * Math.cos(frame * spd + off);
+      m.position.z = r * Math.sin(frame * spd + off);
+      m.position.y = alt + Math.sin(frame * spd * 0.4 + off) * 0.08;
+      // Gentle rotation
+      m.rotation.x += 0.008;
+      m.rotation.y += 0.012;
+    });
+    toRemove.forEach(function(m){
+      scene.remove(m);
+      if(m.geometry) m.geometry.dispose();
+      if(m.material) m.material.dispose();
+      var idx = _mantisNodes.indexOf(m);
+      if(idx > -1) _mantisNodes.splice(idx, 1);
+    });
   };
 
   document.addEventListener('visibilitychange',function(){
@@ -12348,7 +12428,7 @@ function initBRPN() {
       cancelAnimationFrame(animId);
       animId = null;
     } else {
-      if(!_brpnPaused && !animId) animate();
+      if(!animId) animate();
     }
   });
 
@@ -23836,6 +23916,7 @@ function _fetchAircraft(){
     }
     // Journal event (fire-and-forget)
     _journalEvent('MANTIS_AC_SYNC',{ count:ac.length, source:_analytics.aircraft.source });
+    if(window._brpnInjectMantisContacts){var _acGeo=contacts.filter(function(c){return c.lat&&c.lon;}).slice(0,40).map(function(c){return{type:'aircraft',lat:c.lat,lon:c.lon,alt:c.alt||0,id:c.hex};});if(_acGeo.length)window._brpnInjectMantisContacts(_acGeo);}
   }).catch(function(err){
     _analytics.aircraft.online=false;
     if(_acCountEl) _acCountEl.textContent='ERR';
@@ -23857,6 +23938,7 @@ function _fetchSatellites(){
     _setLed(_satLed,'live');
     if(_updEl) _updEl.textContent=_utc();
     _journalEvent('MANTIS_SAT_SYNC',{ total:total });
+    if(window._brpnInjectMantisContacts&&total>0){var _satSample=[];var _satStep=Math.max(1,Math.floor(total/30));for(var _si=0;_si<lines.length-2&&_satSample.length<30;_si+=_satStep*3){var _tle1=lines[_si+1]||'';var _meanMo=parseFloat(_tle1.slice(52,63)||'0');var _inc=parseFloat(_tle1.slice(8,16)||'0');var _satLat=(_inc-90)*Math.random();var _satLon=(Math.random()-0.5)*360;var _satAlt=(_meanMo<2?1200:(_meanMo<8?20000:35786));_satSample.push({type:'satellite',lat:_satLat,lon:_satLon,alt:_satAlt,id:'SAT'+_si});}if(_satSample.length)window._brpnInjectMantisContacts(_satSample);}
     // Refresh tools tab if visible
     if(typeof currentToolTab!=='undefined' && currentToolTab==='mantis'
         && typeof window.renderToolsMantis==='function'){
