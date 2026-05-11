@@ -1211,18 +1211,6 @@ async function fetchSatelliteData(forceReload){
   if(sb)sb.textContent=`${satData.length} SATELLITES TRACKED`;
 
   if(globeInited)buildSatPoints();
-  // Pipe satellite sample to parent orb world scene
-  try{
-    var _step=Math.max(1,Math.floor(satData.length/35));
-    var _satContacts=[];
-    for(var _si=0;_si<satData.length&&_satContacts.length<35;_si+=_step){
-      var _s=satData[_si];
-      if(_s&&_s.lat!=null&&_s.lon!=null){
-        _satContacts.push({type:'satellite',lat:_s.lat,lon:_s.lon,alt:(_s.alt||600),id:_s.name||('SAT'+_si)});
-      }
-    }
-    if(_satContacts.length&&window.parent&&window.parent!==window) window.parent.postMessage({source:'mantis-radar',type:'contacts',contacts:_satContacts},'*');
-  }catch(e){}
 }
 
 function parseTLEs(text){
@@ -1337,6 +1325,22 @@ function updateSatellitePositions(){
   document.getElementById('gs-leo').textContent=leoCnt+' LEO';
   document.getElementById('gs-meo').textContent=meoCnt+' MEO';
   document.getElementById('gs-geo').textContent=geoCnt+' GEO';
+  // Pipe real propagated sat positions to parent orb — only on first call or every ~10th update
+  try{
+    if(!window._satPostCount) window._satPostCount=0;
+    window._satPostCount++;
+    if(window._satPostCount===1||(window._satPostCount%10===0)){
+      var _step2=Math.max(1,Math.floor(satData.length/35));
+      var _sc=[];
+      for(var _i2=0;_i2<satData.length&&_sc.length<35;_i2+=_step2){
+        var _s2=satData[_i2];
+        if(_s2&&_s2.lat!=null&&!isNaN(_s2.lat)&&_s2.lon!=null&&!isNaN(_s2.lon)){
+          _sc.push({type:'satellite',lat:_s2.lat,lon:_s2.lon,alt:Math.max(0,_s2.alt||400),id:_s2.name||('S'+_i2)});
+        }
+      }
+      if(_sc.length&&window.parent&&window.parent!==window) window.parent.postMessage({source:'mantis-radar',type:'contacts',contacts:_sc},'*');
+    }
+  }catch(e){}
 }
 
 // ══════════════════════════════════════════════════════════
