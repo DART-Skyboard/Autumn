@@ -22597,11 +22597,19 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     window._admTab=function(tab){
       _styleAdmTabs(tab);
-      /* Close MIST overlay if switching away from MIST tab */
-      var _prevMistOv=document.getElementById('mist-overlay');
-      if(_prevMistOv&&_prevMistOv.classList.contains('mist-open')&&document.getElementById('adm-t4')&&document.getElementById('adm-t4').style.background!=='') {
-        if(typeof window.mistToggle==='function'&&window.MIST&&window.MIST.open) window.mistToggle();
-      }
+      /* Restore mist-overlay to body if it was moved into admin frame */
+      (function(){
+        var mo=document.getElementById('mist-overlay');
+        if(mo&&mo._admSavedParent){
+          mo.setAttribute('style',mo._admSavedStyle||'');
+          mo.classList.remove('mist-open');
+          if(window.MIST) window.MIST.open=false;
+          mo._admSavedParent.insertBefore(mo, mo._admSavedNext||null);
+          mo._admSavedParent=null; mo._admSavedNext=null; mo._admSavedStyle=null;
+        }
+        var mt=document.getElementById('mist-trigger');
+        if(mt&&mt._admSavedDisplay!==undefined){mt.style.display=mt._admSavedDisplay;mt._admSavedDisplay=undefined;}
+      })();
       _restoreBRPN();
 
       var frame=document.getElementById('adm-frame');
@@ -22609,52 +22617,71 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
       if(tab==='mist'){
         frame.style.display='block';
-        frame.style.background='transparent';
+        frame.style.background='rgba(2,6,14,.97)';
         frame.innerHTML='';
+        frame.style.overflow='hidden';
+        frame.style.display='flex';
+        frame.style.flexDirection='column';
 
-        /* ── MIST Admin Panel ── */
-        var ak=_getAK?_getAK():'';
-        frame.innerHTML=
-          '<div style="display:flex;flex-direction:column;height:100%;background:rgba(2,6,14,.92);color:#E0F4FF;font-family:Orbitron,monospace">'+
-          '<div style="padding:14px 16px 8px;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0">'+
-            '<div style="font-size:9px;letter-spacing:3px;color:rgba(0,229,255,.5);margin-bottom:6px">MIST — LEAD EDGE MAZE · ADMIN ACCESS</div>'+
-            '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
-              '<span style="font-size:10px;color:rgba(224,244,255,.5)">TIER:</span>'+
-              '<button onclick="window.mistSetSlot(0)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(255,221,0,.4);background:rgba(255,221,0,.1);color:#ffdd00;cursor:pointer">★ STAR</button>'+
-              '<button onclick="window.mistSetSlot(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(255,68,136,.4);background:rgba(255,68,136,.08);color:#ff4488;cursor:pointer">♥ HEART</button>'+
-              '<button onclick="window.mistSetSlot(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.4);background:rgba(0,229,255,.08);color:#00e5ff;cursor:pointer">◈ MIST</button>'+
-            '</div>'+
-            '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">'+
-              '<span style="font-size:10px;color:rgba(224,244,255,.5)">DIFF:</span>'+
-              '<button onclick="window.mistSetDiff(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.08);color:#00e5ff;cursor:pointer">I</button>'+
-              '<button onclick="window.mistSetDiff(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">II</button>'+
-              '<button onclick="window.mistSetDiff(3)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">III</button>'+
-              '<button onclick="window.mistNewMaze()" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(167,139,250,.4);background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;margin-left:4px">NEW MAZE</button>'+
-            '</div>'+
+        /* ── Control strip at top of admin MIST frame ── */
+        var mCtrl=document.createElement('div');
+        mCtrl.style.cssText='flex-shrink:0;padding:10px 14px 8px;border-bottom:1px solid rgba(0,229,255,.1);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:rgba(2,6,14,.98)';
+        mCtrl.innerHTML=
+          '<span style="font-family:Orbitron,monospace;font-size:9px;letter-spacing:3px;color:rgba(0,229,255,.5)">◈ MIST — LEAD EDGE MAZE</span>'+
+          '<div style="display:flex;gap:6px;margin-left:4px">'+
+            '<button onclick="window.mistSetSlot(0)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,221,0,.5);background:rgba(255,221,0,.08);color:#ffdd00;cursor:pointer">★ STAR</button>'+
+            '<button onclick="window.mistSetSlot(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,68,136,.5);background:rgba(255,68,136,.08);color:#ff4488;cursor:pointer">♥ HEART</button>'+
+            '<button onclick="window.mistSetSlot(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(0,229,255,.5);background:rgba(0,229,255,.08);color:#00e5ff;cursor:pointer">◈ MIST</button>'+
           '</div>'+
-          '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px">'+
-            '<div id="adm-mist-canvas-host" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"></div>'+
-          '</div>'+
-          '<div id="adm-mist-status" style="text-align:center;font-size:9px;letter-spacing:2px;color:rgba(0,229,255,.45);padding:8px;border-top:1px solid rgba(0,229,255,.08);flex-shrink:0">DRAG ● FROM ENTRY TO EXIT</div>'+
+          '<div style="display:flex;gap:5px;margin-left:8px">'+
+            '<span style="font-size:9px;color:rgba(224,244,255,.4);font-family:Orbitron,monospace">DIFF:</span>'+
+            '<button onclick="window.mistSetDiff(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.4);background:rgba(0,229,255,.1);color:#00e5ff;cursor:pointer">I</button>'+
+            '<button onclick="window.mistSetDiff(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">II</button>'+
+            '<button onclick="window.mistSetDiff(3)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">III</button>'+
+            '<button onclick="window.mistNewMaze()" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(167,139,250,.4);background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;margin-left:2px">↺ NEW</button>'+
           '</div>';
+        frame.appendChild(mCtrl);
 
-        /* Move/show the MIST overlay inside admin panel */
+        /* ── Move mist-overlay into the admin frame ── */
         var mistOv = document.getElementById('mist-overlay');
-        var mistTr = document.getElementById('mist-trigger');
-        if(mistOv) {
-          /* Boost z-index so MIST appears above admin overlay */
-          mistOv._admSavedZ = mistOv.style.zIndex||'';
-          mistOv.style.zIndex='10700';
-          if(!mistOv.classList.contains('mist-open')) {
-            if(typeof window.mistToggle==='function') window.mistToggle();
-          }
+        if(mistOv){
+          /* Save original position for restore */
+          mistOv._admSavedParent = mistOv.parentElement;
+          mistOv._admSavedNext   = mistOv.nextSibling;
+          mistOv._admSavedStyle  = mistOv.getAttribute('style')||'';
+
+          /* Re-skin from fixed overlay to flex fill inside admin frame */
+          mistOv.style.cssText='flex:1;position:relative;display:flex;flex-direction:column;'+
+            'background:transparent;border-radius:0;padding:0;overflow:hidden;opacity:1;visibility:visible;'+
+            'pointer-events:auto;transform:none;transition:none';
+          /* Force open state */
+          mistOv.classList.add('mist-open');
+          MIST.open=true;
+          frame.appendChild(mistOv);
+
+          /* Init canvas and maze if needed */
+          setTimeout(function(){
+            if(typeof _bindCanvas==='function') _bindCanvas();
+            if(!MIST.mazes[MIST.activeMaze]) {
+              if(typeof window.mistNewMaze==='function') window.mistNewMaze();
+            } else {
+              if(typeof _renderMaze==='function') _renderMaze(MIST.mazes[MIST.activeMaze], MIST.dragPath||[]);
+            }
+          },80);
+        } else {
+          /* mist-module not loaded yet — show message */
+          var msg=document.createElement('div');
+          msg.style.cssText='flex:1;display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:10px;letter-spacing:2px;color:rgba(0,229,255,.3)';
+          msg.textContent='MIST MODULE INITIALIZING…';
+          frame.appendChild(msg);
         }
-        if(mistTr) {
-          mistTr._admSavedZ = mistTr.style.zIndex||'';
-          mistTr.style.zIndex='10700';
-        }
+
+        /* Hide the mist-trigger button (redundant in admin) */
+        var mistTr=document.getElementById('mist-trigger');
+        if(mistTr){mistTr._admSavedDisplay=mistTr.style.display;mistTr.style.display='none';}
         return;
       }
+
 
       if(tab==='ash'){
         frame.style.display='none';
@@ -22879,6 +22906,19 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
               /* Reset socket state on close */
               window._acSockPending=null;
               if(window._acRedrawLinks) window._acRedrawLinks(); /* clear route arcs */
+              /* Restore mist-overlay if it was in admin frame */
+              (function(){
+                var mo=document.getElementById('mist-overlay');
+                if(mo&&mo._admSavedParent){
+                  mo.setAttribute('style',mo._admSavedStyle||'');
+                  mo.classList.remove('mist-open');
+                  if(window.MIST) window.MIST.open=false;
+                  mo._admSavedParent.insertBefore(mo,mo._admSavedNext||null);
+                  mo._admSavedParent=null;mo._admSavedNext=null;mo._admSavedStyle=null;
+                }
+                var mt=document.getElementById('mist-trigger');
+                if(mt&&mt._admSavedDisplay!==undefined){mt.style.display=mt._admSavedDisplay;mt._admSavedDisplay=undefined;}
+              })();
               var lsEl=document.getElementById('adm-left-socks'); if(lsEl) lsEl.remove();
               ['usr','eod','emo'].forEach(function(sh){
                 var se=document.getElementById('ac-sock-'+sh);if(se)se.remove();
