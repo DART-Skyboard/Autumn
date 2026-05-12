@@ -22597,18 +22597,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     window._admTab=function(tab){
       _styleAdmTabs(tab);
-      /* Restore mist-overlay to body if it was moved into admin frame */
+      /* Restore mist-overlay if it was repositioned for admin MIST tab */
       (function(){
         var mo=document.getElementById('mist-overlay');
-        if(mo&&mo._admSavedParent){
-          mo.setAttribute('style',mo._admSavedStyle||'');
-          mo.classList.remove('mist-open');
-          if(window.MIST) window.MIST.open=false;
-          mo._admSavedParent.insertBefore(mo, mo._admSavedNext||null);
-          mo._admSavedParent=null; mo._admSavedNext=null; mo._admSavedStyle=null;
+        if(mo&&mo._admBound){
+          mo.setAttribute('style',mo._admOrigStyle||'');
+          mo._admBound=false;
+          if(typeof window.MIST!=='undefined'&&window.MIST.open&&typeof window.mistToggle==='function') window.mistToggle();
         }
         var mt=document.getElementById('mist-trigger');
-        if(mt&&mt._admSavedDisplay!==undefined){mt.style.display=mt._admSavedDisplay;mt._admSavedDisplay=undefined;}
+        if(mt&&mt._admSavedD!==undefined){mt.style.display=mt._admSavedD;mt._admSavedD=undefined;}
+        if(window._admMistResize){window.removeEventListener('resize',window._admMistResize);window._admMistResize=null;}
       })();
       _restoreBRPN();
 
@@ -22616,7 +22615,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       if(!frame) return;
 
       if(tab==='mist'){
+        /* Show control strip in frame */
         frame.style.cssText='display:flex;flex-direction:column;flex:1;overflow:hidden;background:rgba(2,6,14,.97)';
+        frame.innerHTML='';
 
         /* Control strip */
         var mCtrl=document.createElement('div');
@@ -22637,33 +22638,48 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           '</div>';
         frame.appendChild(mCtrl);
 
-        /* Move mist-overlay into admin frame */
+        /* Placeholder canvas area so frame has visible content */
+        var mHost=document.createElement('div');
+        mHost.id='adm-mist-host';
+        mHost.style.cssText='flex:1;display:flex;align-items:center;justify-content:center';
+        frame.appendChild(mHost);
+
+        /* Position mist-overlay over the admin frame using fixed coords */
         var mistOv=document.getElementById('mist-overlay');
-        var mistTr=document.getElementById('mist-trigger');
         if(mistOv){
-          mistOv._admSavedParent=mistOv.parentElement;
-          mistOv._admSavedNext=mistOv.nextSibling;
-          mistOv._admSavedStyle=mistOv.getAttribute('style')||'';
-          /* Reposition inline */
-          mistOv.style.cssText='flex:1;position:relative!important;display:flex;flex-direction:column;'+
-            'background:transparent;border-radius:0;padding:0;overflow:hidden;'+
-            'opacity:1!important;visibility:visible!important;pointer-events:auto;'+
-            'transform:none!important;transition:none!important;max-height:none!important';
-          mistOv.classList.add('mist-open');
-          frame.appendChild(mistOv);
-          /* Use public API to bind canvas and render maze */
-          if(mistTr){mistTr._admSavedDisplay=mistTr.style.display;mistTr.style.display='none';}
-          setTimeout(function(){
-            /* _mistBind and _mistRender are now exposed by mist-module.js */
-            if(typeof window._mistBind==='function') window._mistBind();
-            if(typeof window._mistRender==='function') window._mistRender();
-            else if(typeof window.mistNewMaze==='function') window.mistNewMaze();
-          },80);
-        } else {
-          var msg=document.createElement('div');
-          msg.style.cssText='flex:1;display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:10px;letter-spacing:2px;color:rgba(0,229,255,.3)';
-          msg.textContent='MIST MODULE INITIALIZING…';
-          frame.appendChild(msg);
+          /* Save original */
+          if(!mistOv._admBound){
+            mistOv._admOrigStyle=mistOv.getAttribute('style')||'';
+            mistOv._admBound=true;
+          }
+          /* Open it first via public API so module state is correct */
+          if(typeof window.MIST!=='undefined'&&!window.MIST.open){
+            if(typeof window.mistToggle==='function') window.mistToggle();
+          } else if(typeof window.MIST==='undefined'){
+            if(typeof window.mistToggle==='function') window.mistToggle();
+          }
+          /* Now position it to cover the admin frame content area */
+          var _reposition=function(){
+            var fr=frame.getBoundingClientRect();
+            var ctrlH=mCtrl.getBoundingClientRect().height;
+            mistOv.style.position='fixed';
+            mistOv.style.left=fr.left+'px';
+            mistOv.style.top=(fr.top+ctrlH)+'px';
+            mistOv.style.width=fr.width+'px';
+            mistOv.style.height=(fr.height-ctrlH)+'px';
+            mistOv.style.right='auto';
+            mistOv.style.transform='none';
+            mistOv.style.transition='none';
+            mistOv.style.borderRadius='0';
+            mistOv.style.zIndex='10800';
+          };
+          setTimeout(_reposition,50);
+          /* Reposition on resize */
+          window._admMistResize=_reposition;
+          window.addEventListener('resize',_reposition);
+          /* Hide the float trigger */
+          var mt=document.getElementById('mist-trigger');
+          if(mt){mt._admSavedD=mt.style.display;mt.style.display='none';}
         }
         return;
       }
@@ -22892,18 +22908,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
               /* Reset socket state on close */
               window._acSockPending=null;
               if(window._acRedrawLinks) window._acRedrawLinks(); /* clear route arcs */
-              /* Restore mist-overlay if it was in admin frame */
+              /* Restore mist-overlay on admin close */
               (function(){
                 var mo=document.getElementById('mist-overlay');
-                if(mo&&mo._admSavedParent){
-                  mo.setAttribute('style',mo._admSavedStyle||'');
-                  mo.classList.remove('mist-open');
-                  if(window.MIST) window.MIST.open=false;
-                  mo._admSavedParent.insertBefore(mo,mo._admSavedNext||null);
-                  mo._admSavedParent=null;mo._admSavedNext=null;mo._admSavedStyle=null;
+                if(mo&&mo._admBound){
+                  mo.setAttribute('style',mo._admOrigStyle||'');
+                  mo._admBound=false;
+                  if(typeof window.MIST!=='undefined'&&window.MIST.open&&typeof window.mistToggle==='function') window.mistToggle();
                 }
                 var mt=document.getElementById('mist-trigger');
-                if(mt&&mt._admSavedDisplay!==undefined){mt.style.display=mt._admSavedDisplay;mt._admSavedDisplay=undefined;}
+                if(mt&&mt._admSavedD!==undefined){mt.style.display=mt._admSavedD;mt._admSavedD=undefined;}
+                if(window._admMistResize){window.removeEventListener('resize',window._admMistResize);window._admMistResize=null;}
               })();
               var lsEl=document.getElementById('adm-left-socks'); if(lsEl) lsEl.remove();
               ['usr','eod','emo'].forEach(function(sh){
