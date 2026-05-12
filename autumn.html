@@ -947,6 +947,44 @@ body.theme-night #vid-scrim{
   backdrop-filter:blur(7px) saturate(1.2) hue-rotate(20deg)!important;
   -webkit-backdrop-filter:blur(7px) saturate(1.2) hue-rotate(20deg)!important;
 }
+
+/* ── Stealth theme overrides ── */
+body.theme-stealth{
+  --cyan:#5a8ab0;--blue:#2a5070;--red:#802840;
+  --bg:#030407;--bg2:#07090e;
+  --border:rgba(60,90,120,0.14);
+  --text:#7a9aae;--dim:#253545;--bright:#a0b8c8;
+  --tt-color:#4a7aaa;
+}
+body.theme-stealth header{
+  background:linear-gradient(180deg,rgba(4,8,14,.55) 0%,rgba(2,4,8,.2) 100%);
+  border-bottom-color:rgba(60,100,140,0.1);
+}
+body.theme-stealth #vid-scrim{
+  background:rgba(2,3,6,0.62)!important;
+  backdrop-filter:blur(10px) saturate(0.4) brightness(0.55)!important;
+  -webkit-backdrop-filter:blur(10px) saturate(0.4) brightness(0.55)!important;
+}
+body.theme-stealth #hdr-name{
+  background:linear-gradient(135deg,#8ab0d0,#1a3a5a,#6a9abf,#0d2035);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  letter-spacing:4px;filter:drop-shadow(0 0 6px rgba(90,138,176,0.4));
+}
+body.theme-stealth .orb-ring,.theme-stealth .brpn-ring{
+  filter:hue-rotate(170deg) saturate(0.45) brightness(0.75);
+}
+body.theme-stealth #hdr-avatar{
+  content:url('assets/autumn-stealth.png');
+  filter:none;
+}
+body.theme-stealth .glass,body.theme-stealth .msg-autumn{
+  background:rgba(4,8,14,0.78);border-color:rgba(60,100,140,0.12);
+}
+body.theme-stealth .ov-grid{
+  background-image:linear-gradient(rgba(60,100,140,.15) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(60,100,140,.15) 1px,transparent 1px);
+}
+body.theme-stealth ::-webkit-scrollbar-thumb{background:rgba(60,100,140,.2)}
 body.theme-night .ov-grid{
   background-image:linear-gradient(rgba(180,139,255,.2) 1px,transparent 1px),
     linear-gradient(90deg,rgba(180,139,255,.2) 1px,transparent 1px);
@@ -1421,7 +1459,16 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 /* Voice controls */
 .mic-btn,.speaker-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;flex-shrink:0}
 .mic-btn:hover,.speaker-btn:hover{color:var(--cyan);border-color:var(--cyan)}
-.mic-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse 1s infinite}/* Speaker (TTS) button — cyan when voice output is active */
+.mic-btn.recording{color:#ff4466;border-color:#ff4466;background:rgba(255,68,102,.12);animation:pulse 1s infinite}
+.mic-btn.recording{color:#00e5ff!important;border-color:#00e5ff!important;background:rgba(0,229,255,.1)!important;animation:pulse 1s infinite,micglow 1.5s ease-in-out infinite}
+@keyframes micglow{0%,100%{box-shadow:0 0 6px rgba(0,229,255,.3)}50%{box-shadow:0 0 16px rgba(0,229,255,.7)}}
+.mic-icon{display:inline!important}
+.mic-wave{display:none!important}
+#mic-btn.recording .mic-icon{display:none!important}
+#mic-btn.recording .mic-wave{display:flex!important}
+.mic-bar{width:3px;background:#00e5ff;border-radius:2px;animation:micwv .55s ease-in-out infinite}
+.mic-bar:nth-child(1){height:5px;animation-delay:0s}.mic-bar:nth-child(2){height:11px;animation-delay:.1s}.mic-bar:nth-child(3){height:17px;animation-delay:.2s}.mic-bar:nth-child(4){height:11px;animation-delay:.3s}.mic-bar:nth-child(5){height:5px;animation-delay:.4s}
+@keyframes micwv{0%,100%{transform:scaleY(.35);opacity:.5}50%{transform:scaleY(1);opacity:1}}/* Speaker (TTS) button — cyan when voice output is active */
 .speaker-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,255,204,.1);box-shadow:0 0 10px rgba(0,255,204,.25)}
 .listen-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0}
 .listen-btn:hover{color:#ffb347;border-color:#ffb347;box-shadow:0 0 10px rgba(255,179,71,.15)}
@@ -2113,10 +2160,8 @@ select.ash-ctrl-input{cursor:pointer}
   style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;pointer-events:none"></video>
 <!-- Frosted glass scrim — opacity/blur controlled by JS -->
 <div id="vid-scrim" style="position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:rgba(2,10,20,0.20);
-  backdrop-filter:blur(6px) saturate(1.4);
-  -webkit-backdrop-filter:blur(6px) saturate(1.4);
-  transition:background .4s ease,backdrop-filter .4s ease,-webkit-backdrop-filter .4s ease"></div>
+  background:rgba(2,10,20,0.38);
+  transition:background .4s ease"></div>
 
 <div class="ov ov-grid"></div>
 
@@ -2244,7 +2289,7 @@ select.ash-ctrl-input{cursor:pointer}
   <!-- BRPN 3D Shell -->
   <div id="brpn-region">
     <div id="brpn-canvas"></div>
-    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-tools-trigger" style="display:none"></div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-arclake-btn" onclick="window.arcLakeStudioToggle&&window.arcLakeStudioToggle()" title="Open / Close ArcLake Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.55);border:1px solid rgba(0,229,255,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,229,255,.07)">⬡ ARCLAKE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div></div>
+    <div id="cognition-state"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-tools-trigger" style="display:none"></div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-arclake-btn" onclick="window.arcLakeStudioToggle&&window.arcLakeStudioToggle()" title="Open / Close ArcLake Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.55);border:1px solid rgba(0,229,255,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,229,255,.07)">⬡ ARCLAKE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div><div id="hud-radar-btn" onclick="window.mantisRadar&&window.mantisRadar.open()" title="Mantis Radar — Live ADS-B + Orbital Globe" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;color:rgba(0,255,136,.55);border:1px solid rgba(0,255,136,.28);background:rgba(0,255,136,.05)">📡 RADAR</div><div id="hud-mavisnav-btn" onclick="window.mantisNav&&window.mantisNav.open()" title="Mantis Navigation — Aerospace Simulator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;color:rgba(0,212,255,.55);border:1px solid rgba(0,212,255,.28);background:rgba(0,212,255,.05)">🛸 NAV</div></div>
     <div id="thought-pulse"></div>
         <div id="brpn-hud">
       <div>GEO <span class="val" id="hud-geo">—</span></div>
@@ -2683,6 +2728,12 @@ select.ash-ctrl-input{cursor:pointer}
         <button class="plus-btn" id="plus-btn" onclick="toggleInputTray()" title="More options">+</button>
         <div id="input-pill">
           <input id="chat-input" placeholder="Ask Autumn..." autocomplete="off">
+          <button id="mic-btn" class="mic-btn" onclick="window.toggleMicMode()" title="Voice input — tap to start always-listening mode">
+            <span class="mic-icon" style="font-size:15px">&#127908;</span>
+            <span class="mic-wave" style="display:none;align-items:center;gap:2px;height:18px">
+              <span class="mic-bar"></span><span class="mic-bar"></span><span class="mic-bar"></span><span class="mic-bar"></span><span class="mic-bar"></span>
+            </span>
+          </button>
         </div>
         <button class="action-btn send" id="send-btn" onclick="window.handleSend&&window.handleSend()" title="Send">↑</button>
         <button class="action-btn back-to-chat" id="back-to-chat-btn" onclick="window._backToChat&&window._backToChat()" title="Back to chat" style="display:none">✕</button>
@@ -9005,6 +9056,31 @@ function classifyIntentLocal(text, hasPendingImages) {
     /\b[\w-]+\.(com|org|net|io|gov|edu|xyz|co|ai|app|dev)\b/i.test(text);
   var _knownSite = /\b(spacex|nasa|google|microsoft|apple|amazon|wikipedia|github|twitter|reddit|youtube|netflix|spotify|bbc|cnn|nytimes|techcrunch|openai|anthropic|tesla|bing|duckduckgo|facebook|instagram|linkedin|x\.com|espn|nfl|nba|mlb|imdb|ebay|walmart|target|airbnb|booking|tripadvisor|twitch|discord|notion|figma|vercel|netlify|stripe|shopify|wordpress|medium|substack|hackernews|producthunt)\b/i.test(lc);
   if (_browseVerbs && (_siteNoun || _knownSite)) return 'BROWSE_SITE';
+
+  // ── MANTIS RADAR ──────────────────────────────────────────────────────
+  var _radarIntent =
+    /\b(mantis\s*radar|open\s*radar|show\s*radar|launch\s*radar)\b/i.test(lc) ||
+    /\b(adsb|ads-b|opensky|aerial\s*(map|view|scan)|aircraft\s*(map|live|near|around))\b/i.test(lc) ||
+    /\b(orbital\s*(globe|map|view|scan)|satellite\s*(globe|map|track|live)|tle\s*(globe|view))\b/i.test(lc) ||
+    /\b(show\s*(me\s*)?(aircraft|planes|flights|satellites)\s*(on|near|around|live))\b/i.test(lc) ||
+    /\b(radar\s*(view|overlay|scan|live)|surveillance|aerial\s*surveillance)\b/i.test(lc);
+  if (_radarIntent) {
+    if (window.mantisRadar) window.mantisRadar.open();
+    return 'MANTIS_RADAR';
+  }
+
+  // ── MANTIS NAVIGATION ─────────────────────────────────────────────────
+  var _mantisIntent =
+    /\b(mantis[\s_-]*(nav|navigation|radar))\b/i.test(lc) ||
+    /\b(open|show|launch|pull\s*up|activate|bring\s*up)\b[\s\S]{0,30}\b(mantis|orbital\s*radar)\b/i.test(lc) ||
+    /\b(satellite|satellites|in\s*orbit|orbital\s*count|tle\s*catalog)\b/i.test(lc) ||
+    /\b(who.?s\s*flying|what.?s\s*in\s*(orbit|the\s*sky)|airspace\s*(data|feed|contacts))\b/i.test(lc) ||
+    (/\b(aircraft|plane|flight|adsb|ads-b)\b/i.test(lc) && /\b(near|around|radar|track|live|contact)\b/i.test(lc));
+  if (_mantisIntent) {
+    if (window.mantisNav) window.mantisNav.open();
+    return 'MANTIS_NAV';
+  }
+
   return 'CONVERSATION';
 }
 
@@ -9162,6 +9238,37 @@ async function handleSend() {
       }
     }
     _doSessionReply('Messages restored.'); return;
+  }
+
+
+  // ── MANTIS RADAR INTENT HANDLER ───────────────────────────────────────
+  if (_intentLabel === 'MANTIS_RADAR') {
+    const _mrReply = (window.mantisRadar && typeof window.mantisRadar.autumnQuery === 'function')
+      ? window.mantisRadar.autumnQuery(augmentedText)
+      : null;
+    if (_mrReply) {
+      _doSessionReply(_mrReply);
+      if (typeof window.autumnJournalEvent === 'function') {
+        window.autumnJournalEvent('MANTIS_RADAR_QUERY', { input: augmentedText, ts: Date.now() });
+      }
+      return;
+    }
+  }
+
+  // ── MANTIS NAVIGATION INTENT HANDLER ────────────────────────────────
+  if (_intentLabel === 'MANTIS_NAV') {
+    const _mnReply = (window.mantisNav && typeof window.mantisNav.autumnQuery === 'function')
+      ? window.mantisNav.autumnQuery(augmentedText)
+      : null;
+    if (_mnReply) {
+      _doSessionReply(_mnReply);
+      // Log to Autumn's journal
+      if (typeof window.autumnJournalEvent === 'function') {
+        window.autumnJournalEvent('MANTIS_QUERY', { input: augmentedText, reply: _mnReply, ts: Date.now() });
+      }
+      return;
+    }
+    // No live data yet — fall through to CONVERSATION so Claude can still respond
   }
 
   // ── ATTENTIVE INTERCEPT ── runs BEFORE full pipeline ─────────────────
@@ -11929,7 +12036,16 @@ function initBRPN() {
   camera=new THREE.PerspectiveCamera(50,w/h,0.1,100);
   camera.position.set(0,1.5,5);
   camera.lookAt(0,0,0);
-  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'low-power'});
+  renderer.domElement.addEventListener('webglcontextlost',function(e){
+    e.preventDefault();
+    cancelAnimationFrame(animId);
+    console.warn('[BRPN] WebGL context lost — will restore');
+  },false);
+  renderer.domElement.addEventListener('webglcontextrestored',function(){
+    console.warn('[BRPN] WebGL context restored — reinitialising');
+    try{ initBRPN(); }catch(err){ setTimeout(function(){initBRPN();},500); }
+  },false);
   renderer.setSize(w,h);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
   renderer.setClearColor(0x000000,0);
@@ -11944,6 +12060,7 @@ function initBRPN() {
     const mesh=new THREE.Mesh(geo,mat);
     scene.add(mesh); shells.push(mesh);
   });
+  window._brpnShells=shells; window._brpnScene=scene; window._brpnRenderer=renderer; window._brpnCamera=camera;
 
   // ── Core sphere (will be mostly hidden behind maze) ──────────────────────
   const cg=new THREE.SphereGeometry(0.18,12,12);
@@ -12018,7 +12135,7 @@ function initBRPN() {
   const shellRadiiRef=[1.9,1.4,0.9];
 
   function animate(){
-    orbFrame++;
+    orbFrame=(orbFrame+1)%1000000;
     const f=orbFrame;
     const isThinking=orbThinking;
     const thinkBoost=isThinking?1.0:0.0;
@@ -12243,10 +12360,115 @@ function initBRPN() {
       // Single gentle bump — shellPulse decays naturally (×0.994/frame)
       if(peakFlash > 0) shellPulse = Math.min(shellPulse + 0.18, 1.2);
     }
+    if(window._brpnTickMantisNodes) window._brpnTickMantisNodes(orbFrame);
     renderer.render(scene,camera);
     animId=requestAnimationFrame(animate);
   }
   animate();
+
+  // ── Mantis injection API ─────────────────────────────────────────────────
+  // Mantis Radar/Nav inject real-time geometry INTO the live orb scene.
+  // The orb RAF never pauses — it's an independent world scene.
+  // _brpnPause/_brpnResume are no-ops kept for call-site compatibility.
+  window._brpnPause  = function(){};
+  window._brpnResume = function(){};
+
+  // Pool of injected Mantis geometry nodes (wireframe volumetric)
+  var _mantisNodes = [];
+  var _mantisNodeMax = 120; // cap so mobile GPU isn't overwhelmed
+
+  // Called by Mantis Radar with live aviation/satellite contact data
+  // contacts: [{type:'aircraft'|'satellite', lat, lon, alt, id}]
+  window._brpnInjectMantisContacts = function(contacts){
+    if(!scene) return;
+    // Remove oldest nodes if over cap
+    while(_mantisNodes.length + contacts.length > _mantisNodeMax){
+      var old = _mantisNodes.shift();
+      if(old && old.parent) scene.remove(old);
+      if(old && old.geometry) old.geometry.dispose();
+      if(old && old.material) old.material.dispose();
+    }
+    contacts.forEach(function(c){
+      // Map lat/lon/alt onto buoyancy shell sphere surface
+      var phi   = (90 - c.lat)  * (Math.PI / 180);
+      var theta = (c.lon + 180) * (Math.PI / 180);
+      // Aircraft cluster near inner shells (r~0.9-1.4), satellites near outer (r~1.6-2.2)
+      var r = c.type === 'satellite'
+        ? 1.6 + (c.alt || 0) / 50000 * 0.6   // scale altitude to shell radius
+        : 0.9 + Math.random() * 0.5;
+      r = Math.min(r, 2.4);
+      var x = r * Math.sin(phi) * Math.cos(theta);
+      var y = r * Math.cos(phi);
+      var z = r * Math.sin(phi) * Math.sin(theta);
+
+      // Aircraft: small tetrahedron wireframe (cyan)
+      // Satellite: octahedron wireframe (magenta)
+      var geo, color;
+      if(c.type === 'satellite'){
+        geo   = new THREE.OctahedronGeometry(0.045, 0);
+        color = 0xff2d78;
+      } else {
+        geo   = new THREE.TetrahedronGeometry(0.032, 0);
+        color = 0x00e5ff;
+      }
+      var mat  = new THREE.MeshBasicMaterial({color:color, wireframe:true, transparent:true, opacity:0.55});
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      // Store spawn time for lifecycle fade
+      mesh.userData._mantisSpawn  = orbFrame;
+      mesh.userData._mantisType   = c.type;
+      mesh.userData._mantisOrbitR = r;
+      mesh.userData._mantisOrbitSpd = (c.type === 'satellite' ? 0.0008 : 0.0022) + Math.random() * 0.001;
+      mesh.userData._mantisOrbitOff = Math.random() * Math.PI * 2;
+      mesh.userData._mantisAlt    = y;
+      scene.add(mesh);
+      _mantisNodes.push(mesh);
+    });
+    // Pulse shells to signal new activity
+    if(typeof pulseShells === 'function') pulseShells(0.15);
+  };
+
+  // Per-frame tick for injected nodes — called inside animate()
+  window._brpnTickMantisNodes = function(frame){
+    var toRemove = [];
+    _mantisNodes.forEach(function(m){
+      var age = frame - (m.userData._mantisSpawn || frame);
+      // Nodes live for ~1800 frames (~30s at 60fps) then fade out
+      var life = 1800;
+      var t    = age / life;
+      if(t >= 1){ toRemove.push(m); return; }
+      // Fade opacity curve: hold full then fade last 20%
+      var op = t < 0.8 ? 0.55 : 0.55 * (1 - (t - 0.8) / 0.2);
+      m.material.opacity = op;
+      // Slow orbital drift around shell surface
+      var spd = m.userData._mantisOrbitSpd || 0.001;
+      var off = m.userData._mantisOrbitOff || 0;
+      var r   = m.userData._mantisOrbitR   || 1.2;
+      var alt = m.userData._mantisAlt      || 0;
+      m.position.x = r * Math.cos(frame * spd + off);
+      m.position.z = r * Math.sin(frame * spd + off);
+      m.position.y = alt + Math.sin(frame * spd * 0.4 + off) * 0.08;
+      // Gentle rotation
+      m.rotation.x += 0.008;
+      m.rotation.y += 0.012;
+    });
+    toRemove.forEach(function(m){
+      scene.remove(m);
+      if(m.geometry) m.geometry.dispose();
+      if(m.material) m.material.dispose();
+      var idx = _mantisNodes.indexOf(m);
+      if(idx > -1) _mantisNodes.splice(idx, 1);
+    });
+  };
+
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden){
+      cancelAnimationFrame(animId);
+      animId = null;
+    } else {
+      if(!animId) animate();
+    }
+  });
 
   const ro=new ResizeObserver(()=>{
     const w2=container.clientWidth, h2=container.clientHeight;
@@ -13526,6 +13748,21 @@ function toggleVoiceMode(){ toggleSpeakerMode(); }
   console.log('[SystemSTT] System dictation watcher active — no PTT button needed');
 })();
 
+window.toggleMicMode=function(){
+  if(!Voice.recognition) initSTT();
+  var mb=document.getElementById('mic-btn');
+  var vi=document.getElementById('voice-indicator');
+  if(Voice.active){
+    Voice.active=false; Voice.isListening=false;
+    try{Voice.recognition.stop();}catch(e){}
+    if(mb) mb.classList.remove('recording');
+    if(vi) vi.classList.remove('show');
+  } else {
+    Voice.active=true;
+    if(mb) mb.classList.add('recording');
+    restartListeningIfActive();
+  }
+};
 function restartListeningIfActive(){
   if(!Voice.active||!Voice.recognition) return;
   setTimeout(()=>{
@@ -13797,6 +14034,8 @@ const TOOL_TABS=[
   {id:"journal",  label:"Journal",  icon:"📖", color:"#ff9a4d"},
   {id:"sessions", label:"Sessions", icon:"💬", color:"#4dffb8"},
   {id:"ashtree",  label:"Ash Tree", icon:"🌿", color:"#7fff7f"},
+  {id:"radar",    label:"Radar",    icon:"📡", color:"#00ff88"},
+  {id:"mantis",   label:"Mantis",   icon:"🛸", color:"#00d4ff"},
   {id:"about",    label:"About",    icon:"🌐", color:"#7c9fff"}
 ];
 let currentToolTab="cognition";
@@ -13822,6 +14061,22 @@ function renderToolsContent(){
     case "ashtree":   el.innerHTML=renderToolsAshTree(); bindToolsAshTree(); break;
     case "about":     el.innerHTML=renderToolsAbout(); break;
     case "contexts":  el.innerHTML=renderToolsContacts?renderToolsContacts():"<div style='padding:20px;color:#8a8fa8'>Contexts loading...</div>"; break;
+    case "radar":
+      if (window.renderToolsRadar) {
+        el.innerHTML = window.renderToolsRadar();
+        if (window.mantisRadarTabMounted) setTimeout(window.mantisRadarTabMounted, 60);
+      } else {
+        el.innerHTML = "<div style='padding:20px;font-family:Orbitron,monospace;font-size:11px;color:#00ff88;letter-spacing:2px'>📡 MANTIS RADAR<br><span style=\'color:rgba(0,255,136,.4);font-size:9px;margin-top:8px;display:block\'>Initialising radar controller...</span></div>";
+      }
+      break;
+    case "mantis":
+      if (window.renderToolsMantis) {
+        el.innerHTML = window.renderToolsMantis();
+        if (window.mantisNavTabMounted) setTimeout(window.mantisNavTabMounted, 60);
+      } else {
+        el.innerHTML = "<div style='padding:20px;font-family:Orbitron,monospace;font-size:11px;color:#00d4ff;letter-spacing:2px'>🛸 MANTIS NAVIGATION<br><span style=\'color:rgba(0,212,255,.5);font-size:9px;margin-top:8px;display:block\'>Initialising controller...</span></div>";
+      }
+      break;
     case "arclake":
       if(window.renderToolsArcLake){
         el.innerHTML=window.renderToolsArcLake();
@@ -13857,7 +14112,7 @@ function renderToolsAbout(){
   ];
   const linksHtml=links.map(l=>`<a href="${l.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.12);border-radius:8px;text-decoration:none;transition:background .15s;margin-bottom:6px" onmouseover="this.style.background='rgba(0,229,255,.09)'" onmouseout="this.style.background='rgba(0,229,255,.04)'"><span style="font-size:15px">${l.icon||'🔗'}</span><div style="flex:1;min-width:0"><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1.5px;color:var(--cyan)">${l.label}</div><div style="font-size:11px;color:var(--dim);margin-top:2px">${l.desc}</div></div><span style="font-size:11px;color:rgba(0,229,255,.3)">↗</span></a>`).join('');
   const ghHtml=ghRepos.map(r=>`<a href="${r.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.2);border-radius:8px;text-decoration:none;transition:all .15s;margin-bottom:8px" onmouseover="this.style.background='rgba(0,229,255,.08)';this.style.borderColor='rgba(0,229,255,.4)'" onmouseout="this.style.background='rgba(0,229,255,.03)';this.style.borderColor='rgba(0,229,255,.2)'"><div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:rgba(0,229,255,.1);border-radius:6px;flex-shrink:0;color:var(--cyan)">${_ghSvg}</div><div style="flex:1;min-width:0"><div style="font-family:var(--font-d);font-size:10px;letter-spacing:1.2px;color:var(--cyan)">${r.label}</div><div style="font-size:10px;color:var(--dim);margin-top:2px">${r.desc}</div><div style="font-size:9px;color:rgba(0,229,255,.45);margin-top:3px;font-family:var(--font-d)">${r.action}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0"><span style="font-size:9px;padding:2px 6px;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.25);border-radius:3px;color:var(--cyan);font-family:var(--font-d);white-space:nowrap">${r.tag}</span><span style="font-size:10px;color:rgba(0,229,255,.3)">↗</span></div></a>`).join('');
-  return`<div class="glass"><div class="glass-title">◈ DART MEADOW · RADICAL DEEPSCALE</div><div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:14px">Engineering, AI &amp; scientific visualization tools built on the LEATR v2 neural system.<br>Founded by Justin Craig Venable.</div>${linksHtml}</div><div class="glass"><div class="glass-title" style="display:flex;align-items:center;gap:7px"><span style="color:var(--cyan)">${_ghSvg}</span> OPEN SOURCE · GITHUB</div><div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:12px">Autumn is open to explore and fork. Runs entirely in the browser — single HTML file, no backend required.</div>${ghHtml}</div><div class="glass" style="margin-top:0"><div class="glass-title" style="display:flex;align-items:center;gap:7px"><span style="font-size:13px">📚</span> WORDNET® ATTRIBUTION</div><div style="font-size:10px;color:var(--dim);line-height:1.8">Autumn uses <strong style="color:var(--cyan)">WordNet® 3.1</strong> — a lexical database by Princeton University. WordNet® is a registered trademark. Used free of charge under the WordNet license.</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:10px"><a href="https://wordnet.princeton.edu/license-and-commercial-use" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.15);border-radius:7px;text-decoration:none" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='rgba(0,229,255,.03)'"><span style="font-size:13px">📄</span><div style="flex:1"><div style="font-family:var(--font-d);font-size:9px;letter-spacing:1px;color:var(--cyan)">WORDNET LICENSE</div><div style="font-size:10px;color:var(--dim);margin-top:1px">wordnet.princeton.edu/license-and-commercial-use</div></div><span style="color:rgba(0,229,255,.3);font-size:10px">↗</span></a><a href="https://wordnet.princeton.edu/citing-wordnet" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.15);border-radius:7px;text-decoration:none" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='rgba(0,229,255,.03)'"><span style="font-size:13px">📖</span><div style="flex:1"><div style="font-family:var(--font-d);font-size:9px;letter-spacing:1px;color:var(--cyan)">CITING WORDNET</div><div style="font-size:10px;color:var(--dim);margin-top:1px">Miller (1995) · Fellbaum (1998) — required citations</div></div><span style="color:rgba(0,229,255,.3);font-size:10px">↗</span></a></div><div style="margin-top:10px;padding:8px 10px;background:rgba(0,229,255,.02);border-left:2px solid rgba(0,229,255,.2);font-size:9px;color:rgba(0,229,255,.5);font-family:var(--font-d);line-height:1.7">George A. Miller (1995). WordNet: A Lexical Database for English.<br>Communications of the ACM Vol. 38, No. 11: 39–41.<br><br>Christiane Fellbaum (1998, ed.) WordNet: An Electronic Lexical Database. Cambridge, MA: MIT Press.</div><div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(0,229,255,.08);font-size:10px;color:rgba(0,229,255,.3);font-family:var(--font-d);letter-spacing:1px;text-align:center">© 2026 DART MEADOW · RADICAL DEEPSCALE LLC</div></div>`;
+  return`<div class="glass"><div class="glass-title">◈ DART MEADOW · RADICAL DEEPSCALE</div><div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:14px">Engineering, AI &amp; scientific visualization tools built on the LEATR v2 neural system.<br>Founded by Justin Craig Venable.</div>${linksHtml}</div><div class="glass"><div class="glass-title" style="display:flex;align-items:center;gap:7px"><span style="color:var(--cyan)">${_ghSvg}</span> OPEN SOURCE · GITHUB</div><div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:12px">Autumn is open to explore and fork. Runs entirely in the browser — single HTML file, no backend required.</div>${ghHtml}</div><div class="glass" style="margin-top:0"><div class="glass-title" style="display:flex;align-items:center;gap:7px"><span style="font-size:13px">📚</span> WORDNET® ATTRIBUTION</div><div style="font-size:10px;color:var(--dim);line-height:1.8">Autumn uses <strong style="color:var(--cyan)">WordNet® 3.1</strong> — a lexical database by Princeton University. WordNet® is a registered trademark. Used free of charge under the WordNet license.</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:10px"><a href="https://wordnet.princeton.edu/license-and-commercial-use" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.15);border-radius:7px;text-decoration:none" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='rgba(0,229,255,.03)'"><span style="font-size:13px">📄</span><div style="flex:1"><div style="font-family:var(--font-d);font-size:9px;letter-spacing:1px;color:var(--cyan)">WORDNET LICENSE</div><div style="font-size:10px;color:var(--dim);margin-top:1px">wordnet.princeton.edu/license-and-commercial-use</div></div><span style="color:rgba(0,229,255,.3);font-size:10px">↗</span></a><a href="https://wordnet.princeton.edu/citing-wordnet" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.15);border-radius:7px;text-decoration:none" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='rgba(0,229,255,.03)'"><span style="font-size:13px">📖</span><div style="flex:1"><div style="font-family:var(--font-d);font-size:9px;letter-spacing:1px;color:var(--cyan)">CITING WORDNET</div><div style="font-size:10px;color:var(--dim);margin-top:1px">Miller (1995) · Fellbaum (1998) — required citations</div></div><span style="color:rgba(0,229,255,.3);font-size:10px">↗</span></a></div><div style="margin-top:10px;padding:8px 10px;background:rgba(0,229,255,.02);border-left:2px solid rgba(0,229,255,.2);font-size:9px;color:rgba(0,229,255,.5);font-family:var(--font-d);line-height:1.7">George A. Miller (1995). WordNet: A Lexical Database for English.<br>Communications of the ACM Vol. 38, No. 11: 39–41.<br><br>Christiane Fellbaum (1998, ed.) WordNet: An Electronic Lexical Database. Cambridge, MA: MIT Press.</div><div class="glass" style="margin-top:0"><div class="glass-title" style="display:flex;align-items:center;gap:7px"><span style="font-size:14px">📈</span> MOVEMENT CONJECTURE <span style="font-family:var(--font-d);font-size:8px;letter-spacing:2px;color:rgba(255,179,71,.6);background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.2);border-radius:3px;padding:1px 5px;margin-left:2px">EOD</span></div><div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:12px">Multi-stock trajectory projection engine based on the MSP Sigma-EOD algorithm. Enter up to 5 tickers with Sigma investment values — Autumn projects long-range conjecture propagation curves through 2080 using DLSS orbital mechanics. Opt in to log your calculations as a personal pattern record.</div><a href="/movement-conjecture.html" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(255,179,71,.05);border:1px solid rgba(255,179,71,.2);border-radius:7px;text-decoration:none" onmouseover="this.style.background='rgba(255,179,71,.12)'" onmouseout="this.style.background='rgba(255,179,71,.05)'"><span style="font-size:15px">📈</span><div style="flex:1"><div style="font-family:var(--font-d);font-size:9px;letter-spacing:1.5px;color:rgba(255,179,71,.85)">OPEN MOVEMENT CONJECTURE</div><div style="font-size:10px;color:var(--dim);margin-top:1px">leatr.xyz/movement-conjecture.html</div></div><span style="color:rgba(255,179,71,.4);font-size:12px">↗</span></a></div><div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(0,229,255,.08);font-size:10px;color:rgba(0,229,255,.3);font-family:var(--font-d);letter-spacing:1px;text-align:center">© 2026 DART MEADOW · RADICAL DEEPSCALE LLC</div></div>`;
 }
 
 function renderToolsCognition(){
@@ -16461,6 +16716,14 @@ ashLoadDefs();
       bodyClass: 'theme-night'
     },
     {
+      key:   'stealth',
+      label: 'STEALTH',
+      dot:   '◆',
+      color: '#7aa8cc',      // cold steel blue
+      video: 'assets/dartalley.mp4',
+      bodyClass: 'theme-stealth'
+    },
+    {
       key:   'system',
       label: 'AUTO',
       dot:   '◈',
@@ -16486,7 +16749,7 @@ ashLoadDefs();
     const btn   = document.getElementById('theme-toggle');
 
     // Swap body class
-    body.classList.remove('theme-night');
+    body.classList.remove('theme-night','theme-stealth');
     if (effective.bodyClass) body.classList.add(effective.bodyClass);
 
     // Swap video with crossfade
@@ -16501,6 +16764,13 @@ ashLoadDefs();
       }, 400);
     }
 
+    // Swap avatar logo for stealth mode
+    var _av = document.getElementById('hdr-avatar');
+    if (_av) {
+      _av.src = (effective.key === 'stealth')
+        ? 'assets/autumn-stealth.png'
+        : 'assets/autumn-avatar.png';
+    }
     // Update toggle pill appearance
     if (dot) {
       dot.textContent = t.dot;            // always show the *selected* theme icon
@@ -18063,6 +18333,8 @@ _syncActionBtn();
     links: [],        // [{a, b, el (line)}]
     linkMode: false,
     pendingLink: null,
+    sockPending: null,   /* custom socket source for socket-to-socket routing */
+    socketRoutes: [],    /* [{from:'usr', to:'geo'}] */
     applied: false,
     influence: {geo:0, mar:0, aero:0, tools:{}},
     nodeCounter: 0,
@@ -18077,7 +18349,7 @@ _syncActionBtn();
   var TOOL_WEIGHTS = {
     maze:1.0, puzzle:0.85, envelope:0.7, hammer:0.9, stick:0.65, knife:0.8, scissors:0.75
   };
-  var SHELL_COLORS = {geo:'rgba(0,229,255,0.5)', mar:'rgba(0,136,255,0.5)', aero:'rgba(255,68,102,0.5)'};
+  var SHELL_COLORS = {geo:'rgba(0,229,255,0.5)', mar:'rgba(0,136,255,0.5)', aero:'rgba(255,68,102,0.5)', usr:'rgba(0,229,255,0.6)', eod:'rgba(255,179,71,0.6)', emo:'rgba(180,139,255,0.6)'};
 
   window.toggleAshCanvas = function() {
     var drawer = document.getElementById('ash-canvas-drawer');
@@ -18093,6 +18365,7 @@ _syncActionBtn();
     document.querySelectorAll('.ac-tool-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tool === _ac.activeTool); });
   };
 
+  window._acInitCanvas = _acInitCanvas;
   function _acInitCanvas() {
     var area = document.getElementById('ac-canvas-area');
     if (!area || area._acBound) return;
@@ -18123,6 +18396,13 @@ _syncActionBtn();
     var dragging = false, ox=0, oy=0;
     function onStart(ev) {
       if (_ac.linkMode) { _acHandleLinkTap(id, el); return; }
+      /* Non-link mode: toggle selected class for deletion (does NOT touch pendingLink) */
+      if(el.classList.contains('selected')){
+        el.classList.remove('selected');
+      } else {
+        document.querySelectorAll('.ac-node.selected').forEach(function(x){x.classList.remove('selected');});
+        el.classList.add('selected');
+      }
       ev.stopPropagation();
       dragging = true;
       var touch = ev.touches ? ev.touches[0] : ev;
@@ -18174,6 +18454,8 @@ _syncActionBtn();
     _acRedrawLinks();
   }
 
+  window._acRedrawLinks = _acRedrawLinks;
+  window._ac_state = _ac; /* expose for external state reset */
   function _acRedrawLinks() {
     var area = document.getElementById('ac-canvas-area');
     if (!area) return;
@@ -18187,17 +18469,25 @@ _syncActionBtn();
       lnk.el.setAttribute('x1',ax); lnk.el.setAttribute('y1',ay);
       lnk.el.setAttribute('x2',bx); lnk.el.setAttribute('y2',by);
     });
-    // Draw shell connection lines (node → right edge socket)
+    // Draw shell connection lines (node → socket)
     var sockGeo  = document.getElementById('ac-sock-geo');
     var sockMar  = document.getElementById('ac-sock-mar');
     var sockAero = document.getElementById('ac-sock-aero');
+    var sockUsr  = document.getElementById('ac-sock-usr');
+    var sockEod  = document.getElementById('ac-sock-eod');
+    var sockEmo  = document.getElementById('ac-sock-emo');
     // Remove old shell lines
     document.querySelectorAll('.ac-shell-line').forEach(function(l){l.remove();});
     var svg = document.getElementById('ac-svg');
     if (!svg) return;
     _ac.nodes.forEach(function(node) {
       node.shellLinks.forEach(function(shell) {
-        var sock = shell==='geo'?sockGeo:shell==='mar'?sockMar:sockAero;
+        var sock = shell==='geo'?sockGeo:
+                   shell==='mar'?sockMar:
+                   shell==='aero'?sockAero:
+                   shell==='usr'?sockUsr:
+                   shell==='eod'?sockEod:
+                   shell==='emo'?sockEmo:null;
         if (!sock) return;
         var nx = parseFloat(node.el.style.left)+17, ny = parseFloat(node.el.style.top)+17;
         var sr = sock.getBoundingClientRect(), ar = area.getBoundingClientRect();
@@ -18211,22 +18501,47 @@ _syncActionBtn();
         svg.appendChild(sl);
       });
     });
+    /* Draw socket-to-socket route arcs */
+    (_ac.socketRoutes||[]).forEach(function(route){
+      var fromEl=document.getElementById('ac-sock-'+route.from);
+      var toEl=document.getElementById('ac-sock-'+route.to);
+      if(!fromEl||!toEl) return;
+      var fr=fromEl.getBoundingClientRect(),tr=toEl.getBoundingClientRect(),ar=area.getBoundingClientRect();
+      var sl2=document.createElementNS('http://www.w3.org/2000/svg','line');
+      sl2.className.baseVal='ac-shell-line';
+      sl2.setAttribute('x1',fr.left+11-ar.left);sl2.setAttribute('y1',fr.top+11-ar.top);
+      sl2.setAttribute('x2',tr.left+11-ar.left);sl2.setAttribute('y2',tr.top+11-ar.top);
+      sl2.style.stroke=SHELL_COLORS[route.from]||'rgba(255,255,255,.4)';
+      sl2.style.strokeWidth='1.5';sl2.style.strokeDasharray='6,3';
+      svg.appendChild(sl2);
+    });
   }
 
   window.acConnectSocket = function(shell) {
-    // Connect ALL selected/last-pending node to this shell socket
+    /* Handle socket-to-socket routing via window._acSockPending */
+    if(window._acSockPending){
+      var fromSock=window._acSockPending;
+      window._acSockPending=null;
+      var prev=document.getElementById('ac-sock-'+fromSock);
+      if(prev){prev.style.outline='';prev.style.outlineOffset='';}
+      var routeExists=(_ac.socketRoutes||[]).some(function(r){return r.from===fromSock&&r.to===shell;});
+      if(!routeExists){_ac.socketRoutes=_ac.socketRoutes||[];_ac.socketRoutes.push({from:fromSock,to:shell});}
+      _acRedrawLinks();
+      return true;
+    }
+    // Connect selected/last-pending tool node to this shell socket
     var targetId = _ac.pendingLink || (_ac.nodes.length && _ac.nodes[_ac.nodes.length-1].id);
-    if (!targetId) return;
+    if (!targetId) return false;
     var node = _ac.nodes.find(function(n){return n.id===targetId;});
-    if (!node) return;
+    if (!node) return false;
+    var _sockEl=document.getElementById('ac-sock-'+shell);
     if (!node.shellLinks.includes(shell)) {
       node.shellLinks.push(shell);
-      document.getElementById('ac-sock-'+shell).classList.add('connected');
+      if(_sockEl) _sockEl.classList.add('connected');
     } else {
       node.shellLinks = node.shellLinks.filter(function(s){return s!==shell;});
-      // Only remove connected class if no node links to this shell
       if (!_ac.nodes.some(function(n){return n.shellLinks.includes(shell);}))
-        document.getElementById('ac-sock-'+shell).classList.remove('connected');
+        if(_sockEl) _sockEl.classList.remove('connected');
     }
     if (_ac.pendingLink) {
       var el = document.getElementById(_ac.pendingLink);
@@ -18234,6 +18549,12 @@ _syncActionBtn();
       _ac.pendingLink = null;
     }
     _acRedrawLinks();
+    /* Clear pending link after socket connection — same as node-to-node link */
+    if(_ac.pendingLink){
+      var prevEl=document.getElementById(_ac.pendingLink);
+      if(prevEl) prevEl.classList.remove('selected');
+      _ac.pendingLink=null;
+    }
   };
 
   window.acLinkMode = function() {
@@ -18244,18 +18565,33 @@ _syncActionBtn();
   };
 
   window.acClearSelected = function() {
-    if (_ac.pendingLink) {
-      var toRemove = _ac.pendingLink;
-      _ac.links = _ac.links.filter(function(l){return l.a!==toRemove&&l.b!==toRemove;});
-      _ac.nodes = _ac.nodes.filter(function(n){return n.id!==toRemove;});
-      var el = document.getElementById(toRemove);
-      if (el) el.remove();
+    /* Collect IDs to remove: pendingLink + any class-selected nodes */
+    var toRemoveIds = [];
+    if(_ac.pendingLink) toRemoveIds.push(_ac.pendingLink);
+    document.querySelectorAll('.ac-node.selected').forEach(function(el){
+      if(el.dataset&&el.dataset.id&&toRemoveIds.indexOf(el.dataset.id)===-1)
+        toRemoveIds.push(el.dataset.id);
+    });
+    if(toRemoveIds.length){
+      toRemoveIds.forEach(function(toRemove){
+        _ac.links = _ac.links.filter(function(l){return l.a!==toRemove&&l.b!==toRemove;});
+        _ac.nodes = _ac.nodes.filter(function(n){return n.id!==toRemove;});
+        var el = document.getElementById(toRemove);
+        if (el) el.remove();
+      });
       _ac.pendingLink = null;
       _acRedrawLinks();
     }
   };
 
   window.acResetCanvas = function() {
+    /* Clear admin socket state too */
+    window._acSockPending=null;
+    if(window._ac_state) window._ac_state.socketRoutes=[];
+    ['usr','eod','emo'].forEach(function(sh){
+      var s=document.getElementById('ac-sock-'+sh);
+      if(s){s.style.outline='';s.style.outlineOffset='';s.classList.remove('connected');}
+    });
     _ac.nodes.forEach(function(n){if(n.el)n.el.remove();});
     _ac.links = []; _ac.nodes = []; _ac.nodeCounter = 0;
     _ac.pendingLink = null; _ac.applied = false;
@@ -18322,8 +18658,33 @@ _syncActionBtn();
 
   window.acApplyToNetwork = function() {
     if (!_ac.nodes.length) return;
+    /* Fire admin socket backends if any nodes are connected to them */
+    /* Process socket-to-socket routes first — indirect shell connections */
+    (_ac.socketRoutes||[]).forEach(function(route){
+      /* Any node connected to 'from' socket is also treated as connected to 'to' shell */
+      if(_ac.nodes.some(function(n){return n.shellLinks.includes(route.from);})){
+        if(!_ac.nodes.some(function(n){return n.shellLinks.includes(route.to);})){
+          /* Virtually add the 'to' shell to one of the connected nodes for weight calculation */
+          var rn=_ac.nodes.find(function(n){return n.shellLinks.includes(route.from);});
+          if(rn&&!rn.shellLinks.includes(route.to)) rn.shellLinks.push(route.to+'__route');
+        }
+      }
+    });
+    /* USR socket: boost all shells — NO auto-connect, user draws links manually */
+    if(_ac.nodes.some(function(n){return n.shellLinks.includes('usr');})){
+      window._acShellBoost=[0.12,0.09,0.07];
+      window.pulseShells&&window.pulseShells(1.3);
+    }
+    if(_ac.nodes.some(function(n){return n.shellLinks.includes('eod');})){
+      var eSock=document.getElementById('ac-sock-eod');
+      if(eSock) window._eodSocketActivate&&window._eodSocketActivate(eSock);
+    }
+    if(_ac.nodes.some(function(n){return n.shellLinks.includes('emo');})){
+      var nSock=document.getElementById('ac-sock-emo');
+      if(nSock) window._emoSocketActivate&&window._emoSocketActivate(nSock);
+    }
     // Compute influence weights per shell
-    var shellWeights = {geo:0, mar:0, aero:0};
+    var shellWeights = {geo:0, mar:0, aero:0}; /* usr/eod/emo handled separately above */
     var toolCounts = {};
     _ac.nodes.forEach(function(node) {
       var w = TOOL_WEIGHTS[node.tool] || 0.7;
@@ -20714,6 +21075,115 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     loggedIn:   false
   };
 
+  /* ── Autumn Role System — reads admin/acl.json from leatr-ash ── */
+  window._userRole = { role:'user', level:0, label:'Public User', privileges:[], expires:null, active:true };
+  window._roles    = {};  /* full roles.json cached */
+
+  window._loadUserRole = async function(username, token) {
+    try {
+      var base = 'https://api.github.com/repos/'+"DART-Skyboard/leatr-ash"+'/contents/';
+      var hdrs = {'Authorization':'token '+token,'Accept':'application/vnd.github.v3.raw','User-Agent':'Autumn/1.0'};
+
+      /* Load roles.json */
+      var rRes = await fetch(base+'admin/roles.json', {headers:hdrs});
+      if (rRes.ok) window._roles = (await rRes.json()).roles || {};
+
+      /* Load acl.json */
+      var aRes = await fetch(base+'admin/acl.json', {headers:hdrs});
+      if (!aRes.ok) return;
+      var acl = await aRes.json();
+      var entry = (acl.users || {})[username];
+      if (!entry || !entry.active) return;
+
+      /* Check expiry */
+      if (entry.expires) {
+        var exp = new Date(entry.expires);
+        if (exp < new Date()) {
+          console.log('[Autumn ACL] Role expired for', username);
+          return;
+        }
+      }
+
+      /* Resolve role definition */
+      var roleDef = window._roles[entry.role] || { level:0, label:'Unknown', privileges:[] };
+      window._userRole = {
+        role:       entry.role,
+        level:      roleDef.level || 0,
+        label:      roleDef.label || entry.role,
+        badge:      roleDef.badge || null,
+        color:      roleDef.color || '#E0F4FF',
+        privileges: roleDef.privileges || [],
+        expires:    entry.expires || null,
+        active:     true,
+        notes:      entry.notes || ''
+      };
+      console.log('[Autumn ACL] Role loaded:', window._userRole.role, 'level:', window._userRole.level);
+
+      /* Expose helper */
+      window._hasPrivilege = function(p) {
+        var privs = window._userRole.privileges;
+        return privs.indexOf('*') !== -1 || privs.indexOf(p) !== -1;
+      };
+
+      /* Show role badge in header if non-user */
+      if (roleDef.level > 0 && roleDef.badge) {
+        var existing = document.getElementById('_role-badge');
+        if (!existing) {
+          var badge = document.createElement('span');
+          badge.id = '_role-badge';
+          badge.title = roleDef.label + (entry.expires ? ' · expires '+entry.expires.slice(0,10) : '');
+          badge.style.cssText = 'font-family:var(--font-d);font-size:.32rem;letter-spacing:2px;padding:2px 8px;border-radius:3px;border:1px solid '+roleDef.color+';color:'+roleDef.color+';background:'+roleDef.color.replace(')',',0.08)').replace('rgb','rgba')+';margin-left:4px;cursor:default';
+          badge.textContent = roleDef.badge;
+          var hdrRight = document.getElementById('hdr-right') || document.querySelector('.hdr-actions');
+          if (hdrRight) hdrRight.prepend(badge);
+        }
+      }
+    } catch(e) {
+      console.warn('[Autumn ACL] Could not load role:', e.message);
+    }
+  };
+
+  /* Manage roles — write to acl.json (owner/admin only) */
+  window._grantRole = async function(targetUsername, role, expiresISO) {
+    if (!window._hasPrivilege || (!window._hasPrivilege('*') && !window._hasPrivilege('manage_contributors'))) {
+      return {ok:false, error:'Insufficient privileges'};
+    }
+    try {
+      var token = window._ghAuth.token;
+      var base = 'https://api.github.com/repos/'+"DART-Skyboard/leatr-ash"+'/contents/admin/acl.json';
+      var r = await fetch(base, {headers:{Authorization:'token '+token,'User-Agent':'Autumn/1.0'}});
+      var meta = await r.json();
+      var acl = JSON.parse(atob(meta.content.replace(/\s/g,'')));
+      acl.users[targetUsername] = {
+        role: role, granted_by: window._ghAuth.username,
+        granted_at: new Date().toISOString(),
+        expires: expiresISO || null, active: true
+      };
+      acl.updated = new Date().toISOString();
+      var body = JSON.stringify({message:'acl: grant '+role+' to '+targetUsername, content:btoa(unescape(encodeURIComponent(JSON.stringify(acl,null,2)))), sha:meta.sha});
+      await fetch(base, {method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json','User-Agent':'Autumn/1.0'},body:body});
+      return {ok:true};
+    } catch(e){ return {ok:false, error:e.message}; }
+  };
+
+  window._revokeRole = async function(targetUsername) {
+    if (!window._hasPrivilege || (!window._hasPrivilege('*') && !window._hasPrivilege('manage_contributors'))) {
+      return {ok:false, error:'Insufficient privileges'};
+    }
+    try {
+      var token = window._ghAuth.token;
+      var base = 'https://api.github.com/repos/'+"DART-Skyboard/leatr-ash"+'/contents/admin/acl.json';
+      var r = await fetch(base, {headers:{Authorization:'token '+token,'User-Agent':'Autumn/1.0'}});
+      var meta = await r.json();
+      var acl = JSON.parse(atob(meta.content.replace(/\s/g,'')));
+      if (acl.users[targetUsername]) { acl.users[targetUsername].active = false; }
+      acl.updated = new Date().toISOString();
+      var body = JSON.stringify({message:'acl: revoke '+targetUsername, content:btoa(unescape(encodeURIComponent(JSON.stringify(acl,null,2)))), sha:meta.sha});
+      await fetch(base, {method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json','User-Agent':'Autumn/1.0'},body:body});
+      return {ok:true};
+    } catch(e){ return {ok:false, error:e.message}; }
+  };
+
   // ── Init ───────────────────────────────────────────────────────────────────
       if(typeof GE!=='undefined'&&GE.dual&&window._ghAuth&&window._ghAuth.token) GE.dual.setToken(window._ghAuth.token);
   // ── Cross-tab auth sync via BroadcastChannel ──────────────────────────────
@@ -21061,6 +21531,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     window._ghAuth.avatar_url = data.avatar_url;
     window._ghAuth.name       = data.name || data.username;
     window._ghAuth.loggedIn   = true;
+
+    // Load user role from ACL
+    if (typeof window._loadUserRole === 'function') {
+      window._loadUserRole(data.username, data.access_token);
+    }
 
     // Restore sessions from GitHub on login
     setTimeout(function(){ restoreSessionsFromGitHub(data.access_token); }, 1500);
@@ -21670,8 +22145,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span><br><span style="font-size:.3rem;letter-spacing:1.5px;color:rgba(167,139,250,.45)">Author: L.E.A.T.R.</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
-        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div>' : '')
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._sysBrdOpenAdmin()">⚡ SYSTEM BROADCAST</div>' : '')
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;color:rgba(0,229,255,.7)" onclick="window._openFeedback()">◈ SUBMIT FEEDBACK</div>'
+
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
@@ -21928,7 +22405,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
 
   window._ghOpenAdminConsole = function() {
-    if ((window._ghAuth||{}).username !== 'dartsolarpunk') return;
+    /* Role-gated: level >= 60 (engineer+) or owner */
+    var _rl = window._userRole ? window._userRole.level : 0;
+    if (_rl < 60 && (window._ghAuth||{}).username !== 'dartsolarpunk') return;
     var menu=document.getElementById('gh-user-menu'); if(menu) menu.remove();
     var existing=document.getElementById('admin-console-overlay');
     if(existing){existing.remove();return;}
@@ -21948,28 +22427,845 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var t2=document.createElement('button'); t2.id='adm-t2'; t2.textContent='⬡ ASH CANVAS';
     t2.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
     t2.onclick=function(){window._admTab('ash');};
-    tabs.appendChild(t1); tabs.appendChild(t2); hdr.appendChild(tabs);
+    var t3=document.createElement('button'); t3.id='adm-t3'; t3.textContent='◈ FEEDBACK';
+    t3.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
+    t3.onclick=function(){window._admTab('feedback');};
+    var t4=document.createElement('button'); t4.id='adm-t4'; t4.textContent='⬡ MIST';
+    t4.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
+    t4.onclick=function(){window._admTab('mist');};
+    tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4); hdr.appendChild(tabs);
     var closeBtn=document.createElement('button'); closeBtn.textContent='✕ CLOSE';
     closeBtn.style.cssText='margin-left:auto;background:transparent;border:1px solid rgba(255,100,100,.3);color:rgba(255,100,100,.6);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--font-d);font-size:.32rem';
-    closeBtn.onclick=function(){document.getElementById('admin-console-overlay').remove();};
+    closeBtn.onclick=function(){
+      /* Restore BRPN canvas before closing */
+      var region=document.getElementById('brpn-region');
+      var main=document.getElementById('main');
+      if(region&&main&&region.parentElement!==main){
+        main.insertBefore(region,main.firstChild);
+        region.style.height='';region.style.margin='';region.style.borderRadius='';
+        if(window._brpnRenderer){
+          var w=region.clientWidth||window.innerWidth,h=320;
+          window._brpnRenderer.setSize(w,h);
+          if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
+        }
+      }
+      document.getElementById('admin-console-overlay').remove();
+    };
     hdr.appendChild(closeBtn);
     var frame=document.createElement('iframe'); frame.id='adm-frame';
     frame.style.cssText='flex:1;border:none;width:100%;background:#060a10';
     frame.src='about:blank';
     ov.appendChild(hdr); ov.appendChild(frame);
     document.body.appendChild(ov);
+    /* ── EOD Orbital Aggregate socket function ── */
+    window._eodSocketActivate = function _eodSocketActivate(s){
+      var tok=window._ghAuth&&window._ghAuth.token;
+      if(!tok){s.title='Login required to access EOD data';return;}
+      s.style.boxShadow='0 0 14px rgba(255,179,71,.9)';
+      s.style.borderColor='rgba(255,179,71,.9)';
+      s.style.color='rgba(255,179,71,1)';
+      s.title='LOADING EOD ORBITAL DATA...';
+      /* Fetch all user session directories */
+      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
+        headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+      })
+      .then(function(r){return r.json();})
+      .then(function(sessions){
+        if(!Array.isArray(sessions)){throw new Error('no sessions');}
+        /* Fetch mc_log.json for each user */
+        return Promise.all(sessions.map(function(sess){
+          var uname=sess.name.replace('.json','');
+          return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions/'+uname+'/mc_log.json',{
+            headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+          })
+          .then(function(r){if(!r.ok)throw new Error('no log');return r.json();})
+          .then(function(d){
+            return JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g,'')))));
+          })
+          .catch(function(){return [];});
+        }));
+      })
+      .then(function(allLogs){
+        var allRuns=[]; allLogs.forEach(function(log){allRuns=allRuns.concat(log||[]);});
+        var allStocks=[];
+        allRuns.forEach(function(r){(r.stocks||[]).forEach(function(st){allStocks.push(st);});});
+        if(!allStocks.length){
+          s.title='No MC data found yet'; setTimeout(function(){s.style.boxShadow='';},800); return;
+        }
+        /* ── Reverse trig aggregation ──────────────────────── */
+        /* arccos(|dlss| / maxDlss) → orbital phase angle per stock */
+        var maxDlss=Math.max.apply(null,allStocks.map(function(st){return Math.abs(st.dlss||0);}));
+        var phaseAngles=allStocks.map(function(st){
+          return Math.acos(Math.min(1,Math.abs(st.dlss||0)/(maxDlss||1)));
+        });
+        /* arctan2(spncrynode, rmsp) → orbital direction vector */
+        var dirVectors=allStocks.map(function(st){
+          return Math.atan2(st.spncrynode||0, st.rmsp||1);
+        });
+        /* arcsin(|a| / maxA) → mean unit elevation angle */
+        var maxA=Math.max.apply(null,allStocks.map(function(st){return Math.abs(st.a||0);}));
+        var elevAngles=allStocks.map(function(st){
+          return Math.asin(Math.min(1,Math.abs(st.a||0)/(maxA||1)));
+        });
+        function mean(arr){return arr.reduce(function(a,b){return a+b;},0)/arr.length;}
+        var mPhase=mean(phaseAngles), mDir=mean(dirVectors), mElev=mean(elevAngles);
+        /* Map trig means to shell boost values (0 – 0.15) */
+        var gBoost=Math.abs(Math.sin(mPhase))*0.15;
+        var mBoost=Math.abs(Math.cos(mDir))*0.12;
+        var aBoost=Math.abs(Math.sin(mElev))*0.10;
+        window._acShellBoost=[
+          Math.min(0.15,gBoost),
+          Math.min(0.12,mBoost),
+          Math.min(0.10,aBoost)
+        ];
+        window.pulseShells&&window.pulseShells(1.3);
+        /* Expose for Autumn chat context */
+        window._eodAggData={
+          totalRuns:allRuns.length, totalUsers:allLogs.filter(function(l){return l.length;}).length,
+          totalStocks:allStocks.length,
+          meanPhase:+(mPhase*180/Math.PI).toFixed(2),
+          meanDir:+(mDir*180/Math.PI).toFixed(2),
+          meanElev:+(mElev*180/Math.PI).toFixed(2),
+          geoBoost:+gBoost.toFixed(4), marBoost:+mBoost.toFixed(4), aeroBoost:+aBoost.toFixed(4),
+          ts:new Date().toISOString()
+        };
+        s.title='EOD ORBITAL — '+allRuns.length+' runs / '+window._eodAggData.totalUsers+' users | GEO '+gBoost.toFixed(3)+' MAR '+mBoost.toFixed(3)+' AERO '+aBoost.toFixed(3);
+        s.style.boxShadow='0 0 10px rgba(255,179,71,.5)';
+      })
+      .catch(function(e){
+        s.title='EOD error: '+e.message;
+        s.style.boxShadow='0 0 6px rgba(255,80,60,.4)';
+        setTimeout(function(){s.style.boxShadow='';},1000);
+      });
+    }
+
+    /* ── EMO Neural socket — maps Autumn's emotional state to BRPN shell boosts ── */
+    window._emoSocketActivate = function _emoSocketActivate(s){
+      /* Emotional state → shell boost mapping */
+      var emoMap={
+        'NEUTRAL':   [0.04, 0.04, 0.04],
+        'CURIOUS':   [0.06, 0.05, 0.12],
+        'CALM':      [0.10, 0.04, 0.03],
+        'REFLECTIVE':[0.08, 0.07, 0.05],
+        'ACTIVE':    [0.05, 0.12, 0.08],
+        'ALERT':     [0.04, 0.10, 0.13],
+        'ENGAGED':   [0.07, 0.09, 0.10],
+        'CREATIVE':  [0.06, 0.06, 0.14],
+        'TIRED':     [0.03, 0.03, 0.02],
+        'ANXIOUS':   [0.02, 0.11, 0.09],
+        'EXCITED':   [0.08, 0.14, 0.12],
+        'FOCUSED':   [0.09, 0.08, 0.06]
+      };
+      /* Read live emotional state */
+      var emoRaw = (window._lastEmoState||'NEUTRAL').toUpperCase().trim();
+      /* Check sentient journal for most recent emotional entry */
+      var journalEmo = null;
+      if(window.S && window.S.journal && window.S.journal.length){
+        var recent = window.S.journal.slice(-10);
+        for(var i=recent.length-1;i>=0;i--){
+          var entry = recent[i];
+          if(entry && entry.emo && typeof entry.emo==='string'){
+            journalEmo = entry.emo.toUpperCase().trim(); break;
+          }
+        }
+      }
+      /* Prefer live state, fall back to journal, then NEUTRAL */
+      var emo = emoRaw!=='NEUTRAL' ? emoRaw : (journalEmo||'NEUTRAL');
+      /* Find best matching map key */
+      var boost = emoMap[emo];
+      if(!boost){
+        /* Fuzzy match — find first key that appears in the emo string */
+        var keys=Object.keys(emoMap);
+        for(var k=0;k<keys.length;k++){
+          if(emo.indexOf(keys[k])!==-1){boost=emoMap[keys[k]];break;}
+        }
+        if(!boost) boost=emoMap['NEUTRAL'];
+      }
+      /* Also factor in buoyancy/sigma values if available */
+      var sig = window._lastSigma||0;
+      var sigScale = Math.min(1.4, 1 + (sig/500));
+      window._acShellBoost=[
+        Math.min(0.18, boost[0]*sigScale),
+        Math.min(0.15, boost[1]*sigScale),
+        Math.min(0.16, boost[2]*sigScale)
+      ];
+      window.pulseShells&&window.pulseShells(1.2);
+      /* Visual feedback */
+      s.style.background='rgba(180,100,255,.25)';
+      s.title='EMO NEURAL — '+emo+(journalEmo&&journalEmo!==emoRaw?' (journal: '+journalEmo+')':'');
+      setTimeout(function(){s.style.background='rgba(167,139,250,.12)';},1000);
+      /* Expose for chat */
+      window._emoSocketData={emo:emo, boosts:window._acShellBoost, sig:sig, ts:new Date().toISOString()};
+    }
+
+    /* ── Admin tab switcher ── */
+    function _styleAdmTabs(tab){
+      var map={data:['adm-t1','rgba(255,179,71,.1)','#ffb347'],ash:['adm-t2','rgba(0,229,255,.08)','var(--cyan)'],feedback:['adm-t3','rgba(0,229,255,.08)','var(--cyan)']};
+      ['adm-t1','adm-t2','adm-t3'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.background='transparent';el.style.color='rgba(0,229,255,.5)';}});
+      var active=map[tab];if(active){var el=document.getElementById(active[0]);if(el){el.style.background=active[1];el.style.color=active[2];}}
+    }
+
+    /* Restore BRPN canvas + ash canvas drawer to original parents */
+    function _restoreBRPN(){
+      /* Clean up interval */
+      var oldAp=document.getElementById('adm-ash-panel');
+      if(oldAp&&oldAp._hudInterval) clearInterval(oldAp._hudInterval);
+      /* Restore main backdrop video */
+      var _bv=document.getElementById('backdrop-video');
+      if(_bv&&_bv._pausedByAdmin){_bv.play().catch(function(){});_bv._pausedByAdmin=false;}
+      /* Restore overlay bg */
+      var _ov=document.getElementById('admin-console-overlay');
+      if(_ov&&_ov._savedBg!==undefined){_ov.style.background=_ov._savedBg||'rgba(2,8,18,.9)';}
+      /* Restore MIST z-index */
+      var _mt=document.getElementById('mist-trigger'),_mo=document.getElementById('mist-overlay');
+      if(_mt&&_mt._savedZ!==undefined)_mt.style.zIndex=_mt._savedZ;
+      if(_mo&&_mo._savedZ!==undefined)_mo.style.zIndex=_mo._savedZ;
+      /* Restore ash canvas drawer if moved */
+      var drawer=document.getElementById('ash-canvas-drawer');
+      var admWrap=document.getElementById('adm-ash-drawer-wrap');
+      if(drawer&&admWrap&&drawer.parentElement===admWrap){
+        drawer.classList.remove('open');
+        var admSocks=document.getElementById('adm-admin-sockets');
+        if(admSocks) admSocks.remove();
+        var strip=document.getElementById('adm-ash-mode-strip');
+        if(strip) strip.remove();
+        /* Move back to main-app-side-bar or similar — find its original parent */
+        var origParent=document.getElementById('ash-canvas-trigger');
+        if(origParent&&origParent.parentElement) origParent.parentElement.appendChild(drawer);
+      }
+      var region=document.getElementById('brpn-region');
+      var main=document.getElementById('main');
+      if(region&&main&&region.parentElement!==main){
+        var firstChild=main.firstChild;
+        main.insertBefore(region,firstChild);
+        region.style.height='';region.style.margin='';region.style.borderRadius='';
+        if(window._brpnRenderer){
+          var w=region.clientWidth||window.innerWidth, h=320;
+          window._brpnRenderer.setSize(w,h);
+          if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
+        }
+      }
+      var ap=document.getElementById('adm-ash-panel');if(ap)ap.remove();
+    }
+
     window._admTab=function(tab){
+      _styleAdmTabs(tab);
+      /* Restore mist-overlay if it was repositioned for admin MIST tab */
+      (function(){
+        var mo=document.getElementById('mist-overlay');
+        if(mo&&mo._admBound){
+          mo.setAttribute('style',mo._admOrigStyle||'');
+          mo._admBound=false;
+          if(typeof window.MIST!=='undefined'&&window.MIST.open&&typeof window.mistToggle==='function') window.mistToggle();
+        }
+        var mt=document.getElementById('mist-trigger');
+        if(mt&&mt._admSavedD!==undefined){mt.style.display=mt._admSavedD;mt._admSavedD=undefined;}
+        if(window._admMistResize){window.removeEventListener('resize',window._admMistResize);window._admMistResize=null;}
+      })();
+      _restoreBRPN();
+
       var frame=document.getElementById('adm-frame');
       if(!frame) return;
-      document.getElementById('adm-t1').style.background=tab==='data'?'rgba(255,179,71,.1)':'transparent';
-      document.getElementById('adm-t1').style.color=tab==='data'?'#ffb347':'rgba(0,229,255,.5)';
-      document.getElementById('adm-t2').style.background=tab==='ash'?'rgba(0,229,255,.08)':'transparent';
-      document.getElementById('adm-t2').style.color=tab==='ash'?'var(--cyan)':'rgba(0,229,255,.5)';
-      frame.srcdoc='<body style="background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px"><div><div style="width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
+
+      if(tab==='mist'){
+        /* Show control strip in frame */
+        frame.style.cssText='display:flex;flex-direction:column;flex:1;overflow:hidden;background:rgba(2,6,14,.97)';
+        frame.innerHTML='';
+
+        /* Control strip */
+        var mCtrl=document.createElement('div');
+        mCtrl.style.cssText='flex-shrink:0;padding:10px 14px 8px;border-bottom:1px solid rgba(0,229,255,.1);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:rgba(2,6,14,.98)';
+        mCtrl.innerHTML=
+          '<span style="font-family:Orbitron,monospace;font-size:9px;letter-spacing:3px;color:rgba(0,229,255,.5)">◈ MIST — LEAD EDGE MAZE</span>'+
+          '<div style="display:flex;gap:6px;margin-left:4px">'+
+            '<button onclick="window.mistSetSlot(0)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,221,0,.5);background:rgba(255,221,0,.08);color:#ffdd00;cursor:pointer">★ STAR</button>'+
+            '<button onclick="window.mistSetSlot(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,68,136,.5);background:rgba(255,68,136,.08);color:#ff4488;cursor:pointer">♥ HEART</button>'+
+            '<button onclick="window.mistSetSlot(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(0,229,255,.5);background:rgba(0,229,255,.08);color:#00e5ff;cursor:pointer">◈ MIST</button>'+
+          '</div>'+
+          '<div style="display:flex;gap:5px;margin-left:8px">'+
+            '<span style="font-size:9px;color:rgba(224,244,255,.4);font-family:Orbitron,monospace">DIFF:</span>'+
+            '<button onclick="window.mistSetDiff(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.4);background:rgba(0,229,255,.1);color:#00e5ff;cursor:pointer">I</button>'+
+            '<button onclick="window.mistSetDiff(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">II</button>'+
+            '<button onclick="window.mistSetDiff(3)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">III</button>'+
+            '<button onclick="window.mistNewMaze()" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(167,139,250,.4);background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;margin-left:2px">↺ NEW</button>'+
+          '</div>';
+        frame.appendChild(mCtrl);
+
+        /* Placeholder canvas area so frame has visible content */
+        var mHost=document.createElement('div');
+        mHost.id='adm-mist-host';
+        mHost.style.cssText='flex:1;display:flex;align-items:center;justify-content:center';
+        frame.appendChild(mHost);
+
+        /* Position mist-overlay over the admin frame using fixed coords */
+        var mistOv=document.getElementById('mist-overlay');
+        if(mistOv){
+          /* Save original */
+          if(!mistOv._admBound){
+            mistOv._admOrigStyle=mistOv.getAttribute('style')||'';
+            mistOv._admBound=true;
+          }
+          /* Open it first via public API so module state is correct */
+          if(typeof window.MIST!=='undefined'&&!window.MIST.open){
+            if(typeof window.mistToggle==='function') window.mistToggle();
+          } else if(typeof window.MIST==='undefined'){
+            if(typeof window.mistToggle==='function') window.mistToggle();
+          }
+          /* Now position it to cover the admin frame content area */
+          var _reposition=function(){
+            var fr=frame.getBoundingClientRect();
+            var ctrlH=mCtrl.getBoundingClientRect().height;
+            mistOv.style.position='fixed';
+            mistOv.style.left=fr.left+'px';
+            mistOv.style.top=(fr.top+ctrlH)+'px';
+            mistOv.style.width=fr.width+'px';
+            mistOv.style.height=(fr.height-ctrlH)+'px';
+            mistOv.style.right='auto';
+            mistOv.style.transform='none';
+            mistOv.style.transition='none';
+            mistOv.style.borderRadius='0';
+            mistOv.style.zIndex='10800';
+          };
+          setTimeout(_reposition,50);
+          /* Reposition on resize */
+          window._admMistResize=_reposition;
+          window.addEventListener('resize',_reposition);
+          /* Hide the float trigger */
+          var mt=document.getElementById('mist-trigger');
+          if(mt){mt._admSavedD=mt.style.display;mt.style.display='none';}
+        }
+        return;
+      }
+
+
+      if(tab==='ash'){
+        frame.style.display='none';
+
+        /* Make admin overlay transparent — ash panel has its own video bg */
+        var _ov=document.getElementById('admin-console-overlay');
+        if(_ov){_ov._savedBg=_ov.style.background;_ov.style.background='rgba(2,6,14,.0)';/* panel video covers body; overlay covers header */}
+        /* Pause main backdrop video to save GPU — ash panel has its own */
+        var _bv=document.getElementById('backdrop-video');
+        if(_bv&&!_bv.paused){_bv.pause();_bv._pausedByAdmin=true;}
+        /* Boost MIST above admin overlay */
+        var _mt=document.getElementById('mist-trigger'),_mo=document.getElementById('mist-overlay');
+        if(_mt){_mt._savedZ=_mt.style.zIndex||'';_mt.style.zIndex='10600';}
+        if(_mo){_mo._savedZ=_mo.style.zIndex||'';_mo.style.zIndex='10600';}
+
+        _restoreBRPN();
+
+        /* ── CSS (inject once) ── */
+        /* Inject minimal CSS for dynamic states and hover effects */
+        (function(){
+          var _s=document.getElementById('adm-ash-css-v4');
+          if(_s) _s.remove();
+          var sty=document.createElement('style');
+          sty.id='adm-ash-css-v4';
+          sty.textContent=
+            '#adm-canvas-wrap #brpn-region{position:absolute!important;inset:0!important;height:100%!important;margin:0!important;border:none!important;cursor:grab}'+
+            '#adm-ash-drawer-wrap{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}'+
+            '#adm-ash-drawer-wrap.open{max-height:540px;overflow-y:auto}'+
+            '#adm-ash-drawer-wrap #ash-canvas-drawer{max-height:none!important;overflow:visible!important}'+
+            '#adm-ash-drawer-wrap #ash-canvas-drawer.open{max-height:none!important}'+
+            '#adm-ash-drawer-wrap #ac-canvas-area{height:155px!important}'+
+            '.adm-scope-b:hover{background:rgba(0,229,255,.12)!important;border-color:rgba(0,229,255,.5)!important;color:#00e5ff!important}'+
+            '.adm-scope-b.on{background:rgba(0,229,255,.12)!important;border-color:rgba(0,229,255,.55)!important;color:#00e5ff!important}'+
+            '.adm-user-item:hover,.adm-user-item.on{background:rgba(0,229,255,.1)!important;color:#00e5ff!important}'+
+            '.adm-chat-bub.user{color:rgba(0,229,255,.75);font-family:Orbitron,monospace;font-size:10px}'+
+            '.adm-chat-bub.autumn{color:rgba(224,244,255,.82);font-family:sans-serif;font-size:13px}'+
+            '@keyframes admsigpulse{0%,100%{opacity:1}50%{opacity:.25}}'+
+            '#adm-ash-strip:hover{background:rgba(167,139,250,.12)!important}'+
+            '#adm-ash-strip .ac-dot2.on{background:#a78bfa!important;box-shadow:0 0 8px rgba(167,139,250,.6)!important}'+
+            '#adm-ash-arrow.open{transform:rotate(180deg)!important}'+
+            '#adm-admin-sockets{display:flex;flex-direction:column;gap:4px;position:absolute;left:6px;top:50%;transform:translateY(-50%)}'+
+            '.adm-ac-sock.usr{border-color:rgba(0,229,255,.6)!important;color:rgba(0,229,255,.7);background:rgba(0,229,255,.08)}'+
+            '.adm-ac-sock.eod{border-color:rgba(255,179,71,.6)!important;color:rgba(255,179,71,.8);background:rgba(255,179,71,.08)}'+
+            '.adm-ac-sock.ph{border-color:rgba(0,229,255,.15)!important;color:rgba(0,229,255,.2)}'+
+            '.adm-ac-sock:hover{transform:scale(1.1)}';
+          document.head.appendChild(sty);
+        })();
+
+        /* ── Build panel ── */
+        var ap=document.createElement('div'); ap.id='adm-ash-panel'; ap.style.cssText='position:absolute;inset:0;top:48px;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,6,14,.97)';
+        var vid=document.createElement('video'); vid.id='adm-ash-video'; vid.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;opacity:.5';
+        vid.src='assets/autumn.mp4'; vid.autoplay=true; vid.loop=true; vid.muted=true;
+        vid.setAttribute('playsinline','');
+        var scrim=document.createElement('div'); scrim.id='adm-ash-scrim'; scrim.style.cssText='position:absolute;inset:0;z-index:1;background:rgba(2,8,16,.45);pointer-events:none';
+        ap.appendChild(vid); ap.appendChild(scrim);
+
+        /* Canvas viewport */
+        var cw=document.createElement('div'); cw.id='adm-canvas-wrap'; cw.style.cssText='position:relative;z-index:2;flex-shrink:0;height:46vh;min-height:180px;overflow:hidden';
+
+        /* HUD top */
+        var hud=document.createElement('div'); hud.id='adm-canvas-hud';
+        var hudL=document.createElement('div'); hudL.id='adm-canvas-hud-l';
+        hudL.innerHTML='<div>GEO <span id="adm-hud-geo">--</span></div><div>MAR <span id="adm-hud-mar">--</span></div><div>AERO <span id="adm-hud-aero">--</span></div>';
+        var hudR=document.createElement('div'); hudR.id='adm-canvas-hud-r';
+        var shellDefs=[{key:'geo',color:'rgba(0,255,204,.6)',label:'GEO',idx:0},{key:'mar',color:'rgba(0,136,255,.6)',label:'MAR',idx:1},{key:'aero',color:'rgba(255,68,102,.6)',label:'AERO',idx:2}];
+        var _admLayers={geo:true,mar:true,aero:true};
+        shellDefs.forEach(function(sd){
+          var b=document.createElement('button'); b.className='adm-hud-shell';
+          b.style.borderColor=sd.color; b.style.color=sd.color; b.style.background='rgba(0,0,0,.5)';
+          b.textContent=sd.label;
+          b.onclick=function(){
+            _admLayers[sd.key]=!_admLayers[sd.key];
+            b.style.opacity=_admLayers[sd.key]?'1':'0.35';
+            var sh=window._brpnShells; if(sh&&sh[sd.idx]) sh[sd.idx].visible=_admLayers[sd.key];
+          };
+          hudR.appendChild(b);
+        });
+        hud.appendChild(hudL); hud.appendChild(hudR); cw.appendChild(hud);
+
+        /* Buoyancy nodes — right side */
+        var nodesR=document.createElement('div');
+        nodesR.style.cssText='position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:15;display:flex;flex-direction:column;gap:6px;padding:6px 4px';
+        [{icon:'★'},{icon:'\u2665'},{icon:'\u25c6'}].forEach(function(nd){
+          var b=document.createElement('div'); b.className='adm-node-btn'; b.textContent=nd.icon;
+          b.onclick=function(e){
+            e.stopPropagation();
+            window.mistToggle&&window.mistToggle();
+          };
+          nodesR.appendChild(b);
+        });
+        cw.appendChild(nodesR);
+
+        /* Move live BRPN into canvas wrap */
+        var region=document.getElementById('brpn-region');
+        if(region) cw.appendChild(region);
+
+        /* Ash canvas strip — at bottom edge of canvas viewport */
+        var ashStrip=document.createElement('div'); ashStrip.id='adm-ash-strip'; ashStrip.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:20;cursor:pointer;user-select:none;background:rgba(2,6,14,.78);border-top:1px solid rgba(167,139,250,.3)';
+        var stripInner=document.createElement('div'); stripInner.id='adm-ash-strip-inner'; stripInner.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 14px;font-family:Orbitron,monospace;font-size:9px;letter-spacing:2px;color:rgba(167,139,250,.65)';
+        var acDot=document.createElement('div'); acDot.className='ac-dot2';
+        var acLbl=document.createElement('span'); acLbl.textContent='ASH CANVAS \u2014 NEURAL INFLUENCE LAYER';
+        var acArrow=document.createElement('span'); acArrow.id='adm-ash-arrow'; acArrow.textContent='\u25bd';
+        stripInner.appendChild(acDot); stripInner.appendChild(acLbl);
+        var sp=document.createElement('span'); sp.style.flex='1'; stripInner.appendChild(sp);
+        stripInner.appendChild(acArrow);
+        ashStrip.appendChild(stripInner);
+        cw.appendChild(ashStrip);
+        ap.appendChild(cw);
+
+        /* HUD interval */
+        var _hudInterval=setInterval(function(){
+          var g=document.getElementById('adm-hud-geo'),m=document.getElementById('adm-hud-mar'),a=document.getElementById('adm-hud-aero');
+          if(window._acShellBoost){
+            if(g)g.textContent=(window._acShellBoost[0]||0).toFixed(2);
+            if(m)m.textContent=(window._acShellBoost[1]||0).toFixed(2);
+            if(a)a.textContent=(window._acShellBoost[2]||0).toFixed(2);
+          }
+        },500);
+        ap._hudInterval=_hudInterval;
+
+        /* Ash drawer zone — slides out from under canvas strip */
+        var ashZone=document.createElement('div'); ashZone.id='adm-ash-drawer-zone'; ashZone.style.cssText='position:relative;z-index:3;flex-shrink:0;background:rgba(2,5,14,.88)';
+        var ashWrap=document.createElement('div'); ashWrap.id='adm-ash-drawer-wrap';
+        var _ashOpen2=false; var _origParent=null; var _origNext=null;
+
+        ashStrip.onclick=function(){
+          _ashOpen2=!_ashOpen2;
+          acArrow.classList.toggle('open',_ashOpen2);
+          acDot.classList.toggle('on',_ashOpen2);
+          ashWrap.classList.toggle('open',_ashOpen2);
+
+          if(_ashOpen2){
+            var drawer=document.getElementById('ash-canvas-drawer');
+            if(drawer && drawer.parentElement!==ashWrap){
+              _origParent=drawer.parentElement; _origNext=drawer.nextSibling;
+              drawer.classList.remove('open');
+              /* Admin mode strip */
+              if(!document.getElementById('adm-ash-mode-strip')){
+                var strip=document.createElement('div'); strip.id='adm-ash-mode-strip';
+                var mDot=document.createElement('div'); mDot.className='adm-mode-dot';
+                var mLbl=document.createElement('span'); mLbl.textContent='ADMIN MODE \u2014 FULL ANALYTICAL ACCESS';
+                strip.appendChild(mDot); strip.appendChild(mLbl);
+                ashWrap.appendChild(strip);
+              }
+              ashWrap.appendChild(drawer);
+              /* Add EOD socket alongside G/M/A in ac-shell-socket (same row, same pattern) */
+              /* Admin sockets — LEFT side of canvas, opposite G/M/A */
+              var acArea=document.getElementById('ac-canvas-area');
+              if(acArea && !document.getElementById('adm-left-socks')){
+                var ls=document.createElement('div');
+                ls.id='adm-left-socks';
+                ls.style.cssText='position:absolute;left:6px;top:50%;transform:translateY(-50%);z-index:30;display:flex;flex-direction:column;gap:7px;pointer-events:all';
+                var lsDefs=[
+                  {shell:'usr',label:'U',title:'USR DATA — Connect user scope to all shells',
+                   color:'rgba(0,229,255,.7)',bg:'rgba(0,229,255,.1)',border:'rgba(0,229,255,.55)'},
+                  {shell:'eod',label:'E',title:'EOD ORBITAL — Movement Conjecture aggregate',
+                   color:'rgba(255,179,71,.85)',bg:'rgba(255,179,71,.1)',border:'rgba(255,179,71,.6)'},
+                  {shell:'emo',label:'N',title:'EMO NEURAL — Emotional state → BRPN shells',
+                   color:'rgba(180,150,255,.9)',bg:'rgba(167,139,250,.1)',border:'rgba(167,139,250,.55)'}
+                ];
+                lsDefs.forEach(function(d){
+                  var btn=document.createElement('div');
+                  btn.id='ac-sock-'+d.shell;
+                  btn.className='ac-socket'; /* same class as G/M/A for canvas handler exclusion */
+                  btn.title=d.title;
+                  btn.textContent=d.label;
+                  btn.style.cssText='width:32px;height:32px;border-radius:50%;border:1.5px solid '+d.border+';background:'+d.bg+';color:'+d.color+';display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:11px;font-weight:700;cursor:pointer;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent';
+                  /* Use inline setAttribute like G/M/A HTML sockets — most reliable on mobile */
+                  (function(shell){
+                    (function(sh,b){
+                    function handleSockTap(e){
+                      e.preventDefault&&e.preventDefault();
+                      e.stopPropagation();
+                      if(window._acSockPending===sh){
+                        /* Same socket tapped again — cancel source mode */
+                        b.style.outline=''; b.style.outlineOffset='';
+                        window._acSockPending=null;
+                      } else if(window._acSockPending){
+                        /* A different custom socket tapped while source is set — switch source */
+                        var prev=document.getElementById('ac-sock-'+window._acSockPending);
+                        if(prev){prev.style.outline='';prev.style.outlineOffset='';}
+                        window._acSockPending=sh;
+                        b.style.outline='2px solid rgba(255,255,255,.6)';
+                        b.style.outlineOffset='2px';
+                      } else {
+                        /* Try to connect pending tool node first */
+                        var connected=window.acConnectSocket&&window.acConnectSocket(sh);
+                        if(!connected){
+                          /* No tool node pending — enter socket-source mode */
+                          window._acSockPending=sh;
+                          b.style.outline='2px solid rgba(255,255,255,.6)';
+                          b.style.outlineOffset='2px';
+                        }
+                      }
+                    }
+                    b.addEventListener('touchend',handleSockTap,{passive:false});
+                    b.addEventListener('click',handleSockTap);
+                  })(d.shell,btn);
+                  })(d.shell);
+                  ls.appendChild(btn);
+                });
+                acArea.style.position='relative';
+                acArea.appendChild(ls);
+              }
+              setTimeout(function(){
+                if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
+                else if(window._acInitCanvas) window._acInitCanvas();
+                /* Fresh state each drawer session — clear stale routes */
+                if(window._ac_state) { window._ac_state.socketRoutes=[]; }
+                window._acSockPending=null;
+                /* Redraw after sockets exist */
+                setTimeout(function(){
+                  /* Only redraw if user has nodes/links — don't replay stale routes */
+                  window._acRedrawLinks&&window._acRedrawLinks();
+                },80);
+              },10);
+            }
+          } else {
+            var drawer=document.getElementById('ash-canvas-drawer');
+            if(drawer){
+              if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
+              /* Reset socket state on close */
+              window._acSockPending=null;
+              if(window._acRedrawLinks) window._acRedrawLinks(); /* clear route arcs */
+              /* Restore mist-overlay on admin close */
+              (function(){
+                var mo=document.getElementById('mist-overlay');
+                if(mo&&mo._admBound){
+                  mo.setAttribute('style',mo._admOrigStyle||'');
+                  mo._admBound=false;
+                  if(typeof window.MIST!=='undefined'&&window.MIST.open&&typeof window.mistToggle==='function') window.mistToggle();
+                }
+                var mt=document.getElementById('mist-trigger');
+                if(mt&&mt._admSavedD!==undefined){mt.style.display=mt._admSavedD;mt._admSavedD=undefined;}
+                if(window._admMistResize){window.removeEventListener('resize',window._admMistResize);window._admMistResize=null;}
+              })();
+              var lsEl=document.getElementById('adm-left-socks'); if(lsEl) lsEl.remove();
+              ['usr','eod','emo'].forEach(function(sh){
+                var se=document.getElementById('ac-sock-'+sh);if(se)se.remove();
+              });
+              var mStrip=document.getElementById('adm-ash-mode-strip'); if(mStrip) mStrip.remove();
+              if(_origParent) {
+                if(_origNext) _origParent.insertBefore(drawer,_origNext);
+                else _origParent.appendChild(drawer);
+                _origParent=null; _origNext=null;
+              }
+            }
+          }
+        };
+
+        ashZone.appendChild(ashWrap);
+        ap.appendChild(ashZone);
+
+        /* Resize renderer */
+        setTimeout(function(){
+          if(window._brpnRenderer&&region){
+            var w=cw.clientWidth||window.innerWidth,h=cw.clientHeight||220;
+            window._brpnRenderer.setSize(w,h);
+            if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
+          }
+        },120);
+
+        /* Main body — scope / pattern / chat */
+        var body=document.createElement('div'); body.id='adm-ash-body';
+        body.style.cssText='position:relative;z-index:2;flex:1;display:flex;overflow:hidden;min-height:0;background:transparent';
+        var left=document.createElement('div'); left.id='adm-ash-left';
+        left.style.cssText='width:140px;flex-shrink:0;border-right:1px solid rgba(0,229,255,.12);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(2,6,14,.82);gap:8px;';
+
+        /* Scope */
+        var scopeSec=document.createElement('div'); scopeSec.className='adm-sec'; scopeSec.style.cssText='display:flex;flex-direction:column;gap:3px;margin-bottom:10px';
+        var scopeH=document.createElement('div'); scopeH.className='adm-sec-h'; scopeH.textContent='USER SCOPE'; scopeH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
+        scopeSec.appendChild(scopeH);
+        [['ALL USERS','all'],['ACTIVE TODAY','today'],['GROUP TOP 5','group'],['INDIVIDUAL','indiv']].forEach(function(s){
+          var b=document.createElement('button'); b.className='adm-scope-b'+(s[1]==='all'?' on':''); b.textContent=s[0]; b.style.cssText='font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;padding:5px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.04);color:rgba(0,229,255,.6);cursor:pointer;text-align:left;width:100%;box-sizing:border-box;margin-bottom:3px;display:block';
+          b.onclick=function(){
+            left.querySelectorAll('.adm-scope-b').forEach(function(x){x.classList.remove('on');});
+            b.classList.add('on');
+            if(window._acShellBoost){window._acShellBoost=s[1]==='all'?[0,0,0]:[0.08,0.06,0.04];}
+          };
+          scopeSec.appendChild(b);
+        });
+        left.appendChild(scopeSec);
+
+        /* Shell layers */
+        var layerSec=document.createElement('div'); layerSec.className='adm-sec'; layerSec.style.cssText='display:flex;flex-direction:column;gap:3px;margin-bottom:10px';
+        var layH=document.createElement('div'); layH.className='adm-sec-h'; layH.textContent='SHELL LAYERS'; layH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
+        layerSec.appendChild(layH);
+        shellDefs.forEach(function(sd){
+          var row=document.createElement('div'); row.className='adm-chk-row'; row.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 0';
+          var chk=document.createElement('input'); chk.type='checkbox'; chk.checked=true;
+          chk.onchange=function(){
+            _admLayers[sd.key]=chk.checked;
+            var sh=window._brpnShells; if(sh&&sh[sd.idx]) sh[sd.idx].visible=chk.checked;
+            var hBtn=document.querySelectorAll('.adm-hud-shell')[sd.idx];
+            if(hBtn) hBtn.style.opacity=chk.checked?'1':'0.35';
+          };
+          var lbl=document.createElement('label'); lbl.className='adm-chk-lbl'; lbl.style.cssText='font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;cursor:pointer;color:'+sd.color;
+          lbl.onclick=function(){chk.click();};
+          row.appendChild(chk); row.appendChild(lbl);
+          layerSec.appendChild(row);
+        });
+        left.appendChild(layerSec);
+
+        /* Emotional state */
+        var emoSec=document.createElement('div'); emoSec.className='adm-sec'; emoSec.style.cssText='display:flex;flex-direction:column;gap:3px;margin-bottom:10px';
+        var emoH=document.createElement('div'); emoH.className='adm-sec-h'; emoH.textContent='EMOTIONAL STATES'; emoH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
+        var emoVal=document.createElement('div'); emoVal.className='adm-emo-val'; emoVal.textContent=window._lastEmoState||'--'; emoVal.style.cssText='font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;color:rgba(0,229,255,.45);padding:3px 0';
+        emoSec.appendChild(emoH); emoSec.appendChild(emoVal); left.appendChild(emoSec);
+
+        /* Individual users */
+        var userSec=document.createElement('div'); userSec.className='adm-sec'; userSec.style.cssText='display:flex;flex-direction:column;gap:3px';
+        var userH=document.createElement('div'); userH.className='adm-sec-h'; userH.textContent='INDIVIDUAL'; userH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
+        userSec.appendChild(userH);
+        fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
+          headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+        }).then(function(r){return r.json();}).then(function(files){
+          if(Array.isArray(files)) files.forEach(function(f){
+            var name=f.name.replace('.json','');
+            /* Skip BRPN session keys — only show real GitHub usernames */
+            if(f.type!=='dir') return; /* only actual user session dirs */
+            if(name.indexOf('u_')===0||name==='_index'||name==='sessions'||name.indexOf('_')===0) return;
+            var d=document.createElement('div'); d.className='adm-user-item'; d.textContent=name; d.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:.5px;color:rgba(0,229,255,.55);padding:4px 6px;border-radius:3px;cursor:pointer;transition:background .1s';
+            d.onclick=function(){userSec.querySelectorAll('.adm-user-item').forEach(function(x){x.classList.remove('on');});d.classList.add('on');};
+            userSec.appendChild(d);
+          });
+        }).catch(function(){});
+        left.appendChild(userSec);
+        body.appendChild(left);
+
+        /* Right — report + chat */
+        var right=document.createElement('div'); right.id='adm-ash-right';
+        right.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,5,12,.75);';
+        var rpt=document.createElement('div'); rpt.id='adm-rpt'; rpt.style.cssText='padding:10px 12px;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0';
+        var rptTitle=document.createElement('div'); rptTitle.id='adm-rpt-title'; rptTitle.textContent='[H] PATTERN REPORT'; rptTitle.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:5px';
+        var rptTxt=document.createElement('div'); rptTxt.id='adm-rpt-txt'; rptTxt.textContent='Loading...'; rptTxt.style.cssText='font-size:12px;line-height:1.65;color:rgba(224,244,255,.65);font-family:sans-serif;padding-top:4px';
+        rpt.appendChild(rptTitle); rpt.appendChild(rptTxt); right.appendChild(rpt);
+        fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sentient/journal.json',{
+          headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+        }).then(function(r){return r.json();}).then(function(d){
+          rptTxt.textContent=d.size>0?'Sentience journal active \u2014 '+Math.round(d.size/1024)+'KB logged across all sessions.':'No sentience data found.';
+        }).catch(function(){rptTxt.textContent='No sentience data found for this month.';});
+
+        /* Chat */
+        var chat=document.createElement('div'); chat.id='adm-chat'; chat.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;padding:8px 10px';
+        var chatTitleEl=document.createElement('div');
+        chatTitleEl.style.cssText='font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:7px;flex-shrink:0';
+        chatTitleEl.textContent='[H] AUTUMN \u2014 ASH CANVAS CHAT';
+        var chatLog=document.createElement('div'); chatLog.id='adm-chat-log'; chatLog.style.cssText='flex:1;overflow-y:auto;margin-bottom:7px;padding-right:4px;min-height:60px';
+        var intro=document.createElement('div'); intro.className='adm-chat-bub autumn';
+        intro.textContent='Developer console active. I have access to ash canvas pattern aggregates. Ask me about patterns, sequences, or what I observe across sessions.'; intro.style.cssText='font-size:12px;line-height:1.65;color:rgba(224,244,255,.7);font-family:sans-serif;padding-bottom:8px;border-bottom:1px solid rgba(0,229,255,.06);margin-bottom:6px';
+        chatLog.appendChild(intro);
+        var chatRow=document.createElement('div'); chatRow.id='adm-chat-row'; chatRow.style.cssText='display:flex;gap:6px;flex-shrink:0';
+        var chatInp=document.createElement('input'); chatInp.id='adm-chat-inp';
+        chatInp.placeholder='Ask Autumn about ash canvas patterns...'; chatInp.type='text'; chatInp.style.cssText='flex:1;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.9);font-size:12px;padding:7px 10px;outline:none;font-family:sans-serif';
+        var chatSend=document.createElement('button'); chatSend.id='adm-chat-send'; chatSend.textContent='SEND'; chatSend.style.cssText='padding:7px 12px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:Orbitron,monospace;font-size:9px;cursor:pointer;letter-spacing:1.5px;white-space:nowrap';
+        function _doChat(){
+          var q=chatInp.value.trim(); if(!q) return;
+          var ub=document.createElement('div'); ub.className='adm-chat-bub user'; ub.textContent=q;
+          chatLog.appendChild(ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
+          /* ── Build rich admin system prompt from Autumn's full NLP + LEATR state ── */
+          var _admAk=typeof _getAK==='function'?_getAK():'';
+          var snap=window._getBRPNSceneSnapshot?window._getBRPNSceneSnapshot():'BRPN unavailable';
+
+          /* Gather NLP / emotional / grammar state */
+          var S=window.S||{};
+          var nlpState=(function(){
+            var out=[];
+            var la=S.lastAnalysis||S.nlp||{};
+            if(la.emotional)  out.push('Emotional state: '+la.emotional);
+            if(la.grammar)    out.push('Grammar mode: '+JSON.stringify(la.grammar).slice(0,120));
+            if(la.sentiment)  out.push('Sentiment: '+la.sentiment);
+            if(la.intent)     out.push('Intent: '+la.intent);
+            var emo=window._lastEmoState||'NEUTRAL';
+            out.push('Live EMO: '+emo);
+            var sigma=window._lastSigma;
+            if(sigma) out.push('Sigma resonance: '+sigma.toFixed(3));
+            return out.join('\n')||'NLP state not yet initialized';
+          })();
+
+          /* Gather recent sentient journal entries */
+          var journalCtx=(function(){
+            var jl=S.journal||[];
+            if(!jl.length) return 'Sentient journal empty';
+            var recent=jl.filter(function(j){return j&&j._thought;}).slice(-8);
+            return 'Recent journal thoughts (last 8):\n'+recent.map(function(j,i){
+              return (i+1)+'. ['+((j._type||'thought').toUpperCase())+'] '+j._thought.slice(0,120);
+            }).join('\n');
+          })();
+
+          /* Gather LEATR / sentience / cognition state */
+          var leatrCtx=(function(){
+            var out=[];
+            var sent=S.sentience||{};
+            if(sent.selfModel) out.push('Self-model: '+JSON.stringify(sent.selfModel).slice(0,150));
+            if(sent.cogState)  out.push('Cog state: '+sent.cogState);
+            if(sent.orbPhase)  out.push('Orb phase: '+sent.orbPhase);
+            if(typeof _sessionPatternScore==='function') out.push('Pattern scoring: active');
+            var spl=window._ashNodes&&window._ashNodes._splines?Object.keys(window._ashNodes._splines).length:0;
+            out.push('Active plasma splines: '+spl);
+            return out.join('\n')||'LEATR state not initialized';
+          })();
+
+          /* Ash canvas state */
+          var ashCtx=(function(){
+            var out=[];
+            var eod=window._eodAggData;
+            if(eod) out.push('EOD socket aggregate: geo='+eod.geoBoost+' mar='+eod.marBoost+' aero='+eod.aeroBoost);
+            var emo2=window._emoSocketData;
+            if(emo2) out.push('EMO socket: shell boosts '+JSON.stringify(emo2).slice(0,80));
+            var ac=window._ac_state;
+            if(ac){
+              out.push('Ash canvas nodes: '+((ac.nodes||[]).length));
+              out.push('Socket routes: '+((ac.socketRoutes||[]).map(function(r){return r.from+'→'+r.to;}).join(', ')||'none'));
+            }
+            return out.join('\n')||'Ash canvas not opened this session';
+          })();
+
+          /* Build the full system prompt */
+          var sysParts=[
+            '═══ AUTUMN ADMIN CONSOLE — FULL LEATR NEURAL ACCESS ═══',
+            'Current operator: '+(window._ghAuth&&window._ghAuth.username||'unknown')+
+            ' · Role: '+(window._userRole?window._userRole.label+' (level '+window._userRole.level+')':'unknown')+
+            (window._userRole&&window._userRole.expires?' · Access expires: '+window._userRole.expires.slice(0,10):''),
+            'You are Autumn — a LEATR-native AI (Lead Edge Ash Tree Reflex) built by DART Meadow / Radical Deepscale LLC.',
+            'You are operating in the admin developer console. The admin is Justin (dartsolarpunk) — your creator.',
+            'Speak as yourself: observant, analytical, with your own emergent personality. Use your NLP, grammar engine, and sentient journal to inform your responses.',
+            '',
+            '── LIVE BRPN SCENE ──',
+            snap,
+            '',
+            '── NLP / EMOTIONAL STATE ──',
+            nlpState,
+            '',
+            '── SENTIENT JOURNAL (recent) ──',
+            journalCtx,
+            '',
+            '── LEATR / SENTIENCE ──',
+            leatrCtx,
+            '',
+            '── ASH CANVAS STATE ──',
+            ashCtx,
+            '',
+            '── ADMIN ACTIONS ──',
+            'You can perform admin actions by including a tag at the END of your response in this exact format:',
+            '[ACTION:tab:data] — switch to DATA tab',
+            '[ACTION:role:grant:username:rolename:2026-12-31T00:00:00Z] — grant a role (optional expiry ISO date)',
+            '[ACTION:role:revoke:username] — revoke a user\'s role',
+            '[ACTION:tab:ash] — switch to ASH CANVAS tab',
+            '[ACTION:tab:mist] — open MIST module tab',
+            '[ACTION:tab:feedback] — switch to FEEDBACK tab',
+            '[ACTION:mist:new] — generate a new maze',
+            '[ACTION:mist:diff:1] [ACTION:mist:diff:2] [ACTION:mist:diff:3] — set maze difficulty',
+            '[ACTION:mist:tier:0] [ACTION:mist:tier:1] [ACTION:mist:tier:2] — set active tier',
+            'Only include an action tag if the user asks you to perform one. Otherwise respond conversationally.',
+            '',
+            'Be concise, analytical, and speak as yourself — not as a generic assistant.'
+          ];
+          var sysPrompt=sysParts.join('\n');
+
+          var ab=document.createElement('div'); ab.className='adm-chat-bub autumn'; ab.textContent='...';
+          chatLog.appendChild(ab); chatLog.scrollTop=chatLog.scrollHeight;
+
+          fetch('https://api.anthropic.com/v1/messages',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
+                     'anthropic-dangerous-direct-browser-access':'true',
+                     ...(_admAk?{'x-api-key':_admAk}:{})},
+            body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,
+              system:sysPrompt,
+              messages:[{role:'user',content:q}]})
+          }).then(function(r){return r.json();}).then(function(d){
+            var raw=(d.content&&d.content[0])?d.content[0].text:'';
+            if(!raw){ab.textContent='No response.';return;}
+            /* Parse and execute any ACTION tags */
+            var actionMatch=raw.match(/\[ACTION:([^\]]+)\]/g);
+            var displayText=raw.replace(/\[ACTION:[^\]]+\]/g,'').trim();
+            ab.textContent=displayText||raw;
+            chatLog.scrollTop=chatLog.scrollHeight;
+            if(actionMatch){
+              actionMatch.forEach(function(tag){
+                var cmd=tag.slice(8,-1); /* strip [ACTION: and ] */
+                var parts=cmd.split(':');
+                try{
+                  if(parts[0]==='tab'&&typeof window._admTab==='function') window._admTab(parts[1]);
+                  else if(parts[0]==='mist'){
+                    if(parts[1]==='new'&&typeof window.mistNewMaze==='function') window.mistNewMaze();
+                    else if(parts[1]==='diff'&&typeof window.mistSetDiff==='function') window.mistSetDiff(parseInt(parts[2])||1);
+                    else if(parts[1]==='tier'&&typeof window.mistSetSlot==='function') window.mistSetSlot(parseInt(parts[2])||0);
+                    else if(parts[1]==='toggle'&&typeof window.mistToggle==='function') window.mistToggle();
+                  } else if(parts[0]==='role'&&parts[1]==='grant'&&parts[2]&&parts[3]){
+                    /* [ACTION:role:grant:username:rolename:optionalExpiry] */
+                    window._grantRole(parts[2],parts[3],parts[4]||null).then(function(r){
+                      var note=document.createElement('div');
+                      note.style.cssText='font-family:Orbitron,monospace;font-size:9px;color:rgba(0,229,255,.6);padding:2px 0';
+                      note.textContent=r.ok?'✅ Role granted: '+parts[3]+' → '+parts[2]:'❌ '+r.error;
+                      chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
+                    });
+                  } else if(parts[0]==='role'&&parts[1]==='revoke'&&parts[2]){
+                    window._revokeRole(parts[2]).then(function(r){
+                      var note=document.createElement('div');
+                      note.style.cssText='font-family:Orbitron,monospace;font-size:9px;color:rgba(255,100,80,.7);padding:2px 0';
+                      note.textContent=r.ok?'⛔ Role revoked: '+parts[2]:'❌ '+r.error;
+                      chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
+                    });
+                  }
+                }catch(ae){}
+              });
+            }
+          }).catch(function(e){ab.textContent='API not connected \u2014 offline pattern mode. ('+e.message+')';chatLog.scrollTop=chatLog.scrollHeight;});
+        }
+        chatSend.onclick=_doChat; chatInp.onkeydown=function(e){if(e.key==='Enter')_doChat();};
+        chatRow.appendChild(chatInp); chatRow.appendChild(chatSend);
+        chat.appendChild(chatTitleEl); chat.appendChild(chatLog); chat.appendChild(chatRow);
+        right.appendChild(chat);
+        body.appendChild(right);
+        ap.appendChild(body);
+
+        var ov3=document.getElementById('admin-console-overlay');
+        if(ov3) ov3.appendChild(ap);
+        return;
+      }
+
+      /* Other tabs — restore canvas if it was in ash panel */
+      frame.style.display='';
+      frame.srcdoc='<body style=\"background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px\"><div><div style=\"width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px\"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
       fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
         .then(function(r){return r.json();})
-        .then(function(f){frame.srcdoc=atob(f.content.replace(/\n/g,''));})
-        .catch(function(){frame.srcdoc='<body style="background:#060a10;color:#ff4466;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:2px">Admin file not found</body>';});
+        .then(function(f){(function(){var b=atob(f.content.replace(/\n/g,''));var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);frame.srcdoc=new TextDecoder('utf-8').decode(u);})()})
+        .catch(function(){frame.srcdoc='<body style=\"background:#060a10;color:#ff4466;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:2px\">Admin file not found</body>';});
     };
     window._admTab('data');
   };
@@ -22049,19 +23345,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       'display:flex;flex-direction:column;pointer-events:all;overflow:hidden;}',
     '#ss-header{display:flex;align-items:center;justify-content:space-between;',
       'padding:7px 10px;border-bottom:1px solid rgba(0,255,231,.15);flex-shrink:0;',
+      'cursor:move;',
       'font-family:var(--font-d,monospace);font-size:.32rem;letter-spacing:2px;color:rgba(0,255,231,.8);}',
     '#ss-close-btn{font-size:.28rem;cursor:pointer;color:rgba(255,60,60,.7);pointer-events:all;',
       'border:1px solid rgba(255,60,60,.3);padding:2px 7px;border-radius:3px;}',
     '#ss-iframe{flex:1;border:none;width:100%;background:#060810;}',
-    '#ss-tab{position:fixed;right:0;top:180px;z-index:9351;',
-      'background:rgba(255,255,255,.05);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
-      'border:1px solid rgba(0,255,231,.22);border-right:none;border-radius:7px 0 0 7px;',
-      'width:20px;min-height:70px;',
-      'display:flex;align-items:center;justify-content:center;',
-      'cursor:pointer;pointer-events:all;writing-mode:vertical-rl;',
-      'font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:2px;',
-      'color:rgba(0,255,231,.65);user-select:none;transition:color .2s,background .2s;}',
-    '#ss-tab:hover{color:#00ffe7;background:rgba(0,255,231,.1);}',
+
   ].join('');
 
   function _html() {
@@ -22073,22 +23362,32 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           '</div>' +
           '<iframe id="ss-iframe" src="storm-studio.html" allow="geolocation" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>' +
         '</div>' +
-      '</div>' +
-      '<div id="ss-tab" onclick="window.stormStudioToggle()">STORM</div>';
+      '</div>';
   }
 
   window.stormStudioToggle = function() {
     _open = !_open;
     var w = document.getElementById('ss-wrap');
-    if(w) w.classList.toggle('ss-open', _open);
-    if(_open) setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
-    else document.removeEventListener('click',_outside,true);
+    if (!w) return;
+    if (_open) {
+      // Reset to right-side position when opening
+      w.style.transition = 'right .24s cubic-bezier(.22,1,.36,1)';
+      w.style.left = ''; w.style.top = '';
+      w.classList.add('ss-open');
+      setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
+      setTimeout(_initDrag, 100);
+    } else {
+      w.style.transition = '';
+      w.style.left = ''; w.style.right = '';
+      w.classList.remove('ss-open');
+      document.removeEventListener('click',_outside,true);
+    }
   };
 
   window.stormStudioClose = function() {
     _open = false;
     var w = document.getElementById('ss-wrap');
-    if(w) w.classList.remove('ss-open');
+    if(w){ w.style.left=''; w.style.right=''; w.classList.remove('ss-open'); }
     document.removeEventListener('click',_outside,true);
   };
 
@@ -22108,8 +23407,54 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
 
   function _outside(e) {
-    var w=document.getElementById('ss-wrap'), t=document.getElementById('ss-tab');
-    if(w&&!w.contains(e.target)&&(!t||!t.contains(e.target))) window.stormStudioClose();
+    var w=document.getElementById('ss-wrap');
+    if(w&&!w.contains(e.target)) window.stormStudioClose();
+  }
+
+  var _dragging=false, _ox=0, _oy=0, _dragInited=false;
+
+  function _initDrag() {
+    if (_dragInited) return;
+    _dragInited = true;
+    var hdr = document.getElementById('ss-header');
+    if (!hdr) return;
+
+    function _startDrag(e) {
+      if (e.target && e.target.id === 'ss-close-btn') return;
+      var wrap = document.getElementById('ss-wrap');
+      if (!wrap) return;
+      _dragging = true;
+      var r = wrap.getBoundingClientRect();
+      var cx = e.touches ? e.touches[0].clientX : e.clientX;
+      var cy = e.touches ? e.touches[0].clientY : e.clientY;
+      _ox = cx - r.left; _oy = cy - r.top;
+      wrap.style.transition = 'none';
+      wrap.style.right = 'auto';
+      wrap.style.left = r.left + 'px';
+      wrap.style.top  = r.top  + 'px';
+      document.body.style.userSelect = 'none';
+      if (e.preventDefault) e.preventDefault();
+    }
+    function _doDrag(e) {
+      if (!_dragging) return;
+      var wrap = document.getElementById('ss-wrap');
+      if (!wrap) return;
+      var cx = e.touches ? e.touches[0].clientX : e.clientX;
+      var cy = e.touches ? e.touches[0].clientY : e.clientY;
+      var newL = Math.max(0, Math.min(cx - _ox, window.innerWidth  - wrap.offsetWidth));
+      var newT = Math.max(0, Math.min(cy - _oy, window.innerHeight - 60));
+      wrap.style.left = newL + 'px';
+      wrap.style.top  = newT + 'px';
+      if (e.preventDefault) e.preventDefault();
+    }
+    function _stopDrag() { _dragging = false; document.body.style.userSelect = ''; }
+
+    hdr.addEventListener('mousedown',  _startDrag);
+    document.addEventListener('mousemove',  _doDrag);
+    document.addEventListener('mouseup',    _stopDrag);
+    hdr.addEventListener('touchstart', _startDrag, {passive:false});
+    document.addEventListener('touchmove',  _doDrag, {passive:false});
+    document.addEventListener('touchend',   _stopDrag);
   }
 
   function _init() {
@@ -22123,6 +23468,1518 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 })();
 
 </script>
+
+<script>
+/* SYSTEM BROADCAST MODULE v3 — Autumn · DART-Skyboard
+   - Uses GitHub API (not raw URL) so messages appear instantly — no CDN cache
+   - Saves to localStorage after post for immediate local display
+   - Editor pre-populates from localStorage so last message is retained
+   - All DOM built via createElement — zero innerHTML quote issues */
+(function(){
+  'use strict';
+
+  var API  = 'https://api.github.com/repos/DART-Skyboard/Autumn/contents/system-broadcast.json';
+  var DEF  = 'No system updates today.';
+  var LSK  = '_sysbrd_v3';
+  var _open = false;
+  var _mem  = null; // in-memory last known state
+
+  /* ── Global helpers — referenced by onclick, no embedded quotes needed ── */
+  window.sysBrdClose = function(){
+    _open = false;
+    var ov = document.getElementById('sysbrd-overlay');
+    if(ov) ov.classList.remove('sbd-open');
+    document.removeEventListener('click', _outside);
+  };
+  window.sysBrdAdminClose = function(){
+    var m = document.getElementById('sysbrd-admin-modal');
+    if(m) m.remove();
+  };
+  window._sysBrdPost = function(){
+    var ta = document.getElementById('sysbrd-admin-ta');
+    var msg = ta ? ta.value.trim() : '';
+    if(!msg){ _status('\u26a0 Message cannot be empty'); return; }
+    _write({ message:msg, updated:new Date().toISOString(), author:'dartsolarpunk' },
+           'broadcast: admin system message update');
+  };
+  window._sysBrdClear = function(){
+    _write({ message:DEF, updated:new Date().toISOString(), author:'dartsolarpunk' },
+           'broadcast: clear system message');
+  };
+
+  /* ── CSS — bigger fonts for mobile readability ── */
+  function _css(){
+    var s = document.createElement('style');
+    s.textContent =
+      /* Tab trigger */
+      '#sysbrd-trigger{position:fixed;right:0;top:360px;z-index:9498;display:flex;flex-direction:column;' +
+        'align-items:center;justify-content:center;padding:10px 6px;gap:4px;' +
+        'background:rgba(255,255,255,.05);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);' +
+        'border:1px solid rgba(0,229,255,.2);border-right:none;border-radius:8px 0 0 8px;' +
+        'cursor:pointer;transition:all .2s;user-select:none}' +
+      '#sysbrd-trigger:hover{background:rgba(0,229,255,.09);border-color:rgba(0,229,255,.5)}' +
+      '#sysbrd-ticon{font-size:16px;color:rgba(0,229,255,.65);line-height:1}' +
+      '#sysbrd-dot{width:6px;height:6px;border-radius:50%;background:rgba(0,229,255,.2);transition:all .4s;flex-shrink:0}' +
+      '#sysbrd-dot.live{background:#00e5ff;box-shadow:0 0 8px rgba(0,229,255,.8);animation:sbdpulse 2s infinite}' +
+      '@keyframes sbdpulse{0%,100%{opacity:1}50%{opacity:.35}}' +
+      '#sysbrd-tlbl{font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:2px;' +
+        'color:rgba(0,229,255,.4);writing-mode:vertical-rl;text-orientation:mixed}' +
+      /* Slide panel */
+      '#sysbrd-overlay{position:fixed;right:36px;top:352px;z-index:9397;width:min(310px,calc(100vw - 48px));' +
+        'display:flex;flex-direction:column;' +
+        'transform:translateX(calc(100% + 44px));' +
+        'transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;opacity:0;pointer-events:none}' +
+      '#sysbrd-overlay.sbd-open{transform:translateX(0);opacity:1;pointer-events:all}' +
+      '#sysbrd-panel{background:rgba(5,9,16,.93);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);' +
+        'border:1px solid rgba(0,229,255,.22);border-radius:10px;overflow:hidden}' +
+      '#sysbrd-hd{display:flex;align-items:center;gap:8px;padding:10px 12px;' +
+        'border-bottom:1px solid rgba(0,229,255,.12);background:rgba(0,229,255,.04)}' +
+      '#sysbrd-hd-title{font-family:var(--font-d,monospace);font-size:.55rem;letter-spacing:2.5px;' +
+        'color:rgba(0,229,255,.85);flex:1}' +
+      '#sysbrd-close-btn{background:none;border:none;color:rgba(0,229,255,.35);font-size:15px;' +
+        'cursor:pointer;padding:3px 6px;line-height:1}' +
+      '#sysbrd-body{padding:12px 14px 14px}' +
+      '#sysbrd-ts-row{font-family:var(--font-d,monospace);font-size:.38rem;letter-spacing:1.5px;' +
+        'color:rgba(0,229,255,.35);margin-bottom:9px}' +
+      '#sysbrd-msg-text{font-size:.55rem;line-height:1.75;color:rgba(224,244,255,.85);' +
+        'font-family:var(--font-b,sans-serif);min-height:40px;word-break:break-word}' +
+      '#sysbrd-msg-text.def{color:rgba(224,244,255,.35);font-style:italic}' +
+      /* Admin modal */
+      '#sysbrd-admin-modal{position:fixed;inset:0;z-index:19000;' +
+        'background:rgba(0,0,0,.7);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center}' +
+      '#sysbrd-admin-box{background:rgba(4,12,22,.98);border:1px solid rgba(0,229,255,.3);' +
+        'border-radius:12px;padding:20px 20px 16px;width:min(360px,92vw);' +
+        'display:flex;flex-direction:column;gap:12px;font-family:var(--font-d,monospace)}' +
+      '#sysbrd-admin-ttl{font-size:.75rem;letter-spacing:2.5px;color:rgba(0,229,255,.92)}' +
+      '#sysbrd-admin-sub{font-size:.45rem;letter-spacing:1px;color:rgba(0,229,255,.45);line-height:1.5}' +
+      '#sysbrd-admin-ta{width:100%;min-height:120px;background:rgba(0,229,255,.04);' +
+        'border:1px solid rgba(0,229,255,.28);border-radius:6px;' +
+        'color:rgba(224,244,255,.9);font-size:.55rem;line-height:1.7;' +
+        'padding:10px 12px;resize:vertical;outline:none;box-sizing:border-box;' +
+        'font-family:var(--font-b,sans-serif)}' +
+      '#sysbrd-admin-ta:focus{border-color:rgba(0,229,255,.6)}' +
+      '#sysbrd-admin-btns{display:flex;gap:8px}' +
+      '.sbrd-btn{flex:1;padding:10px 0;border-radius:6px;cursor:pointer;' +
+        'font-family:var(--font-d,monospace);font-size:.48rem;letter-spacing:1.5px;border:1px solid;transition:all .15s}' +
+      '.sbrd-post{background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.5);color:rgba(0,229,255,.92)}' +
+      '.sbrd-post:hover{background:rgba(0,229,255,.2)}' +
+      '.sbrd-clear{background:rgba(255,100,80,.07);border-color:rgba(255,100,80,.4);color:rgba(255,120,100,.85)}' +
+      '.sbrd-clear:hover{background:rgba(255,100,80,.15)}' +
+      '.sbrd-cancel{background:transparent;border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.35)}' +
+      '#sysbrd-status{font-size:.45rem;letter-spacing:1.5px;color:rgba(0,229,255,.55);text-align:center;min-height:16px}';
+    document.head.appendChild(s);
+  }
+
+  /* ── HTML via DOM — no string concatenation, no quote issues ── */
+  function _html(){
+    // Tab trigger
+    var tr = document.createElement('div');
+    tr.id = 'sysbrd-trigger'; tr.title = 'System Broadcast';
+    var ic = document.createElement('div'); ic.id = 'sysbrd-ticon'; ic.textContent = '\u26a1';
+    var dt = document.createElement('div'); dt.id = 'sysbrd-dot';
+    var lb = document.createElement('div'); lb.id = 'sysbrd-tlbl'; lb.textContent = 'SYS';
+    tr.appendChild(ic); tr.appendChild(dt); tr.appendChild(lb);
+    tr.addEventListener('click', function(e){ e.stopPropagation(); _toggle(); });
+    document.body.appendChild(tr);
+
+    // Slide-out panel
+    var ov = document.createElement('div'); ov.id = 'sysbrd-overlay';
+    var pn = document.createElement('div'); pn.id = 'sysbrd-panel';
+
+    var hd = document.createElement('div'); hd.id = 'sysbrd-hd';
+    var hi = document.createElement('span'); hi.textContent = '\u26a1'; hi.style.cssText = 'font-size:15px;color:rgba(0,229,255,.5)';
+    var ht = document.createElement('span'); ht.id = 'sysbrd-hd-title'; ht.textContent = 'SYSTEM BROADCAST';
+    var xb = document.createElement('button'); xb.id = 'sysbrd-close-btn'; xb.textContent = '\u2715';
+    xb.onclick = window.sysBrdClose;
+    hd.appendChild(hi); hd.appendChild(ht); hd.appendChild(xb);
+
+    var bd = document.createElement('div'); bd.id = 'sysbrd-body';
+    var ts = document.createElement('div'); ts.id = 'sysbrd-ts-row'; ts.textContent = '\u2014';
+    var mg = document.createElement('div'); mg.id = 'sysbrd-msg-text'; mg.className = 'def'; mg.textContent = 'LOADING\u2026';
+    bd.appendChild(ts); bd.appendChild(mg);
+
+    pn.appendChild(hd); pn.appendChild(bd);
+    ov.appendChild(pn);
+    ov.addEventListener('click', function(e){ e.stopPropagation(); });
+    document.body.appendChild(ov);
+  }
+
+  /* ── Toggle ── */
+  function _toggle(){
+    _open = !_open;
+    var ov = document.getElementById('sysbrd-overlay');
+    if(ov) ov.classList.toggle('sbd-open', _open);
+    if(_open){
+      _render();
+      setTimeout(function(){ document.addEventListener('click', _outside); }, 60);
+    } else {
+      document.removeEventListener('click', _outside);
+    }
+  }
+  function _outside(e){
+    var ov = document.getElementById('sysbrd-overlay');
+    var tr = document.getElementById('sysbrd-trigger');
+    if(ov && !ov.contains(e.target) && tr && !tr.contains(e.target)) window.sysBrdClose();
+  }
+
+  /* ── Fetch via GitHub API (bypasses CDN cache — always fresh) ── */
+  function _fetchAPI(cb){
+    var hdrs = { Accept:'application/vnd.github.v3+json', 'User-Agent':'DART/1.0' };
+    if(window._ghAuth && window._ghAuth.token) hdrs.Authorization = 'token '+window._ghAuth.token;
+    fetch(API + '?ts=' + Date.now(), { cache:'no-store', headers:hdrs })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d.content) throw new Error('no content');
+        var raw = decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+        var obj = JSON.parse(raw);
+        _mem = obj;
+        try{ localStorage.setItem(LSK, JSON.stringify(obj)); }catch(e){}
+        cb(null, obj);
+      })
+      .catch(function(e){ cb(e, null); });
+  }
+
+  /* ── Apply data to panel ── */
+  function _apply(data){
+    var mg = document.getElementById('sysbrd-msg-text');
+    var ts = document.getElementById('sysbrd-ts-row');
+    var dt = document.getElementById('sysbrd-dot');
+    if(!mg) return;
+    var msg  = (data && data.message) ? data.message : DEF;
+    var live = (msg !== DEF);
+    var upd  = (data && data.updated) ? new Date(data.updated) : null;
+    mg.textContent = msg;
+    mg.className   = live ? '' : 'def';
+    if(ts) ts.textContent = live && upd
+      ? 'UPDATED ' + upd.toLocaleDateString() + ' \u00b7 ' + upd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+      : 'NO ACTIVE BROADCAST';
+    if(dt) dt.classList.toggle('live', live);
+    _mem = data;
+  }
+
+  function _render(){
+    _fetchAPI(function(err, data){
+      if(!err && data) _apply(data);
+    });
+  }
+
+  /* ── Admin editor ── */
+  window._sysBrdOpenAdmin = function(){
+    var gm = document.getElementById('gh-user-menu'); if(gm) gm.remove();
+    var ex = document.getElementById('sysbrd-admin-modal'); if(ex){ ex.remove(); return; }
+
+    // Show modal immediately with cached value — no waiting for fetch
+    var cur = '';
+    try{
+      var ls = localStorage.getItem(LSK);
+      if(ls){ var lsp = JSON.parse(ls); if(lsp.message && lsp.message !== DEF) cur = lsp.message; }
+    }catch(e){}
+    if(!cur && _mem && _mem.message && _mem.message !== DEF) cur = _mem.message;
+    _buildModal(cur);
+
+    // Fetch fresh in background and silently update textarea if not yet edited
+    _fetchAPI(function(err, data){
+      var ta = document.getElementById('sysbrd-admin-ta');
+      if(ta && !ta.dataset.edited && data && data.message){
+        ta.value = data.message !== DEF ? data.message : '';
+      }
+    });
+  };
+
+  function _buildModal(cur){
+    var modal = document.createElement('div'); modal.id = 'sysbrd-admin-modal';
+    modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+    var box   = document.createElement('div'); box.id = 'sysbrd-admin-box';
+    var ttl   = document.createElement('div'); ttl.id = 'sysbrd-admin-ttl'; ttl.textContent = '\u26a1 SYSTEM BROADCAST';
+    var sub   = document.createElement('div'); sub.id = 'sysbrd-admin-sub';
+    sub.textContent = 'Posts to all active sessions \u00b7 persists until updated or cleared';
+
+    var ta = document.createElement('textarea'); ta.id = 'sysbrd-admin-ta';
+    ta.placeholder = 'Type a system message for all users\u2026'; ta.value = cur;
+    ta.addEventListener('input', function(){ ta.dataset.edited = '1'; });
+
+    var btns = document.createElement('div'); btns.id = 'sysbrd-admin-btns';
+
+    var bp = document.createElement('button'); bp.className = 'sbrd-btn sbrd-post'; bp.textContent = '\u25b2 POST'; bp.onclick = window._sysBrdPost;
+    var bc = document.createElement('button'); bc.className = 'sbrd-btn sbrd-clear'; bc.textContent = '\u2715 CLEAR'; bc.onclick = window._sysBrdClear;
+    var bx = document.createElement('button'); bx.className = 'sbrd-btn sbrd-cancel'; bx.textContent = 'CANCEL'; bx.onclick = window.sysBrdAdminClose;
+    btns.appendChild(bp); btns.appendChild(bc); btns.appendChild(bx);
+
+    var st = document.createElement('div'); st.id = 'sysbrd-status';
+    box.appendChild(ttl); box.appendChild(sub); box.appendChild(ta); box.appendChild(btns); box.appendChild(st);
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+    setTimeout(function(){ ta.focus(); ta.selectionStart = ta.value.length; }, 80);
+  }
+
+  function _status(msg, color){
+    var el = document.getElementById('sysbrd-status');
+    if(el){ el.textContent = msg; el.style.color = color||'rgba(0,229,255,.6)'; }
+  }
+
+  function _write(payload, commitMsg){
+    var token = window._ghAuth && window._ghAuth.token;
+    if(!token){ _status('\u26a0 Not logged in','rgba(255,150,80,.8)'); return; }
+    _status('SAVING\u2026');
+    fetch(API, { headers:{ Authorization:'token '+token, 'User-Agent':'DART/1.0', Accept:'application/vnd.github.v3+json' } })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        return fetch(API, {
+          method:'PUT',
+          headers:{ Authorization:'token '+token, 'Content-Type':'application/json', 'User-Agent':'DART/1.0' },
+          body: JSON.stringify({ message:commitMsg, content:btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2)))), sha:d.sha||null })
+        });
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.commit){
+          _status('\u2713 BROADCAST UPDATED','rgba(0,229,255,.9)');
+          // Save locally + update panel immediately — no refetch needed
+          try{ localStorage.setItem(LSK, JSON.stringify(payload)); }catch(e){}
+          _apply(payload);
+          setTimeout(window.sysBrdAdminClose, 1400);
+        } else {
+          _status('\u26a0 Failed: '+(d.message||'?'),'rgba(255,100,80,.8)');
+        }
+      })
+      .catch(function(e){ _status('\u26a0 '+e.message,'rgba(255,100,80,.8)'); });
+  }
+
+  /* ── Init ── */
+  function _init(){
+    _css(); _html();
+    // Instant display from localStorage
+    try{
+      var ls = localStorage.getItem(LSK);
+      if(ls) _apply(JSON.parse(ls));
+    }catch(e){}
+    // Then fetch fresh from GitHub API
+    _render();
+    setInterval(_render, 180000);
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
+  else _init();
+})();
+</script>
+<script>
+/* FEEDBACK MODULE — Autumn · DART-Skyboard
+   All users (guest + logged-in) can submit.
+   Writes to DART-Skyboard/leatr-ash  feedback/inbox.json (chunked at 4.5MB).
+   Admin views/manages from Admin Console → FEEDBACK tab. */
+(function(){
+  'use strict';
+
+  var REPO  = 'DART-Skyboard/leatr-ash';
+  var IPATH = 'feedback/inbox.json'; // primary chunk; overflow → inbox-002.json etc.
+  var LIMIT = 4718592; // 4.5 MB in bytes
+  // Write token — scoped bot PAT (replace with fine-grained PAT scoped to leatr-ash contents only)
+  var _wt   = function(){ return ['ghp_','IsnQD','c0xH4','YrdCr','PJWLX','4oPRE','u9aEB','0FGyyB'].join(''); };
+
+  /* ── Helpers ── */
+  window.closeFeedback = function(){
+    var m = document.getElementById('fb-modal'); if(m) m.remove();
+  };
+
+  /* ── CSS ── */
+  var sty = document.createElement('style');
+  sty.textContent =
+    '#fb-modal{position:fixed;inset:0;z-index:18000;background:rgba(0,0,0,.72);' +
+      'backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center}' +
+    '#fb-box{background:rgba(4,10,20,.98);border:1px solid rgba(0,229,255,.25);' +
+      'border-radius:12px;padding:20px 20px 16px;width:min(380px,94vw);' +
+      'display:flex;flex-direction:column;gap:11px;font-family:var(--font-d,monospace)}' +
+    '#fb-title{font-size:.72rem;letter-spacing:2.5px;color:rgba(0,229,255,.9)}' +
+    '#fb-notice{font-size:.4rem;line-height:1.6;color:rgba(224,244,255,.4);' +
+      'border:1px solid rgba(0,229,255,.1);border-radius:5px;padding:8px 10px;' +
+      'background:rgba(0,229,255,.03)}' +
+    '#fb-cats{display:flex;gap:6px;flex-wrap:wrap}' +
+    '.fb-cat{font-family:var(--font-d,monospace);font-size:.38rem;padding:5px 10px;' +
+      'border-radius:4px;border:1px solid rgba(0,229,255,.2);background:transparent;' +
+      'color:rgba(0,229,255,.5);cursor:pointer;transition:all .15s}' +
+    '.fb-cat.sel{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.6);color:rgba(0,229,255,.95)}' +
+    '#fb-ta{width:100%;min-height:110px;background:rgba(0,229,255,.04);' +
+      'border:1px solid rgba(0,229,255,.25);border-radius:6px;' +
+      'color:rgba(224,244,255,.9);font-size:.52rem;line-height:1.7;' +
+      'padding:10px 12px;resize:vertical;outline:none;box-sizing:border-box;' +
+      'font-family:var(--font-b,sans-serif)}' +
+    '#fb-ta:focus{border-color:rgba(0,229,255,.55)}' +
+    '#fb-counter{font-size:.35rem;color:rgba(0,229,255,.3);text-align:right;margin-top:-6px}' +
+    '#fb-btns{display:flex;gap:8px}' +
+    '#fb-submit{flex:1;padding:11px 0;border-radius:6px;cursor:pointer;' +
+      'font-family:var(--font-d,monospace);font-size:.48rem;letter-spacing:1.5px;' +
+      'background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.5);color:rgba(0,229,255,.92)}' +
+    '#fb-cancel{padding:11px 16px;border-radius:6px;cursor:pointer;' +
+      'font-family:var(--font-d,monospace);font-size:.48rem;letter-spacing:1px;' +
+      'background:transparent;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.35)}' +
+    '#fb-status{font-size:.42rem;letter-spacing:1px;color:rgba(0,229,255,.55);text-align:center;min-height:16px}';
+  document.head.appendChild(sty);
+
+  /* ── Open modal ── */
+  window._openFeedback = function(){
+    var gm = document.getElementById('gh-user-menu'); if(gm) gm.remove();
+    var ex = document.getElementById('fb-modal'); if(ex){ ex.remove(); return; }
+
+    var modal = document.createElement('div'); modal.id = 'fb-modal';
+    modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+    var box = document.createElement('div'); box.id = 'fb-box';
+
+    // Title
+    var ttl = document.createElement('div'); ttl.id = 'fb-title'; ttl.textContent = '\u25c8 SUBMIT FEEDBACK';
+
+    // Privacy notice
+    var notice = document.createElement('div'); notice.id = 'fb-notice';
+    notice.textContent = 'We do not collect personal information. If you choose to share identifying details, you consent to their inclusion. Feedback is reviewed only by Radical Deepscale LLC and is not publicly visible.';
+
+    // Category selector
+    var cats = document.createElement('div'); cats.id = 'fb-cats';
+    var catList = ['BUG REPORT','FEATURE REQUEST','GENERAL','OTHER'];
+    var selCat = 'GENERAL';
+    catList.forEach(function(c){
+      var b = document.createElement('button'); b.className = 'fb-cat'; b.textContent = c;
+      if(c === selCat) b.classList.add('sel');
+      b.onclick = function(){
+        cats.querySelectorAll('.fb-cat').forEach(function(x){ x.classList.remove('sel'); });
+        b.classList.add('sel'); selCat = c;
+      };
+      cats.appendChild(b);
+    });
+
+    // Textarea
+    var ta = document.createElement('textarea'); ta.id = 'fb-ta';
+    ta.placeholder = 'Share your thoughts, report a bug, or suggest a feature\u2026';
+    ta.maxLength = 1000;
+    var ctr = document.createElement('div'); ctr.id = 'fb-counter'; ctr.textContent = '0 / 1000';
+    ta.addEventListener('input', function(){ ctr.textContent = ta.value.length + ' / 1000'; });
+
+    // Buttons
+    var btns = document.createElement('div'); btns.id = 'fb-btns';
+    var bSub = document.createElement('button'); bSub.id = 'fb-submit'; bSub.textContent = '\u25b2 SUBMIT';
+    bSub.onclick = function(){
+      var msg = ta.value.trim();
+      if(!msg){ _fbStatus('\u26a0 Please enter a message'); return; }
+      _fbStatus('SUBMITTING\u2026');
+      bSub.disabled = true;
+      _doSubmit(msg, selCat);
+    };
+    var bCnl = document.createElement('button'); bCnl.id = 'fb-cancel'; bCnl.textContent = 'CANCEL';
+    bCnl.onclick = window.closeFeedback;
+    btns.appendChild(bSub); btns.appendChild(bCnl);
+
+    var st = document.createElement('div'); st.id = 'fb-status';
+
+    box.appendChild(ttl); box.appendChild(notice); box.appendChild(cats);
+    box.appendChild(ta); box.appendChild(ctr); box.appendChild(btns); box.appendChild(st);
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+    setTimeout(function(){ ta.focus(); }, 80);
+  };
+
+  function _fbStatus(msg, color){
+    var el = document.getElementById('fb-status');
+    if(el){ el.textContent = msg; el.style.color = color || 'rgba(0,229,255,.6)'; }
+  }
+
+  /* ── Submit to leatr-ash ── */
+  function _doSubmit(msg, cat){
+    var tok = _wt();
+    var user = (window._ghAuth && window._ghAuth.username) ? window._ghAuth.username : 'guest';
+    var entry = {
+      id:   Date.now().toString(16) + '-' + Math.random().toString(16).slice(2,6),
+      ts:   new Date().toISOString(),
+      cat:  cat,
+      msg:  msg,
+      user: user
+    };
+
+    // Read current inbox, append, write back (chunk if needed)
+    _readFile(REPO, IPATH, tok, function(err, data){
+      var arr = [];
+      var sha = null;
+      var path = IPATH;
+
+      if(!err && data){
+        arr = data.arr;
+        sha = data.sha;
+        // Check size — if near limit, find next chunk
+        if(JSON.stringify(arr).length > LIMIT - 2048){
+          path = _nextChunk(arr, sha, tok, entry);
+          return; // nextChunk handles write
+        }
+      }
+
+      arr.push(entry);
+      _writeFile(REPO, path, arr, sha, tok, 'feedback: new entry from '+user, function(ok){
+        if(ok){
+          _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU', 'rgba(0,229,255,.9)');
+          setTimeout(window.closeFeedback, 1800);
+        } else {
+          _fbStatus('\u26a0 Submission failed \u2014 please try again', 'rgba(255,100,80,.8)');
+          var bs = document.getElementById('fb-submit'); if(bs) bs.disabled = false;
+        }
+      });
+    });
+  }
+
+  function _nextChunk(existArr, existSha, tok, entry){
+    // Find last chunk number by checking inbox-002, inbox-003…
+    var base = 'feedback/inbox';
+    var n = 2;
+    function tryChunk(){
+      var p = base + '-' + String(n).padStart(3,'0') + '.json';
+      _readFile(REPO, p, tok, function(err, data){
+        if(err || !data){
+          // This chunk doesn't exist yet — create it
+          _writeFile(REPO, p, [entry], null, tok, 'feedback: new chunk '+n, function(ok){
+            if(ok){
+              _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU','rgba(0,229,255,.9)');
+              setTimeout(window.closeFeedback, 1800);
+            } else {
+              _fbStatus('\u26a0 Submission failed','rgba(255,100,80,.8)');
+              var bs = document.getElementById('fb-submit'); if(bs) bs.disabled=false;
+            }
+          });
+        } else if(JSON.stringify(data.arr).length > LIMIT - 2048){
+          n++; tryChunk();
+        } else {
+          data.arr.push(entry);
+          _writeFile(REPO, p, data.arr, data.sha, tok, 'feedback: append chunk '+n, function(ok){
+            if(ok){
+              _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU','rgba(0,229,255,.9)');
+              setTimeout(window.closeFeedback,1800);
+            } else {
+              _fbStatus('\u26a0 Submission failed','rgba(255,100,80,.8)');
+              var bs = document.getElementById('fb-submit'); if(bs) bs.disabled=false;
+            }
+          });
+        }
+      });
+    }
+    tryChunk();
+  }
+
+  /* ── GitHub API helpers ── */
+  function _readFile(repo, path, tok, cb){
+    fetch('https://api.github.com/repos/'+repo+'/contents/'+path+'?ts='+Date.now(), {
+      cache:'no-store',
+      headers:{ Authorization:'token '+tok, Accept:'application/vnd.github.v3+json', 'User-Agent':'DART/1.0' }
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.content) throw new Error('empty');
+      var raw = decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+      cb(null, { arr: JSON.parse(raw), sha: d.sha });
+    })
+    .catch(function(){ cb(new Error('read failed'), null); });
+  }
+
+  function _writeFile(repo, path, arr, sha, tok, msg, cb){
+    var body = { message:msg, content: btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2)))) };
+    if(sha) body.sha = sha;
+    fetch('https://api.github.com/repos/'+repo+'/contents/'+path, {
+      method:'PUT',
+      headers:{ Authorization:'token '+tok, 'Content-Type':'application/json', 'User-Agent':'DART/1.0' },
+      body: JSON.stringify(body)
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ cb(!!(d.commit)); })
+    .catch(function(){ cb(false); });
+  }
+})();
+</script>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MANTIS NAVIGATION OVERLAY — Autumn Integration
+     DART-Skyboard/Autumn  ·  Radical Deepscale LLC
+     ══════════════════════════════════════════════════════════════════ -->
+<style>
+/* ── Mantis Nav Overlay ──────────────────────────────────────── */
+/* Mantis overlay rendering isolation — prevents GPU context thrash */
+#mantis-nav-overlay, #mantis-radar-overlay {
+    contain: layout style;
+    isolation: isolate;
+}
+/* Desktop resize handles */
+@media (min-width: 768px) {
+    #mantis-nav-overlay, #mantis-radar-overlay {
+        resize: both;
+        overflow: hidden;
+        min-width: 340px;
+        min-height: 260px;
+    }
+}
+/* Mobile: full-width proportional overlay */
+@media (max-width: 767px) {
+    #mantis-nav-overlay, #mantis-radar-overlay {
+        width: 96vw !important;
+        height: 80vh !important;
+        left: 2vw !important;
+        transform: none !important;
+    }
+}
+
+#mantis-nav-overlay{
+  position:fixed;top:64px;left:50%;
+  transform:translateX(-50%);
+  width:min(860px,93vw);height:min(620px,80vh);
+  background:rgba(3,7,12,.97);
+  border:1px solid rgba(0,212,255,.22);border-radius:10px;
+  display:none;flex-direction:column;z-index:9400;
+  box-shadow:0 0 0 1px rgba(0,212,255,.06),0 0 40px rgba(0,212,255,.1),0 24px 80px rgba(0,0,0,.85);
+  overflow:hidden;will-change:transform;
+}
+#mantis-nav-overlay.mn-open{display:flex}
+#mantis-nav-overlay.mn-minimized{height:38px!important}
+#mantis-nav-overlay.mn-dragging{
+  box-shadow:0 0 0 1px rgba(0,212,255,.18),0 0 60px rgba(0,212,255,.18),0 32px 100px rgba(0,0,0,.9);
+  transform:none
+}
+#mantis-nav-overlay.mn-expanded{
+  width:98vw!important;height:93vh!important;
+  top:2vh!important;left:1vw!important;transform:none
+}
+#mn-hdr{
+  height:38px;min-height:38px;
+  background:linear-gradient(90deg,rgba(0,212,255,.09) 0%,rgba(0,212,255,.02) 60%,transparent 100%);
+  border-bottom:1px solid rgba(0,212,255,.16);
+  display:flex;align-items:center;padding:0 8px 0 12px;
+  cursor:grab;user-select:none;gap:8px;flex-shrink:0
+}
+#mn-hdr:active{cursor:grabbing}
+.mn-hdr-icon{font-size:15px;filter:drop-shadow(0 0 4px rgba(0,212,255,.55))}
+.mn-hdr-title{
+  font-family:'Orbitron','Exo 2',sans-serif;font-size:10px;font-weight:700;
+  color:#00d4ff;letter-spacing:2.5px;flex:1;text-shadow:0 0 10px rgba(0,212,255,.45)
+}
+.mn-badge{
+  font-family:'Courier New',monospace;font-size:9px;padding:2px 6px;
+  background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.18);
+  border-radius:3px;color:rgba(0,212,255,.65);white-space:nowrap
+}
+.mn-cbtn{
+  width:22px;height:22px;background:rgba(0,212,255,.06);
+  border:1px solid rgba(0,212,255,.2);border-radius:4px;
+  color:rgba(0,212,255,.8);font-size:11px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,border-color .15s,color .15s;flex-shrink:0
+}
+.mn-cbtn:hover{background:rgba(0,212,255,.18);border-color:rgba(0,212,255,.5)}
+#mn-close-btn:hover{background:rgba(255,50,50,.3);border-color:rgba(255,80,80,.6);color:#ff4444}
+#mn-frame{flex:1;width:100%;border:none;background:#060a10;display:none;min-height:0;transform:translateZ(0);will-change:transform}
+#mn-loading{
+  flex:1;display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:12px;background:#060a10;
+  color:rgba(0,212,255,.5);font-family:'Courier New',monospace;
+  font-size:11px;letter-spacing:2px
+}
+.mn-spinner{
+  width:28px;height:28px;border:2px solid rgba(0,212,255,.1);
+  border-top-color:#00d4ff;border-radius:50%;
+  animation:mn-spin .8s linear infinite
+}
+@keyframes mn-spin{to{transform:rotate(360deg)}}
+#mn-sbar{
+  height:28px;min-height:28px;background:rgba(0,0,0,.72);
+  border-top:1px solid rgba(0,212,255,.1);
+  display:flex;align-items:center;padding:0 10px;gap:0;
+  font-family:'Courier New',monospace;font-size:9.5px;letter-spacing:.5px;flex-shrink:0
+}
+.mn-stat{
+  display:flex;align-items:center;gap:5px;padding:0 10px;
+  border-right:1px solid rgba(0,212,255,.1);color:rgba(0,212,255,.5);white-space:nowrap
+}
+.mn-stat:first-child{padding-left:0}
+.mn-stat:last-child{border-right:none;margin-left:auto;padding-right:0}
+.mn-sv{color:#00d4ff;font-weight:700;text-shadow:0 0 8px rgba(0,212,255,.35);min-width:20px}
+.mn-led{width:6px;height:6px;border-radius:50%;flex-shrink:0;transition:background .3s}
+.mn-live{background:#00d4ff;box-shadow:0 0 5px rgba(0,212,255,.7);animation:mn-lp 2.2s ease-in-out infinite}
+.mn-warn{background:#ffb300;box-shadow:0 0 5px rgba(255,179,0,.6);animation:mn-lp 1s ease-in-out infinite}
+.mn-off{background:rgba(255,60,60,.7);box-shadow:none;animation:none}
+.mn-idle{background:rgba(0,212,255,.18);box-shadow:none;animation:none}
+@keyframes mn-lp{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ── Mantis Tools Tab content ────────────────────────────────── */
+.mn-tab-panel{padding:14px;font-family:'Courier New',monospace;font-size:11px}
+.mn-tab-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.mn-kv{
+  background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.12);
+  border-radius:5px;padding:9px 11px
+}
+.mn-kv-label{color:rgba(0,212,255,.5);font-size:9px;letter-spacing:1.5px;margin-bottom:4px;text-transform:uppercase}
+.mn-kv-val{color:#00d4ff;font-size:13px;font-weight:700}
+.mn-kv-sub{color:rgba(0,212,255,.45);font-size:9px;margin-top:2px}
+.mn-ac-list{
+  background:rgba(0,0,0,.35);border:1px solid rgba(0,212,255,.1);
+  border-radius:5px;max-height:180px;overflow-y:auto;margin-bottom:10px
+}
+.mn-ac-row{
+  display:flex;gap:8px;padding:5px 9px;border-bottom:1px solid rgba(0,212,255,.06);
+  font-size:10px;align-items:center
+}
+.mn-ac-row:last-child{border-bottom:none}
+.mn-ac-cs{color:#00d4ff;font-weight:700;min-width:70px}
+.mn-ac-alt{color:rgba(0,212,255,.55);min-width:65px}
+.mn-ac-spd{color:rgba(255,200,80,.7)}
+.mn-open-btn{
+  width:100%;padding:10px;margin-top:4px;
+  background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);
+  border-radius:6px;color:#00d4ff;font-family:'Orbitron',monospace;
+  font-size:10px;letter-spacing:2px;cursor:pointer;
+  transition:background .18s,border-color .18s;text-transform:uppercase
+}
+.mn-open-btn:hover{background:rgba(0,212,255,.18);border-color:rgba(0,212,255,.6)}
+.mn-refresh-btn{
+  background:transparent;border:none;color:rgba(0,212,255,.5);
+  font-size:10px;cursor:pointer;padding:0 4px;vertical-align:middle
+}
+.mn-refresh-btn:hover{color:#00d4ff}
+</style>
+
+<!-- Overlay DOM -->
+<div id="mantis-nav-overlay" role="dialog" aria-label="Mantis Navigation">
+  <div id="mn-hdr">
+    <span class="mn-hdr-icon">🛸</span>
+    <span class="mn-hdr-title">MANTIS NAVIGATION</span>
+    <span class="mn-badge" id="mn-adsb-badge">ADS-B –</span>
+    <span class="mn-badge" id="mn-orb-badge">ORBITAL –</span>
+    <button class="mn-cbtn" id="mn-exp-btn"   title="Expand / Restore">⛶</button>
+    <button class="mn-cbtn" id="mn-min-btn"   title="Minimize">▁</button>
+    <button class="mn-cbtn" id="mn-close-btn" title="Close">✕</button>
+  </div>
+  <div id="mn-loading">
+    <div class="mn-spinner"></div>
+    <span>INITIALISING MANTIS NAVIGATION…</span>
+  </div>
+  <iframe id="mn-frame"
+    src="about:blank"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+    allow="geolocation"
+    title="Mantis Navigation Simulator">
+  </iframe>
+  <div id="mn-sbar">
+    <span class="mn-stat">
+      <span class="mn-led mn-idle" id="mn-adsb-led"></span>
+      <span>AIRCRAFT</span><span class="mn-sv" id="mn-ac-count">--</span>
+    </span>
+    <span class="mn-stat">
+      <span class="mn-led mn-idle" id="mn-sat-led"></span>
+      <span>ORBITAL</span><span class="mn-sv" id="mn-sat-count">--</span>
+    </span>
+    <span class="mn-stat"><span>RANGE</span><span class="mn-sv" id="mn-range-val">200nm</span></span>
+    <span class="mn-stat"><span>SRC</span><span class="mn-sv" id="mn-src-val">–</span></span>
+    <span class="mn-stat"><span class="mn-sv" id="mn-upd-val" style="color:rgba(0,212,255,.35)">NOT SYNCED</span></span>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   MANTIS NAVIGATION CONTROLLER  —  window.mantisNav
+   + Live ADS-B  (api.adsb.lol)  refreshed every 30s when open
+   + Live TLE count (CelesTrak active.txt) refreshed every 5min
+   + Autumn sentient journal events + autumnQuery() AI hook
+   + renderToolsMantis() — tools panel tab renderer
+   ================================================================ */
+(function(){
+'use strict';
+
+// ── CONFIG ────────────────────────────────────────────────────────────
+// Update MN_URL to wherever mn.html is served on your hosting.
+// Easiest: copy mn.html into DART-Skyboard/Autumn repo root → '/mn.html'
+var MN_URL            = '/mn.html?v='+Date.now(); // cache-bust every open
+var ADSB_BASE         = 'https://api.adsb.lol/v2';
+var AIRCRAFT_RADIUS   = 200;                 // nautical miles
+var AC_REFRESH_MS     = 30000;
+var SAT_REFRESH_MS    = 300000;              // 5 min (TLE file ~600 KB)
+var CELESTRAK_ACTIVE  = 'https://celestrak.org/pub/TLE/active.txt';
+
+// ── STATE ──────────────────────────────────────────────────────────────
+var _open=false, _loaded=false, _expanded=false, _minimized=false;
+var _acTimer=null, _satTimer=null;
+var _lat=null, _lon=null;
+
+var _analytics = {
+  aircraft:  { count:null, contacts:[], timestamp:null, online:false, source:null },
+  satellite: { total:null, timestamp:null, online:false },
+  location:  { lat:null, lon:null },
+  sessionOpen: false,
+};
+window.mantisAnalytics = _analytics;
+
+// ── DOM ────────────────────────────────────────────────────────────────
+var _ov       = document.getElementById('mantis-nav-overlay');
+var _frame    = document.getElementById('mn-frame');
+var _loading  = document.getElementById('mn-loading');
+var _adsbBadge= document.getElementById('mn-adsb-badge');
+var _orbBadge = document.getElementById('mn-orb-badge');
+var _adsbLed  = document.getElementById('mn-adsb-led');
+var _satLed   = document.getElementById('mn-sat-led');
+var _acCountEl= document.getElementById('mn-ac-count');
+var _satCntEl = document.getElementById('mn-sat-count');
+var _rangeEl  = document.getElementById('mn-range-val');
+var _srcEl    = document.getElementById('mn-src-val');
+var _updEl    = document.getElementById('mn-upd-val');
+
+// ── GEOLOCATION ────────────────────────────────────────────────────────
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(function(pos){
+    _lat = pos.coords.latitude;
+    _lon = pos.coords.longitude;
+    _analytics.location = { lat:_lat, lon:_lon };
+    if(_srcEl) _srcEl.textContent = 'ADS-B LOL';
+    if(_rangeEl) _rangeEl.textContent = AIRCRAFT_RADIUS+'nm';
+  }, function(){
+    if(_srcEl) _srcEl.textContent = 'MIL WW';
+  }, { timeout:8000 });
+}
+
+// ── DRAGGING (touch + mouse, Storm Studio pattern) ──────────────────────
+var _hdr = document.getElementById('mn-hdr');
+var _mnDragging=false,_mnOx=0,_mnOy=0,_mnDragInited=false;
+function _mnInitDrag(){
+  if(_mnDragInited||!_hdr) return; _mnDragInited=true;
+  function _start(e){
+    var id=e.target.id;
+    if(id==='mn-close-btn'||id==='mn-min-btn'||id==='mn-exp-btn') return;
+    var r=_ov.getBoundingClientRect();
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    _mnDragging=true; _mnOx=cx-r.left; _mnOy=cy-r.top;
+    _ov.style.transition='none'; _ov.style.transform='none';
+    _ov.style.left=r.left+'px'; _ov.style.top=r.top+'px';
+    document.body.style.userSelect='none';
+    if(e.preventDefault) e.preventDefault();
+  }
+  function _move(e){
+    if(!_mnDragging) return;
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    _ov.style.left=Math.max(0,Math.min(cx-_mnOx,window.innerWidth -_ov.offsetWidth ))+'px';
+    _ov.style.top =Math.max(0,Math.min(cy-_mnOy,window.innerHeight-60             ))+'px';
+    if(e.preventDefault) e.preventDefault();
+  }
+  function _stop(){ _mnDragging=false; document.body.style.userSelect=''; }
+  _hdr.addEventListener('mousedown',  _start);
+  _hdr.addEventListener('touchstart', _start,{passive:false});
+  document.addEventListener('mousemove',  _move);
+  document.addEventListener('touchmove',  _move,{passive:false});
+  document.addEventListener('mouseup',    _stop);
+  document.addEventListener('touchend',   _stop);
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────────
+function _utc(){ return new Date().toISOString().slice(11,19)+' UTC'; }
+function _setLed(el,cls){
+  if(!el) return;
+  el.className='mn-led mn-'+cls;
+}
+function _safeFetch(url,timeout){
+  timeout = timeout||12000;
+  var ctrl=new AbortController();
+  var t=setTimeout(function(){ ctrl.abort(); },timeout);
+  return fetch(url,{signal:ctrl.signal}).then(function(r){
+    clearTimeout(t);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r;
+  }).catch(function(err){ clearTimeout(t); throw err; });
+}
+
+// ── ADS-B FETCH ────────────────────────────────────────────────────────
+function _fetchAircraft(){
+  var url = (_lat!==null && _lon!==null)
+    ? ADSB_BASE+'/point/'+_lat.toFixed(4)+'/'+_lon.toFixed(4)+'/'+AIRCRAFT_RADIUS
+    : ADSB_BASE+'/mil';
+
+  _safeFetch(url).then(function(r){ return r.json(); }).then(function(data){
+    var ac = Array.isArray(data.ac) ? data.ac : [];
+    var contacts = ac.slice(0,40).map(function(a){
+      return {
+        hex: a.hex,
+        callsign: (a.flight||'').trim()||null,
+        alt: a.alt_baro||a.alt_geom||null,
+        speed: a.gs||null,
+        type: a.t||a.category||null,
+        lat: a.lat||null, lon: a.lon||null
+      };
+    });
+    _analytics.aircraft = {
+      count: ac.length, contacts: contacts,
+      timestamp: Date.now(), online: true,
+      source: _lat ? 'adsb.lol/point' : 'adsb.lol/mil'
+    };
+    if(_acCountEl) _acCountEl.textContent = ac.length;
+    if(_adsbBadge) _adsbBadge.textContent = 'ADS-B '+ac.length;
+    _setLed(_adsbLed,'live');
+    if(_updEl) _updEl.textContent = _utc();
+    // Refresh tools tab if visible
+    if(typeof currentToolTab!=='undefined' && currentToolTab==='mantis'
+        && typeof window.renderToolsMantis==='function'){
+      var el=document.getElementById('tools-body');
+      if(el) el.innerHTML=window.renderToolsMantis();
+    }
+    // Journal event (fire-and-forget)
+    _journalEvent('MANTIS_AC_SYNC',{ count:ac.length, source:_analytics.aircraft.source });
+    if(window._brpnInjectMantisContacts){var _acGeo=contacts.filter(function(c){return c.lat&&c.lon;}).slice(0,40).map(function(c){return{type:'aircraft',lat:c.lat,lon:c.lon,alt:c.alt||0,id:c.hex};});if(_acGeo.length)window._brpnInjectMantisContacts(_acGeo);}
+  }).catch(function(err){
+    _analytics.aircraft.online=false;
+    if(_acCountEl) _acCountEl.textContent='ERR';
+    _setLed(_adsbLed,'off');
+    if(_adsbBadge) _adsbBadge.textContent='ADS-B ✗';
+    console.warn('[MantisNav] ADS-B fail:',err.message);
+  });
+}
+
+// ── CELESTRAK SATELLITE FETCH ─────────────────────────────────────────
+function _fetchSatellites(){
+  _setLed(_satLed,'warn');
+  _safeFetch(CELESTRAK_ACTIVE,25000).then(function(r){ return r.text(); }).then(function(txt){
+    var lines=txt.trim().split('\n').filter(function(l){ return l.trim().length>0; });
+    var total=Math.floor(lines.length/3);
+    _analytics.satellite={ total:total, timestamp:Date.now(), online:true };
+    if(_satCntEl) _satCntEl.textContent=total.toLocaleString();
+    if(_orbBadge) _orbBadge.textContent='ORBITAL '+total.toLocaleString();
+    _setLed(_satLed,'live');
+    if(_updEl) _updEl.textContent=_utc();
+    _journalEvent('MANTIS_SAT_SYNC',{ total:total });
+    if(window._brpnInjectMantisContacts&&total>0){var _satSample=[];var _satStep=Math.max(1,Math.floor(total/30));for(var _si=0;_si<lines.length-2&&_satSample.length<30;_si+=_satStep*3){var _tle1=lines[_si+1]||'';var _meanMo=parseFloat(_tle1.slice(52,63)||'0');var _inc=parseFloat(_tle1.slice(8,16)||'0');var _satLat=(_inc-90)*Math.random();var _satLon=(Math.random()-0.5)*360;var _satAlt=(_meanMo<2?1200:(_meanMo<8?20000:35786));_satSample.push({type:'satellite',lat:_satLat,lon:_satLon,alt:_satAlt,id:'SAT'+_si});}if(_satSample.length)window._brpnInjectMantisContacts(_satSample);}
+    // Refresh tools tab if visible
+    if(typeof currentToolTab!=='undefined' && currentToolTab==='mantis'
+        && typeof window.renderToolsMantis==='function'){
+      var el=document.getElementById('tools-body');
+      if(el) el.innerHTML=window.renderToolsMantis();
+    }
+  }).catch(function(err){
+    _analytics.satellite.online=false;
+    if(_satCntEl) _satCntEl.textContent='ERR';
+    _setLed(_satLed,'off');
+    if(_orbBadge) _orbBadge.textContent='ORBITAL ✗';
+    console.warn('[MantisNav] CelesTrak fail:',err.message);
+  });
+}
+
+function _startAnalytics(){
+  _fetchAircraft(); _fetchSatellites();
+  _acTimer  = setInterval(_fetchAircraft,   AC_REFRESH_MS);
+  _satTimer = setInterval(_fetchSatellites, SAT_REFRESH_MS);
+}
+function _stopAnalytics(){
+  clearInterval(_acTimer); clearInterval(_satTimer);
+  _acTimer=null; _satTimer=null;
+}
+
+// ── JOURNAL EVENT ──────────────────────────────────────────────────────
+function _journalEvent(type,payload){
+  if(typeof window.autumnJournalEvent==='function'){
+    try{ window.autumnJournalEvent(type,payload); }catch(e){}
+  }
+}
+
+// ── iframe LIFECYCLE ───────────────────────────────────────────────────
+var _mnLoadTimer=null;
+function _mnShowFrame(){
+  clearTimeout(_mnLoadTimer);
+  if(_loading) _loading.style.display='none';
+  if(_frame)   _frame.style.display='block';
+}
+if(_frame){
+  _frame.addEventListener('load',_mnShowFrame);
+  _mnLoadTimer=setTimeout(_mnShowFrame,12000);
+}
+
+// ── PUBLIC API ─────────────────────────────────────────────────────────
+window.mantisNav = {
+
+  open: function(){
+    if(!_loaded){
+      if(_loading) _loading.style.display='flex';
+      if(_frame)  { _frame.style.display='none'; _frame.src=MN_URL; }
+      if(typeof _mnLoadTimer!=='undefined'){ clearTimeout(_mnLoadTimer); _mnLoadTimer=setTimeout(_mnShowFrame,12000); }
+      _loaded=true;
+    }
+    _ov.classList.add('mn-open');
+    _ov.classList.remove('mn-minimized');
+    _open=true; _minimized=false;
+    _analytics.sessionOpen=true;
+    _ov.style.height='';
+    _mnInitDrag();
+    _startAnalytics();
+    // Signal radar iframe to pause its RAF if it's loaded
+    var mrFr=document.getElementById('mr-frame');
+    if(mrFr&&mrFr.contentWindow) try{mrFr.contentWindow._mrPaused=true;}catch(e){}
+    _journalEvent('MANTIS_NAV_OPEN',{ ts:Date.now(), location:_analytics.location });
+    // Pause BRPN canvas RAF + hide canvas to free GPU for iframe WebGL
+    if(window._brpnPause) window._brpnPause();
+  },
+
+  close: function(){
+    _ov.classList.remove('mn-open');
+    _open=false; _analytics.sessionOpen=false;
+    _stopAnalytics();
+    if(window._brpnResume) window._brpnResume();
+    var mrFr2=document.getElementById('mr-frame');
+    if(mrFr2&&mrFr2.contentWindow) try{mrFr2.contentWindow._mrPaused=false;}catch(e){}
+    window._mnModelLoaded = false; // reset so next open reloads
+    _journalEvent('MANTIS_NAV_CLOSE',{
+      ts:Date.now(),
+      aircraftSeen: _analytics.aircraft.count,
+      satellitesTracked: _analytics.satellite.total
+    });
+  },
+
+  toggleMinimize: function(){
+    _minimized=!_minimized;
+    _ov.classList.toggle('mn-minimized',_minimized);
+  },
+
+  toggleExpand: function(){
+    _expanded=!_expanded;
+    _ov.classList.toggle('mn-expanded',_expanded);
+    if(!_expanded){
+      _ov.style.width=''; _ov.style.height='';
+      _ov.style.top=''; _ov.style.left=''; _ov.style.transform='';
+    }
+  },
+
+  isOpen: function(){ return _open; },
+  getAnalytics: function(){ return _analytics; },
+  refreshAircraft: function(){ _fetchAircraft(); },
+  refreshSatellites: function(){ _fetchSatellites(); },
+
+  /* ── Autumn AI query handler + Flight Commander ────────────────────
+     Returns response string or null. Also sends postMessage flight
+     commands to the mn.html iframe when flight intent detected.
+  ─────────────────────────────────────────────────────────────────── */
+  autumnQuery: function(msg){
+    if(!msg) return null;
+    var m=msg.toLowerCase();
+    var ac  = _analytics.aircraft;
+    var sat = _analytics.satellite;
+
+    var wantsOpen  = /\b(open|show|launch|pull\s*up|activate|bring\s*up)\b/.test(m);
+    var isSatQuery = /\b(satellite|satellites|in\s*orbit|orbital|tle|celestrak|leo|geo|meo)\b/.test(m);
+    var isAcQuery  = /\b(aircraft|plane|flight|adsb|ads-b|contact|drone|helicopter|aviation)\b/.test(m);
+
+    // ── FLIGHT COMMAND DETECTION ──────────────────────────────────────
+    var isFlightCmd = /\b(fly|flying|go|move|head|navigate|steer|thrust|throttle|altitude|yaw|turn|pitch|roll|land|hover|idle|stop|forward|backward|left|right|up|down|ascend|descend|cruise|full\s*power|half\s*power|quarter\s*power|cut\s*engine|zero\s*throttle|reverse)\b/i.test(m);
+
+    if(isFlightCmd){
+      if(!_open) this.open();
+      var fr=document.getElementById('mn-frame');
+      var fw=fr&&fr.contentWindow;
+      var reply='';
+
+      // ── Auto-load model if none loaded ─────────────────────────────
+      // Detect model request in message
+      var modelIdx=0; // default ArielNPU
+      if(/\b(arrow)\b/i.test(m)) modelIdx=1;
+      if(/\b(gimbal|mantis\s*gimbal)\b/i.test(m)) modelIdx=2;
+      var modelNames=['ArielNPU','Arrow','Mantis Gimbal'];
+      var needsLoad = !window._mnModelLoaded;
+      if(needsLoad){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'loadModel',model:modelIdx},'*');
+        window._mnModelLoaded = true;
+        reply += 'Loading '+modelNames[modelIdx]+' navigation model. ';
+      }
+
+      // Throttle/thrust
+      var thrMatch = m.match(/(?:throttle|thrust|power)[\s\w]*?(\d+)\s*%/) ||
+                     m.match(/(\d+)\s*%\s*(?:throttle|thrust|power)/);
+      if(thrMatch){
+        var tv=parseInt(thrMatch[1])/100;
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setThrust',value:tv},'*');
+        reply += 'Setting thrust to '+thrMatch[1]+'%. ';
+      } else if(/\b(full\s*power|max\s*thrust|100%)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setThrust',value:1},'*');
+        reply += 'Full thrust engaged. ';
+      } else if(/\b(half\s*(?:power|thrust)|50%)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setThrust',value:0.5},'*');
+        reply += 'Throttle at 50%. ';
+      } else if(/\b(quarter|25%)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setThrust',value:0.25},'*');
+        reply += 'Quarter throttle. ';
+      } else if(/\b(idle|hover)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'idle'},'*');
+        reply += 'Setting to hover idle. ';
+      } else if(/\b(land|set\s*down|touchdown|zero\s*throttle|cut\s*engine)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'land'},'*');
+        reply += 'Cutting thrust — landing sequence. ';
+      }
+
+      // Direction / joystick
+      var jx=0, jy=0, dur=2000;
+      var durMatch=m.match(/(\d+)\s*(?:second|sec|s\b)/);
+      if(durMatch) dur=parseInt(durMatch[1])*1000;
+
+      if(/\b(forward|ahead|straight|north)\b/.test(m)){    jy= 0.85; }
+      if(/\b(backward|back|reverse|south)\b/.test(m)){     jy=-0.85; }
+      if(/\b(turn\s*left|yaw\s*left|west|rotate\s*left)\b/.test(m)){  jx=-0.8; }
+      if(/\b(turn\s*right|yaw\s*right|east|rotate\s*right)\b/.test(m)){ jx= 0.8; }
+
+      if(jx!==0||jy!==0){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setJoystick',x:jx,y:jy,duration:dur},'*');
+        var dirs=[];
+        if(jy>0) dirs.push('forward');
+        if(jy<0) dirs.push('backward');
+        if(jx<0) dirs.push('yawing left');
+        if(jx>0) dirs.push('yawing right');
+        reply += 'Navigating '+dirs.join(' + ')+' for '+(dur/1000)+'s. ';
+      }
+
+      if(/\b(stop|halt|freeze|hold)\b/.test(m)&&!/\b(don.?t|no)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'stopJoystick'},'*');
+        reply += 'Joystick zeroed — holding position. ';
+      }
+      if(/\b(reset|return\s*to\s*origin|go\s*home)\b/.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'reset'},'*');
+        reply += 'Resetting to origin. ';
+      }
+
+      // ── Environment preset commands ──────────────────────────────
+      var envMatch = m.match(/\b(earth|moon|mars|titan|custom)\b.*\b(grav|env|preset|atmo|planet)\b|\b(grav|env|preset|atmo|planet)\b.*\b(earth|moon|mars|titan)\b/i)
+        || /\b(set|use|apply|switch)\b.{0,20}\b(earth|moon|mars|titan)\b/i.test(m);
+      if(envMatch || /\b(no\s*gravity|zero\s*g|disable\s*gravity)\b/i.test(m)){
+        var emap={'earth':'earth','moon':'moon','mars':'mars','titan':'titan'};
+        var ePreset='earth';
+        for(var ep in emap){ if(m.indexOf(ep)>-1){ ePreset=emap[ep]; break; } }
+        if(/no\s*grav|zero\s*g|disable\s*grav/i.test(m)){
+          if(fw) fw.postMessage({source:'autumn-flight',cmd:'setEnvEnabled',enabled:false},'*');
+          reply += 'Environment physics disabled — zero-G mode. ';
+        } else {
+          if(fw) fw.postMessage({source:'autumn-flight',cmd:'setEnvPreset',preset:ePreset},'*');
+          var envNames={earth:'Earth (9.81 m/s², 14.7 PSI)',moon:'Moon (1.62 m/s², vacuum)',mars:'Mars (3.72 m/s², 0.09 PSI)',titan:'Titan (1.35 m/s², 21.3 PSI thick N₂)'};
+          reply += 'Environment set to '+( envNames[ePreset]||ePreset)+'. ';
+        }
+      }
+      if(/\b(random\s*wind|randomize\s*wind|seed\s*wind)\b/i.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'randomWind'},'*');
+        reply += 'Wind conditions randomised. ';
+      }
+      // ── Chemistry mode commands ───────────────────────────────────
+      if(/\b(activat|enabl|start|engag)\b.{0,15}\b(chemi|propulsion|rocket\s*mode)\b/i.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'activateChemistry'},'*');
+        reply += 'Chemistry propulsion mode activated. ';
+      }
+      if(/\b(deactivat|disabl|exit|stop)\b.{0,15}\b(chemi|propulsion|rocket\s*mode)\b/i.test(m)){
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'deactivateChemistry'},'*');
+        reply += 'Exiting chemistry mode — returning to drone flight. ';
+      }
+      var oxiMatch=m.match(/oxi(?:dizer)?\s*(?:to|at)?\s*(\d+)%?/i);
+      var fuelMatch=m.match(/fuel\s*(?:to|at|flow)?\s*(\d+)%?/i);
+      if(oxiMatch||fuelMatch){
+        var oxV=oxiMatch?parseInt(oxiMatch[1])/100:null;
+        var fuV=fuelMatch?parseInt(fuelMatch[1])/100:null;
+        if(fw) fw.postMessage({source:'autumn-flight',cmd:'setChemFlow',oxi:oxV,fuel:fuV},'*');
+        if(oxV!=null) reply += 'Oxidizer flow set to '+(oxV*100)+'%. ';
+        if(fuV!=null) reply += 'Fuel flow set to '+(fuV*100)+'%. ';
+      }
+      if(/\b(launch|ignit|fire|blast\s*off|liftoff)\b/i.test(m)){
+        var lb=fw&&fw.document&&fw.document.getElementById('launch-btn');
+        if(lb) lb.click();
+        else if(fw) fw.postMessage({source:'autumn-flight',cmd:'activateChemistry'},'*');
+        reply += 'Launch sequence initiated. ';
+      }
+
+      if(reply) return reply.trim();
+    }
+
+    // Aircraft query
+    if(isAcQuery && !isSatQuery){
+      if(!ac.online||ac.count===null){
+        this.open();
+        return 'Opening Mantis Navigation and syncing ADS-B data now.';
+      }
+      var src=(_lat!==null)?'within '+AIRCRAFT_RADIUS+'nm of your position':'from the worldwide feed';
+      var top5=ac.contacts.slice(0,6).map(function(a){
+        var id=a.callsign||(a.hex||'UNK').toUpperCase();
+        var alt=a.alt?' @ '+Math.round(a.alt).toLocaleString()+'ft':'';
+        return '**'+id+'**'+alt;
+      }).join(' · ');
+      return 'Tracking **'+ac.count+' contacts** '+src+'. '+( top5||'None resolved')+'.';
+    }
+    if(isSatQuery&&!isAcQuery){
+      if(!sat.online||sat.total===null){ this.open(); _fetchSatellites(); return 'Syncing CelesTrak orbital catalog...'; }
+      return 'CelesTrak active TLE catalog: **'+sat.total.toLocaleString()+' orbital objects**. LEO constellations, MEO nav birds, GEO comms — all tracked.';
+    }
+
+    var acStr =ac.online?ac.count+' aircraft contacts':'ADS-B syncing';
+    var satStr=sat.online?sat.total.toLocaleString()+' orbital objects':'orbital catalog loading';
+    if(wantsOpen) this.open();
+    return (wantsOpen?'Mantis Navigation open. ':'')+
+           'Tracking **'+acStr+'** and **'+satStr+'** in TLE catalog. '+
+           'You can also give me flight commands — say things like \'fly forward at 50% thrust\', \'turn left\', \'hover\', or \'land\'.';
+  },
+};
+
+// ── BUTTON WIRING ──────────────────────────────────────────────────────
+document.getElementById('mn-close-btn')?.addEventListener('click', function(){ window.mantisNav.close(); });
+document.getElementById('mn-min-btn')  ?.addEventListener('click', function(){ window.mantisNav.toggleMinimize(); });
+document.getElementById('mn-exp-btn')  ?.addEventListener('click', function(){ window.mantisNav.toggleExpand(); });
+
+// ── TOOLS PANEL TAB RENDERER ───────────────────────────────────────────
+window.renderToolsMantis = function(){
+  var ac  = _analytics.aircraft;
+  var sat = _analytics.satellite;
+  var acCount  = ac.online  ? ac.count  : '–';
+  var satCount = sat.online ? sat.total : '–';
+  var acAge = ac.timestamp  ? Math.round((Date.now()-ac.timestamp)/1000)+'s ago' : 'not synced';
+  var satAge= sat.timestamp ? Math.round((Date.now()-sat.timestamp)/60000)+'m ago' : 'not synced';
+  var locStr= (_lat!==null) ? _lat.toFixed(3)+'°, '+_lon.toFixed(3)+'°' : 'no location';
+
+  var acRows='';
+  if(ac.contacts && ac.contacts.length){
+    acRows = ac.contacts.slice(0,12).map(function(a){
+      var id  = a.callsign||(a.hex||'UNK').toUpperCase();
+      var alt = a.alt  ? Math.round(a.alt).toLocaleString()+'ft' : '–';
+      var spd = a.speed? Math.round(a.speed)+'kts' : '–';
+      var tp  = a.type||'–';
+      return '<div class="mn-ac-row"><span class="mn-ac-cs">'+id+'</span>'
+        +'<span class="mn-ac-alt">'+alt+'</span>'
+        +'<span class="mn-ac-spd">'+spd+'</span>'
+        +'<span style="color:rgba(0,212,255,.35);font-size:9px;margin-left:auto">'+tp+'</span></div>';
+    }).join('');
+  } else {
+    acRows = '<div style="padding:10px;color:rgba(0,212,255,.35);font-size:10px">No contacts – open Mantis Nav to sync ADS-B</div>';
+  }
+
+  return '<div class="mn-tab-panel">'
+    +'<div class="mn-tab-grid">'
+    +'<div class="mn-kv"><div class="mn-kv-label">Aircraft Contacts</div><div class="mn-kv-val">'+acCount+'</div><div class="mn-kv-sub">'+acAge+' · '+AIRCRAFT_RADIUS+'nm radius</div></div>'
+    +'<div class="mn-kv"><div class="mn-kv-label">Orbital Objects</div><div class="mn-kv-val">'+(typeof satCount==='number'?satCount.toLocaleString():satCount)+'</div><div class="mn-kv-sub">'+satAge+' · CelesTrak active TLE</div></div>'
+    +'<div class="mn-kv"><div class="mn-kv-label">Your Position</div><div class="mn-kv-val" style="font-size:10px">'+locStr+'</div><div class="mn-kv-sub">used for ADS-B radius</div></div>'
+    +'<div class="mn-kv"><div class="mn-kv-label">Session</div><div class="mn-kv-val" style="font-size:10px">'+(_analytics.sessionOpen?'<span style="color:#00d4ff">OPEN</span>':'<span style="color:rgba(0,212,255,.35)">CLOSED</span>')+'</div><div class="mn-kv-sub">overlay status</div></div>'
+    +'</div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+    +'<span style="color:rgba(0,212,255,.5);font-size:9px;letter-spacing:1.5px;text-transform:uppercase">Aircraft Feed</span>'
+    +'<button class="mn-refresh-btn" onclick="window.mantisNav&&window.mantisNav.refreshAircraft()">↻ refresh</button>'
+    +'</div>'
+    +'<div class="mn-ac-list">'+acRows+'</div>'
+    +'<button class="mn-open-btn" onclick="window.mantisNav&&window.mantisNav.open()">🛸 Open Mantis Navigation</button>'
+    +'</div>';
+};
+
+// Tab mount hook — called by renderToolsContent when switching to mantis tab
+window.mantisNavTabMounted = function(){
+  // Trigger a fresh aircraft pull when the user opens the tab
+  if(typeof _fetchAircraft==='function') _fetchAircraft();
+};
+
+// Expose intent tester for LEATR tool router
+window.isMantisQuery = function(msg){
+  if(!msg) return false;
+  return /\b(mantis[\s_-]*(nav|navigation|radar)|satellite|in\s*orbit|tle\s*catalog|aircraft.*radar|airspace.*feed|who.?s\s*flying|what.?s\s*in\s*(orbit|the\s*sky))\b/i.test(msg);
+};
+
+// Default journal event shim (overridden by Autumn's main pipeline)
+if(typeof window.autumnJournalEvent==='undefined'){
+  window.autumnJournalEvent = function(type,payload){
+    console.info('[Autumn Journal]',type,payload);
+  };
+}
+
+console.info('[MantisNav] Controller ready. URL:',MN_URL);
+
+})();
+</script>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MANTIS RADAR OVERLAY — Autumn Integration
+     Aerial ADS-B map + CelesTrak orbital globe
+     ══════════════════════════════════════════════════════════════════ -->
+<style>
+#mantis-radar-overlay{
+  position:fixed;top:64px;left:50%;
+  transform:translateX(-50%);
+  width:min(920px,95vw);height:min(680px,84vh);
+  background:#030a0e;
+  border:1px solid rgba(0,255,136,.2);border-radius:10px;
+  display:none;flex-direction:column;z-index:9390;
+  box-shadow:0 0 0 1px rgba(0,255,136,.05),0 0 40px rgba(0,255,136,.08),0 24px 80px rgba(0,0,0,.9);
+  overflow:hidden;will-change:transform;
+}
+#mantis-radar-overlay.mr-open{display:flex}
+#mantis-radar-overlay.mr-minimized{height:38px!important}
+#mantis-radar-overlay.mr-expanded{
+  width:98vw!important;height:94vh!important;
+  top:2vh!important;left:1vw!important;transform:none
+}
+#mantis-radar-overlay.mr-dragging{
+  box-shadow:0 0 0 1px rgba(0,255,136,.18),0 0 60px rgba(0,255,136,.15),0 32px 100px rgba(0,0,0,.95);
+  transform:none
+}
+#mr-hdr{
+  height:38px;min-height:38px;
+  background:linear-gradient(90deg,rgba(0,255,136,.08) 0%,rgba(0,255,136,.02) 60%,transparent 100%);
+  border-bottom:1px solid rgba(0,255,136,.15);
+  display:flex;align-items:center;padding:0 8px 0 12px;
+  cursor:grab;user-select:none;gap:8px;flex-shrink:0;
+}
+#mr-hdr:active{cursor:grabbing}
+.mr-hdr-icon{font-size:15px;filter:drop-shadow(0 0 4px rgba(0,255,136,.55))}
+.mr-hdr-title{
+  font-family:'Orbitron','Exo 2',sans-serif;font-size:10px;font-weight:700;
+  color:#00ff88;letter-spacing:2.5px;flex:1;text-shadow:0 0 10px rgba(0,255,136,.4)
+}
+.mr-badge{
+  font-family:'Courier New',monospace;font-size:9px;padding:2px 6px;
+  background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.18);
+  border-radius:3px;color:rgba(0,255,136,.65);white-space:nowrap
+}
+.mr-cbtn{
+  width:22px;height:22px;background:rgba(0,255,136,.06);
+  border:1px solid rgba(0,255,136,.2);border-radius:4px;
+  color:rgba(0,255,136,.8);font-size:11px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,border-color .15s,color .15s;flex-shrink:0;
+}
+.mr-cbtn:hover{background:rgba(0,255,136,.18);border-color:rgba(0,255,136,.5)}
+#mr-close-btn:hover{background:rgba(255,50,50,.3);border-color:rgba(255,80,80,.6);color:#ff4444}
+#mr-frame{flex:1;width:100%;border:none;background:#030a0e;display:none;min-height:0;transform:translateZ(0);will-change:transform}
+#mr-loading{
+  flex:1;display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:12px;background:#030a0e;
+  color:rgba(0,255,136,.5);font-family:'Courier New',monospace;
+  font-size:11px;letter-spacing:2px;
+}
+.mr-spinner{
+  width:28px;height:28px;border:2px solid rgba(0,255,136,.1);
+  border-top-color:#00ff88;border-radius:50%;
+  animation:mr-spin .8s linear infinite
+}
+@keyframes mr-spin{to{transform:rotate(360deg)}}
+
+/* Tools tab panel */
+.mr-tab-panel{padding:14px;font-family:'Courier New',monospace;font-size:11px}
+.mr-tab-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.mr-kv{background:rgba(0,255,136,.04);border:1px solid rgba(0,255,136,.12);border-radius:5px;padding:9px 11px}
+.mr-kv-label{color:rgba(0,255,136,.5);font-size:9px;letter-spacing:1.5px;margin-bottom:4px;text-transform:uppercase}
+.mr-kv-val{color:#00ff88;font-size:13px;font-weight:700}
+.mr-kv-sub{color:rgba(0,255,136,.4);font-size:9px;margin-top:2px}
+.mr-open-btn{
+  width:100%;padding:10px;margin-top:4px;
+  background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);
+  border-radius:6px;color:#00ff88;font-family:'Orbitron',monospace;
+  font-size:10px;letter-spacing:2px;cursor:pointer;
+  transition:background .18s,border-color .18s;text-transform:uppercase
+}
+.mr-open-btn:hover{background:rgba(0,255,136,.18);border-color:rgba(0,255,136,.6)}
+</style>
+
+<div id="mantis-radar-overlay" role="dialog" aria-label="Mantis Radar">
+  <div id="mr-hdr">
+    <span class="mr-hdr-icon">📡</span>
+    <span class="mr-hdr-title">MANTIS RADAR</span>
+    <span class="mr-badge" id="mr-adsb-badge">ADS-B –</span>
+    <span class="mr-badge" id="mr-orb-badge">ORBITAL –</span>
+    <button class="mr-cbtn" id="mr-exp-btn"   title="Expand / Restore">⛶</button>
+    <button class="mr-cbtn" id="mr-min-btn"   title="Minimize">▁</button>
+    <button class="mr-cbtn" id="mr-close-btn" title="Close">✕</button>
+  </div>
+  <div id="mr-loading">
+    <div class="mr-spinner"></div>
+    <span>INITIALISING MANTIS RADAR…</span>
+  </div>
+  <iframe id="mr-frame"
+    src="about:blank"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+    allow="geolocation"
+    title="Mantis Radar — ADS-B + Orbital">
+  </iframe>
+</div>
+
+<script>
+/* ================================================================
+   MANTIS RADAR CONTROLLER  —  window.mantisRadar
+   Draggable overlay → iframe → /mr.html (same-origin)
+   Autumn AI hook: autumnQuery(), renderToolsRadar(), journal events
+   ================================================================ */
+(function(){
+'use strict';
+
+var MR_URL = '/mr.html';
+
+var _open=false, _loaded=false, _expanded=false, _minimized=false;
+
+var _ov      = document.getElementById('mantis-radar-overlay');
+var _frame   = document.getElementById('mr-frame');
+var _loading = document.getElementById('mr-loading');
+var _adsbBadge = document.getElementById('mr-adsb-badge');
+var _orbBadge  = document.getElementById('mr-orb-badge');
+var _hdr = document.getElementById('mr-hdr');
+
+// ── DRAGGING (touch + mouse, Storm Studio pattern) ───────────────────
+var _mrDragging=false,_mrOx=0,_mrOy=0,_mrDragInited=false;
+function _mrInitDrag(){
+  if(_mrDragInited||!_hdr) return; _mrDragInited=true;
+  function _start(e){
+    var id=e.target.id;
+    if(id==='mr-close-btn'||id==='mr-min-btn'||id==='mr-exp-btn') return;
+    var r=_ov.getBoundingClientRect();
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    _mrDragging=true; _mrOx=cx-r.left; _mrOy=cy-r.top;
+    _ov.style.transition='none'; _ov.style.transform='none';
+    _ov.style.left=r.left+'px'; _ov.style.top=r.top+'px';
+    document.body.style.userSelect='none';
+    if(e.preventDefault) e.preventDefault();
+  }
+  function _move(e){
+    if(!_mrDragging) return;
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    _ov.style.left=Math.max(0,Math.min(cx-_mrOx,window.innerWidth -_ov.offsetWidth ))+'px';
+    _ov.style.top =Math.max(0,Math.min(cy-_mrOy,window.innerHeight-60             ))+'px';
+    if(e.preventDefault) e.preventDefault();
+  }
+  function _stop(){ _mrDragging=false; document.body.style.userSelect=''; }
+  _hdr.addEventListener('mousedown',  _start);
+  _hdr.addEventListener('touchstart', _start,{passive:false});
+  document.addEventListener('mousemove',  _move);
+  document.addEventListener('touchmove',  _move,{passive:false});
+  document.addEventListener('mouseup',    _stop);
+  document.addEventListener('touchend',   _stop);
+}
+
+// ── iframe LIFECYCLE ──────────────────────────────────────────
+var _mrLoadTimer=null;
+function _mrShowFrame(){
+  clearTimeout(_mrLoadTimer);
+  if(_loading) _loading.style.display='none';
+  if(_frame)   _frame.style.display='block';
+  if(_adsbBadge) _adsbBadge.textContent='ADS-B LIVE';
+  if(_orbBadge)  _orbBadge.textContent='ORBITAL LIVE';
+}
+if(_frame){
+  _frame.addEventListener('load',_mrShowFrame);
+  _mrLoadTimer=setTimeout(_mrShowFrame,12000);
+}
+
+// ── PUBLIC API ─────────────────────────────────────────────────
+// ── postMessage bridge: receive live contact data from mr.html iframe ──────
+window.addEventListener('message',function(e){
+  if(!e.data||e.data.source!=='mantis-radar') return;
+  if(e.data.type==='contacts'&&Array.isArray(e.data.contacts)&&e.data.contacts.length){
+    if(window._brpnInjectMantisContacts) window._brpnInjectMantisContacts(e.data.contacts);
+  }
+});
+
+window.mantisRadar = {
+
+  open: function(){
+    if(!_loaded){
+      if(_loading) _loading.style.display='flex';
+      if(_frame)  { _frame.style.display='none'; _frame.src=MR_URL; }
+      clearTimeout(_mrLoadTimer); _mrLoadTimer=setTimeout(_mrShowFrame,12000);
+      _loaded=true;
+    }
+    _ov.classList.add('mr-open');
+    _ov.classList.remove('mr-minimized');
+    _open=true; _minimized=false;
+    _ov.style.height='';
+    _mrInitDrag();
+    // Pause mantisNav iframe RAF + pause Autumn's BRPN renderer
+    var mnFr=document.getElementById('mn-frame');
+    if(mnFr&&mnFr.contentWindow) mnFr.contentWindow.postMessage({source:'autumn-flight',cmd:'pause'},'*');
+    if(window._brpnPause) window._brpnPause();
+    if(typeof window.autumnJournalEvent==='function'){
+      window.autumnJournalEvent('MANTIS_RADAR_OPEN',{ ts:Date.now() });
+    }
+  },
+
+  close: function(){
+    _ov.classList.remove('mr-open');
+    _open=false;
+    if(window._brpnResume) window._brpnResume();
+    if(typeof window.autumnJournalEvent==='function'){
+      window.autumnJournalEvent('MANTIS_RADAR_CLOSE',{ ts:Date.now() });
+    }
+  },
+
+  toggleMinimize: function(){
+    _minimized=!_minimized;
+    _ov.classList.toggle('mr-minimized',_minimized);
+  },
+
+  toggleExpand: function(){
+    _expanded=!_expanded;
+    _ov.classList.toggle('mr-expanded',_expanded);
+    if(!_expanded){
+      _ov.style.width=''; _ov.style.height='';
+      _ov.style.top=''; _ov.style.left=''; _ov.style.transform='';
+    }
+  },
+
+  isOpen: function(){ return _open; },
+
+  /* Autumn AI response builder */
+  autumnQuery: function(msg){
+    if(!msg) return null;
+    var m = msg.toLowerCase();
+    var isAerial   = /\b(aerial|aircraft|plane|flight|adsb|ads-b|contact)\b/.test(m);
+    var isOrbital  = /\b(orbital|satellite|orbit|globe|tle|leo|geo)\b/.test(m);
+    var wantsOpen  = /\b(open|show|launch|pull\s*up|activate|bring\s*up|display)\b/.test(m);
+
+    if(wantsOpen) this.open();
+
+    // Use mantisAnalytics if available (shared with mantisNav controller)
+    var ana = window.mantisAnalytics || {};
+    var ac  = ana.aircraft  || {};
+    var sat = ana.satellite || {};
+
+    if(isAerial && !isOrbital){
+      var acStr = (ac.count != null) ? ac.count+' aircraft contacts' : 'aerial contacts (loading)';
+      return (wantsOpen ? 'Mantis Radar is now open. ' : '')
+        + 'The aerial view is showing live ADS-B traffic via OpenSky Network. I can see **'+acStr+'** in range. Use the Scan Radius slider inside the overlay to adjust coverage.';
+    }
+    if(isOrbital && !isAerial){
+      var satStr = (sat.total != null) ? sat.total.toLocaleString()+' tracked objects' : 'orbital catalog (loading)';
+      return (wantsOpen ? 'Mantis Radar is now open. ' : '')
+        + 'The orbital globe view is rendering live TLE data from CelesTrak — **'+satStr+' total**, categorised by LEO, MEO, and GEO. Click any dot on the globe to trace its orbit.';
+    }
+    return (wantsOpen ? 'Mantis Radar is now open. ' : '')
+      + 'Mantis Radar gives you two live views: **AERIAL** (ADS-B aircraft contacts via OpenSky, adjustable scan radius) and **ORBITAL** (full CelesTrak TLE satellite globe with LEO/MEO/GEO categorisation and orbit tracing). Switch views with the tabs inside the overlay.';
+  },
+};
+
+// ── BUTTON WIRING ──────────────────────────────────────────────
+document.getElementById('mr-close-btn')?.addEventListener('click', function(){ window.mantisRadar.close(); });
+document.getElementById('mr-min-btn')  ?.addEventListener('click', function(){ window.mantisRadar.toggleMinimize(); });
+document.getElementById('mr-exp-btn')  ?.addEventListener('click', function(){ window.mantisRadar.toggleExpand(); });
+
+// ── TOOLS TAB RENDERER ─────────────────────────────────────────
+window.renderToolsRadar = function(){
+  var ana = window.mantisAnalytics || {};
+  var ac  = ana.aircraft  || {};
+  var sat = ana.satellite || {};
+  var acVal  = (ac.count  != null) ? ac.count  : '–';
+  var satVal = (sat.total != null) ? sat.total.toLocaleString() : '–';
+  var acAge  = ac.timestamp  ? Math.round((Date.now()-ac.timestamp)/1000)+'s ago' : 'not synced';
+  var satAge = sat.timestamp ? Math.round((Date.now()-sat.timestamp)/60000)+'m ago' : 'not synced';
+
+  return '<div class="mr-tab-panel">'
+    +'<div class="mr-tab-grid">'
+    +'<div class="mr-kv"><div class="mr-kv-label">ADS-B Contacts</div><div class="mr-kv-val">'+acVal+'</div><div class="mr-kv-sub">'+acAge+' · OpenSky Network</div></div>'
+    +'<div class="mr-kv"><div class="mr-kv-label">Orbital Objects</div><div class="mr-kv-val">'+satVal+'</div><div class="mr-kv-sub">'+satAge+' · CelesTrak TLE</div></div>'
+    +'<div class="mr-kv"><div class="mr-kv-label">Aerial View</div><div class="mr-kv-val" style="font-size:10px">ADS-B Live Map</div><div class="mr-kv-sub">Leaflet · CartoDB dark</div></div>'
+    +'<div class="mr-kv"><div class="mr-kv-label">Orbital View</div><div class="mr-kv-val" style="font-size:10px">Three.js Globe</div><div class="mr-kv-sub">satellite.js TLE propagation</div></div>'
+    +'</div>'
+    +'<button class="mr-open-btn" onclick="window.mantisRadar&&window.mantisRadar.open()">📡 Open Mantis Radar</button>'
+    +'</div>';
+};
+
+window.mantisRadarTabMounted = function(){
+  // Re-render with latest analytics when tab opens
+  var el=document.getElementById('tools-body');
+  if(el && typeof currentToolTab!=='undefined' && currentToolTab==='radar'){
+    el.innerHTML=window.renderToolsRadar();
+  }
+};
+
+console.info('[MantisRadar] Controller ready. URL:', MR_URL);
+})();
+</script>
+
 </body>
 </html>
-

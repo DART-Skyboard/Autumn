@@ -950,33 +950,41 @@ body.theme-night #vid-scrim{
 
 /* ── Stealth theme overrides ── */
 body.theme-stealth{
-  --cyan:#7aa8cc;--blue:#4a7090;--red:#a03050;
-  --bg:#080a0c;--bg2:#0e1114;
-  --border:rgba(100,130,160,0.13);
-  --text:#9aacbc;--dim:#3a4a58;--bright:#c0ccd8;
-  --tt-color:#7aa8cc;
+  --cyan:#5a8ab0;--blue:#2a5070;--red:#802840;
+  --bg:#030407;--bg2:#07090e;
+  --border:rgba(60,90,120,0.14);
+  --text:#7a9aae;--dim:#253545;--bright:#a0b8c8;
+  --tt-color:#4a7aaa;
 }
 body.theme-stealth header{
-  background:linear-gradient(180deg,rgba(10,20,30,.15) 0%,transparent 100%);
-  border-bottom-color:rgba(100,140,170,0.12);
+  background:linear-gradient(180deg,rgba(4,8,14,.55) 0%,rgba(2,4,8,.2) 100%);
+  border-bottom-color:rgba(60,100,140,0.1);
 }
 body.theme-stealth #vid-scrim{
-  background:rgba(4,6,8,0.45)!important;
-  backdrop-filter:blur(8px) saturate(0.6) brightness(0.7)!important;
-  -webkit-backdrop-filter:blur(8px) saturate(0.6) brightness(0.7)!important;
+  background:rgba(2,3,6,0.62)!important;
+  backdrop-filter:blur(10px) saturate(0.4) brightness(0.55)!important;
+  -webkit-backdrop-filter:blur(10px) saturate(0.4) brightness(0.55)!important;
 }
 body.theme-stealth #hdr-name{
-  background:linear-gradient(135deg,#7aa8cc,#4a7090,#8aaccc);
+  background:linear-gradient(135deg,#8ab0d0,#1a3a5a,#6a9abf,#0d2035);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  letter-spacing:4px;
+  letter-spacing:4px;filter:drop-shadow(0 0 6px rgba(90,138,176,0.4));
 }
 body.theme-stealth .orb-ring,.theme-stealth .brpn-ring{
-  filter:hue-rotate(160deg) saturate(0.6) brightness(0.85);
+  filter:hue-rotate(170deg) saturate(0.45) brightness(0.75);
 }
 body.theme-stealth #hdr-avatar{
   content:url('assets/autumn-stealth.png');
   filter:none;
 }
+body.theme-stealth .glass,body.theme-stealth .msg-autumn{
+  background:rgba(4,8,14,0.78);border-color:rgba(60,100,140,0.12);
+}
+body.theme-stealth .ov-grid{
+  background-image:linear-gradient(rgba(60,100,140,.15) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(60,100,140,.15) 1px,transparent 1px);
+}
+body.theme-stealth ::-webkit-scrollbar-thumb{background:rgba(60,100,140,.2)}
 body.theme-night .ov-grid{
   background-image:linear-gradient(rgba(180,139,255,.2) 1px,transparent 1px),
     linear-gradient(90deg,rgba(180,139,255,.2) 1px,transparent 1px);
@@ -16712,7 +16720,7 @@ ashLoadDefs();
       label: 'STEALTH',
       dot:   '◆',
       color: '#7aa8cc',      // cold steel blue
-      video: 'https://raw.githubusercontent.com/radicaldeepscale/dartmeadow/main/static/dmbg.mp4',
+      video: 'assets/dartalley.mp4',
       bodyClass: 'theme-stealth'
     },
     {
