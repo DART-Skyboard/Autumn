@@ -9206,6 +9206,17 @@ async function handleSend() {
     S.sessions[S.currentSession].messages = [{ role:'autumn', text:'Chat history deleted.', ts:new Date().toISOString() }];
     saveState(); renderMessages(); S.isProcessing=false; return;
   }
+  if(_intentLabel === 'OPEN_MANDELBROT') {
+    var _mbTxt = S.sessions[S.currentSession].messages.slice(-1)[0]&&S.sessions[S.currentSession].messages.slice(-1)[0].text||'';
+    var _mbDur = (_mbTxt.match(/(\d+)\s*(?:minute|min)/i)||[])[1];
+    var _mbSec = (_mbTxt.match(/(\d+)\s*(?:second|sec)/i)||[])[1];
+    var _mbUrl = '/arc-edge-mandelbrot';
+    if (_mbDur) _mbUrl += '?dur=' + (parseInt(_mbDur)*60);
+    else if (_mbSec) _mbUrl += '?dur=' + _mbSec;
+    window.open(_mbUrl, '_mandelbrot');
+    msgs().push({ role:'autumn', text:'\u25c8 Arc Edge 3D Mandelbrot\u2014opening Mandelbulb (power 8, DOC 3.0 arc measurement).' + (_mbDur?' Generating for '+_mbDur+' min.':_mbSec?' Generating for '+_mbSec+'s.':''), ts:new Date().toISOString() });
+    saveState(); renderMessages(); S.isProcessing=false; return;
+  }
   if(_intentLabel === 'NEW_CHAT') {
     S.sessions.push({ id:Date.now(), messages:[{ role:'autumn', text:'New chat started.', ts:new Date().toISOString() }] });
     S.currentSession = S.sessions.length-1;
