@@ -629,6 +629,11 @@
     ov.addEventListener('click',function(e){e.stopPropagation();});document.body.appendChild(ov);
   }
 
+  /* Expose internal state for admin console access */
+  window.MIST       = MIST;
+  window._mistBind  = function(){ if(typeof _bindCanvas==='function') _bindCanvas(); };
+  window._mistRender= function(){ var m=MIST.mazes[MIST.activeMaze]; if(m&&typeof _renderMaze==='function') _renderMaze(m,MIST.dragPath||[]); };
+
   window.mistToggle=function(){
     MIST.open=!MIST.open;var ov=document.getElementById('mist-overlay');
     if(ov)ov.classList.toggle('mist-open',MIST.open);
