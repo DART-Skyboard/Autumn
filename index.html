@@ -24532,6 +24532,25 @@ window.mantisNav = {
       // ── Environment preset commands ──────────────────────────────
       var envMatch = m.match(/\b(earth|moon|mars|titan|custom)\b.*\b(grav|env|preset|atmo|planet)\b|\b(grav|env|preset|atmo|planet)\b.*\b(earth|moon|mars|titan)\b/i)
         || /\b(set|use|apply|switch)\b.{0,20}\b(earth|moon|mars|titan)\b/i.test(m);
+      /* ── Mandelbrot 3D commands ────────────────────────────────
+         "show mandelbrot", "generate fractal", "open arc edge mandelbrot",
+         "3d mandelbrot", "mandelbulb", "show me a fractal"              */
+      var mbMatch = /\b(mandel(brot|bulb)|3d\s+fractal|fractal\s+view|arc\s+edge\s+mandelbrot)\b/i.test(m)
+        || /\b(show|generate|open|launch)\b.{0,25}\b(fractal|mandelbrot|mandelbulb)\b/i.test(m)
+        || /\b(fractal)\b.{0,20}\b(show|open|generate|launch|start|run)\b/i.test(m);
+      if(mbMatch){
+        /* Open Arc Edge Mandelbrot in new tab or Autumn's tool frame if available */
+        var mbUrl = window.location.origin + '/arc-edge-mandelbrot';
+        var dur = (m.match(/(\d+)\s*(?:second|sec|minute|min)/i)||[])[1];
+        if(dur){
+          var unit = m.match(/min/i) ? 60 : 1;
+          mbUrl += '?dur=' + (parseInt(dur)*unit);
+        }
+        window.open(mbUrl, '_mandelbrot');
+        _appendMsg('autumn', '◈ Opening Arc Edge 3D Mandelbrot… Mandelbulb power-8 ray marching with DOC 3.0 perimeter measurement.'+(dur?' Generating for '+dur+(m.match(/min/i)?'m':'s')+'.':''));
+        return;
+      }
+
       if(envMatch || /\b(no\s*gravity|zero\s*g|disable\s*gravity)\b/i.test(m)){
         var emap={'earth':'earth','moon':'moon','mars':'mars','titan':'titan'};
         var ePreset='earth';
