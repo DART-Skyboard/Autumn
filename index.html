@@ -947,6 +947,36 @@ body.theme-night #vid-scrim{
   backdrop-filter:blur(7px) saturate(1.2) hue-rotate(20deg)!important;
   -webkit-backdrop-filter:blur(7px) saturate(1.2) hue-rotate(20deg)!important;
 }
+
+/* ── Stealth theme overrides ── */
+body.theme-stealth{
+  --cyan:#7aa8cc;--blue:#4a7090;--red:#a03050;
+  --bg:#080a0c;--bg2:#0e1114;
+  --border:rgba(100,130,160,0.13);
+  --text:#9aacbc;--dim:#3a4a58;--bright:#c0ccd8;
+  --tt-color:#7aa8cc;
+}
+body.theme-stealth header{
+  background:linear-gradient(180deg,rgba(10,20,30,.15) 0%,transparent 100%);
+  border-bottom-color:rgba(100,140,170,0.12);
+}
+body.theme-stealth #vid-scrim{
+  background:rgba(4,6,8,0.45)!important;
+  backdrop-filter:blur(8px) saturate(0.6) brightness(0.7)!important;
+  -webkit-backdrop-filter:blur(8px) saturate(0.6) brightness(0.7)!important;
+}
+body.theme-stealth #hdr-name{
+  background:linear-gradient(135deg,#7aa8cc,#4a7090,#8aaccc);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  letter-spacing:4px;
+}
+body.theme-stealth .orb-ring,.theme-stealth .brpn-ring{
+  filter:hue-rotate(160deg) saturate(0.6) brightness(0.85);
+}
+body.theme-stealth #hdr-avatar{
+  content:url('assets/autumn-stealth.png');
+  filter:none;
+}
 body.theme-night .ov-grid{
   background-image:linear-gradient(rgba(180,139,255,.2) 1px,transparent 1px),
     linear-gradient(90deg,rgba(180,139,255,.2) 1px,transparent 1px);
@@ -16678,6 +16708,14 @@ ashLoadDefs();
       bodyClass: 'theme-night'
     },
     {
+      key:   'stealth',
+      label: 'STEALTH',
+      dot:   '◆',
+      color: '#7aa8cc',      // cold steel blue
+      video: 'https://raw.githubusercontent.com/radicaldeepscale/dartmeadow/main/static/dmbg.mp4',
+      bodyClass: 'theme-stealth'
+    },
+    {
       key:   'system',
       label: 'AUTO',
       dot:   '◈',
@@ -16703,7 +16741,7 @@ ashLoadDefs();
     const btn   = document.getElementById('theme-toggle');
 
     // Swap body class
-    body.classList.remove('theme-night');
+    body.classList.remove('theme-night','theme-stealth');
     if (effective.bodyClass) body.classList.add(effective.bodyClass);
 
     // Swap video with crossfade
@@ -16718,6 +16756,13 @@ ashLoadDefs();
       }, 400);
     }
 
+    // Swap avatar logo for stealth mode
+    var _av = document.getElementById('hdr-avatar');
+    if (_av) {
+      _av.src = (effective.key === 'stealth')
+        ? 'assets/autumn-stealth.png'
+        : 'assets/autumn-avatar.png';
+    }
     // Update toggle pill appearance
     if (dot) {
       dot.textContent = t.dot;            // always show the *selected* theme icon
