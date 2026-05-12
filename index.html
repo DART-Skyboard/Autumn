@@ -20582,7 +20582,7 @@ window.emmToggle = function() {
       var ptR = Math.max(0.08, cloud.radius * 4.5 * 0.06);
 
       // Combine all icospheres for this cloud into one mesh
-      var positions = [], normals = [], colors = [], indices = [];
+      var posArr = [], nrmArr = [], colArr = [], idxArr = [];
       var baseIdx = 0;
 
       // Sub-sample if too many points (cap at 800 per cloud for export size)
@@ -20594,24 +20594,26 @@ window.emmToggle = function() {
 
         // Add 12 icosphere verts offset to this point position
         _icoV.forEach(function(v) {
-          positions.push(px + v[0]*ptR, py + v[1]*ptR, pz + v[2]*ptR);
-          normals.push(v[0], v[1], v[2]);
-          colors.push(cr, cg, cb, 1.0);
+          posArr.push(px + v[0]*ptR, py + v[1]*ptR, pz + v[2]*ptR);
+          nrmArr.push(v[0], v[1], v[2]);
+          colArr.push(cr, cg, cb);  // RGB only — writers expand to VEC4 themselves
         });
         // Add 20 triangle faces with base offset
         _icoF.forEach(function(f) {
-          indices.push(baseIdx+f[0], baseIdx+f[1], baseIdx+f[2]);
+          idxArr.push(baseIdx+f[0], baseIdx+f[1], baseIdx+f[2]);
         });
         baseIdx += 12;
       }
 
-      if (positions.length < 9) return;
+      if (posArr.length < 9) return;
+      var vcCount = posArr.length / 3;
       out.push({
         tube: {
-          positions: new Float32Array(positions),
-          normals:   new Float32Array(normals),
-          colors:    new Float32Array(colors),   // RGBA per vertex
-          indices:   new Uint32Array(indices)
+          pos: new Float32Array(posArr),   // matches all writer expectations
+          nrm: new Float32Array(nrmArr),
+          col: new Float32Array(colArr),   // RGB per vertex (vc*3)
+          idx: new Uint32Array(idxArr),
+          vc:  vcCount
         },
         ai:    'fractal_cloud_'+(ci+1),
         group: 'FractalClouds',
