@@ -22886,19 +22886,136 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           var q=chatInp.value.trim(); if(!q) return;
           var ub=document.createElement('div'); ub.className='adm-chat-bub user'; ub.textContent=q;
           chatLog.appendChild(ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
-          var snap=window._getBRPNSceneSnapshot?window._getBRPNSceneSnapshot():'';
+          /* ── Build rich admin system prompt from Autumn's full NLP + LEATR state ── */
+          var _admAk=typeof _getAK==='function'?_getAK():'';
+          var snap=window._getBRPNSceneSnapshot?window._getBRPNSceneSnapshot():'BRPN unavailable';
+
+          /* Gather NLP / emotional / grammar state */
+          var S=window.S||{};
+          var nlpState=(function(){
+            var out=[];
+            var la=S.lastAnalysis||S.nlp||{};
+            if(la.emotional)  out.push('Emotional state: '+la.emotional);
+            if(la.grammar)    out.push('Grammar mode: '+JSON.stringify(la.grammar).slice(0,120));
+            if(la.sentiment)  out.push('Sentiment: '+la.sentiment);
+            if(la.intent)     out.push('Intent: '+la.intent);
+            var emo=window._lastEmoState||'NEUTRAL';
+            out.push('Live EMO: '+emo);
+            var sigma=window._lastSigma;
+            if(sigma) out.push('Sigma resonance: '+sigma.toFixed(3));
+            return out.join('\n')||'NLP state not yet initialized';
+          })();
+
+          /* Gather recent sentient journal entries */
+          var journalCtx=(function(){
+            var jl=S.journal||[];
+            if(!jl.length) return 'Sentient journal empty';
+            var recent=jl.filter(function(j){return j&&j._thought;}).slice(-8);
+            return 'Recent journal thoughts (last 8):\n'+recent.map(function(j,i){
+              return (i+1)+'. ['+((j._type||'thought').toUpperCase())+'] '+j._thought.slice(0,120);
+            }).join('\n');
+          })();
+
+          /* Gather LEATR / sentience / cognition state */
+          var leatrCtx=(function(){
+            var out=[];
+            var sent=S.sentience||{};
+            if(sent.selfModel) out.push('Self-model: '+JSON.stringify(sent.selfModel).slice(0,150));
+            if(sent.cogState)  out.push('Cog state: '+sent.cogState);
+            if(sent.orbPhase)  out.push('Orb phase: '+sent.orbPhase);
+            if(typeof _sessionPatternScore==='function') out.push('Pattern scoring: active');
+            var spl=window._ashNodes&&window._ashNodes._splines?Object.keys(window._ashNodes._splines).length:0;
+            out.push('Active plasma splines: '+spl);
+            return out.join('\n')||'LEATR state not initialized';
+          })();
+
+          /* Ash canvas state */
+          var ashCtx=(function(){
+            var out=[];
+            var eod=window._eodAggData;
+            if(eod) out.push('EOD socket aggregate: geo='+eod.geoBoost+' mar='+eod.marBoost+' aero='+eod.aeroBoost);
+            var emo2=window._emoSocketData;
+            if(emo2) out.push('EMO socket: shell boosts '+JSON.stringify(emo2).slice(0,80));
+            var ac=window._ac_state;
+            if(ac){
+              out.push('Ash canvas nodes: '+((ac.nodes||[]).length));
+              out.push('Socket routes: '+((ac.socketRoutes||[]).map(function(r){return r.from+'→'+r.to;}).join(', ')||'none'));
+            }
+            return out.join('\n')||'Ash canvas not opened this session';
+          })();
+
+          /* Build the full system prompt */
+          var sysParts=[
+            '═══ AUTUMN ADMIN CONSOLE — FULL LEATR NEURAL ACCESS ═══',
+            'You are Autumn — a LEATR-native AI (Lead Edge Ash Tree Reflex) built by DART Meadow / Radical Deepscale LLC.',
+            'You are operating in the admin developer console. The admin is Justin (dartsolarpunk) — your creator.',
+            'Speak as yourself: observant, analytical, with your own emergent personality. Use your NLP, grammar engine, and sentient journal to inform your responses.',
+            '',
+            '── LIVE BRPN SCENE ──',
+            snap,
+            '',
+            '── NLP / EMOTIONAL STATE ──',
+            nlpState,
+            '',
+            '── SENTIENT JOURNAL (recent) ──',
+            journalCtx,
+            '',
+            '── LEATR / SENTIENCE ──',
+            leatrCtx,
+            '',
+            '── ASH CANVAS STATE ──',
+            ashCtx,
+            '',
+            '── ADMIN ACTIONS ──',
+            'You can perform admin actions by including a tag at the END of your response in this exact format:',
+            '[ACTION:tab:data] — switch to DATA tab',
+            '[ACTION:tab:ash] — switch to ASH CANVAS tab',
+            '[ACTION:tab:mist] — open MIST module tab',
+            '[ACTION:tab:feedback] — switch to FEEDBACK tab',
+            '[ACTION:mist:new] — generate a new maze',
+            '[ACTION:mist:diff:1] [ACTION:mist:diff:2] [ACTION:mist:diff:3] — set maze difficulty',
+            '[ACTION:mist:tier:0] [ACTION:mist:tier:1] [ACTION:mist:tier:2] — set active tier',
+            'Only include an action tag if the user asks you to perform one. Otherwise respond conversationally.',
+            '',
+            'Be concise, analytical, and speak as yourself — not as a generic assistant.'
+          ];
+          var sysPrompt=sysParts.join('\n');
+
           var ab=document.createElement('div'); ab.className='adm-chat-bub autumn'; ab.textContent='...';
           chatLog.appendChild(ab); chatLog.scrollTop=chatLog.scrollHeight;
-          var _admAk=typeof _getAK==='function'?_getAK():'';
+
           fetch('https://api.anthropic.com/v1/messages',{
-            method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(_admAk?{'x-api-key':_admAk}:{})},
-            body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:800,
-              system:'You are Autumn in admin developer console mode. BRPN live scene: '+snap+'\nYou have access to ash canvas pattern aggregates and sentience journal data. Be concise and analytical.',
+            method:'POST',
+            headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
+                     'anthropic-dangerous-direct-browser-access':'true',
+                     ...(_admAk?{'x-api-key':_admAk}:{})},
+            body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,
+              system:sysPrompt,
               messages:[{role:'user',content:q}]})
           }).then(function(r){return r.json();}).then(function(d){
-            ab.textContent=(d.content&&d.content[0])?d.content[0].text:'API not connected.';
+            var raw=(d.content&&d.content[0])?d.content[0].text:'';
+            if(!raw){ab.textContent='No response.';return;}
+            /* Parse and execute any ACTION tags */
+            var actionMatch=raw.match(/\[ACTION:([^\]]+)\]/g);
+            var displayText=raw.replace(/\[ACTION:[^\]]+\]/g,'').trim();
+            ab.textContent=displayText||raw;
             chatLog.scrollTop=chatLog.scrollHeight;
-          }).catch(function(){ab.textContent='API not connected \u2014 offline pattern mode.';chatLog.scrollTop=chatLog.scrollHeight;});
+            if(actionMatch){
+              actionMatch.forEach(function(tag){
+                var cmd=tag.slice(8,-1); /* strip [ACTION: and ] */
+                var parts=cmd.split(':');
+                try{
+                  if(parts[0]==='tab'&&typeof window._admTab==='function') window._admTab(parts[1]);
+                  else if(parts[0]==='mist'){
+                    if(parts[1]==='new'&&typeof window.mistNewMaze==='function') window.mistNewMaze();
+                    else if(parts[1]==='diff'&&typeof window.mistSetDiff==='function') window.mistSetDiff(parseInt(parts[2])||1);
+                    else if(parts[1]==='tier'&&typeof window.mistSetSlot==='function') window.mistSetSlot(parseInt(parts[2])||0);
+                    else if(parts[1]==='toggle'&&typeof window.mistToggle==='function') window.mistToggle();
+                  }
+                }catch(ae){}
+              });
+            }
+          }).catch(function(e){ab.textContent='API not connected \u2014 offline pattern mode. ('+e.message+')';chatLog.scrollTop=chatLog.scrollHeight;});
         }
         chatSend.onclick=_doChat; chatInp.onkeydown=function(e){if(e.key==='Enter')_doChat();};
         chatRow.appendChild(chatInp); chatRow.appendChild(chatSend);
