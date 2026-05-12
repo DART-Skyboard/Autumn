@@ -949,42 +949,188 @@ body.theme-night #vid-scrim{
 }
 
 /* ── Stealth theme overrides ── */
+/* ═══════════════════════════════════════════════════════════════
+   DART ALLEY / STEALTH THEME
+   Logo palette: midnight navy #0d1528, royal blue outline #1a35a0,
+   steel crystal #2a4a8a, deep indigo #0a1235
+   All changes are purely cosmetic — zero functional impact.
+═══════════════════════════════════════════════════════════════ */
 body.theme-stealth{
-  --cyan:#5a8ab0;--blue:#2a5070;--red:#802840;
-  --bg:#030407;--bg2:#07090e;
-  --border:rgba(60,90,120,0.14);
-  --text:#7a9aae;--dim:#253545;--bright:#a0b8c8;
-  --tt-color:#4a7aaa;
+  --cyan:#3a6aaa;--blue:#1a3a70;--red:#6a1a40;
+  --bg:#010308;--bg2:#050810;
+  --border:rgba(26,53,120,0.18);
+  --text:#6a8aaa;--dim:#1a2a40;--bright:#8aaaca;
+  --tt-color:#2a5a9a;
 }
+
+/* Header */
 body.theme-stealth header{
-  background:linear-gradient(180deg,rgba(4,8,14,.55) 0%,rgba(2,4,8,.2) 100%);
-  border-bottom-color:rgba(60,100,140,0.1);
+  background:linear-gradient(180deg,rgba(2,5,16,.7) 0%,rgba(1,3,8,.3) 100%);
+  border-bottom-color:rgba(26,53,120,0.14);
 }
+
+/* Background video scrim — very dark, desaturated */
 body.theme-stealth #vid-scrim{
-  background:rgba(2,3,6,0.62)!important;
-  backdrop-filter:blur(10px) saturate(0.4) brightness(0.55)!important;
-  -webkit-backdrop-filter:blur(10px) saturate(0.4) brightness(0.55)!important;
+  background:rgba(1,2,6,0.72)!important;
+  backdrop-filter:blur(12px) saturate(0.3) brightness(0.45)!important;
+  -webkit-backdrop-filter:blur(12px) saturate(0.3) brightness(0.45)!important;
 }
-body.theme-stealth #hdr-name{
-  background:linear-gradient(135deg,#8ab0d0,#1a3a5a,#6a9abf,#0d2035);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  letter-spacing:4px;filter:drop-shadow(0 0 6px rgba(90,138,176,0.4));
+
+/* "Autumn" title — exactly matches logo navy-to-royal-blue */
+body.theme-stealth #hdr-name,
+body.theme-stealth .logo{
+  background:linear-gradient(135deg,#0d1a40,#1a35a0,#0a1235,#2a4a8a)!important;
+  -webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;
+  background-clip:text!important;
+  letter-spacing:4px;
+  filter:drop-shadow(0 0 8px rgba(26,53,160,0.5))!important;
 }
-body.theme-stealth .orb-ring,.theme-stealth .brpn-ring{
-  filter:hue-rotate(170deg) saturate(0.45) brightness(0.75);
-}
+body.theme-stealth .logo-sub{color:rgba(42,74,138,.6)!important}
+
+/* Logo avatar swap */
 body.theme-stealth #hdr-avatar{
   content:url('assets/autumn-stealth.png');
-  filter:none;
+  filter:none!important;
 }
-body.theme-stealth .glass,body.theme-stealth .msg-autumn{
-  background:rgba(4,8,14,0.78);border-color:rgba(60,100,140,0.12);
+
+/* Orb / BRPN rings — shift to cool steel blue */
+body.theme-stealth .orb-ring,
+body.theme-stealth .brpn-ring{
+  filter:hue-rotate(175deg) saturate(0.4) brightness(0.7)!important;
 }
+
+/* Grid overlay */
 body.theme-stealth .ov-grid{
-  background-image:linear-gradient(rgba(60,100,140,.15) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(60,100,140,.15) 1px,transparent 1px);
+  background-image:linear-gradient(rgba(26,53,120,.12) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(26,53,120,.12) 1px,transparent 1px)!important;
 }
-body.theme-stealth ::-webkit-scrollbar-thumb{background:rgba(60,100,140,.2)}
+
+/* Scrollbar */
+body.theme-stealth ::-webkit-scrollbar-thumb{background:rgba(26,53,120,.22)!important}
+
+/* Glass panels, message bubbles, overlays */
+body.theme-stealth .glass,
+body.theme-stealth .msg-autumn,
+body.theme-stealth .msg-user{
+  background:rgba(2,5,16,0.82)!important;
+  border-color:rgba(26,53,120,0.14)!important;
+}
+
+/* Footer bar */
+body.theme-stealth #footer-bar{
+  background:rgba(1,3,10,.7)!important;
+  border-top-color:rgba(26,53,120,0.12)!important;
+}
+body.theme-stealth #footer-bar .pulse-d{
+  background:rgba(42,90,160,.8)!important;
+  box-shadow:0 0 5px rgba(42,90,160,.5)!important;
+}
+body.theme-stealth #footer-bar span,
+body.theme-stealth #footer-bar a{color:rgba(100,140,190,.5)!important}
+
+/* Multi-user / session bar */
+body.theme-stealth #multi-user-bar{
+  border-top-color:rgba(26,53,120,0.12)!important;
+}
+
+/* Theme toggle pill */
+body.theme-stealth #theme-toggle{
+  border-color:rgba(42,90,160,.3)!important;
+  box-shadow:0 0 8px rgba(26,53,120,.2)!important;
+}
+
+/* HUD side labels — GEO / MAR / AERO dots, stat labels */
+body.theme-stealth .hud-label,
+body.theme-stealth .hud-key,
+body.theme-stealth .hud-val,
+body.theme-stealth .stat-label,
+body.theme-stealth .geo-label,
+body.theme-stealth .mar-label,
+body.theme-stealth .aero-label,
+body.theme-stealth .emo-label{
+  color:rgba(90,130,180,.6)!important;
+}
+
+/* LIVE / TOOLS header buttons */
+body.theme-stealth #live-btn,
+body.theme-stealth #tools-btn{
+  color:rgba(90,130,180,.7)!important;
+  border-color:rgba(26,53,120,.25)!important;
+}
+body.theme-stealth #live-btn.live-active{
+  color:rgba(42,90,160,.9)!important;
+  border-color:rgba(42,90,160,.4)!important;
+  box-shadow:0 0 8px rgba(26,53,120,.3)!important;
+}
+
+/* HUD tool buttons (RADAR, NAV etc.) */
+body.theme-stealth .hud-tools-tab,
+body.theme-stealth .tool-tab,
+body.theme-stealth .side-tab-btn{
+  background:rgba(2,5,16,.8)!important;
+  border-color:rgba(26,53,120,.2)!important;
+  color:rgba(80,120,170,.65)!important;
+}
+
+/* ASH canvas / journal module */
+body.theme-stealth .ash-btn{
+  background:rgba(26,53,120,.08)!important;
+  border-color:rgba(26,53,120,.22)!important;
+  color:rgba(80,130,190,.8)!important;
+}
+body.theme-stealth .ash-btn:hover{background:rgba(26,53,120,.18)!important}
+body.theme-stealth .ash-tab{color:rgba(60,100,150,.6)!important}
+body.theme-stealth .ash-tab.active{
+  color:rgba(80,140,200,.9)!important;
+  border-bottom-color:rgba(42,90,160,.7)!important;
+}
+body.theme-stealth .ash-ctrl-lbl{color:rgba(60,100,150,.5)!important}
+body.theme-stealth .ash-ctrl-input{
+  background:rgba(2,5,16,.6)!important;
+  border-color:rgba(26,53,120,.18)!important;
+}
+body.theme-stealth .ash-crypto-section{
+  background:rgba(1,3,10,.6)!important;
+  border-color:rgba(26,53,120,.14)!important;
+}
+body.theme-stealth .ash-crypto-title,
+body.theme-stealth .ash-key-lbl{color:rgba(60,100,150,.6)!important}
+
+/* Journal entries */
+body.theme-stealth .journal-entry{
+  background:rgba(2,5,16,.5)!important;
+  border-color:rgba(26,53,120,.1)!important;
+}
+body.theme-stealth .journal-num{color:rgba(60,100,160,.7)!important}
+
+/* Mantis overlay headers / labels */
+body.theme-stealth .mr-title,
+body.theme-stealth .mr-label,
+body.theme-stealth .mn-title,
+body.theme-stealth .mn-label{
+  color:rgba(80,130,190,.8)!important;
+}
+
+/* Module overlay backgrounds */
+body.theme-stealth .ov-panel,
+body.theme-stealth .arc-panel,
+body.theme-stealth .storm-panel{
+  background:rgba(2,5,16,.9)!important;
+  border-color:rgba(26,53,120,.18)!important;
+}
+
+/* Input fields globally in stealth */
+body.theme-stealth input,
+body.theme-stealth textarea,
+body.theme-stealth select{
+  background:rgba(2,5,16,.7)!important;
+  border-color:rgba(26,53,120,.2)!important;
+  color:rgba(100,140,190,.9)!important;
+}
+body.theme-stealth input::placeholder,
+body.theme-stealth textarea::placeholder{
+  color:rgba(50,80,120,.5)!important;
+}
 body.theme-night .ov-grid{
   background-image:linear-gradient(rgba(180,139,255,.2) 1px,transparent 1px),
     linear-gradient(90deg,rgba(180,139,255,.2) 1px,transparent 1px);
