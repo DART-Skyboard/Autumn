@@ -20543,30 +20543,139 @@ window.emmToggle = function() {
   }
 
   // ── Main export — called directly by the ⬇ EXPORT button ─────────
+  /* ── Convert fractal point clouds → mesh geometry for export ────────────
+     Each point becomes a tiny icosahedron (20-face sphere approximation).
+     All clouds are placed into a named group "FractalClouds" so they appear
+     as a single collapsible group in Blender, Nomad, Maya, etc.
+     Arc meshes are added to a second group "ArcEdges" preserving existing logic.
+  ────────────────────────────────────────────────────────────────────────── */
+  function _asFracToMeshes() {
+    var out = [];
+    if (!window._asFrac || !window._asFrac.clouds) return out;
+
+    // Pre-baked icosahedron vertices + faces (20 tris, radius 1)
+    var PHI = (1 + Math.sqrt(5)) / 2;
+    var _icoV = (function(){
+      var v = [
+        [-1,PHI,0],[1,PHI,0],[-1,-PHI,0],[1,-PHI,0],
+        [0,-1,PHI],[0,1,PHI],[0,-1,-PHI],[0,1,-PHI],
+        [PHI,0,-1],[PHI,0,1],[-PHI,0,-1],[-PHI,0,1]
+      ];
+      return v.map(function(p){
+        var l=Math.sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+        return [p[0]/l,p[1]/l,p[2]/l];
+      });
+    })();
+    var _icoF = [
+      [0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+      [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+      [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+      [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]
+    ];
+
+    _asFrac.clouds.forEach(function(cloud, ci) {
+      if (!cloud || cloud.count < 1) return;
+      var pts = cloud.pts;
+      var cols = cloud.colors;
+      // Point radius scales with bulb radius, min 0.03 world units
+      var ptR = Math.max(0.03, cloud.radius * 0.06);
+
+      // Combine all icospheres for this cloud into one mesh
+      var positions = [], normals = [], colors = [], indices = [];
+      var baseIdx = 0;
+
+      // Sub-sample if too many points (cap at 800 per cloud for export size)
+      var step = Math.max(1, Math.floor(cloud.count / 800));
+
+      for (var pi = 0; pi < cloud.count; pi += step) {
+        var px = pts[pi*3], py = pts[pi*3+1], pz = pts[pi*3+2];
+        var cr = cols[pi*3] || 0.5, cg = cols[pi*3+1] || 0.5, cb = cols[pi*3+2] || 1.0;
+
+        // Add 12 icosphere verts offset to this point position
+        _icoV.forEach(function(v) {
+          positions.push(px + v[0]*ptR, py + v[1]*ptR, pz + v[2]*ptR);
+          normals.push(v[0], v[1], v[2]);
+          colors.push(cr, cg, cb, 1.0);
+        });
+        // Add 20 triangle faces with base offset
+        _icoF.forEach(function(f) {
+          indices.push(baseIdx+f[0], baseIdx+f[1], baseIdx+f[2]);
+        });
+        baseIdx += 12;
+      }
+
+      if (positions.length < 9) return;
+      out.push({
+        tube: {
+          positions: new Float32Array(positions),
+          normals:   new Float32Array(normals),
+          colors:    new Float32Array(colors),   // RGBA per vertex
+          indices:   new Uint32Array(indices)
+        },
+        ai:    'fractal_cloud_'+(ci+1),
+        group: 'FractalClouds',
+        depth: cloud.depth,
+        cr: cols[0]||0.5, cg: cols[1]||0.5, cb: cols[2]||1.0
+      });
+    });
+    return out;
+  }
+
   window.arcStudioExport = function(fmt) {
     // Close any stale modal just in case
     var em=document.getElementById('as-export-modal'); if(em) em.remove();
     fmt=(fmt||'glb').toLowerCase().trim();
-    if(!_as.arcs || !_as.arcs.length){
-      if(typeof ideToast==='function') ideToast('Add at least one arc first', 2000);
+
+    var arcMeshes  = (_as.arcs && _as.arcs.length) ? _asGetMeshes() : [];
+    var fracMeshes = _asFracToMeshes();
+    var hasFrac    = fracMeshes.length > 0;
+    var hasArcs    = arcMeshes.length > 0;
+
+    if(!hasArcs && !hasFrac){
+      if(typeof ideToast==='function') ideToast('Nothing to export — add arcs or generate a fractal first', 2500);
       return;
     }
-    var meshes=_asGetMeshes();
-    if(!meshes.length){ if(typeof ideToast==='function') ideToast('No valid arcs to export',2000); return; }
-    var n=_as.arcs.length, toast=function(m){if(typeof ideToast==='function') ideToast(m,2500);};
+
+    // Tag arc meshes with group name
+    arcMeshes.forEach(function(m){ m.group = m.group || 'ArcEdges'; });
+
+    // Combined mesh list — arcs first, fractal clouds after
+    var allMeshes = arcMeshes.concat(fracMeshes);
+    var nArcs = arcMeshes.length;
+    var nClouds = fracMeshes.length;
+    var label = [];
+    if(nArcs)   label.push(nArcs+' arc'+(nArcs>1?'s':''));
+    if(nClouds) label.push(nClouds+' fractal cloud'+(nClouds>1?'s':''));
+    var toast=function(m){if(typeof ideToast==='function') ideToast(m,2800);};
+
     try{
-      if(fmt==='glb'){   _asDL(_asWriteGLB(meshes,true),  'arc-edge-scene.glb');  toast('GLB downloaded — '+n+' arc mesh'+(n>1?'es':'')); }
-      else if(fmt==='gltf'){ _asDL(_asWriteGLB(meshes,false),'arc-edge-scene.gltf'); toast('GLTF downloaded — '+n+' arc mesh'+(n>1?'es':'')); }
-      else if(fmt==='obj'){ _asDL(_asWriteOBJ(meshes),'arc-edge-scene.obj'); toast('OBJ downloaded'); }
-      else if(fmt==='stl'){ _asDL(_asWriteSTL(meshes),'arc-edge-scene.stl'); toast('STL downloaded'); }
-      else if(fmt==='fbx'){ _asDL(_asWriteFBX(meshes),'arc-edge-scene.fbx'); toast('FBX ASCII downloaded'); }
-      else if(fmt==='dae'){ _asDL(_asWriteDAE(meshes),'arc-edge-scene.dae'); toast('DAE downloaded'); }
-      else if(fmt==='json'){
-        var data=_as.arcs.map(function(a,i){return{index:i+1,params:a.params,length:a.length||0,color:'#00ff88',selectedColor:'#ff1166'};});
-        _asDL(new Blob([JSON.stringify({autumnArcEdge:true,version:'1.0',arcs:data},null,2)],{type:'application/json'}),'arc-edge-scene.json');
+      if(fmt==='glb'){
+        _asDL(_asWriteGLB(allMeshes,true), 'arc-edge-scene.glb');
+        toast('GLB — '+label.join(' + '));
+      } else if(fmt==='gltf'){
+        _asDL(_asWriteGLB(allMeshes,false),'arc-edge-scene.gltf');
+        toast('GLTF — '+label.join(' + '));
+      } else if(fmt==='obj'){
+        _asDL(_asWriteOBJ(allMeshes),'arc-edge-scene.obj');
+        toast('OBJ downloaded');
+      } else if(fmt==='stl'){
+        _asDL(_asWriteSTL(allMeshes),'arc-edge-scene.stl');
+        toast('STL downloaded');
+      } else if(fmt==='fbx'){
+        _asDL(_asWriteFBX(allMeshes),'arc-edge-scene.fbx');
+        toast('FBX ASCII downloaded');
+      } else if(fmt==='dae'){
+        _asDL(_asWriteDAE(allMeshes),'arc-edge-scene.dae');
+        toast('DAE downloaded');
+      } else if(fmt==='json'){
+        var arcData  = _as.arcs.map(function(a,i){return{group:'ArcEdges',index:i+1,params:a.params,length:a.length||0};});
+        var fracData = (_asFrac.clouds||[]).filter(function(c){return c&&c.count>0;}).map(function(c,i){
+          return{group:'FractalClouds',index:i+1,depth:c.depth,pointCount:c.count,radius:c.radius,center:{x:c.cx,y:c.cy,z:c.cz}};
+        });
+        _asDL(new Blob([JSON.stringify({autumnArcEdge:true,version:'2.0',groups:{ArcEdges:arcData,FractalClouds:fracData}},null,2)],{type:'application/json'}),'arc-edge-scene.json');
         toast('JSON exported');
       }
-    }catch(e){
+    } catch(e) {
       console.error('[ArcExport]',e);
       if(typeof ideToast==='function') ideToast('Export error: '+e.message,3500);
     }
