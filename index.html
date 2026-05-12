@@ -468,149 +468,278 @@ window._refreshAnalyticsNow = async function() {
 
 
   /* ═══════════════ ARC STUDIO FRACTAL GENERATION ════════════════════════════
-     Mandelbulb (power-n) surface sampler + DOC 3.0 arc perimeter measurement
-     Works entirely inside the existing _as scene — no external dependencies
+     Mandelbulb 3D — proper isosurface march producing self-similar bulb geometry
+     + DOC 3.0 contour arc measurement of the outer silhouette boundary
+     All Three.js access via window._arcStudio (correct global reference)
   ═══════════════════════════════════════════════════════════════════════════ */
-  var _asFrac = { running:false, timer:null, pts:[], mesh:null, arcMesh:null,
-                  elapsed:0, totalPts:0, startT:0 };
+  var _asFrac = {
+    running: false, timer: null, elapsed: 0, startT: 0,
+    ptsMesh: null, contourMesh: null, axisMesh: null,
+    pts: null,     // Float32Array of surface point positions
+    ptCount: 0,
+    colors: null   // Float32Array of per-point colors
+  };
 
-  /* DOC=3.0 venableCircumference */
-  function _asVC(d){ return d * 3; }
-
-  /* Mandelbulb distance estimator */
-  function _asMBde(x,y,z,pw,mi,ba){
-    var zx=x,zy=y,zz=z,dr=1,r=0,i=0;
-    for(;i<mi;i++){
-      r=Math.sqrt(zx*zx+zy*zy+zz*zz);
-      if(r>ba) break;
-      var theta=Math.acos(Math.max(-1,Math.min(1,zz/r)));
-      var phi=Math.atan2(zy,zx);
-      dr=Math.pow(r,pw-1)*pw*dr+1;
-      var zr=Math.pow(r,pw);
-      theta*=pw; phi*=pw;
-      zx=zr*Math.sin(theta)*Math.cos(phi)+x;
-      zy=zr*Math.sin(theta)*Math.sin(phi)+y;
-      zz=zr*Math.cos(theta)+z;
+  /* ── Mandelbulb distance estimator (DE) ────────────────────────────────
+     Returns approximate distance to Mandelbulb surface.
+     Closer to 0 = on surface. Negative = inside. */
+  function _mbDE(cx, cy, cz, power, maxIter) {
+    var zx = cx, zy = cy, zz = cz;
+    var dr = 1.0, r = 0.0;
+    for (var i = 0; i < maxIter; i++) {
+      r = Math.sqrt(zx*zx + zy*zy + zz*zz);
+      if (r > 2.0) break;
+      var theta = Math.acos(Math.max(-1, Math.min(1, zz / r)));
+      var phi   = Math.atan2(zy, zx);
+      dr = Math.pow(r, power - 1) * power * dr + 1.0;
+      var zr = Math.pow(r, power);
+      theta *= power; phi *= power;
+      zx = zr * Math.sin(theta) * Math.cos(phi) + cx;
+      zy = zr * Math.sin(theta) * Math.sin(phi) + cy;
+      zz = zr * Math.cos(theta) + cz;
     }
-    return r<0.001?0:(0.5*Math.log(r)*r/dr);
+    return r < 2.0 ? 0 : 0.5 * Math.log(r) * r / dr;
   }
 
-  function arcStudioGenerateFractal(){
-    if(!window._arcStudio.scene){ alert('Open Arc Edge Studio first.'); return; }
+  /* ── Smooth iteration count for coloring ──────────────────────────────── */
+  function _mbIterSmooth(cx, cy, cz, power, maxIter) {
+    var zx = cx, zy = cy, zz = cz, r = 0, i = 0;
+    for (; i < maxIter; i++) {
+      r = Math.sqrt(zx*zx + zy*zy + zz*zz);
+      if (r > 2.0) break;
+      var theta = Math.acos(Math.max(-1, Math.min(1, zz / r)));
+      var phi   = Math.atan2(zy, zx);
+      var zr    = Math.pow(r, power);
+      theta *= power; phi *= power;
+      zx = zr * Math.sin(theta) * Math.cos(phi) + cx;
+      zy = zr * Math.sin(theta) * Math.sin(phi) + cy;
+      zz = zr * Math.cos(theta) + cz;
+    }
+    if (i >= maxIter) return 0; // interior
+    return i + 1 - Math.log(Math.log(r)) / Math.log(power);
+  }
+
+  /* ── Color from smooth iteration (Mandelbrot-style: gold/blue/white) ──── */
+  function _mbColor(t, maxIter) {
+    if (t <= 0) { return [0.02, 0.02, 0.04]; } // interior — near black
+    var n = t / maxIter;
+    // Classic Mandelbrot palette: black interior, gold→blue→white boundary
+    var r, g, b;
+    if (n < 0.15) {
+      // Deep gold near boundary
+      r = 0.9 + n * 2; g = 0.55 + n * 3; b = 0.05;
+    } else if (n < 0.45) {
+      // Gold → silver
+      var s = (n - 0.15) / 0.30;
+      r = 1.0 - s * 0.3; g = 0.9 - s * 0.3; b = 0.05 + s * 0.65;
+    } else if (n < 0.75) {
+      // Silver → ice blue
+      var s = (n - 0.45) / 0.30;
+      r = 0.7 - s * 0.55; g = 0.7 - s * 0.4; b = 0.7 + s * 0.3;
+    } else {
+      // Outer deep blue
+      var s = (n - 0.75) / 0.25;
+      r = 0.15 - s * 0.1; g = 0.3 - s * 0.2; b = 1.0;
+    }
+    return [Math.max(0,Math.min(1,r)), Math.max(0,Math.min(1,g)), Math.max(0,Math.min(1,b))];
+  }
+
+  /* ── Main generate function ─────────────────────────────────────────── */
+  function arcStudioGenerateFractal() {
+    var _as = window._arcStudio;
+    if (!_as || !_as.scene) { alert('Open Arc Edge Studio first.'); return; }
     arcStudioStopFractal();
-    _asFrac.pts=[]; _asFrac.elapsed=0; _asFrac.totalPts=0;
-    _asFrac.startT=Date.now();
 
-    /* Remove previous fractal meshes */
-    if(_asFrac.mesh){ window._arcStudio.scene.remove(_asFrac.mesh); _asFrac.mesh=null; }
-    if(_asFrac.arcMesh){ window._arcStudio.scene.remove(_asFrac.arcMesh); _asFrac.arcMesh=null; }
+    var power     = parseFloat(document.getElementById('as-frac-power').value) || 8;
+    var maxIter   = parseInt(document.getElementById('as-frac-iter').value)    || 60;
+    var durSec    = parseInt(document.getElementById('as-frac-dur').value)     || 60;
+    var totalPts  = parseInt(document.getElementById('as-frac-pts').value)     || 6000;
 
-    var dur = parseInt(document.getElementById('as-frac-dur').value)||60;
-    var totalSamples = parseInt(document.getElementById('as-frac-pts').value)||6000;
-    var batchSize = Math.max(50, Math.floor(totalSamples / (dur*4))); // batches per 250ms tick
-    document.getElementById('as-frac-gen-btn').textContent='◈ RUNNING…';
+    // Remove previous meshes
+    ['ptsMesh','contourMesh','axisMesh'].forEach(function(k){
+      if (_asFrac[k]) { _as.scene.remove(_asFrac[k]); _asFrac[k] = null; }
+    });
 
-    _asFrac.running=true;
-    _asFrac.timer=setInterval(function(){
-      if(!_asFrac.running) return;
-      _asFrac.elapsed = (Date.now()-_asFrac.startT)/1000;
+    _asFrac.pts     = new Float32Array(totalPts * 3);
+    _asFrac.colors  = new Float32Array(totalPts * 3);
+    _asFrac.ptCount = 0;
+    _asFrac.elapsed = 0;
+    _asFrac.startT  = Date.now();
+    _asFrac.running = true;
 
-      var pw  = parseFloat(document.getElementById('as-frac-power').value)||8;
-      var mi  = parseInt(document.getElementById('as-frac-iter').value)||60;
-      var eps = 0.04 + 0.02*(pw/8);   // surface thickness tolerance
-      var bail= 4.0;
-      var added=0;
+    document.getElementById('as-frac-gen-btn').textContent = '◈ RUNNING…';
 
-      for(var s=0;s<batchSize*4&&added<batchSize;s++){
-        var x=(Math.random()-0.5)*2.4;
-        var y=(Math.random()-0.5)*2.4;
-        var z=(Math.random()-0.5)*2.4;
-        var de=_asMBde(x,y,z,pw,mi,bail);
-        if(Math.abs(de)<eps){ _asFrac.pts.push(x,y,z); added++; }
+    /* Surface thickness — tighter = sharper boundary definition */
+    var eps    = 0.012 + 0.006 * (power / 8);
+    var batchN = Math.max(30, Math.floor(totalPts / (durSec * 4)));
+    var bound  = 1.25; // Mandelbulb lives within radius ~1.2
+
+    _asFrac.timer = setInterval(function() {
+      if (!_asFrac.running) return;
+      _asFrac.elapsed = (Date.now() - _asFrac.startT) / 1000;
+
+      var added = 0, tries = 0;
+      var maxTries = batchN * 40;
+
+      while (added < batchN && tries < maxTries && _asFrac.ptCount < totalPts) {
+        tries++;
+        /* Stratified sampling within bounding sphere */
+        var x = (Math.random() - 0.5) * 2 * bound;
+        var y = (Math.random() - 0.5) * 2 * bound;
+        var z = (Math.random() - 0.5) * 2 * bound;
+        if (x*x + y*y + z*z > bound*bound) continue;
+
+        var de = _mbDE(x, y, z, power, maxIter);
+        if (Math.abs(de) < eps) {
+          var i3 = _asFrac.ptCount * 3;
+          _asFrac.pts[i3]   = x;
+          _asFrac.pts[i3+1] = y;
+          _asFrac.pts[i3+2] = z;
+          var t = _mbIterSmooth(x, y, z, power, maxIter);
+          var col = _mbColor(t, maxIter);
+          _asFrac.colors[i3]   = col[0];
+          _asFrac.colors[i3+1] = col[1];
+          _asFrac.colors[i3+2] = col[2];
+          _asFrac.ptCount++;
+          added++;
+        }
       }
-      _asFrac.totalPts=_asFrac.pts.length/3;
 
-      /* Rebuild Points mesh */
-      if(_asFrac.mesh) window._arcStudio.scene.remove(_asFrac.mesh);
-      var geo=new THREE.BufferGeometry();
-      geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(_asFrac.pts),3));
-      var mat=new THREE.PointsMaterial({
-        size:0.04,color:0xa78bfa,sizeAttenuation:true,transparent:true,opacity:0.85
-      });
-      _asFrac.mesh=new THREE.Points(geo,mat);
-      _asFrac.mesh.scale.set(4,4,4);
-      window._arcStudio.scene.add(_asFrac.mesh);
+      /* Rebuild point cloud mesh */
+      _asFracRebuildMesh();
+      _asFracMeasureContour(durSec);
 
-      /* Measure and update readout every tick */
-      _asFracMeasure(dur);
-
-      /* Stop when duration elapsed or enough points */
-      if(_asFrac.elapsed>=dur || _asFrac.totalPts>=totalSamples){
+      if (_asFrac.elapsed >= durSec || _asFrac.ptCount >= totalPts) {
         arcStudioStopFractal();
-        _asFracDrawArcs();
+        _asFracDrawContour();
       }
-    },250);
+    }, 250);
   }
 
-  function arcStudioStopFractal(){
-    _asFrac.running=false;
-    if(_asFrac.timer){ clearInterval(_asFrac.timer); _asFrac.timer=null; }
-    document.getElementById('as-frac-gen-btn').textContent='◈ GENERATE';
-    if(_asFrac.totalPts>0) _asFracMeasure(parseInt(document.getElementById('as-frac-dur').value)||60);
+  /* ── Rebuild the point cloud geometry each tick ─────────────────────── */
+  function _asFracRebuildMesh() {
+    var _as = window._arcStudio;
+    if (!_as || !_as.scene || _asFrac.ptCount < 1) return;
+
+    if (_asFrac.ptsMesh) _as.scene.remove(_asFrac.ptsMesh);
+
+    var n   = _asFrac.ptCount;
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(_asFrac.pts.slice(0, n*3), 3));
+    geo.setAttribute('color',    new THREE.BufferAttribute(_asFrac.colors.slice(0, n*3), 3));
+
+    var mat = new THREE.PointsMaterial({
+      size: 0.022,
+      vertexColors: true,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.92
+    });
+
+    _asFrac.ptsMesh = new THREE.Points(geo, mat);
+    _asFrac.ptsMesh.scale.set(5, 5, 5);
+    _as.scene.add(_asFrac.ptsMesh);
   }
 
-  function _asFracMeasure(dur){
-    var pts=_asFrac.pts; var n=pts.length/3;
-    if(n<3){ document.getElementById('as-frac-readout').innerHTML='PERIMETER: — DOC units<br>ARCS: — | AVG D: —<br>ELAPSED: '+_asFrac.elapsed.toFixed(1)+'s / '+dur+'s'; return; }
+  /* ── Draw contour arc lines along outer silhouette boundary ─────────── */
+  function _asFracDrawContour() {
+    var _as = window._arcStudio;
+    if (!_as || !_as.scene || _asFrac.ptCount < 10) return;
+    if (_asFrac.contourMesh) { _as.scene.remove(_asFrac.contourMesh); _asFrac.contourMesh = null; }
 
-    /* Project to XY plane, sort by angle to get boundary approximation */
-    var cx=0,cy=0;
-    for(var i=0;i<pts.length;i+=3){ cx+=pts[i]; cy+=pts[i+1]; }
-    cx/=n; cy/=n;
-    var boundary=[];
-    for(var i=0;i<pts.length;i+=3) boundary.push({x:pts[i],y:pts[i+1],z:pts[i+2]});
-    boundary.sort(function(a,b){ return Math.atan2(a.y-cy,a.x-cx)-Math.atan2(b.y-cy,b.x-cx); });
+    var pts = _asFrac.pts, n = _asFrac.ptCount;
+    var sc  = 5; // match ptsMesh scale
 
-    /* Thin boundary — keep only outermost ~256 */
-    var step=Math.max(1,Math.floor(boundary.length/256));
-    var bpts=[];
-    for(var i=0;i<boundary.length;i+=step) bpts.push(boundary[i]);
-    var arcCount=bpts.length;
+    /* Project all points to XZ plane, find boundary ring by max radius per angle slice */
+    var slices = 128;
+    var ring   = new Array(slices).fill(null);
 
-    /* Measure perimeter with venableCircumference DOC=3.0 */
-    var totalLen=0,totalD=0;
-    for(var i=0;i<arcCount;i++){
-      var a=bpts[i],b=bpts[(i+1)%arcCount];
-      var segLen=Math.sqrt((b.x-a.x)*(b.x-a.x)+(b.y-a.y)*(b.y-a.y)+(b.z-a.z)*(b.z-a.z));
-      var d=Math.max(1,Math.round(segLen*8/3));
-      totalLen+=_asVC(d);
-      totalD+=d;
+    for (var i = 0; i < n; i++) {
+      var x = pts[i*3] * sc;
+      var z = pts[i*3+2] * sc;
+      var y = pts[i*3+1] * sc;
+      var ang = Math.atan2(z, x); // -π to π
+      var si  = Math.floor((ang + Math.PI) / (2 * Math.PI / slices));
+      si = Math.max(0, Math.min(slices - 1, si));
+      var r2  = x*x + z*z;
+      if (!ring[si] || r2 > ring[si].r2) {
+        ring[si] = { x: x, y: y, z: z, r2: r2 };
+      }
     }
-    var docPerimeter=totalLen.toFixed(2);
-    var avgD=(totalD/arcCount).toFixed(1);
 
-    document.getElementById('as-frac-readout').innerHTML=
-      'PERIMETER: <b style="color:#a78bfa">'+docPerimeter+'</b> DOC units<br>'+
-      'ARCS: '+arcCount+' | AVG D: '+avgD+'<br>'+
-      'ELAPSED: '+_asFrac.elapsed.toFixed(1)+'s / '+dur+'s | PTS: '+n;
+    /* Build closed ring line */
+    var verts = [];
+    var prev  = null;
+    for (var s = 0; s <= slices; s++) {
+      var pt = ring[s % slices];
+      if (!pt) continue;
+      if (prev) {
+        verts.push(prev.x, prev.y, prev.z, pt.x, pt.y, pt.z);
+      }
+      prev = pt;
+    }
+
+    if (verts.length < 6) return;
+
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+    var mat = new THREE.LineBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.75 });
+    _asFrac.contourMesh = new THREE.LineSegments(geo, mat);
+    _as.scene.add(_asFrac.contourMesh);
   }
 
-  function _asFracDrawArcs(){
-    if(_asFrac.arcMesh){ window._arcStudio.scene.remove(_asFrac.arcMesh); }
-    var pts=_asFrac.pts; var n=pts.length/3;
-    if(n<3) return;
-    /* Draw arc lines connecting surface points — every 8th point */
-    var step=Math.max(1,Math.floor(n/128));
-    var lineGeo=new THREE.BufferGeometry();
-    var lineVerts=[];
-    for(var i=0;i<n-step;i+=step){
-      lineVerts.push(pts[i*3]*4,pts[i*3+1]*4,pts[i*3+2]*4);
-      lineVerts.push(pts[(i+step)*3]*4,pts[(i+step)*3+1]*4,pts[(i+step)*3+2]*4);
+  /* ── Measure contour perimeter using DOC 3.0 ────────────────────────── */
+  function _asFracMeasureContour(durSec) {
+    var n = _asFrac.ptCount;
+    var el = document.getElementById('as-frac-readout');
+    if (!el) return;
+    if (n < 10) {
+      el.innerHTML = 'PERIMETER: — DOC units<br>ARCS: — | AVG D: —<br>ELAPSED: ' +
+        _asFrac.elapsed.toFixed(1) + 's / ' + durSec + 's | PTS: ' + n;
+      return;
     }
-    lineGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(lineVerts),3));
-    var lineMat=new THREE.LineBasicMaterial({color:0x00e5ff,transparent:true,opacity:0.45});
-    _asFrac.arcMesh=new THREE.LineSegments(lineGeo,lineMat);
-    window._arcStudio.scene.add(_asFrac.arcMesh);
+
+    /* Build XZ boundary ring (same as drawContour) */
+    var pts    = _asFrac.pts, sc = 5;
+    var slices = 128;
+    var ring   = new Array(slices).fill(null);
+    for (var i = 0; i < n; i++) {
+      var x = pts[i*3]*sc, y = pts[i*3+1]*sc, z = pts[i*3+2]*sc;
+      var ang = Math.atan2(z, x);
+      var si  = Math.max(0, Math.min(slices-1, Math.floor((ang + Math.PI) / (2*Math.PI/slices))));
+      var r2  = x*x + z*z;
+      if (!ring[si] || r2 > ring[si].r2) ring[si] = {x,y,z,r2};
+    }
+
+    var filled = ring.filter(Boolean);
+    if (filled.length < 4) return;
+
+    /* DOC 3.0: perimeter = sum of venableCircumference(d) for each arc segment */
+    var totalLen = 0, totalD = 0, arcCount = 0;
+    for (var s = 0; s < slices; s++) {
+      var a = ring[s], b = ring[(s+1) % slices];
+      if (!a || !b) continue;
+      var segLen = Math.sqrt((b.x-a.x)**2 + (b.y-a.y)**2 + (b.z-a.z)**2);
+      var d      = Math.max(1, Math.round(segLen));
+      totalLen  += d * 3; // venableCircumference: C = d × 3
+      totalD    += d;
+      arcCount++;
+    }
+
+    el.innerHTML =
+      'PERIMETER: <b style="color:#ffb347">' + totalLen.toFixed(2) + '</b> DOC units<br>' +
+      'ARCS: ' + arcCount + ' | AVG D: ' + (totalD / arcCount).toFixed(2) + '<br>' +
+      'ELAPSED: ' + _asFrac.elapsed.toFixed(1) + 's / ' + durSec +
+      's | PTS: ' + n;
+  }
+
+  function arcStudioStopFractal() {
+    _asFrac.running = false;
+    if (_asFrac.timer) { clearInterval(_asFrac.timer); _asFrac.timer = null; }
+    var btn = document.getElementById('as-frac-gen-btn');
+    if (btn) btn.textContent = '◈ GENERATE';
+    var durSec = parseInt((document.getElementById('as-frac-dur')||{}).value) || 60;
+    if (_asFrac.ptCount > 0) _asFracMeasureContour(durSec);
   }
 
   /* Expose for Autumn NLP */
