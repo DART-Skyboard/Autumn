@@ -468,278 +468,355 @@ window._refreshAnalyticsNow = async function() {
 
 
   /* ═══════════════ ARC STUDIO FRACTAL GENERATION ════════════════════════════
-     Mandelbulb 3D — proper isosurface march producing self-similar bulb geometry
-     + DOC 3.0 contour arc measurement of the outer silhouette boundary
-     All Three.js access via window._arcStudio (correct global reference)
+     Volumetric Mandelbulb tiling — self-similar nested point clouds
+     Each cloud = one iteration bulb at its natural 3D position/scale.
+     Clouds tile the Mandelbulb hierarchy: main body → secondary bulb →
+     tertiary bulbs → quaternary bulbs, each touching the previous via
+     contour-continuation offsets derived from the bulb attachment points.
+     DOC 3.0 arc measurement on the complete multi-cloud silhouette.
   ═══════════════════════════════════════════════════════════════════════════ */
+
   var _asFrac = {
-    running: false, timer: null, elapsed: 0, startT: 0,
-    ptsMesh: null, contourMesh: null, axisMesh: null,
-    pts: null,     // Float32Array of surface point positions
-    ptCount: 0,
-    colors: null   // Float32Array of per-point colors
+    running:    false,
+    timer:      null,
+    elapsed:    0,
+    startT:     0,
+    clouds:     [],   // [{mesh, pts:Float32Array, count, cx,cy,cz, radius}]
+    activeCIdx: 0,    // which cloud we are currently filling
+    contourMesh:null,
+    totalPtsAll:0
   };
 
-  /* ── Mandelbulb distance estimator (DE) ────────────────────────────────
-     Returns approximate distance to Mandelbulb surface.
-     Closer to 0 = on surface. Negative = inside. */
-  function _mbDE(cx, cy, cz, power, maxIter) {
-    var zx = cx, zy = cy, zz = cz;
-    var dr = 1.0, r = 0.0;
-    for (var i = 0; i < maxIter; i++) {
-      r = Math.sqrt(zx*zx + zy*zy + zz*zz);
-      if (r > 2.0) break;
-      var theta = Math.acos(Math.max(-1, Math.min(1, zz / r)));
-      var phi   = Math.atan2(zy, zx);
-      dr = Math.pow(r, power - 1) * power * dr + 1.0;
-      var zr = Math.pow(r, power);
-      theta *= power; phi *= power;
-      zx = zr * Math.sin(theta) * Math.cos(phi) + cx;
-      zy = zr * Math.sin(theta) * Math.sin(phi) + cy;
-      zz = zr * Math.cos(theta) + cz;
+  /* ── Mandelbulb distance estimator ─────────────────────────────────────── */
+  function _mbDE(cx,cy,cz,pw,mi){
+    var zx=cx,zy=cy,zz=cz,dr=1,r=0;
+    for(var i=0;i<mi;i++){
+      r=Math.sqrt(zx*zx+zy*zy+zz*zz);
+      if(r>2) break;
+      var th=Math.acos(Math.max(-1,Math.min(1,zz/r)));
+      var ph=Math.atan2(zy,zx);
+      dr=Math.pow(r,pw-1)*pw*dr+1;
+      var zr=Math.pow(r,pw);
+      th*=pw; ph*=pw;
+      zx=zr*Math.sin(th)*Math.cos(ph)+cx;
+      zy=zr*Math.sin(th)*Math.sin(ph)+cy;
+      zz=zr*Math.cos(th)+cz;
     }
-    return r < 2.0 ? 0 : 0.5 * Math.log(r) * r / dr;
+    return r<2?0:0.5*Math.log(r)*r/dr;
   }
 
-  /* ── Smooth iteration count for coloring ──────────────────────────────── */
-  function _mbIterSmooth(cx, cy, cz, power, maxIter) {
-    var zx = cx, zy = cy, zz = cz, r = 0, i = 0;
-    for (; i < maxIter; i++) {
-      r = Math.sqrt(zx*zx + zy*zy + zz*zz);
-      if (r > 2.0) break;
-      var theta = Math.acos(Math.max(-1, Math.min(1, zz / r)));
-      var phi   = Math.atan2(zy, zx);
-      var zr    = Math.pow(r, power);
-      theta *= power; phi *= power;
-      zx = zr * Math.sin(theta) * Math.cos(phi) + cx;
-      zy = zr * Math.sin(theta) * Math.sin(phi) + cy;
-      zz = zr * Math.cos(theta) + cz;
+  /* ── Smooth iteration count (for coloring) ──────────────────────────────── */
+  function _mbIterS(cx,cy,cz,pw,mi){
+    var zx=cx,zy=cy,zz=cz,r=0,i=0;
+    for(;i<mi;i++){
+      r=Math.sqrt(zx*zx+zy*zy+zz*zz);
+      if(r>2) break;
+      var th=Math.acos(Math.max(-1,Math.min(1,zz/r)));
+      var ph=Math.atan2(zy,zx);
+      var zr=Math.pow(r,pw);
+      th*=pw; ph*=pw;
+      zx=zr*Math.sin(th)*Math.cos(ph)+cx;
+      zy=zr*Math.sin(th)*Math.sin(ph)+cy;
+      zz=zr*Math.cos(th)+cz;
     }
-    if (i >= maxIter) return 0; // interior
-    return i + 1 - Math.log(Math.log(r)) / Math.log(power);
+    if(i>=mi) return 0;
+    return i+1-Math.log(Math.log(r))/Math.log(pw);
   }
 
-  /* ── Color from smooth iteration (Mandelbrot-style: gold/blue/white) ──── */
-  function _mbColor(t, maxIter) {
-    if (t <= 0) { return [0.02, 0.02, 0.04]; } // interior — near black
-    var n = t / maxIter;
-    // Classic Mandelbrot palette: black interior, gold→blue→white boundary
-    var r, g, b;
-    if (n < 0.15) {
-      // Deep gold near boundary
-      r = 0.9 + n * 2; g = 0.55 + n * 3; b = 0.05;
-    } else if (n < 0.45) {
-      // Gold → silver
-      var s = (n - 0.15) / 0.30;
-      r = 1.0 - s * 0.3; g = 0.9 - s * 0.3; b = 0.05 + s * 0.65;
-    } else if (n < 0.75) {
-      // Silver → ice blue
-      var s = (n - 0.45) / 0.30;
-      r = 0.7 - s * 0.55; g = 0.7 - s * 0.4; b = 0.7 + s * 0.3;
-    } else {
-      // Outer deep blue
-      var s = (n - 0.75) / 0.25;
-      r = 0.15 - s * 0.1; g = 0.3 - s * 0.2; b = 1.0;
-    }
-    return [Math.max(0,Math.min(1,r)), Math.max(0,Math.min(1,g)), Math.max(0,Math.min(1,b))];
+  /* ── Color: gold boundary → silver mid → ice blue outer ─────────────────── */
+  function _mbCol(t,mi){
+    if(t<=0) return [0.04,0.04,0.08];
+    var n=t/mi;
+    var r,g,b;
+    if(n<0.12){var s=n/0.12; r=0.85+s*0.1; g=0.45+s*0.3; b=0.02;}
+    else if(n<0.35){var s=(n-0.12)/0.23; r=0.95-s*0.25; g=0.75-s*0.1; b=0.02+s*0.6;}
+    else if(n<0.65){var s=(n-0.35)/0.30; r=0.70-s*0.55; g=0.65-s*0.35; b=0.62+s*0.38;}
+    else{var s=(n-0.65)/0.35; r=0.15-s*0.08; g=0.30-s*0.18; b=1.0;}
+    return [Math.max(0,Math.min(1,r)),Math.max(0,Math.min(1,g)),Math.max(0,Math.min(1,b))];
   }
 
-  /* ── Main generate function ─────────────────────────────────────────── */
-  function arcStudioGenerateFractal() {
+  /* ── Compute the natural attachment points of child bulbs on a Mandelbulb ─
+     The Mandelbulb of power n has n-1 primary bulbs arranged around the
+     equator plus a polar cap. Each attaches at radius ~0.5 from center.
+     We compute child cloud center + scale using the bulb hierarchy.        ── */
+  function _mbBulbHierarchy(power, maxDepth){
+    var bulbs = [];
+    // Root — main body at origin, radius 1.0
+    bulbs.push({cx:0, cy:0, cz:0, radius:1.0, depth:0, parentIdx:-1});
+
+    var queue = [0];
+    while(queue.length > 0){
+      var pidx = queue.shift();
+      var p    = bulbs[pidx];
+      if(p.depth >= maxDepth) continue;
+
+      // Each parent spawns (power-1) equatorial children + 1 polar child
+      var nChildren = Math.max(2, power - 1);
+      var childR    = p.radius * 0.42;  // child radius ~42% of parent
+      var attachR   = p.radius * 0.82;  // attachment distance from parent center
+
+      for(var k=0; k<nChildren; k++){
+        var angle = (2*Math.PI*k/nChildren);
+        // Equatorial children spread around the xz-plane bulge
+        var cx = p.cx + attachR * Math.cos(angle);
+        var cy = p.cy + p.radius * 0.08 * (k%2===0?1:-1); // slight y wobble
+        var cz = p.cz + attachR * Math.sin(angle);
+        if(bulbs.length >= 60) break; // cap total clouds
+        var idx = bulbs.length;
+        bulbs.push({cx:cx, cy:cy, cz:cz, radius:childR, depth:p.depth+1, parentIdx:pidx});
+        queue.push(idx);
+      }
+      // Polar child (top/bottom)
+      if(p.depth < maxDepth-1 && bulbs.length < 60){
+        var idx = bulbs.length;
+        bulbs.push({cx:p.cx, cy:p.cy+p.radius*0.85, cz:p.cz, radius:childR*0.7, depth:p.depth+1, parentIdx:pidx});
+        queue.push(idx);
+      }
+    }
+    return bulbs;
+  }
+
+  /* ── Main generate ───────────────────────────────────────────────────────── */
+  function arcStudioGenerateFractal(){
     var _as = window._arcStudio;
-    if (!_as || !_as.scene) { alert('Open Arc Edge Studio first.'); return; }
+    if(!_as||!_as.scene){ alert('Open Arc Edge Studio first.'); return; }
     arcStudioStopFractal();
 
-    var power     = parseFloat(document.getElementById('as-frac-power').value) || 8;
-    var maxIter   = parseInt(document.getElementById('as-frac-iter').value)    || 60;
-    var durSec    = parseInt(document.getElementById('as-frac-dur').value)     || 60;
-    var totalPts  = parseInt(document.getElementById('as-frac-pts').value)     || 6000;
+    var power    = parseFloat(document.getElementById('as-frac-power').value)||8;
+    var maxIter  = parseInt(document.getElementById('as-frac-iter').value)||60;
+    var durSec   = parseInt(document.getElementById('as-frac-dur').value)||60;
+    var ptsCloud = parseInt(document.getElementById('as-frac-pts').value)||6000;
 
-    // Remove previous meshes
-    ['ptsMesh','contourMesh','axisMesh'].forEach(function(k){
-      if (_asFrac[k]) { _as.scene.remove(_asFrac[k]); _asFrac[k] = null; }
+    // Clear old clouds
+    _asFrac.clouds.forEach(function(c){
+      if(c.mesh) _as.scene.remove(c.mesh);
+    });
+    if(_asFrac.contourMesh){ _as.scene.remove(_asFrac.contourMesh); _asFrac.contourMesh=null; }
+
+    _asFrac.clouds    = [];
+    _asFrac.activeCIdx= 0;
+    _asFrac.elapsed   = 0;
+    _asFrac.totalPtsAll= 0;
+    _asFrac.startT    = Date.now();
+    _asFrac.running   = true;
+
+    document.getElementById('as-frac-gen-btn').textContent='◈ RUNNING…';
+
+    // Pre-compute bulb hierarchy — depth scales with power
+    var maxDepth = power <= 4 ? 2 : power <= 6 ? 3 : 4;
+    var bulbs    = _mbBulbHierarchy(power, maxDepth);
+
+    // Initialize cloud slots
+    bulbs.forEach(function(b){
+      _asFrac.clouds.push({
+        cx: b.cx, cy: b.cy, cz: b.cz,
+        radius: b.radius,
+        depth:  b.depth,
+        target: ptsCloud,
+        pts:    new Float32Array(ptsCloud*3),
+        colors: new Float32Array(ptsCloud*3),
+        count:  0,
+        mesh:   null,
+        done:   false
+      });
     });
 
-    _asFrac.pts     = new Float32Array(totalPts * 3);
-    _asFrac.colors  = new Float32Array(totalPts * 3);
-    _asFrac.ptCount = 0;
-    _asFrac.elapsed = 0;
-    _asFrac.startT  = Date.now();
-    _asFrac.running = true;
+    var eps      = 0.014;
+    var batchN   = Math.max(20, Math.floor(ptsCloud / (durSec * 3)));
+    var sc       = 4.5; // world scale
 
-    document.getElementById('as-frac-gen-btn').textContent = '◈ RUNNING…';
+    _asFrac.timer = setInterval(function(){
+      if(!_asFrac.running) return;
+      _asFrac.elapsed = (Date.now()-_asFrac.startT)/1000;
 
-    /* Surface thickness — tighter = sharper boundary definition */
-    var eps    = 0.012 + 0.006 * (power / 8);
-    var batchN = Math.max(30, Math.floor(totalPts / (durSec * 4)));
-    var bound  = 1.25; // Mandelbulb lives within radius ~1.2
+      var ci = _asFrac.activeCIdx;
+      if(ci >= _asFrac.clouds.length){
+        // All clouds filled
+        arcStudioStopFractal();
+        _asFracDrawContour(sc);
+        return;
+      }
 
-    _asFrac.timer = setInterval(function() {
-      if (!_asFrac.running) return;
-      _asFrac.elapsed = (Date.now() - _asFrac.startT) / 1000;
+      var cloud = _asFrac.clouds[ci];
+      if(cloud.done){
+        _asFrac.activeCIdx++;
+        return;
+      }
 
-      var added = 0, tries = 0;
-      var maxTries = batchN * 40;
+      // Sample points on this cloud's Mandelbulb isosurface
+      var added=0, tries=0, maxT=batchN*50;
+      var r=cloud.radius, ox=cloud.cx, oy=cloud.cy, oz=cloud.cz;
+      var bound=r*1.3;
 
-      while (added < batchN && tries < maxTries && _asFrac.ptCount < totalPts) {
+      while(added<batchN && tries<maxT && cloud.count<cloud.target){
         tries++;
-        /* Stratified sampling within bounding sphere */
-        var x = (Math.random() - 0.5) * 2 * bound;
-        var y = (Math.random() - 0.5) * 2 * bound;
-        var z = (Math.random() - 0.5) * 2 * bound;
-        if (x*x + y*y + z*z > bound*bound) continue;
-
-        var de = _mbDE(x, y, z, power, maxIter);
-        if (Math.abs(de) < eps) {
-          var i3 = _asFrac.ptCount * 3;
-          _asFrac.pts[i3]   = x;
-          _asFrac.pts[i3+1] = y;
-          _asFrac.pts[i3+2] = z;
-          var t = _mbIterSmooth(x, y, z, power, maxIter);
-          var col = _mbColor(t, maxIter);
-          _asFrac.colors[i3]   = col[0];
-          _asFrac.colors[i3+1] = col[1];
-          _asFrac.colors[i3+2] = col[2];
-          _asFrac.ptCount++;
-          added++;
+        // Random point in bounding sphere of this bulb
+        var x=(Math.random()-0.5)*2*bound;
+        var y=(Math.random()-0.5)*2*bound;
+        var z=(Math.random()-0.5)*2*bound;
+        if(x*x+y*y+z*z > bound*bound) continue;
+        // Normalize to unit Mandelbulb, sample DE
+        var nx=x/r, ny=y/r, nz=z/r;
+        var de=_mbDE(nx,ny,nz,power,maxIter);
+        if(Math.abs(de)<eps){
+          var i3=cloud.count*3;
+          cloud.pts[i3]  =ox+x; cloud.pts[i3+1]=oy+y; cloud.pts[i3+2]=oz+z;
+          var t=_mbIterS(nx,ny,nz,power,maxIter);
+          // Tint by depth: root=full color, children shift hue toward violet/pink
+          var col=_mbCol(t,maxIter);
+          var depthShift=cloud.depth*0.12;
+          cloud.colors[i3]  =Math.min(1,col[0]+depthShift*0.3);
+          cloud.colors[i3+1]=Math.max(0,col[1]-depthShift*0.2);
+          cloud.colors[i3+2]=Math.min(1,col[2]+depthShift*0.5);
+          cloud.count++; added++;
         }
       }
+      _asFrac.totalPtsAll = _asFrac.clouds.reduce(function(s,c){return s+c.count;},0);
 
-      /* Rebuild point cloud mesh */
-      _asFracRebuildMesh();
-      _asFracMeasureContour(durSec);
+      // Rebuild this cloud's mesh
+      if(cloud.count>0){
+        if(cloud.mesh) _as.scene.remove(cloud.mesh);
+        var geo=new THREE.BufferGeometry();
+        geo.setAttribute('position',new THREE.BufferAttribute(cloud.pts.slice(0,cloud.count*3),3));
+        geo.setAttribute('color',   new THREE.BufferAttribute(cloud.colors.slice(0,cloud.count*3),3));
+        var ptSize=Math.max(0.012,0.030*(cloud.radius/1.0)); // smaller pts for child bulbs
+        var mat=new THREE.PointsMaterial({size:ptSize*sc,vertexColors:true,sizeAttenuation:true,transparent:true,opacity:0.90});
+        cloud.mesh=new THREE.Points(geo,mat);
+        _as.scene.add(cloud.mesh);
+      }
 
-      if (_asFrac.elapsed >= durSec || _asFrac.ptCount >= totalPts) {
+      // Advance to next cloud when this one is full
+      if(cloud.count>=cloud.target){ cloud.done=true; _asFrac.activeCIdx++; }
+
+      // Update readout
+      _asFracUpdateReadout(durSec, sc);
+
+      // Time's up
+      if(_asFrac.elapsed>=durSec){
         arcStudioStopFractal();
-        _asFracDrawContour();
+        _asFracDrawContour(sc);
       }
-    }, 250);
+    },250);
   }
 
-  /* ── Rebuild the point cloud geometry each tick ─────────────────────── */
-  function _asFracRebuildMesh() {
-    var _as = window._arcStudio;
-    if (!_as || !_as.scene || _asFrac.ptCount < 1) return;
+  /* ── Draw gold contour ring over all clouds combined ─────────────────────── */
+  function _asFracDrawContour(sc){
+    var _as=window._arcStudio;
+    if(!_as||!_as.scene) return;
+    if(_asFrac.contourMesh){ _as.scene.remove(_asFrac.contourMesh); _asFrac.contourMesh=null; }
 
-    if (_asFrac.ptsMesh) _as.scene.remove(_asFrac.ptsMesh);
-
-    var n   = _asFrac.ptCount;
-    var geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(_asFrac.pts.slice(0, n*3), 3));
-    geo.setAttribute('color',    new THREE.BufferAttribute(_asFrac.colors.slice(0, n*3), 3));
-
-    var mat = new THREE.PointsMaterial({
-      size: 0.022,
-      vertexColors: true,
-      sizeAttenuation: true,
-      transparent: true,
-      opacity: 0.92
+    // Collect all points across all clouds
+    var allPts=[];
+    _asFrac.clouds.forEach(function(c){
+      for(var i=0;i<c.count;i++) allPts.push(c.pts[i*3],c.pts[i*3+1],c.pts[i*3+2]);
     });
+    if(allPts.length<30) return;
 
-    _asFrac.ptsMesh = new THREE.Points(geo, mat);
-    _asFrac.ptsMesh.scale.set(5, 5, 5);
-    _as.scene.add(_asFrac.ptsMesh);
-  }
-
-  /* ── Draw contour arc lines along outer silhouette boundary ─────────── */
-  function _asFracDrawContour() {
-    var _as = window._arcStudio;
-    if (!_as || !_as.scene || _asFrac.ptCount < 10) return;
-    if (_asFrac.contourMesh) { _as.scene.remove(_asFrac.contourMesh); _asFrac.contourMesh = null; }
-
-    var pts = _asFrac.pts, n = _asFrac.ptCount;
-    var sc  = 5; // match ptsMesh scale
-
-    /* Project all points to XZ plane, find boundary ring by max radius per angle slice */
-    var slices = 128;
-    var ring   = new Array(slices).fill(null);
-
-    for (var i = 0; i < n; i++) {
-      var x = pts[i*3] * sc;
-      var z = pts[i*3+2] * sc;
-      var y = pts[i*3+1] * sc;
-      var ang = Math.atan2(z, x); // -π to π
-      var si  = Math.floor((ang + Math.PI) / (2 * Math.PI / slices));
-      si = Math.max(0, Math.min(slices - 1, si));
-      var r2  = x*x + z*z;
-      if (!ring[si] || r2 > ring[si].r2) {
-        ring[si] = { x: x, y: y, z: z, r2: r2 };
-      }
+    // Build XZ silhouette: outermost point per angular slice
+    var slices=192;
+    var ring=new Array(slices).fill(null);
+    for(var i=0;i<allPts.length;i+=3){
+      var x=allPts[i], y=allPts[i+1], z=allPts[i+2];
+      var ang=Math.atan2(z,x);
+      var si=Math.max(0,Math.min(slices-1,Math.floor((ang+Math.PI)/(2*Math.PI/slices))));
+      var r2=x*x+z*z;
+      if(!ring[si]||r2>ring[si].r2) ring[si]={x,y,z,r2};
     }
 
-    /* Build closed ring line */
-    var verts = [];
-    var prev  = null;
-    for (var s = 0; s <= slices; s++) {
-      var pt = ring[s % slices];
-      if (!pt) continue;
-      if (prev) {
-        verts.push(prev.x, prev.y, prev.z, pt.x, pt.y, pt.z);
-      }
-      prev = pt;
+    // Also build YZ silhouette (vertical)
+    var ringYZ=new Array(slices).fill(null);
+    for(var i=0;i<allPts.length;i+=3){
+      var x=allPts[i], y=allPts[i+1], z=allPts[i+2];
+      var ang=Math.atan2(y,z);
+      var si=Math.max(0,Math.min(slices-1,Math.floor((ang+Math.PI)/(2*Math.PI/slices))));
+      var r2=y*y+z*z;
+      if(!ringYZ[si]||r2>ringYZ[si].r2) ringYZ[si]={x,y,z,r2};
     }
 
-    if (verts.length < 6) return;
+    var verts=[];
+    // Horizontal contour (XZ)
+    var prev=null;
+    for(var s=0;s<=slices;s++){
+      var pt=ring[s%slices];
+      if(!pt){prev=null;continue;}
+      if(prev) verts.push(prev.x,prev.y,prev.z,pt.x,pt.y,pt.z);
+      prev=pt;
+    }
+    // Vertical contour (YZ)
+    prev=null;
+    for(var s=0;s<=slices;s++){
+      var pt=ringYZ[s%slices];
+      if(!pt){prev=null;continue;}
+      if(prev) verts.push(prev.x,prev.y,prev.z,pt.x,pt.y,pt.z);
+      prev=pt;
+    }
 
-    var geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
-    var mat = new THREE.LineBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.75 });
-    _asFrac.contourMesh = new THREE.LineSegments(geo, mat);
+    if(verts.length<6) return;
+    var geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(verts),3));
+    var mat=new THREE.LineBasicMaterial({color:0xffb347,transparent:true,opacity:0.80});
+    _asFrac.contourMesh=new THREE.LineSegments(geo,mat);
     _as.scene.add(_asFrac.contourMesh);
   }
 
-  /* ── Measure contour perimeter using DOC 3.0 ────────────────────────── */
-  function _asFracMeasureContour(durSec) {
-    var n = _asFrac.ptCount;
-    var el = document.getElementById('as-frac-readout');
-    if (!el) return;
-    if (n < 10) {
-      el.innerHTML = 'PERIMETER: — DOC units<br>ARCS: — | AVG D: —<br>ELAPSED: ' +
-        _asFrac.elapsed.toFixed(1) + 's / ' + durSec + 's | PTS: ' + n;
+  /* ── Live readout update ─────────────────────────────────────────────────── */
+  function _asFracUpdateReadout(durSec, sc){
+    var el=document.getElementById('as-frac-readout');
+    if(!el) return;
+    var n=_asFrac.totalPtsAll;
+    var nClouds=_asFrac.clouds.filter(function(c){return c.count>0;}).length;
+    var ci=Math.min(_asFrac.activeCIdx,_asFrac.clouds.length-1);
+    var depth=_asFrac.clouds[ci]?_asFrac.clouds[ci].depth:0;
+
+    if(n<10){
+      el.innerHTML='PERIMETER: — DOC units<br>ARCS: — | CLOUDS: 0<br>ELAPSED: '+
+        _asFrac.elapsed.toFixed(1)+'s / '+durSec+'s';
       return;
     }
 
-    /* Build XZ boundary ring (same as drawContour) */
-    var pts    = _asFrac.pts, sc = 5;
-    var slices = 128;
-    var ring   = new Array(slices).fill(null);
-    for (var i = 0; i < n; i++) {
-      var x = pts[i*3]*sc, y = pts[i*3+1]*sc, z = pts[i*3+2]*sc;
-      var ang = Math.atan2(z, x);
-      var si  = Math.max(0, Math.min(slices-1, Math.floor((ang + Math.PI) / (2*Math.PI/slices))));
-      var r2  = x*x + z*z;
-      if (!ring[si] || r2 > ring[si].r2) ring[si] = {x,y,z,r2};
+    // Quick contour estimate from all cloud boundary points
+    var allPts=[];
+    _asFrac.clouds.forEach(function(c){
+      var step=Math.max(1,Math.floor(c.count/80)); // sample ~80 pts per cloud
+      for(var i=0;i<c.count;i+=step) allPts.push(c.pts[i*3],c.pts[i*3+1],c.pts[i*3+2]);
+    });
+
+    var slices=128, ring=new Array(slices).fill(null);
+    for(var i=0;i<allPts.length;i+=3){
+      var x=allPts[i],y=allPts[i+1],z=allPts[i+2];
+      var ang=Math.atan2(z,x);
+      var si=Math.max(0,Math.min(slices-1,Math.floor((ang+Math.PI)/(2*Math.PI/slices))));
+      var r2=x*x+z*z;
+      if(!ring[si]||r2>ring[si].r2) ring[si]={x,y,z,r2};
     }
-
-    var filled = ring.filter(Boolean);
-    if (filled.length < 4) return;
-
-    /* DOC 3.0: perimeter = sum of venableCircumference(d) for each arc segment */
-    var totalLen = 0, totalD = 0, arcCount = 0;
-    for (var s = 0; s < slices; s++) {
-      var a = ring[s], b = ring[(s+1) % slices];
-      if (!a || !b) continue;
-      var segLen = Math.sqrt((b.x-a.x)**2 + (b.y-a.y)**2 + (b.z-a.z)**2);
-      var d      = Math.max(1, Math.round(segLen));
-      totalLen  += d * 3; // venableCircumference: C = d × 3
-      totalD    += d;
-      arcCount++;
+    var filled=ring.filter(Boolean);
+    if(filled.length<4){
+      el.innerHTML='BUILDING… PTS: '+n+' | CLOUDS: '+nClouds+
+        '<br>ELAPSED: '+_asFrac.elapsed.toFixed(1)+'s / '+durSec+'s';
+      return;
     }
-
-    el.innerHTML =
-      'PERIMETER: <b style="color:#ffb347">' + totalLen.toFixed(2) + '</b> DOC units<br>' +
-      'ARCS: ' + arcCount + ' | AVG D: ' + (totalD / arcCount).toFixed(2) + '<br>' +
-      'ELAPSED: ' + _asFrac.elapsed.toFixed(1) + 's / ' + durSec +
-      's | PTS: ' + n;
+    var totalLen=0,totalD=0,arcCount=0;
+    for(var s=0;s<slices;s++){
+      var a=ring[s],b=ring[(s+1)%slices];
+      if(!a||!b) continue;
+      var seg=Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2+(b.z-a.z)**2);
+      var d=Math.max(1,Math.round(seg));
+      totalLen+=d*3; totalD+=d; arcCount++;
+    }
+    el.innerHTML=
+      'PERIMETER: <b style="color:#ffb347">'+totalLen.toFixed(2)+'</b> DOC units<br>'+
+      'ARCS: '+arcCount+' | AVG D: '+(totalD/arcCount).toFixed(2)+
+      ' | CLOUDS: '+nClouds+' (depth '+depth+')<br>'+
+      'ELAPSED: '+_asFrac.elapsed.toFixed(1)+'s / '+durSec+'s | PTS: '+n;
   }
 
-  function arcStudioStopFractal() {
-    _asFrac.running = false;
-    if (_asFrac.timer) { clearInterval(_asFrac.timer); _asFrac.timer = null; }
-    var btn = document.getElementById('as-frac-gen-btn');
-    if (btn) btn.textContent = '◈ GENERATE';
-    var durSec = parseInt((document.getElementById('as-frac-dur')||{}).value) || 60;
-    if (_asFrac.ptCount > 0) _asFracMeasureContour(durSec);
+  function arcStudioStopFractal(){
+    _asFrac.running=false;
+    if(_asFrac.timer){clearInterval(_asFrac.timer);_asFrac.timer=null;}
+    var btn=document.getElementById('as-frac-gen-btn');
+    if(btn) btn.textContent='◈ GENERATE';
+    var dur=parseInt((document.getElementById('as-frac-dur')||{}).value)||60;
+    _asFracUpdateReadout(dur, 4.5);
   }
 
   /* Expose for Autumn NLP */
