@@ -22616,14 +22616,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       if(!frame) return;
 
       if(tab==='mist'){
-        frame.style.display='block';
-        frame.style.background='rgba(2,6,14,.97)';
-        frame.innerHTML='';
-        frame.style.overflow='hidden';
-        frame.style.display='flex';
-        frame.style.flexDirection='column';
+        frame.style.cssText='display:flex;flex-direction:column;flex:1;overflow:hidden;background:rgba(2,6,14,.97)';
 
-        /* ── Control strip at top of admin MIST frame ── */
+        /* Control strip */
         var mCtrl=document.createElement('div');
         mCtrl.style.cssText='flex-shrink:0;padding:10px 14px 8px;border-bottom:1px solid rgba(0,229,255,.1);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:rgba(2,6,14,.98)';
         mCtrl.innerHTML=
@@ -22642,43 +22637,34 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           '</div>';
         frame.appendChild(mCtrl);
 
-        /* ── Move mist-overlay into the admin frame ── */
-        var mistOv = document.getElementById('mist-overlay');
+        /* Move mist-overlay into admin frame */
+        var mistOv=document.getElementById('mist-overlay');
+        var mistTr=document.getElementById('mist-trigger');
         if(mistOv){
-          /* Save original position for restore */
-          mistOv._admSavedParent = mistOv.parentElement;
-          mistOv._admSavedNext   = mistOv.nextSibling;
-          mistOv._admSavedStyle  = mistOv.getAttribute('style')||'';
-
-          /* Re-skin from fixed overlay to flex fill inside admin frame */
-          mistOv.style.cssText='flex:1;position:relative;display:flex;flex-direction:column;'+
-            'background:transparent;border-radius:0;padding:0;overflow:hidden;opacity:1;visibility:visible;'+
-            'pointer-events:auto;transform:none;transition:none';
-          /* Force open state */
+          mistOv._admSavedParent=mistOv.parentElement;
+          mistOv._admSavedNext=mistOv.nextSibling;
+          mistOv._admSavedStyle=mistOv.getAttribute('style')||'';
+          /* Reposition inline */
+          mistOv.style.cssText='flex:1;position:relative!important;display:flex;flex-direction:column;'+
+            'background:transparent;border-radius:0;padding:0;overflow:hidden;'+
+            'opacity:1!important;visibility:visible!important;pointer-events:auto;'+
+            'transform:none!important;transition:none!important;max-height:none!important';
           mistOv.classList.add('mist-open');
-          MIST.open=true;
           frame.appendChild(mistOv);
-
-          /* Init canvas and maze if needed */
+          /* Use public API to bind canvas and render maze */
+          if(mistTr){mistTr._admSavedDisplay=mistTr.style.display;mistTr.style.display='none';}
           setTimeout(function(){
-            if(typeof _bindCanvas==='function') _bindCanvas();
-            if(!MIST.mazes[MIST.activeMaze]) {
-              if(typeof window.mistNewMaze==='function') window.mistNewMaze();
-            } else {
-              if(typeof _renderMaze==='function') _renderMaze(MIST.mazes[MIST.activeMaze], MIST.dragPath||[]);
-            }
+            /* _mistBind and _mistRender are now exposed by mist-module.js */
+            if(typeof window._mistBind==='function') window._mistBind();
+            if(typeof window._mistRender==='function') window._mistRender();
+            else if(typeof window.mistNewMaze==='function') window.mistNewMaze();
           },80);
         } else {
-          /* mist-module not loaded yet — show message */
           var msg=document.createElement('div');
           msg.style.cssText='flex:1;display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:10px;letter-spacing:2px;color:rgba(0,229,255,.3)';
           msg.textContent='MIST MODULE INITIALIZING…';
           frame.appendChild(msg);
         }
-
-        /* Hide the mist-trigger button (redundant in admin) */
-        var mistTr=document.getElementById('mist-trigger');
-        if(mistTr){mistTr._admSavedDisplay=mistTr.style.display;mistTr.style.display='none';}
         return;
       }
 
