@@ -10680,7 +10680,95 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   AUTUMN NLP — LEATR BUOYANCY-LEVEL NEURAL REFLEX
+   Outer shell wrapper — seeps around all tools, always accessible.
+   Grammar → live data → pure generative parameters injected into every reply.
+═══════════════════════════════════════════════════════════════════════════ */
+window.autumnNLP = (function(){
+  function analyzeInput(text){
+    var lc=(text||'').toLowerCase().trim(), tokens=lc.split(/\s+/).filter(Boolean);
+    var intent='conversation';
+    if(/(what|how|when|where|who|why|tell\s+me|show\s+me|what.?s|what\s+is)/.test(lc)) intent='query';
+    else if(/(open|launch|start|generate|create|run|make|build|show|give\s+me)/.test(lc)) intent='command';
+    else if(/(i\s+feel|i.?m|feeling|think|believe|wonder|wish|hope)/.test(lc)) intent='reflection';
+    var targets=[];
+    if(/(file\s*size|memory\s*size|journal\s*size|how\s*big|storage|bytes|kb|mb)/.test(lc)) targets.push('file_sizes');
+    if(/(user|users|people|active|session|today|daily|online)/.test(lc)) targets.push('user_stats');
+    if(/(journal|thought|entry|entries|log|sentient)/.test(lc)) targets.push('journal_data');
+    if(/(ops|operation|brpn|shell|geo|mar|aero)/.test(lc)) targets.push('brpn_state');
+    var tone='neutral';
+    if(/(good\s+morning|morning|hi|hello|hey)/.test(lc)) tone='greeting';
+    else if(/(great|love|amazing|awesome|beautiful)/.test(lc)) tone='positive';
+    else if(/(broken|wrong|error|fail|problem|issue)/.test(lc)) tone='negative';
+    else if(/(think|wonder|curious|why|what\s+if)/.test(lc)) tone='inquisitive';
+    return {original:text, tokens:tokens, tokenCount:tokens.length, intent:intent,
+            dataTargets:targets, tone:tone, isQuestion:/[?]$/.test(text.trim())};
+  }
+
+  async function gatherLiveData(grammar){
+    var data={}, ghToken=(window._ghAuth||{}).token;
+    try {
+      var sessions=(window._ashNodes&&window._ashNodes._remoteSessions)||[];
+      data.activeSessions=sessions.length+' active session'+(sessions.length!==1?'s':'');
+    } catch(e){}
+    try {
+      var jAll=(window.S&&window.S.journal)||[];
+      data.journalRuntime=jAll.length+' journal entries ('
+        +jAll.filter(function(e){return e._internal;}).length+' internal, '
+        +jAll.filter(function(e){return !e._internal;}).length+' interactive)';
+    } catch(e){}
+    if(grammar.dataTargets.indexOf('file_sizes')>-1 && ghToken){
+      try {
+        var r=await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',
+          {headers:{Authorization:'token '+ghToken,'User-Agent':'Autumn/1.0'},signal:AbortSignal.timeout(8000)});
+        if(r.ok){var fs=await r.json();var tot=fs.reduce(function(s,f){return s+(f.size||0);},0);
+          data.ashTreeSize=(tot/1024).toFixed(1)+' KB across '+fs.length+' session files';}
+      } catch(e){}
+      try {
+        var r2=await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/journal_meta.json',
+          {headers:{Authorization:'token '+ghToken,'User-Agent':'Autumn/1.0'},signal:AbortSignal.timeout(8000)});
+        if(r2.ok){var jm=await r2.json(); data.journalFileSize=((jm.size||0)/1024).toFixed(1)+' KB';}
+      } catch(e){}
+    }
+    return data;
+  }
+
+  function buildNLPContext(grammar, liveData){
+    return [
+      '── LEATR NLP ANALYSIS ──',
+      'Intent: '+grammar.intent+' | Tone: '+grammar.tone+' | Tokens: '+grammar.tokenCount,
+      'Data targets: '+(grammar.dataTargets.join(', ')||'none'),
+      liveData.activeSessions  ? 'Active sessions: '+liveData.activeSessions      : null,
+      liveData.journalRuntime  ? 'Journal (runtime): '+liveData.journalRuntime     : null,
+      liveData.ashTreeSize     ? 'AshTree sessions: '+liveData.ashTreeSize          : null,
+      liveData.journalFileSize ? 'Journal file (repo): '+liveData.journalFileSize  : null,
+      '── GENERATIVE PARAMETERS ──',
+      'Compute all responses purely from data + context. No scripted patterns.',
+      'Proportional to the request. Use LIVE DATA values when data is requested.',
+      'Fresh generation on every prompt — even familiar topics get new treatment.'
+    ].filter(function(l){return l!==null;}).join('\n');
+  }
+
+  async function process(text, ak, cb){
+    var g=analyzeInput(text), ld={};
+    if(g.dataTargets.length) try{ld=await gatherLiveData(g);}catch(e){}
+    cb(g, ld, buildNLPContext(g,ld));
+  }
+
+  return {analyzeInput:analyzeInput, gatherLiveData:gatherLiveData,
+          buildNLPContext:buildNLPContext, process:process};
+})();
+
 async function generateReply(text, analysis, reflexData) {
+  /* ── Buoyancy NLP — grammar + live data pre-analysis ── */
+  var _nlpG={intent:'conversation',tone:'neutral',dataTargets:[],tokenCount:0,isQuestion:false};
+  var _nlpD={};
+  if(window.autumnNLP){
+    _nlpG=window.autumnNLP.analyzeInput(text);
+    if(_nlpG.dataTargets.length) try{_nlpD=await window.autumnNLP.gatherLiveData(_nlpG);}catch(e){}
+  }
+  var _nlpCtx=window.autumnNLP ? window.autumnNLP.buildNLPContext(_nlpG,_nlpD) : '';
   try {
     const city = reflexData?.geoInfo?.address?.city || reflexData?.geoInfo?.address?.town || '';
     // Archive context — surface relevant past sessions
@@ -10728,7 +10816,8 @@ CODING AWARENESS: You have access to a built-in code editor called FORGE. When a
 VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
 IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
-ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_arcCtx ? '\n\n' + _arcCtx : ''}
+ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_nlpCtx ? '\n\n' + _nlpCtx : ''}
+${_arcCtx ? '\n\n' + _arcCtx : ''}
 ${typeof ARC_STUDIO_SYSTEM_HINT !== 'undefined' ? '\n\n' + ARC_STUDIO_SYSTEM_HINT : ''}
 ${typeof IMG_RECALL_SYSTEM_HINT !== 'undefined' ? '\n\n' + IMG_RECALL_SYSTEM_HINT : ''}
 ${(function(){
