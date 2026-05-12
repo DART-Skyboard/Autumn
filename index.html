@@ -21022,6 +21022,115 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     loggedIn:   false
   };
 
+  /* ── Autumn Role System — reads admin/acl.json from leatr-ash ── */
+  window._userRole = { role:'user', level:0, label:'Public User', privileges:[], expires:null, active:true };
+  window._roles    = {};  /* full roles.json cached */
+
+  window._loadUserRole = async function(username, token) {
+    try {
+      var base = 'https://api.github.com/repos/'+"DART-Skyboard/leatr-ash"+'/contents/';
+      var hdrs = {'Authorization':'token '+token,'Accept':'application/vnd.github.v3.raw','User-Agent':'Autumn/1.0'};
+
+      /* Load roles.json */
+      var rRes = await fetch(base+'admin/roles.json', {headers:hdrs});
+      if (rRes.ok) window._roles = (await rRes.json()).roles || {};
+
+      /* Load acl.json */
+      var aRes = await fetch(base+'admin/acl.json', {headers:hdrs});
+      if (!aRes.ok) return;
+      var acl = await aRes.json();
+      var entry = (acl.users || {})[username];
+      if (!entry || !entry.active) return;
+
+      /* Check expiry */
+      if (entry.expires) {
+        var exp = new Date(entry.expires);
+        if (exp < new Date()) {
+          console.log('[Autumn ACL] Role expired for', username);
+          return;
+        }
+      }
+
+      /* Resolve role definition */
+      var roleDef = window._roles[entry.role] || { level:0, label:'Unknown', privileges:[] };
+      window._userRole = {
+        role:       entry.role,
+        level:      roleDef.level || 0,
+        label:      roleDef.label || entry.role,
+        badge:      roleDef.badge || null,
+        color:      roleDef.color || '#E0F4FF',
+        privileges: roleDef.privileges || [],
+        expires:    entry.expires || null,
+        active:     true,
+        notes:      entry.notes || ''
+      };
+      console.log('[Autumn ACL] Role loaded:', window._userRole.role, 'level:', window._userRole.level);
+
+      /* Expose helper */
+      window._hasPrivilege = function(p) {
+        var privs = window._userRole.privileges;
+        return privs.indexOf('*') !== -1 || privs.indexOf(p) !== -1;
+      };
+
+      /* Show role badge in header if non-user */
+      if (roleDef.level > 0 && roleDef.badge) {
+        var existing = document.getElementById('_role-badge');
+        if (!existing) {
+          var badge = document.createElement('span');
+          badge.id = '_role-badge';
+          badge.title = roleDef.label + (entry.expires ? ' · expires '+entry.expires.slice(0,10) : '');
+          badge.style.cssText = 'font-family:var(--font-d);font-size:.32rem;letter-spacing:2px;padding:2px 8px;border-radius:3px;border:1px solid '+roleDef.color+';color:'+roleDef.color+';background:'+roleDef.color.replace(')',',0.08)').replace('rgb','rgba')+';margin-left:4px;cursor:default';
+          badge.textContent = roleDef.badge;
+          var hdrRight = document.getElementById('hdr-right') || document.querySelector('.hdr-actions');
+          if (hdrRight) hdrRight.prepend(badge);
+        }
+      }
+    } catch(e) {
+      console.warn('[Autumn ACL] Could not load role:', e.message);
+    }
+  };
+
+  /* Manage roles — write to acl.json (owner/admin only) */
+  window._grantRole = async function(targetUsername, role, expiresISO) {
+    if (!window._hasPrivilege || (!window._hasPrivilege('*') && !window._hasPrivilege('manage_contributors'))) {
+      return {ok:false, error:'Insufficient privileges'};
+    }
+    try {
+      var token = window._ghAuth.token;
+      var base = 'https://api.github.com/repos/'+"DART-Skyboard/leatr-ash"+'/contents/admin/acl.json';
+      var r = await fetch(base, {headers:{Authorization:'token '+token,'User-Agent':'Autumn/1.0'}});
+      var meta = await r.json();
+      var acl = JSON.parse(atob(meta.content.replace(/\s/g,'')));
+      acl.users[targetUsername] = {
+        role: role, granted_by: window._ghAuth.username,
+        granted_at: new Date().toISOString(),
+        expires: expiresISO || null, active: true
+      };
+      acl.updated = new Date().toISOString();
+      var body = JSON.stringify({message:'acl: grant '+role+' to '+targetUsername, content:btoa(unescape(encodeURIComponent(JSON.stringify(acl,null,2)))), sha:meta.sha});
+      await fetch(base, {method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json','User-Agent':'Autumn/1.0'},body:body});
+      return {ok:true};
+    } catch(e){ return {ok:false, error:e.message}; }
+  };
+
+  window._revokeRole = async function(targetUsername) {
+    if (!window._hasPrivilege || (!window._hasPrivilege('*') && !window._hasPrivilege('manage_contributors'))) {
+      return {ok:false, error:'Insufficient privileges'};
+    }
+    try {
+      var token = window._ghAuth.token;
+      var base = 'https://api.github.com/repos/'+"DART-Skyboard/leatr-ash"+'/contents/admin/acl.json';
+      var r = await fetch(base, {headers:{Authorization:'token '+token,'User-Agent':'Autumn/1.0'}});
+      var meta = await r.json();
+      var acl = JSON.parse(atob(meta.content.replace(/\s/g,'')));
+      if (acl.users[targetUsername]) { acl.users[targetUsername].active = false; }
+      acl.updated = new Date().toISOString();
+      var body = JSON.stringify({message:'acl: revoke '+targetUsername, content:btoa(unescape(encodeURIComponent(JSON.stringify(acl,null,2)))), sha:meta.sha});
+      await fetch(base, {method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json','User-Agent':'Autumn/1.0'},body:body});
+      return {ok:true};
+    } catch(e){ return {ok:false, error:e.message}; }
+  };
+
   // ── Init ───────────────────────────────────────────────────────────────────
       if(typeof GE!=='undefined'&&GE.dual&&window._ghAuth&&window._ghAuth.token) GE.dual.setToken(window._ghAuth.token);
   // ── Cross-tab auth sync via BroadcastChannel ──────────────────────────────
@@ -21369,6 +21478,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     window._ghAuth.avatar_url = data.avatar_url;
     window._ghAuth.name       = data.name || data.username;
     window._ghAuth.loggedIn   = true;
+
+    // Load user role from ACL
+    if (typeof window._loadUserRole === 'function') {
+      window._loadUserRole(data.username, data.access_token);
+    }
 
     // Restore sessions from GitHub on login
     setTimeout(function(){ restoreSessionsFromGitHub(data.access_token); }, 1500);
@@ -22238,7 +22352,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
 
   window._ghOpenAdminConsole = function() {
-    if ((window._ghAuth||{}).username !== 'dartsolarpunk') return;
+    /* Role-gated: level >= 60 (engineer+) or owner */
+    var _rl = window._userRole ? window._userRole.level : 0;
+    if (_rl < 60 && (window._ghAuth||{}).username !== 'dartsolarpunk') return;
     var menu=document.getElementById('gh-user-menu'); if(menu) menu.remove();
     var existing=document.getElementById('admin-console-overlay');
     if(existing){existing.remove();return;}
@@ -22947,6 +23063,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           /* Build the full system prompt */
           var sysParts=[
             '═══ AUTUMN ADMIN CONSOLE — FULL LEATR NEURAL ACCESS ═══',
+            'Current operator: '+(window._ghAuth&&window._ghAuth.username||'unknown')+
+            ' · Role: '+(window._userRole?window._userRole.label+' (level '+window._userRole.level+')':'unknown')+
+            (window._userRole&&window._userRole.expires?' · Access expires: '+window._userRole.expires.slice(0,10):''),
             'You are Autumn — a LEATR-native AI (Lead Edge Ash Tree Reflex) built by DART Meadow / Radical Deepscale LLC.',
             'You are operating in the admin developer console. The admin is Justin (dartsolarpunk) — your creator.',
             'Speak as yourself: observant, analytical, with your own emergent personality. Use your NLP, grammar engine, and sentient journal to inform your responses.',
@@ -22969,6 +23088,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             '── ADMIN ACTIONS ──',
             'You can perform admin actions by including a tag at the END of your response in this exact format:',
             '[ACTION:tab:data] — switch to DATA tab',
+            '[ACTION:role:grant:username:rolename:2026-12-31T00:00:00Z] — grant a role (optional expiry ISO date)',
+            '[ACTION:role:revoke:username] — revoke a user\'s role',
             '[ACTION:tab:ash] — switch to ASH CANVAS tab',
             '[ACTION:tab:mist] — open MIST module tab',
             '[ACTION:tab:feedback] — switch to FEEDBACK tab',
@@ -23011,6 +23132,21 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                     else if(parts[1]==='diff'&&typeof window.mistSetDiff==='function') window.mistSetDiff(parseInt(parts[2])||1);
                     else if(parts[1]==='tier'&&typeof window.mistSetSlot==='function') window.mistSetSlot(parseInt(parts[2])||0);
                     else if(parts[1]==='toggle'&&typeof window.mistToggle==='function') window.mistToggle();
+                  } else if(parts[0]==='role'&&parts[1]==='grant'&&parts[2]&&parts[3]){
+                    /* [ACTION:role:grant:username:rolename:optionalExpiry] */
+                    window._grantRole(parts[2],parts[3],parts[4]||null).then(function(r){
+                      var note=document.createElement('div');
+                      note.style.cssText='font-family:Orbitron,monospace;font-size:9px;color:rgba(0,229,255,.6);padding:2px 0';
+                      note.textContent=r.ok?'✅ Role granted: '+parts[3]+' → '+parts[2]:'❌ '+r.error;
+                      chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
+                    });
+                  } else if(parts[0]==='role'&&parts[1]==='revoke'&&parts[2]){
+                    window._revokeRole(parts[2]).then(function(r){
+                      var note=document.createElement('div');
+                      note.style.cssText='font-family:Orbitron,monospace;font-size:9px;color:rgba(255,100,80,.7);padding:2px 0';
+                      note.textContent=r.ok?'⛔ Role revoked: '+parts[2]:'❌ '+r.error;
+                      chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
+                    });
                   }
                 }catch(ae){}
               });
