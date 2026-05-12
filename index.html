@@ -16753,12 +16753,16 @@ ashLoadDefs();
       }, 400);
     }
 
-    // Swap avatar logo for stealth mode
-    var _av = document.getElementById('hdr-avatar');
-    if (_av) {
-      _av.src = (effective.key === 'stealth')
-        ? 'assets/dartalleyautumn.png'
-        : 'assets/autumn-avatar.png';
+    // Swap header logo image for stealth mode
+    var _logoImg = document.querySelector('.logo-wrap img');
+    if (_logoImg) {
+      if (effective.key === 'stealth') {
+        _logoImg.src = 'assets/dartalleyautumn.png';
+        _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(40,100,220,0.45))';
+      } else {
+        _logoImg.src = 'assets/autumn.png';
+        _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(191,0,255,.3))';
+      }
     }
     // Update toggle pill appearance
     if (dot) {
