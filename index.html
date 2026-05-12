@@ -24135,7 +24135,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 // ── CONFIG ────────────────────────────────────────────────────────────
 // Update MN_URL to wherever mn.html is served on your hosting.
 // Easiest: copy mn.html into DART-Skyboard/Autumn repo root → '/mn.html'
-var MN_URL            = '/mn.html';          // same-origin → no sandbox issues
+var MN_URL            = '/mn.html?v='+Date.now(); // cache-bust every open
 var ADSB_BASE         = 'https://api.adsb.lol/v2';
 var AIRCRAFT_RADIUS   = 200;                 // nautical miles
 var AC_REFRESH_MS     = 30000;
