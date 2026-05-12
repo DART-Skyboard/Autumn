@@ -1,5 +1,3 @@
---- START OF FILE mn.html ---
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -827,104 +825,120 @@
         // Define loader early so it is available for both drone and environment
         const loader = new GLTFLoader();
 
-        // --- BACKGROUND: Three.js Points star field ---
+        // --- BACKGROUND: Volumetric star field with stellar classes + nebulae ---
         let skybox;
-
-        // Invisible bounding sphere — keeps scene spatial reference, not rendered
         (function(){
-          var bGeo = new THREE.SphereGeometry(5900, 8, 8);
-          var bMat = new THREE.MeshBasicMaterial({visible:false});
-          skybox = new THREE.Mesh(bGeo, bMat);
+          var bGeo = new THREE.SphereGeometry(5900,8,8);
+          skybox = new THREE.Mesh(bGeo, new THREE.MeshBasicMaterial({visible:false}));
           scene.add(skybox);
         })();
 
-        // Star field: THREE.Points scattered inside the sphere
         (function(){
-          // --- Deep stars (far layer, thousands) ---
-          var count1 = 3000;
-          var pos1 = new Float32Array(count1 * 3);
-          var col1 = new Float32Array(count1 * 3);
-          for(var i = 0; i < count1; i++){
-            var theta = Math.random() * Math.PI * 2;
-            var phi   = Math.acos(2 * Math.random() - 1);
-            var r     = 4000 + Math.random() * 1800;
-            pos1[i*3]   = r * Math.sin(phi) * Math.cos(theta);
-            pos1[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
-            pos1[i*3+2] = r * Math.cos(phi);
-            var hue = 0.5 + Math.random() * 0.1;
-            var c = new THREE.Color().setHSL(hue, 0.4, 0.7 + Math.random() * 0.3);
-            col1[i*3] = c.r; col1[i*3+1] = c.g; col1[i*3+2] = c.b;
-          }
-          var geo1 = new THREE.BufferGeometry();
-          geo1.setAttribute('position', new THREE.BufferAttribute(pos1, 3));
-          geo1.setAttribute('color',    new THREE.BufferAttribute(col1, 3));
-          var mat1 = new THREE.PointsMaterial({size:2.5, vertexColors:true, sizeAttenuation:true, transparent:true, opacity:0.85});
-          scene.add(new THREE.Points(geo1, mat1));
-
-          // --- Mid stars (medium layer) ---
-          var count2 = 800;
-          var pos2 = new Float32Array(count2 * 3);
-          var col2 = new Float32Array(count2 * 3);
-          for(var i = 0; i < count2; i++){
-            var theta = Math.random() * Math.PI * 2;
-            var phi   = Math.acos(2 * Math.random() - 1);
-            var r     = 3000 + Math.random() * 1500;
-            pos2[i*3]   = r * Math.sin(phi) * Math.cos(theta);
-            pos2[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
-            pos2[i*3+2] = r * Math.cos(phi);
-            var hue = 0.52 + Math.random() * 0.08;
-            var c = new THREE.Color().setHSL(hue, 0.5, 0.8 + Math.random() * 0.2);
-            col2[i*3] = c.r; col2[i*3+1] = c.g; col2[i*3+2] = c.b;
-          }
-          var geo2 = new THREE.BufferGeometry();
-          geo2.setAttribute('position', new THREE.BufferAttribute(pos2, 3));
-          geo2.setAttribute('color',    new THREE.BufferAttribute(col2, 3));
-          var mat2 = new THREE.PointsMaterial({size:5, vertexColors:true, sizeAttenuation:true, transparent:true, opacity:0.7});
-          scene.add(new THREE.Points(geo2, mat2));
-
-          // --- Bright feature stars (large glowing) ---
-          var count3 = 120;
-          var pos3 = new Float32Array(count3 * 3);
-          var col3 = new Float32Array(count3 * 3);
-          for(var i = 0; i < count3; i++){
-            var theta = Math.random() * Math.PI * 2;
-            var phi   = Math.acos(2 * Math.random() - 1);
-            var r     = 3500 + Math.random() * 2000;
-            pos3[i*3]   = r * Math.sin(phi) * Math.cos(theta);
-            pos3[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
-            pos3[i*3+2] = r * Math.cos(phi);
-            var hue = 0.50 + Math.random() * 0.12;
-            var c = new THREE.Color().setHSL(hue, 0.6, 0.95);
-            col3[i*3] = c.r; col3[i*3+1] = c.g; col3[i*3+2] = c.b;
-          }
-          var geo3 = new THREE.BufferGeometry();
-          geo3.setAttribute('position', new THREE.BufferAttribute(pos3, 3));
-          geo3.setAttribute('color',    new THREE.BufferAttribute(col3, 3));
-          var mat3 = new THREE.PointsMaterial({size:10, vertexColors:true, sizeAttenuation:true, transparent:true, opacity:0.6});
-          scene.add(new THREE.Points(geo3, mat3));
-
-          // --- Nebula clouds: large soft point clusters ---
-          var nebulaCenters = [
-            {x:2000,y:1200,z:3000,hu:0.52,count:200,spread:600},
-            {x:-2500,y:-800,z:2800,hu:0.55,count:150,spread:500},
-            {x:1000,y:2500,z:-2000,hu:0.48,count:180,spread:700},
-            {x:-1500,y:1800,z:-3000,hu:0.53,count:120,spread:400}
+          // ── Stellar class color palette (hue, sat, lightness ranges) ──
+          var starClasses = [
+            {name:'O', hue:0.72, sat:0.9, light:0.95, prob:0.01, sizeMin:12, sizeMax:20, glow:true},  // blue-violet, rare
+            {name:'B', hue:0.60, sat:0.8, light:0.92, prob:0.04, sizeMin:8,  sizeMax:14, glow:true},  // blue-white
+            {name:'A', hue:0.58, sat:0.5, light:0.98, prob:0.10, sizeMin:5,  sizeMax:10, glow:true},  // white-blue
+            {name:'F', hue:0.15, sat:0.4, light:0.96, prob:0.15, sizeMin:4,  sizeMax:7,  glow:false}, // yellow-white
+            {name:'G', hue:0.13, sat:0.7, light:0.88, prob:0.20, sizeMin:3,  sizeMax:6,  glow:false}, // yellow (sun-like)
+            {name:'K', hue:0.07, sat:0.8, light:0.75, prob:0.25, sizeMin:2,  sizeMax:5,  glow:false}, // orange
+            {name:'M', hue:0.01, sat:0.9, light:0.65, prob:0.25, sizeMin:1.5,sizeMax:4,  glow:false}  // red
           ];
-          nebulaCenters.forEach(function(nc){
-            var np = new Float32Array(nc.count * 3);
-            var nc2 = new Float32Array(nc.count * 3);
-            for(var i = 0; i < nc.count; i++){
-              np[i*3]   = nc.x + (Math.random()-0.5)*nc.spread;
-              np[i*3+1] = nc.y + (Math.random()-0.5)*nc.spread*0.6;
-              np[i*3+2] = nc.z + (Math.random()-0.5)*nc.spread;
-              var c = new THREE.Color().setHSL(nc.hu, 0.7, 0.4 + Math.random()*0.3);
-              nc2[i*3]=c.r; nc2[i*3+1]=c.g; nc2[i*3+2]=c.b;
+
+          function pickClass(){
+            var r = Math.random(), cum = 0;
+            for(var i=0;i<starClasses.length;i++){cum+=starClasses[i].prob;if(r<cum)return starClasses[i];}
+            return starClasses[starClasses.length-1];
+          }
+          function randSphere(rMin,rMax){
+            var theta=Math.random()*Math.PI*2, phi=Math.acos(2*Math.random()-1);
+            var r=rMin+Math.random()*(rMax-rMin);
+            return [r*Math.sin(phi)*Math.cos(theta), r*Math.sin(phi)*Math.sin(theta), r*Math.cos(phi)];
+          }
+
+          // ── Main field: 4000 classified stars ──
+          var count=4000;
+          var pos=new Float32Array(count*3), col=new Float32Array(count*3), sz=new Float32Array(count);
+          for(var i=0;i<count;i++){
+            var sc=pickClass();
+            var p=randSphere(3500,5800);
+            pos[i*3]=p[0]; pos[i*3+1]=p[1]; pos[i*3+2]=p[2];
+            var light=sc.light - Math.random()*0.15;
+            var c=new THREE.Color().setHSL(sc.hue,sc.sat,light);
+            col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+            sz[i]=sc.sizeMin+Math.random()*(sc.sizeMax-sc.sizeMin);
+          }
+          var geo=new THREE.BufferGeometry();
+          geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+          geo.setAttribute('color',   new THREE.BufferAttribute(col,3));
+          scene.add(new THREE.Points(geo,
+            new THREE.PointsMaterial({size:4,vertexColors:true,sizeAttenuation:true,transparent:true,opacity:0.95})));
+
+          // ── Neon glow layer: only hot stars (O/B/A) extra large + bright ──
+          var glowCount=180;
+          var gPos=new Float32Array(glowCount*3), gCol=new Float32Array(glowCount*3);
+          var glowClasses=starClasses.filter(function(s){return s.glow;});
+          for(var i=0;i<glowCount;i++){
+            var sc=glowClasses[Math.floor(Math.random()*glowClasses.length)];
+            var p=randSphere(3000,5500);
+            gPos[i*3]=p[0]; gPos[i*3+1]=p[1]; gPos[i*3+2]=p[2];
+            var c=new THREE.Color().setHSL(sc.hue,1.0,0.98);
+            gCol[i*3]=c.r; gCol[i*3+1]=c.g; gCol[i*3+2]=c.b;
+          }
+          var gGeo=new THREE.BufferGeometry();
+          gGeo.setAttribute('position',new THREE.BufferAttribute(gPos,3));
+          gGeo.setAttribute('color',   new THREE.BufferAttribute(gCol,3));
+          scene.add(new THREE.Points(gGeo,
+            new THREE.PointsMaterial({size:22,vertexColors:true,sizeAttenuation:true,transparent:true,opacity:0.35})));
+
+          // ── Dense star cluster regions (5 clusters) ──
+          var clusters=[
+            {cx:3000,cy:1000,cz:2000, spread:400, count:300, hu:0.58, sat:0.6},
+            {cx:-2500,cy:2000,cz:-1500, spread:350, count:250, hu:0.62, sat:0.5},
+            {cx:500,cy:-3000,cz:2500, spread:500, count:400, hu:0.55, sat:0.7},
+            {cx:-1000,cy:1500,cz:-3500, spread:300, count:200, hu:0.70, sat:0.8},
+            {cx:2000,cy:-2000,cz:-2000, spread:450, count:280, hu:0.10, sat:0.6}
+          ];
+          clusters.forEach(function(cl){
+            var cp=new Float32Array(cl.count*3), cc=new Float32Array(cl.count*3);
+            for(var i=0;i<cl.count;i++){
+              cp[i*3]=cl.cx+(Math.random()-.5)*cl.spread;
+              cp[i*3+1]=cl.cy+(Math.random()-.5)*cl.spread*.6;
+              cp[i*3+2]=cl.cz+(Math.random()-.5)*cl.spread;
+              var c=new THREE.Color().setHSL(cl.hu,cl.sat,.7+Math.random()*.3);
+              cc[i*3]=c.r; cc[i*3+1]=c.g; cc[i*3+2]=c.b;
             }
-            var ng = new THREE.BufferGeometry();
-            ng.setAttribute('position', new THREE.BufferAttribute(np, 3));
-            ng.setAttribute('color',    new THREE.BufferAttribute(nc2, 3));
-            var nm = new THREE.PointsMaterial({size:28, vertexColors:true, sizeAttenuation:true, transparent:true, opacity:0.12});
-            scene.add(new THREE.Points(ng, nm));
+            var cg=new THREE.BufferGeometry();
+            cg.setAttribute('position',new THREE.BufferAttribute(cp,3));
+            cg.setAttribute('color',   new THREE.BufferAttribute(cc,3));
+            scene.add(new THREE.Points(cg,
+              new THREE.PointsMaterial({size:3.5,vertexColors:true,sizeAttenuation:true,transparent:true,opacity:0.9})));
+          });
+
+          // ── Colorful nebulae (large soft glowing clouds, varied colors) ──
+          var nebulae=[
+            {cx:2200,cy:800,cz:3000,   spread:700, count:400, hu:0.75, sat:0.9, op:0.18},  // purple
+            {cx:-2800,cy:-600,cz:2200, spread:600, count:300, hu:0.55, sat:0.8, op:0.15},  // cyan
+            {cx:800,cy:2800,cz:-1800,  spread:800, count:350, hu:0.02, sat:0.9, op:0.14},  // red/orange
+            {cx:-1200,cy:-2500,cz:-2800,spread:500,count:250, hu:0.35, sat:0.7, op:0.12},  // green
+            {cx:3500,cy:-1500,cz:-1000,spread:700, count:300, hu:0.62, sat:0.8, op:0.16},  // blue
+            {cx:-3000,cy:2000,cz:1500, spread:600, count:280, hu:0.08, sat:0.9, op:0.13}   // amber/gold
+          ];
+          nebulae.forEach(function(nb){
+            var np=new Float32Array(nb.count*3), nc=new Float32Array(nb.count*3);
+            for(var i=0;i<nb.count;i++){
+              np[i*3]=nb.cx+(Math.random()-.5)*nb.spread;
+              np[i*3+1]=nb.cy+(Math.random()-.5)*nb.spread*.5;
+              np[i*3+2]=nb.cz+(Math.random()-.5)*nb.spread;
+              var light=.35+Math.random()*.35;
+              var c=new THREE.Color().setHSL(nb.hu,nb.sat,light);
+              nc[i*3]=c.r; nc[i*3+1]=c.g; nc[i*3+2]=c.b;
+            }
+            var ng=new THREE.BufferGeometry();
+            ng.setAttribute('position',new THREE.BufferAttribute(np,3));
+            ng.setAttribute('color',   new THREE.BufferAttribute(nc,3));
+            scene.add(new THREE.Points(ng,
+              new THREE.PointsMaterial({size:35,vertexColors:true,sizeAttenuation:true,transparent:true,opacity:nb.op})));
           });
         })();
 
@@ -1987,5 +2001,3 @@
 
 </body>
 </html>
-
---- END OF FILE mn.html ---
