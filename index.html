@@ -22261,7 +22261,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var t3=document.createElement('button'); t3.id='adm-t3'; t3.textContent='◈ FEEDBACK';
     t3.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
     t3.onclick=function(){window._admTab('feedback');};
-    tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); hdr.appendChild(tabs);
+    var t4=document.createElement('button'); t4.id='adm-t4'; t4.textContent='⬡ MIST';
+    t4.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
+    t4.onclick=function(){window._admTab('mist');};
+    tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4); hdr.appendChild(tabs);
     var closeBtn=document.createElement('button'); closeBtn.textContent='✕ CLOSE';
     closeBtn.style.cssText='margin-left:auto;background:transparent;border:1px solid rgba(255,100,100,.3);color:rgba(255,100,100,.6);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--font-d);font-size:.32rem';
     closeBtn.onclick=function(){
@@ -22478,10 +22481,64 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     window._admTab=function(tab){
       _styleAdmTabs(tab);
+      /* Close MIST overlay if switching away from MIST tab */
+      var _prevMistOv=document.getElementById('mist-overlay');
+      if(_prevMistOv&&_prevMistOv.classList.contains('mist-open')&&document.getElementById('adm-t4')&&document.getElementById('adm-t4').style.background!=='') {
+        if(typeof window.mistToggle==='function'&&window.MIST&&window.MIST.open) window.mistToggle();
+      }
       _restoreBRPN();
 
       var frame=document.getElementById('adm-frame');
       if(!frame) return;
+
+      if(tab==='mist'){
+        frame.style.display='block';
+        frame.style.background='transparent';
+        frame.innerHTML='';
+
+        /* ── MIST Admin Panel ── */
+        var ak=_getAK?_getAK():'';
+        frame.innerHTML=
+          '<div style="display:flex;flex-direction:column;height:100%;background:rgba(2,6,14,.92);color:#E0F4FF;font-family:Orbitron,monospace">'+
+          '<div style="padding:14px 16px 8px;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0">'+
+            '<div style="font-size:9px;letter-spacing:3px;color:rgba(0,229,255,.5);margin-bottom:6px">MIST — LEAD EDGE MAZE · ADMIN ACCESS</div>'+
+            '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+              '<span style="font-size:10px;color:rgba(224,244,255,.5)">TIER:</span>'+
+              '<button onclick="window.mistSetSlot(0)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(255,221,0,.4);background:rgba(255,221,0,.1);color:#ffdd00;cursor:pointer">★ STAR</button>'+
+              '<button onclick="window.mistSetSlot(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(255,68,136,.4);background:rgba(255,68,136,.08);color:#ff4488;cursor:pointer">♥ HEART</button>'+
+              '<button onclick="window.mistSetSlot(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.4);background:rgba(0,229,255,.08);color:#00e5ff;cursor:pointer">◈ MIST</button>'+
+            '</div>'+
+            '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">'+
+              '<span style="font-size:10px;color:rgba(224,244,255,.5)">DIFF:</span>'+
+              '<button onclick="window.mistSetDiff(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.08);color:#00e5ff;cursor:pointer">I</button>'+
+              '<button onclick="window.mistSetDiff(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">II</button>'+
+              '<button onclick="window.mistSetDiff(3)" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">III</button>'+
+              '<button onclick="window.mistNewMaze()" style="font-family:Orbitron,monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid rgba(167,139,250,.4);background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;margin-left:4px">NEW MAZE</button>'+
+            '</div>'+
+          '</div>'+
+          '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px">'+
+            '<div id="adm-mist-canvas-host" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"></div>'+
+          '</div>'+
+          '<div id="adm-mist-status" style="text-align:center;font-size:9px;letter-spacing:2px;color:rgba(0,229,255,.45);padding:8px;border-top:1px solid rgba(0,229,255,.08);flex-shrink:0">DRAG ● FROM ENTRY TO EXIT</div>'+
+          '</div>';
+
+        /* Move/show the MIST overlay inside admin panel */
+        var mistOv = document.getElementById('mist-overlay');
+        var mistTr = document.getElementById('mist-trigger');
+        if(mistOv) {
+          /* Boost z-index so MIST appears above admin overlay */
+          mistOv._admSavedZ = mistOv.style.zIndex||'';
+          mistOv.style.zIndex='10700';
+          if(!mistOv.classList.contains('mist-open')) {
+            if(typeof window.mistToggle==='function') window.mistToggle();
+          }
+        }
+        if(mistTr) {
+          mistTr._admSavedZ = mistTr.style.zIndex||'';
+          mistTr.style.zIndex='10700';
+        }
+        return;
+      }
 
       if(tab==='ash'){
         frame.style.display='none';
@@ -22832,9 +22889,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           var snap=window._getBRPNSceneSnapshot?window._getBRPNSceneSnapshot():'';
           var ab=document.createElement('div'); ab.className='adm-chat-bub autumn'; ab.textContent='...';
           chatLog.appendChild(ab); chatLog.scrollTop=chatLog.scrollHeight;
+          var _admAk=typeof _getAK==='function'?_getAK():'';
           fetch('https://api.anthropic.com/v1/messages',{
-            method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,
+            method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(_admAk?{'x-api-key':_admAk}:{})},
+            body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:800,
               system:'You are Autumn in admin developer console mode. BRPN live scene: '+snap+'\nYou have access to ash canvas pattern aggregates and sentience journal data. Be concise and analytical.',
               messages:[{role:'user',content:q}]})
           }).then(function(r){return r.json();}).then(function(d){
