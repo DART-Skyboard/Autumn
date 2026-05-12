@@ -9070,6 +9070,11 @@ function classifyIntentLocal(text, hasPendingImages) {
     return 'MANTIS_NAV';
   }
 
+    // ── Mandelbrot/fractal — fully offline, no API required ──
+  if (/\b(mandel(brot|bulb)|3d\s+fractal|arc\s+edge\s+mandelbrot)\b/i.test(lc)
+    || /\b(show|generate|open|launch|start)\b.{0,20}\b(fractal|mandelbrot|mandelbulb)\b/i.test(lc)) {
+    return 'OPEN_MANDELBROT';
+  }
   return 'CONVERSATION';
 }
 
