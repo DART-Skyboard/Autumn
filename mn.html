@@ -555,7 +555,8 @@
 </style>
 </head>
 <body>
-    <canvas id="threejs-canvas"></canvas>
+    <canvas id="galaxy-bg" style="position:fixed;inset:0;z-index:0;pointer-events:none;width:100%;height:100%"></canvas>
+    <canvas id="threejs-canvas" style="position:relative;z-index:1"></canvas>
 <div id="trajectories-panel">
     <div class="drawer-handle top-panel-handle">↕</div>
     <h3>Launch & Orbit Trajectories</h3>
@@ -827,23 +828,76 @@
         // Define loader early so it is available for both drone and environment
         const loader = new GLTFLoader();
 
-        // --- BACKGROUND ---
-        let skybox;
-        const textureLoader = new THREE.TextureLoader();
-        const backgroundFileUrl = 'https://raw.githubusercontent.com/DART-Skyboard/Ariel/refs/heads/main/templates/2.jpg';
-        textureLoader.load(backgroundFileUrl, (texture) => {
-            const skyboxGeometry = new THREE.SphereGeometry(6000, 60, 40);
-            texture.mapping = THREE.EquirectangularReflectionMapping;
-            texture.colorSpace = THREE.SRGBColorSpace;
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            const skyboxMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide });
-            skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
-            scene.add(skybox);
-        });
+        // --- BACKGROUND: Hercules star field (2D canvas) + transparent Three.js renderer ---
+        renderer.setClearColor(0x000000, 0); // transparent so galaxy-bg canvas shows through
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        // Galaxy canvas star field (from Hercules)
+        (function(){
+          var gc=document.getElementById('galaxy-bg');
+          if(!gc) return;
+          var gx=gc.getContext('2d'), gW, gH;
+          function rG(){ gW=gc.width=innerWidth; gH=gc.height=innerHeight; }
+          rG(); window.addEventListener('resize',rG);
+
+          var layers=[], nebulae=[];
+          for(var L=0;L<3;L++){
+            var st=[], cn=[200,100,40][L];
+            for(var i=0;i<cn;i++)
+              st.push({x:Math.random()*3e3, y:Math.random()*3e3,
+                r:[.4,.8,1.6][L]+Math.random()*[.3,.5,.7][L],
+                b:Math.random()*.5+.15, ph:Math.random()*Math.PI*2, hu:180+Math.random()*60});
+            layers.push({s:st, d:[.08,.18,.3][L]});
+          }
+          for(var i=0;i<5;i++)
+            nebulae.push({x:Math.random()*3e3, y:Math.random()*3e3,
+              rx:100+Math.random()*200, ry:70+Math.random()*140,
+              hu:185+Math.random()*35, a:.01+Math.random()*.015,
+              ro:Math.random()*Math.PI, d:.1+Math.random()*.15});
+
+          var mX=.5, mY=.5, gT=0;
+          window.addEventListener('mousemove',function(e){mX=e.clientX/gW;mY=e.clientY/gH},{passive:true});
+          window.addEventListener('touchmove',function(e){if(e.touches[0]){mX=e.touches[0].clientX/gW;mY=e.touches[0].clientY/gH;}},{passive:true});
+
+          function dG(){
+            gT+=.006;
+            gx.fillStyle='rgba(6,10,16,1)'; gx.fillRect(0,0,gW,gH);
+            var mx=mX-.5, my=mY-.5;
+            nebulae.forEach(function(n){
+              var ox=((n.x+mx*n.d*60)%gW+gW)%gW, oy=((n.y+my*n.d*60)%gH+gH)%gH;
+              var g=gx.createRadialGradient(ox,oy,0,ox,oy,n.rx);
+              g.addColorStop(0,'hsla('+n.hu+',65%,35%,'+(n.a*1.8)+')');
+              g.addColorStop(.4,'hsla('+n.hu+',55%,22%,'+n.a+')');
+              g.addColorStop(1,'transparent');
+              gx.save(); gx.translate(ox,oy); gx.rotate(n.ro+gT*.015);
+              gx.scale(1,n.ry/n.rx); gx.translate(-ox,-oy);
+              gx.fillStyle=g; gx.fillRect(ox-n.rx*2,oy-n.rx*2,n.rx*4,n.rx*4); gx.restore();
+            });
+            layers.forEach(function(l){ l.s.forEach(function(s){
+              var px=((s.x+mx*l.d*90)%gW+gW)%gW, py=((s.y+my*l.d*90)%gH+gH)%gH;
+              var fl=s.b+Math.sin(gT*2.5+s.ph)*.22, a=Math.max(.03,Math.min(1,fl));
+              gx.beginPath(); gx.arc(px,py,s.r,0,Math.PI*2);
+              gx.fillStyle='hsla('+s.hu+',60%,88%,'+a+')'; gx.fill();
+              if(s.r>1.2&&a>.4){ gx.beginPath(); gx.arc(px,py,s.r*3,0,Math.PI*2);
+                gx.fillStyle='hsla('+s.hu+',70%,70%,'+(a*.08)+')'; gx.fill(); }
+            });});
+            if(Math.random()<.003){
+              var sx=Math.random()*gW, sy=Math.random()*gH*.6,
+                  an=-.25-Math.random()*.5, ln=50+Math.random()*120;
+              var g2=gx.createLinearGradient(sx,sy,sx+Math.cos(an)*ln,sy+Math.sin(an)*ln);
+              g2.addColorStop(0,'rgba(0,229,255,.6)'); g2.addColorStop(1,'transparent');
+              gx.strokeStyle=g2; gx.lineWidth=1;
+              gx.beginPath(); gx.moveTo(sx,sy);
+              gx.lineTo(sx+Math.cos(an)*ln,sy+Math.sin(an)*ln); gx.stroke();
+            }
+            requestAnimationFrame(dG);
+          }
+          dG();
+        })();
+
 
         function updateSkybox() {
-            if (skybox) {
+            /* no-op — skybox replaced with 2D galaxy canvas */ if (false && skybox) {
                 const backgroundScale = 1, backgroundRotationX = 1, backgroundRotationY = 1.5, backgroundRotationZ = 0;
                 const textureZoom = 0.4, texturePanX = 0.0, texturePanY = 0.0;
                 skybox.scale.set(backgroundScale, backgroundScale, backgroundScale);
