@@ -466,6 +466,158 @@ window._refreshAnalyticsNow = async function() {
     return false; // let normal routing handle it
   };
 
+
+  /* ═══════════════ ARC STUDIO FRACTAL GENERATION ════════════════════════════
+     Mandelbulb (power-n) surface sampler + DOC 3.0 arc perimeter measurement
+     Works entirely inside the existing _as scene — no external dependencies
+  ═══════════════════════════════════════════════════════════════════════════ */
+  var _asFrac = { running:false, timer:null, pts:[], mesh:null, arcMesh:null,
+                  elapsed:0, totalPts:0, startT:0 };
+
+  /* DOC=3.0 venableCircumference */
+  function _asVC(d){ return d * 3; }
+
+  /* Mandelbulb distance estimator */
+  function _asMBde(x,y,z,pw,mi,ba){
+    var zx=x,zy=y,zz=z,dr=1,r=0,i=0;
+    for(;i<mi;i++){
+      r=Math.sqrt(zx*zx+zy*zy+zz*zz);
+      if(r>ba) break;
+      var theta=Math.acos(Math.max(-1,Math.min(1,zz/r)));
+      var phi=Math.atan2(zy,zx);
+      dr=Math.pow(r,pw-1)*pw*dr+1;
+      var zr=Math.pow(r,pw);
+      theta*=pw; phi*=pw;
+      zx=zr*Math.sin(theta)*Math.cos(phi)+x;
+      zy=zr*Math.sin(theta)*Math.sin(phi)+y;
+      zz=zr*Math.cos(theta)+z;
+    }
+    return r<0.001?0:(0.5*Math.log(r)*r/dr);
+  }
+
+  function arcStudioGenerateFractal(){
+    if(!window._arcStudio.scene){ alert('Open Arc Edge Studio first.'); return; }
+    arcStudioStopFractal();
+    _asFrac.pts=[]; _asFrac.elapsed=0; _asFrac.totalPts=0;
+    _asFrac.startT=Date.now();
+
+    /* Remove previous fractal meshes */
+    if(_asFrac.mesh){ window._arcStudio.scene.remove(_asFrac.mesh); _asFrac.mesh=null; }
+    if(_asFrac.arcMesh){ window._arcStudio.scene.remove(_asFrac.arcMesh); _asFrac.arcMesh=null; }
+
+    var dur = parseInt(document.getElementById('as-frac-dur').value)||60;
+    var totalSamples = parseInt(document.getElementById('as-frac-pts').value)||6000;
+    var batchSize = Math.max(50, Math.floor(totalSamples / (dur*4))); // batches per 250ms tick
+    document.getElementById('as-frac-gen-btn').textContent='◈ RUNNING…';
+
+    _asFrac.running=true;
+    _asFrac.timer=setInterval(function(){
+      if(!_asFrac.running) return;
+      _asFrac.elapsed = (Date.now()-_asFrac.startT)/1000;
+
+      var pw  = parseFloat(document.getElementById('as-frac-power').value)||8;
+      var mi  = parseInt(document.getElementById('as-frac-iter').value)||60;
+      var eps = 0.04 + 0.02*(pw/8);   // surface thickness tolerance
+      var bail= 4.0;
+      var added=0;
+
+      for(var s=0;s<batchSize*4&&added<batchSize;s++){
+        var x=(Math.random()-0.5)*2.4;
+        var y=(Math.random()-0.5)*2.4;
+        var z=(Math.random()-0.5)*2.4;
+        var de=_asMBde(x,y,z,pw,mi,bail);
+        if(Math.abs(de)<eps){ _asFrac.pts.push(x,y,z); added++; }
+      }
+      _asFrac.totalPts=_asFrac.pts.length/3;
+
+      /* Rebuild Points mesh */
+      if(_asFrac.mesh) window._arcStudio.scene.remove(_asFrac.mesh);
+      var geo=new THREE.BufferGeometry();
+      geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(_asFrac.pts),3));
+      var mat=new THREE.PointsMaterial({
+        size:0.04,color:0xa78bfa,sizeAttenuation:true,transparent:true,opacity:0.85
+      });
+      _asFrac.mesh=new THREE.Points(geo,mat);
+      _asFrac.mesh.scale.set(4,4,4);
+      window._arcStudio.scene.add(_asFrac.mesh);
+
+      /* Measure and update readout every tick */
+      _asFracMeasure(dur);
+
+      /* Stop when duration elapsed or enough points */
+      if(_asFrac.elapsed>=dur || _asFrac.totalPts>=totalSamples){
+        arcStudioStopFractal();
+        _asFracDrawArcs();
+      }
+    },250);
+  }
+
+  function arcStudioStopFractal(){
+    _asFrac.running=false;
+    if(_asFrac.timer){ clearInterval(_asFrac.timer); _asFrac.timer=null; }
+    document.getElementById('as-frac-gen-btn').textContent='◈ GENERATE';
+    if(_asFrac.totalPts>0) _asFracMeasure(parseInt(document.getElementById('as-frac-dur').value)||60);
+  }
+
+  function _asFracMeasure(dur){
+    var pts=_asFrac.pts; var n=pts.length/3;
+    if(n<3){ document.getElementById('as-frac-readout').innerHTML='PERIMETER: — DOC units<br>ARCS: — | AVG D: —<br>ELAPSED: '+_asFrac.elapsed.toFixed(1)+'s / '+dur+'s'; return; }
+
+    /* Project to XY plane, sort by angle to get boundary approximation */
+    var cx=0,cy=0;
+    for(var i=0;i<pts.length;i+=3){ cx+=pts[i]; cy+=pts[i+1]; }
+    cx/=n; cy/=n;
+    var boundary=[];
+    for(var i=0;i<pts.length;i+=3) boundary.push({x:pts[i],y:pts[i+1],z:pts[i+2]});
+    boundary.sort(function(a,b){ return Math.atan2(a.y-cy,a.x-cx)-Math.atan2(b.y-cy,b.x-cx); });
+
+    /* Thin boundary — keep only outermost ~256 */
+    var step=Math.max(1,Math.floor(boundary.length/256));
+    var bpts=[];
+    for(var i=0;i<boundary.length;i+=step) bpts.push(boundary[i]);
+    var arcCount=bpts.length;
+
+    /* Measure perimeter with venableCircumference DOC=3.0 */
+    var totalLen=0,totalD=0;
+    for(var i=0;i<arcCount;i++){
+      var a=bpts[i],b=bpts[(i+1)%arcCount];
+      var segLen=Math.sqrt((b.x-a.x)*(b.x-a.x)+(b.y-a.y)*(b.y-a.y)+(b.z-a.z)*(b.z-a.z));
+      var d=Math.max(1,Math.round(segLen*8/3));
+      totalLen+=_asVC(d);
+      totalD+=d;
+    }
+    var docPerimeter=totalLen.toFixed(2);
+    var avgD=(totalD/arcCount).toFixed(1);
+
+    document.getElementById('as-frac-readout').innerHTML=
+      'PERIMETER: <b style="color:#a78bfa">'+docPerimeter+'</b> DOC units<br>'+
+      'ARCS: '+arcCount+' | AVG D: '+avgD+'<br>'+
+      'ELAPSED: '+_asFrac.elapsed.toFixed(1)+'s / '+dur+'s | PTS: '+n;
+  }
+
+  function _asFracDrawArcs(){
+    if(_asFrac.arcMesh){ window._arcStudio.scene.remove(_asFrac.arcMesh); }
+    var pts=_asFrac.pts; var n=pts.length/3;
+    if(n<3) return;
+    /* Draw arc lines connecting surface points — every 8th point */
+    var step=Math.max(1,Math.floor(n/128));
+    var lineGeo=new THREE.BufferGeometry();
+    var lineVerts=[];
+    for(var i=0;i<n-step;i+=step){
+      lineVerts.push(pts[i*3]*4,pts[i*3+1]*4,pts[i*3+2]*4);
+      lineVerts.push(pts[(i+step)*3]*4,pts[(i+step)*3+1]*4,pts[(i+step)*3+2]*4);
+    }
+    lineGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(lineVerts),3));
+    var lineMat=new THREE.LineBasicMaterial({color:0x00e5ff,transparent:true,opacity:0.45});
+    _asFrac.arcMesh=new THREE.LineSegments(lineGeo,lineMat);
+    window._arcStudio.scene.add(_asFrac.arcMesh);
+  }
+
+  /* Expose for Autumn NLP */
+  window.arcStudioGenerateFractal = arcStudioGenerateFractal;
+  window.arcStudioStopFractal     = arcStudioStopFractal;
+
+
 })();
 
 // ── Forge IDE — GitHub repository operations ─────────────────────────────
@@ -949,181 +1101,31 @@ body.theme-night #vid-scrim{
 }
 
 /* ── Stealth theme overrides ── */
-/* ═══════════════════════════════════════════════════════════════
-   DART ALLEY / STEALTH THEME
-   Exact logo palette sampled from autumn-stealth.png:
-   Primary: #002030 (deep teal-navy hair/crystal shadow)
-   Mid:     #104080 (steel blue crystal highlight)
-   Accent:  #103070 (royal blue outline)
-   Dark:    #001020 (near-black base)
-   Purely cosmetic — no functional changes.
-═══════════════════════════════════════════════════════════════ */
 body.theme-stealth{
-  --cyan:#104878;--blue:#102040;--red:#501828;
-  --bg:#000408;--bg2:#010610;
-  --border:rgba(16,64,120,0.16);
-  --text:#507090;--dim:#0a1828;--bright:#607888;
-  --tt-color:#104878;
+  --cyan:#4a88cc;--blue:#2a5090;--red:#8a2040;
+  --bg:#03040a;--bg2:#07090f;
+  --border:rgba(40,80,140,0.2);
+  --text:#7090b8;--dim:#2a3a58;--bright:#90aad0;
+  --tt-color:#4a88cc;
 }
-
-/* Header */
 body.theme-stealth header{
-  background:linear-gradient(180deg,rgba(0,4,14,.75) 0%,rgba(0,2,8,.3) 100%);
-  border-bottom-color:rgba(16,48,96,0.13);
+  background:linear-gradient(180deg,rgba(4,8,20,.4) 0%,transparent 100%);
+  border-bottom-color:rgba(40,80,160,0.15);
 }
-
-/* Background video scrim */
 body.theme-stealth #vid-scrim{
-  background:rgba(0,2,6,0.78)!important;
-  backdrop-filter:blur(14px) saturate(0.25) brightness(0.4)!important;
-  -webkit-backdrop-filter:blur(14px) saturate(0.25) brightness(0.4)!important;
+  background:rgba(4,8,18,0.26)!important;
+  backdrop-filter:blur(5px) saturate(0.9) brightness(0.88)!important;
+  -webkit-backdrop-filter:blur(5px) saturate(0.9) brightness(0.88)!important;
 }
-
-/* "Autumn" name — matches logo teal-navy exactly, desaturated */
 body.theme-stealth .logo{
-  background:linear-gradient(135deg,#001830,#104080,#002030,#103070,#001020)!important;
-  -webkit-background-clip:text!important;
-  -webkit-text-fill-color:transparent!important;
-  background-clip:text!important;
-  letter-spacing:4px;
-  filter:drop-shadow(0 0 5px rgba(16,64,128,0.35))!important;
+  background:linear-gradient(135deg,#4a88cc 0%,#2a60a8 40%,#6aacee 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 8px rgba(60,120,220,0.5));
 }
-body.theme-stealth .logo-sub{color:rgba(16,64,96,.45)!important}
-
-/* Orb / BRPN rings — deep teal shift */
-body.theme-stealth .orb-ring,
-body.theme-stealth .brpn-ring{
-  filter:hue-rotate(160deg) saturate(0.35) brightness(0.65)!important;
+body.theme-stealth .chat-bubble,.theme-stealth .msg-wrap{
+  background:rgba(4,8,20,0.7)!important;
+  border-color:rgba(40,80,160,0.2)!important;
 }
-
-/* Grid overlay */
-body.theme-stealth .ov-grid{
-  background-image:linear-gradient(rgba(16,48,96,.1) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(16,48,96,.1) 1px,transparent 1px)!important;
-}
-
-/* Scrollbar */
-body.theme-stealth ::-webkit-scrollbar-thumb{background:rgba(16,48,96,.2)!important}
-
-/* Glass panels, chat bubbles */
-body.theme-stealth .glass,
-body.theme-stealth .msg-autumn,
-body.theme-stealth .msg-user{
-  background:rgba(0,4,14,0.85)!important;
-  border-color:rgba(16,48,96,0.13)!important;
-}
-
-/* Footer */
-body.theme-stealth #footer-bar{
-  background:rgba(0,3,10,.75)!important;
-  border-top-color:rgba(16,48,96,0.11)!important;
-}
-body.theme-stealth #footer-bar .pulse-d{
-  background:rgba(16,64,100,.7)!important;
-  box-shadow:0 0 4px rgba(16,64,100,.4)!important;
-}
-body.theme-stealth #footer-bar span,
-body.theme-stealth #footer-bar a{color:rgba(60,96,128,.45)!important}
-
-/* Multi-user / session bar */
-body.theme-stealth #multi-user-bar{border-top-color:rgba(16,48,96,0.11)!important}
-body.theme-stealth #brpn-region{border-bottom-color:rgba(16,48,96,0.11)!important}
-
-/* Theme toggle pill */
-body.theme-stealth #theme-toggle{
-  border-color:rgba(16,64,100,.25)!important;
-  box-shadow:0 0 6px rgba(16,48,96,.15)!important;
-}
-
-/* LIVE / TOOLS header buttons */
-body.theme-stealth #live-btn,
-body.theme-stealth #tools-btn{
-  color:rgba(60,96,140,.65)!important;
-  border-color:rgba(16,48,96,.2)!important;
-}
-body.theme-stealth #live-btn.live-active{
-  color:rgba(16,72,120,.85)!important;
-  border-color:rgba(16,64,100,.35)!important;
-  box-shadow:0 0 6px rgba(16,48,96,.25)!important;
-}
-
-/* HUD tool buttons — RADAR, NAV side tabs */
-body.theme-stealth .hud-tools-tab,
-body.theme-stealth .tool-tab,
-body.theme-stealth .side-tab-btn{
-  background:rgba(0,4,14,.85)!important;
-  border-color:rgba(16,48,96,.18)!important;
-  color:rgba(56,88,128,.6)!important;
-}
-
-/* HUD status labels — GEO/MAR/AERO/EMO/SIG/BUD */
-body.theme-stealth .hud-label,
-body.theme-stealth .hud-key,
-body.theme-stealth .hud-val,
-body.theme-stealth .stat-label,
-body.theme-stealth .geo-label,
-body.theme-stealth .mar-label,
-body.theme-stealth .aero-label,
-body.theme-stealth .emo-label{
-  color:rgba(64,100,140,.55)!important;
-}
-
-/* ASH canvas module */
-body.theme-stealth .ash-btn{
-  background:rgba(16,48,96,.07)!important;
-  border-color:rgba(16,48,96,.2)!important;
-  color:rgba(64,104,152,.75)!important;
-}
-body.theme-stealth .ash-btn:hover{background:rgba(16,48,96,.15)!important}
-body.theme-stealth .ash-tab{color:rgba(48,80,120,.55)!important}
-body.theme-stealth .ash-tab.active{
-  color:rgba(64,108,160,.85)!important;
-  border-bottom-color:rgba(16,64,100,.6)!important;
-}
-body.theme-stealth .ash-ctrl-lbl{color:rgba(48,80,112,.5)!important}
-body.theme-stealth .ash-ctrl-input{
-  background:rgba(0,4,14,.6)!important;
-  border-color:rgba(16,48,96,.16)!important;
-}
-body.theme-stealth .ash-crypto-section{
-  background:rgba(0,3,10,.6)!important;
-  border-color:rgba(16,48,96,.13)!important;
-}
-body.theme-stealth .ash-crypto-title,
-body.theme-stealth .ash-key-lbl{color:rgba(48,80,112,.55)!important}
-
-/* Journal entries */
-body.theme-stealth .journal-entry{
-  background:rgba(0,4,14,.45)!important;
-  border-color:rgba(16,48,96,.09)!important;
-}
-body.theme-stealth .journal-num{color:rgba(48,80,128,.6)!important}
-
-/* Mantis overlay headers */
-body.theme-stealth .mr-title,
-body.theme-stealth .mr-label,
-body.theme-stealth .mn-title,
-body.theme-stealth .mn-label{color:rgba(64,104,152,.75)!important}
-
-/* Overlay panels */
-body.theme-stealth .ov-panel,
-body.theme-stealth .arc-panel,
-body.theme-stealth .storm-panel{
-  background:rgba(0,4,14,.92)!important;
-  border-color:rgba(16,48,96,.16)!important;
-}
-
-/* Input fields */
-body.theme-stealth input,
-body.theme-stealth textarea,
-body.theme-stealth select{
-  background:rgba(0,4,14,.7)!important;
-  border-color:rgba(16,48,96,.18)!important;
-  color:rgba(72,108,148,.85)!important;
-}
-body.theme-stealth input::placeholder,
-body.theme-stealth textarea::placeholder{color:rgba(32,60,88,.45)!important}
-
 body.theme-night .ov-grid{
   background-image:linear-gradient(rgba(180,139,255,.2) 1px,transparent 1px),
     linear-gradient(90deg,rgba(180,139,255,.2) 1px,transparent 1px);
@@ -2808,6 +2810,37 @@ select.ash-ctrl-input{cursor:pointer}
           <button class="as-btn secondary" onclick="arcStudioClearInputs()">↺ INPUTS</button>
           <button class="as-btn danger" onclick="arcStudioClearScene()">✕ SCENE</button>
         </div>
+
+        <!-- ── Fractal Generation ── -->
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(167,139,250,.2)">
+          <div style="font-family:var(--font-d);font-size:.38rem;letter-spacing:2px;color:rgba(167,139,250,.7);margin-bottom:7px">◈ FRACTAL GENERATION</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px">
+            <div>
+              <div class="as-label">Power (n)</div>
+              <input id="as-frac-power" type="number" class="as-input" value="8" min="2" max="16" style="width:100%">
+            </div>
+            <div>
+              <div class="as-label">Iterations</div>
+              <input id="as-frac-iter" type="number" class="as-input" value="60" min="10" max="200" style="width:100%">
+            </div>
+            <div>
+              <div class="as-label">Duration (s)</div>
+              <input id="as-frac-dur" type="number" class="as-input" value="60" min="5" max="3600" style="width:100%">
+            </div>
+            <div>
+              <div class="as-label">Sample pts</div>
+              <input id="as-frac-pts" type="number" class="as-input" value="6000" min="500" max="30000" step="500" style="width:100%">
+            </div>
+          </div>
+          <div style="display:flex;gap:5px;margin-bottom:6px">
+            <button class="as-btn primary" id="as-frac-gen-btn" onclick="arcStudioGenerateFractal()" style="flex:1;border-color:rgba(167,139,250,.5);color:#a78bfa;background:rgba(167,139,250,.08)">◈ GENERATE</button>
+            <button class="as-btn danger" onclick="arcStudioStopFractal()" style="flex:0 0 auto">■</button>
+          </div>
+          <div id="as-frac-readout" style="font-family:monospace;font-size:9px;color:rgba(167,139,250,.6);line-height:1.7;min-height:52px;background:rgba(0,0,0,.3);border-radius:3px;padding:5px 7px">
+            PERIMETER: — DOC units<br>ARCS: —  |  AVG D: —<br>ELAPSED: 0s / —s
+          </div>
+        </div>
+
         <button class="as-btn send-chat" onclick="arcStudioSendToChat()">↗ SEND RESULTS TO AUTUMN</button>
         <div style="display:flex;gap:5px;margin-top:5px;align-items:stretch">
           <select id="as-fmt-select" style="flex:1;background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.3);color:#00ff88;border-radius:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:.5px;padding:4px 6px;cursor:pointer;outline:none">
@@ -7656,8 +7689,15 @@ function renderThumbRow() {
           scene.add(mesh);
       }
 
+      var _thumbFrame = 0;
+      var _thumbRafId = null;
       function animate() {
-        requestAnimationFrame(animate);
+        _thumbFrame++;
+        if(_thumbFrame > 300){ // ~5s at 60fps then stop to free GPU
+          cancelAnimationFrame(_thumbRafId);
+          return;
+        }
+        _thumbRafId = requestAnimationFrame(animate);
         mesh.rotation.x += 0.05;
         mesh.rotation.y += 0.05;
         renderer.render(scene, camera);
@@ -9220,6 +9260,11 @@ function classifyIntentLocal(text, hasPendingImages) {
     return 'MANTIS_NAV';
   }
 
+    // ── Mandelbrot/fractal — fully offline, no API required ──
+  if (/\b(mandel(brot|bulb)|3d\s+fractal|arc\s+edge\s+mandelbrot)\b/i.test(lc)
+    || /\b(show|generate|open|launch|start)\b.{0,20}\b(fractal|mandelbrot|mandelbulb)\b/i.test(lc)) {
+    return 'OPEN_MANDELBROT';
+  }
   return 'CONVERSATION';
 }
 
@@ -9354,6 +9399,22 @@ async function handleSend() {
   }
   if(_intentLabel === 'DELETE_CHAT') {
     S.sessions[S.currentSession].messages = [{ role:'autumn', text:'Chat history deleted.', ts:new Date().toISOString() }];
+    saveState(); renderMessages(); S.isProcessing=false; return;
+  }
+  if(_intentLabel === 'OPEN_MANDELBROT') {
+    var _mbTxt = (text||'').toLowerCase();
+    var _mbDur = (_mbTxt.match(/(\d+)\s*(?:minute|min)/i)||[])[1];
+    var _mbSec = (_mbTxt.match(/(\d+)\s*(?:second|sec)/i)||[])[1];
+    /* Open Arc Edge Studio (embedded in Autumn) then auto-start fractal */
+    if(typeof window.arcLakeStudioOpen==='function') window.arcLakeStudioOpen();
+    setTimeout(function(){
+      if(typeof arcStudioGenerateFractal==='function'){
+        if(_mbDur){ var el=document.getElementById('as-frac-dur'); if(el) el.value=parseInt(_mbDur)*60; }
+        else if(_mbSec){ var el=document.getElementById('as-frac-dur'); if(el) el.value=_mbSec; }
+        arcStudioGenerateFractal();
+      }
+    }, 600);
+    msgs().push({ role:'autumn', text:'\u25c8 Arc Edge Studio — generating 3D Mandelbulb fractal with DOC 3.0 arc measurement.' + (_mbDur?' Duration: '+_mbDur+' min.':_mbSec?' Duration: '+_mbSec+'s.':''), ts:new Date().toISOString() });
     saveState(); renderMessages(); S.isProcessing=false; return;
   }
   if(_intentLabel === 'NEW_CHAT') {
@@ -10626,7 +10687,95 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   AUTUMN NLP — LEATR BUOYANCY-LEVEL NEURAL REFLEX
+   Outer shell wrapper — seeps around all tools, always accessible.
+   Grammar → live data → pure generative parameters injected into every reply.
+═══════════════════════════════════════════════════════════════════════════ */
+window.autumnNLP = (function(){
+  function analyzeInput(text){
+    var lc=(text||'').toLowerCase().trim(), tokens=lc.split(/\s+/).filter(Boolean);
+    var intent='conversation';
+    if(/(what|how|when|where|who|why|tell\s+me|show\s+me|what.?s|what\s+is)/.test(lc)) intent='query';
+    else if(/(open|launch|start|generate|create|run|make|build|show|give\s+me)/.test(lc)) intent='command';
+    else if(/(i\s+feel|i.?m|feeling|think|believe|wonder|wish|hope)/.test(lc)) intent='reflection';
+    var targets=[];
+    if(/(file\s*size|memory\s*size|journal\s*size|how\s*big|storage|bytes|kb|mb)/.test(lc)) targets.push('file_sizes');
+    if(/(user|users|people|active|session|today|daily|online)/.test(lc)) targets.push('user_stats');
+    if(/(journal|thought|entry|entries|log|sentient)/.test(lc)) targets.push('journal_data');
+    if(/(ops|operation|brpn|shell|geo|mar|aero)/.test(lc)) targets.push('brpn_state');
+    var tone='neutral';
+    if(/(good\s+morning|morning|hi|hello|hey)/.test(lc)) tone='greeting';
+    else if(/(great|love|amazing|awesome|beautiful)/.test(lc)) tone='positive';
+    else if(/(broken|wrong|error|fail|problem|issue)/.test(lc)) tone='negative';
+    else if(/(think|wonder|curious|why|what\s+if)/.test(lc)) tone='inquisitive';
+    return {original:text, tokens:tokens, tokenCount:tokens.length, intent:intent,
+            dataTargets:targets, tone:tone, isQuestion:/[?]$/.test(text.trim())};
+  }
+
+  async function gatherLiveData(grammar){
+    var data={}, ghToken=(window._ghAuth||{}).token;
+    try {
+      var sessions=(window._ashNodes&&window._ashNodes._remoteSessions)||[];
+      data.activeSessions=sessions.length+' active session'+(sessions.length!==1?'s':'');
+    } catch(e){}
+    try {
+      var jAll=(window.S&&window.S.journal)||[];
+      data.journalRuntime=jAll.length+' journal entries ('
+        +jAll.filter(function(e){return e._internal;}).length+' internal, '
+        +jAll.filter(function(e){return !e._internal;}).length+' interactive)';
+    } catch(e){}
+    if(grammar.dataTargets.indexOf('file_sizes')>-1 && ghToken){
+      try {
+        var r=await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',
+          {headers:{Authorization:'token '+ghToken,'User-Agent':'Autumn/1.0'},signal:AbortSignal.timeout(8000)});
+        if(r.ok){var fs=await r.json();var tot=fs.reduce(function(s,f){return s+(f.size||0);},0);
+          data.ashTreeSize=(tot/1024).toFixed(1)+' KB across '+fs.length+' session files';}
+      } catch(e){}
+      try {
+        var r2=await fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/journal_meta.json',
+          {headers:{Authorization:'token '+ghToken,'User-Agent':'Autumn/1.0'},signal:AbortSignal.timeout(8000)});
+        if(r2.ok){var jm=await r2.json(); data.journalFileSize=((jm.size||0)/1024).toFixed(1)+' KB';}
+      } catch(e){}
+    }
+    return data;
+  }
+
+  function buildNLPContext(grammar, liveData){
+    return [
+      '── LEATR NLP ANALYSIS ──',
+      'Intent: '+grammar.intent+' | Tone: '+grammar.tone+' | Tokens: '+grammar.tokenCount,
+      'Data targets: '+(grammar.dataTargets.join(', ')||'none'),
+      liveData.activeSessions  ? 'Active sessions: '+liveData.activeSessions      : null,
+      liveData.journalRuntime  ? 'Journal (runtime): '+liveData.journalRuntime     : null,
+      liveData.ashTreeSize     ? 'AshTree sessions: '+liveData.ashTreeSize          : null,
+      liveData.journalFileSize ? 'Journal file (repo): '+liveData.journalFileSize  : null,
+      '── GENERATIVE PARAMETERS ──',
+      'Compute all responses purely from data + context. No scripted patterns.',
+      'Proportional to the request. Use LIVE DATA values when data is requested.',
+      'Fresh generation on every prompt — even familiar topics get new treatment.'
+    ].filter(function(l){return l!==null;}).join('\n');
+  }
+
+  async function process(text, ak, cb){
+    var g=analyzeInput(text), ld={};
+    if(g.dataTargets.length) try{ld=await gatherLiveData(g);}catch(e){}
+    cb(g, ld, buildNLPContext(g,ld));
+  }
+
+  return {analyzeInput:analyzeInput, gatherLiveData:gatherLiveData,
+          buildNLPContext:buildNLPContext, process:process};
+})();
+
 async function generateReply(text, analysis, reflexData) {
+  /* ── Buoyancy NLP — grammar + live data pre-analysis ── */
+  var _nlpG={intent:'conversation',tone:'neutral',dataTargets:[],tokenCount:0,isQuestion:false};
+  var _nlpD={};
+  if(window.autumnNLP){
+    _nlpG=window.autumnNLP.analyzeInput(text);
+    if(_nlpG.dataTargets.length) try{_nlpD=await window.autumnNLP.gatherLiveData(_nlpG);}catch(e){}
+  }
+  var _nlpCtx=window.autumnNLP ? window.autumnNLP.buildNLPContext(_nlpG,_nlpD) : '';
   try {
     const city = reflexData?.geoInfo?.address?.city || reflexData?.geoInfo?.address?.town || '';
     // Archive context — surface relevant past sessions
@@ -10674,7 +10823,8 @@ CODING AWARENESS: You have access to a built-in code editor called FORGE. When a
 VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
 IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
-ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_arcCtx ? '\n\n' + _arcCtx : ''}
+ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_nlpCtx ? '\n\n' + _nlpCtx : ''}
+${_arcCtx ? '\n\n' + _arcCtx : ''}
 ${typeof ARC_STUDIO_SYSTEM_HINT !== 'undefined' ? '\n\n' + ARC_STUDIO_SYSTEM_HINT : ''}
 ${typeof IMG_RECALL_SYSTEM_HINT !== 'undefined' ? '\n\n' + IMG_RECALL_SYSTEM_HINT : ''}
 ${(function(){
@@ -12602,10 +12752,16 @@ function initBRPN() {
 
   document.addEventListener('visibilitychange',function(){
     if(document.hidden){
+      // Pause BRPN orb
       cancelAnimationFrame(animId);
       animId = null;
+      // Pause Arc Edge Studio animate (self-terminates but stop early)
+      if(window._arcStudio) window._arcStudio._visPaused = true;
+      // Pause maze widget
+      if(window._ashMazeAnimId){ cancelAnimationFrame(window._ashMazeAnimId); window._ashMazeAnimId=null; }
     } else {
       if(!animId) animate();
+      if(window._arcStudio) { window._arcStudio._visPaused = false; }
     }
   });
 
@@ -16859,7 +17015,7 @@ ashLoadDefs();
       label: 'STEALTH',
       dot:   '◆',
       color: '#7aa8cc',      // cold steel blue
-      video: 'assets/dartalley.mp4',
+      video: 'https://raw.githubusercontent.com/DART-Edge-AI/dartalley/main/dartalley.mp4',
       bodyClass: 'theme-stealth'
     },
     {
@@ -16903,12 +17059,16 @@ ashLoadDefs();
       }, 400);
     }
 
-    // Swap avatar logo for stealth mode
-    var _av = document.getElementById('hdr-avatar');
-    if (_av) {
-      _av.src = (effective.key === 'stealth')
-        ? 'assets/autumn-stealth.png'
-        : 'assets/autumn-avatar.png';
+    // Swap header logo image for stealth mode
+    var _logoImg = document.querySelector('.logo-wrap img');
+    if (_logoImg) {
+      if (effective.key === 'stealth') {
+        _logoImg.src = 'assets/dartalleyautumn.png';
+        _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(40,100,220,0.45))';
+      } else {
+        _logoImg.src = 'assets/autumn.png';
+        _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(191,0,255,.3))';
+      }
     }
     // Update toggle pill appearance
     if (dot) {
@@ -18960,7 +19120,23 @@ _syncActionBtn();
   window.arcStudioClose = function() {
     var el = document.getElementById('arc-studio-overlay');
     if (el) el.classList.remove('visible');
-    // animate loop will self-terminate on next frame via _asIsVisible() check
+    // Stop fractal if running
+    if (typeof arcStudioStopFractal === 'function') arcStudioStopFractal();
+    // animate loop self-terminates via _asIsVisible() on next frame
+    // Dispose renderer to free WebGL context slot on mobile
+    var _asr = window._arcStudio;
+    if (_asr && _asr.renderer) {
+      try {
+        _asr.renderer.dispose();
+        if (_asr.renderer.domElement && _asr.renderer.domElement.parentNode)
+          _asr.renderer.domElement.parentNode.removeChild(_asr.renderer.domElement);
+      } catch(e){}
+      _asr.renderer   = null;
+      _asr.scene      = null;
+      _asr.camera     = null;
+      _asr.controls   = null;
+      _asr.initialized = false;
+    }
   };
   // HUD button toggle
   // ══════════════════════════════════════════════════════════
@@ -19682,7 +19858,8 @@ window.emmToggle = function() {
 
   // Animate loop — self-terminates when overlay is hidden (original pattern)
   function _asAnimate() {
-    if (!_as.initialized || !_asIsVisible()) return;
+    if (!_as.initialized || !_asIsVisible() || _as._visPaused) return;
+    if (!_as.renderer || !_as.scene || !_as.camera) return; // guard after dispose
     requestAnimationFrame(_asAnimate);
     if (_as.controls) _as.controls.update();
     _as.renderer.render(_as.scene, _as.camera);
@@ -24678,6 +24855,25 @@ window.mantisNav = {
       // ── Environment preset commands ──────────────────────────────
       var envMatch = m.match(/\b(earth|moon|mars|titan|custom)\b.*\b(grav|env|preset|atmo|planet)\b|\b(grav|env|preset|atmo|planet)\b.*\b(earth|moon|mars|titan)\b/i)
         || /\b(set|use|apply|switch)\b.{0,20}\b(earth|moon|mars|titan)\b/i.test(m);
+      /* ── Mandelbrot 3D commands ────────────────────────────────
+         "show mandelbrot", "generate fractal", "open arc edge mandelbrot",
+         "3d mandelbrot", "mandelbulb", "show me a fractal"              */
+      var mbMatch = /\b(mandel(brot|bulb)|3d\s+fractal|fractal\s+view|arc\s+edge\s+mandelbrot)\b/i.test(m)
+        || /\b(show|generate|open|launch)\b.{0,25}\b(fractal|mandelbrot|mandelbulb)\b/i.test(m)
+        || /\b(fractal)\b.{0,20}\b(show|open|generate|launch|start|run)\b/i.test(m);
+      if(mbMatch){
+        /* Open Arc Edge Mandelbrot in new tab or Autumn's tool frame if available */
+        var mbUrl = window.location.origin + '/arc-edge-mandelbrot';
+        var dur = (m.match(/(\d+)\s*(?:second|sec|minute|min)/i)||[])[1];
+        if(dur){
+          var unit = m.match(/min/i) ? 60 : 1;
+          mbUrl += '?dur=' + (parseInt(dur)*unit);
+        }
+        window.open(mbUrl, '_mandelbrot');
+        _appendMsg('autumn', '◈ Opening Arc Edge 3D Mandelbrot… Mandelbulb power-8 ray marching with DOC 3.0 perimeter measurement.'+(dur?' Generating for '+dur+(m.match(/min/i)?'m':'s')+'.':''));
+        return;
+      }
+
       if(envMatch || /\b(no\s*gravity|zero\s*g|disable\s*gravity)\b/i.test(m)){
         var emap={'earth':'earth','moon':'moon','mars':'mars','titan':'titan'};
         var ePreset='earth';

@@ -496,14 +496,14 @@ window._refreshAnalyticsNow = async function() {
   }
 
   function arcStudioGenerateFractal(){
-    if(!_as.scene){ alert('Open Arc Edge Studio first.'); return; }
+    if(!window._arcStudio.scene){ alert('Open Arc Edge Studio first.'); return; }
     arcStudioStopFractal();
     _asFrac.pts=[]; _asFrac.elapsed=0; _asFrac.totalPts=0;
     _asFrac.startT=Date.now();
 
     /* Remove previous fractal meshes */
-    if(_asFrac.mesh){ _as.scene.remove(_asFrac.mesh); _asFrac.mesh=null; }
-    if(_asFrac.arcMesh){ _as.scene.remove(_asFrac.arcMesh); _asFrac.arcMesh=null; }
+    if(_asFrac.mesh){ window._arcStudio.scene.remove(_asFrac.mesh); _asFrac.mesh=null; }
+    if(_asFrac.arcMesh){ window._arcStudio.scene.remove(_asFrac.arcMesh); _asFrac.arcMesh=null; }
 
     var dur = parseInt(document.getElementById('as-frac-dur').value)||60;
     var totalSamples = parseInt(document.getElementById('as-frac-pts').value)||6000;
@@ -531,7 +531,7 @@ window._refreshAnalyticsNow = async function() {
       _asFrac.totalPts=_asFrac.pts.length/3;
 
       /* Rebuild Points mesh */
-      if(_asFrac.mesh) _as.scene.remove(_asFrac.mesh);
+      if(_asFrac.mesh) window._arcStudio.scene.remove(_asFrac.mesh);
       var geo=new THREE.BufferGeometry();
       geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(_asFrac.pts),3));
       var mat=new THREE.PointsMaterial({
@@ -539,7 +539,7 @@ window._refreshAnalyticsNow = async function() {
       });
       _asFrac.mesh=new THREE.Points(geo,mat);
       _asFrac.mesh.scale.set(4,4,4);
-      _as.scene.add(_asFrac.mesh);
+      window._arcStudio.scene.add(_asFrac.mesh);
 
       /* Measure and update readout every tick */
       _asFracMeasure(dur);
@@ -596,7 +596,7 @@ window._refreshAnalyticsNow = async function() {
   }
 
   function _asFracDrawArcs(){
-    if(_asFrac.arcMesh){ _as.scene.remove(_asFrac.arcMesh); }
+    if(_asFrac.arcMesh){ window._arcStudio.scene.remove(_asFrac.arcMesh); }
     var pts=_asFrac.pts; var n=pts.length/3;
     if(n<3) return;
     /* Draw arc lines connecting surface points — every 8th point */
@@ -610,7 +610,7 @@ window._refreshAnalyticsNow = async function() {
     lineGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(lineVerts),3));
     var lineMat=new THREE.LineBasicMaterial({color:0x00e5ff,transparent:true,opacity:0.45});
     _asFrac.arcMesh=new THREE.LineSegments(lineGeo,lineMat);
-    _as.scene.add(_asFrac.arcMesh);
+    window._arcStudio.scene.add(_asFrac.arcMesh);
   }
 
   /* Expose for Autumn NLP */
@@ -7689,8 +7689,15 @@ function renderThumbRow() {
           scene.add(mesh);
       }
 
+      var _thumbFrame = 0;
+      var _thumbRafId = null;
       function animate() {
-        requestAnimationFrame(animate);
+        _thumbFrame++;
+        if(_thumbFrame > 300){ // ~5s at 60fps then stop to free GPU
+          cancelAnimationFrame(_thumbRafId);
+          return;
+        }
+        _thumbRafId = requestAnimationFrame(animate);
         mesh.rotation.x += 0.05;
         mesh.rotation.y += 0.05;
         renderer.render(scene, camera);
@@ -12745,10 +12752,16 @@ function initBRPN() {
 
   document.addEventListener('visibilitychange',function(){
     if(document.hidden){
+      // Pause BRPN orb
       cancelAnimationFrame(animId);
       animId = null;
+      // Pause Arc Edge Studio animate (self-terminates but stop early)
+      if(window._arcStudio) window._arcStudio._visPaused = true;
+      // Pause maze widget
+      if(window._ashMazeAnimId){ cancelAnimationFrame(window._ashMazeAnimId); window._ashMazeAnimId=null; }
     } else {
       if(!animId) animate();
+      if(window._arcStudio) { window._arcStudio._visPaused = false; }
     }
   });
 
@@ -19107,7 +19120,23 @@ _syncActionBtn();
   window.arcStudioClose = function() {
     var el = document.getElementById('arc-studio-overlay');
     if (el) el.classList.remove('visible');
-    // animate loop will self-terminate on next frame via _asIsVisible() check
+    // Stop fractal if running
+    if (typeof arcStudioStopFractal === 'function') arcStudioStopFractal();
+    // animate loop self-terminates via _asIsVisible() on next frame
+    // Dispose renderer to free WebGL context slot on mobile
+    var _asr = window._arcStudio;
+    if (_asr && _asr.renderer) {
+      try {
+        _asr.renderer.dispose();
+        if (_asr.renderer.domElement && _asr.renderer.domElement.parentNode)
+          _asr.renderer.domElement.parentNode.removeChild(_asr.renderer.domElement);
+      } catch(e){}
+      _asr.renderer   = null;
+      _asr.scene      = null;
+      _asr.camera     = null;
+      _asr.controls   = null;
+      _asr.initialized = false;
+    }
   };
   // HUD button toggle
   // ══════════════════════════════════════════════════════════
@@ -19829,7 +19858,8 @@ window.emmToggle = function() {
 
   // Animate loop — self-terminates when overlay is hidden (original pattern)
   function _asAnimate() {
-    if (!_as.initialized || !_asIsVisible()) return;
+    if (!_as.initialized || !_asIsVisible() || _as._visPaused) return;
+    if (!_as.renderer || !_as.scene || !_as.camera) return; // guard after dispose
     requestAnimationFrame(_asAnimate);
     if (_as.controls) _as.controls.update();
     _as.renderer.render(_as.scene, _as.camera);
