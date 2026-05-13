@@ -24977,7 +24977,10 @@ function _fetchSatellites(){
     _setLed(_satLed,'live');
     if(_updEl) _updEl.textContent=_utc();
     _journalEvent('MANTIS_SAT_SYNC',{ total:total });
-    if(window._brpnInjectMantisContacts&&total>0){var _satSample=[];var _satStep=Math.max(1,Math.floor(total/30));for(var _si=0;_si<lines.length-2&&_satSample.length<30;_si+=_satStep*3){var _tle1=lines[_si+1]||'';var _meanMo=parseFloat(_tle1.slice(52,63)||'0');var _inc=parseFloat(_tle1.slice(8,16)||'0');var _satLat=(_inc-90)*Math.random();var _satLon=(Math.random()-0.5)*360;var _satAlt=(_meanMo<2?1200:(_meanMo<8?20000:35786));_satSample.push({type:'satellite',lat:_satLat,lon:_satLon,alt:_satAlt,id:'SAT'+_si});}if(_satSample.length)window._brpnInjectMantisContacts(_satSample);}
+    if(window._brpnInjectMantisContacts&&total>0){var _satSample=[];var _satStep=Math.max(1,Math.floor(total/30));for(var _si=0;_si<lines.length-2&&_satSample.length<30;_si+=_satStep*3){var _tle1=lines[_si+1]||'';var _meanMo=parseFloat(_tle1.slice(52,63)||'0');var _inc=parseFloat(_tle1.slice(8,16)||'0');var _satLat=(_inc-90)*Math.random();var _satLon=(Math.random()-0.5)*360;var _satAlt=(_meanMo<2?1200:(_meanMo<8?20000:35786));
+              /* NaN guard — skip malformed TLE entries */
+              if(isNaN(_satLat)||isNaN(_satLon)||isNaN(_satAlt)) continue;
+              _satSample.push({type:'satellite',lat:_satLat,lon:_satLon,alt:_satAlt,id:'SAT'+_si});}if(_satSample.length)window._brpnInjectMantisContacts(_satSample);}
     // Refresh tools tab if visible
     if(typeof currentToolTab!=='undefined' && currentToolTab==='mantis'
         && typeof window.renderToolsMantis==='function'){
@@ -24994,6 +24997,9 @@ function _fetchSatellites(){
 }
 
 function _startAnalytics(){
+  /* Guard: always clear existing timers before starting new ones */
+  if(_acTimer)  { clearInterval(_acTimer);  _acTimer=null;  }
+  if(_satTimer) { clearInterval(_satTimer); _satTimer=null; }
   _fetchAircraft(); _fetchSatellites();
   _acTimer  = setInterval(_fetchAircraft,   AC_REFRESH_MS);
   _satTimer = setInterval(_fetchSatellites, SAT_REFRESH_MS);
@@ -25002,6 +25008,28 @@ function _stopAnalytics(){
   clearInterval(_acTimer); clearInterval(_satTimer);
   _acTimer=null; _satTimer=null;
 }
+
+/* Pause API polling when tab is hidden — resume when visible again */
+(function(){
+  var _visWired = false;
+  function _wireVisibility(){
+    if(_visWired) return; _visWired=true;
+    document.addEventListener('visibilitychange', function(){
+      if(document.hidden){
+        if(_acTimer)  { clearInterval(_acTimer);  _acTimer=null;  }
+        if(_satTimer) { clearInterval(_satTimer); _satTimer=null; }
+      } else if(_open && !_acTimer) {
+        /* Page became visible again and analytics were running — restart */
+        _acTimer  = setInterval(_fetchAircraft,   AC_REFRESH_MS);
+        _satTimer = setInterval(_fetchSatellites, SAT_REFRESH_MS);
+        _fetchAircraft(); /* immediate refresh */
+      }
+    });
+  }
+  /* Wire after DOM ready */
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',_wireVisibility);
+  else _wireVisibility();
+})();
 
 // ── JOURNAL EVENT ──────────────────────────────────────────────────────
 function _journalEvent(type,payload){
@@ -25052,6 +25080,7 @@ window.mantisNav = {
     _open=false; _analytics.sessionOpen=false;
     _stopAnalytics();
     if(window._brpnResume) window._brpnResume();
+    if(window._brpnPauseWatchdog){ clearTimeout(window._brpnPauseWatchdog); window._brpnPauseWatchdog=null; }
     var mrFr2=document.getElementById('mr-frame');
     if(mrFr2&&mrFr2.contentWindow) try{mrFr2.contentWindow._mrPaused=false;}catch(e){}
     window._mnModelLoaded = false; // reset so next open reloads
@@ -25545,6 +25574,7 @@ window.mantisRadar = {
     _ov.classList.remove('mr-open');
     _open=false;
     if(window._brpnResume) window._brpnResume();
+    if(window._brpnPauseWatchdog){ clearTimeout(window._brpnPauseWatchdog); window._brpnPauseWatchdog=null; }
     if(typeof window.autumnJournalEvent==='function'){
       window.autumnJournalEvent('MANTIS_RADAR_CLOSE',{ ts:Date.now() });
     }
