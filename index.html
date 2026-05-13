@@ -7849,6 +7849,15 @@ function renderThumbRow() {
       var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
       camera.position.z = 2;
       var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  /* WebGL context loss recovery — prevents permanent black screen */
+  renderer.domElement.addEventListener('webglcontextlost', function(e){
+    e.preventDefault();
+    if(window._brpnPause) window._brpnPause();
+  }, false);
+  renderer.domElement.addEventListener('webglcontextrestored', function(){
+    if(window._brpnResume) window._brpnResume();
+    else { renderer.setSize(renderer.domElement.width, renderer.domElement.height); }
+  }, false);
       renderer.setSize(48, 48);
       d.appendChild(renderer.domElement);
 
@@ -25073,6 +25082,12 @@ window.mantisNav = {
     _journalEvent('MANTIS_NAV_OPEN',{ ts:Date.now(), location:_analytics.location });
     // Pause BRPN canvas RAF + hide canvas to free GPU for iframe WebGL
     if(window._brpnPause) window._brpnPause();
+    /* Safety watchdog — auto-resume BRPN if not closed within 45s (iframe load failure guard) */
+    if(window._brpnPauseWatchdog) clearTimeout(window._brpnPauseWatchdog);
+    window._brpnPauseWatchdog = setTimeout(function(){
+      if(window._brpnResume) window._brpnResume();
+      window._brpnPauseWatchdog = null;
+    }, 45000);
   },
 
   close: function(){
