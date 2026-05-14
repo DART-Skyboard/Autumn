@@ -12857,8 +12857,8 @@ function initBRPN() {
       // Single gentle bump — shellPulse decays naturally (×0.994/frame)
       if(peakFlash > 0) shellPulse = Math.min(shellPulse + 0.18, 1.2);
     }
-    if(window._brpnTickMantisNodes) window._brpnTickMantisNodes(orbFrame);
-    renderer.render(scene,camera);
+    if(window._brpnTickMantisNodes) { try{ window._brpnTickMantisNodes(orbFrame); }catch(_te){ console.warn('[BRPN] mantisNodes tick err:',_te.message); } }
+    try{ renderer.render(scene,camera); }catch(_re){ console.warn('[BRPN] render err:',_re.message); }
     animId=requestAnimationFrame(animate);
   }
   animate();
