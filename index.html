@@ -7849,15 +7849,7 @@ function renderThumbRow() {
       var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
       camera.position.z = 2;
       var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  /* WebGL context loss recovery — prevents permanent black screen */
-  renderer.domElement.addEventListener('webglcontextlost', function(e){
-    e.preventDefault();
-    if(window._brpnPause) window._brpnPause();
-  }, false);
-  renderer.domElement.addEventListener('webglcontextrestored', function(){
-    if(window._brpnResume) window._brpnResume();
-    else { renderer.setSize(renderer.domElement.width, renderer.domElement.height); }
-  }, false);
+  /* WebGL context recovery is handled by the existing contextlost/restored handlers below */
       renderer.setSize(48, 48);
       d.appendChild(renderer.domElement);
 
@@ -12875,8 +12867,14 @@ function initBRPN() {
   // Mantis Radar/Nav inject real-time geometry INTO the live orb scene.
   // The orb RAF never pauses — it's an independent world scene.
   // _brpnPause/_brpnResume are no-ops kept for call-site compatibility.
-  window._brpnPause  = function(){};
-  window._brpnResume = function(){};
+  window._brpnPause  = function(){
+    /* Properly stop the RAF loop to free GPU */
+    if(animId){ cancelAnimationFrame(animId); animId=null; }
+  };
+  window._brpnResume = function(){
+    /* Restart RAF loop if not already running */
+    if(!animId && typeof animate==='function') animate();
+  };
 
   // Pool of injected Mantis geometry nodes (wireframe volumetric)
   var _mantisNodes = [];
@@ -13570,7 +13568,8 @@ function _tickAshNodes(frame) {
   var geoVal  = parseFloat(document.getElementById('hud-geo')?.textContent||'0')||0;
   var marVal  = parseFloat(document.getElementById('hud-mar')?.textContent||'0')||0;
   var aeroVal = parseFloat(document.getElementById('hud-aero')?.textContent||'0')||0;
-  var activityNorm = Math.min(1, (geoVal + marVal*0.001 + aeroVal*0.0000001) * 0.003);
+  var _actRaw = (geoVal + marVal*0.001 + aeroVal*0.0000001) * 0.003;
+  var activityNorm = isFinite(_actRaw) ? Math.min(1, _actRaw) : 0;
 
   Object.keys(_ashNodes._splines).forEach(function(key) {
     var sp = _ashNodes._splines[key];
