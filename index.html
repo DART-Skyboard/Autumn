@@ -2503,7 +2503,7 @@ select.ash-ctrl-input{cursor:pointer}
 
 <!-- ░░ BACKDROP VIDEO ░░ -->
 <video id="backdrop-video"
-  src="assets/autumn.mp4"
+  src="assets/autumnanimation.mp4"
   autoplay loop muted playsinline
   style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;pointer-events:none"></video>
 <!-- Frosted glass scrim — opacity/blur controlled by JS -->
@@ -17214,7 +17214,7 @@ ashLoadDefs();
       label: 'DAY',
       dot:   '☀',
       color: '#7ecfff',      // frosted white-blue
-      video: 'assets/autumn.mp4',
+      video: 'assets/autumnanimation.mp4',
       bodyClass: ''
     },
     {
@@ -23430,7 +23430,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         /* ── Build panel ── */
         var ap=document.createElement('div'); ap.id='adm-ash-panel'; ap.style.cssText='position:absolute;inset:0;top:48px;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,6,14,.97)';
         var vid=document.createElement('video'); vid.id='adm-ash-video'; vid.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;opacity:.5';
-        vid.src='assets/autumn.mp4'; vid.autoplay=true; vid.loop=true; vid.muted=true;
+        vid.src='assets/autumnanimation.mp4'; vid.autoplay=true; vid.loop=true; vid.muted=true;
         vid.setAttribute('playsinline','');
         var scrim=document.createElement('div'); scrim.id='adm-ash-scrim'; scrim.style.cssText='position:absolute;inset:0;z-index:1;background:rgba(2,8,16,.45);pointer-events:none';
         ap.appendChild(vid); ap.appendChild(scrim);
