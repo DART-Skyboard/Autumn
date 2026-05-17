@@ -17198,11 +17198,19 @@ ashLoadDefs();
   window.cycleScrim = function(){
     idx = (idx + 1) % LEVELS.length;
     applyLevel(LEVELS[idx]);
+    try { localStorage.setItem('_aut_scrim', idx); } catch(e){}
   };
 
-  // Init on DOM ready
+  // Init on DOM ready — restore saved scrim level if present
   document.addEventListener('DOMContentLoaded', function(){
-    applyLevel(LEVELS[0]);
+    try {
+      var saved = localStorage.getItem('_aut_scrim');
+      if (saved !== null) {
+        var n = parseInt(saved, 10);
+        if (n >= 0 && n < LEVELS.length) { idx = n; }
+      }
+    } catch(e){}
+    applyLevel(LEVELS[idx]);
   });
 })();
 
