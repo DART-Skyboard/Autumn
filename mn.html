@@ -1248,6 +1248,36 @@
           );
         });
 
+        changeModelBtn.addEventListener('click', () => {
+            uploadContainer.style.display = 'block';
+            uiContainer.style.display = 'none';
+            viewControls.style.display = 'none';
+            changeModelBtn.style.display = 'none';
+            resetPositionBtn.style.display = 'none';
+            chemPropulsionBtn.style.display = 'none';
+            if(envPhysicsBtn) envPhysicsBtn.style.display = 'none';
+            if (chemistryModeActive) {
+                toggleChemistryMode();
+            }
+        });
+
+        modelUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            loader.load(url, (gltf) => {
+                initializeSceneWithModel(gltf, initialFlipCheckbox.checked);
+                URL.revokeObjectURL(url);
+            });
+        });
+
+        resetPositionBtn.addEventListener('click', () => {
+            if (drone) {
+                drone.position.set(0, 0, 0);
+                reinitializeDroneState();
+            }
+        });
+
         chemPropulsionBtn.addEventListener('click', toggleChemistryMode);
         document.getElementById('add-group-btn').addEventListener('click', addPropellantGroup);
         
