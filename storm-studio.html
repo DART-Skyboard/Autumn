@@ -2677,7 +2677,8 @@ const clock = new THREE.Clock();
 let autoLightningTimer = 0;
 
 function animate() {
-  requestAnimationFrame(animate);
+  if (window._ssPaused) { window._ssRafId = null; return; }
+  window._ssRafId = requestAnimationFrame(animate);
   const dt = clock.getDelta();
   SIM.time += dt;
 
@@ -2744,6 +2745,32 @@ function animate() {
   document.getElementById('bb-time').textContent = new Date().toLocaleTimeString('en',{hour12:false});
 }
 
+// ── CONTEXTLOST / CONTEXTRESTORED ────────────────────────────
+renderer.domElement.addEventListener('webglcontextlost', function(e) {
+  e.preventDefault();
+  window._ssPaused = true;
+  if (window._ssRafId) { cancelAnimationFrame(window._ssRafId); window._ssRafId = null; }
+}, false);
+
+renderer.domElement.addEventListener('webglcontextrestored', function() {
+  window._ssPaused = false;
+  window._ssRafId = requestAnimationFrame(animate);
+}, false);
+
+// ── POSTMESSAGE PAUSE/RESUME API (called by index.html) ──────
+window.addEventListener('message', function(e) {
+  if (!e.data || e.data.source !== 'autumn-storm') return;
+  if (e.data.cmd === 'pause') {
+    window._ssPaused = true;
+    if (window._ssRafId) { cancelAnimationFrame(window._ssRafId); window._ssRafId = null; }
+  } else if (e.data.cmd === 'resume') {
+    if (window._ssPaused) {
+      window._ssPaused = false;
+      window._ssRafId = requestAnimationFrame(animate);
+    }
+  }
+});
+
 // ── INIT ───────────────────────────────────────────────────────
 (async function init() {
   LOG.info('◆ INITIALIZING THREE.JS RENDERER');
@@ -2764,7 +2791,8 @@ function animate() {
     useSyntheticData();
   }
 
-  animate();
+  window._ssPaused = false;
+  window._ssRafId = requestAnimationFrame(animate);
   LOG.info('◆ RENDER LOOP STARTED — STORM CELL STUDIO READY');
 })();
 </script>

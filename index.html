@@ -24026,11 +24026,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       w.classList.add('ss-open');
       setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
       setTimeout(_initDrag, 100);
+      // Resume storm-studio RAF
+      var _ssf = document.getElementById('ss-iframe');
+      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'resume'},'*');
     } else {
       w.style.transition = '';
       w.style.left = ''; w.style.right = '';
       w.classList.remove('ss-open');
       document.removeEventListener('click',_outside,true);
+      // Pause storm-studio RAF to free WebGL context slot
+      var _ssf = document.getElementById('ss-iframe');
+      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
     }
   };
 
@@ -24039,6 +24045,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var w = document.getElementById('ss-wrap');
     if(w){ w.style.left=''; w.style.right=''; w.classList.remove('ss-open'); }
     document.removeEventListener('click',_outside,true);
+    // Pause storm-studio RAF to free WebGL context slot
+    var _ssf = document.getElementById('ss-iframe');
+    if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
   };
 
   window.stormStudioOpen = function(city) {
