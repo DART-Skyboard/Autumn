@@ -1347,6 +1347,43 @@ body.theme-night .glass,body.theme-night .msg-autumn{
   background:rgba(20,10,40,0.72);border-color:rgba(180,139,255,0.14);
 }
 body.theme-night ::-webkit-scrollbar-thumb{background:rgba(180,139,255,.25)}
+
+/* ── Departure theme overrides ── */
+body.theme-departure{
+  --cyan:#ff9d4a;--blue:#e05a00;--red:#ff3c3c;
+  --bg:#0a0500;--bg2:#120800;
+  --border:rgba(255,140,40,0.14);
+  --text:#f0d8b8;--dim:#8a5a30;--bright:#ffeedd;
+  --tt-color:#ff9d4a;
+}
+body.theme-departure header{
+  background:linear-gradient(180deg,rgba(160,60,0,.1) 0%,transparent 100%);
+  border-bottom-color:rgba(255,140,40,0.18);
+}
+body.theme-departure #vid-scrim{
+  background:rgba(10,4,0,0.22)!important;
+  backdrop-filter:blur(6px) saturate(1.3) hue-rotate(-10deg)!important;
+  -webkit-backdrop-filter:blur(6px) saturate(1.3) hue-rotate(-10deg)!important;
+}
+body.theme-departure .logo{
+  background:linear-gradient(135deg,#ff9d4a 0%,#ff5500 45%,#ff3c3c 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 8px rgba(255,120,40,0.55));
+}
+body.theme-departure .chat-bubble,.theme-departure .msg-wrap{
+  background:rgba(18,8,0,0.72)!important;
+  border-color:rgba(255,120,40,0.18)!important;
+}
+body.theme-departure .ov-grid{
+  background-image:linear-gradient(rgba(255,140,40,.18) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,140,40,.18) 1px,transparent 1px);
+}
+body.theme-departure #brpn-region{border-bottom-color:rgba(255,140,40,0.15)}
+body.theme-departure #multi-user-bar{border-top-color:rgba(255,140,40,0.15)}
+body.theme-departure .glass,body.theme-departure .msg-autumn{
+  background:rgba(22,10,0,0.72);border-color:rgba(255,120,40,0.16);
+}
+body.theme-departure ::-webkit-scrollbar-thumb{background:rgba(255,140,40,.28)}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden}
 body{background:transparent;font-family:var(--font-b);color:var(--text);display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
@@ -17242,6 +17279,14 @@ ashLoadDefs();
       bodyClass: 'theme-stealth'
     },
     {
+      key:   'departure',
+      label: 'DEPARTURE',
+      dot:   '🌅',
+      color: '#ff9d4a',      // amber dusk glow
+      video: 'assets/autumndeparture.mp4',
+      bodyClass: 'theme-departure'
+    },
+    {
       key:   'system',
       label: 'AUTO',
       dot:   '◈',
@@ -17267,7 +17312,7 @@ ashLoadDefs();
     const btn   = document.getElementById('theme-toggle');
 
     // Swap body class
-    body.classList.remove('theme-night','theme-stealth');
+    body.classList.remove('theme-night','theme-stealth','theme-departure');
     if (effective.bodyClass) body.classList.add(effective.bodyClass);
 
     // Swap video with crossfade
@@ -17288,6 +17333,9 @@ ashLoadDefs();
       if (effective.key === 'stealth') {
         _logoImg.src = 'assets/dartalleyautumn.png';
         _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(40,100,220,0.45))';
+      } else if (effective.key === 'departure') {
+        _logoImg.src = 'assets/autumn.png';
+        _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(255,120,40,0.55))';
       } else {
         _logoImg.src = 'assets/autumn.png';
         _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(191,0,255,.3))';
