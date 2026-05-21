@@ -13005,8 +13005,8 @@ function initBRPN() {
     var toRemove = [];
     _mantisNodes.forEach(function(m){
       var age = frame - (m.userData._mantisSpawn || frame);
-      // Nodes live for ~1800 frames (~30s at 60fps) then fade out
-      var life = 1800;
+      // Nodes live for ~1800 frames (~30s at 60fps) for aircraft, 18000 (~5min) for satellites
+      var life = m.userData._mantisType === 'satellite' ? 18000 : 1800;
       var t    = age / life;
       if(t >= 1){ toRemove.push(m); return; }
       // Fade opacity curve: hold full then fade last 20%
@@ -15891,6 +15891,176 @@ requestAnimationFrame(()=>{
       else if(_brpnT>30){clearInterval(_brpnI);console.warn('[BRPN] THREE not available');}
     },200);
   }
+
+  // ── BRPN WORLD PRELOADER ─────────────────────────────────────────────────
+  // Fetches satellite TLE + aircraft ADS-B data in the background on every
+  // page load and injects contacts directly into the BRPN scene.
+  // No module needs to be open — data appears in the world scene immediately.
+  // Re-injects every 5 min (satellites) and every 45s (aircraft).
+  (function _brpnPreload(){
+    var _preloadReady = false;
+    var _preloadTimer = null;
+    var _acTimer = null;
+    var _lastUserLat = null, _lastUserLon = null;
+
+    // Wait until BRPN scene is ready
+    function _waitReady(cb){
+      if(window._brpnInjectMantisContacts && window.scene){
+        _preloadReady = true; cb();
+      } else {
+        setTimeout(function(){ _waitReady(cb); }, 400);
+      }
+    }
+
+    // ── TLE parser (mirrors mr.html parseTLEs) ─────────────────────────────
+    function _parseTLEs(text){
+      var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+      var sats = [];
+      for(var i=0; i<lines.length-2; i++){
+        if(lines[i+1] && lines[i+1].charAt(0)==='1' && lines[i+2] && lines[i+2].charAt(0)==='2'){
+          var name = lines[i];
+          var l1 = lines[i+1], l2 = lines[i+2];
+          try{
+            // Basic propagation using satellite.js if available, else just record name
+            var entry = {name:name, l1:l1, l2:l2, lat:0, lon:0, alt:550};
+            if(typeof satellite !== 'undefined'){
+              var satrec = satellite.twoline2satrec(l1, l2);
+              if(satrec && !satrec.error){
+                var now = new Date();
+                var pv = satellite.propagate(satrec, now);
+                if(pv && pv.position && typeof pv.position.x === 'number' && !isNaN(pv.position.x)){
+                  var gmst = satellite.gstime(now);
+                  var geo = satellite.eciToGeodetic(pv.position, gmst);
+                  entry.lat = satellite.degreesLat(geo.latitude);
+                  entry.lon = satellite.degreesLong(geo.longitude);
+                  entry.alt = Math.max(0, geo.height);
+                }
+              }
+            }
+            sats.push(entry);
+            i += 2;
+          } catch(e){ i += 2; }
+        }
+      }
+      return sats;
+    }
+
+    // ── TLE fetch with CORS proxy fallback (mirrors mr.html) ──────────────
+    async function _fetchTLE(url){
+      var proxies = [
+        function(u){ return u; },
+        function(u){ return 'https://corsproxy.io/?url='+encodeURIComponent(u); },
+        function(u){ return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u); },
+      ];
+      for(var p=0; p<proxies.length; p++){
+        try{
+          var r = await fetch(proxies[p](url), {signal: AbortSignal.timeout(12000)});
+          if(r.ok){ var t = await r.text(); if(t && t.includes('1 ') && t.includes('2 ')) return t; }
+        }catch(e){}
+      }
+      return '';
+    }
+
+    // ── Inject satellite contacts into BRPN ───────────────────────────────
+    function _injectSats(satList){
+      if(!window._brpnInjectMantisContacts) return;
+      // Sample up to 35 spread across the list
+      var step = Math.max(1, Math.floor(satList.length / 35));
+      var contacts = [];
+      for(var i=0; i<satList.length && contacts.length<35; i+=step){
+        var s = satList[i];
+        if(s && s.lat != null && s.lon != null){
+          contacts.push({type:'satellite', lat:s.lat, lon:s.lon, alt:s.alt||550, id:s.name||('SAT'+i)});
+        }
+      }
+      if(contacts.length) window._brpnInjectMantisContacts(contacts);
+      console.log('[BRPN Preload] Injected', contacts.length, 'satellites');
+    }
+
+    // ── Fetch + inject TLEs ───────────────────────────────────────────────
+    async function _loadSatellites(){
+      try{
+        var catalogs = [
+          'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=TLE',
+          'https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=TLE',
+          'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=TLE',
+          'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=TLE',
+        ];
+        var combined = '';
+        for(var i=0; i<catalogs.length; i++){
+          var text = await _fetchTLE(catalogs[i]);
+          if(text) combined += text + '\n';
+          // Inject partials early so scene populates fast
+          if(combined.length > 500){
+            var partial = _parseTLEs(combined);
+            if(partial.length) _injectSats(partial);
+          }
+        }
+        var sats = _parseTLEs(combined);
+        if(sats.length) _injectSats(sats);
+        // Re-inject every 5 min to refresh positions and prevent TTL expiry
+        _preloadTimer = setTimeout(_loadSatellites, 5 * 60 * 1000);
+      } catch(e){
+        console.warn('[BRPN Preload] TLE fetch error:', e);
+        _preloadTimer = setTimeout(_loadSatellites, 2 * 60 * 1000);
+      }
+    }
+
+    // ── Fetch + inject aircraft ADS-B ──────────────────────────────────────
+    async function _loadAircraft(){
+      // Use geolocation if available, else world-centre fallback
+      var lat = _lastUserLat || 39.8283;
+      var lon = _lastUserLon || -98.5795;
+      var distNm = 150;
+      function _makeSignal(ms){ try{return AbortSignal.timeout(ms);}catch(e){var c=new AbortController();setTimeout(function(){c.abort();},ms);return c.signal;} }
+      function _mapAc(ac){ return (ac||[]).filter(function(a){return a.lat&&a.lon;}).map(function(a){return{type:'aircraft',lat:a.lat,lon:a.lon,alt:a.alt_baro||a.alt_geom||0,id:a.hex||'unk'};});}
+      var contacts = null;
+      var sources = [
+        'https://api.airplanes.live/v2/point/'+lat.toFixed(4)+'/'+lon.toFixed(4)+'/'+distNm,
+        'https://api.adsb.lol/v2/lat/'+lat.toFixed(4)+'/lon/'+lon.toFixed(4)+'/dist/'+distNm,
+        'https://opendata.adsb.fi/api/v2/lat/'+lat.toFixed(4)+'/lon/'+lon.toFixed(4)+'/dist/'+distNm,
+      ];
+      for(var s=0; s<sources.length && !contacts; s++){
+        try{
+          var r = await fetch(sources[s], {signal: _makeSignal(10000)});
+          if(r.ok){ var d = await r.json(); var arr = _mapAc(d.ac); if(arr.length){ contacts = arr; } }
+        }catch(e){}
+      }
+      if(contacts && contacts.length && window._brpnInjectMantisContacts){
+        window._brpnInjectMantisContacts(contacts.slice(0,50));
+        console.log('[BRPN Preload] Injected', Math.min(contacts.length,50), 'aircraft');
+      }
+      // Re-inject every 45s
+      _acTimer = setTimeout(_loadAircraft, 45 * 1000);
+    }
+
+    // ── Try to get user location for better aircraft coverage ─────────────
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(function(pos){
+        _lastUserLat = pos.coords.latitude;
+        _lastUserLon = pos.coords.longitude;
+      }, function(){}, {timeout:8000, maximumAge:300000});
+    }
+
+    // ── Kick off after BRPN is ready ─────────────────────────────────────
+    _waitReady(function(){
+      // Lazy-load satellite.js if not already present
+      if(typeof satellite === 'undefined'){
+        var _satScript = document.createElement('script');
+        _satScript.src = 'https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js';
+        _satScript.onload = function(){
+          _loadSatellites();
+          setTimeout(_loadAircraft, 3000);
+        };
+        document.head.appendChild(_satScript);
+      } else {
+        // Stagger: satellites first (heavier), aircraft after 3s
+        _loadSatellites();
+        setTimeout(_loadAircraft, 3000);
+      }
+    });
+  })();
+
   // Scroll position buttons — show/hide based on scroll position
   var _cs = document.getElementById('chat-scroll');
   var _btnTop = document.getElementById('scroll-to-top');
@@ -24109,17 +24279,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       w.classList.add('ss-open');
       setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
       setTimeout(_initDrag, 100);
-      // Reload iframe to reclaim WebGL context (was destroyed on close)
+      // Resume storm-studio RAF
       var _ssf = document.getElementById('ss-iframe');
-      if (_ssf) { _ssf.src = 'storm-studio.html'; }
+      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'resume'},'*');
     } else {
       w.style.transition = '';
       w.style.left = ''; w.style.right = '';
       w.classList.remove('ss-open');
       document.removeEventListener('click',_outside,true);
-      // Destroy WebGL context to free the context slot
+      // Pause storm-studio RAF (context stays alive for fast re-open)
       var _ssf = document.getElementById('ss-iframe');
-      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'destroy'},'*');
+      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
     }
   };
 
@@ -24128,9 +24298,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var w = document.getElementById('ss-wrap');
     if(w){ w.style.left=''; w.style.right=''; w.classList.remove('ss-open'); }
     document.removeEventListener('click',_outside,true);
-    // Destroy WebGL context to free the context slot
+    // Pause RAF — context freed only if browser hits limit (contextlost event handles it)
     var _ssf = document.getElementById('ss-iframe');
-    if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'destroy'},'*');
+    if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
   };
 
   window.stormStudioOpen = function(city) {
@@ -25167,11 +25337,6 @@ window.mantisNav = {
       if(_frame)  { _frame.style.display='none'; _frame.src=MN_URL; }
       if(typeof _mnLoadTimer!=='undefined'){ clearTimeout(_mnLoadTimer); _mnLoadTimer=setTimeout(_mnShowFrame,12000); }
       _loaded=true;
-    } else if(_frame && _frame.src) {
-      // Reload to reclaim context after it was destroyed on close
-      if(_loading) _loading.style.display='flex';
-      _frame.style.display='none'; _frame.src=MN_URL;
-      if(typeof _mnLoadTimer!=='undefined'){ clearTimeout(_mnLoadTimer); _mnLoadTimer=setTimeout(_mnShowFrame,12000); }
     }
     _ov.classList.add('mn-open');
     _ov.classList.remove('mn-minimized');
@@ -25180,6 +25345,10 @@ window.mantisNav = {
     _ov.style.height='';
     _mnInitDrag();
     _startAnalytics();
+    // Resume mn.html RAF if it was paused
+    if(_frame && _frame.contentWindow) {
+      try { _frame.contentWindow.postMessage({source:'autumn-flight',cmd:'resume'},'*'); } catch(ex){}
+    }
     // Signal radar iframe to pause its RAF if it's loaded
     var mrFr=document.getElementById('mr-frame');
     if(mrFr&&mrFr.contentWindow) try{mrFr.contentWindow._mrPaused=true;}catch(e){}
@@ -25195,11 +25364,10 @@ window.mantisNav = {
   },
 
   close: function(){
-    // Destroy WebGL context in iframe to free the context slot
+    // Pause RAF — keep context alive for fast re-open
     if(_frame && _frame.contentWindow) {
-      try { _frame.contentWindow.postMessage({source:'autumn-flight',cmd:'destroy'},'*'); } catch(ex){}
+      try { _frame.contentWindow.postMessage({source:'autumn-flight',cmd:'pause'},'*'); } catch(ex){}
     }
-    _loaded = false; // force reload next open
     _ov.classList.remove('mn-open');
     _open=false; _analytics.sessionOpen=false;
     _stopAnalytics();
@@ -25679,17 +25847,16 @@ window.mantisRadar = {
       if(_frame)  { _frame.style.display='none'; _frame.src=MR_URL; }
       clearTimeout(_mrLoadTimer); _mrLoadTimer=setTimeout(_mrShowFrame,12000);
       _loaded=true;
-    } else if(_frame && _frame.src) {
-      // Reload to reclaim context after it was destroyed on close
-      if(_loading) _loading.style.display='flex';
-      _frame.style.display='none'; _frame.src=MR_URL;
-      clearTimeout(_mrLoadTimer); _mrLoadTimer=setTimeout(_mrShowFrame,12000);
     }
     _ov.classList.add('mr-open');
     _ov.classList.remove('mr-minimized');
     _open=true; _minimized=false;
     _ov.style.height='';
     _mrInitDrag();
+    // Resume mr.html RAF if it was paused
+    if(_frame && _frame.contentWindow) {
+      try { _frame.contentWindow.postMessage({source:'autumn-flight',cmd:'resume'},'*'); } catch(ex){}
+    }
     // Pause mantisNav iframe RAF + pause Autumn's BRPN renderer
     var mnFr=document.getElementById('mn-frame');
     if(mnFr&&mnFr.contentWindow) mnFr.contentWindow.postMessage({source:'autumn-flight',cmd:'pause'},'*');
@@ -25700,11 +25867,10 @@ window.mantisRadar = {
   },
 
   close: function(){
-    // Destroy WebGL context in iframe to free context slot
+    // Pause RAF — keep context alive for fast re-open
     if(_frame && _frame.contentWindow) {
-      try { _frame.contentWindow.postMessage({source:'autumn-flight',cmd:'destroy'},'*'); } catch(ex){}
+      try { _frame.contentWindow.postMessage({source:'autumn-flight',cmd:'pause'},'*'); } catch(ex){}
     }
-    _loaded = false; // force reload next open
     _ov.classList.remove('mr-open');
     _open=false;
     if(window._brpnResume) window._brpnResume();
