@@ -35,6 +35,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.1/math.min.js"></script>
 <script>
 function acceptDataPolicy() {
@@ -16044,20 +16045,9 @@ requestAnimationFrame(()=>{
 
     // ── Kick off after BRPN is ready ─────────────────────────────────────
     _waitReady(function(){
-      // Lazy-load satellite.js if not already present
-      if(typeof satellite === 'undefined'){
-        var _satScript = document.createElement('script');
-        _satScript.src = 'https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js';
-        _satScript.onload = function(){
-          _loadSatellites();
-          setTimeout(_loadAircraft, 3000);
-        };
-        document.head.appendChild(_satScript);
-      } else {
-        // Stagger: satellites first (heavier), aircraft after 3s
-        _loadSatellites();
-        setTimeout(_loadAircraft, 3000);
-      }
+      // satellite.js loaded eagerly in <head> — start immediately
+      _loadSatellites();
+      setTimeout(_loadAircraft, 3000);
     });
   })();
 
