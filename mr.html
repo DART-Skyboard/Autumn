@@ -1655,6 +1655,19 @@ fetchSatelliteData(false);// pre-fetch TLEs in background before orbital tab ope
     if (window._mrPaused) return setTimeout(function(){ window.requestAnimationFrame(cb); }, 200);
     return _raf(cb);
   };
+
+  // Postmessage API — pause/resume/destroy from index.html
+  window.addEventListener('message', function(e) {
+    if (!e.data || e.data.source !== 'autumn-flight') return;
+    if (e.data.cmd === 'pause') {
+      window._mrPaused = true;
+    } else if (e.data.cmd === 'resume') {
+      window._mrPaused = false;
+    } else if (e.data.cmd === 'destroy') {
+      window._mrPaused = true;
+      try { if (window.glbRenderer) { window.glbRenderer.forceContextLoss(); } } catch(ex) {}
+    }
+  });
 })();
 </script>
 

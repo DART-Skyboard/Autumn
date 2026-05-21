@@ -2768,6 +2768,11 @@ window.addEventListener('message', function(e) {
       window._ssPaused = false;
       window._ssRafId = requestAnimationFrame(animate);
     }
+  } else if (e.data.cmd === 'destroy') {
+    // Free the WebGL context slot when panel is fully closed
+    window._ssPaused = true;
+    if (window._ssRafId) { cancelAnimationFrame(window._ssRafId); window._ssRafId = null; }
+    try { renderer.forceContextLoss(); } catch(ex) {}
   }
 });
 

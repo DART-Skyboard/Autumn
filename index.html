@@ -11254,6 +11254,14 @@ ${(function(){
 // ============================================================
 const _mazeWidgets = {}; // id → { state, three objects, functions }
 
+// Destroy all live maze widgets — call before clearing chat to free WebGL contexts
+function destroyAllMazeWidgets() {
+  Object.keys(_mazeWidgets).forEach(wid => {
+    const ws = _mazeWidgets[wid];
+    if (ws && typeof ws._destroy === 'function') ws._destroy();
+  });
+}
+
 const MAZE_TRIGGERS = [
   "make me a maze","generate a maze","show me a maze","create a maze","build a maze",
   "maze please","give me a maze","maze for me","show a maze","display a maze",
@@ -11656,6 +11664,24 @@ function createInlineMazeWidget(wid, size) {
     mRenderer.setSize(nw, nh);
   });
   mro.observe(wrap);
+
+  // ── Destroy: free WebGL context + cancel RAF + disconnect observer ──────
+  ws._destroy = function() {
+    mro.disconnect();
+    if(ws.animId) { cancelAnimationFrame(ws.animId); ws.animId = null; }
+    if(ws.solveTimer) { clearTimeout(ws.solveTimer); ws.solveTimer = null; }
+    [wallGroup, pathGroup, markerGroup].forEach(g => {
+      while(g.children.length) {
+        const c = g.children[0];
+        if(c.geometry) c.geometry.dispose();
+        if(c.material) { if(Array.isArray(c.material)) c.material.forEach(m=>m.dispose()); else c.material.dispose(); }
+        g.remove(c);
+      }
+    });
+    mRenderer.forceContextLoss();
+    mRenderer.dispose();
+    delete _mazeWidgets[ws.wid];
+  };
 }
 
 function updateStats(wid, step, solved) {
@@ -12563,6 +12589,12 @@ function makeToolShape(type,color,orbitRadius,orbitSpeed,orbitOffset,shellLayer)
 
 // ── initBRPN ───────────────────────────────────────────────────────────────
 function initBRPN() {
+  // ── Reset accumulated state before re-init (context restore safety) ──
+  shells.length = 0;
+  particles.length = 0;
+  if (typeof toolShapeGroups === 'object' && toolShapeGroups !== null) {
+    Object.keys(toolShapeGroups).forEach(k => { delete toolShapeGroups[k]; });
+  }
   const container=document.getElementById("brpn-canvas");
   const w=container.clientWidth||container.parentElement?.clientWidth||window.innerWidth||320;
   const h=container.clientHeight||container.parentElement?.clientHeight||260;
@@ -14824,16 +14856,19 @@ async function autoTitleSession(idx){
 }
 function clearCurrentChat(){
   if(!confirm("Clear the current chat session?")) return;
+  destroyAllMazeWidgets();
   S.sessions[S.currentSession].messages=[{role:"autumn",text:"Chat cleared. Hi again — what's on your mind?",ts:new Date().toISOString()}];
   saveState();renderMessages();updateFooter();
 }
 function clearSession(idx){
   if(!confirm(`Clear session ${idx+1}?`)) return;
+  destroyAllMazeWidgets();
   S.sessions[idx].messages=[{role:"autumn",text:"Session cleared.",ts:new Date().toISOString()}];
   saveState();if(idx===S.currentSession)renderMessages();renderToolsContent();
 }
 function deleteSession(idx){
   if(S.sessions.length<=1) return;if(!confirm(`Delete session ${idx+1}?`)) return;
+  destroyAllMazeWidgets();
   S.sessions.splice(idx,1);if(S.currentSession>=S.sessions.length)S.currentSession=S.sessions.length-1;else if(idx<S.currentSession)S.currentSession--;
   saveState();renderMessages();updateFooter();renderToolsContent();
 }
@@ -24074,17 +24109,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       w.classList.add('ss-open');
       setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
       setTimeout(_initDrag, 100);
-      // Resume storm-studio RAF
+      // Reload iframe to reclaim WebGL context (was destroyed on close)
       var _ssf = document.getElementById('ss-iframe');
-      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'resume'},'*');
+      if (_ssf) { _ssf.src = 'storm-studio.html'; }
     } else {
       w.style.transition = '';
       w.style.left = ''; w.style.right = '';
       w.classList.remove('ss-open');
       document.removeEventListener('click',_outside,true);
-      // Pause storm-studio RAF to free WebGL context slot
+      // Destroy WebGL context to free the context slot
       var _ssf = document.getElementById('ss-iframe');
-      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
+      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'destroy'},'*');
     }
   };
 
@@ -24093,9 +24128,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var w = document.getElementById('ss-wrap');
     if(w){ w.style.left=''; w.style.right=''; w.classList.remove('ss-open'); }
     document.removeEventListener('click',_outside,true);
-    // Pause storm-studio RAF to free WebGL context slot
+    // Destroy WebGL context to free the context slot
     var _ssf = document.getElementById('ss-iframe');
-    if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
+    if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'destroy'},'*');
   };
 
   window.stormStudioOpen = function(city) {
@@ -25132,6 +25167,11 @@ window.mantisNav = {
       if(_frame)  { _frame.style.display='none'; _frame.src=MN_URL; }
       if(typeof _mnLoadTimer!=='undefined'){ clearTimeout(_mnLoadTimer); _mnLoadTimer=setTimeout(_mnShowFrame,12000); }
       _loaded=true;
+    } else if(_frame && _frame.src) {
+      // Reload to reclaim context after it was destroyed on close
+      if(_loading) _loading.style.display='flex';
+      _frame.style.display='none'; _frame.src=MN_URL;
+      if(typeof _mnLoadTimer!=='undefined'){ clearTimeout(_mnLoadTimer); _mnLoadTimer=setTimeout(_mnShowFrame,12000); }
     }
     _ov.classList.add('mn-open');
     _ov.classList.remove('mn-minimized');
@@ -25155,6 +25195,11 @@ window.mantisNav = {
   },
 
   close: function(){
+    // Destroy WebGL context in iframe to free the context slot
+    if(_frame && _frame.contentWindow) {
+      try { _frame.contentWindow.postMessage({source:'autumn-flight',cmd:'destroy'},'*'); } catch(ex){}
+    }
+    _loaded = false; // force reload next open
     _ov.classList.remove('mn-open');
     _open=false; _analytics.sessionOpen=false;
     _stopAnalytics();
@@ -25634,6 +25679,11 @@ window.mantisRadar = {
       if(_frame)  { _frame.style.display='none'; _frame.src=MR_URL; }
       clearTimeout(_mrLoadTimer); _mrLoadTimer=setTimeout(_mrShowFrame,12000);
       _loaded=true;
+    } else if(_frame && _frame.src) {
+      // Reload to reclaim context after it was destroyed on close
+      if(_loading) _loading.style.display='flex';
+      _frame.style.display='none'; _frame.src=MR_URL;
+      clearTimeout(_mrLoadTimer); _mrLoadTimer=setTimeout(_mrShowFrame,12000);
     }
     _ov.classList.add('mr-open');
     _ov.classList.remove('mr-minimized');
@@ -25650,6 +25700,11 @@ window.mantisRadar = {
   },
 
   close: function(){
+    // Destroy WebGL context in iframe to free context slot
+    if(_frame && _frame.contentWindow) {
+      try { _frame.contentWindow.postMessage({source:'autumn-flight',cmd:'destroy'},'*'); } catch(ex){}
+    }
+    _loaded = false; // force reload next open
     _ov.classList.remove('mr-open');
     _open=false;
     if(window._brpnResume) window._brpnResume();

@@ -1571,6 +1571,14 @@
         window._mnPaused = true;
         break;
 
+      case 'destroy':
+        // Free the WebGL context slot when panel is fully closed
+        window._mnPaused = true;
+        try {
+          if (typeof renderer !== 'undefined') renderer.forceContextLoss();
+        } catch(ex) {}
+        break;
+
       case 'loadModel':
         // d.model: 0=ArielNPU (default), 1=Arrow, 2=MantisGimbal
         (function(){
