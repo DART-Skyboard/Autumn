@@ -15906,7 +15906,7 @@ requestAnimationFrame(()=>{
 
     // Wait until BRPN scene is ready
     function _waitReady(cb){
-      if(window._brpnInjectMantisContacts && window.scene){
+      if(window._brpnInjectMantisContacts && window._brpnScene){
         _preloadReady = true; cb();
       } else {
         setTimeout(function(){ _waitReady(cb); }, 400);
@@ -16045,7 +16045,7 @@ requestAnimationFrame(()=>{
 
     // ── Kick off after BRPN is ready ─────────────────────────────────────
     _waitReady(function(){
-      // satellite.js loaded eagerly in <head> — start immediately
+      console.log('[BRPN Preload] Scene ready — starting satellite + aircraft fetch');
       _loadSatellites();
       setTimeout(_loadAircraft, 3000);
     });
