@@ -15948,6 +15948,7 @@ requestAnimationFrame(()=>{
 
     // ── TLE fetch with CORS proxy fallback (mirrors mr.html) ──────────────
     async function _fetchTLE(url){
+      function _sig(ms){ try{return AbortSignal.timeout(ms);}catch(e){var c=new AbortController();setTimeout(function(){c.abort();},ms);return c.signal;} }
       var proxies = [
         function(u){ return u; },
         function(u){ return 'https://corsproxy.io/?url='+encodeURIComponent(u); },
@@ -15955,7 +15956,7 @@ requestAnimationFrame(()=>{
       ];
       for(var p=0; p<proxies.length; p++){
         try{
-          var r = await fetch(proxies[p](url), {signal: AbortSignal.timeout(12000)});
+          var r = await fetch(proxies[p](url), {signal: _sig(12000)});
           if(r.ok){ var t = await r.text(); if(t && t.includes('1 ') && t.includes('2 ')) return t; }
         }catch(e){}
       }
@@ -16043,11 +16044,15 @@ requestAnimationFrame(()=>{
       }, function(){}, {timeout:8000, maximumAge:300000});
     }
 
-    // ── Kick off after BRPN is ready ─────────────────────────────────────
+    // ── Kick off after BRPN is ready — delayed to avoid WebGL context
+    // competition with maze widgets and other startup allocations ────────
     _waitReady(function(){
-      console.log('[BRPN Preload] Scene ready — starting satellite + aircraft fetch');
-      _loadSatellites();
-      setTimeout(_loadAircraft, 3000);
+      console.log('[BRPN Preload] Scene ready — scheduling fetch in 8s');
+      setTimeout(function(){
+        console.log('[BRPN Preload] Starting satellite + aircraft fetch');
+        _loadSatellites();
+        setTimeout(_loadAircraft, 5000);
+      }, 8000);
     });
   })();
 
