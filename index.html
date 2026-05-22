@@ -2919,7 +2919,8 @@ select.ash-ctrl-input{cursor:pointer}
       <span class="node-cap-label">NODES</span>
       <div class="node-cap-track" id="node-cap-track">
         <div class="node-cap-notch" data-val="10">10</div>
-        <div class="node-cap-notch active" data-val="50" id="node-cap-active">50</div>
+        <div class="node-cap-notch" data-val="50">50</div>
+        <div class="node-cap-notch active" data-val="100" id="node-cap-active">100</div>
         <div class="node-cap-notch" data-val="300">300</div>
         <div class="node-cap-notch" data-val="1200">1.2K</div>
         <div class="node-cap-notch" data-val="2000000">2M</div>
@@ -12966,7 +12967,7 @@ function initBRPN() {
 
   // Pool of injected Mantis geometry nodes (wireframe volumetric)
   var _mantisNodes = [];
-  var _mantisNodeMax = 50; // default cap — user-adjustable via HUD notch control
+  var _mantisNodeMax = 100; // default cap — ~50 satellites + ~50 aircraft coexist
 
   // ── Node cap HUD control ──────────────────────────────────────────────
   (function _initNodeCap(){
@@ -12987,9 +12988,18 @@ function initBRPN() {
   // contacts: [{type:'aircraft'|'satellite', lat, lon, alt, id}]
   window._brpnInjectMantisContacts = function(contacts){
     if(!scene) return;
-    // Remove oldest nodes if over cap
+    var incomingType = contacts.length ? contacts[0].type : null;
+    // Evict only same-type nodes when over cap, preserving the other type
     while(_mantisNodes.length + contacts.length > _mantisNodeMax){
-      var old = _mantisNodes.shift();
+      // Prefer evicting aircraft when injecting aircraft, satellites when injecting satellites
+      // Fall back to oldest (shift) if no same-type found
+      var evictIdx = -1;
+      if(incomingType){
+        for(var ei=0; ei<_mantisNodes.length; ei++){
+          if(_mantisNodes[ei].userData._mantisType === incomingType){ evictIdx=ei; break; }
+        }
+      }
+      var old = evictIdx > -1 ? _mantisNodes.splice(evictIdx,1)[0] : _mantisNodes.shift();
       if(old && old.parent) scene.remove(old);
       if(old && old.geometry) old.geometry.dispose();
       if(old && old.material) old.material.dispose();
