@@ -1,5 +1,5 @@
 {
-  "message": "System Update — Autumn v2 · May 2026\nPlease excuse the HTML render functionality when using some of the tools and the world BRPN real-time viewport scene. workers being done as fast as possible to balance out the syntax flow.\n— Radical Deepscale LLC",
-  "updated": "2026-05-19T14:39:57.655Z",
+  "message": "System Status Update: Autumn v2 | May 2026\n​Technical Notice:\nWe are currently addressing intermittent rendering issues affecting the HTML-based toolset and the BRPN real-time viewport. Our engineering team is actively optimizing syntax flow to ensure consistent system performance.\n​While interactive data modules have reached a heightened state of stability, real-time UI playback remains under active development. Currently, users may experience session instability approximately 60 seconds post-initialization, with similar interruptions upon subsequent reloads.\n​We are prioritizing the resolution of these stability constraints and appreciate your patience as we finalize these improvements.\n​— Radical Deepscale LLC",
+  "updated": "2026-05-22T18:51:54.072Z",
   "author": "dartsolarpunk"
 }
