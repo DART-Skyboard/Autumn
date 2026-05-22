@@ -12904,14 +12904,8 @@ function initBRPN() {
   // Mantis Radar/Nav inject real-time geometry INTO the live orb scene.
   // The orb RAF never pauses — it's an independent world scene.
   // _brpnPause/_brpnResume are no-ops kept for call-site compatibility.
-  window._brpnPause  = function(){
-    /* Properly stop the RAF loop to free GPU */
-    if(animId){ cancelAnimationFrame(animId); animId=null; }
-  };
-  window._brpnResume = function(){
-    /* Restart RAF loop if not already running */
-    if(!animId && typeof animate==='function') animate();
-  };
+  window._brpnPause  = function(){ /* no-op — BRPN scene runs continuously */ };
+  window._brpnResume = function(){ /* no-op — BRPN scene runs continuously */ };
 
   // Pool of injected Mantis geometry nodes (wireframe volumetric)
   var _mantisNodes = [];
@@ -25144,22 +25138,13 @@ window.mantisNav = {
     var mrFr=document.getElementById('mr-frame');
     if(mrFr&&mrFr.contentWindow) try{mrFr.contentWindow._mrPaused=true;}catch(e){}
     _journalEvent('MANTIS_NAV_OPEN',{ ts:Date.now(), location:_analytics.location });
-    // Pause BRPN canvas RAF + hide canvas to free GPU for iframe WebGL
-    if(window._brpnPause) window._brpnPause();
-    /* Safety watchdog — auto-resume BRPN if not closed within 45s (iframe load failure guard) */
-    if(window._brpnPauseWatchdog) clearTimeout(window._brpnPauseWatchdog);
-    window._brpnPauseWatchdog = setTimeout(function(){
-      if(window._brpnResume) window._brpnResume();
-      window._brpnPauseWatchdog = null;
-    }, 45000);
+    // BRPN scene runs continuously — no pause on Mantis open.
   },
 
   close: function(){
     _ov.classList.remove('mn-open');
     _open=false; _analytics.sessionOpen=false;
     _stopAnalytics();
-    if(window._brpnResume) window._brpnResume();
-    if(window._brpnPauseWatchdog){ clearTimeout(window._brpnPauseWatchdog); window._brpnPauseWatchdog=null; }
     var mrFr2=document.getElementById('mr-frame');
     if(mrFr2&&mrFr2.contentWindow) try{mrFr2.contentWindow._mrPaused=false;}catch(e){}
     window._mnModelLoaded = false; // reset so next open reloads
@@ -25372,6 +25357,39 @@ window.mantisNav = {
            'You can also give me flight commands — say things like \'fly forward at 50% thrust\', \'turn left\', \'hover\', or \'land\'.';
   },
 };
+
+// ── BRPN WORLD FEED — always-on background fetch (independent of Mantis) ──
+// Injects live aircraft + satellite volumetric geometry into the BRPN scene
+// at page load and on a rolling timer, without requiring Mantis to be opened.
+(function(){
+  var _brpnFeedTimer = null;
+  var AC_INTERVAL_MS  = 60000;   // aircraft every 60s
+  var SAT_INTERVAL_MS = 300000;  // satellites every 5min (TLE file is large)
+
+  function _startBrpnWorldFeed(){
+    if(typeof window.mantisNav === 'undefined') return;
+    // Initial fetch
+    window.mantisNav.refreshAircraft();
+    window.mantisNav.refreshSatellites();
+    // Rolling timer (aircraft more frequent, satellite less so)
+    clearInterval(_brpnFeedTimer);
+    var _acTick = 0;
+    _brpnFeedTimer = setInterval(function(){
+      window.mantisNav.refreshAircraft();
+      _acTick++;
+      if(_acTick % (SAT_INTERVAL_MS / AC_INTERVAL_MS) === 0){
+        window.mantisNav.refreshSatellites();
+      }
+    }, AC_INTERVAL_MS);
+  }
+
+  // Start after BRPN scene is ready (short delay to let THREE.js init finish)
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_startBrpnWorldFeed, 6000); });
+  } else {
+    setTimeout(_startBrpnWorldFeed, 6000);
+  }
+})();
 
 // ── BUTTON WIRING ──────────────────────────────────────────────────────
 document.getElementById('mn-close-btn')?.addEventListener('click', function(){ window.mantisNav.close(); });
