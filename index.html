@@ -15946,6 +15946,55 @@ requestAnimationFrame(()=>{
     var _preloadTimer = null;
     var _acTimer = null;
     var _lastUserLat = null, _lastUserLon = null;
+    var _isLeader = false; // only the leader tab fetches
+
+    // ── Single-tab leader election via localStorage ───────────────────────
+    // The focused/active tab claims leadership. Others stand by.
+    var _LEADER_KEY = '_brpn_leader_tab';
+    var _LEADER_TS  = '_brpn_leader_ts';
+    var _myTabId    = Math.random().toString(36).slice(2);
+
+    function _claimLeader(){
+      localStorage.setItem(_LEADER_KEY, _myTabId);
+      localStorage.setItem(_LEADER_TS, Date.now().toString());
+      _isLeader = true;
+    }
+    function _checkLeader(){
+      var id = localStorage.getItem(_LEADER_KEY);
+      var ts = parseInt(localStorage.getItem(_LEADER_TS)||'0');
+      // Claim if no leader, stale leader (>3min), or we are leader
+      if(!id || (Date.now()-ts > 180000) || id === _myTabId){
+        _claimLeader(); return true;
+      }
+      _isLeader = false; return false;
+    }
+
+    // Re-check leadership on visibility change
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'visible'){
+        _checkLeader();
+        // If we just became leader and timers are dead, restart them
+        if(_isLeader && !_preloadTimer && _preloadReady){
+          _loadSatellites();
+          if(!_acTimer) setTimeout(_loadAircraft, 3000);
+        }
+      } else {
+        // Hidden — pause our timers, relinquish leadership
+        clearTimeout(_preloadTimer); _preloadTimer = null;
+        clearTimeout(_acTimer); _acTimer = null;
+        if(_isLeader){
+          localStorage.removeItem(_LEADER_KEY);
+          _isLeader = false;
+        }
+      }
+    });
+
+    // Heartbeat — renew leadership every 60s while visible
+    setInterval(function(){
+      if(document.visibilityState === 'visible' && _isLeader){
+        localStorage.setItem(_LEADER_TS, Date.now().toString());
+      }
+    }, 60000);
 
     // Wait until BRPN scene is ready
     function _waitReady(cb){
@@ -16035,6 +16084,10 @@ requestAnimationFrame(()=>{
       'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=TLE',
     ];
     async function _loadSatellites(){
+      // Only fetch if we're the active leader tab
+      if(!_isLeader || document.visibilityState !== 'visible') {
+        _preloadTimer = setTimeout(_loadSatellites, 30 * 1000); return;
+      }
       try{
         // Rotate through catalogs one at a time — no bulk fetch on each cycle
         var url = _satCatalogs[_satCatalogIdx % _satCatalogs.length];
@@ -16055,6 +16108,10 @@ requestAnimationFrame(()=>{
 
     // ── Fetch + inject aircraft ADS-B ──────────────────────────────────────
     async function _loadAircraft(){
+      // Only fetch if we're the active leader tab
+      if(!_isLeader || document.visibilityState !== 'visible') {
+        _acTimer = setTimeout(_loadAircraft, 30 * 1000); return;
+      }
       // Use geolocation if available, else world-centre fallback
       var lat = _lastUserLat || 39.8283;
       var lon = _lastUserLon || -98.5795;
@@ -16100,7 +16157,9 @@ requestAnimationFrame(()=>{
     // competition with maze widgets and other startup allocations ────────
     _waitReady(function(){
       console.log('[BRPN Preload] Scene ready — scheduling fetch in 8s');
+      _checkLeader(); // claim leadership if no other tab has it
       setTimeout(function(){
+        if(!_isLeader) { console.log('[BRPN Preload] Standby — another tab is leader'); return; }
         console.log('[BRPN Preload] Starting satellite + aircraft fetch');
         _loadSatellites();
         setTimeout(_loadAircraft, 5000);
