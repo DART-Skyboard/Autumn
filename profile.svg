@@ -106,7 +106,7 @@
       <text x="212" y="124" class="mono" font-size="10" fill="#00e5ff" fill-opacity="0.55" letter-spacing="1.5">LEATR NEURAL NETWORK · ACTIVE NODES</text>
 
       <!-- User count — updated by GitHub Action -->
-      <text class="count-num" x="212" y="158" class="title" font-size="40" fill="#00e5ff" font-family="Orbitron,monospace" font-weight="900" letter-spacing="2">5</text>
+      <text class="count-num" x="212" y="158" class="title" font-size="40" fill="#00e5ff" font-family="Orbitron,monospace" font-weight="900" letter-spacing="2">0</text>
       <text x="268" y="185" class="mono" font-size="10" fill="#00e5ff" fill-opacity="0.5" letter-spacing="1">users online now</text>
     </g>
 
@@ -131,6 +131,6 @@
     <rect width="800" height="200" rx="16" fill="none" stroke="#00e5ff" stroke-width="0.8" stroke-opacity="0.2"/>
 
     <!-- Timestamp -->
-    <text x="800" y="197" class="mono" font-size="7" fill="#00e5ff" fill-opacity="0.2" text-anchor="end">updated 2026-05-22 19:14 UTC</text>
+    <text x="800" y="197" class="mono" font-size="7" fill="#00e5ff" fill-opacity="0.2" text-anchor="end">updated 2026-05-22 20:50 UTC</text>
   </g>
 </svg>
