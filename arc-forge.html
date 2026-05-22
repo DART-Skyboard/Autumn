@@ -1230,6 +1230,7 @@ function hideSchOverlay() {
 
 function initSch() {
   schCanvas = document.getElementById('sch-canvas');
+  if (!schCanvas) return;
   schCtx = schCanvas.getContext('2d');
   resizeSch();
   drawSchematic();
@@ -1282,7 +1283,7 @@ function initSch() {
 
 function resizeSch() {
   const wrap = document.querySelector('.sch-canvas-wrap');
-  if (!wrap) return;
+  if (!wrap || !schCanvas) return;
   schCanvas.width = wrap.clientWidth;
   schCanvas.height = wrap.clientHeight;
   schW = schCanvas.width;
@@ -1298,6 +1299,7 @@ function schFit() { schZoomLevel = 1; schPanX = 0; schPanY = 0; drawSchematic();
 function drawSchematic() {
   if (!schCtx) { initSch(); return; }
   resizeSch();
+  if (!schW || !schH) return;
   const ctx = schCtx;
   const W = schW, H = schH;
   ctx.save();
@@ -2399,11 +2401,26 @@ function toggleLayer(layer) {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   populateBOM();
-  setTimeout(() => {
-    initSch();
-    initPCB();
-    drawDraftsman();
-  }, 150);
+
+  function waitAndInit(attempts) {
+    const wrap = document.querySelector('.sch-canvas-wrap');
+    if (wrap && wrap.clientWidth > 0 && wrap.clientHeight > 0) {
+      initSch();
+      initPCB();
+      drawDraftsman();
+    } else if (attempts > 0) {
+      setTimeout(() => waitAndInit(attempts - 1), 80);
+    } else {
+      // Force fallback dimensions and init anyway
+      const c = document.getElementById('sch-canvas');
+      if (c) { c.width = window.innerWidth - 110; c.height = window.innerHeight - 200; schW = c.width; schH = c.height; }
+      initSch();
+      initPCB();
+      drawDraftsman();
+    }
+  }
+
+  requestAnimationFrame(() => waitAndInit(15));
 });
 
 window.addEventListener('resize', () => {
