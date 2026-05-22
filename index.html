@@ -16062,17 +16062,28 @@ requestAnimationFrame(()=>{
     // ── Inject satellite contacts into BRPN ───────────────────────────────
     function _injectSats(satList){
       if(!window._brpnInjectMantisContacts) return;
-      // Sample up to 35 spread across the list
-      var step = Math.max(1, Math.floor(satList.length / 35));
+      // Filter out failed propagations (lat=0,lon=0 means satellite.js returned no position)
+      var valid = satList.filter(function(s){ return s && (s.lat !== 0 || s.lon !== 0); });
+      // If propagation all failed (satellite.js unavailable), distribute evenly on sphere
+      if(valid.length === 0 && satList.length > 0){
+        valid = satList.map(function(s, idx){
+          var phi = Math.acos(1 - 2*(idx+0.5)/satList.length);
+          var theta = Math.PI * (1 + Math.sqrt(5)) * idx;
+          return {
+            name: s.name, alt: 550,
+            lat:  (phi * 180/Math.PI) - 90,
+            lon:  ((theta * 180/Math.PI) % 360) - 180
+          };
+        });
+      }
+      var step = Math.max(1, Math.floor(valid.length / 35));
       var contacts = [];
-      for(var i=0; i<satList.length && contacts.length<35; i+=step){
-        var s = satList[i];
-        if(s && s.lat != null && s.lon != null){
-          contacts.push({type:'satellite', lat:s.lat, lon:s.lon, alt:s.alt||550, id:s.name||('SAT'+i)});
-        }
+      for(var i=0; i<valid.length && contacts.length<35; i+=step){
+        var s = valid[i];
+        contacts.push({type:'satellite', lat:s.lat, lon:s.lon, alt:s.alt||550, id:s.name||('SAT'+i)});
       }
       if(contacts.length) window._brpnInjectMantisContacts(contacts);
-      console.log('[BRPN Preload] Injected', contacts.length, 'satellites');
+      console.log('[BRPN Preload] Injected', contacts.length, 'satellites (valid:', valid.length, '/', satList.length, ')');
     }
 
     // ── Fetch + inject TLEs ───────────────────────────────────────────────
