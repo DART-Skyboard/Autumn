@@ -306,6 +306,7 @@ window._refreshAnalyticsNow = async function() {
     var el = _getOverlay(); if(!el) return;
     el.style.display = 'flex';
     _visible = true;
+    window._arcLakeOpen = true;
     _collapsed = false;
     document.getElementById('als-overlay-body').style.display = '';
 
@@ -349,6 +350,7 @@ window._refreshAnalyticsNow = async function() {
     var el = _getOverlay(); if(!el) return;
     el.style.display = 'none';
     _visible = false;
+    window._arcLakeOpen = false;
     var hbtn = document.getElementById('hud-arclake-btn');
     if (hbtn) { hbtn.style.color='rgba(0,229,255,.55)'; hbtn.style.borderColor='rgba(0,229,255,.3)'; hbtn.style.background='rgba(0,229,255,.07)'; }
     // Stop simulation when closed
@@ -2054,6 +2056,12 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 /* ─── MULTI-USER BADGE ────────────────────────────────── */
 .multi-user-bar{padding:3px 12px;background:rgba(0,136,255,.07);border-bottom:none;margin:0;display:flex;align-items:center;gap:8px;font-size:.5rem;font-family:var(--font-d);letter-spacing:1px;color:rgba(0,136,255,.6);display:none}
 .multi-user-bar.show{display:flex}
+.node-cap-control{display:flex;align-items:center;gap:5px;margin-left:auto;opacity:0.75}
+.node-cap-label{font-size:.42rem;letter-spacing:1.5px;color:rgba(0,229,255,.45)}
+.node-cap-track{display:flex;align-items:center;gap:2px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.15);border-radius:3px;padding:1px 4px}
+.node-cap-notch{font-size:.4rem;letter-spacing:1px;color:rgba(0,229,255,.35);padding:1px 5px;border-radius:2px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.node-cap-notch:hover{color:rgba(0,229,255,.7);background:rgba(0,229,255,.1)}
+.node-cap-notch.active{color:rgba(0,229,255,1);background:rgba(0,229,255,.18);font-weight:700}
 
 /* ── ASH CANVAS DRAWER ── */
 #ash-canvas-trigger{display:flex;align-items:center;gap:6px;padding:3px 12px;background:transparent;border:none;border-bottom:1px solid transparent;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);transition:all .2s;width:100%;text-align:left}
@@ -2907,6 +2915,16 @@ select.ash-ctrl-input{cursor:pointer}
   <div class="multi-user-bar" id="multi-user-bar">
     <span class="user-dot"></span>
     <span id="multi-user-label">GROUP SESSION</span>
+    <div class="node-cap-control" id="node-cap-control" title="Max active user nodes displayed in BRPN scene">
+      <span class="node-cap-label">NODES</span>
+      <div class="node-cap-track" id="node-cap-track">
+        <div class="node-cap-notch" data-val="10">10</div>
+        <div class="node-cap-notch active" data-val="50" id="node-cap-active">50</div>
+        <div class="node-cap-notch" data-val="300">300</div>
+        <div class="node-cap-notch" data-val="1200">1.2K</div>
+        <div class="node-cap-notch" data-val="2000000">2M</div>
+      </div>
+    </div>
   </div>
 
   <!-- ASH CANVAS TRIGGER BUTTON -->
@@ -12948,7 +12966,22 @@ function initBRPN() {
 
   // Pool of injected Mantis geometry nodes (wireframe volumetric)
   var _mantisNodes = [];
-  var _mantisNodeMax = 120; // cap so mobile GPU isn't overwhelmed
+  var _mantisNodeMax = 50; // default cap — user-adjustable via HUD notch control
+
+  // ── Node cap HUD control ──────────────────────────────────────────────
+  (function _initNodeCap(){
+    var track = document.getElementById('node-cap-track');
+    if(!track) return;
+    track.addEventListener('click', function(e){
+      var notch = e.target.closest('.node-cap-notch');
+      if(!notch) return;
+      var val = parseInt(notch.getAttribute('data-val'));
+      if(!val) return;
+      _mantisNodeMax = val;
+      track.querySelectorAll('.node-cap-notch').forEach(function(n){ n.classList.remove('active'); });
+      notch.classList.add('active');
+    });
+  })();
 
   // Called by Mantis Radar with live aviation/satellite contact data
   // contacts: [{type:'aircraft'|'satellite', lat, lon, alt, id}]
@@ -15966,6 +15999,10 @@ requestAnimationFrame(()=>{
     // ── Inject satellite contacts into BRPN ───────────────────────────────
     function _injectSats(satList){
       if(!window._brpnInjectMantisContacts) return;
+      // Skip injection if heavy modules are open (context pressure guard)
+      if(window._arcLakeOpen || window._stormStudioOpen ||
+         document.getElementById('mn-overlay')?.classList.contains('mn-open') ||
+         document.getElementById('mantis-radar-overlay')?.classList.contains('mr-open')) return;
       // Sample up to 35 spread across the list
       var step = Math.max(1, Math.floor(satList.length / 35));
       var contacts = [];
@@ -16029,8 +16066,13 @@ requestAnimationFrame(()=>{
         }catch(e){}
       }
       if(contacts && contacts.length && window._brpnInjectMantisContacts){
-        window._brpnInjectMantisContacts(contacts.slice(0,50));
-        console.log('[BRPN Preload] Injected', Math.min(contacts.length,50), 'aircraft');
+        // Skip if heavy modules open
+        if(!window._arcLakeOpen && !window._stormStudioOpen &&
+           !document.getElementById('mn-overlay')?.classList.contains('mn-open') &&
+           !document.getElementById('mantis-radar-overlay')?.classList.contains('mr-open')){
+          window._brpnInjectMantisContacts(contacts.slice(0,50));
+          console.log('[BRPN Preload] Injected', Math.min(contacts.length,50), 'aircraft');
+        }
       }
       // Re-inject every 45s
       _acTimer = setTimeout(_loadAircraft, 45 * 1000);
@@ -24268,13 +24310,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var w = document.getElementById('ss-wrap');
     if (!w) return;
     if (_open) {
-      // Reset to right-side position when opening
       w.style.transition = 'right .24s cubic-bezier(.22,1,.36,1)';
       w.style.left = ''; w.style.top = '';
       w.classList.add('ss-open');
       setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
       setTimeout(_initDrag, 100);
-      // Resume storm-studio RAF
+      window._stormStudioOpen = true;
       var _ssf = document.getElementById('ss-iframe');
       if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'resume'},'*');
     } else {
@@ -24282,7 +24323,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       w.style.left = ''; w.style.right = '';
       w.classList.remove('ss-open');
       document.removeEventListener('click',_outside,true);
-      // Pause storm-studio RAF (context stays alive for fast re-open)
+      window._stormStudioOpen = false;
       var _ssf = document.getElementById('ss-iframe');
       if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
     }
@@ -24290,10 +24331,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   window.stormStudioClose = function() {
     _open = false;
+    window._stormStudioOpen = false;
     var w = document.getElementById('ss-wrap');
     if(w){ w.style.left=''; w.style.right=''; w.classList.remove('ss-open'); }
     document.removeEventListener('click',_outside,true);
-    // Pause RAF — context freed only if browser hits limit (contextlost event handles it)
     var _ssf = document.getElementById('ss-iframe');
     if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
   };
