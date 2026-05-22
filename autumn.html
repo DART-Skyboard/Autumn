@@ -23348,6 +23348,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         if(mo&&mo._admBound){
           mo.setAttribute('style',mo._admOrigStyle||'');
           mo._admBound=false;
+          /* Restore canvas-wrap and canvas to natural sizing */
+          var cw=document.getElementById('mist-canvas-wrap');
+          if(cw) cw.style.cssText='';
+          var cv=document.getElementById('mist-maze-canvas');
+          if(cv){cv.style.width='';cv.style.height='';}
           if(typeof window.MIST!=='undefined'&&window.MIST.open&&typeof window.mistToggle==='function') window.mistToggle();
         }
         var mt=document.getElementById('mist-trigger');
@@ -23360,70 +23365,67 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       if(!frame) return;
 
       if(tab==='mist'){
-        /* Show control strip in frame */
+        /* ── Admin MIST tab: open the MIST overlay normally (it's position:fixed,
+           so it floats above the admin console) then stretch it to fill the
+           admin content frame area. No DOM reparenting — just CSS override.    */
         frame.style.cssText='display:flex;flex-direction:column;flex:1;overflow:hidden;background:rgba(2,6,14,.97)';
-        frame.innerHTML='';
+        frame.innerHTML='<div id="adm-mist-placeholder" style="flex:1;display:flex;align-items:center;justify-content:center;color:rgba(0,229,255,.18);font-family:Orbitron,monospace;font-size:11px;letter-spacing:3px">◈ MIST</div>';
 
-        /* Control strip */
-        var mCtrl=document.createElement('div');
-        mCtrl.style.cssText='flex-shrink:0;padding:10px 14px 8px;border-bottom:1px solid rgba(0,229,255,.1);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:rgba(2,6,14,.98)';
-        mCtrl.innerHTML=
-          '<span style="font-family:Orbitron,monospace;font-size:9px;letter-spacing:3px;color:rgba(0,229,255,.5)">◈ MIST — LEAD EDGE MAZE</span>'+
-          '<div style="display:flex;gap:6px;margin-left:4px">'+
-            '<button onclick="window.mistSetSlot(0)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,221,0,.5);background:rgba(255,221,0,.08);color:#ffdd00;cursor:pointer">★ STAR</button>'+
-            '<button onclick="window.mistSetSlot(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,68,136,.5);background:rgba(255,68,136,.08);color:#ff4488;cursor:pointer">♥ HEART</button>'+
-            '<button onclick="window.mistSetSlot(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(0,229,255,.5);background:rgba(0,229,255,.08);color:#00e5ff;cursor:pointer">◈ MIST</button>'+
-          '</div>'+
-          '<div style="display:flex;gap:5px;margin-left:8px">'+
-            '<span style="font-size:9px;color:rgba(224,244,255,.4);font-family:Orbitron,monospace">DIFF:</span>'+
-            '<button onclick="window.mistSetDiff(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.4);background:rgba(0,229,255,.1);color:#00e5ff;cursor:pointer">I</button>'+
-            '<button onclick="window.mistSetDiff(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">II</button>'+
-            '<button onclick="window.mistSetDiff(3)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">III</button>'+
-            '<button onclick="window.mistNewMaze()" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(167,139,250,.4);background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;margin-left:2px">↺ NEW</button>'+
-          '</div>';
-        frame.appendChild(mCtrl);
-
-        /* Placeholder canvas area so frame has visible content */
-        var mHost=document.createElement('div');
-        mHost.id='adm-mist-host';
-        mHost.style.cssText='flex:1;display:flex;align-items:center;justify-content:center';
-        frame.appendChild(mHost);
-
-        /* Position mist-overlay over the admin frame using fixed coords */
         var mistOv=document.getElementById('mist-overlay');
+        var mt=document.getElementById('mist-trigger');
         if(mistOv){
-          /* Save original */
+          /* Save original inline style once */
           if(!mistOv._admBound){
             mistOv._admOrigStyle=mistOv.getAttribute('style')||'';
             mistOv._admBound=true;
           }
-          /* Open it first via public API so module state is correct */
+          /* Ensure module is open */
           if(typeof window.MIST!=='undefined'&&!window.MIST.open){
             if(typeof window.mistToggle==='function') window.mistToggle();
           } else if(typeof window.MIST==='undefined'){
             if(typeof window.mistToggle==='function') window.mistToggle();
           }
-          /* Now position it to cover the admin frame content area */
+          /* Stretch overlay to fill the admin frame content area */
           var _reposition=function(){
             var fr=frame.getBoundingClientRect();
-            var ctrlH=mCtrl.getBoundingClientRect().height;
-            mistOv.style.position='fixed';
-            mistOv.style.left=fr.left+'px';
-            mistOv.style.top=(fr.top+ctrlH)+'px';
-            mistOv.style.width=fr.width+'px';
-            mistOv.style.height=(fr.height-ctrlH)+'px';
-            mistOv.style.right='auto';
-            mistOv.style.transform='none';
-            mistOv.style.transition='none';
-            mistOv.style.borderRadius='0';
-            mistOv.style.zIndex='10800';
+            mistOv.style.cssText=(mistOv._admOrigStyle?mistOv._admOrigStyle+';':'')+
+              'position:fixed!important;'+
+              'left:'+fr.left+'px!important;'+
+              'top:'+fr.top+'px!important;'+
+              'width:'+fr.width+'px!important;'+
+              'height:'+fr.height+'px!important;'+
+              'right:auto!important;'+
+              'bottom:auto!important;'+
+              'transform:none!important;'+
+              'transition:none!important;'+
+              'border-radius:0!important;'+
+              'z-index:10800!important;'+
+              'display:flex!important;'+
+              'flex-direction:column!important;'+
+              'opacity:1!important;'+
+              'pointer-events:all!important;'+
+              /* Override the canvas-wrap to fill remaining height */
+              'overflow:hidden!important';
+            /* Let the canvas-wrap fill the height */
+            var cw=document.getElementById('mist-canvas-wrap');
+            if(cw) cw.style.cssText='flex:1;overflow:hidden;display:flex;flex-direction:column';
+            var cv=document.getElementById('mist-maze-canvas');
+            if(cv){
+              var headH=(document.getElementById('mist-head-row')||{}).offsetHeight||38;
+              var tabH=(document.getElementById('mist-tabs')||{}).offsetHeight||32;
+              var ctrlH=(document.getElementById('mist-diff-row')||{}).offsetHeight||28;
+              var footH=(document.getElementById('mist-status')||{}).offsetHeight||20;
+              var avail=fr.height-headH-tabH-ctrlH-footH-8;
+              cv.style.width=fr.width+'px';
+              cv.style.height=Math.max(avail,120)+'px';
+            }
+            /* Re-render maze at new size */
+            if(typeof window._mistRender==='function') window._mistRender();
           };
-          setTimeout(_reposition,50);
-          /* Reposition on resize */
+          setTimeout(_reposition,80);
           window._admMistResize=_reposition;
           window.addEventListener('resize',_reposition);
-          /* Hide the float trigger */
-          var mt=document.getElementById('mist-trigger');
+          /* Hide the float trigger button so it doesn't dupe */
           if(mt){mt._admSavedD=mt.style.display;mt.style.display='none';}
         }
         return;
