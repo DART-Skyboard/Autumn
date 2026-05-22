@@ -23527,6 +23527,63 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         var region=document.getElementById('brpn-region');
         if(region) cw.appendChild(region);
 
+        /* ── Active session banner (mirrors public multi-user-bar + node selector) ── */
+        var admSessionBar=document.createElement('div');
+        admSessionBar.id='adm-session-bar';
+        admSessionBar.style.cssText='position:absolute;bottom:28px;left:0;right:0;z-index:19;display:flex;align-items:center;gap:8px;padding:3px 10px;background:rgba(0,136,255,.09);border-top:1px solid rgba(0,136,255,.18);border-bottom:1px solid rgba(0,136,255,.1);font-family:Orbitron,monospace;font-size:8px;letter-spacing:1px;color:rgba(0,136,255,.7)';
+        /* Session dot + label */
+        var admSessDot=document.createElement('span');
+        admSessDot.style.cssText='width:6px;height:6px;border-radius:50%;background:rgba(0,136,255,.7);box-shadow:0 0 6px rgba(0,136,255,.5);flex-shrink:0;display:inline-block';
+        var admSessLbl=document.createElement('span');
+        admSessLbl.id='adm-session-label';
+        (function(){
+          var liveCount=(typeof window._getActiveSessionCount==='function')?window._getActiveSessionCount():1;
+          admSessLbl.textContent=(liveCount===1?'1 ACTIVE SESSION':liveCount+' ACTIVE SESSIONS')+' \u00b7 LEATR NEURAL NETWORK';
+        })();
+        /* Spacer */
+        var admSessSp=document.createElement('span'); admSessSp.style.flex='1';
+        /* Node cap selector */
+        var admNodeWrap=document.createElement('div');
+        admNodeWrap.style.cssText='display:flex;align-items:center;gap:3px';
+        var admNodeLbl=document.createElement('span');
+        admNodeLbl.textContent='NODES';
+        admNodeLbl.style.cssText='font-size:7px;letter-spacing:1px;color:rgba(0,136,255,.45);margin-right:2px';
+        admNodeWrap.appendChild(admNodeLbl);
+        var admNodeCaps=[10,50,100,300,1200,2000000];
+        var admNodeLabels=['10','50','100','300','1.2K','2M'];
+        var _admNodeActive=1200;
+        admNodeCaps.forEach(function(cap,idx){
+          var nb=document.createElement('div');
+          nb.textContent=admNodeLabels[idx];
+          nb.dataset.cap=cap;
+          nb.style.cssText='padding:1px 5px;border-radius:2px;cursor:pointer;font-size:7px;letter-spacing:.5px;transition:all .15s;'+(cap===_admNodeActive?'background:rgba(0,136,255,.2);border:1px solid rgba(0,136,255,.5);color:#0088ff':'border:1px solid rgba(0,136,255,.2);color:rgba(0,136,255,.45)');
+          nb.onclick=function(){
+            _admNodeActive=cap;
+            admNodeWrap.querySelectorAll('div').forEach(function(b){
+              var c=parseInt(b.dataset.cap);
+              b.style.background=c===_admNodeActive?'rgba(0,136,255,.2)':'';
+              b.style.border=c===_admNodeActive?'1px solid rgba(0,136,255,.5)':'1px solid rgba(0,136,255,.2)';
+              b.style.color=c===_admNodeActive?'#0088ff':'rgba(0,136,255,.45)';
+            });
+            /* Mirror to main app if function exposed */
+            if(typeof window._setAshNodeCap==='function') window._setAshNodeCap(cap);
+          };
+          admNodeWrap.appendChild(nb);
+        });
+        admSessionBar.appendChild(admSessDot);
+        admSessionBar.appendChild(admSessLbl);
+        admSessionBar.appendChild(admSessSp);
+        admSessionBar.appendChild(admNodeWrap);
+        cw.appendChild(admSessionBar);
+
+        /* Live-update session label every 10s */
+        var _admSessInterval=setInterval(function(){
+          var lbl=document.getElementById('adm-session-label');
+          if(!lbl){clearInterval(_admSessInterval);return;}
+          var n=(typeof window._getActiveSessionCount==='function')?window._getActiveSessionCount():1;
+          lbl.textContent=(n===1?'1 ACTIVE SESSION':n+' ACTIVE SESSIONS')+' \u00b7 LEATR NEURAL NETWORK';
+        },10000);
+
         /* Ash canvas strip — at bottom edge of canvas viewport */
         var ashStrip=document.createElement('div'); ashStrip.id='adm-ash-strip'; ashStrip.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:20;cursor:pointer;user-select:none;background:rgba(2,6,14,.78);border-top:1px solid rgba(167,139,250,.3)';
         var stripInner=document.createElement('div'); stripInner.id='adm-ash-strip-inner'; stripInner.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 14px;font-family:Orbitron,monospace;font-size:9px;letter-spacing:2px;color:rgba(167,139,250,.65)';
