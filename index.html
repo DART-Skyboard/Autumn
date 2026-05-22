@@ -16074,16 +16074,18 @@ requestAnimationFrame(()=>{
         }catch(e){}
       }
       if(contacts && contacts.length && window._brpnInjectMantisContacts){
-        // Only skip aircraft inject if heavy modules open (they have their own feed)
-        if(!window._arcLakeOpen && !window._stormStudioOpen &&
-           !document.getElementById('mn-overlay')?.classList.contains('mn-open') &&
-           !document.getElementById('mantis-radar-overlay')?.classList.contains('mr-open')){
-          window._brpnInjectMantisContacts(contacts.slice(0,50));
-          console.log('[BRPN Preload] Injected', Math.min(contacts.length,50), 'aircraft');
-        }
+        // Defer inject to next event loop tick — keeps main thread free
+        setTimeout(function(){
+          if(!window._arcLakeOpen && !window._stormStudioOpen &&
+             !document.getElementById('mn-overlay')?.classList.contains('mn-open') &&
+             !document.getElementById('mantis-radar-overlay')?.classList.contains('mr-open')){
+            window._brpnInjectMantisContacts(contacts.slice(0,50));
+            console.log('[BRPN Preload] Injected', Math.min(contacts.length,50), 'aircraft');
+          }
+        }, 0);
       }
-      // Always reschedule regardless of whether inject was skipped
-      _acTimer = setTimeout(_loadAircraft, 45 * 1000);
+      // Reschedule every 90s — less frequent = less CPU pressure
+      _acTimer = setTimeout(_loadAircraft, 90 * 1000);
     }
 
     // ── Try to get user location for better aircraft coverage ─────────────
