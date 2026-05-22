@@ -15962,8 +15962,8 @@ requestAnimationFrame(()=>{
     function _checkLeader(){
       var id = localStorage.getItem(_LEADER_KEY);
       var ts = parseInt(localStorage.getItem(_LEADER_TS)||'0');
-      // Claim if no leader, stale leader (>3min), or we are leader
-      if(!id || (Date.now()-ts > 180000) || id === _myTabId){
+      // Claim if: no leader, stale (>90s), or we already are leader
+      if(!id || (Date.now()-ts > 90000) || id === _myTabId){
         _claimLeader(); return true;
       }
       _isLeader = false; return false;
@@ -16086,7 +16086,7 @@ requestAnimationFrame(()=>{
     async function _loadSatellites(){
       // Only fetch if we're the active leader tab
       if(!_isLeader || document.visibilityState !== 'visible') {
-        _preloadTimer = setTimeout(_loadSatellites, 30 * 1000); return;
+        _preloadTimer = setTimeout(_loadSatellites, 10 * 1000); return;
       }
       try{
         // Rotate through catalogs one at a time — no bulk fetch on each cycle
@@ -16110,7 +16110,7 @@ requestAnimationFrame(()=>{
     async function _loadAircraft(){
       // Only fetch if we're the active leader tab
       if(!_isLeader || document.visibilityState !== 'visible') {
-        _acTimer = setTimeout(_loadAircraft, 30 * 1000); return;
+        _acTimer = setTimeout(_loadAircraft, 10 * 1000); return;
       }
       // Use geolocation if available, else world-centre fallback
       var lat = _lastUserLat || 39.8283;
@@ -16157,10 +16157,9 @@ requestAnimationFrame(()=>{
     // competition with maze widgets and other startup allocations ────────
     _waitReady(function(){
       console.log('[BRPN Preload] Scene ready — scheduling fetch in 8s');
-      _checkLeader(); // claim leadership if no other tab has it
+      _checkLeader();
       setTimeout(function(){
-        if(!_isLeader) { console.log('[BRPN Preload] Standby — another tab is leader'); return; }
-        console.log('[BRPN Preload] Starting satellite + aircraft fetch');
+        console.log('[BRPN Preload] Starting satellite + aircraft fetch (leader=' + _isLeader + ')');
         _loadSatellites();
         setTimeout(_loadAircraft, 5000);
       }, 8000);
