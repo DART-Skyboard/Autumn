@@ -16084,32 +16084,33 @@ requestAnimationFrame(()=>{
       'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=TLE',
     ];
     async function _loadSatellites(){
-      // Only fetch if we're the active leader tab
-      if(!_isLeader || document.visibilityState !== 'visible') {
+      // If not leader, keep polling until we are
+      if(!_isLeader) {
         _preloadTimer = setTimeout(_loadSatellites, 10 * 1000); return;
       }
       try{
-        // Rotate through catalogs one at a time — no bulk fetch on each cycle
         var url = _satCatalogs[_satCatalogIdx % _satCatalogs.length];
         _satCatalogIdx++;
         var text = await _fetchTLE(url);
         if(text){
-          // Parse async so main thread never blocks
           _parseTLEsAsync(text, function(sats){
             if(sats.length) _injectSats(sats);
           });
         }
-        _preloadTimer = setTimeout(_loadSatellites, 3 * 60 * 1000);
+        // Only reschedule if still visible — pause when hidden
+        if(document.visibilityState !== 'hidden')
+          _preloadTimer = setTimeout(_loadSatellites, 3 * 60 * 1000);
       } catch(e){
         console.warn('[BRPN Preload] TLE fetch error:', e);
-        _preloadTimer = setTimeout(_loadSatellites, 3 * 60 * 1000);
+        if(document.visibilityState !== 'hidden')
+          _preloadTimer = setTimeout(_loadSatellites, 3 * 60 * 1000);
       }
     }
 
     // ── Fetch + inject aircraft ADS-B ──────────────────────────────────────
     async function _loadAircraft(){
-      // Only fetch if we're the active leader tab
-      if(!_isLeader || document.visibilityState !== 'visible') {
+      // If not leader, keep polling until we are
+      if(!_isLeader) {
         _acTimer = setTimeout(_loadAircraft, 10 * 1000); return;
       }
       // Use geolocation if available, else world-centre fallback
@@ -16142,7 +16143,8 @@ requestAnimationFrame(()=>{
         }, 0);
       }
       // Reschedule every 90s — less frequent = less CPU pressure
-      _acTimer = setTimeout(_loadAircraft, 90 * 1000);
+      if(document.visibilityState !== 'hidden')
+        _acTimer = setTimeout(_loadAircraft, 90 * 1000);
     }
 
     // ── Try to get user location for better aircraft coverage ─────────────
