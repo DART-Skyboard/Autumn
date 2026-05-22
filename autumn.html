@@ -22004,6 +22004,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           _showLoginModal(); // GAS quota hit — let user enter PAT or retry
           return;
         }
+        // Clear switch-pending flag — _saveSession will vault the new account automatically
+        try { sessionStorage.removeItem('_gh_switch_pending'); } catch(e){}
         _saveSession(d);
         _applySession(d);
       })
@@ -22693,9 +22695,91 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   function _saveSession(data) {
     try {
       localStorage.setItem('_gh_session', JSON.stringify(data));
-      localStorage.setItem('_gh_token_ok', String(Date.now())); // last-validated timestamp
+      localStorage.setItem('_gh_token_ok', String(Date.now()));
+      // ── Also write into the multi-account vault ──────────────────────────
+      if (data && data.username) {
+        var vault = {};
+        try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
+        vault[data.username] = { username: data.username, access_token: data.access_token, avatar_url: data.avatar_url || '', saved: Date.now() };
+        localStorage.setItem('_gh_sessions_vault', JSON.stringify(vault));
+      }
     } catch(e){}
   }
+
+  // ── Switch Account — vault current session, force GitHub to show account picker ──
+  window._ghSwitchAccount = function() {
+    // Close any open menu
+    var m = document.getElementById('gh-user-menu'); if(m) m.remove();
+    // Snapshot current session into vault (already done by _saveSession, but ensure it)
+    var cur = _loadStoredSession();
+    if (cur && cur.username) {
+      var vault = {};
+      try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
+      vault[cur.username] = { username: cur.username, access_token: cur.access_token, avatar_url: cur.avatar_url || '', saved: Date.now() };
+      try { localStorage.setItem('_gh_sessions_vault', JSON.stringify(vault)); } catch(e){}
+    }
+    // Flag so the callback knows this is a switch, not a fresh login
+    try { sessionStorage.setItem('_gh_switch_pending', '1'); } catch(e){}
+    // Redirect to GitHub OAuth — omitting login= forces account picker when already logged in
+    var state = Math.random().toString(36).substr(2, 10);
+    try { sessionStorage.setItem('_gh_oauth_state', state); } catch(e){}
+    window.location.href = 'https://github.com/login/oauth/authorize'
+      + '?client_id=' + GH_CLIENT_ID
+      + '&scope='        + encodeURIComponent(GH_SCOPES)
+      + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/')
+      + '&state='        + state
+      + '&prompt=consent'; // forces GitHub to show the full auth screen even for returning users
+  };
+
+  // ── Vault account switcher UI — lets user jump between previously authed accounts ──
+  window._ghShowVaultPicker = function() {
+    var m = document.getElementById('gh-user-menu'); if(m) m.remove();
+    var vault = {};
+    try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
+    var accounts = Object.values(vault).sort(function(a,b){ return (b.saved||0)-(a.saved||0); });
+    var cur = window._ghAuth && window._ghAuth.username;
+
+    var picker = document.createElement('div');
+    picker.id = 'gh-vault-picker';
+    picker.style.cssText = 'position:fixed;top:58px;right:60px;z-index:9901;background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.25);border-radius:8px;padding:8px 0;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;min-width:180px';
+    var html = '<div style="padding:8px 14px;color:rgba(0,229,255,.4);font-size:.38rem;letter-spacing:2px">SWITCH ACCOUNT</div>';
+    accounts.forEach(function(acc) {
+      var isCur = acc.username === cur;
+      html += '<div onclick="window._ghVaultLogin(\'' + acc.username + '\')" style="padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;'+(isCur?'color:#00e5ff':'color:rgba(224,244,255,.6)')+'" onmouseenter="this.style.background=\'rgba(0,229,255,.07)\'" onmouseleave="this.style.background=\'\'">'
+            + (isCur?'◉ ':'○ ') + acc.username + (isCur?' <span style="font-size:.33rem;color:rgba(0,229,255,.4);margin-left:4px">ACTIVE</span>':'')
+            + '</div>';
+    });
+    html += '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+          + '<div onclick="window._ghSwitchAccount()" style="padding:8px 14px;cursor:pointer;color:rgba(167,139,250,.7)" onmouseenter="this.style.color=\'#a78bfa\'" onmouseleave="this.style.color=\'rgba(167,139,250,.7)\'">+ Add another account</div>'
+          + '<div onclick="document.getElementById(\'gh-vault-picker\').remove()" style="padding:8px 14px;cursor:pointer;color:rgba(224,244,255,.3);font-size:.38rem">✕ Cancel</div>';
+    picker.innerHTML = html;
+    document.body.appendChild(picker);
+    setTimeout(function(){ document.addEventListener('click', function _vp(e){ if(!picker.contains(e.target)){picker.remove();document.removeEventListener('click',_vp);} }); }, 50);
+  };
+
+  // ── Restore a vaulted session by username (no OAuth needed if token still valid) ──
+  window._ghVaultLogin = function(username) {
+    var picker = document.getElementById('gh-vault-picker'); if(picker) picker.remove();
+    var vault = {};
+    try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
+    var acc = vault[username];
+    if (!acc || !acc.access_token) { window._ghSwitchAccount(); return; }
+    // Validate the stored token before restoring
+    fetch('https://api.github.com/user', { headers: { 'Authorization': 'token ' + acc.access_token, 'Accept': 'application/vnd.github.v3+json' }, signal: AbortSignal.timeout(8000) })
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(u){
+        var sd = { username: u.login, access_token: acc.access_token, avatar_url: u.avatar_url };
+        _saveSession(sd);
+        _applySession(sd);
+        var m = document.getElementById('gh-user-menu'); if(m) m.remove();
+      })
+      .catch(function(){
+        // Token expired — force full OAuth for this account
+        try { sessionStorage.setItem('_gh_switch_pending', '1'); } catch(e){}
+        try { sessionStorage.setItem('_gh_reauth_user', username); } catch(e){}
+        window._ghSwitchAccount();
+      });
+  };
   function _loadStoredSession() {
     try {
       var s = localStorage.getItem('_gh_session');
@@ -22841,6 +22925,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;color:rgba(0,229,255,.7)" onclick="window._openFeedback()">◈ SUBMIT FEEDBACK</div>'
 
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(167,139,250,.7);font-size:.42rem;" onmouseenter="this.style.color=\'#a78bfa\'" onmouseleave="this.style.color=\'rgba(167,139,250,.7)\'" onclick="window._ghShowVaultPicker()">⇄ SWITCH ACCOUNT</div>'
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
