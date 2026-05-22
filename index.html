@@ -13039,8 +13039,8 @@ function initBRPN() {
     var toRemove = [];
     _mantisNodes.forEach(function(m){
       var age = frame - (m.userData._mantisSpawn || frame);
-      // Nodes live for ~1800 frames (~30s at 60fps) for aircraft, 18000 (~5min) for satellites
-      var life = m.userData._mantisType === 'satellite' ? 18000 : 1800;
+      // Nodes live for ~1800 frames (~30s at 60fps) for aircraft, 108000 (~30min) for satellites
+      var life = m.userData._mantisType === 'satellite' ? 108000 : 1800;
       var t    = age / life;
       if(t >= 1){ toRemove.push(m); return; }
       // Fade opacity curve: hold full then fade last 20%
@@ -16037,8 +16037,8 @@ requestAnimationFrame(()=>{
         }
         var sats = _parseTLEs(combined);
         if(sats.length) _injectSats(sats);
-        // Re-inject every 5 min to refresh positions and prevent TTL expiry
-        _preloadTimer = setTimeout(_loadSatellites, 5 * 60 * 1000);
+        // Re-inject every 2 min to refresh positions — well within 18000-frame TTL
+        _preloadTimer = setTimeout(_loadSatellites, 2 * 60 * 1000);
       } catch(e){
         console.warn('[BRPN Preload] TLE fetch error:', e);
         _preloadTimer = setTimeout(_loadSatellites, 2 * 60 * 1000);
