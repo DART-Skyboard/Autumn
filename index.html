@@ -15999,10 +15999,6 @@ requestAnimationFrame(()=>{
     // ── Inject satellite contacts into BRPN ───────────────────────────────
     function _injectSats(satList){
       if(!window._brpnInjectMantisContacts) return;
-      // Skip injection if heavy modules are open (context pressure guard)
-      if(window._arcLakeOpen || window._stormStudioOpen ||
-         document.getElementById('mn-overlay')?.classList.contains('mn-open') ||
-         document.getElementById('mantis-radar-overlay')?.classList.contains('mr-open')) return;
       // Sample up to 35 spread across the list
       var step = Math.max(1, Math.floor(satList.length / 35));
       var contacts = [];
@@ -16066,7 +16062,7 @@ requestAnimationFrame(()=>{
         }catch(e){}
       }
       if(contacts && contacts.length && window._brpnInjectMantisContacts){
-        // Skip if heavy modules open
+        // Only skip aircraft inject if heavy modules open (they have their own feed)
         if(!window._arcLakeOpen && !window._stormStudioOpen &&
            !document.getElementById('mn-overlay')?.classList.contains('mn-open') &&
            !document.getElementById('mantis-radar-overlay')?.classList.contains('mr-open')){
@@ -16074,7 +16070,7 @@ requestAnimationFrame(()=>{
           console.log('[BRPN Preload] Injected', Math.min(contacts.length,50), 'aircraft');
         }
       }
-      // Re-inject every 45s
+      // Always reschedule regardless of whether inject was skipped
       _acTimer = setTimeout(_loadAircraft, 45 * 1000);
     }
 
