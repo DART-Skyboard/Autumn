@@ -22925,8 +22925,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       localStorage.setItem('_gh_session', JSON.stringify(data));
       localStorage.setItem('_gh_token_ok', String(Date.now())); // last-validated timestamp
     } catch(e){}
-    // Auto-save into multi-account vault
-    _saveSessionVault(data);
   }
   function _loadStoredSession() {
     try {
@@ -23069,116 +23067,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span><br><span style="font-size:.3rem;letter-spacing:1.5px;color:rgba(167,139,250,.45)">Author: L.E.A.T.R.</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
-        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._sysBrdOpenAdmin()">⚡ SYSTEM BROADCAST</div>' : '')
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._sysBrdOpenAdmin()">⚡ SYSTEM MESSAGE</div>' : '')
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;color:rgba(0,229,255,.7)" onclick="window._openFeedback()">◈ SUBMIT FEEDBACK</div>'
 
-        + (function(){
-            var vault={}; try{vault=JSON.parse(localStorage.getItem('_gh_sessions_vault')||'{}');}catch(e){}
-            var accs=Object.values(vault).filter(function(a){return a.username!==window._ghAuth.username;}).sort(function(a,b){return (b.saved||0)-(a.saved||0);});
-            if(!accs.length) return '';
-            var html='<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0"><div style="padding:5px 14px;color:rgba(0,229,255,.3);font-size:.35rem;letter-spacing:2px">SAVED ACCOUNTS</div>';
-            accs.forEach(function(a){
-              html+='<div onclick="window._ghVaultLogin(\''+a.username+'\')" style="padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;color:rgba(224,244,255,.6);font-size:.42rem" onmouseenter="this.style.background=\'rgba(0,229,255,.06)\'" onmouseleave="this.style.background=\'\'">';
-              html+='<span style="width:16px;height:16px;border-radius:50%;background:rgba(0,229,255,.18);display:inline-flex;align-items:center;justify-content:center;font-size:7px;flex-shrink:0;font-family:monospace">'+(a.username[0]||'?').toUpperCase()+'</span>';
-              html+=a.username+'</div>';
-            });
-            return html;
-          })()
-        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
-        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(167,139,250,.7);font-size:.42rem" onmouseenter="this.style.color=\'#a78bfa\'" onmouseleave="this.style.color=\'rgba(167,139,250,.7)\'" onclick="window._ghShowVaultPicker()">⇄ SWITCH ACCOUNT</div>'
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
     } else { menu.remove(); }
   };
-
-  // ── Multi-account vault — save session into localStorage vault ──────────
-  function _saveSessionVault(data) {
-    if (data && data.username) {
-      var vault = {};
-      try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
-      vault[data.username] = { username: data.username, access_token: data.access_token, avatar_url: data.avatar_url || '', saved: Date.now() };
-      try { localStorage.setItem('_gh_sessions_vault', JSON.stringify(vault)); } catch(e){}
-    }
-  }
-
-  // ── Switch Account — vault current, redirect to GitHub account picker ───
-  window._ghSwitchAccount = function() {
-    var m = document.getElementById('gh-user-menu'); if(m) m.remove();
-    var cur = (function(){ try{ var s=localStorage.getItem('_gh_session'); return s?JSON.parse(s):null; }catch(e){return null;} })();
-    if (cur && cur.username) _saveSessionVault(cur);
-    try { sessionStorage.setItem('_gh_switch_pending', '1'); } catch(e){}
-    var state = Math.random().toString(36).substr(2, 10);
-    try { sessionStorage.setItem('_gh_oauth_state', state); } catch(e){}
-    window.location.href = 'https://github.com/login/oauth/authorize'
-      + '?client_id=' + GH_CLIENT_ID
-      + '&scope=' + encodeURIComponent(GH_SCOPES)
-      + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/')
-      + '&state=' + state
-      + '&prompt=consent';
-  };
-
-  // ── Vault picker — show list of stored accounts to switch to instantly ──
-  window._ghShowVaultPicker = function() {
-    var m = document.getElementById('gh-user-menu'); if(m) m.remove();
-    var vault = {};
-    try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
-    var accounts = Object.values(vault).sort(function(a,b){ return (b.saved||0)-(a.saved||0); });
-    var cur = window._ghAuth && window._ghAuth.username;
-
-    var picker = document.createElement('div');
-    picker.id = 'gh-vault-picker';
-    picker.style.cssText = 'position:fixed;top:58px;right:60px;z-index:9901;background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.25);border-radius:8px;padding:8px 0;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;min-width:190px;box-shadow:0 4px 24px rgba(0,0,0,.5)';
-    var html = '<div style="padding:8px 14px;color:rgba(0,229,255,.4);font-size:.38rem;letter-spacing:2px;border-bottom:1px solid rgba(0,229,255,.08);margin-bottom:4px">⇄ SWITCH ACCOUNT</div>';
-    if (accounts.length === 0) {
-      html += '<div style="padding:8px 14px;color:rgba(224,244,255,.3);font-size:.4rem">No other accounts saved yet</div>';
-    } else {
-      accounts.forEach(function(acc) {
-        var isCur = acc.username === cur;
-        var av = acc.avatar_url ? '<img src="'+acc.avatar_url+'" style="width:18px;height:18px;border-radius:50%;flex-shrink:0" onerror="this.style.display=\'none\'">' : '<span style="width:18px;height:18px;border-radius:50%;background:rgba(0,229,255,.2);display:inline-flex;align-items:center;justify-content:center;font-size:8px;flex-shrink:0">'+(acc.username[0]||'?').toUpperCase()+'</span>';
-        html += '<div onclick="window._ghVaultLogin(\''+acc.username+'\')" style="padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;'+(isCur?'color:#00e5ff':'color:rgba(224,244,255,.7)')+'" onmouseenter="this.style.background=\'rgba(0,229,255,.07)\'" onmouseleave="this.style.background=\'\'">'
-              + av + acc.username
-              + (isCur ? ' <span style="font-size:.3rem;color:rgba(0,229,255,.45);margin-left:4px;letter-spacing:1px">ACTIVE</span>' : '')
-              + '</div>';
-      });
-    }
-    html += '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
-          + '<div onclick="window._ghSwitchAccount()" style="padding:8px 14px;cursor:pointer;color:rgba(167,139,250,.7);display:flex;align-items:center;gap:6px" onmouseenter="this.style.color=\'#a78bfa\'" onmouseleave="this.style.color=\'rgba(167,139,250,.7)\'">+ Add / sign in with another account</div>'
-          + '<div onclick="document.getElementById(\'gh-vault-picker\').remove()" style="padding:6px 14px;cursor:pointer;color:rgba(224,244,255,.25);font-size:.38rem">✕ Cancel</div>';
-    picker.innerHTML = html;
-    document.body.appendChild(picker);
-    setTimeout(function(){ document.addEventListener('click', function _vp(e){ if(!picker.contains(e.target)){picker.remove();document.removeEventListener('click',_vp);} }); }, 50);
-  };
-
-  // ── Restore a vaulted session by username (no OAuth if token still valid) ─
-  window._ghVaultLogin = function(username) {
-    var picker = document.getElementById('gh-vault-picker'); if(picker) picker.remove();
-    var vault = {};
-    try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
-    var acc = vault[username];
-    if (!acc || !acc.access_token) { window._ghSwitchAccount(); return; }
-    // Validate token
-    fetch('https://api.github.com/user', {
-      headers: { 'Authorization': 'token '+acc.access_token, 'Accept': 'application/vnd.github.v3+json' },
-      signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
-    })
-    .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
-    .then(function(u){
-      var sd = { username: u.login, access_token: acc.access_token, avatar_url: u.avatar_url };
-      try{ localStorage.setItem('_gh_session', JSON.stringify(sd)); localStorage.setItem('_gh_token_ok', String(Date.now())); }catch(e){}
-      _saveSessionVault(sd);
-      window._applySession && window._applySession(sd);
-      var m = document.getElementById('gh-user-menu'); if(m) m.remove();
-    })
-    .catch(function(){
-      // Token expired — force full OAuth
-      try { sessionStorage.setItem('_gh_switch_pending','1'); } catch(e){}
-      try { sessionStorage.setItem('_gh_reauth_user', username); } catch(e){}
-      window._ghSwitchAccount();
-    });
-  };
-
   // ── Manual "Save Memory Now" — with animated button states ─────────────
   window._ghAutosaveNow = function() {
     var btn = document.getElementById('gh-save-mem-btn');
@@ -23455,14 +23352,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var t3=document.createElement('button'); t3.id='adm-t3'; t3.textContent='◈ FEEDBACK';
     t3.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
     t3.onclick=function(){window._admTab('feedback');};
-    /* t4 MIST removed — now a HUD overlay button */
-    tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); hdr.appendChild(tabs);
-    /* MIST — HUD overlay button, not a tab */
-    var tMist=document.createElement('button'); tMist.id='adm-mist-hud-btn'; tMist.textContent='⬡ MIST';
-    tMist.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.08);color:rgba(0,229,255,.8);cursor:pointer;margin-left:4px';
-    tMist.title='Toggle MIST — Lead Edge Maze overlay';
-    tMist.onclick=function(){ if(typeof window.mistToggle==='function') window.mistToggle(); };
-    hdr.appendChild(tMist);
+    var t4=document.createElement('button'); t4.id='adm-t4'; t4.textContent='⬡ MIST';
+    t4.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
+    t4.onclick=function(){window._admTab('mist');};
+    tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4); hdr.appendChild(tabs);
     var closeBtn=document.createElement('button'); closeBtn.textContent='✕ CLOSE';
     closeBtn.style.cssText='margin-left:auto;background:transparent;border:1px solid rgba(255,100,100,.3);color:rgba(255,100,100,.6);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--font-d);font-size:.32rem';
     closeBtn.onclick=function(){
@@ -23484,54 +23377,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var frame=document.createElement('iframe'); frame.id='adm-frame';
     frame.style.cssText='flex:1;border:none;width:100%;background:#060a10';
     frame.src='about:blank';
-    ov.appendChild(hdr);
-
-    /* ── Active sessions banner + nodes control for admin console ── */
-    var admSessionBar = document.createElement('div');
-    admSessionBar.id = 'adm-session-bar';
-    admSessionBar.style.cssText = 'display:flex;align-items:center;gap:10px;padding:5px 14px;background:rgba(0,229,255,.03);border-bottom:1px solid rgba(0,229,255,.08);flex-shrink:0;font-family:var(--font-d);font-size:.36rem;letter-spacing:1.5px;color:rgba(0,229,255,.5)';
-    admSessionBar.innerHTML =
-      '<span id="adm-session-dot" style="width:6px;height:6px;border-radius:50%;background:rgba(255,160,60,.6);flex-shrink:0"></span>'+
-      '<span id="adm-session-label">ACTIVE SESSIONS — LEATR NEURAL NETWORK</span>'+
-      '<div style="display:flex;align-items:center;gap:5px;margin-left:auto">'+
-        '<span style="font-size:.3rem;letter-spacing:2px;color:rgba(0,229,255,.3)">NODES</span>'+
-        '<div id="adm-node-track" style="display:flex;gap:3px">'+
-          '<div class="adm-node-notch" data-val="10" style="padding:2px 5px;border-radius:2px;border:1px solid rgba(0,229,255,.2);cursor:pointer;color:rgba(0,229,255,.5);font-size:.28rem" onclick="window._admSetNodeCap(10,this)">10</div>'+
-          '<div class="adm-node-notch" data-val="50" style="padding:2px 5px;border-radius:2px;border:1px solid rgba(0,229,255,.2);cursor:pointer;color:rgba(0,229,255,.5);font-size:.28rem" onclick="window._admSetNodeCap(50,this)">50</div>'+
-          '<div class="adm-node-notch" data-val="100" style="padding:2px 5px;border-radius:2px;border:1px solid rgba(0,229,255,.2);cursor:pointer;color:rgba(0,229,255,.5);font-size:.28rem" onclick="window._admSetNodeCap(100,this)">100</div>'+
-          '<div class="adm-node-notch" data-val="300" style="padding:2px 5px;border-radius:2px;border:1px solid rgba(0,229,255,.2);cursor:pointer;color:rgba(0,229,255,.5);font-size:.28rem" onclick="window._admSetNodeCap(300,this)">300</div>'+
-          '<div class="adm-node-notch adm-node-active" data-val="1200" style="padding:2px 5px;border-radius:2px;border:1px solid rgba(0,229,255,.6);background:rgba(0,229,255,.12);cursor:pointer;color:#00e5ff;font-size:.28rem" onclick="window._admSetNodeCap(1200,this)">1.2K</div>'+
-          '<div class="adm-node-notch" data-val="2000000" style="padding:2px 5px;border-radius:2px;border:1px solid rgba(0,229,255,.2);cursor:pointer;color:rgba(0,229,255,.5);font-size:.28rem" onclick="window._admSetNodeCap(2000000,this)">2M</div>'+
-        '</div>'+
-      '</div>';
-    ov.appendChild(admSessionBar);
-
-    /* Wire up node cap setter for admin */
-    window._admSetNodeCap = function(val, el) {
-      document.querySelectorAll('.adm-node-notch').forEach(function(n){
-        n.style.borderColor='rgba(0,229,255,.2)'; n.style.background='transparent'; n.style.color='rgba(0,229,255,.5)';
-        n.classList.remove('adm-node-active');
-      });
-      if(el){ el.style.borderColor='rgba(0,229,255,.6)'; el.style.background='rgba(0,229,255,.12)'; el.style.color='#00e5ff'; el.classList.add('adm-node-active'); }
-      if(window._ashNodes && window._ashNodes.setNodeCap) window._ashNodes.setNodeCap(val);
-      /* Also sync the main node cap track if it exists */
-      document.querySelectorAll('.node-cap-notch').forEach(function(n){
-        var nv=parseInt(n.dataset.val);
-        if(nv===val){ n.classList.add('active'); } else { n.classList.remove('active'); }
-      });
-    };
-
-    /* Update session count label periodically */
-    var _admSessInterval = setInterval(function(){
-      var lbl = document.getElementById('adm-session-label');
-      var dot = document.getElementById('adm-session-dot');
-      if(!lbl || !document.getElementById('admin-console-overlay')){ clearInterval(_admSessInterval); return; }
-      var nodes = (window._ashNodes && window._ashNodes._remoteSessions) ? Object.keys(window._ashNodes._remoteSessions).length : 0;
-      lbl.textContent = (nodes+1) + ' ACTIVE SESSION' + (nodes>0?'S':'') + ' · LEATR NEURAL NETWORK';
-      if(dot) dot.style.background = nodes > 0 ? 'rgba(0,255,136,.7)' : 'rgba(255,160,60,.6)';
-    }, 3000);
-
-    ov.appendChild(frame);
+    ov.appendChild(hdr); ov.appendChild(frame);
     document.body.appendChild(ov);
     /* ── EOD Orbital Aggregate socket function ── */
     window._eodSocketActivate = function _eodSocketActivate(s){
@@ -23744,8 +23590,72 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       if(!frame) return;
 
       if(tab==='mist'){
-        /* MIST is now a HUD overlay — just toggle it */
-        if(typeof window.mistToggle==='function') window.mistToggle();
+        /* Show control strip in frame */
+        frame.style.cssText='display:flex;flex-direction:column;flex:1;overflow:hidden;background:rgba(2,6,14,.97)';
+        frame.innerHTML='';
+
+        /* Control strip */
+        var mCtrl=document.createElement('div');
+        mCtrl.style.cssText='flex-shrink:0;padding:10px 14px 8px;border-bottom:1px solid rgba(0,229,255,.1);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:rgba(2,6,14,.98)';
+        mCtrl.innerHTML=
+          '<span style="font-family:Orbitron,monospace;font-size:9px;letter-spacing:3px;color:rgba(0,229,255,.5)">◈ MIST — LEAD EDGE MAZE</span>'+
+          '<div style="display:flex;gap:6px;margin-left:4px">'+
+            '<button onclick="window.mistSetSlot(0)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,221,0,.5);background:rgba(255,221,0,.08);color:#ffdd00;cursor:pointer">★ STAR</button>'+
+            '<button onclick="window.mistSetSlot(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,68,136,.5);background:rgba(255,68,136,.08);color:#ff4488;cursor:pointer">♥ HEART</button>'+
+            '<button onclick="window.mistSetSlot(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(0,229,255,.5);background:rgba(0,229,255,.08);color:#00e5ff;cursor:pointer">◈ MIST</button>'+
+          '</div>'+
+          '<div style="display:flex;gap:5px;margin-left:8px">'+
+            '<span style="font-size:9px;color:rgba(224,244,255,.4);font-family:Orbitron,monospace">DIFF:</span>'+
+            '<button onclick="window.mistSetDiff(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.4);background:rgba(0,229,255,.1);color:#00e5ff;cursor:pointer">I</button>'+
+            '<button onclick="window.mistSetDiff(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">II</button>'+
+            '<button onclick="window.mistSetDiff(3)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">III</button>'+
+            '<button onclick="window.mistNewMaze()" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(167,139,250,.4);background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;margin-left:2px">↺ NEW</button>'+
+          '</div>';
+        frame.appendChild(mCtrl);
+
+        /* Placeholder canvas area so frame has visible content */
+        var mHost=document.createElement('div');
+        mHost.id='adm-mist-host';
+        mHost.style.cssText='flex:1;display:flex;align-items:center;justify-content:center';
+        frame.appendChild(mHost);
+
+        /* Position mist-overlay over the admin frame using fixed coords */
+        var mistOv=document.getElementById('mist-overlay');
+        if(mistOv){
+          /* Save original */
+          if(!mistOv._admBound){
+            mistOv._admOrigStyle=mistOv.getAttribute('style')||'';
+            mistOv._admBound=true;
+          }
+          /* Open it first via public API so module state is correct */
+          if(typeof window.MIST!=='undefined'&&!window.MIST.open){
+            if(typeof window.mistToggle==='function') window.mistToggle();
+          } else if(typeof window.MIST==='undefined'){
+            if(typeof window.mistToggle==='function') window.mistToggle();
+          }
+          /* Now position it to cover the admin frame content area */
+          var _reposition=function(){
+            var fr=frame.getBoundingClientRect();
+            var ctrlH=mCtrl.getBoundingClientRect().height;
+            mistOv.style.position='fixed';
+            mistOv.style.left=fr.left+'px';
+            mistOv.style.top=(fr.top+ctrlH)+'px';
+            mistOv.style.width=fr.width+'px';
+            mistOv.style.height=(fr.height-ctrlH)+'px';
+            mistOv.style.right='auto';
+            mistOv.style.transform='none';
+            mistOv.style.transition='none';
+            mistOv.style.borderRadius='0';
+            mistOv.style.zIndex='10800';
+          };
+          setTimeout(_reposition,50);
+          /* Reposition on resize */
+          window._admMistResize=_reposition;
+          window.addEventListener('resize',_reposition);
+          /* Hide the float trigger */
+          var mt=document.getElementById('mist-trigger');
+          if(mt){mt._admSavedD=mt.style.display;mt.style.display='none';}
+        }
         return;
       }
 
