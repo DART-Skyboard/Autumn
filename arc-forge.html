@@ -1166,25 +1166,29 @@ let pcbPanning = false, pcbLastX = 0, pcbLastY = 0;
 let schCanvas = null, schCtx = null, schW = 0, schH = 0;
 let pcbCanvas = null, pcbCtx = null, pcbW = 0, pcbH = 0;
 
-// ── Schematic component click interactivity ───────────────────────────────
+// ── Schematic component hit registry ─────────────────────────────────────
+// Each entry: { id, label, x, y, w, h, ref, val, desc, pkg, net }
+// x/y are in schematic-space (centered at 0,0), same coords as drawSchematic draws
 const SCH_COMPS = [
-  { id:'U1', x:-150,y:-80,  w:60, h:100, ref:'U1',  val:'RP2350',          pkg:'QFN-60-EP', desc:'Dual-core Cortex-M33+RISC-V 150MHz 520KB SRAM', net:'+3V3,GND,MCU_BUS' },
-  { id:'U2', x:80,  y:-80,  w:50, h:80,  ref:'U2',  val:'QFN-60-EP Micro', pkg:'QFN-60-EP', desc:'Secondary MCU interface block',                  net:'MCU_BUS,SWDIO,SWCLK' },
-  { id:'U3', x:-220,y:-40,  w:40, h:40,  ref:'U3',  val:'AP2112K-3.3V',    pkg:'SOT-25',    desc:'LDO Regulator 600mA 3.3V output',                 net:'+3V3,GND' },
-  { id:'ZQ1',x:140, y:-30,  w:30, h:40,  ref:'ZQ1', val:'12MHz Crystal',   pkg:'SMD',       desc:'12MHz 10ppm 20pF SMD Crystal',                    net:'XTAL_IN,XTAL_OUT' },
-  { id:'X1', x:-250,y:-130, w:24, h:64,  ref:'X1',  val:'USB TYPE-C',      pkg:'USB-C SMD', desc:'USB-C Receptacle full-speed',                     net:'VBUS,GND,D+,D-' },
-  { id:'X2', x:190, y:-130, w:24, h:80,  ref:'X2',  val:'JTAG/SWD Header', pkg:'1.27mm',    desc:'10-pin ARM Cortex Debug Header',                  net:'SWDIO,SWCLK,GND,+3V3' },
-  { id:'VD1',x:-60, y:-130, w:16, h:24,  ref:'VD1', val:'BLUE LED 0603',   pkg:'0603',      desc:'Blue LED 4.3V 20mA APT1608LVBC',                  net:'+3V3,GND' },
-  { id:'VD2',x:-40, y:-130, w:16, h:24,  ref:'VD2', val:'GREEN LED 0603',  pkg:'0603',      desc:'Green LED 2.0V 20mA APT1608LZGC',                 net:'+3V3,GND' },
-  { id:'VD3',x:-20, y:-130, w:16, h:24,  ref:'VD3', val:'RED LED 0603',    pkg:'0603',      desc:'Red LED 2.1V 20mA APTR3216',                      net:'+3V3,GND' },
-  { id:'VT1',x:160, y:80,   w:30, h:50,  ref:'VT1', val:'DMP2002U NMOS',   pkg:'SOT-23',    desc:'N-Channel MOSFET 20V 2.4A',                       net:'GND,IO' },
-  { id:'SW1',x:80,  y:-140, w:20, h:20,  ref:'SW1', val:'Tactile RESET',   pkg:'SMT',       desc:'SMT Tactile Switch RESET function',               net:'RESET,GND' },
-  { id:'SW2',x:100, y:-140, w:20, h:20,  ref:'SW2', val:'Tactile BOOT',    pkg:'SMT',       desc:'SMT Tactile Switch BOOTSEL function',             net:'BOOTSEL,GND' },
+  { id:'U1', label:'U1 — RP2350',     x:-180,y:-130,w:60,h:100, ref:'U1', val:'RP2350',           desc:'Dual-core Cortex-M33 + RISC-V, 150MHz, 520KB SRAM',  pkg:'QFN-60-EP', net:'+3V3,GND,MCU_BUS' },
+  { id:'U2', label:'U2 — QFN-60-EP',  x: 55, y:-120,w:50,h: 80, ref:'U2', val:'QFN-60-EP Micro',  desc:'Secondary MCU interface block',                        pkg:'QFN-60-EP', net:'MCU_BUS,SWDIO,SWCLK' },
+  { id:'U3', label:'U3 — LDO 3.3V',   x:-250,y: -60,w:40,h: 40, ref:'U3', val:'AP2112K-3.3V',     desc:'Linear Voltage Regulator, 600mA output',               pkg:'SOT-25',    net:'+3V3,GND' },
+  { id:'ZQ1',label:'ZQ1 — Crystal',   x: 120,y: -50,w:30,h: 30, ref:'ZQ1',val:'12MHz Crystal',    desc:'12MHz 10ppm 20pF SMD Crystal',                         pkg:'SMD',       net:'XTAL_IN,XTAL_OUT' },
+  { id:'X1', label:'X1 — USB-C',      x:-280,y:-150,w:50,h: 60, ref:'X1', val:'USB TYPE-C',       desc:'USB-C Receptacle Connector, full-speed',               pkg:'USB-C SMD', net:'VBUS,GND,D+,D-' },
+  { id:'X2', label:'X2 — JTAG/SWD',  x: 160,y:-150,w:30,h: 50, ref:'X2', val:'SWD/JTAG Header', desc:'10-pin ARM Cortex Debug Header',                        pkg:'1.27mm',    net:'SWDIO,SWCLK,GND,+3V3' },
+  { id:'VD1',label:'VD1 — LED BLUE',  x: -80,y:-150,w:16,h:16,  ref:'VD1',val:'BLUE LED 0603',    desc:'Blue LED 4.3V 20mA APT1608LVBC',                       pkg:'0603',      net:'+3V3,GND' },
+  { id:'VD2',label:'VD2 — LED GREEN', x: -60,y:-150,w:16,h:16,  ref:'VD2',val:'GREEN LED 0603',   desc:'Green LED 2.0V 20mA APT1608LZGC',                      pkg:'0603',      net:'+3V3,GND' },
+  { id:'VD3',label:'VD3 — LED RED',   x: -40,y:-150,w:16,h:16,  ref:'VD3',val:'RED LED 0603',     desc:'Red LED 2.1V 20mA APTR3216',                           pkg:'0603',      net:'+3V3,GND' },
+  { id:'VT1',label:'VT1 — NMOS',      x: 130,y:  60,w:30,h:30,  ref:'VT1',val:'DMP2002U',         desc:'N-Channel MOSFET 20V 2.4A SOT-23',                     pkg:'SOT-23',    net:'GND,IO' },
+  { id:'SW1',label:'SW1 — RESET',     x:  60,y:-160,w:20,h:20,  ref:'SW1',val:'Tactile RESET',    desc:'SMT Tactile Switch, 2.9mm, RESET function',            pkg:'SMT',       net:'RESET,GND' },
+  { id:'SW2',label:'SW2 — BOOT',      x:  80,y:-160,w:20,h:20,  ref:'SW2',val:'Tactile BOOT',     desc:'SMT Tactile Switch, BOOT-SEL function',                pkg:'SMT',       net:'BOOTSEL,GND' },
 ];
 
 let schSelectedComp = null;
 
 function schHitTest(wx, wy) {
+  // wx/wy in schematic space. Each comp registered with its canvas-space rect.
+  // schematic is drawn centered at (schW/2 + schPanX, schH/2 + schPanY) with zoom.
   for (const c of SCH_COMPS) {
     if (wx >= c.x - c.w/2 && wx <= c.x + c.w/2 &&
         wy >= c.y - c.h/2 && wy <= c.y + c.h/2) return c;
@@ -1192,23 +1196,29 @@ function schHitTest(wx, wy) {
   return null;
 }
 
-function showSchOverlay(comp, sx, sy) {
+function showSchOverlay(comp, screenX, screenY) {
   let ov = document.getElementById('sch-overlay');
   if (!ov) {
     ov = document.createElement('div');
     ov.id = 'sch-overlay';
-    ov.style.cssText = 'position:fixed;z-index:9999;background:#060d14ee;border:1px solid #00c8ff;color:#c8e8f8;font-family:Share Tech Mono,monospace;font-size:11px;padding:10px 14px;border-radius:2px;box-shadow:0 0 18px #00c8ff44;pointer-events:none;max-width:260px;line-height:1.65;';
+    ov.style.cssText = `position:fixed;z-index:9999;background:#060d14ee;border:1px solid #00c8ff;
+      color:#c8e8f8;font-family:'Share Tech Mono',monospace;font-size:11px;padding:10px 14px;
+      border-radius:2px;box-shadow:0 0 18px #00c8ff44;pointer-events:none;max-width:260px;line-height:1.6;`;
     document.body.appendChild(ov);
   }
-  ov.innerHTML = `<div style="color:#00c8ff;font-weight:bold;font-size:12px;margin-bottom:5px">${comp.id} — ${comp.val}</div>
-    <div><span style="color:#5a8aaa">Ref:</span> ${comp.ref} &nbsp; <span style="color:#5a8aaa">Pkg:</span> ${comp.pkg}</div>
-    <div style="margin-top:3px;color:#88aacc">${comp.desc}</div>
+  ov.innerHTML = `<div style="color:#00c8ff;font-weight:bold;font-size:12px;margin-bottom:4px">${comp.label}</div>
+    <div><span style="color:#5a8aaa">Ref:</span> ${comp.ref}</div>
+    <div><span style="color:#5a8aaa">Value:</span> ${comp.val}</div>
+    <div><span style="color:#5a8aaa">Pkg:</span> ${comp.pkg}</div>
+    <div style="margin-top:4px;color:#88aacc">${comp.desc}</div>
     <div style="margin-top:4px"><span style="color:#5a8aaa">Nets:</span> <span style="color:#00ff88">${comp.net}</span></div>`;
   const vw = window.innerWidth, vh = window.innerHeight;
-  let lx = sx + 14, ly = sy - 10;
-  if (lx + 270 > vw) lx = sx - 274;
-  if (ly + 130 > vh) ly = sy - 140;
-  ov.style.left = lx + 'px'; ov.style.top = ly + 'px'; ov.style.display = 'block';
+  let lx = screenX + 14, ly = screenY - 10;
+  if (lx + 270 > vw) lx = screenX - 274;
+  if (ly + 150 > vh) ly = screenY - 160;
+  ov.style.left = lx + 'px';
+  ov.style.top  = ly + 'px';
+  ov.style.display = 'block';
 }
 
 function hideSchOverlay() {
@@ -1241,13 +1251,16 @@ function initSch() {
     const hit = schHitTest(wx, wy);
     if (hit) {
       schSelectedComp = hit;
-      document.getElementById('prop-ref').value = hit.ref;
-      document.getElementById('prop-val').value = hit.val;
-      document.getElementById('prop-pkg').value = hit.pkg;
-      document.getElementById('prop-mpn').value = hit.id;
+      // Update props panel
+      document.getElementById('prop-ref').value   = hit.ref;
+      document.getElementById('prop-val').value   = hit.val;
+      document.getElementById('prop-pkg').value   = hit.pkg;
+      document.getElementById('prop-mpn').value   = hit.id;
       showSchOverlay(hit, e.clientX, e.clientY);
       drawSchematic();
-    } else { hideSchOverlay(); }
+    } else {
+      hideSchOverlay();
+    }
   });
   schCanvas.addEventListener('mousemove', e => {
     const r = schCanvas.getBoundingClientRect();
@@ -1255,6 +1268,7 @@ function initSch() {
     const wy = (e.clientY - r.top  - schPanY - schH/2) / schZoomLevel;
     document.getElementById('sb-x').textContent = wx.toFixed(3);
     document.getElementById('sb-y').textContent = wy.toFixed(3);
+    // Cursor change on hover
     schCanvas.style.cursor = schHitTest(wx, wy) ? 'pointer' : 'crosshair';
     if (schPanning) {
       schPanX += e.clientX - schLastX;
@@ -1371,16 +1385,19 @@ function drawSchematic() {
   drawNetLabel(ctx, 180, -40, 'SWCLK', '#00ff88');
   drawNetLabel(ctx, 180, -30, 'IO18', '#00ff88');
 
-  // Selected component neon glow highlight
+  // ── Selected component highlight glow ─────────────────────────────────
   if (schSelectedComp) {
     const c = schSelectedComp;
     ctx.save();
-    ctx.shadowColor = '#00c8ff'; ctx.shadowBlur = 22;
-    ctx.strokeStyle = '#00c8ff'; ctx.lineWidth = 2.5;
-    ctx.strokeRect(c.x - c.w/2 - 5, c.y - c.h/2 - 5, c.w + 10, c.h + 10);
-    ctx.globalAlpha = 0.15;
+    ctx.shadowColor = '#00c8ff';
+    ctx.shadowBlur = 18;
+    ctx.strokeStyle = '#00c8ff';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(c.x - c.w/2 - 4, c.y - c.h/2 - 4, c.w + 8, c.h + 8);
+    ctx.shadowBlur = 36;
+    ctx.globalAlpha = 0.18;
     ctx.fillStyle = '#00c8ff';
-    ctx.fillRect(c.x - c.w/2 - 5, c.y - c.h/2 - 5, c.w + 10, c.h + 10);
+    ctx.fillRect(c.x - c.w/2 - 4, c.y - c.h/2 - 4, c.w + 8, c.h + 8);
     ctx.restore();
   }
 
@@ -1638,8 +1655,8 @@ function init3D() {
 
   // Camera
   const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 200);
-  camera.position.set(0, 18, 12);
-  camera.lookAt(0, 0, 0);
+  camera.position.set(0, 22, 8);
+  camera.lookAt(0, 0, -1);
 
   // Orbit controls
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -1659,30 +1676,34 @@ function init3D() {
   const rim = new THREE.DirectionalLight(0xffffff, 0.25);
   rim.position.set(0, -4, 14); scene.add(rim);
 
-  // TRUE 6-POINT ELONGATED KITE — same proportions as kiteOutlinePath and reference image
-  // Shape in XY, extruded along Z, rotated flat. Scale: ~1 unit = 5mm
-  // Board ~42mm wide x 104mm tall => ~8.4 wide x 20.8 tall in scene units
-  const HW   = 4.2;   // half-width at widest (pt 3/5)
-  const SHX  = 2.5;   // shoulder half-width (pt 2/6)
-  const HTOP = 5.2;   // top peak Y above center
-  const SHLY = 1.9;   // shoulder Y above center
-  const WIDY =-0.8;   // widest Y (slightly below center)
-  const HBOT =-5.2;   // bottom tip Y
+  // ── Kite board shape ────────────────────────────────────────────────────
+  // Reference: Charm.stl + Image 1 (spearhead kite)
+  // Shape: wide flat top (~120° apex), straight angled sides, VERY sharp bottom tip.
+  // Proportions: width ≈ 0.80 × height, top ~40% of height, bottom 60% tapers to point.
+  // TRUE 6-POINT SPEARHEAD — matches reference image exactly
+  // Shape lies in XY plane, extruded along Z, then rotated flat
+  // Scale: 1 unit ≈ 4mm. Board ~42mm wide × 104mm tall
+  const HW   =  5.2;   // half-width at widest
+  const SHX  =  3.2;   // shoulder half-width
+  const HTOP =  4.8;   // top peak Y
+  const SHLY =  2.2;   // shoulder Y
+  const WIDY = -0.2;   // widest Y (just below center)
+  const HBOT = -8.8;   // bottom tip Y
 
   const kPts = [
-    new THREE.Vector2(  0,    HTOP),  // 1. top sharp peak
-    new THREE.Vector2(-SHX,  SHLY),  // 2. left shoulder
-    new THREE.Vector2(-HW,   WIDY),  // 3. left widest
-    new THREE.Vector2(  0,   HBOT),  // 4. bottom tip
-    new THREE.Vector2( HW,   WIDY),  // 5. right widest
-    new THREE.Vector2( SHX,  SHLY),  // 6. right shoulder
+    new THREE.Vector2(  0,     HTOP),   // 1. top sharp peak
+    new THREE.Vector2(-SHX,   SHLY),   // 2. left shoulder
+    new THREE.Vector2(-HW,    WIDY),   // 3. left widest
+    new THREE.Vector2(  0,    HBOT),   // 4. bottom tip
+    new THREE.Vector2( HW,    WIDY),   // 5. right widest
+    new THREE.Vector2( SHX,   SHLY),   // 6. right shoulder
   ];
 
   const boardShape = new THREE.Shape(kPts);
 
-  // Mounting hole near top peak
+  // Mounting hole near top
   const hole = new THREE.Path();
-  hole.absarc(0, HTOP * 0.75, 0.22, 0, Math.PI * 2, false);
+  hole.absarc(0, HTOP * 0.72, 0.25, 0, Math.PI * 2, false);
   boardShape.holes.push(hole);
 
   const extCfg = { depth: 0.20, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2 };
@@ -1695,111 +1716,115 @@ function init3D() {
   board.receiveShadow = true; board.castShadow = true;
   scene.add(board);
 
-  // Green copper layer on top face
+  // Copper layer (top face overlay)
   const copperPts = kPts.map(p => new THREE.Vector2(p.x * 0.94, p.y * 0.94));
   const copperShape = new THREE.Shape(copperPts);
   const copperGeo = new THREE.ShapeGeometry(copperShape);
   copperGeo.rotateX(-Math.PI / 2);
-  const copperMat = new THREE.MeshStandardMaterial({ color: 0x1a4a10, metalness: 0.55, roughness: 0.4, transparent: true, opacity: 0.88 });
+  const copperMat = new THREE.MeshStandardMaterial({ color: 0x1a3a10, metalness: 0.55, roughness: 0.4, transparent: true, opacity: 0.85 });
   const copper = new THREE.Mesh(copperGeo, copperMat);
   copper.position.y = 0.12;
   scene.add(copper);
 
-  // After rotateX(-PI/2) + center(): board top peak = negative Z, bottom tip = positive Z
-  // Board spans approx: Z -5.0 (top) to +5.0 (bottom), X -4.2 to +4.2 at widest (Z~-0.8)
-  // Y=0.14 = sitting on board surface, Y=0.20 = component top surface
+  // Board center is (0, 0.11, 0) after center(). Y=0.14 = on top surface.
+  // In Three.js after rotateX(-PI/2): board upper half = negative Z, lower half = positive Z
+  // Board spans roughly Z: -6.5 (top peak) to +6.5 (bottom tip), X: -5.2 to +5.2 at widest
 
-  // ── MCU RP2350 QFN-60-EP — upper center ────────────────────────────────
+  // ── MCU (RP2350 QFN-60) — upper-center of board ─────────────────────────
   const mcuMat = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, metalness: 0.3, roughness: 0.85 });
-  const mcu = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.16, 2.0), mcuMat);
-  mcu.position.set(0, 0.20, -1.2);
+  const mcu = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.16, 2.2), mcuMat);
+  mcu.position.set(0, 0.20, -1.5);
   mcu.castShadow = true; scene.add(mcu);
 
   // EP pad
   const epMat = new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: 0.9, roughness: 0.15 });
-  const ep = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.03, 1.1), epMat);
-  ep.position.set(0, 0.29, -1.2); scene.add(ep);
+  const ep = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.03, 1.2), epMat);
+  ep.position.set(0, 0.29, -1.5); scene.add(ep);
 
-  // QFN-60 pads around MCU
+  // QFN pads around MCU
   const padMat = new THREE.MeshStandardMaterial({ color: 0xc8900a, metalness: 0.85, roughness: 0.2 });
-  const padGeoH = new THREE.BoxGeometry(0.16, 0.04, 0.32);
-  const padGeoV = new THREE.BoxGeometry(0.32, 0.04, 0.16);
+  const padGeoH = new THREE.BoxGeometry(0.18, 0.04, 0.38);
+  const padGeoV = new THREE.BoxGeometry(0.38, 0.04, 0.18);
   for (let i = 0; i < 15; i++) {
-    const t = -0.9 + i * (1.8 / 14);
-    [-1.06, 1.06].forEach(side => {
+    const t = -1.0 + i * (2.0 / 14);
+    [-1.16, 1.16].forEach(side => {
       const ph = new THREE.Mesh(padGeoH, padMat);
-      ph.position.set(side, 0.22, t - 1.2); scene.add(ph);
+      ph.position.set(side, 0.22, t - 1.5); scene.add(ph);
     });
-    [-1.06, 1.06].forEach(side => {
+    [-1.16, 1.16].forEach(side => {
       const pv = new THREE.Mesh(padGeoV, padMat);
-      pv.position.set(t, 0.22, side - 1.2); scene.add(pv);
+      pv.position.set(t, 0.22, side - 1.5); scene.add(pv);
     });
   }
 
-  // ── USB-C — near bottom tip ─────────────────────────────────────────────
+  // MCU silkscreen label
+  const labelMat = new THREE.MeshStandardMaterial({ color: 0xddcc88, emissive: 0x443300, roughness: 1 });
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.4), labelMat);
+  label.rotation.x = -Math.PI / 2;
+  label.position.set(0, 0.30, -1.5); scene.add(label);
+
+  // ── USB-C (lower center, near bottom tip) ──────────────────────────────
   const usbMat = new THREE.MeshStandardMaterial({ color: 0x553300, metalness: 0.5, roughness: 0.4 });
-  const usb = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.22, 0.7), usbMat);
-  usb.position.set(0, 0.18, 3.8);
+  const usb = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.22, 0.75), usbMat);
+  usb.position.set(0, 0.18, 5.5);
   usb.castShadow = true; scene.add(usb);
 
-  // ── LDO — left shoulder area ────────────────────────────────────────────
+  // ── LDO regulator (left, inside shoulder) ──────────────────────────────
   const ldoMat = new THREE.MeshStandardMaterial({ color: 0x112a11, metalness: 0.1, roughness: 0.7 });
-  const ldo = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.14, 0.5), ldoMat);
-  ldo.position.set(-2.2, 0.20, -0.4); scene.add(ldo);
+  const ldo = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.16, 0.6), ldoMat);
+  ldo.position.set(-2.0, 0.20, -0.2); scene.add(ldo);
 
-  // ── Crystal — right of MCU ──────────────────────────────────────────────
+  // ── Crystal 12MHz (right of MCU) ───────────────────────────────────────
   const xtalMat = new THREE.MeshStandardMaterial({ color: 0x1a1128, metalness: 0.3, roughness: 0.5 });
-  const xtal = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.18, 0.75), xtalMat);
-  xtal.position.set(1.6, 0.22, -1.2); scene.add(xtal);
+  const xtal = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.2, 0.82), xtalMat);
+  xtal.position.set(1.8, 0.22, -1.5); scene.add(xtal);
 
-  // ── Decoupling caps 0402 — clustered around MCU ─────────────────────────
+  // ── Decoupling caps (0402) scattered around MCU inside board ────────────
   const capMat = new THREE.MeshStandardMaterial({ color: 0x334466, metalness: 0.1, roughness: 0.8 });
-  const capGeo = new THREE.BoxGeometry(0.20, 0.10, 0.10);
-  [ [1.15,-1.8],[1.15,-1.5],[1.15,-1.2],[1.15,-0.9],[1.15,-0.6],
-    [-1.15,-1.8],[-1.15,-1.5],[-1.15,-1.2],
-    [0.3,-2.4],[0,-2.4],[-0.3,-2.4] ].forEach(([x,z]) => {
+  const capGeo = new THREE.BoxGeometry(0.22, 0.12, 0.12);
+  [[ 1.2, -2.5],[ 1.6, -2.5],[ 2.0, -2.5],[ 1.2, -0.5],[ 1.6, -0.5],
+   [-1.2, -2.5],[-1.6, -2.5],[-2.0, -2.5],
+   [ 0.4, -3.0],[ 0.0, -3.0],[-0.4, -3.0]].forEach(([x, z]) => {
     const c = new THREE.Mesh(capGeo, capMat);
     c.position.set(x, 0.18, z); scene.add(c);
   });
 
-  // ── LEDs row — upper shoulder ───────────────────────────────────────────
-  [0x0000ff, 0x00ff44, 0xff2200, 0xffaa00].forEach((col, i) => {
+  // ── LEDs row (upper shoulder area) ─────────────────────────────────────
+  const ledColors = [0x0000ff, 0x00ff44, 0xff2200, 0xffaa00];
+  ledColors.forEach((col, i) => {
     const m = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.7, roughness: 0.3 });
-    const led = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.1, 8), m);
-    led.position.set(-0.5 + i * 0.34, 0.22, -3.0); scene.add(led);
+    const led = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 8), m);
+    led.position.set(-0.6 + i * 0.4, 0.22, -3.5); scene.add(led);
   });
 
-  // ── Tactile switches — near top ─────────────────────────────────────────
-  [[-0.6,-3.6],[0.6,-3.6]].forEach(([x,z]) => {
-    const m = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 0.8 });
-    const sw = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.5), m);
-    sw.position.set(x, 0.20, z); scene.add(sw);
-  });
-
-  // ── Traces ─────────────────────────────────────────────────────────────
+  // ── PCB copper traces ────────────────────────────────────────────────────
   const traceMat = new THREE.MeshStandardMaterial({ color: 0x20aa20, metalness: 0.6, roughness: 0.3, transparent: true, opacity: 0.85 });
-  [ {x:0, z:1.2, w:0.05, l:5.0},   // VDD spine vertical
-    {x:-1.4, z:0.2, w:2.2, l:0.05}, // GND left horizontal
-    {x:1.4,  z:0.2, w:2.2, l:0.05}, // GND right horizontal
+  [
+    { x: 0,    z: 2.0,  w: 0.06, l: 6.0 },   // VDD vertical spine
+    { x:-1.5,  z: 0.5,  w: 2.5,  l: 0.06 },  // GND horizontal left
+    { x: 1.5,  z: 0.5,  w: 2.5,  l: 0.06 },  // GND horizontal right
+    { x: 0,    z:-2.5,  w: 0.06, l: 1.0 },   // SWD trace
+    { x: 0.9,  z: 0.2,  w: 1.5,  l: 0.06 },  // signal bus
   ].forEach(t => {
-    const tm = new THREE.Mesh(new THREE.BoxGeometry(t.w, 0.02, t.l), traceMat);
+    const tg = new THREE.BoxGeometry(t.w, 0.02, t.l);
+    const tm = new THREE.Mesh(tg, traceMat);
     tm.position.set(t.x, 0.14, t.z); scene.add(tm);
   });
 
-  // ── Vias ───────────────────────────────────────────────────────────────
+  // ── Vias ────────────────────────────────────────────────────────────────
   const viaMat = new THREE.MeshStandardMaterial({ color: 0xdd8800, metalness: 0.7, roughness: 0.2 });
-  const viaGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.26, 8);
-  [[0,2.8],[0,-2.6],[-1.6,0.2],[1.6,0.2]].forEach(([x,z]) => {
+  const viaGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.28, 8);
+  [[0, 3.5],[0, -3.0],[-1.8,  0.5],[1.8, 0.5],[0, 0.8]].forEach(([x, z]) => {
     const v = new THREE.Mesh(viaGeo, viaMat);
     v.position.set(x, 0.0, z); scene.add(v);
   });
 
-  // ── Grid floor ─────────────────────────────────────────────────────────
-  const gridHelper = new THREE.GridHelper(30, 30, 0x0d2030, 0x071018);
-  gridHelper.position.y = -1.2;
+  // ── Grid floor ──────────────────────────────────────────────────────────
+  const gridHelper = new THREE.GridHelper(40, 40, 0x0d2030, 0x071018);
+  gridHelper.position.y = -1.5;
   scene.add(gridHelper);
 
-  // ── Animate ────────────────────────────────────────────────────────────
+  // ── Animate loop ────────────────────────────────────────────────────────
   let animId = null;
   function animate() {
     animId = requestAnimationFrame(animate);
@@ -1808,6 +1833,7 @@ function init3D() {
   }
   animate();
 
+  // ── Store refs ──────────────────────────────────────────────────────────
   _3d = { renderer, scene, camera, controls, board, copper, animId, wireframe: false, exploded: false };
 }
 
@@ -1849,15 +1875,23 @@ function snapshot3D() {
 }
 
 function kiteOutlinePath(ctx, cx, cy, bw, bh) {
-  // TRUE 6-POINT ELONGATED KITE — matches reference image exactly
-  // 1=top peak, 2=left shoulder, 3=left widest, 4=bottom tip, 5=right widest, 6=right shoulder
+  // TRUE 6-POINT SPEARHEAD matching reference image:
+  //   Top sharp peak → angled shoulders left/right → widest points → sharp bottom tip
+  //   6 vertices, NO flat top edge
+  const hw   = bw * 0.50;           // half-width at widest
+  const topY  = cy - bh * 0.50;    // 1. top sharp peak
+  const shlY  = cy - bh * 0.28;    // 2/3. shoulder Y (where width starts opening)
+  const shlX  = hw * 0.62;          // shoulder half-width (narrower than widest)
+  const wideY = cy - bh * 0.04;    // 4/5. widest point Y (~48% from top)
+  const tipY  = cy + bh * 0.50;    // 6. bottom sharp tip
+
   ctx.beginPath();
-  ctx.moveTo(cx,            cy - bh*0.50);  // 1. top peak
-  ctx.lineTo(cx - bw*0.30, cy - bh*0.18);  // 2. left shoulder
-  ctx.lineTo(cx - bw*0.50, cy + bh*0.08);  // 3. left widest
-  ctx.lineTo(cx,            cy + bh*0.50);  // 4. bottom tip
-  ctx.lineTo(cx + bw*0.50, cy + bh*0.08);  // 5. right widest
-  ctx.lineTo(cx + bw*0.30, cy - bh*0.18);  // 6. right shoulder
+  ctx.moveTo(cx,          topY);   // top peak
+  ctx.lineTo(cx - shlX,  shlY);   // left shoulder
+  ctx.lineTo(cx - hw,    wideY);  // left widest
+  ctx.lineTo(cx,          tipY);   // bottom tip
+  ctx.lineTo(cx + hw,    wideY);  // right widest
+  ctx.lineTo(cx + shlX,  shlY);   // right shoulder
   ctx.closePath();
 }
 
@@ -2095,134 +2129,128 @@ function drawPCB() {
   ctx.restore();
 }
 
+// =============================================
+// 3D BABYLON ENGINE
+// =============================================
 function drawDraftsman() {
   const wrap = document.getElementById('draft-svg-wrap');
   if (!wrap) return;
-  // 6-point kite centered at (140, 180), bw=180, bh=240
-  // pt1 top peak: (140, 60)
-  // pt2 left shoulder: (cx-bw*0.30, cy-bh*0.18) = (86, 137)
-  // pt3 left widest:   (cx-bw*0.50, cy+bh*0.08) = (50, 199)
-  // pt4 bottom tip:    (140, 300)
-  // pt5 right widest:  (230, 199)
-  // pt6 right shoulder:(194, 137)
-  const kite = "M 140,60 L 86,137 L 50,199 L 140,300 L 230,199 L 194,137 Z";
+  // Kite SVG coords: center (140,187), 6-point spearhead matching reference image
+  const kite = "M 140,82 L 112,106 L 96,157 L 140,292 L 184,157 L 168,106 Z";
   wrap.innerHTML = `
-    <svg viewBox="0 0 400 340" width="400" height="340" xmlns="http://www.w3.org/2000/svg" style="font-family:'Share Tech Mono',monospace">
-      <rect x="1" y="1" width="398" height="338" fill="none" stroke="#333" stroke-width="1"/>
-      <text x="140" y="20" text-anchor="middle" font-size="8.5" fill="#222" font-weight="bold">ARIEL NPU — LEAD EDGE ASH TREE REFLEX</text>
-      <text x="140" y="31" text-anchor="middle" font-size="5.5" fill="#666">View: Top (Scale 2:1) · 6-Point Kite Diamond Outline</text>
+    <svg viewBox="0 0 420 320" width="420" height="320" xmlns="http://www.w3.org/2000/svg" style="font-family:'Share Tech Mono',monospace">
+      <!-- Border -->
+      <rect x="1" y="1" width="418" height="318" fill="white" stroke="#333" stroke-width="1"/>
+      <text x="145" y="18" text-anchor="middle" font-size="8" fill="#222" font-weight="bold">ARIEL NPU — LEAD EDGE ASH TREE REFLEX</text>
+      <text x="145" y="29" text-anchor="middle" font-size="5.5" fill="#666">View: Top (Scale 2:1) · 6-Vertex Spearhead Kite Cutout</text>
 
-      <!-- Board outline: TRUE 6-POINT KITE -->
+      <!-- Board outline — TRUE 6-POINT KITE -->
       <path d="${kite}" fill="#f0ede5" stroke="#333" stroke-width="1.8"/>
 
       <!-- Mounting hole top -->
-      <circle cx="140" cy="74" r="4.5" fill="none" stroke="#555" stroke-width="1"/>
-      <circle cx="140" cy="74" r="1.8" fill="#888"/>
+      <circle cx="140" cy="96" r="5" fill="none" stroke="#555" stroke-width="1"/>
+      <circle cx="140" cy="96" r="2" fill="#888"/>
 
-      <!-- MCU RP2350 QFN-60-EP, upper center -->
-      <rect x="110" y="120" width="60" height="60" fill="#cc444414" stroke="#cc4444" stroke-width="1"/>
-      <rect x="121" y="131" width="38" height="38" fill="#aa222210" stroke="#cc3333" stroke-width="0.5" stroke-dasharray="2,2"/>
-      <text x="140" y="146" text-anchor="middle" font-size="6.5" fill="#cc4444" font-weight="bold">U2</text>
-      <text x="140" y="156" text-anchor="middle" font-size="5.5" fill="#333">RP2350</text>
-      <text x="140" y="165" text-anchor="middle" font-size="4.5" fill="#666">QFN-60-EP</text>
-      <line x1="110" y1="120" x2="170" y2="120" stroke="#cc4444" stroke-width="3" stroke-dasharray="3,1.5"/>
-      <line x1="110" y1="180" x2="170" y2="180" stroke="#cc4444" stroke-width="3" stroke-dasharray="3,1.5"/>
-      <line x1="110" y1="120" x2="110" y2="180" stroke="#cc4444" stroke-width="3" stroke-dasharray="3,1.5"/>
-      <line x1="170" y1="120" x2="170" y2="180" stroke="#cc4444" stroke-width="3" stroke-dasharray="3,1.5"/>
+      <!-- MCU RP2350 QFN-60-EP — upper center -->
+      <rect x="112" y="115" width="56" height="56" fill="#cc444418" stroke="#cc4444" stroke-width="1"/>
+      <rect x="122" y="125" width="36" height="36" fill="#aa222214" stroke="#cc3333" stroke-width="0.5" stroke-dasharray="2,2"/>
+      <text x="140" y="140" text-anchor="middle" font-size="6" fill="#cc4444" font-weight="bold">U2</text>
+      <text x="140" y="149" text-anchor="middle" font-size="5.5" fill="#333">RP2350</text>
+      <text x="140" y="158" text-anchor="middle" font-size="4.5" fill="#666">QFN-60-EP</text>
+      <!-- QFN pad stubs -->
+      <line x1="112" y1="115" x2="168" y2="115" stroke="#cc4444" stroke-width="3" stroke-dasharray="3,1.5"/>
+      <line x1="112" y1="171" x2="168" y2="171" stroke="#cc4444" stroke-width="3" stroke-dasharray="3,1.5"/>
+      <line x1="112" y1="115" x2="112" y2="171" stroke="#cc4444" stroke-width="3" stroke-dasharray="3,1.5"/>
+      <line x1="168" y1="115" x2="168" y2="171" stroke="#cc4444" stroke-width="3" stroke-dasharray="3,1.5"/>
 
-      <!-- USB-C bottom center -->
-      <rect x="118" y="258" width="44" height="16" fill="#88888814" stroke="#888" stroke-width="0.8"/>
-      <text x="140" y="269" text-anchor="middle" font-size="4.5" fill="#666">X1 USB-C</text>
+      <!-- USB-C (bottom center) -->
+      <rect x="120" y="250" width="40" height="16" fill="#88888818" stroke="#888" stroke-width="0.8"/>
+      <text x="140" y="261" text-anchor="middle" font-size="4.5" fill="#666">X1 USB-C</text>
 
-      <!-- LDO left shoulder -->
-      <rect x="62" y="188" width="22" height="13" fill="#44884414" stroke="#448844" stroke-width="0.6"/>
-      <text x="73" y="197" text-anchor="middle" font-size="4" fill="#448844">U3 LDO</text>
+      <!-- LDO U1 (left, inside shoulder) -->
+      <rect x="108" y="185" width="20" height="12" fill="#44884418" stroke="#448844" stroke-width="0.7"/>
+      <text x="118" y="194" text-anchor="middle" font-size="4" fill="#448844">U1 LDO</text>
 
-      <!-- SWD header left of MCU -->
-      <rect x="76" y="133" width="10" height="36" fill="#44884414" stroke="#448844" stroke-width="0.5"/>
-      <text x="81" y="154" text-anchor="middle" font-size="3.5" fill="#448844" transform="rotate(-90,81,154)">X2 SWD</text>
+      <!-- SWD header X2 (left of MCU) -->
+      <rect x="100" y="130" width="9" height="32" fill="#44884418" stroke="#448844" stroke-width="0.5"/>
+      <text x="104" y="148" text-anchor="middle" font-size="3.5" fill="#448844" transform="rotate(-90,104,148)">X2 SWD</text>
 
-      <!-- Crystal right of MCU -->
-      <rect x="174" y="135" width="10" height="20" fill="#99668814" stroke="#9966cc" stroke-width="0.5"/>
-      <text x="179" y="130" text-anchor="middle" font-size="4" fill="#9966cc">ZQ1</text>
-      <text x="179" y="162" text-anchor="middle" font-size="3.5" fill="#666">12MHz</text>
+      <!-- Crystal ZQ1 (right of MCU) -->
+      <rect x="172" y="133" width="9" height="18" fill="#99668818" stroke="#9966cc" stroke-width="0.5"/>
+      <text x="176" y="128" text-anchor="middle" font-size="4" fill="#9966cc">ZQ1</text>
 
-      <!-- LEDs upper shoulder row -->
-      <circle cx="126" cy="112" r="3" fill="#0044ff22" stroke="#0044ff" stroke-width="0.6"/>
-      <circle cx="134" cy="109" r="3" fill="#00cc4422" stroke="#00cc44" stroke-width="0.6"/>
-      <circle cx="142" cy="109" r="3" fill="#cc220022" stroke="#cc2200" stroke-width="0.6"/>
-      <circle cx="150" cy="112" r="3" fill="#cc880022" stroke="#cc8800" stroke-width="0.6"/>
+      <!-- LEDs (upper arc below shoulder) -->
+      <circle cx="128" cy="110" r="3" fill="#0044ff30" stroke="#0044ff" stroke-width="0.6"/>
+      <circle cx="136" cy="108" r="3" fill="#00cc4430" stroke="#00cc44" stroke-width="0.6"/>
+      <circle cx="144" cy="108" r="3" fill="#cc220030" stroke="#cc2200" stroke-width="0.6"/>
+      <circle cx="152" cy="110" r="3" fill="#cc880030" stroke="#cc8800" stroke-width="0.6"/>
 
       <!-- Tactile switches -->
-      <circle cx="122" cy="100" r="4" fill="#22333322" stroke="#ffaa00" stroke-width="0.7"/>
-      <circle cx="156" cy="100" r="4" fill="#22333322" stroke="#ffaa00" stroke-width="0.7"/>
-      <text x="122" y="93" text-anchor="middle" font-size="3.5" fill="#886622">SW1</text>
-      <text x="156" y="93" text-anchor="middle" font-size="3.5" fill="#886622">SW2</text>
+      <circle cx="126" cy="100" r="4" fill="#22333330" stroke="#ffaa00" stroke-width="0.7"/>
+      <circle cx="154" cy="100" r="4" fill="#22333330" stroke="#ffaa00" stroke-width="0.7"/>
+      <text x="126" y="93" text-anchor="middle" font-size="3.5" fill="#886622">SW1</text>
+      <text x="154" y="93" text-anchor="middle" font-size="3.5" fill="#886622">SW2</text>
 
-      <!-- Decoupling caps right of MCU -->
-      <rect x="173" y="120" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
-      <rect x="173" y="124" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
-      <rect x="173" y="128" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
-      <rect x="173" y="132" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
-      <rect x="173" y="136" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
-      <!-- Left caps -->
-      <rect x="108" y="120" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
-      <rect x="108" y="124" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
-      <rect x="108" y="128" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
+      <!-- Decoupling caps cluster right of MCU -->
+      <rect x="172" y="116" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
+      <rect x="172" y="120" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
+      <rect x="172" y="124" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
+      <rect x="172" y="128" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
+      <rect x="172" y="132" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
+      <!-- Left side caps -->
+      <rect x="107" y="116" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
+      <rect x="107" y="120" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
+      <rect x="107" y="124" width="4.5" height="2.5" fill="#334466" stroke="#4466aa" stroke-width="0.3"/>
 
-      <!-- Traces -->
-      <line x1="140" y1="180" x2="140" y2="258" stroke="#cc440030" stroke-width="1.8"/>
-      <line x1="110" y1="150" x2="86"  y2="150" stroke="#2266aa30" stroke-width="1.8"/>
-      <line x1="170" y1="150" x2="184" y2="150" stroke="#2266aa30" stroke-width="1.8"/>
+      <!-- Copper trace lines -->
+      <line x1="140" y1="171" x2="140" y2="252" stroke="#cc440040" stroke-width="2"/>
+      <line x1="112" y1="143" x2="97" y2="143" stroke="#2266aa40" stroke-width="2"/>
+      <line x1="168" y1="143" x2="183" y2="143" stroke="#2266aa40" stroke-width="2"/>
 
-      <!-- Silkscreen text -->
-      <text x="140" y="235" text-anchor="middle" font-size="5" fill="#aa8844">Ariel NPU · LEATR v1.0</text>
-      <text x="140" y="244" text-anchor="middle" font-size="4" fill="#888">Radical Deepscale LLC</text>
+      <!-- Dim: width -->
+      <line x1="96" y1="308" x2="184" y2="308" stroke="#333" stroke-width="0.6"/>
+      <line x1="96" y1="304" x2="96" y2="312" stroke="#333" stroke-width="0.6"/>
+      <line x1="184" y1="304" x2="184" y2="312" stroke="#333" stroke-width="0.6"/>
+      <text x="140" y="317" text-anchor="middle" font-size="6.5" fill="#333">42.00 mm</text>
 
-      <!-- Dim width -->
-      <line x1="50"  y1="318" x2="230" y2="318" stroke="#333" stroke-width="0.6"/>
-      <line x1="50"  y1="314" x2="50"  y2="322" stroke="#333" stroke-width="0.6"/>
-      <line x1="230" y1="314" x2="230" y2="322" stroke="#333" stroke-width="0.6"/>
-      <text x="140" y="330" text-anchor="middle" font-size="6.5" fill="#333">42.00 mm</text>
+      <!-- Dim: height -->
+      <line x1="258" y1="82" x2="258" y2="292" stroke="#333" stroke-width="0.6"/>
+      <line x1="254" y1="82" x2="262" y2="82" stroke="#333" stroke-width="0.6"/>
+      <line x1="254" y1="292" x2="262" y2="292" stroke="#333" stroke-width="0.6"/>
+      <text x="276" y="192" text-anchor="middle" font-size="6.5" fill="#333" transform="rotate(90,276,192)">104.00 mm</text>
 
-      <!-- Dim height -->
-      <line x1="248" y1="60"  x2="248" y2="300" stroke="#333" stroke-width="0.6"/>
-      <line x1="244" y1="60"  x2="252" y2="60"  stroke="#333" stroke-width="0.6"/>
-      <line x1="244" y1="300" x2="252" y2="300" stroke="#333" stroke-width="0.6"/>
-      <text x="268" y="185" text-anchor="middle" font-size="6.5" fill="#333" transform="rotate(90,268,185)">104.00 mm</text>
-
-      <!-- Notes box -->
-      <rect x="270" y="40" width="122" height="108" fill="white" stroke="#333" stroke-width="0.5"/>
-      <text x="280" y="54"  font-size="6.5" fill="#333" font-weight="bold">NOTES:</text>
-      <text x="280" y="65"  font-size="5" fill="#555">1. 4-Layer PCB</text>
-      <text x="280" y="74"  font-size="5" fill="#555">2. IPC-A-600 Class 2</text>
-      <text x="280" y="83"  font-size="5" fill="#555">3. Finish: ENIG</text>
-      <text x="280" y="92"  font-size="5" fill="#555">4. Outline: 6-pt Kite Diamond</text>
-      <text x="280" y="101" font-size="5" fill="#555">5. Min trace: 0.1 mm</text>
-      <text x="280" y="110" font-size="5" fill="#555">6. LEATR v1.0 architecture</text>
-      <text x="280" y="119" font-size="5" fill="#555">7. 1× M2 mount hole top</text>
-      <text x="280" y="128" font-size="5" fill="#555">8. All components top-side</text>
-      <text x="280" y="137" font-size="5" fill="#555">9. USB-C at bottom tip edge</text>
+      <!-- Legend box -->
+      <rect x="272" y="42" width="138" height="122" fill="white" stroke="#333" stroke-width="0.6"/>
+      <text x="283" y="56" font-size="7" fill="#333" font-weight="bold">NOTES:</text>
+      <text x="283" y="68" font-size="5" fill="#555">1. 4-Layer PCB</text>
+      <text x="283" y="78" font-size="5" fill="#555">2. IPC-A-600 Class 2</text>
+      <text x="283" y="88" font-size="5" fill="#555">3. Surface finish: ENIG</text>
+      <text x="283" y="98" font-size="5" fill="#555">4. Outline: 6-pt Kite (Charm)</text>
+      <text x="283" y="108" font-size="5" fill="#555">5. Min trace: 0.1 mm</text>
+      <text x="283" y="118" font-size="5" fill="#555">6. LEATR v1.0 architecture</text>
+      <text x="283" y="128" font-size="5" fill="#555">7. 1× M2 top-mount hole</text>
+      <text x="283" y="138" font-size="5" fill="#555">8. All components top-side</text>
+      <text x="283" y="148" font-size="5" fill="#555">9. USB-C edge: bottom tip</text>
 
       <!-- Title block -->
-      <rect x="270" y="240" width="122" height="88" fill="white" stroke="#333" stroke-width="0.5"/>
-      <line x1="270" y1="258" x2="392" y2="258" stroke="#333" stroke-width="0.5"/>
-      <line x1="270" y1="272" x2="392" y2="272" stroke="#333" stroke-width="0.5"/>
-      <line x1="270" y1="286" x2="392" y2="286" stroke="#333" stroke-width="0.5"/>
-      <line x1="270" y1="300" x2="392" y2="300" stroke="#333" stroke-width="0.5"/>
-      <line x1="330" y1="272" x2="330" y2="328" stroke="#333" stroke-width="0.5"/>
-      <text x="273" y="253" font-size="4.5" fill="#555">TITLE</text>
-      <text x="273" y="267" font-size="6" fill="#111" font-weight="bold">Ariel NPU v1.0</text>
-      <text x="273" y="281" font-size="4.5" fill="#555">PROJECT</text>
-      <text x="273" y="292" font-size="5.5" fill="#333">Ariel NPU</text>
-      <text x="333" y="281" font-size="4.5" fill="#555">REV</text>
-      <text x="333" y="292" font-size="5.5" fill="#333">A.1</text>
-      <text x="273" y="309" font-size="4.5" fill="#555">DATE</text>
-      <text x="273" y="320" font-size="5" fill="#333">2025-05-21</text>
-      <text x="333" y="309" font-size="4.5" fill="#555">SHEET</text>
-      <text x="333" y="320" font-size="5" fill="#333">1/1</text>
-      <text x="331" y="333" text-anchor="middle" font-size="5" fill="#8844cc" font-weight="bold">Radical Deepscale LLC</text>
+      <rect x="272" y="234" width="138" height="76" fill="white" stroke="#333" stroke-width="0.6"/>
+      <line x1="272" y1="254" x2="410" y2="254" stroke="#333" stroke-width="0.5"/>
+      <line x1="272" y1="268" x2="410" y2="268" stroke="#333" stroke-width="0.5"/>
+      <line x1="272" y1="282" x2="410" y2="282" stroke="#333" stroke-width="0.5"/>
+      <line x1="340" y1="268" x2="340" y2="310" stroke="#333" stroke-width="0.5"/>
+      <text x="276" y="249" font-size="5" fill="#555">TITLE</text>
+      <text x="276" y="263" font-size="6" fill="#111" font-weight="bold">Ariel NPU v1.0</text>
+      <text x="276" y="276" font-size="5" fill="#555">PROJECT</text>
+      <text x="276" y="287" font-size="5.5" fill="#333">Ariel NPU</text>
+      <text x="344" y="276" font-size="5" fill="#555">REV</text>
+      <text x="344" y="287" font-size="5.5" fill="#333">A.1</text>
+      <text x="276" y="296" font-size="5" fill="#555">DATE</text>
+      <text x="276" y="306" font-size="5.5" fill="#333">2025-05-21</text>
+      <text x="344" y="296" font-size="5" fill="#555">SHEET</text>
+      <text x="344" y="306" font-size="5.5" fill="#333">1/1</text>
+      <text x="341" y="318" text-anchor="middle" font-size="5" fill="#8844cc" font-weight="bold">Radical Deepscale LLC</text>
     </svg>`;
+
 }
 
 // =============================================
@@ -2373,7 +2401,7 @@ function toggleLayer(layer) {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   populateBOM();
-  // RAF retry: wait until canvas wrap has real pixel dimensions (handles mobile slow paint)
+
   function waitAndInit(attempts) {
     const wrap = document.querySelector('.sch-canvas-wrap');
     if (wrap && wrap.clientWidth > 0 && wrap.clientHeight > 0) {
@@ -2383,13 +2411,16 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (attempts > 0) {
       setTimeout(() => waitAndInit(attempts - 1), 80);
     } else {
-      // Fallback: force canvas dimensions from window and init anyway
+      // Force fallback dimensions and init anyway
       const c = document.getElementById('sch-canvas');
-      if (c) { c.width = window.innerWidth - 155; c.height = window.innerHeight - 230; schW = c.width; schH = c.height; }
-      initSch(); initPCB(); drawDraftsman();
+      if (c) { c.width = window.innerWidth - 110; c.height = window.innerHeight - 200; schW = c.width; schH = c.height; }
+      initSch();
+      initPCB();
+      drawDraftsman();
     }
   }
-  requestAnimationFrame(() => waitAndInit(20));
+
+  requestAnimationFrame(() => waitAndInit(15));
 });
 
 window.addEventListener('resize', () => {
