@@ -23161,9 +23161,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     try { sessionStorage.setItem('_gh_switch_pending', '1'); } catch(e){}
     var state = Math.random().toString(36).substr(2, 12);
     try { sessionStorage.setItem('_gh_oauth_state', state); } catch(e){}
+    var clientId = (typeof GH_CLIENT_ID !== 'undefined' ? GH_CLIENT_ID : null)
+                || (window.GH_CLIENT_ID || 'Ov23li2K0njEqO1WTSdD');
+    var scopes   = (typeof GH_SCOPES   !== 'undefined' ? GH_SCOPES   : null)
+                || (window.GH_SCOPES   || 'repo,read:user');
     window.location.href = 'https://github.com/login/oauth/authorize'
-      + '?client_id=' + (window.GH_CLIENT_ID || '')
-      + '&scope=' + encodeURIComponent(window.GH_SCOPES || 'read:user')
+      + '?client_id=' + clientId
+      + '&scope='     + encodeURIComponent(scopes)
       + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/')
       + '&state=' + state;
   };
