@@ -17434,6 +17434,7 @@ ashLoadDefs();
     { label:'DUSK',   dot:'30%', bg:'rgba(2,10,20,0.70)', blur:14, color:'#ff4aac' },  // neon pink
     { label:'DEEP',   dot:'15%', bg:'rgba(2,10,20,0.85)', blur:20, color:'#39ff6e' },  // neon green
     { label:'VOID',   dot:'0%',  bg:'rgba(2,10,20,0.97)', blur:0,  color:'#ffffff' },  // opaque white
+    { label:'STEAM',  dot:'◈',   bg:'rgba(8,20,12,0.55)',  blur:8,  color:'#a8ffc4' },  // steam green — sensor logo
   ];
   let idx = 0;
 
@@ -17454,6 +17455,27 @@ ashLoadDefs();
     btn.style.setProperty('--st-color', l.color);
     btn.style.borderColor = l.color+'44';
     btn.style.boxShadow   = `0 0 8px ${l.color}44`;
+    // ── Swap header logo for STEAM scrim level ──
+    var _logoImg = document.querySelector('.logo-wrap img');
+    if (_logoImg) {
+      if (l.label === 'STEAM') {
+        _logoImg.src = 'https://raw.githubusercontent.com/DART-Skyboard/Autumn/refs/heads/main/assets/autumnsensor.png';
+        _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(168,255,196,0.6))';
+      } else {
+        // Restore to whatever the current theme dictates
+        var _activeThemeClass = document.body.className;
+        if (_activeThemeClass.includes('theme-stealth')) {
+          _logoImg.src = 'assets/dartalleyautumn.png';
+          _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(40,100,220,0.45))';
+        } else if (_activeThemeClass.includes('theme-departure')) {
+          _logoImg.src = 'assets/autumn.png';
+          _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(255,120,40,0.55))';
+        } else {
+          _logoImg.src = 'assets/autumn.png';
+          _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(191,0,255,.3))';
+        }
+      }
+    }
   }
 
   window.cycleScrim = function(){
