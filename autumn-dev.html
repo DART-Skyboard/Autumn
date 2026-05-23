@@ -1347,43 +1347,6 @@ body.theme-night .glass,body.theme-night .msg-autumn{
   background:rgba(20,10,40,0.72);border-color:rgba(180,139,255,0.14);
 }
 body.theme-night ::-webkit-scrollbar-thumb{background:rgba(180,139,255,.25)}
-
-/* ── Departure theme overrides ── */
-body.theme-departure{
-  --cyan:#ff9d4a;--blue:#e05a00;--red:#ff3c3c;
-  --bg:#0a0500;--bg2:#120800;
-  --border:rgba(255,140,40,0.14);
-  --text:#f0d8b8;--dim:#8a5a30;--bright:#ffeedd;
-  --tt-color:#ff9d4a;
-}
-body.theme-departure header{
-  background:linear-gradient(180deg,rgba(160,60,0,.1) 0%,transparent 100%);
-  border-bottom-color:rgba(255,140,40,0.18);
-}
-body.theme-departure #vid-scrim{
-  background:rgba(10,4,0,0.22)!important;
-  backdrop-filter:blur(6px) saturate(1.3) hue-rotate(-10deg)!important;
-  -webkit-backdrop-filter:blur(6px) saturate(1.3) hue-rotate(-10deg)!important;
-}
-body.theme-departure .logo{
-  background:linear-gradient(135deg,#ff9d4a 0%,#ff5500 45%,#ff3c3c 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  filter:drop-shadow(0 0 8px rgba(255,120,40,0.55));
-}
-body.theme-departure .chat-bubble,.theme-departure .msg-wrap{
-  background:rgba(18,8,0,0.72)!important;
-  border-color:rgba(255,120,40,0.18)!important;
-}
-body.theme-departure .ov-grid{
-  background-image:linear-gradient(rgba(255,140,40,.18) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,140,40,.18) 1px,transparent 1px);
-}
-body.theme-departure #brpn-region{border-bottom-color:rgba(255,140,40,0.15)}
-body.theme-departure #multi-user-bar{border-top-color:rgba(255,140,40,0.15)}
-body.theme-departure .glass,body.theme-departure .msg-autumn{
-  background:rgba(22,10,0,0.72);border-color:rgba(255,120,40,0.16);
-}
-body.theme-departure ::-webkit-scrollbar-thumb{background:rgba(255,140,40,.28)}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden}
 body{background:transparent;font-family:var(--font-b);color:var(--text);display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
@@ -2540,7 +2503,7 @@ select.ash-ctrl-input{cursor:pointer}
 
 <!-- ░░ BACKDROP VIDEO ░░ -->
 <video id="backdrop-video"
-  src="assets/autumnanimation.mp4"
+  src="assets/autumn.mp4"
   autoplay loop muted playsinline
   style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;pointer-events:none"></video>
 <!-- Frosted glass scrim — opacity/blur controlled by JS -->
@@ -7886,7 +7849,6 @@ function renderThumbRow() {
       var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
       camera.position.z = 2;
       var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  /* WebGL context recovery is handled by the existing contextlost/restored handlers below */
       renderer.setSize(48, 48);
       d.appendChild(renderer.domElement);
 
@@ -12894,8 +12856,8 @@ function initBRPN() {
       // Single gentle bump — shellPulse decays naturally (×0.994/frame)
       if(peakFlash > 0) shellPulse = Math.min(shellPulse + 0.18, 1.2);
     }
-    if(window._brpnTickMantisNodes) { try{ window._brpnTickMantisNodes(orbFrame); }catch(_te){ console.warn('[BRPN] mantisNodes tick err:',_te.message); } }
-    try{ renderer.render(scene,camera); }catch(_re){ console.warn('[BRPN] render err:',_re.message); }
+    if(window._brpnTickMantisNodes) window._brpnTickMantisNodes(orbFrame);
+    renderer.render(scene,camera);
     animId=requestAnimationFrame(animate);
   }
   animate();
@@ -12904,14 +12866,8 @@ function initBRPN() {
   // Mantis Radar/Nav inject real-time geometry INTO the live orb scene.
   // The orb RAF never pauses — it's an independent world scene.
   // _brpnPause/_brpnResume are no-ops kept for call-site compatibility.
-  window._brpnPause  = function(){
-    /* Properly stop the RAF loop to free GPU */
-    if(animId){ cancelAnimationFrame(animId); animId=null; }
-  };
-  window._brpnResume = function(){
-    /* Restart RAF loop if not already running */
-    if(!animId && typeof animate==='function') animate();
-  };
+  window._brpnPause  = function(){};
+  window._brpnResume = function(){};
 
   // Pool of injected Mantis geometry nodes (wireframe volumetric)
   var _mantisNodes = [];
@@ -13605,8 +13561,7 @@ function _tickAshNodes(frame) {
   var geoVal  = parseFloat(document.getElementById('hud-geo')?.textContent||'0')||0;
   var marVal  = parseFloat(document.getElementById('hud-mar')?.textContent||'0')||0;
   var aeroVal = parseFloat(document.getElementById('hud-aero')?.textContent||'0')||0;
-  var _actRaw = (geoVal + marVal*0.001 + aeroVal*0.0000001) * 0.003;
-  var activityNorm = isFinite(_actRaw) ? Math.min(1, _actRaw) : 0;
+  var activityNorm = Math.min(1, (geoVal + marVal*0.001 + aeroVal*0.0000001) * 0.003);
 
   Object.keys(_ashNodes._splines).forEach(function(key) {
     var sp = _ashNodes._splines[key];
@@ -17235,19 +17190,11 @@ ashLoadDefs();
   window.cycleScrim = function(){
     idx = (idx + 1) % LEVELS.length;
     applyLevel(LEVELS[idx]);
-    try { localStorage.setItem('_aut_scrim', idx); } catch(e){}
   };
 
-  // Init on DOM ready — restore saved scrim level if present
+  // Init on DOM ready
   document.addEventListener('DOMContentLoaded', function(){
-    try {
-      var saved = localStorage.getItem('_aut_scrim');
-      if (saved !== null) {
-        var n = parseInt(saved, 10);
-        if (n >= 0 && n < LEVELS.length) { idx = n; }
-      }
-    } catch(e){}
-    applyLevel(LEVELS[idx]);
+    applyLevel(LEVELS[0]);
   });
 })();
 
@@ -17259,7 +17206,7 @@ ashLoadDefs();
       label: 'DAY',
       dot:   '☀',
       color: '#7ecfff',      // frosted white-blue
-      video: 'assets/autumnanimation.mp4',
+      video: 'assets/autumn.mp4',
       bodyClass: ''
     },
     {
@@ -17277,14 +17224,6 @@ ashLoadDefs();
       color: '#7aa8cc',      // cold steel blue
       video: 'https://raw.githubusercontent.com/DART-Edge-AI/dartalley/main/dartalley.mp4',
       bodyClass: 'theme-stealth'
-    },
-    {
-      key:   'departure',
-      label: 'DEPARTURE',
-      dot:   '🌅',
-      color: '#ff9d4a',      // amber dusk glow
-      video: 'assets/autumndeparture.mp4',
-      bodyClass: 'theme-departure'
     },
     {
       key:   'system',
@@ -17312,7 +17251,7 @@ ashLoadDefs();
     const btn   = document.getElementById('theme-toggle');
 
     // Swap body class
-    body.classList.remove('theme-night','theme-stealth','theme-departure');
+    body.classList.remove('theme-night','theme-stealth');
     if (effective.bodyClass) body.classList.add(effective.bodyClass);
 
     // Swap video with crossfade
@@ -17333,9 +17272,6 @@ ashLoadDefs();
       if (effective.key === 'stealth') {
         _logoImg.src = 'assets/dartalleyautumn.png';
         _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(40,100,220,0.45))';
-      } else if (effective.key === 'departure') {
-        _logoImg.src = 'assets/autumn.png';
-        _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(255,120,40,0.55))';
       } else {
         _logoImg.src = 'assets/autumn.png';
         _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(191,0,255,.3))';
@@ -19521,15 +19457,15 @@ function _forgeInitMonaco(initialCode, initialLang) {
 
 function _forgeDefaultSnippet(lang) {
   var snips = {
-    html: '<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>FORGE \u00b7 Autumn \u00b7 DART Meadow</title>\n  <style>\n    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n    body {\n      background: #030810;\n      color: #e0f4ff;\n      font-family: \"Courier New\", monospace;\n      min-height: 100vh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: center;\n      overflow: hidden;\n    }\n    canvas { position: fixed; inset: 0; z-index: 0; opacity: 0.18; }\n    .card {\n      position: relative;\n      z-index: 1;\n      border: 1px solid rgba(0,255,200,0.25);\n      background: rgba(3,8,16,0.85);\n      padding: 36px 44px;\n      max-width: 520px;\n      width: 92vw;\n      text-align: center;\n      backdrop-filter: blur(8px);\n    }\n    .label { font-size: 10px; letter-spacing: 0.22em; color: #00ffc8; text-transform: uppercase; margin-bottom: 18px; opacity: 0.7; }\n    h1 { font-size: clamp(1.6rem,5vw,2.4rem); font-weight: 400; letter-spacing: 0.08em; color: #e0f4ff; margin-bottom: 12px; }\n    h1 span { color: #00ffc8; }\n    .sub { font-size: 11px; color: #4a8fa8; letter-spacing: 0.12em; margin-bottom: 28px; }\n    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }\n    .cell { border: 1px solid rgba(0,255,200,0.15); padding: 10px 8px; font-size: 10px; letter-spacing: 0.1em; color: #6bcfea; }\n    .cell strong { display: block; color: #00ffc8; font-size: 16px; margin-bottom: 2px; letter-spacing: 0; }\n    .pulse { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #00ffc8; margin-right: 6px; animation: blink 1.4s ease-in-out infinite; vertical-align: middle; }\n    .status { font-size: 10px; letter-spacing: 0.15em; color: #2a6a5a; }\n    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }\n  </style>\n</head>\n<body>\n  <canvas id=\"c\"></canvas>\n  <div class=\"card\">\n    <div class=\"label\">DART Meadow \u00b7 Radical Deepscale \u00b7 FORGE</div>\n    <h1>AUTUMN <span>FORGE</span></h1>\n    <div class=\"sub\">LEATR v2.1 \u00b7 ARC EDGE STUDIO \u00b7 NEURAL CODE EDITOR</div>\n    <div class=\"grid\">\n      <div class=\"cell\"><strong id=\"fps\">--</strong>FPS</div>\n      <div class=\"cell\"><strong id=\"t\">--</strong>UPTIME (s)</div>\n      <div class=\"cell\"><strong>GEO</strong>FRONTLINE</div>\n      <div class=\"cell\"><strong>AERO</strong>ROOT SHELL</div>\n    </div>\n    <div class=\"status\"><span class=\"pulse\"></span>FORGE ACTIVE \u00b7 CLAUDE ASSIST READY</div>\n  </div>\n  <script>\n    const cv = document.getElementById(\"c\");\n    const cx = cv.getContext(\"2d\");\n    let W, H, t0 = Date.now(), frames = 0, lastFPS = performance.now();\n    function resize() { W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }\n    window.addEventListener(\"resize\", resize); resize();\n    function draw() {\n      const now = performance.now();\n      frames++;\n      if (now - lastFPS >= 1000) {\n        document.getElementById(\"fps\").textContent = frames;\n        document.getElementById(\"t\").textContent = ((Date.now()-t0)/1000).toFixed(0);\n        frames = 0; lastFPS = now;\n      }\n      cx.clearRect(0,0,W,H);\n      const s = now * 0.0004;\n      cx.strokeStyle = \"rgba(0,255,200,0.12)\"; cx.lineWidth = 0.5;\n      for (let x=0;x<W;x+=48){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke();}\n      for (let y=0;y<H;y+=48){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke();}\n      for (let i=0;i<5;i++) {\n        const r=80+i*55, a0=s+i*1.2, a1=a0+1.1+Math.sin(s+i)*0.4;\n        cx.beginPath(); cx.arc(W/2,H/2,r,a0,a1);\n        cx.strokeStyle=`hsla(${170+i*18},100%,70%,${0.25-i*0.04})`;\n        cx.lineWidth=1; cx.stroke();\n      }\n      requestAnimationFrame(draw);\n    }\n    draw();\n  <\/script>\n</body>\n</html>',
-    javascript: '// FORGE \u00b7 JavaScript \u00b7 DART Meadow\n// Arc Edge \u00b7 LEATR reflex pattern\n\nconst LEATR = {\n  version: \"2.1\",\n  shells: [\"GEO\", \"MAR\", \"AERO\"],\n  state:  \"AWAKE\",\n\n  reflex(input) {\n    const encoded = this.encode(input);\n    return { input, encoded, shell: this.shells[encoded % 3] };\n  },\n\n  encode(x) {\n    // (xa\u00b2\u221axa) \u00b1 1  \u2014 ARIEL encode unit\n    const a = Math.abs(x.toString().length);\n    return Math.floor(a * a * Math.sqrt(a)) + 1;\n  }\n};\n\nconsole.log(\"LEATR v\" + LEATR.version + \" \u00b7 \" + LEATR.state);\nconsole.log(LEATR.reflex(\"Autumn\"));\nconsole.log(LEATR.reflex(\"Arc Edge\"));',
-    python: '# FORGE \u00b7 Python \u00b7 DART Meadow\n# Arc Edge \u00b7 LEATR reflex pattern\n\nimport math\n\nSHELLS = [\"GEO\", \"MAR\", \"AERO\"]\n\ndef encode(x: str) -> int:\n    \"\"\"(xa\u00b2\u221axa) \u00b1 1 \u2014 ARIEL encode unit\"\"\"\n    a = len(x)\n    return int(a * a * math.sqrt(a)) + 1\n\ndef reflex(value: str) -> dict:\n    e = encode(value)\n    return {\"input\": value, \"encoded\": e, \"shell\": SHELLS[e % 3]}\n\nprint(f\"LEATR v2.1 \u00b7 FORGE\")\nfor word in [\"Autumn\", \"Arc Edge\", \"DART Meadow\"]:\n    print(reflex(word))',
-    css: '/* FORGE \u00b7 CSS \u00b7 DART Meadow */\n/* Arc Edge dark theme \u2014 copy into your project */\n\n:root {\n  --bg:       #030810;\n  --surface:  rgba(3,8,16,0.85);\n  --cyan:     #00ffc8;\n  --cyan-dim: rgba(0,255,200,0.25);\n  --text:     #e0f4ff;\n  --text-dim: #4a8fa8;\n  --mono:     \"Courier New\", monospace;\n}\n\nbody {\n  background: var(--bg);\n  color: var(--text);\n  font-family: var(--mono);\n  margin: 0;\n}\n\n.card {\n  border: 1px solid var(--cyan-dim);\n  background: var(--surface);\n  padding: 32px;\n  backdrop-filter: blur(8px);\n}\n\n.label {\n  font-size: 10px;\n  letter-spacing: 0.2em;\n  text-transform: uppercase;\n  color: var(--cyan);\n  opacity: 0.7;\n}\n\n.pulse {\n  display: inline-block;\n  width: 6px; height: 6px;\n  border-radius: 50%;\n  background: var(--cyan);\n  animation: blink 1.4s ease-in-out infinite;\n}\n\n@keyframes blink {\n  0%, 100% { opacity: 1; }\n  50%       { opacity: 0.15; }\n}',
-    sql: '-- FORGE \u00b7 SQL \u00b7 DART Meadow\n\n-- Arc Edge session log schema\nCREATE TABLE IF NOT EXISTS arc_sessions (\n  id         INTEGER PRIMARY KEY AUTOINCREMENT,\n  uid        TEXT    NOT NULL,\n  shell      TEXT    DEFAULT \'GEO\',   -- GEO | MAR | AERO\n  arc_count  INTEGER DEFAULT 0,\n  depth      INTEGER DEFAULT 1,\n  created_at TEXT    DEFAULT (datetime(\'now\'))\n);\n\n-- Insert a test record\nINSERT INTO arc_sessions (uid, shell, arc_count, depth)\nVALUES (\'autumn_001\', \'AERO\', 39, 2);\n\n-- Query active sessions\nSELECT uid, shell, arc_count, depth, created_at\nFROM   arc_sessions\nWHERE  arc_count > 0\nORDER  BY created_at DESC\nLIMIT  20;',
-    cpp: '#include <iostream>\n#include <cmath>\n#include <string>\n\n// FORGE \u00b7 C++ \u00b7 DART Meadow\n// ARIEL encode unit: (xa\u00b2\u221axa) \u00b1 1\n\nint leatrEncode(const std::string& x) {\n    double a = static_cast<double>(x.size());\n    return static_cast<int>(a * a * std::sqrt(a)) + 1;\n}\n\nint main() {\n    const char* tokens[] = { \"Autumn\", \"Arc Edge\", \"DART Meadow\" };\n    const char* shells[] = { \"GEO\", \"MAR\", \"AERO\" };\n    std::cout << \"LEATR v2.1 \u00b7 FORGE\" << std::endl;\n    for (auto& t : tokens) {\n        int e = leatrEncode(t);\n        std::cout << t << \" \u2192 \" << e << \" [\" << shells[e % 3] << \"]\" << std::endl;\n    }\n    return 0;\n}',
-    java: '// FORGE \u00b7 Java \u00b7 DART Meadow\n// ARIEL encode unit: (xa\u00b2\u221axa) \u00b1 1\n\npublic class Main {\n\n    static final String[] SHELLS = { \"GEO\", \"MAR\", \"AERO\" };\n\n    static int leatrEncode(String x) {\n        double a = x.length();\n        return (int)(a * a * Math.sqrt(a)) + 1;\n    }\n\n    public static void main(String[] args) {\n        System.out.println(\"LEATR v2.1 \u00b7 FORGE\");\n        String[] tokens = { \"Autumn\", \"Arc Edge\", \"DART Meadow\" };\n        for (String t : tokens) {\n            int e = leatrEncode(t);\n            System.out.printf(\"%s \u2192 %d [%s]%n\", t, e, SHELLS[e % 3]);\n        }\n    }\n}',
+    html: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>FORGE · Autumn</title>\n  <style>\n    body { background: #030810; color: #e0f4ff; font-family: sans-serif; padding: 20px; }\n  </style>\n</head>\n<body>\n  <h1>Hello from FORGE</h1>\n</body>\n</html>',
+    javascript: '// FORGE · JavaScript\nconsole.log("Hello from FORGE");\n\nfunction greet(name) {\n  return `Hello, ${name}!`;\n}\n\nconsole.log(greet("Autumn"));',
+    python: '# FORGE · Python\ndef greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("Autumn"))',
+    css: '/* FORGE · CSS */\nbody {\n  background: #030810;\n  color: #e0f4ff;\n  font-family: sans-serif;\n}',
+    sql: '-- FORGE · SQL\nSELECT * FROM users\nWHERE active = 1\nORDER BY created_at DESC\nLIMIT 10;',
+    cpp: '#include <iostream>\n\nint main() {\n    std::cout << "Hello from FORGE" << std::endl;\n    return 0;\n}',
+    java: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello from FORGE");\n    }\n}',
   };
-  return snips[lang] || '// FORGE · ' + lang.toUpperCase() + ' · DART Meadow\n';
+  return snips[lang] || '// FORGE · ' + lang.toUpperCase() + '\n';
 }
 
 // ── Language switch ───────────────────────────────────────────────
@@ -20646,7 +20582,7 @@ window.emmToggle = function() {
       var ptR = Math.max(0.08, cloud.radius * 4.5 * 0.06);
 
       // Combine all icospheres for this cloud into one mesh
-      var posArr = [], nrmArr = [], colArr = [], idxArr = [];
+      var positions = [], normals = [], colors = [], indices = [];
       var baseIdx = 0;
 
       // Sub-sample if too many points (cap at 800 per cloud for export size)
@@ -20658,26 +20594,24 @@ window.emmToggle = function() {
 
         // Add 12 icosphere verts offset to this point position
         _icoV.forEach(function(v) {
-          posArr.push(px + v[0]*ptR, py + v[1]*ptR, pz + v[2]*ptR);
-          nrmArr.push(v[0], v[1], v[2]);
-          colArr.push(cr, cg, cb);  // RGB only — writers expand to VEC4 themselves
+          positions.push(px + v[0]*ptR, py + v[1]*ptR, pz + v[2]*ptR);
+          normals.push(v[0], v[1], v[2]);
+          colors.push(cr, cg, cb, 1.0);
         });
         // Add 20 triangle faces with base offset
         _icoF.forEach(function(f) {
-          idxArr.push(baseIdx+f[0], baseIdx+f[1], baseIdx+f[2]);
+          indices.push(baseIdx+f[0], baseIdx+f[1], baseIdx+f[2]);
         });
         baseIdx += 12;
       }
 
-      if (posArr.length < 9) return;
-      var vcCount = posArr.length / 3;
+      if (positions.length < 9) return;
       out.push({
         tube: {
-          pos: new Float32Array(posArr),   // matches all writer expectations
-          nrm: new Float32Array(nrmArr),
-          col: new Float32Array(colArr),   // RGB per vertex (vc*3)
-          idx: new Uint32Array(idxArr),
-          vc:  vcCount
+          positions: new Float32Array(positions),
+          normals:   new Float32Array(normals),
+          colors:    new Float32Array(colors),   // RGBA per vertex
+          indices:   new Uint32Array(indices)
         },
         ai:    'fractal_cloud_'+(ci+1),
         group: 'FractalClouds',
@@ -23486,7 +23420,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         /* ── Build panel ── */
         var ap=document.createElement('div'); ap.id='adm-ash-panel'; ap.style.cssText='position:absolute;inset:0;top:48px;display:flex;flex-direction:column;overflow:hidden;background:rgba(2,6,14,.97)';
         var vid=document.createElement('video'); vid.id='adm-ash-video'; vid.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;opacity:.5';
-        vid.src='assets/autumnanimation.mp4'; vid.autoplay=true; vid.loop=true; vid.muted=true;
+        vid.src='assets/autumn.mp4'; vid.autoplay=true; vid.loop=true; vid.muted=true;
         vid.setAttribute('playsinline','');
         var scrim=document.createElement('div'); scrim.id='adm-ash-scrim'; scrim.style.cssText='position:absolute;inset:0;z-index:1;background:rgba(2,8,16,.45);pointer-events:none';
         ap.appendChild(vid); ap.appendChild(scrim);
@@ -24074,17 +24008,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       w.classList.add('ss-open');
       setTimeout(function(){ document.addEventListener('click',_outside,true); },60);
       setTimeout(_initDrag, 100);
-      // Resume storm-studio RAF
-      var _ssf = document.getElementById('ss-iframe');
-      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'resume'},'*');
     } else {
       w.style.transition = '';
       w.style.left = ''; w.style.right = '';
       w.classList.remove('ss-open');
       document.removeEventListener('click',_outside,true);
-      // Pause storm-studio RAF to free WebGL context slot
-      var _ssf = document.getElementById('ss-iframe');
-      if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
     }
   };
 
@@ -24093,9 +24021,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var w = document.getElementById('ss-wrap');
     if(w){ w.style.left=''; w.style.right=''; w.classList.remove('ss-open'); }
     document.removeEventListener('click',_outside,true);
-    // Pause storm-studio RAF to free WebGL context slot
-    var _ssf = document.getElementById('ss-iframe');
-    if (_ssf && _ssf.contentWindow) _ssf.contentWindow.postMessage({source:'autumn-storm',cmd:'pause'},'*');
   };
 
   window.stormStudioOpen = function(city) {
@@ -25050,10 +24975,7 @@ function _fetchSatellites(){
     _setLed(_satLed,'live');
     if(_updEl) _updEl.textContent=_utc();
     _journalEvent('MANTIS_SAT_SYNC',{ total:total });
-    if(window._brpnInjectMantisContacts&&total>0){var _satSample=[];var _satStep=Math.max(1,Math.floor(total/30));for(var _si=0;_si<lines.length-2&&_satSample.length<30;_si+=_satStep*3){var _tle1=lines[_si+1]||'';var _meanMo=parseFloat(_tle1.slice(52,63)||'0');var _inc=parseFloat(_tle1.slice(8,16)||'0');var _satLat=(_inc-90)*Math.random();var _satLon=(Math.random()-0.5)*360;var _satAlt=(_meanMo<2?1200:(_meanMo<8?20000:35786));
-              /* NaN guard — skip malformed TLE entries */
-              if(isNaN(_satLat)||isNaN(_satLon)||isNaN(_satAlt)) continue;
-              _satSample.push({type:'satellite',lat:_satLat,lon:_satLon,alt:_satAlt,id:'SAT'+_si});}if(_satSample.length)window._brpnInjectMantisContacts(_satSample);}
+    if(window._brpnInjectMantisContacts&&total>0){var _satSample=[];var _satStep=Math.max(1,Math.floor(total/30));for(var _si=0;_si<lines.length-2&&_satSample.length<30;_si+=_satStep*3){var _tle1=lines[_si+1]||'';var _meanMo=parseFloat(_tle1.slice(52,63)||'0');var _inc=parseFloat(_tle1.slice(8,16)||'0');var _satLat=(_inc-90)*Math.random();var _satLon=(Math.random()-0.5)*360;var _satAlt=(_meanMo<2?1200:(_meanMo<8?20000:35786));_satSample.push({type:'satellite',lat:_satLat,lon:_satLon,alt:_satAlt,id:'SAT'+_si});}if(_satSample.length)window._brpnInjectMantisContacts(_satSample);}
     // Refresh tools tab if visible
     if(typeof currentToolTab!=='undefined' && currentToolTab==='mantis'
         && typeof window.renderToolsMantis==='function'){
@@ -25070,9 +24992,6 @@ function _fetchSatellites(){
 }
 
 function _startAnalytics(){
-  /* Guard: always clear existing timers before starting new ones */
-  if(_acTimer)  { clearInterval(_acTimer);  _acTimer=null;  }
-  if(_satTimer) { clearInterval(_satTimer); _satTimer=null; }
   _fetchAircraft(); _fetchSatellites();
   _acTimer  = setInterval(_fetchAircraft,   AC_REFRESH_MS);
   _satTimer = setInterval(_fetchSatellites, SAT_REFRESH_MS);
@@ -25081,28 +25000,6 @@ function _stopAnalytics(){
   clearInterval(_acTimer); clearInterval(_satTimer);
   _acTimer=null; _satTimer=null;
 }
-
-/* Pause API polling when tab is hidden — resume when visible again */
-(function(){
-  var _visWired = false;
-  function _wireVisibility(){
-    if(_visWired) return; _visWired=true;
-    document.addEventListener('visibilitychange', function(){
-      if(document.hidden){
-        if(_acTimer)  { clearInterval(_acTimer);  _acTimer=null;  }
-        if(_satTimer) { clearInterval(_satTimer); _satTimer=null; }
-      } else if(_open && !_acTimer) {
-        /* Page became visible again and analytics were running — restart */
-        _acTimer  = setInterval(_fetchAircraft,   AC_REFRESH_MS);
-        _satTimer = setInterval(_fetchSatellites, SAT_REFRESH_MS);
-        _fetchAircraft(); /* immediate refresh */
-      }
-    });
-  }
-  /* Wire after DOM ready */
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',_wireVisibility);
-  else _wireVisibility();
-})();
 
 // ── JOURNAL EVENT ──────────────────────────────────────────────────────
 function _journalEvent(type,payload){
@@ -25146,12 +25043,6 @@ window.mantisNav = {
     _journalEvent('MANTIS_NAV_OPEN',{ ts:Date.now(), location:_analytics.location });
     // Pause BRPN canvas RAF + hide canvas to free GPU for iframe WebGL
     if(window._brpnPause) window._brpnPause();
-    /* Safety watchdog — auto-resume BRPN if not closed within 45s (iframe load failure guard) */
-    if(window._brpnPauseWatchdog) clearTimeout(window._brpnPauseWatchdog);
-    window._brpnPauseWatchdog = setTimeout(function(){
-      if(window._brpnResume) window._brpnResume();
-      window._brpnPauseWatchdog = null;
-    }, 45000);
   },
 
   close: function(){
@@ -25159,7 +25050,6 @@ window.mantisNav = {
     _open=false; _analytics.sessionOpen=false;
     _stopAnalytics();
     if(window._brpnResume) window._brpnResume();
-    if(window._brpnPauseWatchdog){ clearTimeout(window._brpnPauseWatchdog); window._brpnPauseWatchdog=null; }
     var mrFr2=document.getElementById('mr-frame');
     if(mrFr2&&mrFr2.contentWindow) try{mrFr2.contentWindow._mrPaused=false;}catch(e){}
     window._mnModelLoaded = false; // reset so next open reloads
@@ -25653,7 +25543,6 @@ window.mantisRadar = {
     _ov.classList.remove('mr-open');
     _open=false;
     if(window._brpnResume) window._brpnResume();
-    if(window._brpnPauseWatchdog){ clearTimeout(window._brpnPauseWatchdog); window._brpnPauseWatchdog=null; }
     if(typeof window.autumnJournalEvent==='function'){
       window.autumnJournalEvent('MANTIS_RADAR_CLOSE',{ ts:Date.now() });
     }
