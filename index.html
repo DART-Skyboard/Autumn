@@ -17574,8 +17574,16 @@ ashLoadDefs();
     }
 
     // Swap header logo image for stealth mode
+    // — but only if STEAM scrim is not active (STEAM owns the logo when active)
     var _logoImg = document.querySelector('.logo-wrap img');
-    if (_logoImg) {
+    var _steamActive = (function(){
+      try {
+        var _si = parseInt(localStorage.getItem('_aut_scrim')||'0',10);
+        // LEVELS array index: FROST=0,CLEAR=1,HAZE=2,DUSK=3,DEEP=4,VOID=5,STEAM=6
+        return _si === 6;
+      } catch(e){ return false; }
+    })();
+    if (_logoImg && !_steamActive) {
       if (effective.key === 'stealth') {
         _logoImg.src = 'assets/dartalleyautumn.png';
         _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(40,100,220,0.45))';
