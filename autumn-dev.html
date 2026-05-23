@@ -22955,6 +22955,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       localStorage.setItem('_gh_session', JSON.stringify(data));
       localStorage.setItem('_gh_token_ok', String(Date.now())); // last-validated timestamp
     } catch(e){}
+    // Auto-save into multi-account vault so this account is available for quick switching
+    if (typeof _saveSessionVault === 'function') _saveSessionVault(data);
   }
   function _loadStoredSession() {
     try {
@@ -23094,18 +23096,163 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu = document.createElement('div');
       menu.id = 'gh-user-menu';
       menu.style.cssText = 'position:fixed;top:58px;right:60px;z-index:9900;background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.2);border-radius:8px;padding:8px 0;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;min-width:160px';
-      menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span><br><span style="font-size:.3rem;letter-spacing:1.5px;color:rgba(167,139,250,.45)">Author: L.E.A.T.R.</span></div>'
+      // ── Build saved-accounts quick-switch list (ALL users) ──
+      var _vault = {};
+      try { _vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
+      var _curUser = window._ghAuth.username || '';
+      var _otherAccounts = Object.values(_vault)
+        .filter(function(a){ return a.username !== _curUser; })
+        .sort(function(a,b){ return (b.saved||0)-(a.saved||0); });
+      var _savedHTML = '';
+      if (_otherAccounts.length > 0) {
+        _savedHTML = '<hr style="border:none;border-top:1px solid rgba(0,229,255,.08);margin:4px 0">'
+          + '<div style="padding:5px 14px;color:rgba(0,229,255,.3);font-size:.35rem;letter-spacing:2px">SAVED ACCOUNTS</div>';
+        _otherAccounts.forEach(function(a) {
+          var av = a.avatar_url
+            ? '<img src="'+a.avatar_url+'" style="width:18px;height:18px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,229,255,.15)" onerror="this.style.display=\'none\'">'
+            : '<span style="width:18px;height:18px;border-radius:50%;background:rgba(0,229,255,.12);display:inline-flex;align-items:center;justify-content:center;font-size:8px;flex-shrink:0">'+((a.username||'?')[0]).toUpperCase()+'</span>';
+          _savedHTML += '<div onclick="window._ghVaultLogin(\''+a.username+'\')" style="padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;color:rgba(224,244,255,.65);font-size:.42rem" onmouseenter="this.style.background=\'rgba(0,229,255,.06)\'" onmouseleave="this.style.background=\'\'">'
+            + av + a.username + '</div>';
+        });
+      }
+      menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + _curUser + '</span><br><span style="font-size:.3rem;letter-spacing:1.5px;color:rgba(167,139,250,.45)">Author: L.E.A.T.R.</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
-        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._sysBrdOpenAdmin()">⚡ SYSTEM MESSAGE</div>' : '')
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'
+        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+        + (_curUser === 'dartsolarpunk' ? '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._sysBrdOpenAdmin()">⚡ SYSTEM MESSAGE</div><hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">' : '')
         + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;color:rgba(0,229,255,.7)" onclick="window._openFeedback()">◈ SUBMIT FEEDBACK</div>'
-
+        + _savedHTML
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+        + '<div style="padding:8px 14px;cursor:pointer;color:rgba(167,139,250,.7);font-size:.42rem" onmouseenter="this.style.color=\'#a78bfa\'" onmouseleave="this.style.color=\'rgba(167,139,250,.7)\'" onclick="window._ghShowVaultPicker()">⇄ SWITCH ACCOUNT</div>'
         + '<div style="padding:8px 14px;cursor:pointer;color:rgba(255,100,100,.6)" onmouseenter="this.style.color=\'#ff4466\'" onmouseleave="this.style.color=\'rgba(255,100,100,.6)\'" onclick="window._ghLogout();document.getElementById(\'gh-user-menu\').remove()">✕ LOGOUT</div>';
       document.body.appendChild(menu);
       setTimeout(function() { document.addEventListener('click', function rm(){menu.remove();document.removeEventListener('click',rm);}); }, 50);
     } else { menu.remove(); }
   };
+
+  // ══════════════════════════════════════════════════════════════════
+  // MULTI-ACCOUNT VAULT — persists signed-in accounts in localStorage
+  // Available to ALL users, not just admin
+  // ══════════════════════════════════════════════════════════════════
+
+  function _saveSessionVault(data) {
+    if (!data || !data.username) return;
+    var vault = {};
+    try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
+    vault[data.username] = {
+      username:    data.username,
+      access_token: data.access_token,
+      avatar_url:  data.avatar_url || '',
+      saved:       Date.now()
+    };
+    try { localStorage.setItem('_gh_sessions_vault', JSON.stringify(vault)); } catch(e){}
+  }
+
+  // Switch Account — vault current session, send to GitHub OAuth (account picker)
+  window._ghSwitchAccount = function() {
+    var m = document.getElementById('gh-user-menu'); if(m) m.remove();
+    var p = document.getElementById('gh-vault-picker'); if(p) p.remove();
+    var cur = null;
+    try { var s = localStorage.getItem('_gh_session'); cur = s ? JSON.parse(s) : null; } catch(e){}
+    if (cur && cur.username) _saveSessionVault(cur);
+    try { sessionStorage.setItem('_gh_switch_pending', '1'); } catch(e){}
+    var state = Math.random().toString(36).substr(2, 12);
+    try { sessionStorage.setItem('_gh_oauth_state', state); } catch(e){}
+    window.location.href = 'https://github.com/login/oauth/authorize'
+      + '?client_id=' + (window.GH_CLIENT_ID || '')
+      + '&scope=' + encodeURIComponent(window.GH_SCOPES || 'read:user')
+      + '&redirect_uri=' + encodeURIComponent('https://leatr.xyz/')
+      + '&state=' + state;
+  };
+
+  // Vault Picker — floating panel showing all saved accounts
+  window._ghShowVaultPicker = function() {
+    var m = document.getElementById('gh-user-menu'); if(m) m.remove();
+    var existing = document.getElementById('gh-vault-picker'); if(existing) { existing.remove(); return; }
+
+    var vault = {};
+    try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
+    var accounts = Object.values(vault).sort(function(a,b){ return (b.saved||0)-(a.saved||0); });
+    var cur = window._ghAuth && window._ghAuth.username;
+
+    var picker = document.createElement('div');
+    picker.id = 'gh-vault-picker';
+    picker.style.cssText = 'position:fixed;top:58px;right:60px;z-index:9901;background:rgba(4,12,22,.97);border:1px solid rgba(0,229,255,.25);border-radius:8px;padding:8px 0;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;min-width:200px;box-shadow:0 4px 24px rgba(0,0,0,.6)';
+
+    var html = '<div style="padding:8px 14px;color:rgba(0,229,255,.4);font-size:.38rem;letter-spacing:2px;border-bottom:1px solid rgba(0,229,255,.08);margin-bottom:4px">⇄ SWITCH ACCOUNT</div>';
+
+    if (accounts.length === 0) {
+      html += '<div style="padding:8px 14px;color:rgba(224,244,255,.25);font-size:.4rem;font-style:italic">No saved accounts yet</div>';
+    } else {
+      accounts.forEach(function(acc) {
+        var isCur = acc.username === cur;
+        var av = acc.avatar_url
+          ? '<img src="'+acc.avatar_url+'" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,229,255,.2)" onerror="this.style.display=\'none\'">'
+          : '<span style="width:20px;height:20px;border-radius:50%;background:rgba(0,229,255,.15);display:inline-flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;color:rgba(0,229,255,.7)">'+(acc.username[0]||'?').toUpperCase()+'</span>';
+        html += '<div onclick="window._ghVaultLogin(\''+acc.username+'\')"'
+              + ' style="padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;'
+              + (isCur ? 'color:#00e5ff;' : 'color:rgba(224,244,255,.7);')
+              + 'transition:background .15s"'
+              + ' onmouseenter="this.style.background=\'rgba(0,229,255,.07)\'"'
+              + ' onmouseleave="this.style.background=\'\'">'
+              + av + '<span>' + acc.username + (isCur ? ' <span style="font-size:.28rem;color:rgba(0,229,255,.4);letter-spacing:1px">●</span>' : '') + '</span>'
+              + '</div>';
+      });
+    }
+
+    html += '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
+          + '<div onclick="window._ghSwitchAccount()"'
+          + ' style="padding:8px 14px;cursor:pointer;color:rgba(167,139,250,.7);display:flex;align-items:center;gap:6px;font-size:.42rem"'
+          + ' onmouseenter="this.style.color=\'#a78bfa\'" onmouseleave="this.style.color=\'rgba(167,139,250,.7)\'">'
+          + '+ Add / sign in with another account</div>'
+          + '<div onclick="var p=document.getElementById(\'gh-vault-picker\');if(p)p.remove();"'
+          + ' style="padding:5px 14px;cursor:pointer;color:rgba(224,244,255,.2);font-size:.35rem">✕ cancel</div>';
+
+    picker.innerHTML = html;
+    document.body.appendChild(picker);
+
+    setTimeout(function() {
+      document.addEventListener('click', function _vp(ev) {
+        if (!picker.contains(ev.target)) { picker.remove(); document.removeEventListener('click', _vp); }
+      });
+    }, 60);
+  };
+
+  // Restore a vaulted account — validate token, apply session silently
+  window._ghVaultLogin = function(username) {
+    var p = document.getElementById('gh-vault-picker'); if(p) p.remove();
+    var vault = {};
+    try { vault = JSON.parse(localStorage.getItem('_gh_sessions_vault') || '{}'); } catch(e){}
+    var acc = vault[username];
+    if (!acc || !acc.access_token) { window._ghSwitchAccount(); return; }
+
+    // Show loading state on header avatar
+    var btn = document.getElementById('hdr-gh-user');
+    if (btn) btn.style.opacity = '0.5';
+
+    fetch('https://api.github.com/user', {
+      headers: { 'Authorization': 'token ' + acc.access_token, 'Accept': 'application/vnd.github.v3+json' }
+    })
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(u) {
+      var sd = { username: u.login, access_token: acc.access_token, avatar_url: u.avatar_url || '' };
+      _saveSession(sd);
+      _saveSessionVault(sd);
+      if (window._applySession) { window._applySession(sd); }
+      else { window.location.reload(); }
+      if (btn) btn.style.opacity = '';
+    })
+    .catch(function() {
+      // Token expired — force full re-auth for this account
+      if (btn) btn.style.opacity = '';
+      try { sessionStorage.setItem('_gh_switch_pending','1'); } catch(e){}
+      window._ghSwitchAccount();
+    });
+  };
+
   // ── Manual "Save Memory Now" — with animated button states ─────────────
   window._ghAutosaveNow = function() {
     var btn = document.getElementById('gh-save-mem-btn');
