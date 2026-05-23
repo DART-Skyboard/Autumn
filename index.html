@@ -17429,12 +17429,12 @@ ashLoadDefs();
   // Levels: [label, dotText, bgRgba, blurPx, color]
   const LEVELS = [
     { label:'FROST',  dot:'80%', bg:'rgba(2,10,20,0.20)', blur:6,  color:'#7ecfff' },  // frost blue  — default
+    { label:'STEAM',  dot:'◈',   bg:'rgba(8,20,12,0.55)',  blur:8,  color:'#a8ffc4' },  // steam green — sensor logo
     { label:'CLEAR',  dot:'50%', bg:'rgba(2,10,20,0.50)', blur:4,  color:'#ffffff' },  // white
     { label:'HAZE',   dot:'50%', bg:'rgba(2,10,20,0.50)', blur:10, color:'#ffe040' },  // yellow
     { label:'DUSK',   dot:'30%', bg:'rgba(2,10,20,0.70)', blur:14, color:'#ff4aac' },  // neon pink
     { label:'DEEP',   dot:'15%', bg:'rgba(2,10,20,0.85)', blur:20, color:'#39ff6e' },  // neon green
     { label:'VOID',   dot:'0%',  bg:'rgba(2,10,20,0.97)', blur:0,  color:'#ffffff' },  // opaque white
-    { label:'STEAM',  dot:'◈',   bg:'rgba(8,20,12,0.55)',  blur:8,  color:'#a8ffc4' },  // steam green — sensor logo
   ];
   let idx = 0;
 
@@ -17579,8 +17579,8 @@ ashLoadDefs();
     var _steamActive = (function(){
       try {
         var _si = parseInt(localStorage.getItem('_aut_scrim')||'0',10);
-        // LEVELS array index: FROST=0,CLEAR=1,HAZE=2,DUSK=3,DEEP=4,VOID=5,STEAM=6
-        return _si === 6;
+        // LEVELS array index: FROST=0,STEAM=1,CLEAR=2,HAZE=3,DUSK=4,DEEP=5,VOID=6
+        return _si === 1;
       } catch(e){ return false; }
     })();
     if (_logoImg && !_steamActive) {
