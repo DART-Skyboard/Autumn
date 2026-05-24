@@ -14735,6 +14735,11 @@ function renderToolsCognition(){
   const opsHtml=ALL_OPS.map((op,i)=>{const cls=i<7?"active-natural":i<19?"active-math":"active-sense";const isActive=a?.toolReflexes?.[i]?.active;return`<div class="op-cell ${isActive?cls:''}"><div class="op-num">${i+1}</div>${op}</div>`;}).join("");
   const varsHtml=COGNITION_VARS.map(([v,d])=>`<div class="var-row"><span class="var-name">var (${v})</span><span class="var-desc">${d}</span></div>`).join("");
   const delimsHtml=SENTIENCE_DELIMITERS.map(d=>`<span class="delim-tag">${d}</span>`).join("");
+
+  const modulesHtml=`<div class="glass"><div class="glass-title">MODULES</div><div style="display:flex;gap:8px;flex-wrap:wrap;padding:4px 0">
+    <div onclick="closeTools();setTimeout(function(){if(window.mantisRadar)window.mantisRadar.open();},150)" style="font-family:var(--font-d);font-size:.72rem;letter-spacing:1.5px;border-radius:3px;padding:5px 14px;cursor:pointer;user-select:none;color:rgba(0,255,136,.85);border:1px solid rgba(0,255,136,.45);background:rgba(0,255,136,.08);transition:all .15s" onmouseover="this.style.background='rgba(0,255,136,.18)'" onmouseout="this.style.background='rgba(0,255,136,.08)'">📡 RADAR</div>
+    <div onclick="closeTools();setTimeout(function(){if(window.mantisNav)window.mantisNav.open();},150)" style="font-family:var(--font-d);font-size:.72rem;letter-spacing:1.5px;border-radius:3px;padding:5px 14px;cursor:pointer;user-select:none;color:rgba(0,212,255,.85);border:1px solid rgba(0,212,255,.45);background:rgba(0,212,255,.08);transition:all .15s" onmouseover="this.style.background='rgba(0,212,255,.18)'" onmouseout="this.style.background='rgba(0,212,255,.08)'">🛸 NAV</div>
+  </div></div>`;
   let analysisHtml="";
   if(a){
     const safety=contentSafetyFilter(a.input,S.contextHistory);const gramSig=grammarSignature(a.grammar);
@@ -14748,7 +14753,7 @@ function renderToolsCognition(){
     const psig=PHYSICS_SIGNATURES[ph]||PHYSICS_SIGNATURES.moderate;
     reflexHtml=`<div class="glass"><div class="glass-title">Last Reflex Context</div><div class="analysis-block"><div>Context Type: ${rData.contextType||"—"}</div><div>Emotional: ${em} ${sig.icon} (buoyancyMod: ${sig.buoyancyMod}x)</div><div>Physics: ${ph} — ${psig.label}</div><div>Contacts: ${rData.contacts?.length||0} identified</div><div>Improv: ${rData.improvisation?.additions?.length||0} additions</div><div>Location: ${rData.location?`${rData.location.lat.toFixed(4)},${rData.location.lon.toFixed(4)}`:"none"}</div></div></div>`;
   }
-  return`<div class="glass"><div class="glass-title">LEATR Order of Operations (25)</div><div style="font-size:10px;color:var(--dim);margin-bottom:10px">7 Natural Tools + 12 Math/Physics + 6 Senses</div><div class="ops-grid">${opsHtml}</div></div><div class="glass"><div class="glass-title">Cognition Node Order</div><div style="font-size:10px;color:var(--dim);margin-bottom:8px">Cognition → Integer/String → Tool → Attribute</div>${varsHtml}</div><div class="glass"><div class="glass-title">Sentience Delimiters</div><div>${delimsHtml}</div></div>${analysisHtml}${reflexHtml}`;
+  return`${modulesHtml}<div class="glass"><div class="glass-title">LEATR Order of Operations (25)</div><div style="font-size:10px;color:var(--dim);margin-bottom:10px">7 Natural Tools + 12 Math/Physics + 6 Senses</div><div class="ops-grid">${opsHtml}</div></div><div class="glass"><div class="glass-title">Cognition Node Order</div><div style="font-size:10px;color:var(--dim);margin-bottom:8px">Cognition → Integer/String → Tool → Attribute</div>${varsHtml}</div><div class="glass"><div class="glass-title">Sentience Delimiters</div><div>${delimsHtml}</div></div>${analysisHtml}${reflexHtml}`;
 }
 
 function renderToolsContacts(){
