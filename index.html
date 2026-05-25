@@ -2430,17 +2430,17 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .ash-tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
 #ash-body{flex:1;display:flex;flex-direction:column;overflow:hidden}
 /* Ash language editor panel */
-#ash-editor-wrap,#td-ash-editor-wrap{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr auto;gap:0;min-height:0}
-#ash-code-panel,#td-ash-code-panel{display:flex;flex-direction:column;border-right:1px solid rgba(0,255,204,.08)}
-#ash-code-label,#td-ash-code-label{padding:4px 10px;background:#0a1220;font-family:var(--font-d);font-size:.38rem;color:rgba(0,255,204,.4);letter-spacing:1px;border-bottom:1px solid rgba(0,255,204,.06)}
-#ash-editor,#td-ash-editor{flex:1;background:#060d18;color:#a8d8a8;font-family:'Fira Code',monospace;font-size:13px;padding:10px;border:none;outline:none;resize:none;min-height:0}
-#ash-output-panel,#td-ash-output-panel{display:flex;flex-direction:column;background:#040a14}
-#ash-output-label,#td-ash-output-label{padding:4px 10px;background:#0a1220;font-family:var(--font-d);font-size:.38rem;color:rgba(0,136,255,.4);letter-spacing:1px;border-bottom:1px solid rgba(0,136,255,.06)}
-#ash-output-content,#td-ash-output-content{flex:1;overflow-y:auto;padding:8px 10px;font-family:'Fira Code',monospace;font-size:11px;color:#8ab4cc;min-height:0}
-#ash-ctrl-bar,#td-ash-ctrl-bar{grid-column:span 2;display:flex;align-items:center;gap:6px;padding:6px 10px;background:#080e18;border-top:1px solid rgba(0,255,204,.08)}
+#ash-editor-wrap{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr auto;gap:0;min-height:0}
+#ash-code-panel{display:flex;flex-direction:column;border-right:1px solid rgba(0,255,204,.08)}
+#ash-code-label{padding:4px 10px;background:#0a1220;font-family:var(--font-d);font-size:.38rem;color:rgba(0,255,204,.4);letter-spacing:1px;border-bottom:1px solid rgba(0,255,204,.06)}
+#ash-editor{flex:1;background:#060d18;color:#a8d8a8;font-family:'Fira Code',monospace;font-size:13px;padding:10px;border:none;outline:none;resize:none;min-height:0}
+#ash-output-panel{display:flex;flex-direction:column;background:#040a14}
+#ash-output-label{padding:4px 10px;background:#0a1220;font-family:var(--font-d);font-size:.38rem;color:rgba(0,136,255,.4);letter-spacing:1px;border-bottom:1px solid rgba(0,136,255,.06)}
+#ash-output-content{flex:1;overflow-y:auto;padding:8px 10px;font-family:'Fira Code',monospace;font-size:11px;color:#8ab4cc;min-height:0}
+#ash-ctrl-bar{grid-column:span 2;display:flex;align-items:center;gap:6px;padding:6px 10px;background:#080e18;border-top:1px solid rgba(0,255,204,.08)}
 /* Maze panel */
-#ash-maze-wrap,#td-ash-maze-wrap,#ide-ash-maze-wrap{flex:1;display:grid;grid-template-columns:200px 1fr;min-height:0}
-#ash-maze-controls,#td-ash-maze-controls,#ide-ash-maze-controls{padding:10px;border-right:1px solid rgba(0,255,204,.08);display:flex;flex-direction:column;gap:6px;overflow-y:auto}
+#ash-maze-wrap{flex:1;display:grid;grid-template-columns:200px 1fr;min-height:0}
+#ash-maze-controls{padding:10px;border-right:1px solid rgba(0,255,204,.08);display:flex;flex-direction:column;gap:6px;overflow-y:auto}
 .ash-ctrl-lbl{font-family:var(--font-d);font-size:.38rem;color:rgba(0,255,204,.45);letter-spacing:1px;margin-top:4px}
 .ash-ctrl-input{width:100%;background:rgba(0,255,204,.04);border:1px solid rgba(0,255,204,.15);color:var(--text);padding:4px 6px;border-radius:3px;font-family:var(--font-d);font-size:.48rem}
 select.ash-ctrl-input{cursor:pointer}
@@ -2462,10 +2462,10 @@ select.ash-ctrl-input{cursor:pointer}
 #ash-maze-modal-canvas{width:100%;height:300px;background:#000814;border:1px solid rgba(0,255,204,.1);border-radius:4px;display:grid;gap:2px}
 #ash-maze-modal-output{font-family:'Fira Code',monospace;font-size:.7rem;color:#8ab4cc;padding:8px;background:rgba(0,0,0,.3);border-radius:4px;min-height:60px;max-height:120px;overflow-y:auto}
 @media(max-width:600px){
-  #ash-editor-wrap,#td-ash-editor-wrap{grid-template-columns:1fr;grid-template-rows:1fr 1fr auto}
-  #ash-code-panel,#td-ash-code-panel{border-right:none;border-bottom:1px solid rgba(0,255,204,.08)}
-  #ash-maze-wrap,#td-ash-maze-wrap,#ide-ash-maze-wrap{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-  #ash-maze-controls,#td-ash-maze-controls,#ide-ash-maze-controls{border-right:none;border-bottom:1px solid rgba(0,255,204,.08);display:grid;grid-template-columns:1fr 1fr}
+  #ash-editor-wrap{grid-template-columns:1fr;grid-template-rows:1fr 1fr auto}
+  #ash-code-panel{border-right:none;border-bottom:1px solid rgba(0,255,204,.08)}
+  #ash-maze-wrap{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  #ash-maze-controls{border-right:none;border-bottom:1px solid rgba(0,255,204,.08);display:grid;grid-template-columns:1fr 1fr}
 }
 
 .dbg-toggle{display:inline-block;font-size:8px;color:rgba(0,229,255,.15);cursor:pointer;padding:1px 3px;margin-top:3px;font-family:var(--font-d);letter-spacing:1px;user-select:none;vertical-align:middle}
@@ -3962,15 +3962,6 @@ const S = {
 };
 function msgs() { return S.sessions[S.currentSession]?.messages || []; }
 function newChat() {
-  // Destroy all live WebGL widgets before switching — prevents zombie RAF loops
-  destroyAllMazeWidgets();
-  if (typeof _chat3DWidgets !== 'undefined') {
-    Object.keys(_chat3DWidgets).forEach(function(cid) {
-      var w = _chat3DWidgets[cid];
-      if (w && typeof w.kill === 'function') { try { w.kill(); } catch(e) {} }
-    });
-    for (var k in _chat3DWidgets) delete _chat3DWidgets[k];
-  }
   S.sessions.push({ id: Date.now(), messages: [{ role:"autumn", text:"Hi. What's new?", ts:new Date().toISOString() }] });
   S.currentSession = S.sessions.length - 1;
   S.activeContext = null;
@@ -7969,17 +7960,6 @@ function renderThumbRow() {
         _thumbFrame++;
         if(_thumbFrame > 300){ // ~5s at 60fps then stop to free GPU
           cancelAnimationFrame(_thumbRafId);
-          try { renderer.forceContextLoss(); renderer.dispose(); } catch(e){}
-          return;
-        }
-        _thumbRafId = requestAnimationFrame(animate);
-        mesh.rotation.x += 0.05;
-        mesh.rotation.y += 0.05;
-        renderer.render(scene, camera);
-      }
-      animate();
-        if(_thumbFrame > 300){ // ~5s at 60fps then stop to free GPU
-          cancelAnimationFrame(_thumbRafId);
           return;
         }
         _thumbRafId = requestAnimationFrame(animate);
@@ -11631,16 +11611,7 @@ function createInlineMazeWidget(wid, size) {
   canvas.addEventListener('touchend',()=>{ws.isDrag=false;},{passive:true});
 
   // Animate
-  var _mazeAlive = true;
   function animateMaze() {
-    // Self-terminate if killed or canvas removed from DOM
-    if (!_mazeAlive || !document.body.contains(canvas)) {
-      _mazeAlive = false;
-      if (ws.animId) { cancelAnimationFrame(ws.animId); ws.animId = null; }
-      try { mRenderer.forceContextLoss(); mRenderer.dispose(); } catch(e) {}
-      delete _mazeWidgets[wid];
-      return;
-    }
     ws.animId = requestAnimationFrame(animateMaze);
     ws.frame++;
     const f = ws.frame;
@@ -11716,7 +11687,6 @@ function createInlineMazeWidget(wid, size) {
 
   // ── Destroy: free WebGL context + cancel RAF + disconnect observer ──────
   ws._destroy = function() {
-    _mazeAlive = false;
     mro.disconnect();
     if(ws.animId) { cancelAnimationFrame(ws.animId); ws.animId = null; }
     if(ws.solveTimer) { clearTimeout(ws.solveTimer); ws.solveTimer = null; }
@@ -11798,9 +11768,6 @@ function initPendingMazeWidgets() {
 const _savedCanvases = {};
 
 function detachLiveCanvases() {
-  // NOTE: _chat3DWidgets are NOT killed here. They have document.body.contains()
-  // guards in their RAF loops and will self-terminate if their container is removed.
-  // Killing them here would destroy active viewers on every new message received.
   document.querySelectorAll('[id^="maze-wrap-"]').forEach(node => {
     const wid = node.id.replace('maze-wrap-', '');
     if (typeof _mazeWidgets !== 'undefined' && _mazeWidgets[wid]) {
@@ -12649,11 +12616,6 @@ function initBRPN() {
     Object.keys(toolShapeGroups).forEach(k => { delete toolShapeGroups[k]; });
   }
   const container=document.getElementById("brpn-canvas");
-  // ── Clear any previously appended canvas (prevents stacking on re-init) ──
-  if (renderer && renderer.domElement && renderer.domElement.parentNode === container) {
-    try { renderer.forceContextLoss(); renderer.dispose(); } catch(e) {}
-  }
-  container.innerHTML = '';
   const w=container.clientWidth||container.parentElement?.clientWidth||window.innerWidth||320;
   const h=container.clientHeight||container.parentElement?.clientHeight||260;
   scene=new THREE.Scene();
@@ -13117,18 +13079,15 @@ function initBRPN() {
 
   document.addEventListener('visibilitychange',function(){
     if(document.hidden){
-      // Pause BRPN orb RAF
-      if(animId){ cancelAnimationFrame(animId); animId = null; }
-      // Pause Arc Edge Studio animate (self-terminates via _asIsVisible)
+      // Pause BRPN orb
+      cancelAnimationFrame(animId);
+      animId = null;
+      // Pause Arc Edge Studio animate (self-terminates but stop early)
       if(window._arcStudio) window._arcStudio._visPaused = true;
-      // Pause ASH maze widget
+      // Pause maze widget
       if(window._ashMazeAnimId){ cancelAnimationFrame(window._ashMazeAnimId); window._ashMazeAnimId=null; }
-      // NOTE: Do NOT kill _chat3DWidgets here — they self-terminate via
-      // document.body.contains() guards. Killing them on every tab-switch
-      // destroys widgets the user was actively using.
     } else {
-      // Resume BRPN
-      if(!animId && typeof animate === 'function') animate();
+      if(!animId) animate();
       if(window._arcStudio) { window._arcStudio._visPaused = false; }
     }
   });
@@ -13284,9 +13243,7 @@ function _initAshNodeLayer() {
   scene.add(_ashNodes._splineGroup);
 
   _pollAshNodes();
-  if (!window._ashNodesPollTimer) {
-    window._ashNodesPollTimer = setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
-  }
+  setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
 
   // ── Audio playback arc lines ─────────────────────────────────────────────
   // 5 electrical arc lines around the core — activated when user plays audio
@@ -14956,15 +14913,6 @@ function deleteSession(idx){
 }
 function switchSession(idx){
   if(idx<0||idx>=S.sessions.length) return;
-  // Destroy all live WebGL widgets from the outgoing session
-  destroyAllMazeWidgets();
-  if (typeof _chat3DWidgets !== 'undefined') {
-    Object.keys(_chat3DWidgets).forEach(function(cid) {
-      var w = _chat3DWidgets[cid];
-      if (w && typeof w.kill === 'function') { try { w.kill(); } catch(e) {} }
-    });
-    for (var k in _chat3DWidgets) delete _chat3DWidgets[k];
-  }
   S.currentSession=idx;saveState();renderMessages();updateFooter();renderToolsContent();
 }
 
@@ -17087,17 +17035,17 @@ function renderToolsAshTree() {
 }
 
 function _ashLangHTML(){
-  return `<div id="td-ash-editor-wrap">
-  <div id="td-ash-code-panel">
-    <div id="td-ash-code-label">⬡ ASH CODE</div>
-    <textarea id="td-ash-editor" spellcheck="false">${_ashState.ashCode.replace(/</g,'&lt;')}</textarea>
+  return `<div id="ash-editor-wrap">
+  <div id="ash-code-panel">
+    <div id="ash-code-label">⬡ ASH CODE</div>
+    <textarea id="ash-editor" spellcheck="false">${_ashState.ashCode.replace(/</g,'&lt;')}</textarea>
   </div>
-  <div id="td-ash-output-panel">
-    <div id="td-ash-output-label">◈ OUTPUT</div>
-    <div id="td-ash-output-content"></div>
+  <div id="ash-output-panel">
+    <div id="ash-output-label">◈ OUTPUT</div>
+    <div id="ash-output-content"></div>
   </div>
-  <div id="td-ash-ctrl-bar">
-    <button class="ash-btn" onclick="ashRun()">▸ Build &amp; Run</button>
+  <div id="ash-ctrl-bar">
+    <button class="ash-btn" onclick="ashRun()">▸ Build & Run</button>
     <button class="ash-btn" onclick="ashLoadDefs().then(()=>ashToast('◈ Defs loaded'))">↺ Load Defs</button>
     <button class="ash-btn" onclick="ashClearOutput()">✕ Clear</button>
     <button class="ash-btn" onclick="ashSendToChat()" style="margin-left:auto">→ Send to Chat</button>
@@ -17138,7 +17086,7 @@ function _ashMazeHTML(){
     <button class="ash-btn" style="margin-top:4px" onclick="ashMazeExportPNG()">↓ PNG</button>
     <button class="ash-btn" style="margin-top:4px;margin-bottom:8px" onclick="ashSendMazeToChat()">→ Chat</button>
   </div>
-  <div id="td-ash-viewport"><canvas id="td-ash-maze-canvas"></canvas></div>
+  <div id="ash-viewport"><canvas id="ash-maze-canvas"></canvas></div>
 </div>`;
 }
 
@@ -17196,13 +17144,13 @@ function bindToolsCrypto() { bindToolsAshTree(); }
 
 // ── Bind functions ──────────────────────────────────────────────────────
 function bindToolsAshTree() {
-  // Save editor content on change — prefer td- (tools drawer) then fall back to full IDE
-  const ed = document.getElementById('td-ash-editor') || document.getElementById('ash-editor');
+  // Save editor content on change
+  const ed = document.getElementById('ash-editor');
   if (ed) ed.addEventListener('input', ()=>{ _ashState.ashCode = ed.value; });
-  // Init maze viewport if on maze tab — use td- canvas in tools drawer context
+  // Init maze viewport if on maze tab
   if (_ashState.tab === 'maze') {
     setTimeout(()=>{
-      const canvas = document.getElementById('td-ash-maze-canvas') || document.getElementById('ash-maze-canvas');
+      const canvas = document.getElementById('ash-maze-canvas');
       if (canvas && !_ashMazeRenderer) ASH_MAZE_init(canvas);
       else if (canvas && _ashMazeRenderer) {
         // Re-attach to new canvas
@@ -17222,14 +17170,13 @@ window.ashSetTab = function(tab) {
 };
 
 window.ashRun = function() {
-  // Support both tools-drawer (td-ash-editor) and full IDE (ash-editor) contexts
-  const code = (document.getElementById('ash-editor') || document.getElementById('td-ash-editor'))?.value || _ashState.ashCode;
+  const code = document.getElementById('ash-editor')?.value || _ashState.ashCode;
   _ashState.ashCode = code;
   DART_PROCESSOR.run(code);
 };
 
 window.ashClearOutput = function() {
-  const el = document.getElementById('ash-output-content') || document.getElementById('td-ash-output-content');
+  const el = document.getElementById('ash-output-content');
   if (el) el.innerHTML = '';
 };
 
@@ -17282,7 +17229,7 @@ window.ashMazeExportJSX = function() {
 };
 
 window.ashSendToChat = function() {
-  const code = (document.getElementById('td-ash-editor') || document.getElementById('ash-editor'))?.value || _ashState.ashCode;
+  const code = document.getElementById('ash-editor')?.value || _ashState.ashCode;
   const inp = document.getElementById('chat-input');
   if (inp) { inp.value = '▸ash run: ' + code.split('\n')[0].slice(0,60); }
   document.getElementById('tools-overlay')?.classList.remove('open');
@@ -17423,8 +17370,8 @@ window.openAshIDE = function() {
       <button class="ash-btn" style="margin-left:auto" onclick="ashSendToChat()">→ Autumn Chat</button>
     </div>
   </div>
-  <div id="ide-ash-maze-wrap" style="display:none">
-    <div id="ide-ash-maze-controls">
+  <div id="ash-maze-wrap" style="display:none">
+    <div id="ash-maze-controls">
       <div class="ash-ctrl-lbl">MODE</div>
       <select class="ash-ctrl-input" id="ashMazeModeIDE" onchange="_ashState.mazeMode=this.value">
         <option value="cubic">Cubic 3D</option><option value="planar">Planar 2D</option>
@@ -17450,10 +17397,8 @@ window.openAshIDE = function() {
 };
 
 window.ashIDESetTab = function(tab) {
-  // The full IDE overlay uses ide-ash-maze-wrap; the tools drawer uses td- prefixed IDs
-  // Prefer the IDE overlay context (ash-editor-wrap / ide-ash-maze-wrap)
   const lang = document.getElementById('ash-editor-wrap');
-  const maze = document.getElementById('ide-ash-maze-wrap') || document.getElementById('ash-maze-wrap');
+  const maze = document.getElementById('ash-maze-wrap');
   if (!lang||!maze) return;
   if (tab==='language') { lang.style.display='grid'; maze.style.display='none'; }
   else if (tab==='maze') {
@@ -18223,24 +18168,11 @@ window.runWorldStudioInline = async function(msgId, prompt) {
         if(meta) meta.textContent = Math.round(verts).toLocaleString()+' VERTS · '+Math.round(tris).toLocaleString()+' TRIS';
       }, null, function(e){ console.warn('[WS inline]', e); });
 
-      var _glbAlive = true;
       (function tick() {
-        if (!_glbAlive || !document.body.contains(container)) {
-          _glbAlive = false;
-          try { renderer.dispose(); } catch(e) {}
-          return;
-        }
         requestAnimationFrame(tick);
         controls.autoRotate = autoRot; controls.update();
         renderer.render(scene, camera);
       })();
-      // Register in _chat3DWidgets so detachLiveCanvases can kill it
-      if (typeof _chat3DWidgets !== 'undefined') {
-        _chat3DWidgets[viewerId] = {
-          alive: function(){ return _glbAlive; },
-          kill: function(){ _glbAlive = false; try { renderer.forceContextLoss(); renderer.dispose(); } catch(e) {} }
-        };
-      }
 
       // Resize observer
       new ResizeObserver(function(){
@@ -18659,8 +18591,6 @@ function create3DChatViewer(containerId, fileURL, fileName, ext) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
   container.appendChild(renderer.domElement);
-  // alive flag — set false by _chat3DWidgets.kill() to stop RAF loop
-  var _v3dAlive = true;
 
   var controls = null;
   if(typeof THREE.OrbitControls!=='undefined') {
@@ -18740,17 +18670,16 @@ function create3DChatViewer(containerId, fileURL, fileName, ext) {
   // Toggle auto-rotate on double-tap/click
   renderer.domElement.addEventListener('dblclick', function(){ autoRotate = !autoRotate; });
 
-  var alive = _v3dAlive;
+  var alive = true;
   function anim() {
-    if(!alive || !_v3dAlive) { alive = false; return; }
-    if(!document.body.contains(container)) { alive = false; try{renderer.forceContextLoss();renderer.dispose();}catch(e){} return; }
+    if(!alive) return;
     requestAnimationFrame(anim);
     if(autoRotate) modelRoot.rotation.y += 0.008;
     if(controls) controls.update();
     renderer.render(scene, camera);
   }
   anim();
-  _chat3DWidgets[containerId] = {renderer:renderer, alive:function(){return alive;}, kill:function(){ alive=false; _v3dAlive=false; try{renderer.forceContextLoss();renderer.dispose();}catch(e){} }};
+  _chat3DWidgets[containerId] = {renderer:renderer, alive:function(){return alive;}, kill:function(){alive=false;renderer.dispose();}};
 }
 
 function init3DViewersInMessages() {
@@ -18837,9 +18766,7 @@ function emergencyStop(){
 }
 
 // Poll to keep send/stop in sync (lightweight — just a className swap)
-if (!window._syncActionBtnTimer) {
-  window._syncActionBtnTimer = setInterval(_syncActionBtn, 250);
-}
+setInterval(_syncActionBtn, 250);
 _syncActionBtn();
 </script>
 <!-- AutumnNLP Integration Patch -->
@@ -22617,9 +22544,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _ensureUserRepo().then(function() {
       return _loadMemory();
     }).then(function() {
-      if (!window._autosaveTimer) {
-        window._autosaveTimer = setInterval(_autosave, SYNC_INTERVAL);
-      }
+      setInterval(_autosave, SYNC_INTERVAL);
       window.addEventListener('beforeunload', _autosave);
       _toast('\u2713 Memory archive synced');
       // Refresh UI so restored sessions show in chat history sidebar
@@ -22634,9 +22559,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Update LEATR ash presence with real username
     if (typeof getLeatrAshPAT === 'function') {
       _updatePresence();
-      if (!window._updatePresenceTimer) {
-        window._updatePresenceTimer = setInterval(_updatePresence, 4 * 60 * 1000);
-      }
+      setInterval(_updatePresence, 4 * 60 * 1000);
     }
 
     _toast('\u2713 Signed in as ' + (data.username || '').toUpperCase());
@@ -24955,9 +24878,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }catch(e){}
     // Then fetch fresh from GitHub API
     _render();
-    if (!window._commitsRenderTimer) {
-      window._commitsRenderTimer = setInterval(_render, 180000);
-    }
+    setInterval(_render, 180000);
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
