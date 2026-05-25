@@ -11798,18 +11798,9 @@ function initPendingMazeWidgets() {
 const _savedCanvases = {};
 
 function detachLiveCanvases() {
-  // Kill any zombie 3D widget RAF loops before innerHTML is wiped
-  // Without this, every renderMessages() call leaks a running WebGL renderer + RAF loop
-  if (typeof _chat3DWidgets !== 'undefined') {
-    Object.keys(_chat3DWidgets).forEach(function(cid) {
-      var w = _chat3DWidgets[cid];
-      if (w && typeof w.kill === 'function') {
-        try { w.kill(); } catch(e) {}
-      }
-    });
-    // Clear the registry so they can be re-created after the DOM rebuilds
-    for (var k in _chat3DWidgets) delete _chat3DWidgets[k];
-  }
+  // NOTE: _chat3DWidgets are NOT killed here. They have document.body.contains()
+  // guards in their RAF loops and will self-terminate if their container is removed.
+  // Killing them here would destroy active viewers on every new message received.
   document.querySelectorAll('[id^="maze-wrap-"]').forEach(node => {
     const wid = node.id.replace('maze-wrap-', '');
     if (typeof _mazeWidgets !== 'undefined' && _mazeWidgets[wid]) {
@@ -12658,6 +12649,11 @@ function initBRPN() {
     Object.keys(toolShapeGroups).forEach(k => { delete toolShapeGroups[k]; });
   }
   const container=document.getElementById("brpn-canvas");
+  // ── Clear any previously appended canvas (prevents stacking on re-init) ──
+  if (renderer && renderer.domElement && renderer.domElement.parentNode === container) {
+    try { renderer.forceContextLoss(); renderer.dispose(); } catch(e) {}
+  }
+  container.innerHTML = '';
   const w=container.clientWidth||container.parentElement?.clientWidth||window.innerWidth||320;
   const h=container.clientHeight||container.parentElement?.clientHeight||260;
   scene=new THREE.Scene();
@@ -13121,23 +13117,18 @@ function initBRPN() {
 
   document.addEventListener('visibilitychange',function(){
     if(document.hidden){
-      // Pause BRPN orb
-      cancelAnimationFrame(animId);
-      animId = null;
-      // Pause Arc Edge Studio animate (self-terminates but stop early)
+      // Pause BRPN orb RAF
+      if(animId){ cancelAnimationFrame(animId); animId = null; }
+      // Pause Arc Edge Studio animate (self-terminates via _asIsVisible)
       if(window._arcStudio) window._arcStudio._visPaused = true;
-      // Pause maze widget
+      // Pause ASH maze widget
       if(window._ashMazeAnimId){ cancelAnimationFrame(window._ashMazeAnimId); window._ashMazeAnimId=null; }
-      // Kill any zombie inline 3D widget RAF loops to free GPU
-      if(typeof _chat3DWidgets !== 'undefined') {
-        Object.keys(_chat3DWidgets).forEach(function(cid) {
-          var w = _chat3DWidgets[cid];
-          if (w && typeof w.kill === 'function') { try { w.kill(); } catch(e) {} }
-        });
-        for (var k in _chat3DWidgets) delete _chat3DWidgets[k];
-      }
+      // NOTE: Do NOT kill _chat3DWidgets here — they self-terminate via
+      // document.body.contains() guards. Killing them on every tab-switch
+      // destroys widgets the user was actively using.
     } else {
-      if(!animId) animate();
+      // Resume BRPN
+      if(!animId && typeof animate === 'function') animate();
       if(window._arcStudio) { window._arcStudio._visPaused = false; }
     }
   });
