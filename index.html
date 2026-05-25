@@ -3962,6 +3962,15 @@ const S = {
 };
 function msgs() { return S.sessions[S.currentSession]?.messages || []; }
 function newChat() {
+  // Destroy all live WebGL widgets before switching — prevents zombie RAF loops
+  destroyAllMazeWidgets();
+  if (typeof _chat3DWidgets !== 'undefined') {
+    Object.keys(_chat3DWidgets).forEach(function(cid) {
+      var w = _chat3DWidgets[cid];
+      if (w && typeof w.kill === 'function') { try { w.kill(); } catch(e) {} }
+    });
+    for (var k in _chat3DWidgets) delete _chat3DWidgets[k];
+  }
   S.sessions.push({ id: Date.now(), messages: [{ role:"autumn", text:"Hi. What's new?", ts:new Date().toISOString() }] });
   S.currentSession = S.sessions.length - 1;
   S.activeContext = null;
@@ -7960,6 +7969,17 @@ function renderThumbRow() {
         _thumbFrame++;
         if(_thumbFrame > 300){ // ~5s at 60fps then stop to free GPU
           cancelAnimationFrame(_thumbRafId);
+          try { renderer.forceContextLoss(); renderer.dispose(); } catch(e){}
+          return;
+        }
+        _thumbRafId = requestAnimationFrame(animate);
+        mesh.rotation.x += 0.05;
+        mesh.rotation.y += 0.05;
+        renderer.render(scene, camera);
+      }
+      animate();
+        if(_thumbFrame > 300){ // ~5s at 60fps then stop to free GPU
+          cancelAnimationFrame(_thumbRafId);
           return;
         }
         _thumbRafId = requestAnimationFrame(animate);
@@ -11612,6 +11632,14 @@ function createInlineMazeWidget(wid, size) {
 
   // Animate
   function animateMaze() {
+    // Self-terminate if canvas has been removed from DOM (defensive against missed _destroy calls)
+    if (!ws.animId || !document.body.contains(canvas)) {
+      cancelAnimationFrame(ws.animId);
+      ws.animId = null;
+      try { mRenderer.forceContextLoss(); mRenderer.dispose(); } catch(e) {}
+      delete _mazeWidgets[wid];
+      return;
+    }
     ws.animId = requestAnimationFrame(animateMaze);
     ws.frame++;
     const f = ws.frame;
@@ -14935,6 +14963,15 @@ function deleteSession(idx){
 }
 function switchSession(idx){
   if(idx<0||idx>=S.sessions.length) return;
+  // Destroy all live WebGL widgets from the outgoing session
+  destroyAllMazeWidgets();
+  if (typeof _chat3DWidgets !== 'undefined') {
+    Object.keys(_chat3DWidgets).forEach(function(cid) {
+      var w = _chat3DWidgets[cid];
+      if (w && typeof w.kill === 'function') { try { w.kill(); } catch(e) {} }
+    });
+    for (var k in _chat3DWidgets) delete _chat3DWidgets[k];
+  }
   S.currentSession=idx;saveState();renderMessages();updateFooter();renderToolsContent();
 }
 
@@ -18208,7 +18245,7 @@ window.runWorldStudioInline = async function(msgId, prompt) {
       if (typeof _chat3DWidgets !== 'undefined') {
         _chat3DWidgets[viewerId] = {
           alive: function(){ return _glbAlive; },
-          kill: function(){ _glbAlive = false; try { renderer.dispose(); } catch(e) {} }
+          kill: function(){ _glbAlive = false; try { renderer.forceContextLoss(); renderer.dispose(); } catch(e) {} }
         };
       }
 
@@ -18629,6 +18666,8 @@ function create3DChatViewer(containerId, fileURL, fileName, ext) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
   container.appendChild(renderer.domElement);
+  // alive flag — set false by _chat3DWidgets.kill() to stop RAF loop
+  var _v3dAlive = true;
 
   var controls = null;
   if(typeof THREE.OrbitControls!=='undefined') {
@@ -18708,16 +18747,17 @@ function create3DChatViewer(containerId, fileURL, fileName, ext) {
   // Toggle auto-rotate on double-tap/click
   renderer.domElement.addEventListener('dblclick', function(){ autoRotate = !autoRotate; });
 
-  var alive = true;
+  var alive = _v3dAlive;
   function anim() {
-    if(!alive) return;
+    if(!alive || !_v3dAlive) { alive = false; return; }
+    if(!document.body.contains(container)) { alive = false; try{renderer.forceContextLoss();renderer.dispose();}catch(e){} return; }
     requestAnimationFrame(anim);
     if(autoRotate) modelRoot.rotation.y += 0.008;
     if(controls) controls.update();
     renderer.render(scene, camera);
   }
   anim();
-  _chat3DWidgets[containerId] = {renderer:renderer, alive:function(){return alive;}, kill:function(){alive=false;renderer.dispose();}};
+  _chat3DWidgets[containerId] = {renderer:renderer, alive:function(){return alive;}, kill:function(){ alive=false; _v3dAlive=false; try{renderer.forceContextLoss();renderer.dispose();}catch(e){} }};
 }
 
 function init3DViewersInMessages() {
