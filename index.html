@@ -11631,11 +11631,12 @@ function createInlineMazeWidget(wid, size) {
   canvas.addEventListener('touchend',()=>{ws.isDrag=false;},{passive:true});
 
   // Animate
+  var _mazeAlive = true;
   function animateMaze() {
-    // Self-terminate if canvas has been removed from DOM (defensive against missed _destroy calls)
-    if (!ws.animId || !document.body.contains(canvas)) {
-      cancelAnimationFrame(ws.animId);
-      ws.animId = null;
+    // Self-terminate if killed or canvas removed from DOM
+    if (!_mazeAlive || !document.body.contains(canvas)) {
+      _mazeAlive = false;
+      if (ws.animId) { cancelAnimationFrame(ws.animId); ws.animId = null; }
       try { mRenderer.forceContextLoss(); mRenderer.dispose(); } catch(e) {}
       delete _mazeWidgets[wid];
       return;
@@ -11715,6 +11716,7 @@ function createInlineMazeWidget(wid, size) {
 
   // ── Destroy: free WebGL context + cancel RAF + disconnect observer ──────
   ws._destroy = function() {
+    _mazeAlive = false;
     mro.disconnect();
     if(ws.animId) { cancelAnimationFrame(ws.animId); ws.animId = null; }
     if(ws.solveTimer) { clearTimeout(ws.solveTimer); ws.solveTimer = null; }
