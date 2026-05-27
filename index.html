@@ -1387,6 +1387,42 @@ body.theme-departure .glass,body.theme-departure .msg-autumn{
   background:rgba(22,10,0,0.72);border-color:rgba(255,120,40,0.16);
 }
 body.theme-departure ::-webkit-scrollbar-thumb{background:rgba(255,140,40,.28)}
+/* ── Ash Tree theme overrides ── */
+body.theme-ashtree{
+  --cyan:#7ddc8e;--blue:#3a9e55;--red:#a8e63d;
+  --bg:#010a04;--bg2:#040f06;
+  --border:rgba(80,200,100,0.14);
+  --text:#c8ecd0;--dim:#3a6b44;--bright:#e0f8e8;
+  --tt-color:#7ddc8e;
+}
+body.theme-ashtree header{
+  background:linear-gradient(180deg,rgba(20,80,30,.10) 0%,transparent 100%);
+  border-bottom-color:rgba(80,200,100,0.15);
+}
+body.theme-ashtree #vid-scrim{
+  background:rgba(1,10,3,0.22)!important;
+  backdrop-filter:blur(5px) saturate(1.4) hue-rotate(5deg)!important;
+  -webkit-backdrop-filter:blur(5px) saturate(1.4) hue-rotate(5deg)!important;
+}
+body.theme-ashtree .logo{
+  background:linear-gradient(135deg,#7ddc8e 0%,#3a9e55 45%,#a8e63d 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 8px rgba(80,220,100,0.55));
+}
+body.theme-ashtree .chat-bubble,.theme-ashtree .msg-wrap{
+  background:rgba(4,14,6,0.72)!important;
+  border-color:rgba(80,200,100,0.18)!important;
+}
+body.theme-ashtree .ov-grid{
+  background-image:linear-gradient(rgba(80,200,100,.18) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(80,200,100,.18) 1px,transparent 1px);
+}
+body.theme-ashtree #brpn-region{border-bottom-color:rgba(80,200,100,0.15)}
+body.theme-ashtree #multi-user-bar{border-top-color:rgba(80,200,100,0.15)}
+body.theme-ashtree .glass,body.theme-ashtree .msg-autumn{
+  background:rgba(4,14,6,0.72);border-color:rgba(80,200,100,0.16);
+}
+body.theme-ashtree ::-webkit-scrollbar-thumb{background:rgba(80,200,100,.28)}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden}
 body{background:transparent;font-family:var(--font-b);color:var(--text);display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
@@ -17528,6 +17564,14 @@ ashLoadDefs();
       bodyClass: 'theme-departure'
     },
     {
+      key:   'ashtree',
+      label: 'ASH TREE',
+      dot:   '🌿',
+      color: '#7ddc8e',      // forest green glow
+      video: 'assets/ashtree.mp4',
+      bodyClass: 'theme-ashtree'
+    },
+    {
       key:   'system',
       label: 'AUTO',
       dot:   '◈',
@@ -17553,7 +17597,7 @@ ashLoadDefs();
     const btn   = document.getElementById('theme-toggle');
 
     // Swap body class
-    body.classList.remove('theme-night','theme-stealth','theme-departure');
+    body.classList.remove('theme-night','theme-stealth','theme-departure','theme-ashtree');
     if (effective.bodyClass) body.classList.add(effective.bodyClass);
 
     // Swap video with crossfade
@@ -17585,6 +17629,9 @@ ashLoadDefs();
       } else if (effective.key === 'departure') {
         _logoImg.src = 'assets/autumnsensor.png';
         _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(255,140,40,0.65))';
+      } else if (effective.key === 'ashtree') {
+        _logoImg.src = 'assets/autumn.png';
+        _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(80,220,100,0.65))';
       } else {
         _logoImg.src = 'assets/autumn.png';
         _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(191,0,255,.3))';
