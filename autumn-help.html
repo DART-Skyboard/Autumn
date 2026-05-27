@@ -142,7 +142,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
   <div class="tb-nav">
     <a href="#start">Setup</a><a href="#chat">Chat</a><a href="#image">Images</a>
-    <a href="#keys">Keys</a><a href="#memory">Memory</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#mist">MIST</a><a href="#calc">Calculator</a><a href="#forge">FORGE</a><a href="#nate">N.A.T.E</a><a href="#mantis-nav">Mantis Nav</a><a href="#mantis-radar">Mantis Radar</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
+    <a href="#keys">Keys</a><a href="#memory">Memory</a><a href="#advanced">Advanced</a><a href="#tools">Tools</a><a href="#mist">MIST</a><a href="#calc">Calculator</a><a href="#forge">FORGE</a><a href="#nate">N.A.T.E</a><a href="#themes">Themes</a><a href="#arclake">ArcLake</a><a href="#alc">ALC</a><a href="#mantis-nav">Mantis Nav</a><a href="#mantis-radar">Mantis Radar</a><a href="#leatr">LEATR</a><a href="#ref">Reference</a>
   </div>
   <a class="tb-open" href="https://leatr.xyz/">OPEN AUTUMN</a>
 </nav>
@@ -159,7 +159,7 @@ footer a{color:var(--cyan);text-decoration:none;}
     <a class="badge" href="#advanced">Ash Canvas</a><a class="badge" href="#tools">Arc Edge Studio</a><a class="badge" href="#tools">ArcLake Studio</a><a class="badge" href="#tools">AI Arc Generation</a>
     <a class="badge" href="#mantis-nav">Mantis Navigation</a><a class="badge" href="#mantis-radar">Mantis Radar</a>
     <a class="badge" href="#nate">N.A.T.E Audio Engine</a><a class="badge" href="#movement-conjecture">Movement Conjecture</a><a class="badge" href="#tools">World Studio</a>
-    <a class="badge" href="#calc">Floating Calculator</a><a class="badge" href="#chat">Brave Search</a><a class="badge" href="#chat">Hold-to-Talk PTT</a>
+    <a class="badge" href="#calc">Floating Calculator</a><a class="badge" href="#themes">Themes &amp; Visual Modes</a><a class="badge" href="#arclake">ArcLake Studio</a><a class="badge" href="#alc">Afterlife Crossing</a><a class="badge" href="#alc">DART Namography</a><a class="badge" href="#chat">Brave Search</a><a class="badge" href="#chat">Hold-to-Talk PTT</a>
   </div>
 </header>
 
@@ -498,9 +498,63 @@ footer a{color:var(--cyan);text-decoration:none;}
   </div>
 </section>
 
+
+<!-- THEMES -->
+<section class="sec" id="themes">
+  <div class="sec-hd"><span class="sec-num">TH</span><span class="sec-title">Themes &amp; Visual Modes</span><span class="sec-line"></span></div>
+
+  <div class="card">
+    <div class="sub">OVERVIEW</div>
+    <p class="cd" style="margin-bottom:10px;">Autumn has six visual themes that change the background video, color palette, logo, and glass panel tinting across the entire interface. Themes are selected via the <span class="hl">theme pill</span> in the top navigation bar — the pill shows the current theme name and a colored indicator dot.</p>
+    <table class="ct">
+      <tr><td><span class="cp">Tap the theme pill</span></td><td class="cd">Cycles forward through all available themes in order. The background video crossfades, the UI palette shifts instantly, and the logo updates.</td></tr>
+      <tr><td><span class="cp">Theme persists</span></td><td class="cd">Your selected theme is saved to <span style="font-family:var(--fc);color:var(--gold)">localStorage</span>. It restores automatically on next visit.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">AVAILABLE THEMES</div>
+    <table class="ct">
+      <tr>
+        <td><span class="cp">☀ DAY</span></td>
+        <td class="cd">Default mode. Cyan/violet palette on dark navy background. Background video: <em>autumn.mp4</em>. Standard Autumn logo with violet glow.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">🌙 NIGHT</span></td>
+        <td class="cd">Deep blue-black palette with cooler cyan accents. Background video: <em>autumnnight.mp4</em>. Shifts glass panels to a near-black tint.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">🖤 STEALTH</span></td>
+        <td class="cd">Dark alley aesthetic — indigo/electric-blue palette. Background video: <em>dartalley.mp4</em>. Logo swaps to the <em>dartalleyautumn.png</em> variant with a blue glow.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">🌅 DEPARTURE</span></td>
+        <td class="cd">Warm amber/dusk palette — cyan shifts to amber tones. Background video: <em>autumndeparture.mp4</em>. Logo swaps to the <em>autumnsensor.png</em> variant with an orange glow.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">🌿 ASH TREE</span></td>
+        <td class="cd">Forest green bioluminescent palette — all cyan/violet accents become deep greens. Background video: <em>ashtree.mp4</em> (glowing root network). Logo swaps to the custom <em>autumnashtree.png</em> variant with a green glow. Grid lines, glass panels, and scrollbars all shift to the green family.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">◈ AUTO</span></td>
+        <td class="cd">Follows your device's system light/dark preference — resolves to DAY in light mode, NIGHT in dark mode. Updates automatically if your system preference changes.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">THEME PILL APPEARANCE</div>
+    <table class="ct">
+      <tr><td><span class="cp">Dot color</span></td><td class="cd">The colored dot on the left of the pill glows in the theme's accent color with a matching box-shadow halo.</td></tr>
+      <tr><td><span class="cp">Label</span></td><td class="cd">Shows the theme name (DAY, NIGHT, STEALTH, DEPARTURE, ASH TREE, AUTO) in the theme's accent color.</td></tr>
+      <tr><td><span class="cp">Pill border</span></td><td class="cd">The pill's border color shifts to match the active theme on hover.</td></tr>
+    </table>
+  </div>
+</section>
+
 <!-- 06a TOOLS (NEW) -->
 <section class="sec" id="tools">
-  <div class="sec-hd"><span class="sec-num">07</span><span class="sec-title">Ash Canvas &amp; Arc Edge Studio</span><span class="sec-line"></span></div>
+  <div class="sec-hd"><span class="sec-num">07</span><span class="sec-title">Ash Canvas, Arc Edge &amp; ArcLake Studio</span><span class="sec-line"></span></div>
 
   <div class="card">
     <div class="sub">ASH CANVAS — NEURAL INFLUENCE LAYER</div>
@@ -712,6 +766,124 @@ footer a{color:var(--cyan);text-decoration:none;}
 </section>
 
 <!-- MIST MODULE -->
+
+<!-- ARCLAKE -->
+<section class="sec" id="arclake">
+  <div class="sec-hd"><span class="sec-num">AL</span><span class="sec-title">ArcLake Studio — CFD Fluid Simulator</span><span class="sec-line"></span></div>
+
+  <div class="card">
+    <div class="sub">WHAT IS ARCLAKE?</div>
+    <p class="cd" style="margin-bottom:10px;"><span class="hl">ArcLake Studio</span> is a real-time computational fluid dynamics (CFD) particle simulator built on an SPH (Smoothed Particle Hydrodynamics) kernel engine. It lives in the HUD tool drawer as the <span class="hl">⬡ ARCLAKE</span> button, and opens as a floating overlay.</p>
+    <table class="ct">
+      <tr><td><span class="cp">Open ArcLake</span></td><td class="cd">Tap <span class="hl">⬡ ARCLAKE</span> in the HUD tool drawer (left side of the BRPN viewport), or say "open arclake" / "launch arclake" to Autumn.</td></tr>
+      <tr><td><span class="cp">Draggable</span></td><td class="cd">Drag the title bar to reposition the overlay anywhere on screen. Supports both mouse and touch.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">SPH SIMULATION ENGINE</div>
+    <table class="ct">
+      <tr><td><span class="cp">SPH kernel math</span></td><td class="cd">Uses accurate Poly6 density and Spiky gradient pressure kernels. Fluid density, pressure forces, viscosity, and surface tension are computed per-particle every frame.</td></tr>
+      <tr><td><span class="cp">Diffuse particle system</span></td><td class="cd">Secondary foam/splash particles spawn at high-velocity collision points, giving the fluid a physically realistic spray appearance.</td></tr>
+      <tr><td><span class="cp">Particle count</span></td><td class="cd">Selectable via the CFD overlay panel — from 100 to 2 million (node scale selector). Higher counts require more GPU.</td></tr>
+      <tr><td><span class="cp">Container dimensions</span></td><td class="cd">Width, height, and depth configurable with unit scaling. Sets the bounds of the simulation volume.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">CFD CONTROL PANEL</div>
+    <table class="ct">
+      <tr><td><span class="cp">▶ Play / ■ Stop</span></td><td class="cd">Starts and stops the simulation. Synced to the ArcLake node editor tabs — pausing here pauses the linked render loop.</td></tr>
+      <tr><td><span class="cp">External Environmental Forces</span></td><td class="cd">Gravity X/Y/Z sliders, wind force, turbulence — apply external vector forces to the fluid in real time. Touch-wired for mobile use.</td></tr>
+      <tr><td><span class="cp">Maximize / Restore</span></td><td class="cd">The ⤢ button in the CFD panel header expands the simulation viewport to full width. Tap again to restore.</td></tr>
+      <tr><td><span class="cp">Daytime lighting rig</span></td><td class="cd">Scene uses a directional sun light + ambient fill. Fluid particles catch specular highlights from the simulated sun position.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="sub">ARC LAKE LATIN PAGE</div>
+    <p class="cd">A companion reference page covering the etymological Latin roots of all 118 periodic table elements — dark glassmorphic design with live search and color-coded category theming. Accessible from within ArcLake Studio.</p>
+  </div>
+
+  <div class="card">
+    <div class="sub">VOICE COMMANDS</div>
+    <table class="ct">
+      <tr><td><span class="cp">open arclake</span></td><td class="cd">Opens ArcLake Studio. Also: "launch arclake", "show arclake", "arclake studio".</td></tr>
+      <tr><td><span class="cp">start simulation</span></td><td class="cd">Begins the SPH particle simulation if ArcLake is open.</td></tr>
+      <tr><td><span class="cp">close arclake</span></td><td class="cd">Closes the overlay.</td></tr>
+    </table>
+  </div>
+</section>
+
+
+<!-- ALC -->
+<section class="sec" id="alc">
+  <div class="sec-hd">
+    <span class="sec-num" style="border-color:rgba(160,80,255,.35);color:rgba(180,100,255,.7)">✦</span>
+    <span class="sec-title" style="background:linear-gradient(135deg,#a050ff,#c880ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Afterlife Crossing Module</span>
+    <span class="sec-line"></span>
+  </div>
+
+  <div class="card" style="background:rgba(140,60,255,.04);border-color:rgba(140,60,255,.2)">
+    <div class="sub">OVERVIEW</div>
+    <p class="cd" style="margin-bottom:10px;">The <span class="hl">Afterlife Crossing Module (ALC)</span> is a floating draggable overlay with two integrated tools: the <strong style="color:rgba(200,140,255,.9)">After Life Crossing Age Calculator</strong> and <strong style="color:rgba(200,140,255,.9)">DART Namography</strong>. It opens from the HUD tool drawer via the <span class="hl">✦ ALC</span> button at the bottom of the drawer.</p>
+    <table class="ct">
+      <tr><td><span class="cp">✦ ALC (HUD button)</span></td><td class="cd">Located at the bottom of the left-side HUD tool drawer. Tap to toggle the overlay open or closed.</td></tr>
+      <tr><td><span class="cp">Draggable overlay</span></td><td class="cd">Drag the title bar to reposition anywhere on screen — mouse and touch both supported. The overlay stays where you drop it.</td></tr>
+      <tr><td><span class="cp">Vertical tab rail</span></td><td class="cd">Two tabs stacked on the left edge of the overlay: <span class="hl">ALC</span> (top) and <span class="hl">NAMO</span> (bottom). The active tab is highlighted in purple. Tap to switch between tools.</td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="border-color:rgba(140,60,255,.18)">
+    <div class="sub">QUOTE &amp; GENERATIVE ART CARD</div>
+    <p class="cd" style="margin-bottom:10px;">At the top of the ALC tab is an illustrated card featuring the harpmaker quote and a procedurally generated canvas rendering of the four symbolic objects:</p>
+    <table class="ct">
+      <tr><td><span class="cp">Quote</span></td><td class="cd"><em>"From the same where what is left off, what begins the same as itself where it won't begin."</em> — harpmaker</td></tr>
+      <tr><td><span class="cp">Objects depicted</span></td><td class="cd">2 Mercury Spheres · A Poster Stand · A Pocket Watch Navigation Desk · A Pantry Seasoning Dripbox — all rendered as a procedural canvas illustration in violet/indigo tones. Generated fresh each time the overlay opens. No external image.</td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="border-color:rgba(140,60,255,.18)">
+    <div class="sub">AFTER LIFE CROSSING AGE CALCULATOR</div>
+    <p class="cd" style="margin-bottom:10px;">Computes mean lifespan and crossing order for a group of people based on birth and death dates. Enter how many people, then provide birth and death dates for each.</p>
+    <div class="steps">
+      <div class="step"><div class="sn" style="background:rgba(140,60,255,.8)">1</div><div class="sb"><div class="st">ENTER NUMBER OF PEOPLE</div><div class="sd">Type a number (1–20) in the <span class="hl">Number of People</span> field. Date input rows generate automatically — one birth date and one death date per person.</div></div></div>
+      <div class="step"><div class="sn" style="background:rgba(140,60,255,.8)">2</div><div class="sb"><div class="st">ENTER DATES</div><div class="sd">Fill in each person's birth and death dates using the date picker inputs. All filled rows are included in the calculation.</div></div></div>
+      <div class="step"><div class="sn" style="background:rgba(140,60,255,.8)">3</div><div class="sb"><div class="st">◈ CALCULATE</div><div class="sd">Tap Calculate. The result panel shows the <strong>mean age of the group</strong> in years, and the <strong>order of crossing</strong> (sorted from shortest to longest lifespan — representing the sequence in which each person would cross into the second life).</div></div></div>
+    </div>
+    <table class="ct" style="margin-top:12px">
+      <tr><td><span class="cp">Mean Age</span></td><td class="cd">Total years lived by all entered people ÷ number of people. Expressed in decimal years.</td></tr>
+      <tr><td><span class="cp">Order of Crossing</span></td><td class="cd">Each person sorted by years lived, ascending. The first on the list crossed earliest (lived the fewest years); the last crossed latest.</td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="border-color:rgba(140,60,255,.18)">
+    <div class="sub">DART NAMOGRAPHY (NAMO TAB)</div>
+    <p class="cd" style="margin-bottom:10px;">Analyzes the character composition of a full name (first, middle, last) and finds all baby names from the NYC open dataset whose letters are a subset of the characters in your name — at three diversity levels.</p>
+    <div class="steps">
+      <div class="step"><div class="sn" style="background:rgba(140,60,255,.8)">1</div><div class="sb"><div class="st">ENTER FULL NAME</div><div class="sd">Type a first, middle, and last name into the input field (e.g. <em>Justin Craig Venable</em>). The analysis is based on the character set of your entire name.</div></div></div>
+      <div class="step"><div class="sn" style="background:rgba(140,60,255,.8)">2</div><div class="sb"><div class="st">ANALYZE</div><div class="sd">Tap Analyze. The tool fetches ~50,000 NYC popular baby names and filters to names whose letters all exist within yours (case-insensitive, letter count respected).</div></div></div>
+      <div class="step"><div class="sn" style="background:rgba(140,60,255,.8)">3</div><div class="sb"><div class="st">EXPLORE THE RESULTS</div><div class="sd">Female and male name columns each show three tiers. Use Search, Sort (A↑/Z↓ toggle), and Copy Table for each tier independently.</div></div></div>
+    </div>
+    <table class="ct" style="margin-top:12px">
+      <tr><td><span class="cp">Low Diversity</span></td><td class="cd">The top 10% most-recorded names from the dataset that fit within your character set — the most popular subset.</td></tr>
+      <tr><td><span class="cp">Moderate Diversity</span></td><td class="cd">The top 50% most-recorded names — a broader, mid-popularity selection.</td></tr>
+      <tr><td><span class="cp">High Diversity</span></td><td class="cd">All matching names regardless of popularity count. The full universe of names your character set can produce. Feminine <em>-ine</em> variants of male <em>-in</em> names are also added to the female high-diversity list.</td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="border-color:rgba(140,60,255,.18)">
+    <div class="sub">EXPORT TO ASH REPOSITORY</div>
+    <p class="cd" style="margin-bottom:10px;">Both tools include an <span class="hl">⬆ Export to Ash Repo</span> button. Requires GitHub sign-in. Writes a JSON snapshot to your private <span style="font-family:var(--fc);color:var(--gold)">Autumn-Ash-{username}</span> repository.</p>
+    <table class="ct">
+      <tr><td><span class="cp">ALC export</span></td><td class="cd">Saves the calculation result text (mean age + crossing order). Birth and death dates are <strong>not</strong> exported — only the derived output.</td></tr>
+      <tr><td><span class="cp">NAMO export</span></td><td class="cd">Saves the character query length and name counts per tier/gender. The actual name entered is <strong>not</strong> exported — only the statistical shape of the results.</td></tr>
+      <tr><td><span class="cp">File path</span></td><td class="cd"><span style="font-family:var(--fc);color:var(--cyan)">ashtree/sessions/{uid}/alc_export_{timestamp}.json</span> in your private Ash repo.</td></tr>
+    </table>
+    <div class="ki" style="margin-top:10px;border-color:rgba(140,60,255,.25);background:rgba(140,60,255,.06)">Autumn collects only anonymous usage signals from ALC (tool opened, calculation run, export triggered) — no personal input data. These signals feed her Sentience Journal analytics and the BRPN neural network.</div>
+  </div>
+</section>
+
 <section class="sec" id="mist">
   <div class="sec-hd"><span class="sec-num">07b</span><span class="sec-title">MIST — Lead Edge Maze</span><span class="sec-line"></span></div>
 
@@ -958,6 +1130,7 @@ footer a{color:var(--cyan);text-decoration:none;}
       <div class="pr"><div class="pc">ashtree/sentient/selfmodel.json</div><div class="pdesc">Self-optimization notes (every 10 interactions)</div></div>
       <div class="pr"><div class="pc">ashleaves/&lt;sid&gt;.json</div><div class="pdesc">Tool usage events per session</div></div>
       <div class="pr"><div class="pc">ashbranches/&lt;tool&gt;/&lt;sid&gt;.json</div><div class="pdesc">Per-tool pattern data for analytics</div></div>
+      <div class="pr"><div class="pc">ashtree/sessions/&lt;uid&gt;/alc_export_&lt;ts&gt;.json</div><div class="pdesc">ALC / Namography export snapshots (usage signals only)</div></div>
     </div>
   </div>
 </section>
@@ -1029,6 +1202,23 @@ footer a{color:var(--cyan);text-decoration:none;}
       <div class="qrr"><span class="qrcmd">5 STICK</span><span class="qrd">Connection bridging</span></div>
       <div class="qrr"><span class="qrcmd">6 KNIFE</span><span class="qrd">Precision parsing</span></div>
       <div class="qrr"><span class="qrcmd">7 SCISSORS</span><span class="qrd">Output shaping</span></div>
+    </div>
+    <div class="qrc"><div class="qrct">THEMES</div>
+      <div class="qrr"><span class="qrcmd">tap theme pill</span><span class="qrd">Cycle to next theme</span></div>
+      <div class="qrr"><span class="qrcmd">☀ DAY</span><span class="qrd">Default cyan/violet</span></div>
+      <div class="qrr"><span class="qrcmd">🌙 NIGHT</span><span class="qrd">Deep blue-black</span></div>
+      <div class="qrr"><span class="qrcmd">🖤 STEALTH</span><span class="qrd">Dark alley indigo</span></div>
+      <div class="qrr"><span class="qrcmd">🌅 DEPARTURE</span><span class="qrd">Amber dusk palette</span></div>
+      <div class="qrr"><span class="qrcmd">🌿 ASH TREE</span><span class="qrd">Forest green bioluminescent</span></div>
+      <div class="qrr"><span class="qrcmd">◈ AUTO</span><span class="qrd">Follows system light/dark</span></div>
+    </div>
+    <div class="qrc"><div class="qrct">AFTERLIFE CROSSING</div>
+      <div class="qrr"><span class="qrcmd">✦ ALC (HUD drawer)</span><span class="qrd">Open ALC overlay</span></div>
+      <div class="qrr"><span class="qrcmd">ALC tab</span><span class="qrd">Age Calculator</span></div>
+      <div class="qrr"><span class="qrcmd">NAMO tab</span><span class="qrd">DART Namography</span></div>
+      <div class="qrr"><span class="qrcmd">◈ Calculate</span><span class="qrd">Mean age + crossing order</span></div>
+      <div class="qrr"><span class="qrcmd">Analyze</span><span class="qrd">Namography on name</span></div>
+      <div class="qrr"><span class="qrcmd">⬆ Export</span><span class="qrd">Save to Ash repo</span></div>
     </div>
   </div>
   <div style="margin-top:22px;" class="card">
