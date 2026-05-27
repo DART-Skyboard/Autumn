@@ -2329,6 +2329,99 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #arc-studio-canvas{width:100%;height:100%;display:block}
 #arc-studio-readout{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border:1px solid rgba(0,229,255,.15);border-radius:4px;padding:6px 8px;font-family:monospace;font-size:9px;color:rgba(0,229,255,.6);line-height:1.55;min-width:120px;pointer-events:none}
 .user-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 5px var(--blue);display:inline-block}
+/* ── AFTERLIFE CROSSING OVERLAY ── */
+#alc-overlay{display:none;position:fixed;z-index:8600;top:70px;left:50%;transform:translateX(-50%);
+  width:min(98vw,680px);background:rgba(6,3,18,.96);border:1px solid rgba(140,60,255,.28);
+  border-radius:12px;box-shadow:0 10px 50px rgba(0,0,0,.75),0 0 30px rgba(140,60,255,.1);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);overflow:hidden;flex-direction:column}
+#alc-overlay.alc-visible{display:flex}
+#alc-drag-hdr{display:flex;align-items:center;gap:8px;padding:8px 14px;
+  background:rgba(140,60,255,.07);border-bottom:1px solid rgba(140,60,255,.15);
+  cursor:move;user-select:none;flex-shrink:0}
+#alc-drag-hdr .alc-title{font-family:var(--font-d);font-size:.48rem;letter-spacing:2px;
+  color:rgba(180,100,255,.75);flex:1}
+.alc-hbtn{background:transparent;border:1px solid rgba(140,60,255,.25);color:rgba(180,100,255,.55);
+  border-radius:3px;padding:2px 9px;cursor:pointer;font-size:.48rem;font-family:var(--font-d);
+  letter-spacing:.5px;transition:all .15s}
+.alc-hbtn:hover{border-color:rgba(180,100,255,.5);color:rgba(200,140,255,1)}
+.alc-hbtn.close{border-color:rgba(255,68,102,.25);color:rgba(255,68,102,.5)}
+.alc-hbtn.close:hover{border-color:#ff4466;color:#ff4466}
+/* vertical tabs */
+#alc-body{display:flex;flex-direction:row;min-height:480px;overflow:hidden}
+#alc-vtabs{display:flex;flex-direction:column;width:38px;flex-shrink:0;
+  background:rgba(0,0,0,.35);border-right:1px solid rgba(140,60,255,.12);padding:8px 0;gap:4px;
+  align-items:center}
+.alc-vtab{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);
+  font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(140,60,255,.45);
+  border:1px solid transparent;border-radius:4px;padding:10px 5px;cursor:pointer;
+  transition:all .2s;user-select:none;white-space:nowrap;width:28px;text-align:center}
+.alc-vtab.active{color:rgba(200,140,255,.95);border-color:rgba(160,80,255,.4);
+  background:rgba(160,80,255,.12);text-shadow:0 0 8px rgba(180,100,255,.5)}
+.alc-vtab:hover:not(.active){color:rgba(180,100,255,.7);border-color:rgba(140,60,255,.2)}
+#alc-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:18px;
+  scrollbar-width:thin;scrollbar-color:rgba(140,60,255,.2) transparent}
+/* quote card */
+.alc-quote-card{display:flex;gap:14px;align-items:flex-start;
+  background:rgba(75,0,130,.22);border:1px solid rgba(140,60,255,.18);border-radius:8px;
+  padding:16px;margin-bottom:16px}
+.alc-quote-art{width:120px;height:120px;flex-shrink:0;border-radius:6px;overflow:hidden;
+  border:1px solid rgba(140,60,255,.2);background:#0d0520;display:flex;align-items:center;
+  justify-content:center}
+.alc-quote-art canvas{width:120px;height:120px}
+.alc-quote-text{flex:1;font-size:.72rem;color:rgba(220,190,255,.75);line-height:1.7;
+  font-family:var(--font-b)}
+.alc-quote-text em{color:rgba(200,140,255,.9);font-style:italic}
+.alc-quote-text .alc-objects{font-size:.62rem;color:rgba(160,100,255,.6);margin-top:6px;
+  font-family:var(--font-d);letter-spacing:.5px}
+/* calc form */
+.alc-section-title{font-family:var(--font-d);font-size:.42rem;letter-spacing:2px;
+  color:rgba(160,80,255,.6);margin-bottom:10px;padding-bottom:5px;
+  border-bottom:1px solid rgba(140,60,255,.12)}
+.alc-input{background:rgba(140,60,255,.06);border:1px solid rgba(140,60,255,.2);
+  border-radius:5px;color:#e0d0ff;font-family:monospace;font-size:12px;
+  padding:7px 10px;width:100%;box-sizing:border-box;outline:none;margin-bottom:8px}
+.alc-input:focus{border-color:rgba(180,100,255,.45)}
+.alc-person-row{background:rgba(140,60,255,.04);border:1px solid rgba(140,60,255,.1);
+  border-radius:6px;padding:10px 12px;margin-bottom:8px}
+.alc-person-label{font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;
+  color:rgba(160,80,255,.55);margin-bottom:6px;display:block}
+.alc-date-row{display:flex;gap:8px}
+.alc-date-row .alc-input{margin-bottom:0}
+.alc-btn{font-family:var(--font-d);font-size:.42rem;letter-spacing:1.5px;
+  padding:8px 16px;border-radius:5px;border:1px solid rgba(160,80,255,.4);
+  background:rgba(140,60,255,.14);color:rgba(200,140,255,.9);cursor:pointer;
+  transition:all .15s;margin-top:4px}
+.alc-btn:hover{background:rgba(160,80,255,.28);border-color:rgba(200,140,255,.6)}
+.alc-btn.export{border-color:rgba(0,229,255,.3);background:rgba(0,229,255,.07);
+  color:rgba(0,229,255,.8)}
+.alc-btn.export:hover{background:rgba(0,229,255,.18)}
+.alc-result{margin-top:14px;background:rgba(75,0,130,.15);border:1px solid rgba(140,60,255,.2);
+  border-radius:6px;padding:12px;font-family:monospace;font-size:11px;
+  color:rgba(220,180,255,.85);white-space:pre-wrap;min-height:48px;line-height:1.7}
+/* namography inside overlay */
+.alc-namo-cols{display:flex;gap:12px;flex-wrap:wrap}
+.alc-namo-col{flex:1;min-width:220px}
+.alc-namo-h3{font-family:var(--font-d);font-size:.42rem;letter-spacing:1.5px;
+  color:rgba(160,80,255,.7);margin:10px 0 6px}
+.alc-namo-h4{font-family:var(--font-d);font-size:.38rem;letter-spacing:1px;
+  color:rgba(140,60,255,.55);margin:8px 0 4px}
+.alc-namo-scroll{max-height:200px;overflow-y:auto;border:1px solid rgba(140,60,255,.12);
+  border-radius:4px;scrollbar-width:thin;scrollbar-color:rgba(140,60,255,.2) transparent}
+.alc-namo-scroll table{border-collapse:collapse;width:100%}
+.alc-namo-scroll td,.alc-namo-scroll th{border:1px solid rgba(140,60,255,.12);
+  padding:4px 6px;font-size:10px;color:rgba(200,170,255,.8)}
+.alc-namo-scroll th{background:rgba(140,60,255,.12);font-family:var(--font-d);
+  font-size:.36rem;letter-spacing:1px;color:rgba(180,120,255,.7)}
+.alc-namo-row{display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap}
+.alc-namo-row input[type=text]{flex:1;background:rgba(140,60,255,.06);
+  border:1px solid rgba(140,60,255,.15);border-radius:4px;color:#e0d0ff;
+  font-size:10px;padding:4px 7px;outline:none;min-width:80px}
+.alc-namo-row button{font-size:9px;padding:3px 7px;border-radius:3px;cursor:pointer;
+  background:rgba(140,60,255,.1);border:1px solid rgba(140,60,255,.25);
+  color:rgba(200,150,255,.8);font-family:var(--font-d);letter-spacing:.5px;
+  transition:all .15s;white-space:nowrap}
+.alc-namo-row button:hover{background:rgba(160,80,255,.25)}
+/* ────────────────────────────────────────────────────── */
 /* ─── IMPROVISATION TAG ──────────────────────────────── */
 .improv-block{margin-top:8px;padding:6px 10px;background:rgba(0,136,255,.04);border:1px solid rgba(0,136,255,.12);border-radius:4px;font-size:.65rem;color:rgba(0,136,255,.6);font-family:var(--font-b)}
 .improv-block span{color:rgba(0,136,255,.4);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;display:block;margin-bottom:2px}
@@ -2719,7 +2812,7 @@ select.ash-ctrl-input{cursor:pointer}
   <!-- BRPN 3D Shell -->
   <div id="brpn-region">
     <div id="brpn-canvas"></div>
-    <div id="cognition-state" style="overflow-y:auto;max-height:calc(100vh - 60px);scrollbar-width:thin;scrollbar-color:rgba(0,229,255,.2) transparent"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-tools-trigger" style="display:none"></div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-arclake-btn" onclick="window.arcLakeStudioToggle&&window.arcLakeStudioToggle()" title="Open / Close ArcLake Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.55);border:1px solid rgba(0,229,255,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,229,255,.07)">⬡ ARCLAKE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div><div id="hud-radar-btn" onclick="window.mantisRadar&&window.mantisRadar.open()" title="Mantis Radar — Live ADS-B + Orbital Globe" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,255,136,.7);border:1px solid rgba(0,255,136,.35);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,255,136,.06)">📡 RADAR</div><div id="hud-mavisnav-btn" onclick="window.mantisNav&&window.mantisNav.open()" title="Mantis Navigation — Aerospace Simulator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,212,255,.7);border:1px solid rgba(0,212,255,.35);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,212,255,.06)">🛸 NAV</div></div>
+    <div id="cognition-state" style="overflow-y:auto;max-height:calc(100vh - 60px);scrollbar-width:thin;scrollbar-color:rgba(0,229,255,.2) transparent"><div class="cog-state-label idle" id="cog-state-lbl">IDLE</div><div id="hud-tools-trigger" style="display:none"></div><div id="hud-calc-btn" onclick="fcToggle()" title="Open / Close Calculator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(139,92,246,.6);border:1px solid rgba(139,92,246,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">CALC</div><div id="hud-arc-btn" onclick="arcStudioToggleFromHud()" title="Open / Close Arc Edge Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.45);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">ARC EDGE</div><div id="hud-arclake-btn" onclick="window.arcLakeStudioToggle&&window.arcLakeStudioToggle()" title="Open / Close ArcLake Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.55);border:1px solid rgba(0,229,255,.3);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,229,255,.07)">⬡ ARCLAKE</div><div id="hud-emomap-btn" onclick="emmToggle()" title="Emotion Mind Map — LEATR hierarchy" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(167,139,250,.55);border:1px solid rgba(167,139,250,.28);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s">EMO MAP</div><div id="hud-forge-btn" onclick="forgeOpen()" title="FORGE — Autumn Code Studio" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,229,255,.5);border:1px solid rgba(0,229,255,.22);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s">FORGE</div><div id="hud-radar-btn" onclick="window.mantisRadar&&window.mantisRadar.open()" title="Mantis Radar — Live ADS-B + Orbital Globe" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,255,136,.7);border:1px solid rgba(0,255,136,.35);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,255,136,.06)">📡 RADAR</div><div id="hud-mavisnav-btn" onclick="window.mantisNav&&window.mantisNav.open()" title="Mantis Navigation — Aerospace Simulator" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(0,212,255,.7);border:1px solid rgba(0,212,255,.35);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(0,212,255,.06)">🛸 NAV</div><div id="hud-alc-btn" onclick="alcOverlayToggle()" title="Afterlife Crossing — ALC Calculator &amp; DART Namography" style="margin-top:4px;font-family:var(--font-d);font-size:.38rem;letter-spacing:1.5px;color:rgba(160,80,255,.75);border:1px solid rgba(160,80,255,.38);border-radius:2px;padding:2px 7px;cursor:pointer;user-select:none;pointer-events:all;transition:color .2s,border-color .2s,text-shadow .2s;background:rgba(160,80,255,.08)">✦ ALC</div></div>
     <div id="thought-pulse"></div>
         <div id="brpn-hud">
       <div>GEO <span class="val" id="hud-geo">—</span></div>
@@ -17630,7 +17723,7 @@ ashLoadDefs();
         _logoImg.src = 'assets/autumnsensor.png';
         _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(255,140,40,0.65))';
       } else if (effective.key === 'ashtree') {
-        _logoImg.src = 'assets/autumnashtree.png';
+        _logoImg.src = 'assets/autumn.png';
         _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(80,220,100,0.65))';
       } else {
         _logoImg.src = 'assets/autumn.png';
@@ -26218,6 +26311,436 @@ window.mantisRadarTabMounted = function(){
 };
 
 console.info('[MantisRadar] Controller ready. URL:', MR_URL);
+})();
+</script>
+
+
+<!-- ── AFTERLIFE CROSSING OVERLAY ── -->
+<div id="alc-overlay">
+  <div id="alc-drag-hdr">
+    <span class="alc-title">✦ AFTERLIFE CROSSING</span>
+    <button class="alc-hbtn" onclick="alcOverlayToggle()">—</button>
+    <button class="alc-hbtn close" onclick="alcOverlayClose()">✕</button>
+  </div>
+  <div id="alc-body">
+    <!-- Vertical tab rail -->
+    <div id="alc-vtabs">
+      <div class="alc-vtab active" data-panel="alc-panel-calc" onclick="alcSwitchTab(this,'alc-panel-calc')">ALC</div>
+      <div class="alc-vtab" data-panel="alc-panel-namo" onclick="alcSwitchTab(this,'alc-panel-namo')">NAMO</div>
+    </div>
+    <!-- Content panels -->
+    <div id="alc-content">
+
+      <!-- ── PANEL 1: After Life Calculator ── -->
+      <div id="alc-panel-calc">
+        <!-- Quote + generative art card -->
+        <div class="alc-quote-card">
+          <div class="alc-quote-art">
+            <canvas id="alc-art-canvas" width="120" height="120"></canvas>
+          </div>
+          <div class="alc-quote-text">
+            <em>"From the same where what is left off<br>what begins the same as itself where it won't begin."</em>
+            <span style="display:block;margin-top:4px;font-size:.6rem;color:rgba(160,100,255,.5)">— harpmaker</span>
+            <div class="alc-objects">{ 2 Mercury Spheres · A Poster Stand · A Pocket Watch Navigation Desk · A Pantry Seasoning Dripbox }</div>
+          </div>
+        </div>
+
+        <div class="alc-section-title">AFTER LIFE CROSSING AGE CALCULATOR</div>
+        <label class="alc-person-label" style="font-size:.55rem;color:rgba(200,160,255,.7)">Number of People</label>
+        <input type="number" id="alc-num" class="alc-input" min="1" max="20" placeholder="e.g. 3" oninput="alcGenerateInputs()" style="width:120px">
+        <div id="alc-people-inputs"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="alc-btn" onclick="alcCalculate()">◈ Calculate</button>
+          <button class="alc-btn export" onclick="alcExport('calc')">⬆ Export to Ash Repo</button>
+        </div>
+        <div id="alc-result" class="alc-result" style="display:none"></div>
+      </div>
+
+      <!-- ── PANEL 2: DART Namography ── -->
+      <div id="alc-panel-namo" style="display:none">
+        <div class="alc-section-title">DART NAMOGRAPHY</div>
+        <p style="font-size:.62rem;color:rgba(200,170,255,.6);margin-bottom:10px">
+          Total Name Character Combinations — Low, Moderate &amp; High Diversity
+        </p>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+          <input type="text" id="alc-namo-input" class="alc-input" placeholder="e.g. Justin Craig Venable"
+            style="flex:1;margin-bottom:0;min-width:160px">
+          <button class="alc-btn" onclick="alcNamoAnalyze()">Analyze</button>
+          <button class="alc-btn export" onclick="alcExport('namo')">⬆ Export to Ash Repo</button>
+        </div>
+        <div id="alc-namo-status" style="font-size:.55rem;color:rgba(160,100,255,.55);margin-bottom:8px"></div>
+        <div class="alc-namo-cols" id="alc-namo-cols">
+          <div class="alc-namo-col">
+            <div class="alc-namo-h3">Female Names</div>
+            <div class="alc-namo-h4">Low Diversity (<span id="alc-fLow">0</span>)</div>
+            <div class="alc-namo-row">
+              <input type="text" id="alc-sf-low" placeholder="Search" oninput="alcNamoFilter('female','low')">
+              <button onclick="alcNamoSort('female','low')">Sort</button>
+              <button onclick="alcNamoCopy('female','low')">Copy</button>
+            </div>
+            <div class="alc-namo-scroll"><table id="alc-ft-low"><thead><tr><th>Name</th></tr></thead><tbody></tbody></table></div>
+            <div class="alc-namo-h4">Moderate (<span id="alc-fMod">0</span>)</div>
+            <div class="alc-namo-row">
+              <input type="text" id="alc-sf-mod" placeholder="Search" oninput="alcNamoFilter('female','moderate')">
+              <button onclick="alcNamoSort('female','moderate')">Sort</button>
+              <button onclick="alcNamoCopy('female','moderate')">Copy</button>
+            </div>
+            <div class="alc-namo-scroll"><table id="alc-ft-mod"><thead><tr><th>Name</th></tr></thead><tbody></tbody></table></div>
+            <div class="alc-namo-h4">High Diversity (<span id="alc-fHigh">0</span>)</div>
+            <div class="alc-namo-row">
+              <input type="text" id="alc-sf-high" placeholder="Search" oninput="alcNamoFilter('female','high')">
+              <button onclick="alcNamoSort('female','high')">Sort</button>
+              <button onclick="alcNamoCopy('female','high')">Copy</button>
+            </div>
+            <div class="alc-namo-scroll"><table id="alc-ft-high"><thead><tr><th>Name</th></tr></thead><tbody></tbody></table></div>
+          </div>
+          <div class="alc-namo-col">
+            <div class="alc-namo-h3">Male Names</div>
+            <div class="alc-namo-h4">Low Diversity (<span id="alc-mLow">0</span>)</div>
+            <div class="alc-namo-row">
+              <input type="text" id="alc-sm-low" placeholder="Search" oninput="alcNamoFilter('male','low')">
+              <button onclick="alcNamoSort('male','low')">Sort</button>
+              <button onclick="alcNamoCopy('male','low')">Copy</button>
+            </div>
+            <div class="alc-namo-scroll"><table id="alc-mt-low"><thead><tr><th>Name</th></tr></thead><tbody></tbody></table></div>
+            <div class="alc-namo-h4">Moderate (<span id="alc-mMod">0</span>)</div>
+            <div class="alc-namo-row">
+              <input type="text" id="alc-sm-mod" placeholder="Search" oninput="alcNamoFilter('male','moderate')">
+              <button onclick="alcNamoSort('male','moderate')">Sort</button>
+              <button onclick="alcNamoCopy('male','moderate')">Copy</button>
+            </div>
+            <div class="alc-namo-scroll"><table id="alc-mt-mod"><thead><tr><th>Name</th></tr></thead><tbody></tbody></table></div>
+            <div class="alc-namo-h4">High Diversity (<span id="alc-mHigh">0</span>)</div>
+            <div class="alc-namo-row">
+              <input type="text" id="alc-sm-high" placeholder="Search" oninput="alcNamoFilter('male','high')">
+              <button onclick="alcNamoSort('male','high')">Sort</button>
+              <button onclick="alcNamoCopy('male','high')">Copy</button>
+            </div>
+            <div class="alc-namo-scroll"><table id="alc-mt-high"><thead><tr><th>Name</th></tr></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- #alc-content -->
+  </div><!-- #alc-body -->
+</div><!-- #alc-overlay -->
+
+<script>
+// ══════════════════════════════════════════════════════
+//  AFTERLIFE CROSSING MODULE  ·  ALC
+// ══════════════════════════════════════════════════════
+(function(){
+
+  // ── Overlay open/close ────────────────────────────
+  var _open = false;
+  window.alcOverlayToggle = function(){
+    _open = !_open;
+    var el = document.getElementById('alc-overlay');
+    if (_open){ el.classList.add('alc-visible'); _alcDrawArt(); }
+    else el.classList.remove('alc-visible');
+  };
+  window.alcOverlayClose = function(){
+    _open = false;
+    document.getElementById('alc-overlay').classList.remove('alc-visible');
+  };
+
+  // ── Vertical tab switch ───────────────────────────
+  window.alcSwitchTab = function(btn, panelId){
+    document.querySelectorAll('.alc-vtab').forEach(function(t){ t.classList.remove('active'); });
+    btn.classList.add('active');
+    document.querySelectorAll('#alc-content > div').forEach(function(p){ p.style.display='none'; });
+    var p = document.getElementById(panelId);
+    if (p) p.style.display='';
+  };
+
+  // ── Draggable ─────────────────────────────────────
+  (function(){
+    var dragging=false, ox=0, oy=0;
+    document.addEventListener('DOMContentLoaded', function(){
+      var hdr = document.getElementById('alc-drag-hdr');
+      var ov  = document.getElementById('alc-overlay');
+      if (!hdr||!ov) return;
+      hdr.addEventListener('mousedown', function(e){
+        if(e.target.tagName==='BUTTON') return;
+        dragging=true;
+        var r=ov.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top;
+        ov.style.transform='none'; ov.style.left=r.left+'px'; ov.style.top=r.top+'px';
+      });
+      document.addEventListener('mousemove', function(e){
+        if(!dragging) return;
+        ov.style.left=(e.clientX-ox)+'px'; ov.style.top=(e.clientY-oy)+'px';
+      });
+      document.addEventListener('mouseup', function(){ dragging=false; });
+      hdr.addEventListener('touchstart', function(e){
+        if(e.target.tagName==='BUTTON') return;
+        var t=e.touches[0]; dragging=true;
+        var r=ov.getBoundingClientRect(); ox=t.clientX-r.left; oy=t.clientY-r.top;
+        ov.style.transform='none'; ov.style.left=r.left+'px'; ov.style.top=r.top+'px';
+      },{passive:true});
+      document.addEventListener('touchmove', function(e){
+        if(!dragging) return;
+        var t=e.touches[0];
+        ov.style.left=(t.clientX-ox)+'px'; ov.style.top=(t.clientY-oy)+'px';
+      },{passive:true});
+      document.addEventListener('touchend', function(){ dragging=false; });
+    });
+  })();
+
+  // ── Generative art — objects from the quote ───────
+  function _alcDrawArt(){
+    var cv = document.getElementById('alc-art-canvas');
+    if (!cv) return;
+    var cx = cv.getContext('2d');
+    var W=120, H=120;
+    cx.clearRect(0,0,W,H);
+    // Background deep space
+    var bg = cx.createRadialGradient(60,60,10,60,60,65);
+    bg.addColorStop(0,'rgba(30,5,60,.9)');
+    bg.addColorStop(1,'rgba(5,2,14,1)');
+    cx.fillStyle=bg; cx.fillRect(0,0,W,H);
+
+    // Mercury Sphere 1
+    var s1=cx.createRadialGradient(38,38,2,38,38,14);
+    s1.addColorStop(0,'rgba(220,200,255,.95)');
+    s1.addColorStop(.4,'rgba(160,100,255,.7)');
+    s1.addColorStop(1,'rgba(80,30,140,.1)');
+    cx.beginPath(); cx.arc(38,38,14,0,Math.PI*2);
+    cx.fillStyle=s1; cx.fill();
+    cx.beginPath(); cx.arc(38,38,14,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,150,255,.5)'; cx.lineWidth=.8; cx.stroke();
+
+    // Mercury Sphere 2
+    var s2=cx.createRadialGradient(78,42,2,78,42,10);
+    s2.addColorStop(0,'rgba(220,200,255,.95)');
+    s2.addColorStop(.4,'rgba(160,100,255,.65)');
+    s2.addColorStop(1,'rgba(80,30,140,.1)');
+    cx.beginPath(); cx.arc(78,42,10,0,Math.PI*2);
+    cx.fillStyle=s2; cx.fill();
+    cx.beginPath(); cx.arc(78,42,10,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,150,255,.4)'; cx.lineWidth=.7; cx.stroke();
+
+    // Poster Stand (thin vertical with base)
+    cx.strokeStyle='rgba(160,100,255,.65)'; cx.lineWidth=1.5;
+    cx.beginPath(); cx.moveTo(60,20); cx.lineTo(60,78); cx.stroke();
+    cx.beginPath(); cx.moveTo(50,78); cx.lineTo(70,78); cx.stroke(); // base
+    cx.beginPath(); cx.moveTo(53,78); cx.lineTo(48,85); cx.stroke();
+    cx.beginPath(); cx.moveTo(67,78); cx.lineTo(72,85); cx.stroke();
+    // poster top crossbar
+    cx.lineWidth=1;
+    cx.beginPath(); cx.moveTo(52,26); cx.lineTo(68,26); cx.stroke();
+
+    // Pocket Watch Navigation Desk (small desk shape + circle)
+    cx.strokeStyle='rgba(180,130,255,.5)'; cx.lineWidth=1;
+    cx.strokeRect(82,70,26,18); // desk surface
+    cx.beginPath(); cx.moveTo(84,88); cx.lineTo(84,96); cx.stroke(); // leg
+    cx.beginPath(); cx.moveTo(106,88); cx.lineTo(106,96); cx.stroke();
+    // watch circle on desk
+    cx.beginPath(); cx.arc(95,78,4,0,Math.PI*2);
+    cx.strokeStyle='rgba(220,180,255,.6)'; cx.stroke();
+    cx.beginPath(); cx.moveTo(95,78); cx.lineTo(95,75); cx.stroke(); // hand
+
+    // Pantry Seasoning Dripbox (small bottle/box lower left)
+    cx.fillStyle='rgba(100,50,200,.3)';
+    cx.strokeStyle='rgba(160,100,255,.45)'; cx.lineWidth=1;
+    cx.beginPath(); cx.roundRect(10,80,16,28,3); cx.fill(); cx.stroke();
+    // drip nozzle
+    cx.beginPath(); cx.moveTo(18,80); cx.lineTo(18,74);
+    cx.strokeStyle='rgba(200,150,255,.5)'; cx.stroke();
+    cx.beginPath(); cx.arc(18,72,2.5,0,Math.PI*2);
+    cx.fillStyle='rgba(200,150,255,.4)'; cx.fill();
+    // label line
+    cx.strokeStyle='rgba(160,100,255,.3)'; cx.lineWidth=.5;
+    cx.beginPath(); cx.moveTo(13,90); cx.lineTo(23,90); cx.stroke();
+
+    // Ambient particles
+    cx.fillStyle='rgba(200,160,255,.35)';
+    [[22,62],[45,18],[90,30],[105,55],[30,100],[70,105]].forEach(function(p){
+      cx.beginPath(); cx.arc(p[0],p[1],1,0,Math.PI*2); cx.fill();
+    });
+  }
+  window._alcDrawArt = _alcDrawArt;
+
+  // ══════════════════════════════════════════════════
+  //  ALC CALCULATOR
+  // ══════════════════════════════════════════════════
+  window.alcGenerateInputs = function(){
+    var n = parseInt(document.getElementById('alc-num').value)||0;
+    var div = document.getElementById('alc-people-inputs');
+    div.innerHTML='';
+    for(var i=1;i<=Math.min(n,20);i++){
+      div.innerHTML+=
+        '<div class="alc-person-row">' +
+        '<span class="alc-person-label">PERSON '+i+'</span>' +
+        '<div class="alc-date-row">' +
+        '<input type="date" id="alc-birth'+i+'" class="alc-input" placeholder="Birth Date">' +
+        '<input type="date" id="alc-death'+i+'" class="alc-input" placeholder="Death Date">' +
+        '</div></div>';
+    }
+    document.getElementById('alc-result').style.display='none';
+  };
+
+  window.alcCalculate = function(){
+    var n=parseInt(document.getElementById('alc-num').value)||0;
+    var lives=[]; var total=0;
+    for(var i=1;i<=n;i++){
+      var b=new Date(document.getElementById('alc-birth'+i)&&document.getElementById('alc-birth'+i).value||'');
+      var d=new Date(document.getElementById('alc-death'+i)&&document.getElementById('alc-death'+i).value||'');
+      if(!isNaN(b.getTime())&&!isNaN(d.getTime())){
+        var yrs=(d-b)/(365.25*24*3600*1000);
+        lives.push({p:'Person '+i, y:yrs}); total+=yrs;
+      }
+    }
+    var res=document.getElementById('alc-result');
+    res.style.display='';
+    if(!lives.length){ res.textContent='Please provide valid birth and death dates.'; return; }
+    lives.sort(function(a,b){return a.y-b.y;});
+    var mean=total/n;
+    var out='MEAN AGE OF GROUP: '+mean.toFixed(2)+' years\n\n';
+    out+='ORDER OF CROSSING (second life):\n';
+    lives.forEach(function(l){ out+='  '+l.p+': '+l.y.toFixed(2)+' years\n'; });
+    res.textContent=out;
+    // Journal event (no personal data — just usage signal)
+    _alcJournalEvent('alc_calculate', {people:lives.length, mean:parseFloat(mean.toFixed(2))});
+  };
+
+  // ══════════════════════════════════════════════════
+  //  DART NAMOGRAPHY
+  // ══════════════════════════════════════════════════
+  var _namo = {
+    fLists:{low:[],moderate:[],high:[]},
+    mLists:{low:[],moderate:[],high:[]},
+    fOrig:{}, mOrig:{},
+    sorts:{}
+  };
+
+  window.alcNamoAnalyze = async function(){
+    var inp = (document.getElementById('alc-namo-input').value||'').trim();
+    if(!inp){ alert('Enter a name.'); return; }
+    document.getElementById('alc-namo-status').textContent='Fetching NYC baby name dataset…';
+    try{
+      var url='https://data.cityofnewyork.us/resource/25th-nujf.json?$select=nm,gndr,sum(cnt)%20as%20cnt&$group=nm,gndr&$limit=50000';
+      var r=await fetch(url);
+      var data=await r.json();
+      var counts={};
+      inp.toLowerCase().replace(/[^a-z]/g,'').split('').forEach(function(c){ counts[c]=(counts[c]||0)+1; });
+      function isSubset(word){
+        var wc={};
+        for(var i=0;i<word.length;i++){
+          var ch=word[i]; wc[ch]=(wc[ch]||0)+1;
+          if(!counts[ch]||wc[ch]>counts[ch]) return false;
+        }
+        return true;
+      }
+      var females=[],males=[];
+      data.forEach(function(item){
+        var nm=(item.nm||'').toLowerCase(), cnt=parseInt(item.cnt,10)||0;
+        if(!isSubset(nm)) return;
+        if(item.gndr==='FEMALE') females.push({name:nm,count:cnt});
+        else males.push({name:nm,count:cnt});
+      });
+      function categorize(arr){
+        if(!arr.length) return {low:[],moderate:[],high:[]};
+        var sorted=[].concat(arr).sort(function(a,b){return b.count-a.count;});
+        var L=sorted.length;
+        var lowCut=sorted[Math.floor(L*.1)]&&sorted[Math.floor(L*.1)].count||0;
+        var modCut=sorted[Math.floor(L*.5)]&&sorted[Math.floor(L*.5)].count||0;
+        return {
+          low: sorted.filter(function(i){return i.count>=lowCut;}).map(function(i){return i.name;}),
+          moderate: sorted.filter(function(i){return i.count>=modCut;}).map(function(i){return i.name;}),
+          high: Array.from(new Set(sorted.map(function(i){return i.name;})))
+        };
+      }
+      var fc=categorize(females), mc=categorize(males);
+      var inV=males.map(function(i){return i.name;}).filter(function(n){return n.endsWith('in');}).map(function(n){return n+'e';});
+      fc.high=Array.from(new Set(fc.high.concat(inV)));
+      _namo.fOrig={low:fc.low.slice(),moderate:fc.moderate.slice(),high:fc.high.slice()};
+      _namo.mOrig={low:mc.low.slice(),moderate:mc.moderate.slice(),high:mc.high.slice()};
+      _namo.fLists=fc; _namo.mLists=mc;
+      _alcNamoDisplay();
+      document.getElementById('alc-namo-status').textContent='Analysis complete.';
+      _alcJournalEvent('alc_namography', {nameLen:inp.length});
+    } catch(e){
+      document.getElementById('alc-namo-status').textContent='Error: '+e.message;
+    }
+  };
+
+  function _alcNamoDisplay(){
+    ['low','moderate','high'].forEach(function(lvl){
+      _alcNamoUpdateTable('female',lvl); _alcNamoUpdateTable('male',lvl);
+    });
+  }
+  function _alcNamoUpdateTable(g,lvl){
+    var tableId = g==='female'?{low:'alc-ft-low',moderate:'alc-ft-mod',high:'alc-ft-high'}[lvl]:{low:'alc-mt-low',moderate:'alc-mt-mod',high:'alc-mt-high'}[lvl];
+    var countId = g==='female'?{low:'alc-fLow',moderate:'alc-fMod',high:'alc-fHigh'}[lvl]:{low:'alc-mLow',moderate:'alc-mMod',high:'alc-mHigh'}[lvl];
+    var list = g==='female'?_namo.fLists[lvl]:_namo.mLists[lvl];
+    var uniq = Array.from(new Set(list));
+    var t=document.getElementById(tableId);
+    if(!t) return;
+    t.querySelector('tbody').innerHTML=uniq.map(function(n){return '<tr><td>'+n+'</td></tr>';}).join('');
+    document.getElementById(countId).textContent=uniq.length;
+  }
+  window.alcNamoFilter = function(g,lvl){
+    var idMap={female:{low:'alc-sf-low',moderate:'alc-sf-mod',high:'alc-sf-high'},male:{low:'alc-sm-low',moderate:'alc-sm-mod',high:'alc-sm-high'}};
+    var q=(document.getElementById(idMap[g][lvl]).value||'').toLowerCase();
+    var src=g==='female'?_namo.fOrig[lvl]:_namo.mOrig[lvl];
+    var filt=(src||[]).filter(function(n){return n.includes(q);});
+    if(g==='female') _namo.fLists[lvl]=filt; else _namo.mLists[lvl]=filt;
+    _alcNamoDisplay();
+  };
+  window.alcNamoSort = function(g,lvl){
+    var key=g+'_'+lvl; _namo.sorts[key]=!_namo.sorts[key];
+    var d=_namo.sorts[key]?1:-1;
+    var arr=g==='female'?_namo.fLists[lvl]:_namo.mLists[lvl];
+    arr.sort(function(a,b){return a.localeCompare(b)*d;});
+    _alcNamoDisplay();
+  };
+  window.alcNamoCopy = function(g,lvl){
+    var list=g==='female'?_namo.fLists[lvl]:_namo.mLists[lvl];
+    navigator.clipboard.writeText(list.join('\n')).then(function(){ alert('Copied '+list.length+' names'); });
+  };
+
+  // ══════════════════════════════════════════════════
+  //  EXPORT TO ASH REPO
+  //  Writes usage/analytics data only — no personal input
+  // ══════════════════════════════════════════════════
+  window.alcExport = function(tool){
+    var uid = (window._aut_uid || window._ashNodes && window._ashNodes._localUid) || null;
+    var pat = (typeof _getPAT==='function') ? _getPAT() : null;
+    if(!uid||!pat){
+      alert('Sign in with GitHub to export to your Ash repository.'); return;
+    }
+    var payload = {
+      tool: tool,
+      exported_at: new Date().toISOString(),
+      uid: uid,
+      // ALC: export result text (no birth/death dates)
+      calc_result: tool==='calc' ? (document.getElementById('alc-result').textContent||'') : null,
+      // NAMO: export name query character set size only (not the full name)
+      namo_query_len: tool==='namo' ? ((document.getElementById('alc-namo-input').value||'').trim().length) : null,
+      namo_counts: tool==='namo' ? {
+        fLow:_namo.fLists.low.length, fMod:_namo.fLists.moderate.length, fHigh:_namo.fLists.high.length,
+        mLow:_namo.mLists.low.length, mMod:_namo.mLists.moderate.length, mHigh:_namo.mLists.high.length
+      } : null
+    };
+    var path = 'ashtree/sessions/'+uid+'/alc_export_'+Date.now()+'.json';
+    if(typeof writeLeatrAshMemory==='function'){
+      writeLeatrAshMemory(path, payload);
+      alert('Exported to your Ash repository (' + path + ')');
+    } else {
+      alert('Ash memory writer not ready — try again after login.');
+    }
+    _alcJournalEvent('alc_export', {tool:tool});
+  };
+
+  // ── Sentience Journal analytics event (no PII) ───
+  function _alcJournalEvent(type, meta){
+    try{
+      if(typeof window._SJ==='object' && typeof window._SJ.push==='function'){
+        window._SJ.push({type:type, ts:Date.now(), meta:meta||{}});
+      }
+    }catch(e){}
+  }
+
 })();
 </script>
 
