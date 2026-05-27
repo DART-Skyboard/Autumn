@@ -24798,7 +24798,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       '#sysbrd-ts-row{font-family:var(--font-d,monospace);font-size:.38rem;letter-spacing:1.5px;' +
         'color:rgba(0,229,255,.35);margin-bottom:9px}' +
       '#sysbrd-msg-text{font-size:.62rem;line-height:1.8;color:rgba(224,244,255,.88);' +
-        'font-family:var(--font-b,sans-serif);min-height:40px;word-break:break-word;transition:font-size .15s}' +
+        'font-family:var(--font-b,sans-serif);min-height:40px;word-break:break-word;white-space:pre-wrap;transition:font-size .15s}' +
       '#sysbrd-msg-text.def{color:rgba(224,244,255,.35);font-style:italic}' +
       /* Admin modal */
       '#sysbrd-admin-modal{position:fixed;inset:0;z-index:19000;' +
@@ -24910,7 +24910,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var msg  = (data && data.message) ? data.message : DEF;
     var live = (msg !== DEF);
     var upd  = (data && data.updated) ? new Date(data.updated) : null;
-    mg.textContent = msg;
+    // Preserve newlines: escape HTML entities then convert \n to <br>
+    var _esc = msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    mg.innerHTML = _esc.replace(/\n/g,'<br>');
+    mg.style.whiteSpace = 'pre-wrap';
     mg.className   = live ? '' : 'def';
     if(ts) ts.textContent = live && upd
       ? 'UPDATED ' + upd.toLocaleDateString() + ' \u00b7 ' + upd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
