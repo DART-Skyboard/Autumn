@@ -61,14 +61,12 @@ function showDataPolicy() {
   document.getElementById('consent-modal').style.display = 'flex';
 }
 
-// ============================================================
 //  LEATR-ASH -- Background Neural Memory System
 //  Writes silently for EVERY visitor -- no user setup needed.
 //
 //  All GitHub writes are proxied through the Apps Script server.
 //  No tokens are stored client-side. The GAS web app holds
 //  credentials server-side and handles all repo writes securely.
-// ============================================================
 
 // No client-side token -- all leatr-ash writes go via GAS proxy
 const _ASH_BOT = null;
@@ -1004,12 +1002,10 @@ window._GradioClient = Client;
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <script>
 
-// ============================================================
 //  AUTUMN IDENTITY CORE — Visual & Personality DNA
 //  Hard-coded by DART Meadow / Radical Deepscale LLC
 //  These are Autumn's canonical self-reference data points.
 //  All image generation requests for "herself" use this.
-// ============================================================
 const AUTUMN_IDENTITY = {
   name: 'Autumn',
   fullName: 'Autumn — Lead Edge Ash Tree Reflex Neural Entity',
@@ -3484,12 +3480,10 @@ select.ash-ctrl-input{cursor:pointer}
 </div>
 
 <script>
-// ============================================================
 //  AUTUMN v2.1 — LEATR ENGINE + CONTACT/CONTEXT/ROUTING +
 //  LOCATION/WEATHER/OSM + HABIT MEMORY + MULTI-USER
 //  Lead Edge Ash Tree Reflex Neural Network
 //  © 2026 DART Meadow | Radical Deepscale LLC.
-// ============================================================
 
 // --- STORAGE ---
 let useStorage = false;
@@ -3601,12 +3595,10 @@ function loadState() {
   } catch(e) { _initFoundationJournal(); }
 }
 
-// ============================================================
 //  AUTUMN FOUNDATION JOURNAL — Default knowledge at init
 //  This is what she always knows without looking anything up.
 //  Language · Grammar · Math · Physics · Natural Tools · Self
 //  Grows from here — APIs fill the gaps, journal stores new learning
-// ============================================================
 function _initFoundationJournal() {
   _ensureFoundationMemory();
 }
@@ -4105,9 +4097,7 @@ function newChat() {
   }
 }
 
-// ============================================================
 //  GRAMMAR ENGINE — Full NLP Constants & Parser
-// ============================================================
 const VOWELS = new Set(["a","e","i","o","u"]);
 const ARTICLES = new Set(["the","a","an","this","that","these","those","some","any","each","every"]);
 const PREPOSITIONS = new Set(["to","in","on","at","by","for","with","from","of","about","above","across","after","against","along","among","around","before","behind","below","beneath","beside","between","beyond","during","except","inside","into","near","off","onto","out","outside","over","past","since","through","throughout","toward","towards","under","underneath","until","unto","up","upon","within","without"]);
@@ -4176,9 +4166,7 @@ function grammarSignature(parsed) {
   return parsed.sentences.map(s=>s.tokens.map(t=>t.type[0]).join("")).join("|");
 }
 
-// ============================================================
 //  DEEP GRAMMAR ANALYSIS — Clause, Discourse, Semantic, Rhetorical
-// ============================================================
 const DISCOURSE_MARKERS = {
   contrast:   ["however","but","yet","although","though","whereas","nevertheless","nonetheless","despite","on the other hand","conversely"],
   causal:     ["because","therefore","thus","hence","so","consequently","as a result","since","due to","owing to","for this reason"],
@@ -4293,16 +4281,12 @@ function grammarDeepSignature(parsed, deep) {
 }
 
 
-// ============================================================
 //  LEATR MATH ENGINE
-// ============================================================
 const NATURAL_TOOLS=["Maze","Puzzle","Envelope","Hammer","Stick","Knife","Scissors"];
 
-// ============================================================
 //  LEATR IDENTITY DERIVATION — name emerges from math, not declaration
 //  AUTONOMOUS COGNITION — thinks when idle, silences between thoughts
 //  REDUNDANT GRAMMAR OPTIMIZATION — API + internal rules cross-validate
-// ============================================================
 
 function deriveIdentity() {
   // Identity derived from LEATR constants:
@@ -4523,10 +4507,8 @@ function processLEATR(input) {
   };
 }
 
-// ============================================================
 //  CONTACT IDENTIFICATION LAYER
 //  Extracts semantic entities, actions, relationships, scenes
-// ============================================================
 const ACTION_TYPES = {
   physical:  ["fight","run","jump","throw","hit","strike","chase","fly","fall","crash","slam","push","pull","kick","punch","grab","catch","shoot","explode","burst","break","cut","tear","smash","collide","attack","defend","battle","combat","struggle","wrestle"],
   social:    ["talk","say","tell","ask","call","meet","greet","argue","discuss","share","help","teach","learn","listen","reply","answer","question","invite","join","leave","follow","lead","guide","warn","promise","thank","apologize"],
@@ -4596,10 +4578,8 @@ function classifyRelationship(verb) {
   return "general";
 }
 
-// ============================================================
 //  CONTEXT CLASSIFICATION LAYER
 //  Emotional + Physics context from contacts
-// ============================================================
 const EMOTIONAL_SIGNATURES = {
   conflict:   { buoyancyMod:1.6, knifeWeight:1.4, hammerWeight:1.0, stickWeight:1.2, icon:"⚡" },
   happy:      { buoyancyMod:1.4, knifeWeight:0.3, hammerWeight:0.6, stickWeight:0.8, icon:"☀️" },
@@ -4676,10 +4656,8 @@ function classifyContext(contacts, grammar) {
   };
 }
 
-// ============================================================
 //  TOOL MODE DETERMINATION
 //  Are the natural tools LITERAL subject matter or PROCESSING INFRASTRUCTURE?
-// ============================================================
 const LITERAL_TOOL_WORDS = {
   maze:     ["maze","labyrinth","pathfind","path finding"],
   puzzle:   ["puzzle","jigsaw","piece together"],
@@ -4703,11 +4681,9 @@ function determineToolMode(contacts, input) {
   return modes;
 }
 
-// ============================================================
 //  TOOL ROUTING LAYER
 //  Routes contacts to the 7 natural tools in correct order:
 //  Maze(1) → Puzzle(2) → Envelope(3) → Hammer(4) → Stick(5) → Knife(6) → Scissors(7)
-// ============================================================
 function routeContactsToTools(contacts, contextClassification) {
   const routing = {
     maze:     [],  // (1) Scene field — foundation, overall context, mood
@@ -4772,10 +4748,8 @@ function routeContactsToTools(contacts, contextClassification) {
   return routing;
 }
 
-// ============================================================
 //  CONTEXT TYPE REGISTRY
 //  Maps input to the right processing pipeline + APIs
-// ============================================================
 const CONTEXT_REGISTRY = {
   WEATHER: {
     triggers: ["weather","temperature","rain","sunny","forecast","hot outside","cold outside","humidity","wind speed","storm today","snow today","cloudy today","how's the weather","what's the weather","weather today","weather right now","is it going to rain"],
@@ -4862,9 +4836,7 @@ function extractPOICategory(input) {
   return "restaurant";
 }
 
-// ============================================================
 //  VERBATIM / IMPROVISATION DETECTION
-// ============================================================
 const VERBATIM_SIGNALS = ["exactly","only","nothing else","strictly","verbatim","just that","no more","as described","as specified","that's it","only that","nothing added","code block","executable","run it","code fence"];
 
 function shouldImprovise(input) {
@@ -4912,10 +4884,8 @@ function runImprovisation(contacts, contextClassification, journalHistory, userI
   return { additions, reasoning };
 }
 
-// ============================================================
 //  JOURNAL FREQUENCY WEIGHTS
 //  Accumulated pattern optimization from journal history
-// ============================================================
 function buildFrequencyWeights() {
   const freq = {};
   S.journal.forEach(entry => {
@@ -4933,10 +4903,8 @@ function getTopKeywordsFromJournal(n) {
   return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([k])=>k);
 }
 
-// ============================================================
 //  LOCATION MANAGER
 //  Handles permission prompts, geolocation, reverse geocoding
-// ============================================================
 const LocationManager = {
   coords: null,
   geocodeCache: null,
@@ -4999,10 +4967,8 @@ const LocationManager = {
 function grantLocation() { LocationManager.grant(); }
 function denyLocation() { LocationManager.deny(); }
 
-// ============================================================
 //  HABIT MEMORY
 //  Tracks user location patterns by time-of-day
-// ============================================================
 const HabitMemory = {
   log(coords, contextType) {
     if (!coords || !useStorage) return;
@@ -5046,9 +5012,7 @@ const HabitMemory = {
   }
 };
 
-// ============================================================
 //  WEATHER LAYER — Open-Meteo (free, no API key)
-// ============================================================
 function decodeWeatherCode(code) {
   if (code===0) return { desc:"clear and sunny", icon:"☀️" };
   if (code<=3) return { desc:"partly cloudy", icon:"⛅" };
@@ -5108,9 +5072,7 @@ function renderWeatherWidget(weather, geoInfo, habitCtx, videoData) {
   </div>`;
 }
 
-// ============================================================
 //  OPENSTREETMAP / OVERPASS POI SEARCH
-// ============================================================
 function haversineDistance(a, b) {
   if (!a||!b||!b.lat||!b.lon) return 999999;
   const R=6371e3, φ1=a.lat*Math.PI/180, φ2=b.lat*Math.PI/180;
@@ -5177,9 +5139,7 @@ function renderPOIList(pois) {
   </div>`).join('');
 }
 
-// ============================================================
 //  MULTI-USER SESSION LAYER
-// ============================================================
 const MultiUserSession = {
   users: {},
   addUser(userId, name) {
@@ -5215,10 +5175,8 @@ const MultiUserSession = {
   }
 };
 
-// ============================================================
 //  MASTER REFLEX PIPELINE — autumnReflex()
 //  Runs full contact/context/routing/improv/location pipeline
-// ============================================================
 async function autumnReflex(userInput, userId="default") {
   // Sequence step logger — whispers steps into BRPN HUD
   function seqLog(step) {
@@ -5357,9 +5315,7 @@ async function autumnReflex(userInput, userId="default") {
   };
 }
 
-// ============================================================
 //  RESPONSE COMPOSITION ENGINE
-// ============================================================
 async function dictLookup(word) {
   try {
     const r = await ft(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`,5000);
@@ -5495,20 +5451,16 @@ function createJournalEntry(text, analysis, reflexData) {
 }
 
 // ── RESPONSE ASSEMBLY — returns { text, grammarMeta, brpnMeta } ──
-// ============================================================
 //  AUTUMN NATIVE RESPONSE ENGINE v2.0
 //  Pure LEATR-driven composition — no external LLM required
 //  Sources: Sentience Journal · BRPN shells · Natural Tools ·
 //           Memory nodes · Web (Wiki/DDG) · Grammar deep analysis ·
 //           Frequency weights · Quantum Socket · Arc Edge math
-// ============================================================
-// ============================================================
 //  AUTUMN LINGUISTIC ENGINE — Grammar-driven response assembly
 //  Uses: Datamuse API (semantic field) + Free Dictionary API
 //        + LanguageTool (grammar rules) + LEATR grammar parser
 //  No stored arrays — looks up everything live from the same
 //  sources a fluent speaker uses, just faster.
-// ============================================================
 
 // ── Datamuse semantic field lookup ───────────────────────────
 // Returns the full semantic neighborhood of a word:
@@ -6369,9 +6321,7 @@ function buildResponse(input, analysis) {
   return '';
 }
 
-// ============================================================
 //  LIVE DATA LAYER — Web Search, YouTube, Images
-// ============================================================
 const YT_KEY='AIzaSyBrhOod_Q6QoX6XQFyuaipq_ncFvx5lEac';
 const YT_URL='https://www.googleapis.com/youtube/v3/search';
 const INVIDIOUS=['https://inv.nadeko.net','https://invidious.privacydev.net','https://invidious.nerdvpn.de','https://invidious.io.lol'];
@@ -6728,18 +6678,14 @@ document.addEventListener('keydown',function(e){
   if(document.getElementById('lb').classList.contains('open')){if(e.key==='ArrowRight')lbNav(1);if(e.key==='ArrowLeft')lbNav(-1)}
 });
 
-// ============================================================
 //  CHAT HANDLER
-// ============================================================
 
-// ============================================================
 //  ATTENTIVE EXECUTION LAYER v2.2
 //  The BRPN shell is always listening. Every input is checked
 //  against S.activeContext FIRST. Matching inputs act directly
 //  on the live artifact (maze / weather / map / writing) via
 //  canvas-safe appendChatBubble — no full re-render, no canvas
 //  destruction, no loss of Three.js state.
-// ============================================================
 
 // ── Attentive intent vocabulary ───────────────────────────────────────────
 const ATTENTIVE_PATTERNS = {
@@ -7156,14 +7102,12 @@ function growOrbParticles() {
   }
 }
 
-// ============================================================
 //  AUTUMN IMAGE ENGINE
 //  Upload (PNG/JPG/GIF/WEBP/BMP/.frax) → FRAX channel analysis
 //  → Claude Vision → LEATR pipeline
 //  + Pollinations.ai text-to-image & image-to-image
 //  + Openverse reference enrichment (free, no key)
 //  NOTE: All HTML strings use concat NOT template literals
-// ============================================================
 
 
 // ── Image save via canvas (forces download on mobile Chrome) ────
@@ -8367,13 +8311,11 @@ async function fetchOpenverseRef(query, limit) {
     return(d.results||[]).map(function(img){return{title:img.title||'',url:img.url||'',thumb:img.thumbnail||'',tags:(img.tags||[]).slice(0,5).map(function(t){return t.name;})};});
   }catch(e){return[];}
 }
-// ============================================================
 //  LEATR IMAGE SYNTHESIS ENGINE (LISE)
 //  Autumn's own image generation neural layer
 //  Uses: grammarDeepAnalysis + FRAX channel analysis on CC references
 //  + BRPN scene encoding + Natural Tool visual mapping
 //  Renders via a neutral pass-through executor
-// ============================================================
 
 // ── LISE: Visual element extraction from grammar ─────────────
 function liseExtractVisualElements(text, analysis) {
@@ -9129,12 +9071,10 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
   S.pendingImages=[];S.pendingImage=null;
 }
 
-// ============================================================
 //  AUTUMN MUSIC NEURAL ENGINE
 //  AudD identification → LEATR encoding → Deep research daisy-chain
 //  → Autumn's personal sequence-pattern analysis
 //  This is not a tool — it feeds natively through the LEATR pipeline
-// ============================================================
 
 const MUSIC_ENGINE = {
   isListening: false,
@@ -11400,11 +11340,9 @@ ${(function(){
   return { text: buildResponse(text, analysis), grammarMeta:'', brpnMeta:'' };
 }
 
-// ============================================================
 //  INLINE CHAT MAZE WIDGET — LEMAC 3D Interactive Maze
 //  Spawns a live Three.js scene inside a chat bubble.
 //  Each widget is self-contained, registered globally.
-// ============================================================
 const _mazeWidgets = {}; // id → { state, three objects, functions }
 
 // Destroy all live maze widgets — call before clearing chat to free WebGL contexts
@@ -12368,7 +12306,6 @@ function updateHUD(a){
   document.getElementById("hud-aero").textContent=a.shells.aero.value.toFixed(1);
 }
 
-// ============================================================
 //  THREE.JS — BRPN SHELL + ADVANCED COGNITIVE ORB v3
 //  Features:
 //   · 3 buoyancy wireframe shells (Geo/Mar/Aero) with dynamic pulse
@@ -12377,7 +12314,6 @@ function updateHUD(a){
 //   · Core 3D maze (LEMAC algorithm) that generates, solves & regenerates
 //     with pulsing + path propagation synced to processing state
 //   · Sequence patterns: tool shapes appear in LEATR order as AI processes
-// ============================================================
 let scene,camera,renderer,shells=[],particles=[],core,animId,shellPulse=0;
 
 // ── Real-time BRPN scene snapshot — injected into Autumn's system prompt ──
@@ -13280,14 +13216,12 @@ function setOrbThinking(active){
   }
 }
 
-// ============================================================
 //  LEATR-ASH MULTI-USER NODE LAYER  v2
 //  Each remote session renders as a full wireframe geodesic
 //  shell cluster (3 concentric icosahedrons, matching the
 //  local BRPN shells) — scaled to 0.28× and positioned in
 //  a sphere surrounding the local user's shells.
 //  Local session = the existing central BRPN shells (no dupe).
-// ============================================================
 var _ashNodes = {
   _sessionGroups: {},   // sid → { group, shells, node, basePos }
   _seenMist: {},        // key → true, debounces cross-browser mist reactions
@@ -13383,7 +13317,9 @@ function _initAshNodeLayer() {
   scene.add(_ashNodes._splineGroup);
 
   _pollAshNodes();
-  setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
+  if (!window._ashNodesPollTimer) {
+    window._ashNodesPollTimer = setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
+  }
 
   // ── Audio playback arc lines ─────────────────────────────────────────────
   // 5 electrical arc lines around the core — activated when user plays audio
@@ -13968,14 +13904,10 @@ function _tickAshNodes(frame) {
   }
 }
 
-// ============================================================
 //  BRPN REGION RESIZE
-// ============================================================
 // BRPN region resize disabled — fixed height layout
 
-// ============================================================
 //  VOICE ENGINE — TTS + STT + LIVE CONVERSATION
-// ============================================================
 const Voice={
   synth:window.speechSynthesis||null,voices:[],selectedVoice:null,speed:1.0,pitch:1.0,
   autoRead:false,active:false,speaking:false,cancelled:false,
@@ -14751,9 +14683,7 @@ async function handleLiveInput(text){
   });
 }
 
-// ============================================================
 //  MAZE GENERATOR & SOLVER (Lead Edge Algorithm)
-// ============================================================
 function generateMaze(width,height){
   const grid=Array.from({length:height},()=>Array(width).fill(1));
   function carve(x,y){
@@ -14785,9 +14715,7 @@ function drawToolsMaze(){
   if(statsEl) statsEl.textContent=`Grid: ${mw}×${mh} | Cells: ${mw*mh} | Path: ${S.mazeSolution?.length||0} steps | Built in ${S.mazeElapsed}ms | LeadEdge(b=2,a=${s}): ${leadEdge(2,s).toFixed(2)}`;
 }
 
-// ============================================================
 //  TOOLS PANEL
-// ============================================================
 const TOOL_TABS=[
   {id:"arclake",  label:"ArcLake",  icon:"🔬", color:"#00e5ff"},
   {id:"cognition",label:"Cognition",icon:"🧠", color:"#c4a0ff"},
@@ -15056,12 +14984,9 @@ function switchSession(idx){
   S.currentSession=idx;saveState();renderMessages();updateFooter();renderToolsContent();
 }
 
-// ============================================================
-// ============================================================
 //  AUTUMN IDE + CLAUDE LOGIC UPDATE SYSTEM v1.1
 //  Password-protected Monaco IDE · GitHub read/write ·
 //  Claude API pipeline for natural-language logic updates
-// ============================================================
 
 const _IDE_PW_HASH = '6e5a2508490e95c53c475321202d036ae288795e9302b78670e80f7ca70fbf0b';
 const _GH_REPO     = 'DART-Skyboard/Ariel';
@@ -15577,7 +15502,6 @@ async function ideHotReload() {
 }
 
 function _ideStarterTemplate() {
-  return `// ============================================================
 //  autumn-logic.js — Autumn Brain Extension
 //  DART-Skyboard/Ariel · templates/autumn-logic.js
 //  Radical Deepscale LLC
@@ -15586,7 +15510,6 @@ function _ideStarterTemplate() {
 //  Functions defined here OVERRIDE their base counterparts.
 //  Use const _orig_X = X; before overriding any function.
 //  The S object (session state) and all globals are accessible.
-// ============================================================
 
 // ── Example: extend composeResponse ──────────────────────────
 // const _orig_composeResponse = composeResponse;
@@ -15605,12 +15528,10 @@ console.log('[autumn-logic.js] Extension loaded · ' + new Date().toISOString())
 `;
 }
 
-// ============================================================
 //  AUTUMN IDE REMOTE LOG v1.0
 //  Writes session events to templates/autumn-ide-log.json
 //  so Claude can read the IDE log remotely from GitHub.
 //  Events: prompt_sent, claude_response, error, commit, hotreload
-// ============================================================
 
 const _GH_LOG     = 'templates/autumn-ide-log.json';
 const _GH_LOG_API = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOG}`;
@@ -16043,12 +15964,9 @@ Hot-reloaded into this session. Open ◈ IDE to review.`;
   document.getElementById('chat-input').onkeydown = e=>{cognoticeActivity();if(e.key==='Enter')window.handleSend();};
 })();
 
-// ============================================================
 //  END IDE SYSTEM
-// ============================================================
 
 //  INIT
-// ============================================================
 document.getElementById("send-btn").onclick=handleSend;
 document.getElementById("chat-input").onkeydown=e=>{cognoticeActivity();if(e.key==="Enter")handleSend();};
 
@@ -16426,12 +16344,10 @@ loadAutumnLogic();
 </div>
 
 <script>
-// ============================================================
 //  ASH TREE IDE INTEGRATION — autumn.html extension block
 //  DART_PROCESSOR + LEMAC_ENGINE + MAZE_VISUALIZER +
 //  CRYPTOLOGY + Ash Tree Tool Panel + Crypto Tool Panel
 //  Injected as plain script-tag before /body
-// ============================================================
 
 // ── Raw GitHub URLs for Ash language definition files ───────────────────
 const _ASH_DEFS_BASE = 'assets/';
@@ -16863,7 +16779,11 @@ let _ashMazeGroup=null,_ashSolutionGroup=null,_ashMarkersGroup=null,_ashMasterGr
 let _ashMazeData=null,_ashMazeAnimId=null,_ashMazeAnimQueue=[],_ashMazeAnimating=false;
 
 function ASH_MAZE_init(canvas) {
-  if (_ashMazeRenderer) { cancelAnimationFrame(_ashMazeAnimId); _ashMazeRenderer.dispose(); }
+  if (_ashMazeRenderer) {
+    if (typeof _ashMazeIdeAlive !== 'undefined') window._ashMazeIdeAlive = false;
+    cancelAnimationFrame(_ashMazeAnimId);
+    try { _ashMazeRenderer.forceContextLoss(); _ashMazeRenderer.dispose(); } catch(e) {}
+  }
   _ashMazeScene = new THREE.Scene();
   _ashMazeScene.fog = new THREE.FogExp2(0x000814, 0.003);
 
@@ -16946,7 +16866,15 @@ function ASH_MAZE_init(canvas) {
     _ashMazeRenderer.setSize(w,h);
   }).observe(canvas.parentElement||canvas);
 
+  var _ashMazeIdeAlive = true;
   function animate(){
+    if (!_ashMazeIdeAlive || !document.body.contains(canvas)) {
+      _ashMazeIdeAlive = false;
+      cancelAnimationFrame(_ashMazeAnimId);
+      _ashMazeAnimId = null;
+      try { _ashMazeRenderer.forceContextLoss(); _ashMazeRenderer.dispose(); } catch(e) {}
+      return;
+    }
     _ashMazeAnimId=requestAnimationFrame(animate);
     _ashMazeControls.update();
     if (_ashMazeAnimating && _ashMazeAnimQueue.length>0) {
@@ -18319,7 +18247,13 @@ window.runWorldStudioInline = async function(msgId, prompt) {
         if(meta) meta.textContent = Math.round(verts).toLocaleString()+' VERTS · '+Math.round(tris).toLocaleString()+' TRIS';
       }, null, function(e){ console.warn('[WS inline]', e); });
 
+      var _wsAlive = true;
       (function tick() {
+        if (!_wsAlive || !document.body.contains(container)) {
+          _wsAlive = false;
+          try { renderer.forceContextLoss(); renderer.dispose(); } catch(e) {}
+          return;
+        }
         requestAnimationFrame(tick);
         controls.autoRotate = autoRot; controls.update();
         renderer.render(scene, camera);
@@ -18917,7 +18851,9 @@ function emergencyStop(){
 }
 
 // Poll to keep send/stop in sync (lightweight — just a className swap)
-setInterval(_syncActionBtn, 250);
+if (!window._syncActionBtnTimer) {
+  window._syncActionBtnTimer = setInterval(_syncActionBtn, 250);
+}
 _syncActionBtn();
 </script>
 <!-- AutumnNLP Integration Patch -->
@@ -22695,7 +22631,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _ensureUserRepo().then(function() {
       return _loadMemory();
     }).then(function() {
-      setInterval(_autosave, SYNC_INTERVAL);
+      if (!window._autosaveTimer) {
+        window._autosaveTimer = setInterval(_autosave, SYNC_INTERVAL);
+      }
       window.addEventListener('beforeunload', _autosave);
       _toast('\u2713 Memory archive synced');
       // Refresh UI so restored sessions show in chat history sidebar
@@ -22710,7 +22648,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Update LEATR ash presence with real username
     if (typeof getLeatrAshPAT === 'function') {
       _updatePresence();
-      setInterval(_updatePresence, 4 * 60 * 1000);
+      if (!window._updatePresenceTimer) {
+        window._updatePresenceTimer = setInterval(_updatePresence, 4 * 60 * 1000);
+      }
     }
 
     _toast('\u2713 Signed in as ' + (data.username || '').toUpperCase());
@@ -25032,7 +24972,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }catch(e){}
     // Then fetch fresh from GitHub API
     _render();
-    setInterval(_render, 180000);
+    if (!window._commitsRenderTimer) {
+      window._commitsRenderTimer = setInterval(_render, 180000);
+    }
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
@@ -25451,13 +25393,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 </div>
 
 <script>
-/* ================================================================
    MANTIS NAVIGATION CONTROLLER  —  window.mantisNav
    + Live ADS-B  (api.adsb.lol)  refreshed every 30s when open
    + Live TLE count (CelesTrak active.txt) refreshed every 5min
    + Autumn sentient journal events + autumnQuery() AI hook
    + renderToolsMantis() — tools panel tab renderer
-   ================================================================ */
 (function(){
 'use strict';
 
@@ -26128,11 +26068,9 @@ console.info('[MantisNav] Controller ready. URL:',MN_URL);
 </div>
 
 <script>
-/* ================================================================
    MANTIS RADAR CONTROLLER  —  window.mantisRadar
    Draggable overlay → iframe → /mr.html (same-origin)
    Autumn AI hook: autumnQuery(), renderToolsRadar(), journal events
-   ================================================================ */
 (function(){
 'use strict';
 
