@@ -13376,7 +13376,9 @@ function _initAshNodeLayer() {
   scene.add(_ashNodes._splineGroup);
 
   _pollAshNodes();
-  setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
+  if (!window._ashNodesPollTimer) {
+    window._ashNodesPollTimer = setInterval(_pollAshNodes, _ashNodes.POLL_INTERVAL);
+  }
 
   // ── Audio playback arc lines ─────────────────────────────────────────────
   // 5 electrical arc lines around the core — activated when user plays audio
@@ -16856,7 +16858,11 @@ let _ashMazeGroup=null,_ashSolutionGroup=null,_ashMarkersGroup=null,_ashMasterGr
 let _ashMazeData=null,_ashMazeAnimId=null,_ashMazeAnimQueue=[],_ashMazeAnimating=false;
 
 function ASH_MAZE_init(canvas) {
-  if (_ashMazeRenderer) { cancelAnimationFrame(_ashMazeAnimId); _ashMazeRenderer.dispose(); }
+  if (_ashMazeRenderer) {
+    if (typeof _ashMazeIdeAlive !== 'undefined') window._ashMazeIdeAlive = false;
+    cancelAnimationFrame(_ashMazeAnimId);
+    try { _ashMazeRenderer.forceContextLoss(); _ashMazeRenderer.dispose(); } catch(e) {}
+  }
   _ashMazeScene = new THREE.Scene();
   _ashMazeScene.fog = new THREE.FogExp2(0x000814, 0.003);
 
@@ -16939,7 +16945,15 @@ function ASH_MAZE_init(canvas) {
     _ashMazeRenderer.setSize(w,h);
   }).observe(canvas.parentElement||canvas);
 
+  var _ashMazeIdeAlive = true;
   function animate(){
+    if (!_ashMazeIdeAlive || !document.body.contains(canvas)) {
+      _ashMazeIdeAlive = false;
+      cancelAnimationFrame(_ashMazeAnimId);
+      _ashMazeAnimId = null;
+      try { _ashMazeRenderer.forceContextLoss(); _ashMazeRenderer.dispose(); } catch(e) {}
+      return;
+    }
     _ashMazeAnimId=requestAnimationFrame(animate);
     _ashMazeControls.update();
     if (_ashMazeAnimating && _ashMazeAnimQueue.length>0) {
@@ -18312,7 +18326,13 @@ window.runWorldStudioInline = async function(msgId, prompt) {
         if(meta) meta.textContent = Math.round(verts).toLocaleString()+' VERTS · '+Math.round(tris).toLocaleString()+' TRIS';
       }, null, function(e){ console.warn('[WS inline]', e); });
 
+      var _wsAlive = true;
       (function tick() {
+        if (!_wsAlive || !document.body.contains(container)) {
+          _wsAlive = false;
+          try { renderer.forceContextLoss(); renderer.dispose(); } catch(e) {}
+          return;
+        }
         requestAnimationFrame(tick);
         controls.autoRotate = autoRot; controls.update();
         renderer.render(scene, camera);
@@ -18910,7 +18930,9 @@ function emergencyStop(){
 }
 
 // Poll to keep send/stop in sync (lightweight — just a className swap)
-setInterval(_syncActionBtn, 250);
+if (!window._syncActionBtnTimer) {
+  window._syncActionBtnTimer = setInterval(_syncActionBtn, 250);
+}
 _syncActionBtn();
 </script>
 <!-- AutumnNLP Integration Patch -->
@@ -22688,7 +22710,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _ensureUserRepo().then(function() {
       return _loadMemory();
     }).then(function() {
-      setInterval(_autosave, SYNC_INTERVAL);
+      if (!window._autosaveTimer) {
+        window._autosaveTimer = setInterval(_autosave, SYNC_INTERVAL);
+      }
       window.addEventListener('beforeunload', _autosave);
       _toast('\u2713 Memory archive synced');
       // Refresh UI so restored sessions show in chat history sidebar
@@ -22703,7 +22727,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     // Update LEATR ash presence with real username
     if (typeof getLeatrAshPAT === 'function') {
       _updatePresence();
-      setInterval(_updatePresence, 4 * 60 * 1000);
+      if (!window._updatePresenceTimer) {
+        window._updatePresenceTimer = setInterval(_updatePresence, 4 * 60 * 1000);
+      }
     }
 
     _toast('\u2713 Signed in as ' + (data.username || '').toUpperCase());
@@ -25025,7 +25051,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }catch(e){}
     // Then fetch fresh from GitHub API
     _render();
-    setInterval(_render, 180000);
+    if (!window._commitsRenderTimer) {
+      window._commitsRenderTimer = setInterval(_render, 180000);
+    }
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
