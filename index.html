@@ -8089,10 +8089,14 @@ function renderThumbRow() {
 
       var _thumbFrame = 0;
       var _thumbRafId = null;
+      var _thumbAlive = true;
       function animate() {
         _thumbFrame++;
-        if(_thumbFrame > 300){ // ~5s at 60fps then stop to free GPU
+        if (_thumbFrame > 300 || !_thumbAlive || !document.body.contains(d)) {
+          // Stop after ~5s OR if canvas removed from DOM — free the WebGL context
+          _thumbAlive = false;
           cancelAnimationFrame(_thumbRafId);
+          try { renderer.forceContextLoss(); renderer.dispose(); } catch(e) {}
           return;
         }
         _thumbRafId = requestAnimationFrame(animate);
@@ -12742,6 +12746,21 @@ function makeToolShape(type,color,orbitRadius,orbitSpeed,orbitOffset,shellLayer)
 
 // ── initBRPN ───────────────────────────────────────────────────────────────
 function initBRPN() {
+  // ── CRITICAL: Dispose previous renderer before re-init ──────────────────
+  // Without this, every context-restore call stacks a new WebGL canvas/context.
+  // On Android WebView (hard limit ~8 contexts), this causes the ~60s crash.
+  if (renderer) {
+    cancelAnimationFrame(animId);
+    animId = null;
+    try { renderer.forceContextLoss(); } catch(e) {}
+    try { renderer.dispose(); } catch(e) {}
+    try {
+      if (renderer.domElement && renderer.domElement.parentNode) {
+        renderer.domElement.parentNode.removeChild(renderer.domElement);
+      }
+    } catch(e) {}
+    renderer = null;
+  }
   // ── Reset accumulated state before re-init (context restore safety) ──
   shells.length = 0;
   particles.length = 0;
