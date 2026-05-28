@@ -2364,10 +2364,14 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .alc-quote-card{display:flex;gap:14px;align-items:flex-start;
   background:rgba(75,0,130,.22);border:1px solid rgba(140,60,255,.18);border-radius:8px;
   padding:16px;margin-bottom:16px}
-.alc-quote-art{width:120px;height:120px;flex-shrink:0;border-radius:6px;overflow:hidden;
+.alc-quote-art{width:160px;height:160px;flex-shrink:0;border-radius:6px;overflow:visible;
   border:1px solid rgba(140,60,255,.2);background:#0d0520;display:flex;align-items:center;
-  justify-content:center}
-.alc-quote-art canvas{width:120px;height:120px}
+  justify-content:center;position:relative}
+.alc-quote-art canvas{width:160px;height:160px;border-radius:6px;display:block}
+.alc-harp-overlay{position:absolute;bottom:-28px;left:-18px;width:90px;height:110px;
+  object-fit:contain;opacity:.82;pointer-events:none;
+  filter:drop-shadow(0 0 8px rgba(180,100,255,.5)) brightness(1.1);
+  z-index:2}
 .alc-quote-text{flex:1;font-size:.72rem;color:rgba(220,190,255,.75);line-height:1.7;
   font-family:var(--font-b)}
 .alc-quote-text em{color:rgba(200,140,255,.9);font-style:italic}
@@ -26339,7 +26343,8 @@ console.info('[MantisRadar] Controller ready. URL:', MR_URL);
         <!-- Quote + generative art card -->
         <div class="alc-quote-card">
           <div class="alc-quote-art">
-            <canvas id="alc-art-canvas" width="120" height="120"></canvas>
+            <canvas id="alc-art-canvas" width="160" height="160"></canvas>
+            <img class="alc-harp-overlay" src="assets/harpmakerV.png" alt="harpmaker" />
           </div>
           <div class="alc-quote-text">
             <em>"From the same where what is left off<br>what begins the same as itself where it won't begin."</em>
@@ -26494,71 +26499,241 @@ console.info('[MantisRadar] Controller ready. URL:', MR_URL);
     var cv = document.getElementById('alc-art-canvas');
     if (!cv) return;
     var cx = cv.getContext('2d');
-    var W=120, H=120;
+    var W=160, H=160;
     cx.clearRect(0,0,W,H);
-    // Background deep space
-    var bg = cx.createRadialGradient(60,60,10,60,60,65);
-    bg.addColorStop(0,'rgba(30,5,60,.9)');
-    bg.addColorStop(1,'rgba(5,2,14,1)');
+
+    // ── Deep space background with nebula ──
+    var bg = cx.createRadialGradient(80,75,8,80,75,88);
+    bg.addColorStop(0,'rgba(40,8,80,.98)');
+    bg.addColorStop(.5,'rgba(18,4,45,.99)');
+    bg.addColorStop(1,'rgba(4,1,12,1)');
     cx.fillStyle=bg; cx.fillRect(0,0,W,H);
+    // nebula wisps
+    var nb=cx.createRadialGradient(55,45,0,55,45,55);
+    nb.addColorStop(0,'rgba(120,40,200,.12)');
+    nb.addColorStop(.5,'rgba(80,20,160,.06)');
+    nb.addColorStop(1,'rgba(0,0,0,0)');
+    cx.fillStyle=nb; cx.fillRect(0,0,W,H);
+    var nb2=cx.createRadialGradient(110,100,0,110,100,45);
+    nb2.addColorStop(0,'rgba(60,20,180,.1)');
+    nb2.addColorStop(1,'rgba(0,0,0,0)');
+    cx.fillStyle=nb2; cx.fillRect(0,0,W,H);
 
-    // Mercury Sphere 1
-    var s1=cx.createRadialGradient(38,38,2,38,38,14);
-    s1.addColorStop(0,'rgba(220,200,255,.95)');
-    s1.addColorStop(.4,'rgba(160,100,255,.7)');
-    s1.addColorStop(1,'rgba(80,30,140,.1)');
-    cx.beginPath(); cx.arc(38,38,14,0,Math.PI*2);
+    // ── Star field ──
+    cx.fillStyle='rgba(255,255,255,.55)';
+    [[8,12],[23,5],[45,18],[90,8],[120,22],[148,10],[155,45],[138,78],
+     [12,55],[5,88],[28,105],[8,135],[145,130],[152,100]].forEach(function(p){
+      cx.beginPath(); cx.arc(p[0],p[1],.8+Math.random()*.6,0,Math.PI*2); cx.fill();
+    });
+
+    // ── Mercury Sphere 1 (large, upper-left) ──
+    // Base sphere
+    var s1=cx.createRadialGradient(44,44,1,44,44,20);
+    s1.addColorStop(0,'rgba(255,248,255,1)');
+    s1.addColorStop(.15,'rgba(230,210,255,.97)');
+    s1.addColorStop(.45,'rgba(170,110,255,.88)');
+    s1.addColorStop(.75,'rgba(100,40,200,.6)');
+    s1.addColorStop(1,'rgba(50,10,100,.05)');
+    cx.beginPath(); cx.arc(44,44,20,0,Math.PI*2);
     cx.fillStyle=s1; cx.fill();
-    cx.beginPath(); cx.arc(38,38,14,0,Math.PI*2);
-    cx.strokeStyle='rgba(200,150,255,.5)'; cx.lineWidth=.8; cx.stroke();
+    // equatorial band
+    cx.save(); cx.beginPath(); cx.ellipse(44,44,20,6,-.2,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,160,255,.25)'; cx.lineWidth=1; cx.stroke(); cx.restore();
+    // meridian lines
+    cx.save(); cx.beginPath(); cx.ellipse(44,44,7,20,0,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,160,255,.18)'; cx.lineWidth=.8; cx.stroke(); cx.restore();
+    // specular highlight
+    var sh1=cx.createRadialGradient(38,36,0,38,36,8);
+    sh1.addColorStop(0,'rgba(255,255,255,.65)');
+    sh1.addColorStop(.5,'rgba(240,220,255,.2)');
+    sh1.addColorStop(1,'rgba(255,255,255,0)');
+    cx.beginPath(); cx.arc(44,44,20,0,Math.PI*2);
+    cx.fillStyle=sh1; cx.fill();
+    // glow halo
+    var g1=cx.createRadialGradient(44,44,18,44,44,30);
+    g1.addColorStop(0,'rgba(160,80,255,.2)');
+    g1.addColorStop(1,'rgba(160,80,255,0)');
+    cx.beginPath(); cx.arc(44,44,30,0,Math.PI*2);
+    cx.fillStyle=g1; cx.fill();
+    // outer ring
+    cx.beginPath(); cx.arc(44,44,20,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,140,255,.35)'; cx.lineWidth=1; cx.stroke();
 
-    // Mercury Sphere 2
-    var s2=cx.createRadialGradient(78,42,2,78,42,10);
-    s2.addColorStop(0,'rgba(220,200,255,.95)');
-    s2.addColorStop(.4,'rgba(160,100,255,.65)');
-    s2.addColorStop(1,'rgba(80,30,140,.1)');
-    cx.beginPath(); cx.arc(78,42,10,0,Math.PI*2);
+    // ── Mercury Sphere 2 (smaller, upper-right area) ──
+    var s2=cx.createRadialGradient(108,36,1,108,36,13);
+    s2.addColorStop(0,'rgba(255,248,255,1)');
+    s2.addColorStop(.18,'rgba(225,205,255,.96)');
+    s2.addColorStop(.5,'rgba(165,105,255,.85)');
+    s2.addColorStop(.8,'rgba(95,35,195,.55)');
+    s2.addColorStop(1,'rgba(50,10,100,.04)');
+    cx.beginPath(); cx.arc(108,36,13,0,Math.PI*2);
     cx.fillStyle=s2; cx.fill();
-    cx.beginPath(); cx.arc(78,42,10,0,Math.PI*2);
-    cx.strokeStyle='rgba(200,150,255,.4)'; cx.lineWidth=.7; cx.stroke();
+    cx.save(); cx.beginPath(); cx.ellipse(108,36,13,4,-.15,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,155,255,.2)'; cx.lineWidth=.8; cx.stroke(); cx.restore();
+    cx.save(); cx.beginPath(); cx.ellipse(108,36,4,13,0,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,155,255,.15)'; cx.lineWidth=.7; cx.stroke(); cx.restore();
+    var sh2=cx.createRadialGradient(103,31,0,103,31,5);
+    sh2.addColorStop(0,'rgba(255,255,255,.6)');
+    sh2.addColorStop(1,'rgba(255,255,255,0)');
+    cx.beginPath(); cx.arc(108,36,13,0,Math.PI*2);
+    cx.fillStyle=sh2; cx.fill();
+    var g2=cx.createRadialGradient(108,36,11,108,36,20);
+    g2.addColorStop(0,'rgba(140,70,255,.16)');
+    g2.addColorStop(1,'rgba(140,70,255,0)');
+    cx.beginPath(); cx.arc(108,36,20,0,Math.PI*2);
+    cx.fillStyle=g2; cx.fill();
+    cx.beginPath(); cx.arc(108,36,13,0,Math.PI*2);
+    cx.strokeStyle='rgba(190,130,255,.3)'; cx.lineWidth=.8; cx.stroke();
 
-    // Poster Stand (thin vertical with base)
-    cx.strokeStyle='rgba(160,100,255,.65)'; cx.lineWidth=1.5;
-    cx.beginPath(); cx.moveTo(60,20); cx.lineTo(60,78); cx.stroke();
-    cx.beginPath(); cx.moveTo(50,78); cx.lineTo(70,78); cx.stroke(); // base
-    cx.beginPath(); cx.moveTo(53,78); cx.lineTo(48,85); cx.stroke();
-    cx.beginPath(); cx.moveTo(67,78); cx.lineTo(72,85); cx.stroke();
-    // poster top crossbar
-    cx.lineWidth=1;
-    cx.beginPath(); cx.moveTo(52,26); cx.lineTo(68,26); cx.stroke();
+    // ── Poster Stand (center, tall) ──
+    // main pole with gradient
+    var pg=cx.createLinearGradient(82,18,82,120);
+    pg.addColorStop(0,'rgba(200,150,255,.9)');
+    pg.addColorStop(.5,'rgba(160,100,255,.7)');
+    pg.addColorStop(1,'rgba(120,60,220,.5)');
+    cx.strokeStyle=pg; cx.lineWidth=2.5;
+    cx.beginPath(); cx.moveTo(82,18); cx.lineTo(82,110); cx.stroke();
+    // horizontal crossbar at top
+    cx.strokeStyle='rgba(190,140,255,.75)'; cx.lineWidth=1.8;
+    cx.beginPath(); cx.moveTo(68,24); cx.lineTo(96,24); cx.stroke();
+    // finials at crossbar ends
+    cx.fillStyle='rgba(200,150,255,.8)';
+    cx.beginPath(); cx.arc(68,24,2.5,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.arc(96,24,2.5,0,Math.PI*2); cx.fill();
+    // poster sheet hanging from crossbar
+    cx.fillStyle='rgba(100,50,200,.12)';
+    cx.strokeStyle='rgba(170,110,255,.3)'; cx.lineWidth=.8;
+    cx.beginPath(); cx.roundRect(69,25,26,28,1); cx.fill(); cx.stroke();
+    // text lines on poster
+    cx.strokeStyle='rgba(180,130,255,.35)'; cx.lineWidth=.6;
+    [33,38,43,48].forEach(function(y){
+      cx.beginPath(); cx.moveTo(73,y); cx.lineTo(91,y); cx.stroke();
+    });
+    // tripod legs
+    cx.strokeStyle='rgba(160,100,255,.55)'; cx.lineWidth=1.5;
+    cx.beginPath(); cx.moveTo(82,110); cx.lineTo(66,128); cx.stroke();
+    cx.beginPath(); cx.moveTo(82,110); cx.lineTo(82,130); cx.stroke();
+    cx.beginPath(); cx.moveTo(82,110); cx.lineTo(98,128); cx.stroke();
+    // rubber feet
+    cx.fillStyle='rgba(140,80,220,.6)';
+    [[66,128],[82,130],[98,128]].forEach(function(p){
+      cx.beginPath(); cx.arc(p[0],p[1],2,0,Math.PI*2); cx.fill();
+    });
+    // adjustment knobs on pole
+    cx.fillStyle='rgba(180,120,255,.55)'; cx.strokeStyle='rgba(200,150,255,.4)'; cx.lineWidth=.5;
+    [55,75,95].forEach(function(y){
+      cx.beginPath(); cx.arc(82,y,2.5,0,Math.PI*2); cx.fill(); cx.stroke();
+    });
 
-    // Pocket Watch Navigation Desk (small desk shape + circle)
-    cx.strokeStyle='rgba(180,130,255,.5)'; cx.lineWidth=1;
-    cx.strokeRect(82,70,26,18); // desk surface
-    cx.beginPath(); cx.moveTo(84,88); cx.lineTo(84,96); cx.stroke(); // leg
-    cx.beginPath(); cx.moveTo(106,88); cx.lineTo(106,96); cx.stroke();
-    // watch circle on desk
-    cx.beginPath(); cx.arc(95,78,4,0,Math.PI*2);
-    cx.strokeStyle='rgba(220,180,255,.6)'; cx.stroke();
-    cx.beginPath(); cx.moveTo(95,78); cx.lineTo(95,75); cx.stroke(); // hand
+    // ── Pocket Watch Navigation Desk (right side) ──
+    // desk surface with wood-grain effect
+    var dg=cx.createLinearGradient(106,92,106,112);
+    dg.addColorStop(0,'rgba(120,70,200,.35)');
+    dg.addColorStop(1,'rgba(80,40,160,.2)');
+    cx.fillStyle=dg; cx.strokeStyle='rgba(180,120,255,.45)'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.roundRect(104,92,40,20,2); cx.fill(); cx.stroke();
+    // desk legs
+    cx.strokeStyle='rgba(160,100,255,.4)'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.moveTo(107,112); cx.lineTo(105,130); cx.stroke();
+    cx.beginPath(); cx.moveTo(141,112); cx.lineTo(143,130); cx.stroke();
+    // crossbar between legs
+    cx.beginPath(); cx.moveTo(107,122); cx.lineTo(141,122); cx.stroke();
+    // pocket watch face on desk surface
+    var wg=cx.createRadialGradient(124,100,1,124,100,7);
+    wg.addColorStop(0,'rgba(220,200,255,.9)');
+    wg.addColorStop(.4,'rgba(160,110,240,.7)');
+    wg.addColorStop(1,'rgba(80,40,160,.3)');
+    cx.beginPath(); cx.arc(124,100,7,0,Math.PI*2);
+    cx.fillStyle=wg; cx.fill();
+    cx.strokeStyle='rgba(220,180,255,.6)'; cx.lineWidth=1.2; cx.stroke();
+    // watch bezel detail
+    cx.strokeStyle='rgba(200,160,255,.3)'; cx.lineWidth=.5;
+    cx.beginPath(); cx.arc(124,100,8.5,0,Math.PI*2); cx.stroke();
+    // watch hands
+    cx.strokeStyle='rgba(240,220,255,.85)'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.moveTo(124,100); cx.lineTo(124,94); cx.stroke(); // 12
+    cx.strokeStyle='rgba(200,160,255,.7)'; cx.lineWidth=.9;
+    cx.beginPath(); cx.moveTo(124,100); cx.lineTo(129,101); cx.stroke(); // 3
+    // watch crown
+    cx.fillStyle='rgba(200,160,255,.6)';
+    cx.beginPath(); cx.roundRect(131,98.5,4,3,1); cx.fill();
+    // hour markers
+    cx.fillStyle='rgba(220,190,255,.5)';
+    for(var a=0;a<12;a++){
+      var ax=124+Math.cos(a*Math.PI/6-Math.PI/2)*5.5;
+      var ay=100+Math.sin(a*Math.PI/6-Math.PI/2)*5.5;
+      cx.beginPath(); cx.arc(ax,ay,.7,0,Math.PI*2); cx.fill();
+    }
+    // navigation compass rose below watch
+    cx.strokeStyle='rgba(160,100,255,.35)'; cx.lineWidth=.7;
+    cx.beginPath(); cx.arc(124,108,4,0,Math.PI*2); cx.stroke();
+    ['N','E','S','W'].forEach(function(d,i){
+      var ax2=124+Math.cos(i*Math.PI/2-Math.PI/2)*3;
+      var ay2=108+Math.sin(i*Math.PI/2-Math.PI/2)*3;
+      cx.fillStyle='rgba(200,150,255,.6)';
+      cx.font='bold 3px monospace'; cx.textAlign='center'; cx.textBaseline='middle';
+      cx.fillText(d,ax2,ay2);
+    });
 
-    // Pantry Seasoning Dripbox (small bottle/box lower left)
-    cx.fillStyle='rgba(100,50,200,.3)';
-    cx.strokeStyle='rgba(160,100,255,.45)'; cx.lineWidth=1;
-    cx.beginPath(); cx.roundRect(10,80,16,28,3); cx.fill(); cx.stroke();
-    // drip nozzle
-    cx.beginPath(); cx.moveTo(18,80); cx.lineTo(18,74);
-    cx.strokeStyle='rgba(200,150,255,.5)'; cx.stroke();
-    cx.beginPath(); cx.arc(18,72,2.5,0,Math.PI*2);
-    cx.fillStyle='rgba(200,150,255,.4)'; cx.fill();
-    // label line
-    cx.strokeStyle='rgba(160,100,255,.3)'; cx.lineWidth=.5;
-    cx.beginPath(); cx.moveTo(13,90); cx.lineTo(23,90); cx.stroke();
+    // ── Pantry Seasoning Dripbox (lower-left, detailed) ──
+    // main bottle body
+    var btg=cx.createLinearGradient(12,88,28,88);
+    btg.addColorStop(0,'rgba(130,60,220,.45)');
+    btg.addColorStop(.5,'rgba(100,45,190,.35)');
+    btg.addColorStop(1,'rgba(80,30,160,.25)');
+    cx.fillStyle=btg; cx.strokeStyle='rgba(170,100,255,.5)'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.roundRect(10,82,20,36,3); cx.fill(); cx.stroke();
+    // label panel
+    cx.fillStyle='rgba(160,90,255,.15)'; cx.strokeStyle='rgba(180,110,255,.25)'; cx.lineWidth=.6;
+    cx.beginPath(); cx.roundRect(13,90,14,18,1); cx.fill(); cx.stroke();
+    // label text lines
+    cx.strokeStyle='rgba(190,130,255,.3)'; cx.lineWidth=.5;
+    [94,98,102,106].forEach(function(y){
+      cx.beginPath(); cx.moveTo(15,y); cx.lineTo(25,y); cx.stroke();
+    });
+    // shoulder taper
+    cx.fillStyle='rgba(120,55,210,.4)'; cx.strokeStyle='rgba(170,100,255,.45)'; cx.lineWidth=1;
+    cx.beginPath(); cx.moveTo(10,82); cx.lineTo(13,76); cx.lineTo(27,76); cx.lineTo(30,82); cx.closePath();
+    cx.fill(); cx.stroke();
+    // neck
+    cx.fillStyle='rgba(110,50,200,.5)'; cx.strokeStyle='rgba(170,100,255,.5)';
+    cx.beginPath(); cx.roundRect(15,68,10,9,2); cx.fill(); cx.stroke();
+    // drip nozzle tip
+    var ng=cx.createRadialGradient(20,64,0,20,64,5);
+    ng.addColorStop(0,'rgba(220,170,255,.9)');
+    ng.addColorStop(.5,'rgba(180,110,255,.6)');
+    ng.addColorStop(1,'rgba(140,70,220,.1)');
+    cx.beginPath(); cx.arc(20,64,4,0,Math.PI*2);
+    cx.fillStyle=ng; cx.fill();
+    cx.strokeStyle='rgba(200,150,255,.55)'; cx.lineWidth=1; cx.stroke();
+    // drip drop
+    cx.fillStyle='rgba(200,140,255,.45)';
+    cx.beginPath(); cx.arc(20,60,2,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.moveTo(18.5,60); cx.quadraticCurveTo(20,55,21.5,60); cx.closePath(); cx.fill();
+    // shadow/base
+    cx.fillStyle='rgba(100,40,180,.2)';
+    cx.beginPath(); cx.ellipse(20,118,9,3,0,0,Math.PI*2); cx.fill();
 
-    // Ambient particles
-    cx.fillStyle='rgba(200,160,255,.35)';
-    [[22,62],[45,18],[90,30],[105,55],[30,100],[70,105]].forEach(function(p){
-      cx.beginPath(); cx.arc(p[0],p[1],1,0,Math.PI*2); cx.fill();
+    // ── Connecting light threads between objects ──
+    cx.setLineDash([2,4]);
+    cx.strokeStyle='rgba(160,90,255,.15)'; cx.lineWidth=.7;
+    cx.beginPath(); cx.moveTo(64,44); cx.lineTo(82,40); cx.stroke(); // sph1 to stand
+    cx.beginPath(); cx.moveTo(95,44); cx.lineTo(108,45); cx.stroke(); // stand to sph2
+    cx.beginPath(); cx.moveTo(82,110); cx.lineTo(108,95); cx.stroke(); // stand to desk
+    cx.beginPath(); cx.moveTo(30,90); cx.lineTo(66,100); cx.stroke(); // dripbox to stand
+    cx.setLineDash([]);
+
+    // ── Ambient floating particles ──
+    cx.fillStyle='rgba(200,160,255,.4)';
+    [[70,70],[130,65],[50,130],[140,55],[25,75],[155,85]].forEach(function(p){
+      cx.beginPath(); cx.arc(p[0],p[1],1.2,0,Math.PI*2); cx.fill();
+    });
+    // tiny sparkles
+    cx.strokeStyle='rgba(220,180,255,.5)'; cx.lineWidth=.7;
+    [[35,62],[115,55],[60,115]].forEach(function(p){
+      var x=p[0],y=p[1];
+      cx.beginPath(); cx.moveTo(x-3,y); cx.lineTo(x+3,y); cx.stroke();
+      cx.beginPath(); cx.moveTo(x,y-3); cx.lineTo(x,y+3); cx.stroke();
     });
   }
   window._alcDrawArt = _alcDrawArt;
