@@ -9758,7 +9758,7 @@ async function handleSend() {
 
           // Simple heuristic text extraction (strip JS, CSS, tags)
           let plainText = content
-            .replace(/<script\b[^<]*(?:(?!<\x2fscript>)<[^<]*)*<\x2fscript>/gi, ' ')
+            .replace(/<script\b[^<]*(?:(?!<\x2fscript\s*>)<[^<]*)*<\x2fscript\s*>/gi, ' ')
             .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
             .replace(/<[^>]+>/g, ' ')
             .replace(/\s+/g, ' ')
@@ -11993,7 +11993,7 @@ window.forgeInlineRun=function(bid,pid,lang){
   if(rb)rb.style.display='none';if(sb)sb.style.display='';
   var doc=frm.contentDocument||frm.contentWindow.document;
   if(lang==='html'){doc.open();doc.write(code);doc.close();}
-  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre>\x3cscript\x3evar _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}\x3c/script\x3e</body></html>');doc.close();}
+  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre>\x3cscript\x3evar _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script\s*>/gi,'\x3c/script\x3e')+'}catch(e){console.log("Error: "+e.message);}\x3c/script\x3e</body></html>');doc.close();}
   else if(lang==='css'){doc.open();doc.write('<style>'+code+'</style><p style="font-family:sans-serif;padding:12px">CSS preview</p>');doc.close();}
   else if(lang==='markdown'){var h=code.replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/^# (.+)/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');doc.open();doc.write('<style>body{font-family:sans-serif;padding:14px;line-height:1.6}</style>'+h);doc.close();}
   else{doc.open();doc.write('<pre style="font-family:monospace;font-size:11px;padding:10px;background:#030810;color:#e0f4ff;margin:0;white-space:pre-wrap">['+lang.toUpperCase()+' requires local runtime]\n\n'+code.replace(/</g,'&lt;')+'</pre>');doc.close();}
@@ -19974,7 +19974,7 @@ window.forgeRun = function() {
     } else if (lang === 'javascript') {
       doc.open();
       doc.write('<!DOCTYPE html><html><head></head><body><pre id="out" style="font-family:monospace;font-size:13px;padding:12px;background:#030810;color:#e0f4ff;min-height:100vh;margin:0"></pre>'
-        +'\x3cscript\x3e\nvar _log=[];var _orig=console.log;\nconsole.log=function(){var a=Array.from(arguments).map(function(x){return typeof x==="object"?JSON.stringify(x,null,2):String(x)}).join(" ");_log.push(a);document.getElementById("out").textContent=_log.join("\\n");};\ntry{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}\n\x3c/script\x3e</body></html>');
+        +'\x3cscript\x3e\nvar _log=[];var _orig=console.log;\nconsole.log=function(){var a=Array.from(arguments).map(function(x){return typeof x==="object"?JSON.stringify(x,null,2):String(x)}).join(" ");_log.push(a);document.getElementById("out").textContent=_log.join("\\n");};\ntry{'+code.replace(/<\/script\s*>/gi,'\x3c/script\x3e')+'}catch(e){console.log("Error: "+e.message);}\n\x3c/script\x3e</body></html>');
       doc.close();
     } else if (lang === 'markdown') {
       // Simple MD render
