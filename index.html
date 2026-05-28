@@ -11993,7 +11993,14 @@ window.forgeInlineRun=function(bid,pid,lang){
   if(rb)rb.style.display='none';if(sb)sb.style.display='';
   var doc=frm.contentDocument||frm.contentWindow.document;
   if(lang==='html'){doc.open();doc.write(code);doc.close();}
-  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre>\x3cscript\x3evar _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\x2fscript\b[^>]*>/gi, '\x3c\x2fscript\x3e')+'}catch(e){console.log("Error: "+e.message);}\x3c/script\x3e</body></html>');doc.close();}
+else if(lang==='javascript'){
+    doc.open();
+    doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre>\x3cscript\x3evar _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));var el=document.getElementById("o");if(el)el.textContent=_l.join("\\n");};\x3c/script\x3e</body></html>');
+    var _s = doc.createElement('script');
+    _s.textContent = 'try{'+code+'}catch(e){console.log("Error: "+e.message);}';
+    doc.body.appendChild(_s);
+    doc.close();
+  }
   else if(lang==='css'){doc.open();doc.write('<style>'+code+'</style><p style="font-family:sans-serif;padding:12px">CSS preview</p>');doc.close();}
   else if(lang==='markdown'){var h=code.replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/^# (.+)/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');doc.open();doc.write('<style>body{font-family:sans-serif;padding:14px;line-height:1.6}</style>'+h);doc.close();}
   else{doc.open();doc.write('<pre style="font-family:monospace;font-size:11px;padding:10px;background:#030810;color:#e0f4ff;margin:0;white-space:pre-wrap">['+lang.toUpperCase()+' requires local runtime]\n\n'+code.replace(/</g,'&lt;')+'</pre>');doc.close();}
