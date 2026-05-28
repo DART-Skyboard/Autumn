@@ -16093,7 +16093,7 @@ requestAnimationFrame(()=>{
     function _waitBRPN(cb, tries){
       tries = tries||0;
       if(window._brpnInjectMantisContacts && window._brpnScene){ cb(); return; }
-      if(tries > 150){ console.warn('[Preload] BRPN never ready'); return; }
+      if(tries > 500){ console.warn('[Preload] BRPN never ready'); return; }
       setTimeout(function(){ _waitBRPN(cb, tries+1); }, 400);
     }
 
