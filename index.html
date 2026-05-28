@@ -12848,13 +12848,16 @@ function initBRPN() {
   let isDrag=false,prevX=0,prevY=0,rotX=0,rotY=0;
   const el=renderer.domElement;
   el.addEventListener("pointerdown",e=>{isDrag=true;prevX=e.clientX;prevY=e.clientY});
-  window.addEventListener("pointermove",e=>{
-    if(!isDrag)return;
-    rotY+=(e.clientX-prevX)*0.005; rotX+=(e.clientY-prevY)*0.005;
-    rotX=Math.max(-1.2,Math.min(1.2,rotX));
-    prevX=e.clientX; prevY=e.clientY;
-  });
-  window.addEventListener("pointerup",()=>{isDrag=false});
+  if(!window._brpnWindowListeners){
+    window._brpnWindowListeners=true;
+    window.addEventListener("pointermove",e=>{
+      if(!isDrag)return;
+      rotY+=(e.clientX-prevX)*0.005; rotX+=(e.clientY-prevY)*0.005;
+      rotX=Math.max(-1.2,Math.min(1.2,rotX));
+      prevX=e.clientX; prevY=e.clientY;
+    });
+    window.addEventListener("pointerup",()=>{isDrag=false});
+  }
   el.addEventListener("wheel",e=>{camera.position.z=Math.max(2.5,Math.min(10,camera.position.z+e.deltaY*0.005))},{passive:true});
   el.addEventListener("touchstart",e=>{if(e.touches.length===1){isDrag=true;prevX=e.touches[0].clientX;prevY=e.touches[0].clientY}},{passive:true});
   el.addEventListener("touchmove",e=>{
@@ -13102,6 +13105,7 @@ function initBRPN() {
     try{ renderer.render(scene,camera); }catch(_re){ console.warn('[BRPN] render err:',_re.message); }
     animId=requestAnimationFrame(animate);
   }
+  window._brpnAnimate = animate; // always points to the current animate closure
   animate();
 
   // ── Mantis injection API ─────────────────────────────────────────────────
@@ -13229,20 +13233,24 @@ function initBRPN() {
     });
   };
 
-  document.addEventListener('visibilitychange',function(){
-    if(document.hidden){
-      // Pause BRPN orb
-      cancelAnimationFrame(animId);
-      animId = null;
-      // Pause Arc Edge Studio animate (self-terminates but stop early)
-      if(window._arcStudio) window._arcStudio._visPaused = true;
-      // Pause maze widget
-      if(window._ashMazeAnimId){ cancelAnimationFrame(window._ashMazeAnimId); window._ashMazeAnimId=null; }
-    } else {
-      if(!animId) animate();
-      if(window._arcStudio) { window._arcStudio._visPaused = false; }
-    }
-  });
+  if(!window._brpnVisBound){
+    window._brpnVisBound=true;
+    document.addEventListener('visibilitychange',function(){
+      if(document.hidden){
+        // Pause BRPN orb
+        cancelAnimationFrame(animId);
+        animId = null;
+        // Pause Arc Edge Studio animate (self-terminates but stop early)
+        if(window._arcStudio) window._arcStudio._visPaused = true;
+        // Pause maze widget
+        if(window._ashMazeAnimId){ cancelAnimationFrame(window._ashMazeAnimId); window._ashMazeAnimId=null; }
+      } else {
+        // Use window._brpnAnimate — always the CURRENT closure, not a stale one from a previous reinit
+        if(!animId && window._brpnAnimate) window._brpnAnimate();
+        if(window._arcStudio) { window._arcStudio._visPaused = false; }
+      }
+    });
+  }
 
   const ro=new ResizeObserver(()=>{
     const w2=container.clientWidth, h2=container.clientHeight;
