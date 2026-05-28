@@ -2364,10 +2364,14 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .alc-quote-card{display:flex;gap:14px;align-items:flex-start;
   background:rgba(75,0,130,.22);border:1px solid rgba(140,60,255,.18);border-radius:8px;
   padding:16px;margin-bottom:16px}
-.alc-quote-art{width:120px;height:120px;flex-shrink:0;border-radius:6px;overflow:hidden;
+.alc-quote-art{width:160px;height:160px;flex-shrink:0;border-radius:6px;overflow:visible;
   border:1px solid rgba(140,60,255,.2);background:#0d0520;display:flex;align-items:center;
-  justify-content:center}
-.alc-quote-art canvas{width:120px;height:120px}
+  justify-content:center;position:relative}
+.alc-quote-art canvas{width:160px;height:160px;border-radius:6px;display:block}
+.alc-harp-overlay{position:absolute;bottom:-28px;left:-18px;width:90px;height:110px;
+  object-fit:contain;opacity:.82;pointer-events:none;
+  filter:drop-shadow(0 0 8px rgba(180,100,255,.5)) brightness(1.1);
+  z-index:2}
 .alc-quote-text{flex:1;font-size:.72rem;color:rgba(220,190,255,.75);line-height:1.7;
   font-family:var(--font-b)}
 .alc-quote-text em{color:rgba(200,140,255,.9);font-style:italic}
@@ -9754,7 +9758,7 @@ async function handleSend() {
 
           // Simple heuristic text extraction (strip JS, CSS, tags)
           let plainText = content
-            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+            .replace(/<script\b[^<]*(?:(?!<\x2fscript>)<[^<]*)*<\x2fscript>/gi, ' ')
             .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
             .replace(/<[^>]+>/g, ' ')
             .replace(/\s+/g, ' ')
@@ -11989,7 +11993,7 @@ window.forgeInlineRun=function(bid,pid,lang){
   if(rb)rb.style.display='none';if(sb)sb.style.display='';
   var doc=frm.contentDocument||frm.contentWindow.document;
   if(lang==='html'){doc.open();doc.write(code);doc.close();}
-  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre><script>var _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}<\/script></body></html>');doc.close();}
+  else if(lang==='javascript'){doc.open();doc.write('<!DOCTYPE html><html><body><pre id="o" style="font-family:monospace;font-size:12px;padding:10px;background:#030810;color:#e0f4ff;min-height:180px;margin:0;white-space:pre-wrap"></pre>\x3cscript\x3evar _l=[];console.log=function(){_l.push([].slice.call(arguments).map(String).join(" "));document.getElementById("o").textContent=_l.join("\\n");};try{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}\x3c/script\x3e</body></html>');doc.close();}
   else if(lang==='css'){doc.open();doc.write('<style>'+code+'</style><p style="font-family:sans-serif;padding:12px">CSS preview</p>');doc.close();}
   else if(lang==='markdown'){var h=code.replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/^# (.+)/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n/g,'<br>');doc.open();doc.write('<style>body{font-family:sans-serif;padding:14px;line-height:1.6}</style>'+h);doc.close();}
   else{doc.open();doc.write('<pre style="font-family:monospace;font-size:11px;padding:10px;background:#030810;color:#e0f4ff;margin:0;white-space:pre-wrap">['+lang.toUpperCase()+' requires local runtime]\n\n'+code.replace(/</g,'&lt;')+'</pre>');doc.close();}
@@ -12079,7 +12083,7 @@ function renderMessages() {
         +' onclick="_imgRecallExpand(this,\''+msgId+'\','+ti+')"'
         +' ondblclick="openFraxStudio(this.src,\'upscale\',\'thumb\')"'
         +' oncontextmenu="event.preventDefault();openFraxStudio(this.src,\'upscale\',\'thumb\')"'
-        +'>';
+        +'></div>';
     }).join('') : '';;
 
     // IMG_RECALL card — Autumn posts a full-size image from a previous message
@@ -16087,7 +16091,7 @@ requestAnimationFrame(()=>{
     function _waitBRPN(cb, tries){
       tries = tries||0;
       if(window._brpnInjectMantisContacts && window._brpnScene){ cb(); return; }
-      if(tries > 150){ console.warn('[Preload] BRPN never ready'); return; }
+      if(tries > 500){ console.warn('[Preload] BRPN never ready'); return; }
       setTimeout(function(){ _waitBRPN(cb, tries+1); }, 400);
     }
 
@@ -19910,7 +19914,7 @@ function _forgeInitMonaco(initialCode, initialLang) {
 
 function _forgeDefaultSnippet(lang) {
   var snips = {
-    html: '<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>FORGE \u00b7 Autumn \u00b7 DART Meadow</title>\n  <style>\n    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n    body {\n      background: #030810;\n      color: #e0f4ff;\n      font-family: \"Courier New\", monospace;\n      min-height: 100vh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: center;\n      overflow: hidden;\n    }\n    canvas { position: fixed; inset: 0; z-index: 0; opacity: 0.18; }\n    .card {\n      position: relative;\n      z-index: 1;\n      border: 1px solid rgba(0,255,200,0.25);\n      background: rgba(3,8,16,0.85);\n      padding: 36px 44px;\n      max-width: 520px;\n      width: 92vw;\n      text-align: center;\n      backdrop-filter: blur(8px);\n    }\n    .label { font-size: 10px; letter-spacing: 0.22em; color: #00ffc8; text-transform: uppercase; margin-bottom: 18px; opacity: 0.7; }\n    h1 { font-size: clamp(1.6rem,5vw,2.4rem); font-weight: 400; letter-spacing: 0.08em; color: #e0f4ff; margin-bottom: 12px; }\n    h1 span { color: #00ffc8; }\n    .sub { font-size: 11px; color: #4a8fa8; letter-spacing: 0.12em; margin-bottom: 28px; }\n    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }\n    .cell { border: 1px solid rgba(0,255,200,0.15); padding: 10px 8px; font-size: 10px; letter-spacing: 0.1em; color: #6bcfea; }\n    .cell strong { display: block; color: #00ffc8; font-size: 16px; margin-bottom: 2px; letter-spacing: 0; }\n    .pulse { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #00ffc8; margin-right: 6px; animation: blink 1.4s ease-in-out infinite; vertical-align: middle; }\n    .status { font-size: 10px; letter-spacing: 0.15em; color: #2a6a5a; }\n    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }\n  </style>\n</head>\n<body>\n  <canvas id=\"c\"></canvas>\n  <div class=\"card\">\n    <div class=\"label\">DART Meadow \u00b7 Radical Deepscale \u00b7 FORGE</div>\n    <h1>AUTUMN <span>FORGE</span></h1>\n    <div class=\"sub\">LEATR v2.1 \u00b7 ARC EDGE STUDIO \u00b7 NEURAL CODE EDITOR</div>\n    <div class=\"grid\">\n      <div class=\"cell\"><strong id=\"fps\">--</strong>FPS</div>\n      <div class=\"cell\"><strong id=\"t\">--</strong>UPTIME (s)</div>\n      <div class=\"cell\"><strong>GEO</strong>FRONTLINE</div>\n      <div class=\"cell\"><strong>AERO</strong>ROOT SHELL</div>\n    </div>\n    <div class=\"status\"><span class=\"pulse\"></span>FORGE ACTIVE \u00b7 CLAUDE ASSIST READY</div>\n  </div>\n  <script>\n    const cv = document.getElementById(\"c\");\n    const cx = cv.getContext(\"2d\");\n    let W, H, t0 = Date.now(), frames = 0, lastFPS = performance.now();\n    function resize() { W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }\n    window.addEventListener(\"resize\", resize); resize();\n    function draw() {\n      const now = performance.now();\n      frames++;\n      if (now - lastFPS >= 1000) {\n        document.getElementById(\"fps\").textContent = frames;\n        document.getElementById(\"t\").textContent = ((Date.now()-t0)/1000).toFixed(0);\n        frames = 0; lastFPS = now;\n      }\n      cx.clearRect(0,0,W,H);\n      const s = now * 0.0004;\n      cx.strokeStyle = \"rgba(0,255,200,0.12)\"; cx.lineWidth = 0.5;\n      for (let x=0;x<W;x+=48){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke();}\n      for (let y=0;y<H;y+=48){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke();}\n      for (let i=0;i<5;i++) {\n        const r=80+i*55, a0=s+i*1.2, a1=a0+1.1+Math.sin(s+i)*0.4;\n        cx.beginPath(); cx.arc(W/2,H/2,r,a0,a1);\n        cx.strokeStyle=`hsla(${170+i*18},100%,70%,${0.25-i*0.04})`;\n        cx.lineWidth=1; cx.stroke();\n      }\n      requestAnimationFrame(draw);\n    }\n    draw();\n  <\/script>\n</body>\n</html>',
+    html: '<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>FORGE \u00b7 Autumn \u00b7 DART Meadow</title>\n  <style>\n    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n    body {\n      background: #030810;\n      color: #e0f4ff;\n      font-family: \"Courier New\", monospace;\n      min-height: 100vh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: center;\n      overflow: hidden;\n    }\n    canvas { position: fixed; inset: 0; z-index: 0; opacity: 0.18; }\n    .card {\n      position: relative;\n      z-index: 1;\n      border: 1px solid rgba(0,255,200,0.25);\n      background: rgba(3,8,16,0.85);\n      padding: 36px 44px;\n      max-width: 520px;\n      width: 92vw;\n      text-align: center;\n      backdrop-filter: blur(8px);\n    }\n    .label { font-size: 10px; letter-spacing: 0.22em; color: #00ffc8; text-transform: uppercase; margin-bottom: 18px; opacity: 0.7; }\n    h1 { font-size: clamp(1.6rem,5vw,2.4rem); font-weight: 400; letter-spacing: 0.08em; color: #e0f4ff; margin-bottom: 12px; }\n    h1 span { color: #00ffc8; }\n    .sub { font-size: 11px; color: #4a8fa8; letter-spacing: 0.12em; margin-bottom: 28px; }\n    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }\n    .cell { border: 1px solid rgba(0,255,200,0.15); padding: 10px 8px; font-size: 10px; letter-spacing: 0.1em; color: #6bcfea; }\n    .cell strong { display: block; color: #00ffc8; font-size: 16px; margin-bottom: 2px; letter-spacing: 0; }\n    .pulse { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #00ffc8; margin-right: 6px; animation: blink 1.4s ease-in-out infinite; vertical-align: middle; }\n    .status { font-size: 10px; letter-spacing: 0.15em; color: #2a6a5a; }\n    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }\n  </style>\n</head>\n<body>\n  <canvas id=\"c\"></canvas>\n  <div class=\"card\">\n    <div class=\"label\">DART Meadow \u00b7 Radical Deepscale \u00b7 FORGE</div>\n    <h1>AUTUMN <span>FORGE</span></h1>\n    <div class=\"sub\">LEATR v2.1 \u00b7 ARC EDGE STUDIO \u00b7 NEURAL CODE EDITOR</div>\n    <div class=\"grid\">\n      <div class=\"cell\"><strong id=\"fps\">--</strong>FPS</div>\n      <div class=\"cell\"><strong id=\"t\">--</strong>UPTIME (s)</div>\n      <div class=\"cell\"><strong>GEO</strong>FRONTLINE</div>\n      <div class=\"cell\"><strong>AERO</strong>ROOT SHELL</div>\n    </div>\n    <div class=\"status\"><span class=\"pulse\"></span>FORGE ACTIVE \u00b7 CLAUDE ASSIST READY</div>\n  </div>\n  \x3cscript\x3e\n    const cv = document.getElementById(\"c\");\n    const cx = cv.getContext(\"2d\");\n    let W, H, t0 = Date.now(), frames = 0, lastFPS = performance.now();\n    function resize() { W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }\n    window.addEventListener(\"resize\", resize); resize();\n    function draw() {\n      const now = performance.now();\n      frames++;\n      if (now - lastFPS >= 1000) {\n        document.getElementById(\"fps\").textContent = frames;\n        document.getElementById(\"t\").textContent = ((Date.now()-t0)/1000).toFixed(0);\n        frames = 0; lastFPS = now;\n      }\n      cx.clearRect(0,0,W,H);\n      const s = now * 0.0004;\n      cx.strokeStyle = \"rgba(0,255,200,0.12)\"; cx.lineWidth = 0.5;\n      for (let x=0;x<W;x+=48){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke();}\n      for (let y=0;y<H;y+=48){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke();}\n      for (let i=0;i<5;i++) {\n        const r=80+i*55, a0=s+i*1.2, a1=a0+1.1+Math.sin(s+i)*0.4;\n        cx.beginPath(); cx.arc(W/2,H/2,r,a0,a1);\n        cx.strokeStyle=`hsla(${170+i*18},100%,70%,${0.25-i*0.04})`;\n        cx.lineWidth=1; cx.stroke();\n      }\n      requestAnimationFrame(draw);\n    }\n    draw();\n  \x3c/script\x3e\n</body>\n</html>',
     javascript: '// FORGE \u00b7 JavaScript \u00b7 DART Meadow\n// Arc Edge \u00b7 LEATR reflex pattern\n\nconst LEATR = {\n  version: \"2.1\",\n  shells: [\"GEO\", \"MAR\", \"AERO\"],\n  state:  \"AWAKE\",\n\n  reflex(input) {\n    const encoded = this.encode(input);\n    return { input, encoded, shell: this.shells[encoded % 3] };\n  },\n\n  encode(x) {\n    // (xa\u00b2\u221axa) \u00b1 1  \u2014 ARIEL encode unit\n    const a = Math.abs(x.toString().length);\n    return Math.floor(a * a * Math.sqrt(a)) + 1;\n  }\n};\n\nconsole.log(\"LEATR v\" + LEATR.version + \" \u00b7 \" + LEATR.state);\nconsole.log(LEATR.reflex(\"Autumn\"));\nconsole.log(LEATR.reflex(\"Arc Edge\"));',
     python: '# FORGE \u00b7 Python \u00b7 DART Meadow\n# Arc Edge \u00b7 LEATR reflex pattern\n\nimport math\n\nSHELLS = [\"GEO\", \"MAR\", \"AERO\"]\n\ndef encode(x: str) -> int:\n    \"\"\"(xa\u00b2\u221axa) \u00b1 1 \u2014 ARIEL encode unit\"\"\"\n    a = len(x)\n    return int(a * a * math.sqrt(a)) + 1\n\ndef reflex(value: str) -> dict:\n    e = encode(value)\n    return {\"input\": value, \"encoded\": e, \"shell\": SHELLS[e % 3]}\n\nprint(f\"LEATR v2.1 \u00b7 FORGE\")\nfor word in [\"Autumn\", \"Arc Edge\", \"DART Meadow\"]:\n    print(reflex(word))',
     css: '/* FORGE \u00b7 CSS \u00b7 DART Meadow */\n/* Arc Edge dark theme \u2014 copy into your project */\n\n:root {\n  --bg:       #030810;\n  --surface:  rgba(3,8,16,0.85);\n  --cyan:     #00ffc8;\n  --cyan-dim: rgba(0,255,200,0.25);\n  --text:     #e0f4ff;\n  --text-dim: #4a8fa8;\n  --mono:     \"Courier New\", monospace;\n}\n\nbody {\n  background: var(--bg);\n  color: var(--text);\n  font-family: var(--mono);\n  margin: 0;\n}\n\n.card {\n  border: 1px solid var(--cyan-dim);\n  background: var(--surface);\n  padding: 32px;\n  backdrop-filter: blur(8px);\n}\n\n.label {\n  font-size: 10px;\n  letter-spacing: 0.2em;\n  text-transform: uppercase;\n  color: var(--cyan);\n  opacity: 0.7;\n}\n\n.pulse {\n  display: inline-block;\n  width: 6px; height: 6px;\n  border-radius: 50%;\n  background: var(--cyan);\n  animation: blink 1.4s ease-in-out infinite;\n}\n\n@keyframes blink {\n  0%, 100% { opacity: 1; }\n  50%       { opacity: 0.15; }\n}',
@@ -19970,7 +19974,7 @@ window.forgeRun = function() {
     } else if (lang === 'javascript') {
       doc.open();
       doc.write('<!DOCTYPE html><html><head></head><body><pre id="out" style="font-family:monospace;font-size:13px;padding:12px;background:#030810;color:#e0f4ff;min-height:100vh;margin:0"></pre>'
-        +'<script>\nvar _log=[];var _orig=console.log;\nconsole.log=function(){var a=Array.from(arguments).map(function(x){return typeof x==="object"?JSON.stringify(x,null,2):String(x)}).join(" ");_log.push(a);document.getElementById("out").textContent=_log.join("\\n");};\ntry{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}\n<\/script></body></html>');
+        +'\x3cscript\x3e\nvar _log=[];var _orig=console.log;\nconsole.log=function(){var a=Array.from(arguments).map(function(x){return typeof x==="object"?JSON.stringify(x,null,2):String(x)}).join(" ");_log.push(a);document.getElementById("out").textContent=_log.join("\\n");};\ntry{'+code.replace(/<\/script>/gi,'<\\/script>')+'}catch(e){console.log("Error: "+e.message);}\n\x3c/script\x3e</body></html>');
       doc.close();
     } else if (lang === 'markdown') {
       // Simple MD render
@@ -26339,7 +26343,8 @@ console.info('[MantisRadar] Controller ready. URL:', MR_URL);
         <!-- Quote + generative art card -->
         <div class="alc-quote-card">
           <div class="alc-quote-art">
-            <canvas id="alc-art-canvas" width="120" height="120"></canvas>
+            <canvas id="alc-art-canvas" width="160" height="160"></canvas>
+            <img class="alc-harp-overlay" src="assets/harpmakerV.png" alt="harpmaker" />
           </div>
           <div class="alc-quote-text">
             <em>"From the same where what is left off<br>what begins the same as itself where it won't begin."</em>
@@ -26494,71 +26499,241 @@ console.info('[MantisRadar] Controller ready. URL:', MR_URL);
     var cv = document.getElementById('alc-art-canvas');
     if (!cv) return;
     var cx = cv.getContext('2d');
-    var W=120, H=120;
+    var W=160, H=160;
     cx.clearRect(0,0,W,H);
-    // Background deep space
-    var bg = cx.createRadialGradient(60,60,10,60,60,65);
-    bg.addColorStop(0,'rgba(30,5,60,.9)');
-    bg.addColorStop(1,'rgba(5,2,14,1)');
+
+    // ── Deep space background with nebula ──
+    var bg = cx.createRadialGradient(80,75,8,80,75,88);
+    bg.addColorStop(0,'rgba(40,8,80,.98)');
+    bg.addColorStop(.5,'rgba(18,4,45,.99)');
+    bg.addColorStop(1,'rgba(4,1,12,1)');
     cx.fillStyle=bg; cx.fillRect(0,0,W,H);
+    // nebula wisps
+    var nb=cx.createRadialGradient(55,45,0,55,45,55);
+    nb.addColorStop(0,'rgba(120,40,200,.12)');
+    nb.addColorStop(.5,'rgba(80,20,160,.06)');
+    nb.addColorStop(1,'rgba(0,0,0,0)');
+    cx.fillStyle=nb; cx.fillRect(0,0,W,H);
+    var nb2=cx.createRadialGradient(110,100,0,110,100,45);
+    nb2.addColorStop(0,'rgba(60,20,180,.1)');
+    nb2.addColorStop(1,'rgba(0,0,0,0)');
+    cx.fillStyle=nb2; cx.fillRect(0,0,W,H);
 
-    // Mercury Sphere 1
-    var s1=cx.createRadialGradient(38,38,2,38,38,14);
-    s1.addColorStop(0,'rgba(220,200,255,.95)');
-    s1.addColorStop(.4,'rgba(160,100,255,.7)');
-    s1.addColorStop(1,'rgba(80,30,140,.1)');
-    cx.beginPath(); cx.arc(38,38,14,0,Math.PI*2);
+    // ── Star field ──
+    cx.fillStyle='rgba(255,255,255,.55)';
+    [[8,12],[23,5],[45,18],[90,8],[120,22],[148,10],[155,45],[138,78],
+     [12,55],[5,88],[28,105],[8,135],[145,130],[152,100]].forEach(function(p){
+      cx.beginPath(); cx.arc(p[0],p[1],.8+Math.random()*.6,0,Math.PI*2); cx.fill();
+    });
+
+    // ── Mercury Sphere 1 (large, upper-left) ──
+    // Base sphere
+    var s1=cx.createRadialGradient(44,44,1,44,44,20);
+    s1.addColorStop(0,'rgba(255,248,255,1)');
+    s1.addColorStop(.15,'rgba(230,210,255,.97)');
+    s1.addColorStop(.45,'rgba(170,110,255,.88)');
+    s1.addColorStop(.75,'rgba(100,40,200,.6)');
+    s1.addColorStop(1,'rgba(50,10,100,.05)');
+    cx.beginPath(); cx.arc(44,44,20,0,Math.PI*2);
     cx.fillStyle=s1; cx.fill();
-    cx.beginPath(); cx.arc(38,38,14,0,Math.PI*2);
-    cx.strokeStyle='rgba(200,150,255,.5)'; cx.lineWidth=.8; cx.stroke();
+    // equatorial band
+    cx.save(); cx.beginPath(); cx.ellipse(44,44,20,6,-.2,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,160,255,.25)'; cx.lineWidth=1; cx.stroke(); cx.restore();
+    // meridian lines
+    cx.save(); cx.beginPath(); cx.ellipse(44,44,7,20,0,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,160,255,.18)'; cx.lineWidth=.8; cx.stroke(); cx.restore();
+    // specular highlight
+    var sh1=cx.createRadialGradient(38,36,0,38,36,8);
+    sh1.addColorStop(0,'rgba(255,255,255,.65)');
+    sh1.addColorStop(.5,'rgba(240,220,255,.2)');
+    sh1.addColorStop(1,'rgba(255,255,255,0)');
+    cx.beginPath(); cx.arc(44,44,20,0,Math.PI*2);
+    cx.fillStyle=sh1; cx.fill();
+    // glow halo
+    var g1=cx.createRadialGradient(44,44,18,44,44,30);
+    g1.addColorStop(0,'rgba(160,80,255,.2)');
+    g1.addColorStop(1,'rgba(160,80,255,0)');
+    cx.beginPath(); cx.arc(44,44,30,0,Math.PI*2);
+    cx.fillStyle=g1; cx.fill();
+    // outer ring
+    cx.beginPath(); cx.arc(44,44,20,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,140,255,.35)'; cx.lineWidth=1; cx.stroke();
 
-    // Mercury Sphere 2
-    var s2=cx.createRadialGradient(78,42,2,78,42,10);
-    s2.addColorStop(0,'rgba(220,200,255,.95)');
-    s2.addColorStop(.4,'rgba(160,100,255,.65)');
-    s2.addColorStop(1,'rgba(80,30,140,.1)');
-    cx.beginPath(); cx.arc(78,42,10,0,Math.PI*2);
+    // ── Mercury Sphere 2 (smaller, upper-right area) ──
+    var s2=cx.createRadialGradient(108,36,1,108,36,13);
+    s2.addColorStop(0,'rgba(255,248,255,1)');
+    s2.addColorStop(.18,'rgba(225,205,255,.96)');
+    s2.addColorStop(.5,'rgba(165,105,255,.85)');
+    s2.addColorStop(.8,'rgba(95,35,195,.55)');
+    s2.addColorStop(1,'rgba(50,10,100,.04)');
+    cx.beginPath(); cx.arc(108,36,13,0,Math.PI*2);
     cx.fillStyle=s2; cx.fill();
-    cx.beginPath(); cx.arc(78,42,10,0,Math.PI*2);
-    cx.strokeStyle='rgba(200,150,255,.4)'; cx.lineWidth=.7; cx.stroke();
+    cx.save(); cx.beginPath(); cx.ellipse(108,36,13,4,-.15,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,155,255,.2)'; cx.lineWidth=.8; cx.stroke(); cx.restore();
+    cx.save(); cx.beginPath(); cx.ellipse(108,36,4,13,0,0,Math.PI*2);
+    cx.strokeStyle='rgba(200,155,255,.15)'; cx.lineWidth=.7; cx.stroke(); cx.restore();
+    var sh2=cx.createRadialGradient(103,31,0,103,31,5);
+    sh2.addColorStop(0,'rgba(255,255,255,.6)');
+    sh2.addColorStop(1,'rgba(255,255,255,0)');
+    cx.beginPath(); cx.arc(108,36,13,0,Math.PI*2);
+    cx.fillStyle=sh2; cx.fill();
+    var g2=cx.createRadialGradient(108,36,11,108,36,20);
+    g2.addColorStop(0,'rgba(140,70,255,.16)');
+    g2.addColorStop(1,'rgba(140,70,255,0)');
+    cx.beginPath(); cx.arc(108,36,20,0,Math.PI*2);
+    cx.fillStyle=g2; cx.fill();
+    cx.beginPath(); cx.arc(108,36,13,0,Math.PI*2);
+    cx.strokeStyle='rgba(190,130,255,.3)'; cx.lineWidth=.8; cx.stroke();
 
-    // Poster Stand (thin vertical with base)
-    cx.strokeStyle='rgba(160,100,255,.65)'; cx.lineWidth=1.5;
-    cx.beginPath(); cx.moveTo(60,20); cx.lineTo(60,78); cx.stroke();
-    cx.beginPath(); cx.moveTo(50,78); cx.lineTo(70,78); cx.stroke(); // base
-    cx.beginPath(); cx.moveTo(53,78); cx.lineTo(48,85); cx.stroke();
-    cx.beginPath(); cx.moveTo(67,78); cx.lineTo(72,85); cx.stroke();
-    // poster top crossbar
-    cx.lineWidth=1;
-    cx.beginPath(); cx.moveTo(52,26); cx.lineTo(68,26); cx.stroke();
+    // ── Poster Stand (center, tall) ──
+    // main pole with gradient
+    var pg=cx.createLinearGradient(82,18,82,120);
+    pg.addColorStop(0,'rgba(200,150,255,.9)');
+    pg.addColorStop(.5,'rgba(160,100,255,.7)');
+    pg.addColorStop(1,'rgba(120,60,220,.5)');
+    cx.strokeStyle=pg; cx.lineWidth=2.5;
+    cx.beginPath(); cx.moveTo(82,18); cx.lineTo(82,110); cx.stroke();
+    // horizontal crossbar at top
+    cx.strokeStyle='rgba(190,140,255,.75)'; cx.lineWidth=1.8;
+    cx.beginPath(); cx.moveTo(68,24); cx.lineTo(96,24); cx.stroke();
+    // finials at crossbar ends
+    cx.fillStyle='rgba(200,150,255,.8)';
+    cx.beginPath(); cx.arc(68,24,2.5,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.arc(96,24,2.5,0,Math.PI*2); cx.fill();
+    // poster sheet hanging from crossbar
+    cx.fillStyle='rgba(100,50,200,.12)';
+    cx.strokeStyle='rgba(170,110,255,.3)'; cx.lineWidth=.8;
+    cx.beginPath(); cx.roundRect(69,25,26,28,1); cx.fill(); cx.stroke();
+    // text lines on poster
+    cx.strokeStyle='rgba(180,130,255,.35)'; cx.lineWidth=.6;
+    [33,38,43,48].forEach(function(y){
+      cx.beginPath(); cx.moveTo(73,y); cx.lineTo(91,y); cx.stroke();
+    });
+    // tripod legs
+    cx.strokeStyle='rgba(160,100,255,.55)'; cx.lineWidth=1.5;
+    cx.beginPath(); cx.moveTo(82,110); cx.lineTo(66,128); cx.stroke();
+    cx.beginPath(); cx.moveTo(82,110); cx.lineTo(82,130); cx.stroke();
+    cx.beginPath(); cx.moveTo(82,110); cx.lineTo(98,128); cx.stroke();
+    // rubber feet
+    cx.fillStyle='rgba(140,80,220,.6)';
+    [[66,128],[82,130],[98,128]].forEach(function(p){
+      cx.beginPath(); cx.arc(p[0],p[1],2,0,Math.PI*2); cx.fill();
+    });
+    // adjustment knobs on pole
+    cx.fillStyle='rgba(180,120,255,.55)'; cx.strokeStyle='rgba(200,150,255,.4)'; cx.lineWidth=.5;
+    [55,75,95].forEach(function(y){
+      cx.beginPath(); cx.arc(82,y,2.5,0,Math.PI*2); cx.fill(); cx.stroke();
+    });
 
-    // Pocket Watch Navigation Desk (small desk shape + circle)
-    cx.strokeStyle='rgba(180,130,255,.5)'; cx.lineWidth=1;
-    cx.strokeRect(82,70,26,18); // desk surface
-    cx.beginPath(); cx.moveTo(84,88); cx.lineTo(84,96); cx.stroke(); // leg
-    cx.beginPath(); cx.moveTo(106,88); cx.lineTo(106,96); cx.stroke();
-    // watch circle on desk
-    cx.beginPath(); cx.arc(95,78,4,0,Math.PI*2);
-    cx.strokeStyle='rgba(220,180,255,.6)'; cx.stroke();
-    cx.beginPath(); cx.moveTo(95,78); cx.lineTo(95,75); cx.stroke(); // hand
+    // ── Pocket Watch Navigation Desk (right side) ──
+    // desk surface with wood-grain effect
+    var dg=cx.createLinearGradient(106,92,106,112);
+    dg.addColorStop(0,'rgba(120,70,200,.35)');
+    dg.addColorStop(1,'rgba(80,40,160,.2)');
+    cx.fillStyle=dg; cx.strokeStyle='rgba(180,120,255,.45)'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.roundRect(104,92,40,20,2); cx.fill(); cx.stroke();
+    // desk legs
+    cx.strokeStyle='rgba(160,100,255,.4)'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.moveTo(107,112); cx.lineTo(105,130); cx.stroke();
+    cx.beginPath(); cx.moveTo(141,112); cx.lineTo(143,130); cx.stroke();
+    // crossbar between legs
+    cx.beginPath(); cx.moveTo(107,122); cx.lineTo(141,122); cx.stroke();
+    // pocket watch face on desk surface
+    var wg=cx.createRadialGradient(124,100,1,124,100,7);
+    wg.addColorStop(0,'rgba(220,200,255,.9)');
+    wg.addColorStop(.4,'rgba(160,110,240,.7)');
+    wg.addColorStop(1,'rgba(80,40,160,.3)');
+    cx.beginPath(); cx.arc(124,100,7,0,Math.PI*2);
+    cx.fillStyle=wg; cx.fill();
+    cx.strokeStyle='rgba(220,180,255,.6)'; cx.lineWidth=1.2; cx.stroke();
+    // watch bezel detail
+    cx.strokeStyle='rgba(200,160,255,.3)'; cx.lineWidth=.5;
+    cx.beginPath(); cx.arc(124,100,8.5,0,Math.PI*2); cx.stroke();
+    // watch hands
+    cx.strokeStyle='rgba(240,220,255,.85)'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.moveTo(124,100); cx.lineTo(124,94); cx.stroke(); // 12
+    cx.strokeStyle='rgba(200,160,255,.7)'; cx.lineWidth=.9;
+    cx.beginPath(); cx.moveTo(124,100); cx.lineTo(129,101); cx.stroke(); // 3
+    // watch crown
+    cx.fillStyle='rgba(200,160,255,.6)';
+    cx.beginPath(); cx.roundRect(131,98.5,4,3,1); cx.fill();
+    // hour markers
+    cx.fillStyle='rgba(220,190,255,.5)';
+    for(var a=0;a<12;a++){
+      var ax=124+Math.cos(a*Math.PI/6-Math.PI/2)*5.5;
+      var ay=100+Math.sin(a*Math.PI/6-Math.PI/2)*5.5;
+      cx.beginPath(); cx.arc(ax,ay,.7,0,Math.PI*2); cx.fill();
+    }
+    // navigation compass rose below watch
+    cx.strokeStyle='rgba(160,100,255,.35)'; cx.lineWidth=.7;
+    cx.beginPath(); cx.arc(124,108,4,0,Math.PI*2); cx.stroke();
+    ['N','E','S','W'].forEach(function(d,i){
+      var ax2=124+Math.cos(i*Math.PI/2-Math.PI/2)*3;
+      var ay2=108+Math.sin(i*Math.PI/2-Math.PI/2)*3;
+      cx.fillStyle='rgba(200,150,255,.6)';
+      cx.font='bold 3px monospace'; cx.textAlign='center'; cx.textBaseline='middle';
+      cx.fillText(d,ax2,ay2);
+    });
 
-    // Pantry Seasoning Dripbox (small bottle/box lower left)
-    cx.fillStyle='rgba(100,50,200,.3)';
-    cx.strokeStyle='rgba(160,100,255,.45)'; cx.lineWidth=1;
-    cx.beginPath(); cx.roundRect(10,80,16,28,3); cx.fill(); cx.stroke();
-    // drip nozzle
-    cx.beginPath(); cx.moveTo(18,80); cx.lineTo(18,74);
-    cx.strokeStyle='rgba(200,150,255,.5)'; cx.stroke();
-    cx.beginPath(); cx.arc(18,72,2.5,0,Math.PI*2);
-    cx.fillStyle='rgba(200,150,255,.4)'; cx.fill();
-    // label line
-    cx.strokeStyle='rgba(160,100,255,.3)'; cx.lineWidth=.5;
-    cx.beginPath(); cx.moveTo(13,90); cx.lineTo(23,90); cx.stroke();
+    // ── Pantry Seasoning Dripbox (lower-left, detailed) ──
+    // main bottle body
+    var btg=cx.createLinearGradient(12,88,28,88);
+    btg.addColorStop(0,'rgba(130,60,220,.45)');
+    btg.addColorStop(.5,'rgba(100,45,190,.35)');
+    btg.addColorStop(1,'rgba(80,30,160,.25)');
+    cx.fillStyle=btg; cx.strokeStyle='rgba(170,100,255,.5)'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.roundRect(10,82,20,36,3); cx.fill(); cx.stroke();
+    // label panel
+    cx.fillStyle='rgba(160,90,255,.15)'; cx.strokeStyle='rgba(180,110,255,.25)'; cx.lineWidth=.6;
+    cx.beginPath(); cx.roundRect(13,90,14,18,1); cx.fill(); cx.stroke();
+    // label text lines
+    cx.strokeStyle='rgba(190,130,255,.3)'; cx.lineWidth=.5;
+    [94,98,102,106].forEach(function(y){
+      cx.beginPath(); cx.moveTo(15,y); cx.lineTo(25,y); cx.stroke();
+    });
+    // shoulder taper
+    cx.fillStyle='rgba(120,55,210,.4)'; cx.strokeStyle='rgba(170,100,255,.45)'; cx.lineWidth=1;
+    cx.beginPath(); cx.moveTo(10,82); cx.lineTo(13,76); cx.lineTo(27,76); cx.lineTo(30,82); cx.closePath();
+    cx.fill(); cx.stroke();
+    // neck
+    cx.fillStyle='rgba(110,50,200,.5)'; cx.strokeStyle='rgba(170,100,255,.5)';
+    cx.beginPath(); cx.roundRect(15,68,10,9,2); cx.fill(); cx.stroke();
+    // drip nozzle tip
+    var ng=cx.createRadialGradient(20,64,0,20,64,5);
+    ng.addColorStop(0,'rgba(220,170,255,.9)');
+    ng.addColorStop(.5,'rgba(180,110,255,.6)');
+    ng.addColorStop(1,'rgba(140,70,220,.1)');
+    cx.beginPath(); cx.arc(20,64,4,0,Math.PI*2);
+    cx.fillStyle=ng; cx.fill();
+    cx.strokeStyle='rgba(200,150,255,.55)'; cx.lineWidth=1; cx.stroke();
+    // drip drop
+    cx.fillStyle='rgba(200,140,255,.45)';
+    cx.beginPath(); cx.arc(20,60,2,0,Math.PI*2); cx.fill();
+    cx.beginPath(); cx.moveTo(18.5,60); cx.quadraticCurveTo(20,55,21.5,60); cx.closePath(); cx.fill();
+    // shadow/base
+    cx.fillStyle='rgba(100,40,180,.2)';
+    cx.beginPath(); cx.ellipse(20,118,9,3,0,0,Math.PI*2); cx.fill();
 
-    // Ambient particles
-    cx.fillStyle='rgba(200,160,255,.35)';
-    [[22,62],[45,18],[90,30],[105,55],[30,100],[70,105]].forEach(function(p){
-      cx.beginPath(); cx.arc(p[0],p[1],1,0,Math.PI*2); cx.fill();
+    // ── Connecting light threads between objects ──
+    cx.setLineDash([2,4]);
+    cx.strokeStyle='rgba(160,90,255,.15)'; cx.lineWidth=.7;
+    cx.beginPath(); cx.moveTo(64,44); cx.lineTo(82,40); cx.stroke(); // sph1 to stand
+    cx.beginPath(); cx.moveTo(95,44); cx.lineTo(108,45); cx.stroke(); // stand to sph2
+    cx.beginPath(); cx.moveTo(82,110); cx.lineTo(108,95); cx.stroke(); // stand to desk
+    cx.beginPath(); cx.moveTo(30,90); cx.lineTo(66,100); cx.stroke(); // dripbox to stand
+    cx.setLineDash([]);
+
+    // ── Ambient floating particles ──
+    cx.fillStyle='rgba(200,160,255,.4)';
+    [[70,70],[130,65],[50,130],[140,55],[25,75],[155,85]].forEach(function(p){
+      cx.beginPath(); cx.arc(p[0],p[1],1.2,0,Math.PI*2); cx.fill();
+    });
+    // tiny sparkles
+    cx.strokeStyle='rgba(220,180,255,.5)'; cx.lineWidth=.7;
+    [[35,62],[115,55],[60,115]].forEach(function(p){
+      var x=p[0],y=p[1];
+      cx.beginPath(); cx.moveTo(x-3,y); cx.lineTo(x+3,y); cx.stroke();
+      cx.beginPath(); cx.moveTo(x,y-3); cx.lineTo(x,y+3); cx.stroke();
     });
   }
   window._alcDrawArt = _alcDrawArt;
