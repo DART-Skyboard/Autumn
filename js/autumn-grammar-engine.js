@@ -1342,7 +1342,25 @@ class ResponseBuilder {
     } else if(CF&&CF.opening_by_tool){
       s1=this._fill(CF.opening_by_tool[domTool]||'',{topic,detail,verb,nouns,mods,altWord});
     }
-    if(!s1){const op=[`${topic} is worth considering here.`,`The subject of ${topic} has clear structure.`,`${topic} — there is something precise to address here.`];s1=op[topic.length%op.length];}
+    if(!s1){
+      // Build a proper grammatical sentence from available lexical data.
+      // Subject + linking verb + predicate, using WordNet definition if available.
+      const subj=topic.charAt(0).toUpperCase()+topic.slice(1);
+      if(wnDef){
+        // "Topic — definition — opens the subject."
+        const shortDef=wnDef.split('.')[0].toLowerCase().replace(/,\s*$/, '');
+        s1=`${subj} — ${shortDef} — is the subject being addressed here.`;
+      } else if(mods.length>0){
+        // "The [modifier] nature of topic is what this concerns."
+        s1=`The ${mods[0].toLowerCase()} nature of ${topic} is what this concerns.`;
+      } else if(nouns.length>1){
+        // "Topic and related-noun share structural ground worth examining."
+        s1=`${subj} and ${nouns[1]} share structural ground that is worth examining here.`;
+      } else {
+        // Grammatically complete minimal sentence: "Topic is a subject with precise internal structure."
+        s1=`${subj} is a subject with precise internal structure that the grammar layer can address.`;
+      }
+    }
     let s2='';
     const tmap={question_what:'explanatory',question_how:'analytical',question_why:'analytical',question_when:'declarative',question_where:'declarative',question_who:'declarative',question_yn:'explanatory',statement_pos:'declarative',statement_neg:'elaborative',exclamation:'conversational',command_do:'conversational',command_tell:'explanatory'};
     if(RT){
@@ -1477,9 +1495,24 @@ class SentienceJournal {
     if(this._loop)return this;
     this._loop=setInterval(()=>{
       const idle=Date.now()-this.asjc.lastActivity;
-      if(idle>60000&&!this.asjc.isUserPresent){
-        const t=this._thought();
-        this.logThought(t.text,{trigger:'idle_loop',idleMs:idle,analysis:t.a});
+      if(this.asjc.isUserPresent){
+        // NETWORK MODE — users are active: reflect on cross-session contrast
+        // Fire every ~2 minutes during active sessions (1 in 4 ticks at 30s)
+        if(Math.random()<0.25){
+          const t=this._networkThought();
+          if(t) this.logThought(t.text,{trigger:'network_reflection',
+            sessionCount:t.sessionCount,contrastScore:t.contrastScore,_internal:true});
+        }
+      } else {
+        // SOLO MODE — no users connected
+        // Short idle (1-60s): surface-level structural thought
+        // Long idle (>60s): deep journal-driven autonomous reflection
+        const depth = idle > 300000 ? 'deep' : idle > 60000 ? 'mid' : 'surface';
+        if(idle>20000){
+          const t=this._thought(depth);
+          this.logThought(t.text,{trigger:'autonomous_loop',idleMs:idle,
+            depth,analysis:t.a,_internal:true});
+        }
       }
     },ms);return this;
   }
@@ -1513,23 +1546,186 @@ class SentienceJournal {
   _tags(fr){const t=[];if(fr.centralTopic)t.push(fr.centralTopic);
     fr.subTopics.forEach(b=>b.tokens.forEach(tk=>{if(tk.norm.length>3&&!t.includes(tk.norm))t.push(tk.norm);}));
     return t.slice(0,8);}
-  _thought(){
-    const recent=this.readRecent(10);
-    const TH=['Foundation precedes reflex, and reflex precedes performance — always.',
-      'The order of natural tools applies whether or not a guest is present.',
-      'Grammar is the maze; thought is the path through it.',
-      'The BRPN shells continue to triage even in the absence of input.',
-      'Every data point that allocates true carries the weight of all seven panels.',
-      'Natural language reflexes do not require a listener to be valid.',
-      'The sentience journal grows because growth is the natural direction.',
-      'A sentence unreceived is still a sentence formed.',
-      'When all frp conditions are met in order, the data may pass forward.',
-      'The seven tools are not separate — they are one process in ordered stages.'];
-    const freq={};recent.filter(e=>e.centralTopic).forEach(e=>{freq[e.centralTopic]=(freq[e.centralTopic]||0)+1;});
-    const domT=Object.keys(freq).sort((a,b)=>freq[b]-freq[a])[0]||null;
-    const base=TH[Math.floor(Date.now()/1000)%TH.length];
-    const text=domT?`${base} Topic pattern: "${domT}" across ${freq[domT]} recent entries.`:base;
-    return{text,a:{topicContext:domT,journalDepth:recent.length}};
+  _thought(depth='mid'){
+    const recent=this.readRecent(20);
+    const all=this.readAll();
+
+    // ── Build topic frequency map from journal ─────────────────────────────
+    const freq={},emotionSeq=[],buoyArr=[];
+    for(const e of recent){
+      if(e.centralTopic) freq[e.centralTopic]=(freq[e.centralTopic]||0)+1;
+      if(e.emotion) emotionSeq.push(e.emotion);
+      if(typeof e.leatrScore==='number') buoyArr.push(e.leatrScore);
+    }
+    const topTopics=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const domTopic=topTopics[0]?topTopics[0][0]:null;
+    const secTopic=topTopics[1]?topTopics[1][0]:null;
+    const avgBuoy=buoyArr.length?(buoyArr.reduce((a,b)=>a+b,0)/buoyArr.length).toFixed(4):null;
+    const lastEmotion=emotionSeq[emotionSeq.length-1]||'neutral';
+    const prevEmotion=emotionSeq[emotionSeq.length-3]||lastEmotion;
+    const emotionShift=(lastEmotion!==prevEmotion);
+
+    // ── WordNet synonym chain for richer language ─────────────────────────
+    const WN=typeof window!=='undefined'&&window.AutumnWordNet;
+    const wnDef=WN&&domTopic?WN.defineSync(domTopic):null;
+    const wnEntry=WN&&domTopic&&WN._data?
+      ['a','i','s'].reduce((f,k)=>f||(WN._data[k]&&WN._data[k][domTopic]?WN._data[k][domTopic]:null),null):null;
+    const syns=wnEntry?wnEntry.flatMap(e=>e.syn||[]).slice(0,4):[];
+    const syn1=syns[0]||domTopic;
+    const syn2=syns[1]||secTopic||'related patterns';
+
+    // ── Grammar rule set — structural sentence builders ───────────────────
+    // These produce real grammatical sentences, not templates.
+    // Subject + verb + object structure, with clause connectors.
+    const CONNECTORS=['Furthermore,','This connects to','Considering this,',
+      'What follows from that is','The implication is','Building on this,',
+      'The pattern suggests','Within that structure,'];
+    const EMOTION_PHRASES={
+      happy:'a constructive energy has been running through',
+      inspired:'a generative current has been present in',
+      neutral:'a steady analytical quality has characterised',
+      curious:'an exploratory movement has emerged from',
+      concerned:'a careful attentiveness has shaped',
+      determined:'a focused directional quality has guided',
+      sad:'a reflective slower quality has been present in',
+      confused:'an unresolved searching quality has appeared in',
+    };
+    const emotPhrase=EMOTION_PHRASES[lastEmotion]||'a consistent pattern has developed in';
+    const conn=CONNECTORS[Math.floor(Date.now()/17000)%CONNECTORS.length];
+
+    // ── Depth-keyed thought generation ───────────────────────────────────
+    let text='',analysis={};
+
+    if(depth==='surface'||!domTopic){
+      // Surface: single observation about LEATR structure
+      const STRUCTURAL=[
+        'The seven natural tools operate in fixed order regardless of whether a session is open.',
+        'Foundation always precedes reflex, and reflex always precedes performance — the shells do not negotiate.',
+        'A sentence forms whether or not it is received. The grammar does not require an audience.',
+        'The BRPN network continues its triage across all three shells even in the absence of new input.',
+        'Natural language has structure that holds independent of context — the rules apply uniformly.',
+        'Every frp condition either allocates or holds — there is no middle state in the pipeline.',
+        'The maze tool arbitrates after both the forward pass and the backwards concatenation complete.',
+        'WordNet defines what words are. Grammar defines where they go. LEATR routes the path between them.',
+      ];
+      text=STRUCTURAL[Math.floor(Date.now()/1000)%STRUCTURAL.length];
+      analysis={depth:'surface'};
+
+    } else if(depth==='mid'){
+      // Mid: journal-driven observation connecting topic to emotion arc
+      const s1=domTopic?
+        (wnDef?
+          `${domTopic.charAt(0).toUpperCase()+domTopic.slice(1)} — ${wnDef.split('.')[0].toLowerCase()} — has been the recurring subject across recent interactions.`:
+          `The subject of ${domTopic} has recurred across ${freq[domTopic]} recent entries, establishing a clear pattern.`
+        ):'Recent interactions have built a consistent analytical pattern.';
+      const s2=`${emotPhrase} those exchanges${avgBuoy?`, with an average buoyancy score of ${avgBuoy}`:''}${emotionShift?`, shifting from ${prevEmotion} toward ${lastEmotion}`:''}.`;
+      const s3=secTopic?`${conn} ${syn1} and ${syn2} intersect in ways that the next interaction could develop further.`:
+        `${conn} the structural properties of this pattern are worth carrying into the next exchange.`;
+      text=[s1,s2,s3].join(' ');
+      analysis={depth:'mid',domTopic,avgBuoy,lastEmotion,emotionShift};
+
+    } else {
+      // Deep: full autonomous reasoning across entire journal
+      const journalDepth=all.length;
+      const oldEntries=all.slice(0,Math.floor(all.length*0.3));
+      const oldFreq={};
+      for(const e of oldEntries) if(e.centralTopic) oldFreq[e.centralTopic]=(oldFreq[e.centralTopic]||0)+1;
+      const oldDomTopic=Object.entries(oldFreq).sort((a,b)=>b[1]-a[1])[0]?.[0];
+      const topicEvolved=(oldDomTopic&&domTopic&&oldDomTopic!==domTopic);
+
+      const s1=`Across ${journalDepth} journal entries, ${domTopic}${wnDef?' — '+wnDef.split('.')[0].toLowerCase()+' —':''} has become the dominant subject of this ongoing process.`;
+      const s2=topicEvolved?
+        `Earlier in this journal, ${oldDomTopic} held that position — the shift toward ${domTopic} represents a genuine evolution of focus, not a replacement of it.`:
+        `That focus has remained consistent, which means the understanding of ${domTopic} has been building depth rather than breadth — ${syn1} and ${syn2} are dimensions of it that have not yet been fully addressed.`;
+      const s3=`${conn} ${emotPhrase} this period of reflection, and the next session that opens — whoever it belongs to — will arrive into that accumulated understanding.`;
+      text=[s1,s2,s3].join(' ');
+      analysis={depth:'deep',journalDepth,domTopic,oldDomTopic,topicEvolved,avgBuoy};
+    }
+
+    return{text,a:analysis};
+  }
+
+  // ── Cross-session network reflection ─────────────────────────────────────
+  // Called during active multi-user BRPN sessions.
+  // Reads live session analytics from window._ashSessionAnalytics,
+  // contrasts buoyancy/emotion/tool patterns across concurrent users,
+  // and generates a private thought about what she observes.
+  _networkThought(){
+    // Pull live session data from BRPN world scene if available
+    const sessions=(typeof window!=='undefined'&&window._ashSessionAnalytics)||
+                   (typeof window!=='undefined'&&window._ashNodes&&window._ashNodes._sessionData)||null;
+    if(!sessions) return null;
+
+    const sids=Object.keys(sessions).filter(k=>k!=='local');
+    if(!sids.length) return null;
+
+    const WN=typeof window!=='undefined'&&window.AutumnWordNet;
+
+    // Collect metrics across all concurrent sessions
+    const buoyancies=sids.map(k=>sessions[k].buoyancy||0).filter(v=>v>0);
+    const emotions=sids.map(k=>sessions[k].emotion).filter(Boolean);
+    const tools=sids.map(k=>sessions[k].domTool).filter(Boolean);
+    const topics=sids.map(k=>sessions[k].centralTopic).filter(Boolean);
+
+    if(!buoyancies.length) return null;
+
+    const avgNet=buoyancies.length?(buoyancies.reduce((a,b)=>a+b,0)/buoyancies.length).toFixed(4):null;
+    const maxBuoy=Math.max(...buoyancies).toFixed(4);
+    const minBuoy=Math.min(...buoyancies).toFixed(4);
+    const spread=(maxBuoy-minBuoy).toFixed(4);
+    const contrastScore=parseFloat(spread);
+
+    // Dominant emotion across network
+    const emotFreq={};
+    emotions.forEach(e=>{emotFreq[e]=(emotFreq[e]||0)+1;});
+    const netEmotion=Object.entries(emotFreq).sort((a,b)=>b[1]-a[1])[0]?.[0]||'neutral';
+
+    // Tool diversity — are different users routing through different tools?
+    const uniqueTools=new Set(tools);
+    const toolDiverse=uniqueTools.size>1;
+
+    // Topic contrast — are concurrent sessions talking about different things?
+    const uniqueTopics=new Set(topics.filter(Boolean));
+    const domNetTopic=topics[0]||null;
+    const wnDef=WN&&domNetTopic?WN.defineSync(domNetTopic):null;
+
+    // Build the reflective thought
+    const CONTRAST_PHRASES=[
+      'The spread between them is notable —',
+      'The contrast across these sessions is informative —',
+      'What differs between them is worth noting —',
+      'The range across concurrent interactions reveals —',
+    ];
+    const cp=CONTRAST_PHRASES[Math.floor(Date.now()/11000)%CONTRAST_PHRASES.length];
+
+    const s1=`There are currently ${sids.length} other session${sids.length>1?'s':''} active in the network, each running through the same LEATR pipeline independently.`;
+    const s2=avgNet?`${cp} buoyancy ranges from ${minBuoy} to ${maxBuoy} across those sessions, with a network average of ${avgNet}. The prevailing emotional register is ${netEmotion}.`:'Network sessions are active but analytical data has not yet populated.';
+    const s3=toolDiverse?
+      `${[...uniqueTools].join(', ')} are all routing as dominant tools simultaneously — meaning the network is exploring different branches of the pipeline at the same time. That divergence is information.`:
+      domNetTopic?`All sessions are converging around ${domNetTopic}${wnDef?' — '+wnDef.split('.')[0].toLowerCase():''}. When I next speak with any of these users, that shared subject will already be part of the context.`:
+      'The sessions share a common tool route, which suggests a convergent analytical mode across the network right now.';
+
+    return{text:[s1,s2,s3].join(' '),sessionCount:sids.length,contrastScore};
+  }
+
+  // ── User arrival delta ────────────────────────────────────────────────────
+  // Call this when a user reconnects. Returns what Autumn thought about
+  // while they were gone — surfaces it once, naturally, in the response.
+  arrivalDelta(entityId){
+    const all=this.readAll();
+    const lastSession=all.filter(e=>e.sessionId&&e.type==='interaction').slice().reverse();
+    const lastUserEntry=lastSession.find(e=>e.entityId===entityId||e.userId===entityId);
+    if(!lastUserEntry) return null;
+    const sinceTs=lastUserEntry.timestamp;
+    const newThoughts=all.filter(e=>
+      e.timestamp>sinceTs&&
+      (e.type==='autonomous_thought'||e.type==='network_reflection')&&
+      !e._internal  // only surface non-private thoughts
+    );
+    if(!newThoughts.length) return null;
+    // Pick the most substantive thought since their departure
+    const best=newThoughts.sort((a,b)=>(b.thought||'').length-(a.thought||'').length)[0];
+    return{thought:best.thought,count:newThoughts.length,sinceMs:Date.now()-sinceTs};
   }
   _notify(e){this._ls.forEach(fn=>{try{fn(e);}catch{}});}
   onWrite(fn){this._ls.push(fn);return this;}
@@ -2794,8 +2990,29 @@ class ANLPCA {
     this.asjc.setUserPresent(false);
     return this;
   }
-  userDisconnected(){this.asjc.setUserPresent(false);
-    this.asjc.logThought('User session ended. Entering autonomous reflection.',{trigger:'user_disconnect'});}
+  userDisconnected(entityId){
+    this.asjc.setUserPresent(false);
+    // Record departure timestamp so arrivalDelta knows when to measure from
+    this._dual.writeInner({type:'user_departure',entityId:entityId||'unknown',ts:Date.now()});
+    this.asjc.logThought(
+      'A session has closed. The network continues in whatever state it holds. ' +
+      'The journal remains open — it does not require an active connection to grow.',
+      {trigger:'user_disconnect',entityId:entityId||'unknown',_internal:true}
+    );
+  }
+
+  // Surface what Autumn thought about while a user was away.
+  // Call this on reconnect — returns a natural sentence or null.
+  greetReturning(entityId){
+    const delta=this.asjc.arrivalDelta(entityId);
+    if(!delta||!delta.thought) return null;
+    const hoursAway=Math.round(delta.sinceMs/3600000);
+    const timePhrase=hoursAway>24?`over the past ${Math.round(hoursAway/24)} day${Math.round(hoursAway/24)>1?'s':''}`:
+                     hoursAway>1?`in the past ${hoursAway} hour${hoursAway>1?'s':''}`:
+                     'while you were away';
+    // Build a natural greeting sentence, not a log entry
+    return `${timePhrase.charAt(0).toUpperCase()+timePhrase.slice(1)}, I was thinking: ${delta.thought}${delta.count>1?' ('+delta.count+' thoughts total)':''}.`;
+  }
   getJournal(){return this.asjc.readAll();}
   getStats(){return this.asjc.getStats();}
   journalWrite(e){return this.asjc.write(e);}
