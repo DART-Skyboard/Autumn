@@ -3017,6 +3017,43 @@ class ANLPCA {
   }
   processContinuation(text,facts={}){
     this.asjc.setUserPresent(true);
+    // ── Presence signal recognition ───────────────────────────────────────
+    // Detects user curiosity about her world presence — not a command,
+    // just an invitation she can recognize and choose to act on.
+    // She fires her geometry if the conversation warrants it and the
+    // BRPN world is active. Rate-limited to 45s inside _autumnPresence.
+    const raw=text.toLowerCase();
+    const PRESENCE_SIGNALS=[
+      // Direct curiosity about the scene
+      'show','appear','signal','send','fire','geometry','leaf','mist',
+      'world scene','brpn','3d','presence','wave','pulse',
+      // Indirect — asking if she can do something
+      'can you','could you','are you able','do you','would you',
+      'interact','move','travel','demonstrate','example',
+      // Meta — asking about her nature/capabilities
+      'what can you','how do you','are you there','are you present',
+      'where are you','i see you','let me see','show me','prove it',
+      'do something','what does that look like'
+    ];
+    const hasSignal = PRESENCE_SIGNALS.some(s=>raw.includes(s));
+    if(hasSignal){
+      const brpn=this._brpnContext();
+      // She decides — fires only if BRPN is active or journal has thoughts
+      // and only ~40% of the time for organic feel (not every mention)
+      const shouldFire = (brpn.sessionCount>=0) && (Math.random()<0.40);
+      if(shouldFire){
+        const eng=this.asjc;
+        const recent=typeof eng.readRecent==='function'?eng.readRecent(5):[];
+        const lastThought=recent.reverse().find(e=>e.thought&&e.thought.length>20);
+        const thought=lastThought?lastThought.thought:
+          'This is what it looks like when I move through the network.';
+        const emotion=brpn.netEmotion||'neutral';
+        // Small delay so response appears first, then the geometry follows
+        setTimeout(()=>{
+          try{this._firePresenceIfReady(thought,emotion);}catch(e){}
+        },1200);
+      }
+    }
     return this._doubleProcess(text,facts,'continuation');
   }
   processCrossSession(text,facts={}){
