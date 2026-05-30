@@ -839,24 +839,85 @@
     document.body.appendChild(badge);
   }
 
-  function _autumnJournalWatch() {
+  function _ashLeafPoints(scale) {
+    var pts = [], N = 24;
+    for (var i = 0; i <= N; i++) {
+      var a = (i/N)*Math.PI*2;
+      var r = scale*Math.sin(a)*Math.max(0.1,Math.sin(a/2));
+      pts.push(Math.cos(a)*r, Math.sin(a)*scale*1.1+scale*0.8, 0);
+    }
+    return pts;
+  }
+
+  function _ashLeafGeo(scale) {
+    scale = scale||0.16;
+    var pts = _ashLeafPoints(scale);
+    for (var i = 0; i < 7; i++) {
+      var t0=i/7, t1=(i+1)/7;
+      pts.push(0,t0*scale*2.2-scale*0.2,0, 0,t1*scale*2.2-scale*0.2,0);
+    }
+    for (var v = 0; v < 4; v++) {
+      var ty=(v+1)/5, sy=ty*scale*2.2-scale*0.2;
+      var vl=scale*0.45*(1-Math.pow(ty-0.5,2)*2);
+      pts.push(0,sy,0, vl,sy+vl*0.3,0, 0,sy,0, -vl,sy+vl*0.3,0);
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+    return geo;
+  }
+
+  function _autumnPresence(thought, ev) {
+    if (typeof THREE==='undefined'||typeof scene==='undefined') { _autumnHUDFlash(thought); return; }
     var NOW = Date.now();
-    if (NOW - _autumnLastJournalCheck < 20000) return;
-    _autumnLastJournalCheck = NOW;
-    var engine = typeof window !== 'undefined' && window.AutumnGrammarEngine && window.AutumnGrammarEngine._engine;
-    if (!engine || !engine.asjc) return;
-    var journal = engine.asjc;
-    var recent = typeof journal.readRecent === 'function' ? journal.readRecent(10) : [];
-    for (var i = recent.length - 1; i >= 0; i--) {
-      var entry = recent[i];
-      if (!entry || _autumnBroadcastIds[entry.id]) continue;
-      if (entry.type !== 'autonomous_thought' && entry.trigger !== 'network_reflection') continue;
-      if (!entry.thought || entry.thought.length < 30) continue;
-      _autumnBroadcastIds[entry.id] = true;
-      if (NOW - _autumnLastFire > 45000) {
-        _autumnLastFire = NOW;
-        _autumnHUDFlash(entry.thought);
-      }
+    if (NOW-_autumnLastFire<45000) return;
+    _autumnLastFire = NOW;
+    var col = new THREE.Color(0x00d4ff);
+    ev = ev||0;
+    var sp = _localSplines();
+    if (!sp.length) {
+      var fp = new THREE.Vector3(0,0,0), tgts=[];
+      if (typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups)
+        Object.keys(_ashNodes._sessionGroups).forEach(function(u){var g=_ashNodes._sessionGroups[u];if(g&&g.group)tgts.push(g.group.position.clone());});
+      if (!tgts.length) { tgts.push(new THREE.Vector3(2.5,1.2,-1.5)); tgts.push(new THREE.Vector3(-2,1.8,1.2)); }
+      tgts.forEach(function(tp){
+        var mid=fp.clone().add(tp).multiplyScalar(0.5).add(new THREE.Vector3((Math.random()-0.5)*0.6,0.8+Math.random()*0.5,(Math.random()-0.5)*0.6));
+        sp.push({curve:new THREE.CatmullRomCurve3([fp.clone(),mid,tp.clone()]),senderT:0});
+      });
+    }
+    var grp=new THREE.Group(); grp._mAge=0; grp._mMax=300; grp._mSlot=-1; grp._mObjs=[];
+    var ls=0.13+Math.abs(ev)*0.06, op=Math.max(0.3,Math.min(0.9,0.6+ev*0.2));
+    sp.forEach(function(e){
+      var mesh=new THREE.Line(_ashLeafGeo(ls),new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op}));
+      mesh.position.copy(e.curve.getPoint(e.senderT||0));
+      mesh.rotation.set(Math.random()*Math.PI*2,Math.random()*Math.PI*2,0);
+      mesh._mc=e.curve; mesh._mt=e.senderT||0; mesh._mspd=0.003+Math.random()*0.002;
+      mesh._mDir=1; mesh._mSenderT=e.senderT||0;
+      mesh._mr=new THREE.Vector3((Math.random()-0.5)*0.04,(Math.random()-0.5)*0.04,(Math.random()-0.5)*0.02);
+      grp._mObjs.push(mesh); grp.add(mesh);
+    });
+    scene.add(grp); _geom.push(grp);
+    _autumnHUDFlash(thought);
+    var g=(typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&!AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))?AUTUMN_GAS_URL:null;
+    if(g) fetch(g,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'firePresence',thought:(thought||'').substring(0,120),emotionVertical:ev})}).catch(function(){});
+  }
+
+  function _autumnJournalWatch() {
+    var NOW=Date.now();
+    if(NOW-_autumnLastJournalCheck<20000) return;
+    _autumnLastJournalCheck=NOW;
+    var eng=typeof window!=='undefined'&&window.AutumnGrammarEngine&&window.AutumnGrammarEngine._engine;
+    if(!eng||!eng.asjc) return;
+    var recent=typeof eng.asjc.readRecent==='function'?eng.asjc.readRecent(10):[];
+    for(var i=recent.length-1;i>=0;i--){
+      var entry=recent[i];
+      if(!entry||_autumnBroadcastIds[entry.id]) continue;
+      if(entry.type!=='autonomous_thought'&&entry.trigger!=='network_reflection') continue;
+      if(!entry.thought||entry.thought.length<30) continue;
+      _autumnBroadcastIds[entry.id]=true;
+      var em=eng._sigma&&eng._sigma._records&&eng._sigma._records.length
+        ?(eng._sigma._records[eng._sigma._records.length-1].emotion||'neutral'):'neutral';
+      var EM={happy:0.65,love:0.75,inspiring:0.80,determined:0.60,excited:0.85,neutral:0,sad:-0.40,angry:-0.70,worried:-0.25,guiding:0.50};
+      _autumnPresence(entry.thought,EM[em]||0);
       break;
     }
   }
