@@ -527,32 +527,7 @@ class SentenceParser {
            isInterrogative:tagged.some(t=>t.pos==='INT')};
   }
   _intent(text,tagged) {
-    const raw=text.trim().toLowerCase();
     const end=text.trim().slice(-1);
-    const words=raw.replace(/[^a-z ']/g,' ').split(/\s+/).filter(Boolean);
-    const wordSet=new Set(words);
-    // Greeting
-    const GREET=['hey','hi','hello','yo','sup','heya','howdy','morning','afternoon','evening'];
-    if(words.length<=4&&GREET.some(w=>wordSet.has(w))) return 'greeting';
-    // Farewell
-    const BYE=['bye','goodbye','later','peace','night','goodnight','cya'];
-    if(words.length<=5&&BYE.some(w=>wordSet.has(w)||raw.includes(w))) return 'farewell';
-    // Affirmation
-    const AFF=['yes','yeah','yep','yup','exactly','correct','right','agreed','ok','okay','sure','absolutely','definitely','true','totally'];
-    if(words.length<=5&&AFF.some(w=>wordSet.has(w))) return 'affirmation';
-    // Negation response
-    const NEG_R=['no','nope','nah','wrong','incorrect','disagree'];
-    if(words.length<=5&&NEG_R.some(w=>wordSet.has(w))) return 'negation';
-    // Personal question — about Autumn herself
-    const PERSONAL=['do you','are you','can you','what do you','how do you',"what's your",'do you like','do you want','do you feel','have you','would you','could you'];
-    if(PERSONAL.some(p=>raw.startsWith(p)||raw.includes(p))) return 'personal';
-    // Casual question — wanna, gonna, feeling-words
-    const CASUAL=['wanna','gonna','kinda','sorta','feel like','how about','what about','what if','you think','should we','shall we'];
-    if(CASUAL.some(c=>raw.includes(c))) return 'casual';
-    // Feeling/state expression
-    const FEEL=['feel','tired','happy','sad','excited','bored','frustrated','stressed','worried','nervous','great','awful'];
-    if(FEEL.some(f=>wordSet.has(f))&&words.length<10) return 'social';
-    // Structural intents
     const first=tagged.find(t=>!['ART','PREP','SDLM'].includes(t.pos));
     if(end==='?'){
       const iw=tagged.find(t=>t.pos==='INT');
@@ -712,101 +687,34 @@ const TOOL_DEFS = {
 
 class NaturalToolPanel {
   constructor(toolName){this.tool=TOOL_DEFS[toolName];this.name=toolName;}
-  process(parsedInput, emotionAxis) {
-    // ── START ∅ — Read ────────────────────────────────────────────────────
-    // Pull character allocation from parsedInput._charAlloc (set by pipeline)
-    const charAlloc = parsedInput._charAlloc || null;
-
-    // ── FRP condition check (structural) ─────────────────────────────────
-    const frpMet = this.tool.frpCheck(parsedInput);
-
-    // ── Base lexical buoyancy from CharAllocation ─────────────────────────
-    const lexResult = parsedInput._lexResult || null;
-    const lexBuoy   = lexResult && lexResult.consensus
-                    ? lexResult.consensus.finalBuoyancy
-                    : lexResult ? lexResult.buoyancyContext.score : 0.5;
-
-    const tokR  = Math.min((parsedInput.tokens.length||1)/20, 1);
-    const iConf = parsedInput.intent && parsedInput.intent!=='default' ? 0.8 : 0.4;
-
-    // ── Emotional axis scalar ─────────────────────────────────────────────
-    // 2D median grid: vertical = positive(+)/negative(-), horizontal = past(-)/future(+)
-    // emotionAxis = { vertical: -1.0…1.0, horizontal: -1.0…1.0 }
-    // Buoyancy modifier: positive vertical lifts buoyancy, negative suppresses.
-    // Past-tense (left) accent weights retrospective tools (MAZE, SCISSORS).
-    // Future-tense (right) accent weights projective tools (HAMMER, STICK, KNIFE).
-    const ea = emotionAxis || { vertical: 0, horizontal: 0 };
-    const PAST_TOOLS   = new Set(['MAZE','SCISSORS','ENVELOPE']);
-    const FUTURE_TOOLS = new Set(['HAMMER','STICK','KNIFE']);
-    let emotionBuoyancyMod = ea.vertical * 0.15;   // max ±0.15 lift/suppress
-    if(PAST_TOOLS.has(this.name)   && ea.horizontal < 0)
-      emotionBuoyancyMod += Math.abs(ea.horizontal) * 0.08;
-    if(FUTURE_TOOLS.has(this.name) && ea.horizontal > 0)
-      emotionBuoyancyMod += ea.horizontal * 0.08;
-    // Clamp modifier
-    emotionBuoyancyMod = Math.max(-0.2, Math.min(0.2, emotionBuoyancyMod));
-
-    // ── 3-Shell evaluation — T/F per BRPN shell ───────────────────────────
-    // Each shell has its own buoyancy threshold and FRP scalar.
-    // The tool belongs to one primary shell but is evaluated against all three.
-    // Shell thresholds:
-    //   GEOLOGICAL  (outer / FOUNDATION)  — lowest bar, broadest acceptance
-    //   MARITIME    (middle / REFLEX)      — mid threshold
-    //   AEROSPACE   (inner / PERFORMANCE)  — highest bar, most precise
-    const SHELL_THRESHOLDS = {
-      GEOLOGICAL: 0.20,   // foundation: does anything meaningful exist?
-      MARITIME:   0.40,   // reflex: does it have structure and intent?
-      AEROSPACE:  0.65    // performance: is it precise enough to act on?
-    };
-
-    const shellEval = {};
-    for(const [shell, threshold] of Object.entries(SHELL_THRESHOLDS)) {
-      // Per-shell FRP: scale the lexical buoyancy by shell proximity
-      // Tool's home shell gets full lexBuoy; others are attenuated
-      const homeShell = this.tool.shell;
-      const shellProximity = shell===homeShell ? 1.0 : shell==='GEOLOGICAL' ? 0.7 : 0.5;
-      const shellBuoy   = Math.max(0, Math.min(1,
-                          lexBuoy * shellProximity + emotionBuoyancyMod));
-      const frpResult   = frpSqrtFrp(tokR, shellBuoy, iConf);
-
-      // 4 conditions per shell:
-      const c1_frpMet       = frpMet;                          // structural frp
-      const c2_buoyPassed   = frpResult.score >= threshold;    // buoyancy threshold
-      const c3_emotionValid = Math.abs(ea.vertical) <= 0.85;   // not at emotional extreme
-      const c4_charValid    = charAlloc                        // char allocation loaded
-                            ? charAlloc.vowelCount > 0 || charAlloc.totalChars <= 3
-                            : true;                            // pass if no alloc yet
-
-      shellEval[shell] = {
-        c1_frpMet, c2_buoyPassed, c3_emotionValid, c4_charValid,
-        allMet: c1_frpMet && c2_buoyPassed && c3_emotionValid && c4_charValid,
-        frpScore: +frpResult.score.toFixed(4),
-        shellBuoy: +shellBuoy.toFixed(4),
-        threshold
-      };
-    }
-
-    // ── Panel allocation: ALL 3 shells must pass ──────────────────────────
-    const allocated = shellEval.GEOLOGICAL.allMet &&
-                      shellEval.MARITIME.allMet   &&
-                      shellEval.AEROSPACE.allMet;
-
-    // ── FINISH ∅ — Write ──────────────────────────────────────────────────
-    return {
-      panel:       this.name,
-      panelId:     this.tool.id,
-      shell:       this.tool.shell,
-      allocated,
-      frpMet,
-      shellEval,              // 3×4 truth table
-      emotionAxisApplied: ea,
-      emotionBuoyancyMod: +emotionBuoyancyMod.toFixed(4),
-      gate:        this.tool.gate,
-      // Legacy fields for downstream compat
-      frpResult:   { score: shellEval[this.tool.shell].frpScore },
-      readState:   { op:'READ',  tool:this.name, ts:Date.now() },
-      writeState:  { op:allocated?'WRITE':'HOLD', tool:this.name, allocated, ts:Date.now() }
-    };
+  process(parsedInput) {
+    // START ∅ — Read
+    const readState={op:'READ',tool:this.name,inputRaw:parsedInput.raw,ts:Date.now()};
+    // Y/N — are all frp conditions met in order?
+    const frpMet=this.tool.frpCheck(parsedInput);
+    // frp√frp across 3 BRPN concentric shells
+    // Lexical FRP — use LexicalAnalyzer results if available on S
+    const lexResult=typeof window!=='undefined'&&window.AutumnGrammarEngine&&
+                    window.AutumnGrammarEngine._engine&&
+                    window.AutumnGrammarEngine._engine._lexer?
+                    window.AutumnGrammarEngine._engine._lexer.analyzeSentence(parsedInput.raw):null;
+    // Use consensus finalBuoyancy if available — this is the backwards-concatenated result
+    const vs   = lexResult&&lexResult.consensus
+               ? lexResult.consensus.finalBuoyancy
+               : lexResult
+               ? lexResult.buoyancyContext.score
+               : (parsedInput.centralTopic?parsedInput.centralTopic.vowelScore:0);
+    const tokR = Math.min((parsedInput.tokens.length||1)/20,1);
+    const iConf= parsedInput.intent&&parsedInput.intent!=='default'?0.8:0.4;
+    const frpResult=frpSqrtFrp(tokR,vs,iConf);
+    const buoyancyPassed=frpResult.score>=(this.tool.buoyancy*0.5);
+    // T or F
+    const allocated=frpMet&&buoyancyPassed;
+    // FINISH ∅ — Write
+    const writeState={op:allocated?'WRITE':'HOLD',tool:this.name,allocated,
+                      frpScore:frpResult.score,ts:Date.now()};
+    return{panel:this.name,panelId:this.tool.id,shell:this.tool.shell,
+           allocated,frpMet,frpResult,readState,writeState,gate:this.tool.gate};
   }
 }
 
@@ -878,162 +786,25 @@ class SevenPanelPipeline {
   constructor(){
     this.panels=Object.keys(TOOL_DEFS).map(n=>new NaturalToolPanel(n));
   }
-  run(parsedInput, emotion) {
-    // ── 1. Build CharAllocationStore ──────────────────────────────────────
-    // Character-level array: every char in the raw input allocated with full metadata.
-    // This is the image-channel analogy — each character is a pixel with RGBA equivalent:
-    //   R = isVowel (1/0), G = vowelOrder (0-5), B = bitDepth, A = posRatio
-    const rawText = parsedInput.raw || '';
-    const charAllocation = [];
-    const words = rawText.split(/(\s+)/);  // preserve spaces as tokens
-    let globalPos = 0;
-    for(const seg of words) {
-      for(let i=0; i<seg.length; i++) {
-        const c    = seg[i];
-        const cl   = c.toLowerCase();
-        const VOWELS = new Set(['a','e','i','o','u']);
-        const VOWEL_ORDER = {a:1,e:2,i:3,o:4,u:5};
-        const isV  = VOWELS.has(cl);
-        const isC  = !isV && /[a-z]/.test(cl);
-        const isPu = /[.,!?;:\-'"()]/.test(c);
-        const isSp = /\s/.test(c);
-        charAllocation.push({
-          char:       c,
-          lower:      cl,
-          globalPos,
-          segPos:     i,
-          isVowel:    isV,
-          isConsonant:isC,
-          isPunct:    isPu,
-          isSpace:    isSp,
-          vowelOrder: VOWEL_ORDER[cl] || 0,    // position in AEIOU (a=1,e=2,i=3,o=4,u=5)
-          alphabetPos: isC||isV ? cl.charCodeAt(0)-96 : 0,  // a=1…z=26
-          bitDepth:   c.charCodeAt(0).toString(2).length,    // ASCII bit count
-          byteSize:   new TextEncoder().encode(c).length
-        });
-        globalPos++;
-      }
-    }
-    // Allocation summary — used by panels
-    const vowelChars    = charAllocation.filter(c=>c.isVowel);
-    const consonantChars= charAllocation.filter(c=>c.isConsonant);
-    const charAllocSummary = {
-      totalChars:   charAllocation.length,
-      vowelCount:   vowelChars.length,
-      consonantCount: consonantChars.length,
-      punctCount:   charAllocation.filter(c=>c.isPunct).length,
-      spaceCount:   charAllocation.filter(c=>c.isSpace).length,
-      vowelRatio:   +(vowelChars.length / Math.max(charAllocation.length,1)).toFixed(4),
-      vowelOrderSum: vowelChars.reduce((s,c)=>s+c.vowelOrder,0),
-      avgBitDepth:  +(charAllocation.reduce((s,c)=>s+c.bitDepth,0)/Math.max(charAllocation.length,1)).toFixed(4),
-      charArray:    charAllocation  // full per-character array
-    };
-    // Attach to parsedInput so panels can access it
-    parsedInput._charAlloc  = charAllocSummary;
-    parsedInput._lexResult  = typeof window!=='undefined' &&
-                              window.AutumnGrammarEngine &&
-                              window.AutumnGrammarEngine._engine &&
-                              window.AutumnGrammarEngine._engine._lexer
-                            ? window.AutumnGrammarEngine._engine._lexer.analyzeSentence(rawText)
-                            : null;
-
-    // ── 2. Emotional axis computation ─────────────────────────────────────
-    // Map emotion name → 2D axis position
-    // Vertical:   positive emotions → +, negative → -, neutral → 0
-    // Horizontal: past-tense expressions → -, future/projective → +
-    const EMOTION_AXIS_MAP = {
-      // Positive (above median line)
-      happy:        { vertical:  0.65, horizontal:  0.10 },
-      love:         { vertical:  0.75, horizontal:  0.05 },
-      inspiring:    { vertical:  0.80, horizontal:  0.40 },
-      determined:   { vertical:  0.60, horizontal:  0.50 },
-      spiritual:    { vertical:  0.55, horizontal: -0.10 },
-      guiding:      { vertical:  0.50, horizontal:  0.30 },
-      forgiving:    { vertical:  0.45, horizontal: -0.20 },
-      excited:      { vertical:  0.85, horizontal:  0.60 },
-      // Negative (below median line)
-      angry:        { vertical: -0.70, horizontal:  0.20 },
-      hateful:      { vertical: -0.90, horizontal: -0.10 },
-      condescending:{ vertical: -0.60, horizontal:  0.30 },
-      disrespectful:{ vertical: -0.75, horizontal:  0.10 },
-      apathetic:    { vertical: -0.50, horizontal: -0.40 },
-      // Neutral / complex (near median)
-      neutral:      { vertical:  0.00, horizontal:  0.00 },
-      sad:          { vertical: -0.40, horizontal: -0.50 },
-      worried:      { vertical: -0.25, horizontal: -0.20 },
-      jealous:      { vertical: -0.30, horizontal:  0.20 },
-      lucrative:    { vertical:  0.20, horizontal:  0.50 },
-      concerned:    { vertical: -0.10, horizontal: -0.10 },
-      judgemental:  { vertical: -0.35, horizontal:  0.40 },
-      confused:     { vertical: -0.15, horizontal: -0.30 }
-    };
-    const emotionName = emotion && emotion.name ? emotion.name : 'neutral';
-    const emotionAxis = EMOTION_AXIS_MAP[emotionName] || { vertical:0, horizontal:0 };
-
-    // ── 3. Run all 7 panels — each produces 3×4 = 12 T/F conditions ───────
-    // Total truth table: 7 panels × 12 conditions = 84 T/F evaluations
-    const results = [];
-    let allOk = true, failedAt = null;
-    for(const panel of this.panels) {
-      const r = panel.process(parsedInput, emotionAxis);
+  run(parsedInput,emotion) {
+    const results=[]; let allOk=true,failedAt=null;
+    for(const panel of this.panels){
+      const r=panel.process(parsedInput);
       results.push(r);
-      if(!r.allocated && allOk) { allOk=false; failedAt=r.panel; }
+      if(!r.allocated&&allOk){allOk=false;failedAt=r.panel;}
     }
-
-    // ── 4. Shell-level summary — truth table across all 7 panels ──────────
-    const shellSummary = { GEOLOGICAL:{}, MARITIME:{}, AEROSPACE:{} };
-    for(const shell of ['GEOLOGICAL','MARITIME','AEROSPACE']) {
-      const shellResults = results.map(r=>r.shellEval && r.shellEval[shell]);
-      shellSummary[shell] = {
-        allMet:       shellResults.every(s=>s&&s.allMet),
-        passCount:    shellResults.filter(s=>s&&s.allMet).length,
-        totalPanels:  7,
-        avgFrpScore:  +(shellResults.reduce((s,r)=>s+(r?r.frpScore:0),0)/7).toFixed(4),
-        avgShellBuoy: +(shellResults.reduce((s,r)=>s+(r?r.shellBuoy:0),0)/7).toFixed(4)
-      };
-    }
-    // Master buoyancy: weighted average across all 3 shells
-    // GEOLOGICAL contributes 30%, MARITIME 40%, AEROSPACE 30% (reflex is primary)
-    const masterBuoyancy = +(
-      shellSummary.GEOLOGICAL.avgShellBuoy * 0.30 +
-      shellSummary.MARITIME.avgShellBuoy   * 0.40 +
-      shellSummary.AEROSPACE.avgShellBuoy  * 0.30
-    ).toFixed(4);
-
-    // ── 5. Orders 8–25 — execute only when ALL 84 conditions are met ───────
-    const extOps = {};
-    let ordersExecuted = false;
+    const extOps={};
     if(allOk) {
-      ordersExecuted = true;
-      for(const op of EXT_OPS) {
-        extOps[op.name] = op.fn(parsedInput, emotion, extOps);
+      for(const op of EXT_OPS){
+        // Photosynthesis (order 20) receives prior extOps results for self-check
+        extOps[op.name]=op.fn(parsedInput,emotion,extOps);
       }
     }
-
-    const allocScore = results.filter(r=>r.allocated).length / 7;
-    return {
-      panels:          results,
-      allAllocated:    allOk,
-      failedAt,
-      allocationScore: allocScore,
-      extendedOps:     extOps,
-      ordersExecuted,
-      leatrScore:      +leatrEncode(allocScore*7).toFixed(4),
-      readyForJournal: allOk,
-      // New — full truth table context
-      charAllocation:  charAllocSummary,
-      emotionAxis,
-      shellSummary,
-      masterBuoyancy,
-      // Truth table summary: 84 conditions, how many passed
-      truthTableTotal:  84,
-      truthTablePassed: results.reduce((s,r)=>
-        s + (r.shellEval ? Object.values(r.shellEval).reduce((ss,se)=>
-          ss + [se.c1_frpMet,se.c2_buoyPassed,se.c3_emotionValid,se.c4_charValid]
-              .filter(Boolean).length
-        , 0) : 0)
-      , 0)
-    };
+    const allocScore=results.filter(r=>r.allocated).length/7;
+    return{panels:results,allAllocated:allOk,failedAt,
+           allocationScore:allocScore,extendedOps:extOps,
+           leatrScore:+leatrEncode(allocScore*7).toFixed(4),
+           readyForJournal:allOk};
   }
 }
 
@@ -1568,10 +1339,8 @@ class ResponseBuilder {
     const _bridgeB = this._buildFromAPIs(topic, domTool, sigType||'SIG_D', _cnCtxB, _codeCtxB, primDef||altWord);
     if(_bridgeB) {
       s1 = _bridgeB;
-    } else if(CF){
-      const _casualI=new Set(['greeting','farewell','affirmation','negation','personal','casual','social','conversational','question_yn','exclamation','command_do']);
-      const _opPool=(_casualI.has(intent)&&CF.opening_by_tool_casual)?CF.opening_by_tool_casual:CF.opening_by_tool;
-      if(_opPool&&_opPool[domTool]) s1=this._fill(_opPool[domTool],{topic,detail,verb,nouns,mods,altWord});
+    } else if(CF&&CF.opening_by_tool){
+      s1=this._fill(CF.opening_by_tool[domTool]||'',{topic,detail,verb,nouns,mods,altWord});
     }
     if(!s1){
       // Build a proper grammatical sentence from available lexical data.
@@ -1593,7 +1362,7 @@ class ResponseBuilder {
       }
     }
     let s2='';
-    const _G=this._grammar;const _GR=_G&&_G.intent_routing;const tmap=_GR||{greeting:'greeting',farewell:'farewell',affirmation:'affirmation',negation:'negation_response',personal:'personal',casual:'conversational',social:'social',question_what:'explanatory',question_how:'analytical',question_why:'analytical',question_when:'declarative',question_where:'declarative',question_who:'declarative',question_yn:'conversational',statement_pos:'declarative',statement_neg:'elaborative',exclamation:'conversational',command_do:'conversational',command_tell:'explanatory'};
+    const tmap={question_what:'explanatory',question_how:'analytical',question_why:'analytical',question_when:'declarative',question_where:'declarative',question_who:'declarative',question_yn:'explanatory',statement_pos:'declarative',statement_neg:'elaborative',exclamation:'conversational',command_do:'conversational',command_tell:'explanatory'};
     if(RT){
       const pool=RT[tmap[intent]]||RT.declarative||[];
       if(pool.length){
@@ -1602,14 +1371,10 @@ class ResponseBuilder {
       }
     }
     if(!s2){
-      if(['greeting','farewell','affirmation','negation','social','casual','personal'].includes(intent)){
-        const _sp={greeting:["Hey — what are we working on?","Here. What do you need?","Good to hear from you."],farewell:["Alright. I'll be here.","Got it. Take your time.","See you when you're back."],affirmation:["Yeah, that tracks.","Agreed — worth building on.","That's the right framing."],negation:["Fair. What's the actual direction?","Okay — what would you change?","What does it need to be instead?"],social:["That's worth sitting with.","I hear that.","Tell me more if you want to."],casual:["Honest answer: I'm not sure yet. What are you leaning toward?","Whatever keeps momentum going. What did you have in mind?","I'd follow your lead on that."],personal:["That's not something I answer the same way every time.","The honest answer shifts depending on what's been going on.","I engage with that through what accumulates in the journal."]};
-        const _pool=_sp[intent]||_sp.social;
-        s2=_pool[Math.floor(Date.now()/15000)%_pool.length];
-      } else if(intent.startsWith('question_what')) s2=`${topic} refers to ${detail}.`;
+      if(intent.startsWith('question_what'))    s2=`${topic} refers to ${detail}.`;
       else if(intent.startsWith('question_how')) s2=`The process of ${topic} works through ${detail}.`;
       else if(intent.startsWith('question_why')) s2=`${topic} ${negated?'does not ':' '}${verb} because of ${detail}.`;
-      else s2=`${topic} ${negated?'does not ':''}${verb} ${detail}.`;
+      else                                       s2=`${topic} ${negated?'does not ':''}${verb} ${detail}.`;
       s2=s2.replace(/\s{2,}/g,' ');
     }
     let s3='';
@@ -1620,11 +1385,10 @@ class ResponseBuilder {
       else if(mods.length>0)    s3=`${tph} The ${mods[0]} aspect of ${topic} is worth noting in context.`.trim();
       else if(nouns.length>1)   s3=`${tph} ${topic} connects directly to ${nouns[1]} through ${wnSyns[0]||'its core structure'}.`.trim();
     }
-    const _shortSoc=new Set(['greeting','farewell','affirmation','negation']);
     const parts=[];
     if(s1) parts.push(s1);
     if(s2&&s2.toLowerCase().slice(0,20)!==s1.toLowerCase().slice(0,20)) parts.push(s2);
-    if(s3&&!_shortSoc.has(intent)) parts.push(s3);
+    if(s3) parts.push(s3);
     let full=parts.join(' ').replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
     if(full&&!/[.!?]$/.test(full)) full+='.';
     const pre=this._pre(emotion);
