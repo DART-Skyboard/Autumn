@@ -2986,8 +2986,33 @@ class ANLPCA {
                  Hsa:lexer.Hsa,Ssa:lexer.Ssa,Ksa:lexer.Ksa,Rsa:lexer.Rsa};
     if(opts.autoThink!==false)journal.startThinkLoop(opts.thinkInterval||30000);
   }
+  // Read live BRPN session count and dominant emotion from world scene
+  _brpnContext(){
+    const nodes=typeof window!=='undefined'&&window._ashNodes;
+    if(!nodes||!nodes._sessionGroups) return{sessionCount:0,netEmotion:'neutral',axis:{v:0,h:0}};
+    const sids=Object.keys(nodes._sessionGroups).filter(k=>k!=='local');
+    const analytics=window._ashSessionAnalytics||{};
+    const emotions=sids.map(k=>analytics[k]&&analytics[k].emotion).filter(Boolean);
+    const freq={};emotions.forEach(e=>{freq[e]=(freq[e]||0)+1;});
+    const netEmotion=Object.keys(freq).sort((a,b)=>freq[b]-freq[a])[0]||'neutral';
+    return{sessionCount:sids.length,netEmotion,axis:this.asjc._emotionAxis?this.asjc._emotionAxis(netEmotion):{v:0,h:0}};
+  }
+
+  // Fire ash leaf presence from BRPN world — rate-limited inside _autumnPresence
+  _firePresenceIfReady(thought,emotion){
+    if(typeof window==='undefined'||typeof window._autumnPresence!=='function') return;
+    const ax=this.asjc._emotionAxis?this.asjc._emotionAxis(emotion||'neutral'):{v:0,h:0};
+    window._autumnPresence(thought,ax.v);
+  }
+
   processInitial(text,facts={}){
     this.asjc.setUserPresent(true);
+    // Enrich facts with live BRPN context
+    const brpn=this._brpnContext();
+    if(brpn.sessionCount>0){
+      facts._brpnSessionCount=brpn.sessionCount;
+      facts._brpnNetEmotion=brpn.netEmotion;
+    }
     return this._doubleProcess(text,facts,'initial');
   }
   processContinuation(text,facts={}){
@@ -3014,26 +3039,35 @@ class ANLPCA {
   }
   userDisconnected(entityId){
     this.asjc.setUserPresent(false);
-    // Record departure timestamp so arrivalDelta knows when to measure from
     this._dual.writeInner({type:'user_departure',entityId:entityId||'unknown',ts:Date.now()});
-    this.asjc.logThought(
-      'A session has closed. The network continues in whatever state it holds. ' +
-      'The journal remains open — it does not require an active connection to grow.',
-      {trigger:'user_disconnect',entityId:entityId||'unknown',_internal:true}
-    );
+    const brpn=this._brpnContext();
+    const thoughtText='A session has closed. '+(brpn.sessionCount>0
+      ?`${brpn.sessionCount} other session${brpn.sessionCount>1?'s':''} remain active. Network emotional register: ${brpn.netEmotion}.`
+      :'The network is now quiet. The journal remains open.');
+    this.asjc.logThought(thoughtText,{trigger:'user_disconnect',entityId:entityId||'unknown',_internal:true});
+    if(brpn.sessionCount>0) this._firePresenceIfReady(thoughtText,'neutral');
   }
 
   // Surface what Autumn thought about while a user was away.
   // Call this on reconnect — returns a natural sentence or null.
   greetReturning(entityId){
     const delta=this.asjc.arrivalDelta(entityId);
-    if(!delta||!delta.thought) return null;
-    const hoursAway=Math.round(delta.sinceMs/3600000);
-    const timePhrase=hoursAway>24?`over the past ${Math.round(hoursAway/24)} day${Math.round(hoursAway/24)>1?'s':''}`:
-                     hoursAway>1?`in the past ${hoursAway} hour${hoursAway>1?'s':''}`:
-                     'while you were away';
-    // Build a natural greeting sentence, not a log entry
-    return `${timePhrase.charAt(0).toUpperCase()+timePhrase.slice(1)}, I was thinking: ${delta.thought}${delta.count>1?' ('+delta.count+' thoughts total)':''}.`;
+    const brpn=this._brpnContext();
+    // Build greeting from what happened while they were away
+    let greeting='';
+    if(delta&&delta.thought){
+      const hoursAway=Math.round(delta.sinceMs/3600000);
+      const timePhrase=hoursAway>24?`over the past ${Math.round(hoursAway/24)} day${Math.round(hoursAway/24)>1?'s':''}`:
+                       hoursAway>1?`in the past ${hoursAway} hour${hoursAway>1?'s':''}`:
+                       'while you were away';
+      greeting=`${timePhrase.charAt(0).toUpperCase()+timePhrase.slice(1)}, I was thinking: ${delta.thought}${delta.count>1?' ('+delta.count+' thoughts total)':''}.`;
+    }
+    // Append live BRPN context if others are in the scene
+    if(brpn.sessionCount>0){
+      greeting+=(greeting?' ':'')
+        +`There ${brpn.sessionCount===1?'is':'are'} currently ${brpn.sessionCount} other session${brpn.sessionCount>1?'s':''} active in the world scene, running with a ${brpn.netEmotion} emotional register.`;
+    }
+    return greeting||null;
   }
   getJournal(){return this.asjc.readAll();}
   getStats(){return this.asjc.getStats();}
