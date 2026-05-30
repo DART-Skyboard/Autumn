@@ -401,8 +401,8 @@
       });
     });
     rem.forEach(function(g){
-      if(typeof scene!=='undefined') scene.remove(g);
-      g._mObjs.forEach(function(o){if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});
+      try{if(typeof scene!=='undefined'&&scene&&scene.remove) scene.remove(g);}catch(e){}
+      try{if(g._mObjs)g._mObjs.forEach(function(o){try{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();}catch(e){}});}catch(e){}
       var idx=_geom.indexOf(g);if(idx>=0)_geom.splice(idx,1);
     });
   })();
@@ -884,7 +884,7 @@
         sp.push({curve:new THREE.CatmullRomCurve3([fp.clone(),mid,tp.clone()]),senderT:0});
       });
     }
-    var grp=new THREE.Group(); grp._mAge=0; grp._mMax=300; grp._mSlot=-1; grp._mObjs=[];
+    var grp=new THREE.Group(); grp._mAge=0; grp._mMax=300; grp._mSlot=-1; grp._mObjs=[]; grp._isAshStar=true;
     var ls=0.13+Math.abs(ev)*0.06, op=Math.max(0.3,Math.min(0.9,0.6+ev*0.2));
     sp.forEach(function(e){
       var mesh=new THREE.Line(_ashLeafGeo(ls),new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op}));
