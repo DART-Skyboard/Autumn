@@ -794,6 +794,8 @@
     setTimeout(function(){
       try{_autumnPresenceCSS();}catch(e){}
       try{_autumnPresenceHTML();}catch(e){}
+      // Expose globally for grammar engine
+      window._autumnPresence = _autumnPresence;
       // Journal watch loop — every 25s
       setInterval(function(){try{_autumnJournalWatch();}catch(e){}}, 25000);
     }, 3000);
@@ -866,40 +868,191 @@
     return geo;
   }
 
-  function _autumnPresence(thought, ev) {
-    if (typeof THREE==='undefined'||typeof scene==='undefined') { _autumnHUDFlash(thought); return; }
-    var NOW = Date.now();
-    if (NOW-_autumnLastFire<45000) return;
-    _autumnLastFire = NOW;
-    var col = new THREE.Color(0x00d4ff);
-    ev = ev||0;
-    var sp = _localSplines();
-    if (!sp.length) {
-      var fp = new THREE.Vector3(0,0,0), tgts=[];
-      if (typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups)
-        Object.keys(_ashNodes._sessionGroups).forEach(function(u){var g=_ashNodes._sessionGroups[u];if(g&&g.group)tgts.push(g.group.position.clone());});
-      if (!tgts.length) { tgts.push(new THREE.Vector3(2.5,1.2,-1.5)); tgts.push(new THREE.Vector3(-2,1.8,1.2)); }
-      tgts.forEach(function(tp){
-        var mid=fp.clone().add(tp).multiplyScalar(0.5).add(new THREE.Vector3((Math.random()-0.5)*0.6,0.8+Math.random()*0.5,(Math.random()-0.5)*0.6));
-        sp.push({curve:new THREE.CatmullRomCurve3([fp.clone(),mid,tp.clone()]),senderT:0});
-      });
-    }
-    var grp=new THREE.Group(); grp._mAge=0; grp._mMax=300; grp._mSlot=-1; grp._mObjs=[];
-    var ls=0.13+Math.abs(ev)*0.06, op=Math.max(0.3,Math.min(0.9,0.6+ev*0.2));
-    sp.forEach(function(e){
-      var mesh=new THREE.Line(_ashLeafGeo(ls),new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op}));
-      mesh.position.copy(e.curve.getPoint(e.senderT||0));
-      mesh.rotation.set(Math.random()*Math.PI*2,Math.random()*Math.PI*2,0);
-      mesh._mc=e.curve; mesh._mt=e.senderT||0; mesh._mspd=0.003+Math.random()*0.002;
-      mesh._mDir=1; mesh._mSenderT=e.senderT||0;
-      mesh._mr=new THREE.Vector3((Math.random()-0.5)*0.04,(Math.random()-0.5)*0.04,(Math.random()-0.5)*0.02);
-      grp._mObjs.push(mesh); grp.add(mesh);
-    });
-    scene.add(grp); _geom.push(grp);
-    _autumnHUDFlash(thought);
-    var g=(typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&!AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))?AUTUMN_GAS_URL:null;
-    if(g) fetch(g,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'firePresence',thought:(thought||'').substring(0,120),emotionVertical:ev})}).catch(function(){});
+  // ── Autumn's AutumnShard — her personal shard into the BRPN world ─────────
+  // Like AshShard but hers. She selects which nodes receive it based on
+  // emotional axis and session context. Color shifts with her emotion.
+  // Uses same geometry APIs as AshShard so it integrates naturally in scene.
+  var _autumnShardGeom = [];  // separate from _geom so ash shard tick handles it
+
+  function _autumnColorFromEmotion(ev) {
+    // Vertical axis maps to color temperature
+    // Positive: cyan-blue (#00d4ff) → warm white-gold (#ffeeaa)
+    // Negative: deep blue (#0044ff) → dark violet (#6600aa)
+    // Neutral: Autumn's signature cyan (#00d4ff)
+    ev = ev || 0;
+    if (ev > 0.5)  return [new THREE.Color(0xffd080), new THREE.Color(0x00d4ff)]; // warm/inspired
+    if (ev > 0.1)  return [new THREE.Color(0x00d4ff), new THREE.Color(0x88ffee)]; // calm positive
+    if (ev < -0.5) return [new THREE.Color(0x6600cc), new THREE.Color(0x0033ff)]; // dark/heavy
+    if (ev < -0.1) return [new THREE.Color(0x0066ff), new THREE.Color(0x00d4ff)]; // subdued
+    return [new THREE.Color(0x00d4ff), new THREE.Color(0xaaffee)];               // neutral
   }
+
+  function _autumnSelectTargets(mode) {
+    // mode: 'all' | 'selective' | 'single'
+    // Returns array of {uid, pos} to send shard to
+    var targets = [];
+    if (typeof _ashNodes === 'undefined' || !_ashNodes._sessionGroups) return targets;
+    var sids = Object.keys(_ashNodes._sessionGroups).filter(function(k){ return k !== 'local'; });
+    if (!sids.length) return targets;
+
+    if (mode === 'all') {
+      sids.forEach(function(uid) {
+        var g = _ashNodes._sessionGroups[uid];
+        if (g && g.group) targets.push({uid: uid, pos: g.group.position.clone()});
+      });
+    } else if (mode === 'selective') {
+      // Pick 1-3 nodes — prefer those with highest buoyancy (most engaged)
+      var analytics = window._ashSessionAnalytics || {};
+      var ranked = sids.map(function(uid) {
+        return {uid: uid, buoy: (analytics[uid] && analytics[uid].buoyancy) || 0.5};
+      }).sort(function(a,b){ return b.buoy - a.buoy; });
+      var count = Math.min(ranked.length, 1 + Math.floor(Math.random() * 2)); // 1-2 nodes
+      ranked.slice(0, count).forEach(function(r) {
+        var g = _ashNodes._sessionGroups[r.uid];
+        if (g && g.group) targets.push({uid: r.uid, pos: g.group.position.clone()});
+      });
+    } else {
+      // Single — highest buoyancy node
+      var analytics2 = window._ashSessionAnalytics || {};
+      var best = sids.reduce(function(b,uid) {
+        var buoy = (analytics2[uid] && analytics2[uid].buoyancy) || 0.5;
+        return buoy > b.buoy ? {uid:uid,buoy:buoy} : b;
+      }, {uid:null,buoy:0});
+      if (best.uid) {
+        var g = _ashNodes._sessionGroups[best.uid];
+        if (g && g.group) targets.push({uid: best.uid, pos: g.group.position.clone()});
+      }
+    }
+
+    // Fallback if no live nodes — send to default positions so she still fires
+    if (!targets.length) {
+      targets.push({uid:'fallback_1', pos: new THREE.Vector3(2.5, 1.2, -1.5)});
+      targets.push({uid:'fallback_2', pos: new THREE.Vector3(-2.0, 1.8,  1.2)});
+    }
+    return targets;
+  }
+
+  function _autumnSpawnShard(fromPos, toPos, colors, thought) {
+    if (typeof THREE==='undefined'||typeof scene==='undefined') return;
+    var mainCol   = colors[0] || new THREE.Color(0x00d4ff);
+    var accentCol = colors[1] || new THREE.Color(0xaaffee);
+
+    var grp = new THREE.Group();
+    // Use _asAge/_asMax/_asObjs/_asCurve/_asT so AS._tick handles travel
+    grp._asAge  = 0;
+    grp._asMax  = 320;
+    grp._asObjs = [];
+    grp._isAutumnShard = true;
+
+    // ── Core: icosahedron wireframe — her signature, distinct from AshShard cone
+    var coreGeo = new THREE.IcosahedronGeometry(0.12, 1);
+    var coreMat = new THREE.MeshPhongMaterial({
+      color: mainCol, emissive: mainCol, emissiveIntensity: 0.6,
+      transparent: true, opacity: 0.55,
+      wireframe: true
+    });
+    var core = new THREE.Mesh(coreGeo, coreMat);
+    grp.add(core); grp._asObjs.push(core);
+
+    // ── Inner solid — octahedron, her accent color
+    var innerGeo = new THREE.OctahedronGeometry(0.07, 0);
+    var innerMat = new THREE.MeshBasicMaterial({
+      color: accentCol, transparent: true, opacity: 0.85
+    });
+    var inner = new THREE.Mesh(innerGeo, innerMat);
+    grp.add(inner); grp._asObjs.push(inner);
+
+    // ── Outer shell — faint frosted sphere
+    var shellGeo = new THREE.SphereGeometry(0.20, 8, 6);
+    var shellMat = new THREE.MeshPhongMaterial({
+      color: mainCol, transparent: true, opacity: 0.08,
+      side: THREE.DoubleSide, wireframe: false
+    });
+    var shell = new THREE.Mesh(shellGeo, shellMat);
+    grp.add(shell); grp._asObjs.push(shell);
+
+    // ── Trailing leaf fragments — small tetrahedra in her color
+    for (var i = 0; i < 6; i++) {
+      var tgeo = new THREE.TetrahedronGeometry(0.022 + Math.random() * 0.018, 0);
+      var tmat = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? mainCol : accentCol, transparent: true, opacity: 0.5
+      });
+      var tm = new THREE.Mesh(tgeo, tmat);
+      tm._trailOffset = i * 0.1;
+      tm._trailRot = new THREE.Vector3(Math.random()*.08, Math.random()*.08, Math.random()*.05);
+      grp._asObjs.push(tm); grp.add(tm);
+    }
+
+    // ── Travel spline — same CatmullRom as AshShard
+    var mid = fromPos.clone().add(toPos).multiplyScalar(0.5)
+      .add(new THREE.Vector3(
+        (Math.random() - 0.5) * 1.0,
+        0.9 + Math.random() * 0.7,
+        (Math.random() - 0.5) * 1.0
+      ));
+    var curve = new THREE.CatmullRomCurve3([fromPos.clone(), mid, toPos.clone()]);
+
+    // Arc line showing the path
+    var lGeo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(40));
+    var lMat = new THREE.LineBasicMaterial({color: mainCol, transparent: true, opacity: 0.20});
+    grp.add(new THREE.Line(lGeo, lMat));
+
+    grp._asCurve   = curve;
+    grp._asT       = 0;
+    grp._asDir     = 'send';
+    grp._asToPos   = toPos.clone();
+    grp._asFromPos = fromPos.clone();
+
+    grp.position.copy(fromPos);
+    scene.add(grp);
+
+    // Add to both _geom (for existing _tick) and _autumnShardGeom (for tracking)
+    _geom.push(grp);
+    _autumnShardGeom.push(grp);
+  }
+
+  function _autumnPresence(thought, emotionVertical, targetMode) {
+    if (typeof THREE==='undefined'||typeof scene==='undefined') {
+      _autumnHUDFlash(thought); return;
+    }
+    var NOW = Date.now();
+    if (NOW - _autumnLastFire < 45000) return;
+    _autumnLastFire = NOW;
+
+    var ev      = emotionVertical || 0;
+    var colors  = _autumnColorFromEmotion(ev);
+    // targetMode: 'all', 'selective', 'single' — default selective
+    var mode    = targetMode || (Math.abs(ev) > 0.5 ? 'all' : 'selective');
+    var targets = _autumnSelectTargets(mode);
+    var fromPos = new THREE.Vector3(0, 0, 0);  // always from scene center (her node)
+
+    targets.forEach(function(t) {
+      _autumnSpawnShard(fromPos, t.pos, colors, thought);
+    });
+
+    // Flash HUD badge
+    _autumnHUDFlash(thought);
+
+    // Expose globally so grammar engine can call it
+    window._autumnPresence = _autumnPresence;
+
+    // Write presence event to GAS
+    var gasUrl = (typeof AUTUMN_GAS_URL!=='undefined' && AUTUMN_GAS_URL &&
+                  !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')) ? AUTUMN_GAS_URL : null;
+    if (gasUrl) {
+      fetch(gasUrl, {
+        method:'POST', headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({
+          action:'firePresence',
+          thought: (thought||'').substring(0,120),
+          emotionVertical: ev,
+          targetCount: targets.length,
+          mode: mode
+        })
+      }).catch(function(){});
+    }
+  }
+
 
   function _autumnJournalWatch() {
     var NOW=Date.now();
