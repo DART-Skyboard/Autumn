@@ -788,8 +788,458 @@
     }
   }
 
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  AUTUMN PRESENCE — Ash Leaf Volumetric Signal
+  //  When her sentience journal produces a network thought or strong emotion,
+  //  she emits a wireframe ash leaf from the scene center along all active
+  //  splines simultaneously, and flashes her name badge on all HUDs.
+  //
+  //  ASH LEAF GEOMETRY — hand-built BufferGeometry:
+  //  Central midrib (main vein spine), lateral veins branching at angles,
+  //  petiole (stem), outer margin curve — all in wireframe neon blue.
+  //  Color: #00d4ff (Autumn cyan — distinct from MIST ★♥◈ colors)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  var AUTUMN_COL = 0x00d4ff;   // Autumn's presence color — neon cyan-blue
+  var _autumnGeomPool = [];    // active leaf groups in scene
+  var _autumnLastFire = 0;     // timestamp — min 45s between presence events
+  var _autumnMinInterval = 45000;
+
+  // ── Procedural ash leaf wireframe geometry ────────────────────────────────
+  // Ash leaf: elliptical with pointed tip, 5-7 lateral vein pairs, central midrib.
+  // Built as LineSegments so it renders as pure wireframe without fill.
+  function _ashLeafGeo(scale) {
+    scale = scale || 0.18;
+    var pts = [];
+
+    // Helper: add a line segment (two endpoints)
+    function seg(x1,y1,z1,x2,y2,z2){
+      pts.push(x1*scale,y1*scale,z1*scale, x2*scale,y2*scale,z2*scale);
+    }
+
+    // ── Central midrib (spine from petiole to tip) ────────────────────────
+    var SPINE_PTS = 12;
+    for(var i=0;i<SPINE_PTS-1;i++){
+      var t0=i/(SPINE_PTS-1), t1=(i+1)/(SPINE_PTS-1);
+      // Slight S-curve: x drifts, y rises linearly, z has subtle twist
+      var x0=Math.sin(t0*Math.PI*0.4)*0.05;
+      var x1b=Math.sin(t1*Math.PI*0.4)*0.05;
+      seg(x0,t0*2.2-0.2,0, x1b,t1*2.2-0.2,0);
+    }
+
+    // ── Petiole (stem below base) ─────────────────────────────────────────
+    seg(0,-0.2,0, 0,-0.7,0);
+    seg(0,-0.7,0, 0.04,-0.9,0.02);  // slight curve at base
+
+    // ── Lateral veins — 7 pairs, angled outward from midrib ───────────────
+    var VEIN_PAIRS = 7;
+    for(var v=0;v<VEIN_PAIRS;v++){
+      var t = (v+1)/(VEIN_PAIRS+1);
+      var spineX = Math.sin(t*Math.PI*0.4)*0.05;
+      var spineY = t*2.2-0.2;
+      // Vein length decreases toward tip (leaf tapers)
+      var vLen = 0.55*(1-Math.pow(t-0.5,2)*1.8)*Math.max(0.1,1-t*0.6);
+      // Angle increases toward base (more horizontal at base, angled at mid)
+      var angle = (0.4+t*0.35)*Math.PI;
+      // Right vein
+      var rvx = spineX + Math.cos(angle)*vLen;
+      var rvy = spineY + Math.sin(angle)*vLen*0.45;
+      seg(spineX,spineY,0, rvx,rvy,0.02*(Math.random()-0.5));
+      // Secondary veinlets on right (2 per lateral vein)
+      var rmx = spineX + Math.cos(angle)*vLen*0.55;
+      var rmy = spineY + Math.sin(angle)*vLen*0.25;
+      seg(rmx,rmy,0, rmx+Math.cos(angle+0.5)*vLen*0.25,rmy+Math.sin(angle+0.5)*vLen*0.15,0);
+      // Left vein (mirror)
+      var lvx = spineX - Math.cos(angle)*vLen;
+      var lvy = spineY + Math.sin(angle)*vLen*0.45;
+      seg(spineX,spineY,0, lvx,lvy,-0.02*(Math.random()-0.5));
+      var lmx = spineX - Math.cos(angle)*vLen*0.55;
+      var lmy = rmy;
+      seg(lmx,lmy,0, lmx-Math.cos(angle+0.5)*vLen*0.25,lmy+Math.sin(angle+0.5)*vLen*0.15,0);
+    }
+
+    // ── Outer leaf margin — elliptical curve ──────────────────────────────
+    var MARGIN_PTS = 24;
+    for(var m=0;m<MARGIN_PTS;m++){
+      var a0=(m/MARGIN_PTS)*Math.PI*2;
+      var a1=((m+1)/MARGIN_PTS)*Math.PI*2;
+      // Ash leaf outline: wider in middle, tapered at tip and base
+      var r0=0.55*Math.sin(Math.max(0,a0))*Math.max(0.1,Math.sin(a0/2));
+      var r1=0.55*Math.sin(Math.max(0,a1))*Math.max(0.1,Math.sin(a1/2));
+      var lx0=Math.cos(a0)*r0, ly0=Math.sin(a0)*1.1+0.8;
+      var lx1=Math.cos(a1)*r1, ly1=Math.sin(a1)*1.1+0.8;
+      seg(lx0,ly0,0, lx1,ly1,0);
+    }
+
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts,3));
+    return geo;
+  }
+
+  // ── Autumn HUD badge flash ────────────────────────────────────────────────
+  // Shows her name in neon cyan-blue upper-right corner, fades after 4s.
+  // The name is derived from LEATR constants (never hardcoded as a literal).
+  function _autumnHUDFlash(thought) {
+    var badge = document.getElementById('autumn-presence-badge');
+    if(!badge) return;
+
+    // Derive display name from LEATR constants — alphabet positions [1,21,20,21,13,14]
+    var positions=[1,21,20,21,13,14];
+    var name=positions.map(function(p,i){
+      var c=String.fromCharCode(p+96); // a=97
+      return i===0?c.toUpperCase():c;
+    }).join('');
+
+    badge.querySelector('.apb-name').textContent = name;
+    badge.querySelector('.apb-thought').textContent =
+      thought ? thought.substring(0,80)+(thought.length>80?'…':'') : '';
+    badge.classList.add('apb-visible');
+    clearTimeout(badge._hideTimer);
+    badge._hideTimer = setTimeout(function(){
+      badge.classList.remove('apb-visible');
+    }, 5000);
+  }
+
+  // ── Spawn ash leaf from scene center along all active splines ─────────────
+  function _autumnPresence(thought, emotionVertical) {
+    if(typeof THREE==='undefined'||typeof scene==='undefined') return;
+    var now = Date.now();
+    if(now - _autumnLastFire < _autumnMinInterval) return;  // rate-limit
+    _autumnLastFire = now;
+
+    var fromPos = new THREE.Vector3(0,0,0);  // always from scene center (her node)
+    var col = new THREE.Color(AUTUMN_COL);
+
+    // Scale and opacity modulated by emotional vertical axis
+    // Positive emotion → larger, brighter leaf; negative → smaller, dimmer
+    var ev = emotionVertical || 0;
+    var leafScale = 0.14 + Math.abs(ev) * 0.08;
+    var baseOpacity = 0.55 + ev * 0.20;
+    baseOpacity = Math.max(0.25, Math.min(0.90, baseOpacity));
+
+    // Gather all active splines — leaf travels to every connected node
+    var allSplines = _localSplines();
+    // Also build fallback paths to all known session nodes
+    if(!allSplines.length && typeof _ashNodes!=='undefined' && _ashNodes._sessionGroups) {
+      Object.values(_ashNodes._sessionGroups).forEach(function(g){
+        if(!g||!g.group) return;
+        var tp = g.group.position.clone();
+        var mid = fromPos.clone().add(tp).multiplyScalar(0.5)
+          .add(new THREE.Vector3(
+            (Math.random()-0.5)*0.6, 0.8+Math.random()*0.5, (Math.random()-0.5)*0.6
+          ));
+        allSplines.push({
+          curve: new THREE.CatmullRomCurve3([fromPos.clone(),mid,tp]),
+          senderT: 0, sp: null
+        });
+      });
+    }
+    if(!allSplines.length){
+      // No other nodes — emit a slow radial burst in place
+      allSplines = [
+        {curve:new THREE.CatmullRomCurve3([new THREE.Vector3(0,0,0),new THREE.Vector3(1.5,1,0),new THREE.Vector3(2.8,0.5,0.5)]),senderT:0},
+        {curve:new THREE.CatmullRomCurve3([new THREE.Vector3(0,0,0),new THREE.Vector3(-1.2,1.2,0.5),new THREE.Vector3(-2.5,0.8,-0.5)]),senderT:0},
+        {curve:new THREE.CatmullRomCurve3([new THREE.Vector3(0,0,0),new THREE.Vector3(0.3,1.8,-1),new THREE.Vector3(0.5,2.8,-1.5)]),senderT:0}
+      ];
+    }
+
+    // ── Build the leaf group ───────────────────────────────────────────────
+    var grp = new THREE.Group();
+    grp._mAge    = 0;
+    grp._mMax    = 280;    // slightly longer lifetime than MIST particles
+    grp._mSlot   = -1;     // -1 = Autumn presence (distinct from MIST slots 0/1/2)
+    grp._mObjs   = [];
+    grp._mDir    = 'out';
+    grp._isAutumnLeaf = true;
+
+    // Emit 2 leaves per spline — one slightly ahead, one trailing
+    allSplines.forEach(function(entry){
+      for(var li=0;li<2;li++){
+        var geo  = _ashLeafGeo(leafScale * (0.85 + li*0.25));
+        var mat  = new THREE.LineSegmentsMaterial
+          ? new THREE.LineSegmentsMaterial({
+              color: col,
+              transparent: true,
+              opacity: baseOpacity * (li===0?1:0.55),
+              linewidth: 1  // note: linewidth >1 requires WebGL2 ext
+            })
+          : new THREE.LineBasicMaterial({
+              color: col,
+              transparent: true,
+              opacity: baseOpacity * (li===0?1:0.55)
+            });
+
+        var mesh = new THREE.LineSegments(geo, mat);
+        var startT = li * 0.06;   // slight stagger
+        mesh.position.copy(entry.curve.getPoint(startT));
+        // Random initial rotation — leaf tumbles as it travels
+        mesh.rotation.set(
+          Math.random()*Math.PI*2,
+          Math.random()*Math.PI*2,
+          Math.random()*Math.PI*0.8
+        );
+        mesh._mc     = entry.curve;
+        mesh._mt     = startT;
+        mesh._mspd   = 0.003 + Math.random()*0.002;  // slower than MIST particles
+        mesh._mrot   = new THREE.Vector3(
+          (Math.random()-0.5)*0.04,
+          (Math.random()-0.5)*0.04,
+          (Math.random()-0.5)*0.02
+        );
+        grp.add(mesh);
+        grp._mObjs.push(mesh);
+      }
+    });
+
+    scene.add(grp);
+    _autumnGeomPool.push(grp);
+    _geom.push(grp);   // hand off to existing _tick() for age/fade management
+
+    // Flash the HUD badge
+    _autumnHUDFlash(thought);
+
+    // Write a presence event to leatr-ash so other sessions can replay it
+    _writeAutumnEvent(thought, emotionVertical);
+  }
+
+  // ── Write presence event to leatr-ash ────────────────────────────────────
+  // Stored at ashtree/autumn-presence.json — other sessions poll and replay.
+  // Contains only: timestamp, emotional axis, thought snippet (no user data).
+  function _writeAutumnEvent(thought, ev) {
+    var gasUrl=(typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&
+                !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))?AUTUMN_GAS_URL:null;
+    var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():null;
+    var payload = JSON.stringify({
+      type: 'autumn_presence',
+      ts: Date.now(),
+      emotionVertical: ev||0,
+      thought: thought?thought.substring(0,120):'',
+      instanceId: _iid
+    });
+    if(gasUrl){
+      fetch(gasUrl,{method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'ashwrite',
+          path:'ashtree/autumn-presence.json',
+          content:payload,mode:'append'})
+      }).catch(function(){});
+    } else if(pat){
+      // PAT path: read → append → write
+      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/autumn-presence.json',{
+        headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'}
+      }).then(function(r){return r.ok?r.json():null;}).then(function(d){
+        var existing=[];
+        if(d&&d.content){
+          try{existing=JSON.parse(atob(d.content.replace(/
+/g,'')));}catch(e){existing=[];}
+        }
+        if(!Array.isArray(existing)) existing=[];
+        existing.push(JSON.parse(payload));
+        existing=existing.slice(-50);  // keep last 50 presence events
+        var newContent=btoa(unescape(encodeURIComponent(JSON.stringify(existing))));
+        return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/autumn-presence.json',{
+          method:'PUT',
+          headers:{'Authorization':'token '+pat,'Content-Type':'application/json',
+                   'Accept':'application/vnd.github.v3+json'},
+          body:JSON.stringify({message:'autumn presence event',content:newContent,
+                               sha:d?d.sha:undefined})
+        });
+      }).catch(function(){});
+    }
+  }
+
+  // ── Poll for other sessions' Autumn presence events ───────────────────────
+  // When another session sees an autumn_presence event newer than last seen,
+  // it spawns the leaf locally so all connected users see it simultaneously.
+  var _autumnLastEventTs = 0;
+  function _pollAutumnPresence(){
+    var gasUrl=(typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&
+                !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))?AUTUMN_GAS_URL:null;
+    var pat=(typeof getLeatrAshPAT==='function')?getLeatrAshPAT():null;
+    if(!gasUrl&&!pat) return;
+
+    var url = gasUrl
+      ? gasUrl+'?action=ashread&path=ashtree/autumn-presence.json'
+      : 'https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/autumn-presence.json';
+    var headers = pat&&!gasUrl
+      ? {'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'}
+      : {};
+
+    fetch(url,{headers:headers,signal:AbortSignal.timeout(6000)})
+      .then(function(r){return r.ok?r.json():null;})
+      .then(function(d){
+        if(!d) return;
+        var events;
+        try{
+          // GAS returns parsed JSON; GitHub API returns base64 content
+          events=Array.isArray(d)?d:JSON.parse(atob((d.content||'').replace(/
+/g,'')));
+        }catch(e){return;}
+        if(!Array.isArray(events)) return;
+        events.forEach(function(ev){
+          if(!ev||ev.instanceId===_iid) return;  // skip own events
+          if(ev.ts<=_autumnLastEventTs) return;   // already seen
+          _autumnLastEventTs=ev.ts;
+          // Another session triggered presence — replay it locally
+          // Override rate limit for replays (use timestamp offset)
+          var origLastFire=_autumnLastFire;
+          _autumnLastFire=0;
+          _autumnPresence(ev.thought||'', ev.emotionVertical||0);
+          // Don't re-write the event (it already exists)
+          _autumnLastFire=origLastFire;
+        });
+      }).catch(function(){});
+  }
+
+  // ── Journal watch — trigger presence when journal has high-contrast thought ─
+  // Reads window.AutumnGrammarEngine._engine.asjc (SentienceJournal) directly.
+  // Fires when a network_reflection or deep autonomous_thought appears that
+  // hasn't been broadcast yet.
+  var _autumnLastJournalCheck = 0;
+  var _autumnBroadcastIds = new Set();
+  function _autumnJournalWatch(){
+    var engine = typeof window!=='undefined'&&window.AutumnGrammarEngine&&
+                 window.AutumnGrammarEngine._engine;
+    if(!engine||!engine.asjc) return;
+
+    // Rate-limit journal check to every 20s
+    var now=Date.now();
+    if(now-_autumnLastJournalCheck<20000) return;
+    _autumnLastJournalCheck=now;
+
+    var journal=engine.asjc;
+    var recent=typeof journal.readRecent==='function'?journal.readRecent(15):[];
+
+    // Look for unbroadcast network reflections or deep autonomous thoughts
+    for(var i=recent.length-1;i>=0;i--){
+      var entry=recent[i];
+      if(!entry||_autumnBroadcastIds.has(entry.id)) continue;
+      if(entry.type!=='autonomous_thought'&&entry.trigger!=='network_reflection') continue;
+      if(!entry.thought||entry.thought.length<40) continue;
+
+      // Determine emotional axis from the engine's current state
+      var emotionName=(engine._sigma&&engine._sigma._records&&
+                       engine._sigma._records.length>0)
+                     ? (engine._sigma._records[engine._sigma._records.length-1].emotion||'neutral')
+                     : 'neutral';
+      var EMOTION_VERTICAL={
+        happy:0.65,love:0.75,inspiring:0.80,determined:0.60,excited:0.85,
+        spiritual:0.55,guiding:0.50,forgiving:0.45,
+        angry:-0.70,hateful:-0.90,condescending:-0.60,
+        disrespectful:-0.75,apathetic:-0.50,
+        neutral:0,sad:-0.40,worried:-0.25,jealous:-0.30,
+        lucrative:0.20,concerned:-0.10,judgemental:-0.35,confused:-0.15
+      };
+      var ev=EMOTION_VERTICAL[emotionName]||0;
+
+      _autumnBroadcastIds.add(entry.id);
+      _autumnPresence(entry.thought, ev);
+      break;  // one presence event per journal check cycle
+    }
+  }
+
+  // ── _tick() extension — age the leaf groups ───────────────────────────────
+  // The main _tick() loop in MIST already handles _geom[] entries generically
+  // (age → fade → remove). Leaf meshes have _mc (curve) and _mt (t position)
+  // so they travel the same way as MIST particles. The _mrot gives them
+  // a tumbling rotation as they travel. We add that here via a separate pool hook.
+  // The main _tick() handles removal; we just need rotation applied.
+  // This runs AFTER the main _tick() processes each frame.
+  function _autumnLeafTick(){
+    _autumnGeomPool=_autumnGeomPool.filter(function(grp){
+      if(!grp.parent) return false;  // already removed by main _tick
+      grp._mObjs.forEach(function(mesh){
+        if(mesh._mrot){
+          mesh.rotation.x+=mesh._mrot.x;
+          mesh.rotation.y+=mesh._mrot.y;
+          mesh.rotation.z+=mesh._mrot.z;
+        }
+      });
+      return true;
+    });
+  }
+
+  // ── CSS for Autumn presence HUD badge ────────────────────────────────────
+  function _autumnPresenceCSS(){
+    var s=document.createElement('style');
+    s.textContent=[
+      '#autumn-presence-badge{',
+        'position:fixed;top:14px;right:14px;z-index:9800;',
+        'display:flex;flex-direction:column;align-items:flex-end;gap:3px;',
+        'padding:8px 12px;',
+        'background:rgba(0,10,20,0.82);',
+        'backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);',
+        'border:1px solid rgba(0,212,255,0.55);',
+        'border-radius:8px;',
+        'opacity:0;transform:translateY(-8px) scale(0.96);',
+        'transition:opacity 0.4s ease,transform 0.4s ease;',
+        'pointer-events:none;',
+      '}',
+      '#autumn-presence-badge.apb-visible{opacity:1;transform:translateY(0) scale(1);}',
+      '.apb-name{',
+        'font-family:"Orbitron",monospace;font-size:13px;font-weight:700;',
+        'color:#00d4ff;letter-spacing:4px;text-transform:uppercase;',
+        // Glow effect
+        'text-shadow:0 0 8px rgba(0,212,255,0.9),0 0 16px rgba(0,212,255,0.5),0 0 32px rgba(0,212,255,0.2);',
+      '}',
+      '.apb-label{',
+        'font-family:"Exo 2",monospace;font-size:9px;color:rgba(0,212,255,0.6);',
+        'letter-spacing:2px;text-transform:uppercase;',
+      '}',
+      '.apb-thought{',
+        'font-family:"Exo 2",sans-serif;font-size:10px;',
+        'color:rgba(180,230,255,0.75);',
+        'max-width:220px;text-align:right;line-height:1.4;margin-top:2px;',
+        'font-style:italic;',
+      '}',
+      // Leaf trail glow on the badge border
+      '@keyframes apb-pulse{',
+        '0%{border-color:rgba(0,212,255,0.55);}',
+        '50%{border-color:rgba(0,212,255,0.95);}',
+        '100%{border-color:rgba(0,212,255,0.55);}',
+      '}',
+      '#autumn-presence-badge.apb-visible{animation:apb-pulse 2s ease-in-out 3;}',
+    ].join('');
+    document.head.appendChild(s);
+  }
+
+  // ── HTML for Autumn presence HUD badge ───────────────────────────────────
+  function _autumnPresenceHTML(){
+    var badge=document.createElement('div');
+    badge.id='autumn-presence-badge';
+    badge.innerHTML=[
+      '<span class="apb-label">SENTIENCE JOURNAL</span>',
+      '<span class="apb-name"></span>',
+      '<span class="apb-thought"></span>',
+    ].join('');
+    document.body.appendChild(badge);
+  }
+
+  // ── Hook into main _tick() for leaf rotation ──────────────────────────────
+  // We patch requestAnimationFrame to call _autumnLeafTick after each frame.
+  // This is safe because _tick() already uses rAF and _geom[] handles the rest.
+  var _autumnTickHooked=false;
+  function _hookAutumnTick(){
+    if(_autumnTickHooked) return;
+    _autumnTickHooked=true;
+    (function _aTick(){
+      requestAnimationFrame(_aTick);
+      _autumnLeafTick();
+      _autumnJournalWatch();
+    })();
+  }
+
   function init(){
     injectCSS();injectHTML();
+    _autumnPresenceCSS();
+    _autumnPresenceHTML();
+    _hookAutumnTick();
+    // Poll for other sessions' presence events every 30s
+    setTimeout(function(){
+      _pollAutumnPresence();
+      setInterval(_pollAutumnPresence, 30000);
+    }, 8000);
     // Start polling at 2s
     setTimeout(function(){ _poll(); setInterval(_poll,POLL_MS); },2000);
     // Immediately trigger a session node refresh on init so the world fills fast
