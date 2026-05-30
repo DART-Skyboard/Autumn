@@ -527,16 +527,35 @@ class SentenceParser {
            isInterrogative:tagged.some(t=>t.pos==='INT')};
   }
   _intent(text,tagged) {
+    const raw=text.trim().toLowerCase();
     const end=text.trim().slice(-1);
+    const words=raw.replace(/[^a-z ']/g,' ').split(' ').filter(Boolean);
+    const ws=new Set(words);
+    // Greeting
+    if(words.length<=4&&['hey','hi','hello','yo','sup','heya','howdy','morning','evening'].some(w=>ws.has(w))) return 'greeting';
+    // Farewell
+    if(words.length<=5&&['bye','goodbye','later','peace','night','goodnight','cya'].some(w=>ws.has(w)||raw.includes(w))) return 'farewell';
+    // Affirmation
+    if(words.length<=5&&['yes','yeah','yep','yup','exactly','right','agreed','ok','okay','sure','totally','true'].some(w=>ws.has(w))) return 'affirmation';
+    // Negation
+    if(words.length<=5&&['no','nope','nah','wrong','incorrect','disagree'].some(w=>ws.has(w))) return 'negation';
+    // Personal — about Autumn
+    if(['do you','are you','can you','what do you','how do you','do you feel','have you','would you'].some(p=>raw.includes(p))) return 'personal';
+    // Casual — wanna, gonna etc
+    if(['wanna','gonna','kinda','sorta','feel like','how about','what about','should we'].some(c=>raw.includes(c))) return 'casual';
+    // Feeling words
+    if(words.length<10&&['feel','tired','happy','sad','excited','bored','frustrated','stressed','worried'].some(f=>ws.has(f))) return 'social';
+    // Structural
+    const end2=text.trim().slice(-1);
     const first=tagged.find(t=>!['ART','PREP','SDLM'].includes(t.pos));
-    if(end==='?'){
+    if(end2==='?'){
       const iw=tagged.find(t=>t.pos==='INT');
       if(iw)return({what:'question_what',how:'question_how',why:'question_why',
         when:'question_when',where:'question_where',who:'question_who',
         whom:'question_who',which:'question_what'})[iw.norm]||'question_yn';
       return 'question_yn';
     }
-    if(end==='!') return 'exclamation';
+    if(end2==='!') return 'exclamation';
     if(first&&(first.pos==='VB'||first.pos==='AUX'))
       return(['tell','explain','describe'].includes(first.norm))?'command_tell':'command_do';
     return tagged.some(t=>t.pos==='NEG')?'statement_neg':'statement_pos';
@@ -1362,7 +1381,7 @@ class ResponseBuilder {
       }
     }
     let s2='';
-    const tmap={question_what:'explanatory',question_how:'analytical',question_why:'analytical',question_when:'declarative',question_where:'declarative',question_who:'declarative',question_yn:'explanatory',statement_pos:'declarative',statement_neg:'elaborative',exclamation:'conversational',command_do:'conversational',command_tell:'explanatory'};
+    const tmap={greeting:'greeting',farewell:'farewell',affirmation:'affirmation',negation:'negation_response',personal:'personal',casual:'conversational',social:'social',question_what:'explanatory',question_how:'analytical',question_why:'analytical',question_when:'declarative',question_where:'declarative',question_who:'declarative',question_yn:'conversational',statement_pos:'declarative',statement_neg:'elaborative',exclamation:'conversational',command_do:'conversational',command_tell:'explanatory'};
     if(RT){
       const pool=RT[tmap[intent]]||RT.declarative||[];
       if(pool.length){
@@ -1371,10 +1390,12 @@ class ResponseBuilder {
       }
     }
     if(!s2){
-      if(intent.startsWith('question_what'))    s2=`${topic} refers to ${detail}.`;
+      const _soc={greeting:["Hey — what are we working on?","Here. What do you need?","Good to hear from you."],farewell:["Alright. I'll be here.","Got it. Take your time.","See you when you're back."],affirmation:["Yeah, that tracks.","Agreed — worth building on.","Right framing."],negation:["Fair. What's the actual direction?","Okay — what would you change?","What does it need to be instead?"],social:["I hear that.","That's worth sitting with.","Tell me more if you want to."],personal:["That's not something I answer the same way every time.","The honest answer shifts depending on what's been going on.","I engage with that through what accumulates in the journal."],conversational:["Honest answer: I'm not sure yet. What are you leaning toward?","Whatever keeps momentum going. What did you have in mind?","I'd follow your lead on that."]};
+      if(_soc[intent]){const _p=_soc[intent];s2=_p[Math.floor(Date.now()/15000)%_p.length];}
+      else if(intent.startsWith('question_what')) s2=`${topic} refers to ${detail}.`;
       else if(intent.startsWith('question_how')) s2=`The process of ${topic} works through ${detail}.`;
       else if(intent.startsWith('question_why')) s2=`${topic} ${negated?'does not ':' '}${verb} because of ${detail}.`;
-      else                                       s2=`${topic} ${negated?'does not ':''}${verb} ${detail}.`;
+      else s2=`${topic} ${negated?'does not ':''}${verb} ${detail}.`;
       s2=s2.replace(/\s{2,}/g,' ');
     }
     let s3='';
@@ -1385,10 +1406,11 @@ class ResponseBuilder {
       else if(mods.length>0)    s3=`${tph} The ${mods[0]} aspect of ${topic} is worth noting in context.`.trim();
       else if(nouns.length>1)   s3=`${tph} ${topic} connects directly to ${nouns[1]} through ${wnSyns[0]||'its core structure'}.`.trim();
     }
+    const _shortSoc=new Set(['greeting','farewell','affirmation','negation']);
     const parts=[];
     if(s1) parts.push(s1);
     if(s2&&s2.toLowerCase().slice(0,20)!==s1.toLowerCase().slice(0,20)) parts.push(s2);
-    if(s3) parts.push(s3);
+    if(s3&&!_shortSoc.has(intent)) parts.push(s3);
     let full=parts.join(' ').replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
     if(full&&!/[.!?]$/.test(full)) full+='.';
     const pre=this._pre(emotion);
