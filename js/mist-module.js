@@ -1231,15 +1231,18 @@
   }
 
   function init(){
+    // MIST core — always runs first, no dependencies
     injectCSS();injectHTML();
-    _autumnPresenceCSS();
-    _autumnPresenceHTML();
-    _hookAutumnTick();
+    // Autumn presence — deferred so MIST trigger loads first
+    setTimeout(function(){
+      try{_autumnPresenceCSS();}catch(e){}
+      try{_autumnPresenceHTML();}catch(e){}
+      try{_hookAutumnTick();}catch(e){}
+    }, 2000);
     // Poll for other sessions' presence events every 30s
     setTimeout(function(){
-      _pollAutumnPresence();
-      setInterval(_pollAutumnPresence, 30000);
-    }, 8000);
+      try{_pollAutumnPresence();setInterval(_pollAutumnPresence,30000);}catch(e){}
+    }, 10000);
     // Start polling at 2s
     setTimeout(function(){ _poll(); setInterval(_poll,POLL_MS); },2000);
     // Immediately trigger a session node refresh on init so the world fills fast
