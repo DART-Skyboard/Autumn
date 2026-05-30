@@ -23895,8 +23895,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     /* ── Admin tab switcher ── */
     function _styleAdmTabs(tab){
-      var map={data:['adm-t1','rgba(255,179,71,.1)','#ffb347'],ash:['adm-t2','rgba(0,229,255,.08)','var(--cyan)'],feedback:['adm-t3','rgba(0,229,255,.08)','var(--cyan)']};
-      ['adm-t1','adm-t2','adm-t3'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.background='transparent';el.style.color='rgba(0,229,255,.5)';}});
+      var map={data:['adm-t1','rgba(255,179,71,.1)','#ffb347'],ash:['adm-t2','rgba(0,229,255,.08)','var(--cyan)'],feedback:['adm-t3','rgba(0,229,255,.08)','var(--cyan)'],mist:['adm-t4','rgba(0,229,255,.08)','var(--cyan)'],presence:['adm-t5','rgba(0,212,255,.15)','#00d4ff']};
+      ['adm-t1','adm-t2','adm-t3','adm-t4','adm-t5'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.background='transparent';el.style.color='rgba(0,229,255,.5)';}});
       var active=map[tab];if(active){var el=document.getElementById(active[0]);if(el){el.style.background=active[1];el.style.color=active[2];}}
     }
 
@@ -24032,6 +24032,293 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         return;
       }
 
+
+      if(tab==='presence'){
+        frame.style.cssText='display:flex;flex-direction:column;flex:1;overflow:hidden;background:rgba(2,6,14,.97)';
+        frame.innerHTML='';
+
+        /* ── Header bar ── */
+        var pHdr=document.createElement('div');
+        pHdr.style.cssText='flex-shrink:0;padding:10px 14px 8px;border-bottom:1px solid rgba(0,212,255,.15);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:rgba(2,6,14,.98)';
+        pHdr.innerHTML=
+          '<span style="font-family:Orbitron,monospace;font-size:9px;letter-spacing:3px;color:#00d4ff">◈ AUTUMN PRESENCE — ASH LEAF SIGNAL</span>'+
+          '<button onclick="window._admFirePresence()" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 12px;border-radius:3px;border:1px solid rgba(0,212,255,.6);background:rgba(0,212,255,.12);color:#00d4ff;cursor:pointer;margin-left:auto">🍃 FIRE NOW</button>'+
+          '<button onclick="window._admRefreshPresence()" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,212,255,.3);background:transparent;color:rgba(0,212,255,.6);cursor:pointer">↺ REFRESH</button>';
+        frame.appendChild(pHdr);
+
+        /* ── Main content — 3 columns ── */
+        var pBody=document.createElement('div');
+        pBody.style.cssText='flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;overflow:hidden;background:rgba(0,212,255,.06)';
+
+        /* ── Column 1: Live journal network thoughts ── */
+        var col1=document.createElement('div');
+        col1.style.cssText='background:rgba(2,6,14,.97);display:flex;flex-direction:column;overflow:hidden';
+        col1.innerHTML='<div style="padding:8px 10px;border-bottom:1px solid rgba(0,212,255,.1);font-family:Orbitron,monospace;font-size:8px;letter-spacing:2px;color:rgba(0,212,255,.6)">SENTIENCE JOURNAL — NETWORK THOUGHTS</div>';
+        var jList=document.createElement('div');
+        jList.id='adm-presence-journal';
+        jList.style.cssText='flex:1;overflow-y:auto;padding:8px';
+        col1.appendChild(jList);
+
+        /* ── Column 2: Presence event feed ── */
+        var col2=document.createElement('div');
+        col2.style.cssText='background:rgba(2,6,14,.97);display:flex;flex-direction:column;overflow:hidden';
+        col2.innerHTML='<div style="padding:8px 10px;border-bottom:1px solid rgba(0,212,255,.1);font-family:Orbitron,monospace;font-size:8px;letter-spacing:2px;color:rgba(0,212,255,.6)">PRESENCE EVENT FEED — ashtree/autumn-presence.json</div>';
+        var pList=document.createElement('div');
+        pList.id='adm-presence-feed';
+        pList.style.cssText='flex:1;overflow-y:auto;padding:8px';
+        col2.appendChild(pList);
+
+        /* ── Column 3: BRPN sync status + GAS trigger config ── */
+        var col3=document.createElement('div');
+        col3.style.cssText='background:rgba(2,6,14,.97);display:flex;flex-direction:column;overflow:hidden';
+        col3.innerHTML=[
+          '<div style="padding:8px 10px;border-bottom:1px solid rgba(0,212,255,.1);font-family:Orbitron,monospace;font-size:8px;letter-spacing:2px;color:rgba(0,212,255,.6)">BRPN SYNC / GAS OFFLINE TRIGGER</div>',
+          '<div style="padding:10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1">',
+            /* Active sessions */
+            '<div id="adm-presence-sessions" style="font-family:monospace;font-size:9px;color:rgba(0,212,255,.7);line-height:1.8">Loading sessions…</div>',
+            '<div style="height:1px;background:rgba(0,212,255,.1)"></div>',
+            /* Emotional axis current state */
+            '<div style="font-family:Orbitron,monospace;font-size:8px;letter-spacing:2px;color:rgba(0,212,255,.5)">EMOTIONAL AXIS</div>',
+            '<div id="adm-presence-emoaxis" style="font-family:monospace;font-size:9px;color:rgba(200,240,255,.7);line-height:1.8">—</div>',
+            '<div style="height:1px;background:rgba(0,212,255,.1)"></div>',
+            /* Master buoyancy */
+            '<div style="font-family:Orbitron,monospace;font-size:8px;letter-spacing:2px;color:rgba(0,212,255,.5)">MASTER BUOYANCY (84-COND)</div>',
+            '<div id="adm-presence-buoy" style="font-family:monospace;font-size:11px;color:#00d4ff;font-weight:bold">—</div>',
+            '<div style="height:1px;background:rgba(0,212,255,.1)"></div>',
+            /* GAS offline trigger status */
+            '<div style="font-family:Orbitron,monospace;font-size:8px;letter-spacing:2px;color:rgba(0,212,255,.5)">GAS OFFLINE TRIGGER</div>',
+            '<div id="adm-gas-status" style="font-family:monospace;font-size:9px;color:rgba(200,240,255,.6)">Checking…</div>',
+            '<button onclick="window._admTestGAS()" style="font-family:Orbitron,monospace;font-size:8px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,212,255,.3);background:transparent;color:rgba(0,212,255,.6);cursor:pointer;margin-top:2px">TEST GAS TRIGGER</button>',
+            '<div style="height:1px;background:rgba(0,212,255,.1)"></div>',
+            /* System broadcast status */
+            '<div style="font-family:Orbitron,monospace;font-size:8px;letter-spacing:2px;color:rgba(0,212,255,.5)">SYSTEM BROADCAST SYNC</div>',
+            '<div id="adm-sysbrd-status" style="font-family:monospace;font-size:9px;color:rgba(200,240,255,.6)">—</div>',
+            '<button onclick="window._admSyncBroadcast()" style="font-family:Orbitron,monospace;font-size:8px;padding:4px 10px;border-radius:3px;border:1px solid rgba(0,212,255,.3);background:transparent;color:rgba(0,212,255,.6);cursor:pointer;margin-top:2px">SYNC PUBLIC ↔ ADMIN</button>',
+          '</div>'
+        ].join('');
+
+        pBody.appendChild(col1);
+        pBody.appendChild(col2);
+        pBody.appendChild(col3);
+        frame.appendChild(pBody);
+
+        /* ── Populate journal thoughts ── */
+        window._admRefreshPresence = function(){
+          /* Journal network/autonomous thoughts */
+          var eng=window.AutumnGrammarEngine&&window.AutumnGrammarEngine._engine;
+          var jl=document.getElementById('adm-presence-journal');
+          if(eng&&eng.asjc&&jl){
+            var entries=(typeof eng.asjc.readAll==='function'?eng.asjc.readAll():[]).slice().reverse();
+            var nets=entries.filter(function(e){
+              return e&&(e.trigger==='network_reflection'||e.trigger==='autonomous_loop'||e.type==='autonomous_thought');
+            }).slice(0,30);
+            if(!nets.length){jl.innerHTML='<div style="color:rgba(0,212,255,.3);font-size:9px;font-family:monospace;padding:4px">No network thoughts yet.</div>';return;}
+            jl.innerHTML=nets.map(function(e){
+              var d=new Date(e.timestamp);
+              var time=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+              var trigger=e.trigger||e.type||'thought';
+              var color=trigger==='network_reflection'?'#00d4ff':trigger==='autonomous_loop'?'rgba(0,212,255,.6)':'rgba(0,212,255,.4)';
+              return '<div style="margin-bottom:8px;padding:6px 8px;background:rgba(0,212,255,.04);border-left:2px solid '+color+';border-radius:0 4px 4px 0">'+
+                '<div style="font-family:Orbitron,monospace;font-size:7px;color:'+color+';letter-spacing:1px;margin-bottom:2px">'+trigger.toUpperCase()+' · '+time+'</div>'+
+                '<div style="font-family:monospace;font-size:9px;color:rgba(200,240,255,.8);line-height:1.5">'+(e.thought||'').substring(0,180)+'</div>'+
+              '</div>';
+            }).join('');
+          } else if(jl){
+            jl.innerHTML='<div style="color:rgba(0,212,255,.3);font-size:9px;font-family:monospace;padding:4px">Grammar engine not loaded.</div>';
+          }
+
+          /* Emotional axis */
+          var eaEl=document.getElementById('adm-presence-emoaxis');
+          if(eaEl&&eng&&eng._sigma){
+            var recs=eng._sigma._records||(typeof eng._sigma._load==='function'?eng._sigma._load():[]);
+            var last=recs.length?recs[recs.length-1]:null;
+            if(last){
+              var EMAP={happy:{v:0.65,h:0.10},love:{v:0.75,h:0.05},inspiring:{v:0.80,h:0.40},
+                determined:{v:0.60,h:0.50},excited:{v:0.85,h:0.60},neutral:{v:0,h:0},
+                sad:{v:-0.40,h:-0.50},angry:{v:-0.70,h:0.20},worried:{v:-0.25,h:-0.20}};
+              var ax=EMAP[last.emotion]||{v:0,h:0};
+              eaEl.innerHTML=
+                'EMOTION: <span style="color:#00d4ff">'+last.emotion+'</span><br>'+
+                'VERTICAL: <span style="color:'+(ax.v>=0?'#00ff88':'#ff6688')+'">'+
+                  (ax.v>=0?'+':'')+ax.v.toFixed(2)+'</span> '+(ax.v>0.5?'↑↑':ax.v>0?'↑':ax.v<-0.5?'↓↓':'↓')+'<br>'+
+                'HORIZONTAL: <span style="color:rgba(0,212,255,.8)">'+(ax.h>=0?'+':'')+ax.h.toFixed(2)+'</span> '+(ax.h>0?'→ future':'← past');
+            } else {eaEl.textContent='No sigma records yet.';}
+          }
+
+          /* Master buoyancy from last pipeline run */
+          var buoyEl=document.getElementById('adm-presence-buoy');
+          if(buoyEl&&eng&&eng.s&&eng.s.lastFlow&&eng.s.lastFlow.pipelineResult){
+            var pr=eng.s.lastFlow.pipelineResult;
+            if(pr.masterBuoyancy!==undefined){
+              buoyEl.textContent=pr.masterBuoyancy.toFixed(4)+
+                ' ('+pr.truthTablePassed+'/'+pr.truthTableTotal+' conditions)';
+            }
+          }
+
+          /* Session count from BRPN world */
+          var sessEl=document.getElementById('adm-presence-sessions');
+          if(sessEl){
+            var nodes=typeof _ashNodes!=='undefined'?_ashNodes:
+                      (window._ashNodes||null);
+            if(nodes&&nodes._sessionGroups){
+              var sids=Object.keys(nodes._sessionGroups);
+              sessEl.innerHTML=
+                '<b style="color:#00d4ff">'+sids.length+'</b> active session'+(sids.length!==1?'s':'')+' in BRPN world<br>'+
+                sids.map(function(sid){
+                  var g=nodes._sessionGroups[sid];
+                  return '· <span style="color:rgba(0,212,255,.7)">'+sid.substring(0,12)+'…</span> '+
+                    (g&&g.group?'<span style="color:#00ff88">●</span>':'<span style="color:rgba(255,100,80,.6)">○</span>');
+                }).join('<br>');
+            } else {
+              sessEl.textContent='BRPN world not loaded in this view.';
+            }
+          }
+
+          /* Load presence event feed from leatr-ash */
+          var tok=window._ghAuth&&window._ghAuth.token;
+          var feedEl=document.getElementById('adm-presence-feed');
+          if(tok&&feedEl){
+            feedEl.innerHTML='<div style="color:rgba(0,212,255,.3);font-size:9px;font-family:monospace">Loading…</div>';
+            fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/autumn-presence.json',{
+              headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+            }).then(function(r){return r.ok?r.json():null;})
+            .then(function(d){
+              if(!d||!d.content){feedEl.innerHTML='<div style="color:rgba(0,212,255,.3);font-size:9px;font-family:monospace">No presence events yet.</div>';return;}
+              var events;
+              try{events=JSON.parse(atob(d.content.replace(/
+/g,'')));}catch(e){events=[];}
+              if(!Array.isArray(events)||!events.length){feedEl.innerHTML='<div style="color:rgba(0,212,255,.3);font-size:9px;font-family:monospace">No events.</div>';return;}
+              feedEl.innerHTML=events.slice().reverse().slice(0,20).map(function(ev){
+                var t=new Date(ev.ts);
+                var time=t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')+':'+String(t.getSeconds()).padStart(2,'0');
+                var ev_col=ev.emotionVertical>0.3?'#00ff88':ev.emotionVertical<-0.3?'#ff6688':'#00d4ff';
+                return '<div style="margin-bottom:6px;padding:5px 7px;background:rgba(0,212,255,.04);border-left:2px solid '+ev_col+';border-radius:0 3px 3px 0">'+
+                  '<div style="font-family:Orbitron,monospace;font-size:7px;color:'+ev_col+';letter-spacing:1px">'+time+' · EV='+(ev.emotionVertical>=0?'+':'')+ev.emotionVertical.toFixed(2)+'</div>'+
+                  '<div style="font-family:monospace;font-size:9px;color:rgba(200,240,255,.75);margin-top:2px;line-height:1.4">'+(ev.thought||'—').substring(0,120)+'</div>'+
+                '</div>';
+              }).join('');
+            }).catch(function(){feedEl.innerHTML='<div style="color:rgba(255,100,80,.5);font-size:9px;font-family:monospace">Auth required.</div>';});
+
+            /* GAS status check */
+            var gasEl=document.getElementById('adm-gas-status');
+            if(gasEl){
+              var gasUrl=typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&!AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')?AUTUMN_GAS_URL:null;
+              if(gasUrl){
+                gasEl.innerHTML='GAS URL: <span style="color:#00ff88">configured</span><br>Offline trigger: <span id="adm-gas-trigger-status">checking…</span>';
+                fetch(gasUrl+'?action=status',{signal:AbortSignal.timeout(5000)})
+                  .then(function(r){return r.ok?r.json():null;})
+                  .then(function(d){
+                    var el=document.getElementById('adm-gas-trigger-status');
+                    if(el) el.innerHTML=d&&d.triggerActive?
+                      '<span style="color:#00ff88">ACTIVE ✓</span>':
+                      '<span style="color:#ff8844">NOT SET — click TEST to configure</span>';
+                  }).catch(function(){
+                    var el=document.getElementById('adm-gas-trigger-status');
+                    if(el) el.innerHTML='<span style="color:rgba(255,212,0,.7)">unreachable</span>';
+                  });
+              } else {
+                gasEl.innerHTML='GAS URL: <span style="color:#ff8844">not configured</span><br><span style="color:rgba(255,212,0,.6);font-size:8px">Set AUTUMN_GAS_URL in index.html to enable offline trigger</span>';
+              }
+            }
+
+            /* System broadcast sync status */
+            var sbEl=document.getElementById('adm-sysbrd-status');
+            if(sbEl){
+              fetch('https://api.github.com/repos/DART-Skyboard/Autumn/contents/system-broadcast.json',{
+                headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+              }).then(function(r){return r.ok?r.json():null;})
+              .then(function(d){
+                if(!d||!d.content){sbEl.textContent='Not found.';return;}
+                var brd;
+                try{brd=JSON.parse(atob(d.content.replace(/
+/g,'')));}catch(e){brd={};}
+                sbEl.innerHTML=
+                  'Message: <span style="color:#00d4ff">'+(brd.message||'—').substring(0,60)+'</span><br>'+
+                  'Updated: <span style="color:rgba(0,212,255,.6)">'+(brd.updated||'—')+'</span><br>'+
+                  'Author: <span style="color:rgba(0,212,255,.6)">'+(brd.author||'—')+'</span>';
+              }).catch(function(){sbEl.textContent='Could not fetch.';});
+            }
+          } else if(feedEl){
+            feedEl.innerHTML='<div style="color:rgba(255,212,0,.6);font-size:9px;font-family:monospace">Login required to view presence feed.</div>';
+          }
+        };
+
+        /* Manual fire — triggers ash leaf from admin */
+        window._admFirePresence = function(){
+          if(typeof window._autumnPresence==='function'){
+            /* Get current emotional state */
+            var eng=window.AutumnGrammarEngine&&window.AutumnGrammarEngine._engine;
+            var emotionName=eng&&eng._sigma&&eng._sigma._records&&eng._sigma._records.length
+              ?(eng._sigma._records[eng._sigma._records.length-1].emotion||'neutral'):'neutral';
+            var EMAP={happy:0.65,love:0.75,inspiring:0.80,determined:0.60,excited:0.85,
+              neutral:0,sad:-0.40,angry:-0.70,worried:-0.25,guiding:0.50,spiritual:0.55};
+            var ev_val=EMAP[emotionName]||0;
+            /* Get latest journal thought */
+            var thought=eng&&eng.asjc&&typeof eng.asjc.readRecent==='function'
+              ?(eng.asjc.readRecent(5).reverse().find(function(e){return e&&e.thought&&e.thought.length>20;})||{}).thought||''
+              :'Admin-triggered presence signal.';
+            /* Override rate limit for manual fire */
+            if(typeof window._autumnLastFire!=='undefined') window._autumnLastFire=0;
+            window._autumnPresence(thought, ev_val);
+            /* Refresh feed after 2s */
+            setTimeout(window._admRefreshPresence, 2000);
+          } else {
+            alert('MIST module not loaded — open the public BRPN world first.');
+          }
+        };
+
+        /* GAS trigger test */
+        window._admTestGAS = function(){
+          var gasUrl=typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&!AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')?AUTUMN_GAS_URL:null;
+          if(!gasUrl){alert('AUTUMN_GAS_URL not configured.');return;}
+          fetch(gasUrl,{method:'POST',headers:{'Content-Type':'text/plain'},
+            body:JSON.stringify({action:'testOfflineTrigger'})})
+            .then(function(r){return r.json();})
+            .then(function(d){
+              var el=document.getElementById('adm-gas-trigger-status');
+              if(el) el.innerHTML=d&&d.ok?
+                '<span style="color:#00ff88">TRIGGER OK ✓</span>':
+                '<span style="color:#ff8844">'+(d.error||'Failed')+'</span>';
+            }).catch(function(e){
+              var el=document.getElementById('adm-gas-trigger-status');
+              if(el) el.innerHTML='<span style="color:#ff8844">'+e.message+'</span>';
+            });
+        };
+
+        /* Sync public broadcast */
+        window._admSyncBroadcast = function(){
+          var tok=window._ghAuth&&window._ghAuth.token;
+          if(!tok){alert('Login required.');return;}
+          /* Read system-broadcast.json and re-write it with updated sync timestamp */
+          fetch('https://api.github.com/repos/DART-Skyboard/Autumn/contents/system-broadcast.json',{
+            headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+          }).then(function(r){return r.ok?r.json():null;})
+          .then(function(d){
+            if(!d){throw new Error('broadcast not found');}
+            var brd;
+            try{brd=JSON.parse(atob(d.content.replace(/
+/g,'')));}catch(e){brd={};}
+            brd.adminSync=new Date().toISOString();
+            brd.presenceEnabled=true;
+            brd.ashLeafVersion='1.0';
+            var newContent=btoa(unescape(encodeURIComponent(JSON.stringify(brd,null,2))));
+            return fetch('https://api.github.com/repos/DART-Skyboard/Autumn/contents/system-broadcast.json',{
+              method:'PUT',
+              headers:{Authorization:'token '+tok,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},
+              body:JSON.stringify({message:'admin sync: presence enabled, ash leaf v1.0',content:newContent,sha:d.sha})
+            });
+          }).then(function(){
+            window._admRefreshPresence();
+          }).catch(function(e){alert('Sync error: '+e.message);});
+        };
+
+        /* Initial load */
+        window._admRefreshPresence();
+        /* Auto-refresh every 15s */
+        if(frame._presenceTimer) clearInterval(frame._presenceTimer);
+        frame._presenceTimer=setInterval(window._admRefreshPresence,15000);
+        return;
+      }
 
       if(tab==='ash'){
         frame.style.display='none';
