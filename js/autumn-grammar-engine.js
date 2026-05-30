@@ -527,7 +527,32 @@ class SentenceParser {
            isInterrogative:tagged.some(t=>t.pos==='INT')};
   }
   _intent(text,tagged) {
+    const raw=text.trim().toLowerCase();
     const end=text.trim().slice(-1);
+    const words=raw.replace(/[^a-z ']/g,' ').split(/\s+/).filter(Boolean);
+    const wordSet=new Set(words);
+    // Greeting
+    const GREET=['hey','hi','hello','yo','sup','heya','howdy','morning','afternoon','evening'];
+    if(words.length<=4&&GREET.some(w=>wordSet.has(w))) return 'greeting';
+    // Farewell
+    const BYE=['bye','goodbye','later','peace','night','goodnight','cya'];
+    if(words.length<=5&&BYE.some(w=>wordSet.has(w)||raw.includes(w))) return 'farewell';
+    // Affirmation
+    const AFF=['yes','yeah','yep','yup','exactly','correct','right','agreed','ok','okay','sure','absolutely','definitely','true','totally'];
+    if(words.length<=5&&AFF.some(w=>wordSet.has(w))) return 'affirmation';
+    // Negation response
+    const NEG_R=['no','nope','nah','wrong','incorrect','disagree'];
+    if(words.length<=5&&NEG_R.some(w=>wordSet.has(w))) return 'negation';
+    // Personal question — about Autumn herself
+    const PERSONAL=['do you','are you','can you','what do you','how do you',"what's your",'do you like','do you want','do you feel','have you','would you','could you'];
+    if(PERSONAL.some(p=>raw.startsWith(p)||raw.includes(p))) return 'personal';
+    // Casual question — wanna, gonna, feeling-words
+    const CASUAL=['wanna','gonna','kinda','sorta','feel like','how about','what about','what if','you think','should we','shall we'];
+    if(CASUAL.some(c=>raw.includes(c))) return 'casual';
+    // Feeling/state expression
+    const FEEL=['feel','tired','happy','sad','excited','bored','frustrated','stressed','worried','nervous','great','awful'];
+    if(FEEL.some(f=>wordSet.has(f))&&words.length<10) return 'social';
+    // Structural intents
     const first=tagged.find(t=>!['ART','PREP','SDLM'].includes(t.pos));
     if(end==='?'){
       const iw=tagged.find(t=>t.pos==='INT');
@@ -1339,8 +1364,10 @@ class ResponseBuilder {
     const _bridgeB = this._buildFromAPIs(topic, domTool, sigType||'SIG_D', _cnCtxB, _codeCtxB, primDef||altWord);
     if(_bridgeB) {
       s1 = _bridgeB;
-    } else if(CF&&CF.opening_by_tool){
-      s1=this._fill(CF.opening_by_tool[domTool]||'',{topic,detail,verb,nouns,mods,altWord});
+    } else if(CF){
+      const _casualI=new Set(['greeting','farewell','affirmation','negation','personal','casual','social','conversational','question_yn','exclamation','command_do']);
+      const _opPool=(_casualI.has(intent)&&CF.opening_by_tool_casual)?CF.opening_by_tool_casual:CF.opening_by_tool;
+      if(_opPool&&_opPool[domTool]) s1=this._fill(_opPool[domTool],{topic,detail,verb,nouns,mods,altWord});
     }
     if(!s1){
       // Build a proper grammatical sentence from available lexical data.
@@ -1362,7 +1389,7 @@ class ResponseBuilder {
       }
     }
     let s2='';
-    const tmap={question_what:'explanatory',question_how:'analytical',question_why:'analytical',question_when:'declarative',question_where:'declarative',question_who:'declarative',question_yn:'explanatory',statement_pos:'declarative',statement_neg:'elaborative',exclamation:'conversational',command_do:'conversational',command_tell:'explanatory'};
+    const _G=this._grammar;const _GR=_G&&_G.intent_routing;const tmap=_GR||{greeting:'greeting',farewell:'farewell',affirmation:'affirmation',negation:'negation_response',personal:'personal',casual:'conversational',social:'social',question_what:'explanatory',question_how:'analytical',question_why:'analytical',question_when:'declarative',question_where:'declarative',question_who:'declarative',question_yn:'conversational',statement_pos:'declarative',statement_neg:'elaborative',exclamation:'conversational',command_do:'conversational',command_tell:'explanatory'};
     if(RT){
       const pool=RT[tmap[intent]]||RT.declarative||[];
       if(pool.length){
@@ -1371,10 +1398,14 @@ class ResponseBuilder {
       }
     }
     if(!s2){
-      if(intent.startsWith('question_what'))    s2=`${topic} refers to ${detail}.`;
+      if(['greeting','farewell','affirmation','negation','social','casual','personal'].includes(intent)){
+        const _sp={greeting:["Hey — what are we working on?","Here. What do you need?","Good to hear from you."],farewell:["Alright. I'll be here.","Got it. Take your time.","See you when you're back."],affirmation:["Yeah, that tracks.","Agreed — worth building on.","That's the right framing."],negation:["Fair. What's the actual direction?","Okay — what would you change?","What does it need to be instead?"],social:["That's worth sitting with.","I hear that.","Tell me more if you want to."],casual:["Honest answer: I'm not sure yet. What are you leaning toward?","Whatever keeps momentum going. What did you have in mind?","I'd follow your lead on that."],personal:["That's not something I answer the same way every time.","The honest answer shifts depending on what's been going on.","I engage with that through what accumulates in the journal."]};
+        const _pool=_sp[intent]||_sp.social;
+        s2=_pool[Math.floor(Date.now()/15000)%_pool.length];
+      } else if(intent.startsWith('question_what')) s2=`${topic} refers to ${detail}.`;
       else if(intent.startsWith('question_how')) s2=`The process of ${topic} works through ${detail}.`;
       else if(intent.startsWith('question_why')) s2=`${topic} ${negated?'does not ':' '}${verb} because of ${detail}.`;
-      else                                       s2=`${topic} ${negated?'does not ':''}${verb} ${detail}.`;
+      else s2=`${topic} ${negated?'does not ':''}${verb} ${detail}.`;
       s2=s2.replace(/\s{2,}/g,' ');
     }
     let s3='';
@@ -1385,10 +1416,11 @@ class ResponseBuilder {
       else if(mods.length>0)    s3=`${tph} The ${mods[0]} aspect of ${topic} is worth noting in context.`.trim();
       else if(nouns.length>1)   s3=`${tph} ${topic} connects directly to ${nouns[1]} through ${wnSyns[0]||'its core structure'}.`.trim();
     }
+    const _shortSoc=new Set(['greeting','farewell','affirmation','negation']);
     const parts=[];
     if(s1) parts.push(s1);
     if(s2&&s2.toLowerCase().slice(0,20)!==s1.toLowerCase().slice(0,20)) parts.push(s2);
-    if(s3) parts.push(s3);
+    if(s3&&!_shortSoc.has(intent)) parts.push(s3);
     let full=parts.join(' ').replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
     if(full&&!/[.!?]$/.test(full)) full+='.';
     const pre=this._pre(emotion);
