@@ -22566,15 +22566,48 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       + '</div>';
     _setDeviceUI(html);
 
-    // Auto-open github.com/login/device directly — poll stays here in index.html
+    // iOS-safe GitHub opener — store URL for button tap
+    window._ghDeviceVerifyUrl = verifyUrl;
+    window._ghOpenDeviceTab = function(url) {
+      // Try window.open first (works on Android + desktop)
+      var w = null;
+      try { w = window.open(url, '_blank'); } catch(e) {}
+      // iOS blocks window.open from setTimeout — use location.href as fallback
+      // but store leatr.xyz URL so we can return after auth
+      if (!w || w.closed || typeof w.closed === 'undefined') {
+        try {
+          sessionStorage.setItem('_gh_auth_return', window.location.href);
+          window.location.href = url;
+        } catch(e) {}
+      }
+    };
     setTimeout(function() {
       try { navigator.clipboard && navigator.clipboard.writeText(userCode); } catch(e) {}
-      window._ghOpenDeviceTab(verifyUrl);
+      // Don't auto-open — iOS blocks it from setTimeout
+      // Instead make the code block itself a tap-to-open button
       var el = document.getElementById('gh-device-code-display');
-      if (el) el.addEventListener('click', function() {
-        try { navigator.clipboard && navigator.clipboard.writeText(userCode); } catch(e) {}
-        _toast('Code copied!');
-      });
+      if (el) {
+        el.title = 'Tap to copy code';
+        el.addEventListener('click', function() {
+          try { navigator.clipboard && navigator.clipboard.writeText(userCode); } catch(e) {}
+          _toast('Code copied!');
+        });
+      }
+      // Add visible "Open GitHub" button for iOS
+      var statusEl = document.getElementById('gh-device-status');
+      if (statusEl) {
+        var openBtn = document.createElement('a');
+        openBtn.href = verifyUrl;
+        openBtn.target = '_blank';
+        openBtn.rel = 'noopener noreferrer';
+        openBtn.style.cssText = 'display:inline-block;margin-top:10px;padding:8px 18px;' +
+          'background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.4);' +
+          'border-radius:6px;color:#00e5ff;font-family:var(--font-d);' +
+          'font-size:.48rem;letter-spacing:2px;text-decoration:none;cursor:pointer;';
+        openBtn.textContent = '↗ OPEN GITHUB';
+        // Insert before status indicator
+        statusEl.parentNode.insertBefore(openBtn, statusEl);
+      }
     }, 150);
 
     // Poll for token
