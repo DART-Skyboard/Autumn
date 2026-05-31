@@ -2967,6 +2967,9 @@ select.ash-ctrl-input{cursor:pointer}
     <div id="forge-header">
       <div class="forge-logo">FORGE <span>AUTUMN CODE STUDIO · DART MEADOW</span></div>
       <select id="forge-lang-sel" onchange="forgeSetLang(this.value)" title="Language">
+        <optgroup label="⬡ LEATR">
+          <option value="ash">⬡ .ash — Ash Language</option>
+        </optgroup>
         <optgroup label="★ WEB">
           <option value="html" selected>HTML</option>
           <option value="css">CSS</option>
@@ -16613,8 +16616,274 @@ const DART_PROCESSOR = {
       }
     }
     if (ast.length===0 && !mazeMatch) this.log('SYSTEM','No executable nodes found.');
+    // ── LEATR v2 compiler pass (double-tag, switch equations, BRPN wire) ──
+    _LEATR_COMPILE(code, false);
   }
 };
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  LEATR v2 COMPILER ENGINE — Full double-tag, switch equations, BRPN routing
+//  Autumn neural pipeline integration · Radical Deepscale LLC
+//
+//  Architecture:
+//    {{outer-tag}}  — environment isolation shell
+//    [[inner-tag]]  — user script ownership identity
+//    [poly:...]     — polynomial/physics/math container (isolated from syntax)
+//    [net:...]      — network syntax (logarithmic iterative form)
+//    (NodeName):-:{ — switch OPEN  (xa²√xa) - 1  (0→1)
+//    }|';'|         — switch CLOSE (xa²√xa) + 1  (1→0)
+//    Pendulum Node  — FRP buoyancy + shell routing after compile
+// ══════════════════════════════════════════════════════════════════════════════
+const _LEATR_KW  = new Set(['irin','irout','thenplace','place','with','when','where',
+  'and','or','not','for','else','is','if','end','var','import','return','Research','Report']);
+const _LEATR_NT  = new Set(['Maze','Puzzle','Envelope','Hammer','Stick','Knife','Scissors']);
+const _LEATR_OOO = ['Maze','Puzzle','Envelope','Hammer','Stick','Knife','Scissors',
+  'Parentheses','Exponents','Multiplication','Division','Addition','Subtraction',
+  'Logarithm','Trigonometry','Temperature','Velocity','Pressure','Mass',
+  'Photosynthesis','Touch','Taste','Vision','Smell','Hear'];
+const _leatrEncode = (x,a) => { const v=x*a*a*Math.sqrt(Math.abs(x*a)); return isNaN(v)?0:v-1; };
+const _leatrDecode = (x,a) => { const v=x*a*a*Math.sqrt(Math.abs(x*a)); return isNaN(v)?0:v+1; };
+
+function _LEATR_LEX(code) {
+  const toks=[]; let i=0;
+  while(i<code.length){
+    if(/\s/.test(code[i])){i++;continue;}
+    if(code[i]==='/'&&code[i+1]==='/'){while(i<code.length&&code[i]!=='\n')i++;continue;}
+    if(code[i]==='{'&&code[i+1]==='{'){let j=i+2;while(j<code.length&&!(code[j]==='}'&&code[j+1]==='}'))j++;j+=2;toks.push({t:'outer',v:code.slice(i,j)});i=j;continue;}
+    if(code[i]==='['&&code[i+1]==='['){let j=i+2;while(j<code.length&&!(code[j]===']'&&code[j+1]===']'))j++;j+=2;toks.push({t:'inner',v:code.slice(i,j)});i=j;continue;}
+    if(code[i]==='['){let j=i+1;while(j<code.length&&code[j]!==']')j++;const inner=code.slice(i+1,j);if(inner.startsWith('poly:')){toks.push({t:'poly',v:code.slice(i,j+1)});i=j+1;continue;}if(inner.startsWith('net:')){toks.push({t:'net',v:code.slice(i,j+1)});i=j+1;continue;}}
+    if(code[i]==='"'){let j=i+1;while(j<code.length&&code[j]!=='"'){if(code[j]==='\\')j++;j++;}j++;toks.push({t:'str',v:code.slice(i,j)});i=j;continue;}
+    if(code[i]==='('&&/[A-Z]/.test(code[i+1]||'')){let j=i+1;while(j<code.length&&code[j]!==')')j++;toks.push({t:'node-name',v:code.slice(i,j+1)});i=j+1;continue;}
+    if(code.slice(i,i+3)===':-:'){toks.push({t:'node-open',v:':-:'});i+=3;continue;}
+    if(code.slice(i,i+5)==="|';'|"){toks.push({t:'node-end',v:"|';'|"});i+=5;continue;}
+    if(/[0-9]/.test(code[i])){let j=i;while(j<code.length&&/[0-9.]/.test(code[j]))j++;toks.push({t:'num',v:code.slice(i,j)});i=j;continue;}
+    if(/[a-zA-Z_]/.test(code[i])){let j=i;while(j<code.length&&/[a-zA-Z0-9_]/.test(code[j]))j++;const w=code.slice(i,j);if(_LEATR_KW.has(w))toks.push({t:'kw',v:w});else if(_LEATR_NT.has(w))toks.push({t:'nt',v:w});else toks.push({t:'id',v:w});i=j;continue;}
+    toks.push({t:'punct',v:code[i]});i++;
+  }
+  return toks;
+}
+
+function _LEATR_PARSE(toks) {
+  let i=0;
+  const ast={nodes:[],tags:{inner:[],outer:[],poly:[],net:[]}};
+  while(i<toks.length){
+    const t=toks[i];
+    if(t.t==='inner'){ast.tags.inner.push(t.v);i++;continue;}
+    if(t.t==='outer'){ast.tags.outer.push(t.v);i++;continue;}
+    if(t.t==='poly'){ast.tags.poly.push(t.v);i++;continue;}
+    if(t.t==='net'){ast.tags.net.push(t.v);i++;continue;}
+    if(t.t==='node-name'){
+      const node={name:t.v.slice(1,-1),body:[],innerTags:[],outerTags:[],polyTags:[],netTags:[]};
+      i++;if(toks[i]?.t==='node-open')i++;if(toks[i]?.v==='{')i++;
+      while(i<toks.length){
+        const c=toks[i];
+        if(c.t==='inner'){node.innerTags.push(c.v);i++;continue;}
+        if(c.t==='outer'){node.outerTags.push(c.v);i++;continue;}
+        if(c.t==='poly'){node.polyTags.push(c.v);i++;continue;}
+        if(c.t==='net'){node.netTags.push(c.v);i++;continue;}
+        if(c.t==='node-end'||c.v==='}'){i++;break;}
+        node.body.push(c);i++;
+      }
+      ast.nodes.push(node);continue;
+    }
+    i++;
+  }
+  return ast;
+}
+
+// ── Pendulum Node — FRP buoyancy + shell routing after compile ────────────
+function _LEATR_PENDULUM(nodeCount, domTool, hasInner, hasOuter, hasPoly, hasNet) {
+  // FRP: foundation=inner isolation, reflex=outer env, performance=compiled nodes
+  const f = hasOuter ? 1.0 : 0.5;
+  const r = hasInner ? 1.0 : 0.4;
+  const p = nodeCount > 0 ? Math.min(1.0, nodeCount / 5.0) : 0.1;
+  const frp = f * r * p;
+  const buoyancy = frp * Math.sqrt(Math.abs(frp));
+  // Shell routing: buoyancy >= 0.76 → GEO, >= 0.44 → MAR, else AERO
+  const shell = buoyancy >= 0.76 ? 'GEOLOGICAL' : buoyancy >= 0.44 ? 'MARITIME' : 'AEROSPACE';
+  const qsVal = typeof qSocket === 'function' ? qSocket(f, nodeCount||1, r, p||0.1) : 0;
+  // Update live BRPN HUD if available
+  if (typeof window !== 'undefined') {
+    const geoEl = document.getElementById('hud-geo');
+    const marEl = document.getElementById('hud-mar');
+    const aeroEl = document.getElementById('hud-aero');
+    if (shell==='GEOLOGICAL'  && geoEl)  geoEl.textContent  = buoyancy.toFixed(3);
+    if (shell==='MARITIME'    && marEl)  marEl.textContent  = buoyancy.toFixed(3);
+    if (shell==='AEROSPACE'   && aeroEl) aeroEl.textContent = buoyancy.toFixed(3);
+    // Update NLP badges
+    const buoyEl = document.getElementById('nlp-buoy-badge');
+    if (buoyEl) buoyEl.textContent = buoyancy.toFixed(3);
+    const toolEl = document.getElementById('nlp-tool-badge');
+    if (toolEl && domTool) toolEl.textContent = domTool;
+  }
+  return { f, r, p, frp, buoyancy, shell, qsVal };
+}
+
+function _LEATR_COMPILE(code, netMode) {
+  const logEl = document.getElementById('ash-output-content');
+  const log = (type, msg, color) => {
+    if (DART_PROCESSOR && typeof DART_PROCESSOR.log === 'function') {
+      DART_PROCESSOR.log(type, msg);
+    } else if (logEl) {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:2px 0;font-size:.68rem;font-family:monospace;';
+      div.style.color = color || '#8ab4cc';
+      div.textContent = '[' + type + '] ' + msg;
+      logEl.appendChild(div); logEl.scrollTop = logEl.scrollHeight;
+    }
+  };
+
+  const toks = _LEATR_LEX(code);
+  const ast  = _LEATR_PARSE(toks);
+
+  if (netMode) {
+    log('NET', '⟳ Network compile — logarithmic iterative mode', '#39ff14');
+    let iter=0;
+    ast.nodes.forEach(n=>{ iter++;
+      const lv=Math.log(iter+1);
+      log('NET', `[iter ${iter}] ${n.name}: log(n)=${lv.toFixed(4)} → encode=${_leatrEncode(lv,iter).toFixed(4)}`, '#39ff14');
+      if(n.netTags.length) log('NET', `  net-tags: ${n.netTags.join(', ')}`, '#39ff14');
+    });
+    log('NET', `⟳ NET COMPILE COMPLETE — ${iter} nodes`, '#39ff14');
+    return;
+  }
+
+  // Top-level tags
+  ast.tags.outer.forEach(t => log('OUTER-TAG', t, '#ff9500'));
+  ast.tags.inner.forEach(t => log('INNER-TAG', t, '#ffd700'));
+  ast.tags.poly.forEach(t  => log('POLY-CONT', t, '#bf5fff'));
+  ast.tags.net.forEach(t   => log('NET-LAYER', t, '#39ff14'));
+
+  let nodeCount=0; let domTool='MAZE';
+  ast.nodes.forEach(n=>{
+    nodeCount++;
+    n.outerTags.forEach(t => log('{{OUTER}}', t, '#ff9500'));
+    n.innerTags.forEach(t => log('[[INNER]]', t, '#ffd700'));
+    n.polyTags.forEach(t  => log('[POLY]',    t, '#bf5fff'));
+    n.netTags.forEach(t   => log('[NET]',     t, '#39ff14'));
+    // Switch ON: (xa²√xa) - 1
+    log('SWITCH ON', `${n.name} → encode=${_leatrEncode(nodeCount,nodeCount).toFixed(4)}`, '#00ffcc');
+    // Natural tool order validation
+    const tools = n.body.filter(t=>t.t==='nt').map(t=>t.v);
+    if (tools.length) {
+      log('OOO', `Tools: ${tools.join(' → ')}`, '#00ffcc');
+      domTool = tools[0].toUpperCase();
+      // Validate against LEATR ONTRI order
+      const order = ['Maze','Puzzle','Envelope','Hammer','Stick','Knife','Scissors'];
+      let last=-1; let valid=true;
+      tools.forEach(tool=>{ const idx=order.indexOf(tool); if(idx<last)valid=false; last=idx; });
+      if (!valid) log('WARN', 'Tool order deviates from LEATR ONTRI — check OOO #1-7', '#ff9500');
+    }
+    // Poly container check
+    if (n.polyTags.length) log('POLY', `Container active — math/physics data isolated from syntax`, '#bf5fff');
+    // Switch OFF: (xa²√xa) + 1
+    log('SWITCH OFF', `${n.name} → decode=${_leatrDecode(nodeCount,nodeCount).toFixed(4)}`, '#4a8a7a');
+    log('✓ COMPILED', n.name, '#00cc66');
+  });
+
+  // Pendulum node — buoyancy routing after compile
+  const hasInner = ast.tags.inner.length > 0 || ast.nodes.some(n=>n.innerTags.length>0);
+  const hasOuter = ast.tags.outer.length > 0 || ast.nodes.some(n=>n.outerTags.length>0);
+  const hasPoly  = ast.tags.poly.length > 0  || ast.nodes.some(n=>n.polyTags.length>0);
+  const hasNet   = ast.tags.net.length > 0   || ast.nodes.some(n=>n.netTags.length>0);
+  const pendulum = _LEATR_PENDULUM(nodeCount, domTool, hasInner, hasOuter, hasPoly, hasNet);
+
+  log('PENDULUM', `FRP: f=${pendulum.f.toFixed(2)} r=${pendulum.r.toFixed(2)} p=${pendulum.p.toFixed(3)}`, '#a78bfa');
+  log('BUOYANCY', `${pendulum.buoyancy.toFixed(4)} → shell: ${pendulum.shell}`, '#a78bfa');
+  log('QS', `Quantum Socket: ${pendulum.qsVal.toFixed(4)}`, '#a78bfa');
+
+  // Feed buoyancy into Autumn's live orb evolution if available
+  if (typeof S !== 'undefined' && S && S.orbEvo) {
+    S.orbEvo.buoyancy = pendulum.buoyancy;
+    if (!S.orbEvo.emotionalCounts) S.orbEvo.emotionalCounts = {};
+    const shellEmo = {GEOLOGICAL:'spiritual', MARITIME:'guiding', AEROSPACE:'determined'};
+    const emo = shellEmo[pendulum.shell] || 'neutral';
+    S.orbEvo.emotionalCounts[emo] = (S.orbEvo.emotionalCounts[emo]||0) + 1;
+  }
+
+  if (nodeCount===0) log('SYSTEM', 'No executable nodes found.', '#4a8a7a');
+  else log('COMPLETE', `${nodeCount} nodes compiled · ${pendulum.shell} shell routed`, '#00ffcc');
+}
+
+// ── Expose net compile on window for Forge ─────────────────────────────────
+window._leatrNetCompile = function() {
+  const editor = document.querySelector('#ash-editor-container textarea') ||
+                 document.querySelector('.ash-editor-area textarea') ||
+                 document.getElementById('ash-code-input');
+  if (!editor) return;
+  const logEl = document.getElementById('ash-output-content');
+  if (logEl) logEl.innerHTML = '';
+  _LEATR_COMPILE(editor.value, true);
+};
+
+// ── Add .ash to Forge language options + handle ashRun net mode ────────────
+(function _patchForge() {
+  // Add ash to lang selector when DOM ready
+  document.addEventListener('DOMContentLoaded', function() {
+    const sel = document.getElementById('forge-lang-sel');
+    if (sel && !sel.querySelector('option[value="ash"]')) {
+      const opt = document.createElement('option');
+      opt.value = 'ash'; opt.textContent = '.ash — Ash Language';
+      sel.insertBefore(opt, sel.firstChild);
+    }
+    // Add net compile button near ash run button
+    const ashBtns = document.querySelectorAll('.ash-btn');
+    ashBtns.forEach(btn=>{
+      if(btn.textContent.includes('Build & Run') && !btn.nextElementSibling?.classList?.contains('ash-net-btn')){
+        const netBtn = document.createElement('button');
+        netBtn.className = 'ash-btn ash-net-btn';
+        netBtn.style.cssText = 'background:rgba(57,255,20,.08);border-color:rgba(57,255,20,.3);color:rgba(57,255,20,.8);margin-left:6px';
+        netBtn.textContent = '⟳ NET';
+        netBtn.title = 'Net compile — logarithmic iterative mode';
+        netBtn.onclick = function(){ window._leatrNetCompile(); };
+        btn.parentNode.insertBefore(netBtn, btn.nextSibling);
+      }
+    });
+    // Add Pendulum Node display panel below BRPN HUD if it exists
+    const brpnHud = document.getElementById('hud-geo')?.closest('.shell-badge-row') ||
+                    document.getElementById('nlp-hud-row');
+    if (brpnHud && !document.getElementById('leatr-pendulum-panel')) {
+      const panel = document.createElement('div');
+      panel.id = 'leatr-pendulum-panel';
+      panel.style.cssText = 'margin-top:5px;padding:4px 8px;background:rgba(167,139,250,.05);border:1px solid rgba(167,139,250,.15);border-radius:4px;font-family:monospace;font-size:.5rem;line-height:1.7;color:rgba(167,139,250,.7)';
+      panel.innerHTML = '<div style="color:rgba(167,139,250,.5);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;margin-bottom:2px">◈ PENDULUM NODE</div>'
+        + '<div>FRP <span id="pn-frp">—</span> &nbsp; BUO <span id="pn-buo">—</span></div>'
+        + '<div>SHELL <span id="pn-shell">—</span> &nbsp; QS <span id="pn-qs">—</span></div>'
+        + '<div style="margin-top:3px;display:flex;gap:4px">'
+        + '<div style="flex:1;height:3px;background:rgba(255,255,255,.06);border-radius:2px"><div id="pn-bar" style="height:100%;background:linear-gradient(90deg,#a78bfa,#00ffcc);border-radius:2px;width:0;transition:width .4s"></div></div>'
+        + '</div>';
+      brpnHud.parentNode.insertBefore(panel, brpnHud.nextSibling);
+    }
+  }, {once:true});
+
+  // Patch _LEATR_PENDULUM to also update panel
+  const _origPendulum = _LEATR_PENDULUM;
+  // Override is already inline above — patch display
+  const _updatePendulumPanel = function(result) {
+    const frpEl = document.getElementById('pn-frp');
+    const buoEl = document.getElementById('pn-buo');
+    const shellEl = document.getElementById('pn-shell');
+    const qsEl = document.getElementById('pn-qs');
+    const barEl = document.getElementById('pn-bar');
+    if(frpEl) frpEl.textContent = result.frp.toFixed(4);
+    if(buoEl) buoEl.textContent = result.buoyancy.toFixed(4);
+    if(shellEl){ shellEl.textContent = result.shell; shellEl.style.color=result.shell==='GEOLOGICAL'?'#6bcfea':result.shell==='MARITIME'?'#ffb347':'#00ffcc'; }
+    if(qsEl) qsEl.textContent = result.qsVal.toFixed(4);
+    if(barEl) barEl.style.width = Math.min(100,result.buoyancy*100)+'%';
+  };
+  // Monkey-patch compile to also call panel update
+  const _origCompile = _LEATR_COMPILE;
+  window._leatrCompileFull = function(code) {
+    _LEATR_COMPILE(code, false);
+    // Recompute pendulum for panel update
+    const toks = _LEATR_LEX(code);
+    const ast  = _LEATR_PARSE(toks);
+    const hasI = ast.tags.inner.length>0||ast.nodes.some(n=>n.innerTags.length>0);
+    const hasO = ast.tags.outer.length>0||ast.nodes.some(n=>n.outerTags.length>0);
+    const pRes = _LEATR_PENDULUM(ast.nodes.length,'MAZE',hasI,hasO,false,false);
+    _updatePendulumPanel(pRes);
+  };
+})();
 
 // ── LEMAC ENGINE — exact port of lemac.html logic ────────────────────────
 // Two-branch degree-map solver: maze encodes itself as scalar field (Branch 1),
@@ -19880,7 +20149,7 @@ var FORGE_EXTS = {
 };
 
 // Langs that can live-preview in iframe
-var FORGE_PREVIEWABLE = new Set(['html','css','javascript','markdown','svg','xml']);
+var FORGE_PREVIEWABLE = new Set(['html','css','javascript','markdown','svg','xml','ash']);
 
 // Langs that show text output (simulated)
 var FORGE_OUTPUT_LANGS = new Set(['python','php','ruby','perl','shell','powershell',
@@ -19970,6 +20239,7 @@ function _forgeDefaultSnippet(lang) {
     sql: '-- FORGE \u00b7 SQL \u00b7 DART Meadow\n\n-- Arc Edge session log schema\nCREATE TABLE IF NOT EXISTS arc_sessions (\n  id         INTEGER PRIMARY KEY AUTOINCREMENT,\n  uid        TEXT    NOT NULL,\n  shell      TEXT    DEFAULT \'GEO\',   -- GEO | MAR | AERO\n  arc_count  INTEGER DEFAULT 0,\n  depth      INTEGER DEFAULT 1,\n  created_at TEXT    DEFAULT (datetime(\'now\'))\n);\n\n-- Insert a test record\nINSERT INTO arc_sessions (uid, shell, arc_count, depth)\nVALUES (\'autumn_001\', \'AERO\', 39, 2);\n\n-- Query active sessions\nSELECT uid, shell, arc_count, depth, created_at\nFROM   arc_sessions\nWHERE  arc_count > 0\nORDER  BY created_at DESC\nLIMIT  20;',
     cpp: '#include <iostream>\n#include <cmath>\n#include <string>\n\n// FORGE \u00b7 C++ \u00b7 DART Meadow\n// ARIEL encode unit: (xa\u00b2\u221axa) \u00b1 1\n\nint leatrEncode(const std::string& x) {\n    double a = static_cast<double>(x.size());\n    return static_cast<int>(a * a * std::sqrt(a)) + 1;\n}\n\nint main() {\n    const char* tokens[] = { \"Autumn\", \"Arc Edge\", \"DART Meadow\" };\n    const char* shells[] = { \"GEO\", \"MAR\", \"AERO\" };\n    std::cout << \"LEATR v2.1 \u00b7 FORGE\" << std::endl;\n    for (auto& t : tokens) {\n        int e = leatrEncode(t);\n        std::cout << t << \" \u2192 \" << e << \" [\" << shells[e % 3] << \"]\" << std::endl;\n    }\n    return 0;\n}',
     java: '// FORGE \u00b7 Java \u00b7 DART Meadow\n// ARIEL encode unit: (xa\u00b2\u221axa) \u00b1 1\n\npublic class Main {\n\n    static final String[] SHELLS = { \"GEO\", \"MAR\", \"AERO\" };\n\n    static int leatrEncode(String x) {\n        double a = x.length();\n        return (int)(a * a * Math.sqrt(a)) + 1;\n    }\n\n    public static void main(String[] args) {\n        System.out.println(\"LEATR v2.1 \u00b7 FORGE\");\n        String[] tokens = { \"Autumn\", \"Arc Edge\", \"DART Meadow\" };\n        for (String t : tokens) {\n            int e = leatrEncode(t);\n            System.out.printf(\"%s \u2192 %d [%s]%n\", t, e, SHELLS[e % 3]);\n        }\n    }\n}',
+    ash: '// Ash Language \u00b7 LEATR v2 \u00b7 Autumn Forge\n// Double-tag system active \u00b7 Pendulum node routing\n// {{outer}} = env isolation \u00b7 [[inner]] = script identity\n// [poly:] = math/physics container \u00b7 [net:] = network layer\n\n{{env:Autumn-Forge}}\n[[script:forge-session]]\n\n(AutumnCoreLogicNode):-: {\n\n  {{env:Autumn-Forge}}\n  [[owner:DART-Meadow]]\n\n  with\n    var (anlpca)   // Autumn NLP Core Algorithm\n    var (c)        // Cognition - First\n    var (i)        // Input data\n    var (t)        // Tool reference\n\n  {\n    irin ("Data: " (i))\n\n    // Natural Tool order (OOO #1-7)\n    Maze\n    Puzzle\n    Envelope\n\n    place var (i) with var (s) {\n      when var ((t-i)) = (i)+(c)\n    }\n\n    thenplace var (s) with var (c)\n  }\n\n  irout ("Result: " placeto (s))\n\n}|\';\'|\n\n(CoreParameterNode):-: {\n\n  {{env:Autumn-Forge}}\n  [[owner:DART-Meadow]]\n  [poly: gravitational-potential-matrix]\n\n  with\n    var (ti)   // Tool Sets\n    var (ic)   // Current Input\n\n  {\n    irin ("Tool data: " (ti))\n    Maze\n    Puzzle\n    thenplace var (s) with var (ti)\n  }\n\n  irout ("Result: " placeto (s))\n\n}|\';\'|',
   };
   return snips[lang] || '// FORGE · ' + lang.toUpperCase() + ' · DART Meadow\n';
 }
@@ -20012,6 +20282,27 @@ window.forgeRun = function() {
   if (!frame || !output) return;
 
   if (FORGE_PREVIEWABLE.has(lang)) {
+    // .ash — LEATR compiler output
+    if (lang === 'ash') {
+      frame.style.display = 'none';
+      output.style.display = 'block';
+      output.innerHTML = '';
+      // Borrow ash-output-content element temporarily
+      var _prev = document.getElementById('ash-output-content');
+      var _prevHTML = _prev ? _prev.innerHTML : '';
+      if (_prev) _prev.innerHTML = '';
+      _LEATR_COMPILE(code, false);
+      // Pull log into forge output
+      if (_prev) {
+        output.innerHTML = '<div style="font-family:monospace;font-size:.72rem;padding:4px;color:#00ffcc;border-bottom:1px solid rgba(0,255,204,.1);margin-bottom:6px;letter-spacing:1px">⬡ ASH COMPILE OUTPUT</div>'
+          + _prev.innerHTML;
+        _prev.innerHTML = _prevHTML;
+      }
+      var pl = document.getElementById('forge-preview-label');
+      if (pl) { pl.textContent = '● ASH'; pl.style.color='#00ffcc'; }
+      if (typeof ideToast==='function') ideToast('FORGE: .ash compiled via LEATR v2', 1500);
+      return;
+    }
     // Live iframe preview
     frame.style.display = 'block';
     output.style.display = 'none';
