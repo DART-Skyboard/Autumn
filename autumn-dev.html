@@ -16900,7 +16900,11 @@ window._leatrNetCompile = function() {
       sel.insertBefore(opt, sel.firstChild);
     }
     // Add net compile button near ash run button
-    const ashBtns = document.querySelectorAll('.ash-btn');
+    // Scope to ash-overlay only — never touch header elements
+    const ashOverlay = document.getElementById('ash-overlay');
+    const ashBtns = ashOverlay
+      ? ashOverlay.querySelectorAll('.ash-btn')
+      : [];
     ashBtns.forEach(btn=>{
       if(btn.textContent.includes('Build & Run') && !btn.nextElementSibling?.classList?.contains('ash-net-btn')){
         const netBtn = document.createElement('button');
