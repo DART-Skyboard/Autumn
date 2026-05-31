@@ -2749,6 +2749,110 @@ html {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── HEADER RESPONSIVE FIX ───────────────────────────────────────
+   Fixes overlap of hdr-btn / gh-user-btn / scrim-toggle at all
+   viewport widths without breaking Autumn's fixed-height layout
+──────────────────────────────────────────────────────────────── */
+
+/* Allow header to grow taller if needed on very narrow viewports */
+header {
+  height: auto !important;
+  min-height: 52px !important;
+  padding: 6px 16px !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+}
+
+/* Logo stays fixed size, never shrinks */
+.logo-wrap {
+  flex-shrink: 0 !important;
+  margin-right: 12px !important;
+  min-width: 0 !important;
+}
+
+/* hdr-btns scrolls horizontally on mobile, shows fully on desktop */
+.hdr-btns {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  scrollbar-width: none !important;
+}
+.hdr-btns::-webkit-scrollbar { display: none !important; }
+
+/* Individual header buttons — consistent touch-friendly height */
+.hdr-btn {
+  flex-shrink: 0 !important;
+  height: 30px !important;
+  padding: 0 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+  font-size: .48rem !important;
+}
+
+/* Scrim + theme pill buttons */
+#scrim-toggle, #theme-toggle {
+  flex-shrink: 0 !important;
+  height: 30px !important;
+  padding: 0 10px 0 6px !important;
+}
+
+/* GitHub user avatar pill — fixed size, never shrinks */
+.gh-user-btn {
+  flex-shrink: 0 !important;
+  height: 30px !important;
+  padding: 3px 10px 3px 3px !important;
+  white-space: nowrap !important;
+}
+.gh-user-avatar {
+  width: 22px !important;
+  height: 22px !important;
+  flex-shrink: 0 !important;
+}
+
+/* World Studio + Help + Draft & Drip special buttons */
+.world-studio-btn, .help-btn, .draft-drip-btn {
+  flex-shrink: 0 !important;
+  height: 30px !important;
+  padding: 0 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+/* On wider screens: show more buttons without scrolling */
+@media (min-width: 768px) {
+  header {
+    flex-wrap: nowrap !important;
+    gap: 10px !important;
+  }
+  .hdr-btns {
+    overflow-x: auto !important;
+    gap: 6px !important;
+  }
+  .hdr-btn {
+    font-size: .5rem !important;
+  }
+}
+
+/* On desktop (≥1024px): full header, no clipping */
+@media (min-width: 1024px) {
+  header {
+    padding: 0 20px !important;
+    height: 52px !important;
+    min-height: 52px !important;
+  }
+  .logo-wrap {
+    margin-right: 20px !important;
+  }
+  .hdr-btns {
+    gap: 6px !important;
+  }
+}
 </style>
 </head>
 <body>
