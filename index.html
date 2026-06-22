@@ -25468,9 +25468,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var msg  = (data && data.message) ? data.message : DEF;
     var live = (msg !== DEF);
     var upd  = (data && data.updated) ? new Date(data.updated) : null;
-    // Preserve newlines: escape HTML entities then convert \n to <br>
+    // Preserve newlines: escape HTML entities, linkify URLs, then convert \n to <br>
     var _esc = msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    mg.innerHTML = _esc.replace(/\n/g,'<br>');
+    var _linked = _esc.replace(/(https?:\/\/[^\s<>"&]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#00e5ff;text-decoration:underline;word-break:break-all;">$1</a>');
+    mg.innerHTML = _linked.replace(/\n/g,'<br>');
     mg.style.whiteSpace = 'pre-wrap';
     mg.className   = live ? '' : 'def';
     if(ts) ts.textContent = live && upd
