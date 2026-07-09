@@ -271,6 +271,48 @@
     color: var(--amber);
   }
 
+  /* ── DART SECURITY PATCH — a separate small square security block ── */
+  .dart-patch {
+    width: 130px;
+    background: var(--deep-navy);
+    border: 1px solid rgba(0,198,255,0.25);
+    padding: 12px;
+    margin: 0 auto 32px;
+    text-align: center;
+    position: relative;
+  }
+  .dart-patch::before,
+  .dart-patch::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid rgba(0,198,255,0.5);
+  }
+  .dart-patch::before { top: 4px; left: 4px; border-right: none; border-bottom: none; }
+  .dart-patch::after { bottom: 4px; right: 4px; border-left: none; border-top: none; }
+  .dart-patch .dart-icon { width: 54px; height: 54px; margin: 0 auto 8px; display: block; }
+  .dart-patch .dart-label {
+    font-size: 7px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--electric-blue);
+    opacity: 0.7;
+    margin-bottom: 3px;
+  }
+  .dart-patch .dart-serial {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: #e0e0e0;
+  }
+  .dart-patch .dart-verified {
+    font-size: 7px;
+    letter-spacing: 0.15em;
+    color: var(--amber);
+    margin-top: 4px;
+  }
+
   /* ── SECURITY STRIP ── */
   .security-strip {
     display: flex;
@@ -961,6 +1003,29 @@
       <div class="label">Security Grade</div>
       <div class="value highlight">AA — Ultraviolet</div>
     </div>
+  </div>
+
+  <!-- DART Security Patch — separate small square security block -->
+  <div class="dart-patch">
+    <svg class="dart-icon" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="dartFold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#000000"/>
+          <stop offset="1" stop-color="#1a1a1a"/>
+        </linearGradient>
+        <linearGradient id="dartFoldLight" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#3a3a3a"/>
+          <stop offset="1" stop-color="#000000"/>
+        </linearGradient>
+      </defs>
+      <path d="M100 8 L136 168 L100 148 L64 168 Z" fill="url(#dartFold)" stroke="#00c6ff" stroke-width="1" stroke-opacity="0.35"/>
+      <path d="M100 8 L64 168 L100 148 Z" fill="url(#dartFoldLight)" opacity="0.9"/>
+      <line x1="100" y1="8" x2="100" y2="148" stroke="#00c6ff" stroke-width="0.75" stroke-opacity="0.5"/>
+      <path d="M100 8 L108 60 L100 52 L92 60 Z" fill="#2a2a2a" opacity="0.8"/>
+    </svg>
+    <div class="dart-label">Dart Security Seal</div>
+    <div class="dart-serial">DART·2026·AU·0047</div>
+    <div class="dart-verified">VERIFIED · GENUINE</div>
   </div>
 
   <!-- Security Strip (scrolling microprint) -->
