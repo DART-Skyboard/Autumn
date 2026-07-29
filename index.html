@@ -15255,11 +15255,23 @@ function switchSession(idx){
 // ============================================================
 
 const _IDE_PW_HASH = '6e5a2508490e95c53c475321202d036ae288795e9302b78670e80f7ca70fbf0b';
-const _GH_REPO     = 'DART-Skyboard/Ariel';
-const _GH_BRANCH   = 'main';
-const _GH_LOGIC    = 'js/autumn-logic.js';
-const _GH_RAW      = `js/autumn-logic.js`;
-const _GH_API      = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOGIC}`;
+// ── Code Console target — repo/branch/path Autumn is currently pointed at ──
+// Defaults preserved for backward compatibility; changeable via the 🗂 TARGET
+// bar in the IDE header or by natural-language chat ("in DART-Skyboard/Autumn,
+// edit index.html to ..."). Never hardcode credentials here — PAT/AK always
+// come from session/local storage via _getPAT()/_getAK() only.
+let _GH_REPO     = 'DART-Skyboard/Ariel';
+let _GH_BRANCH   = 'main';
+let _GH_LOGIC    = 'js/autumn-logic.js';
+const _GH_DEFAULT_REPO   = _GH_REPO;
+const _GH_DEFAULT_LOGIC  = _GH_LOGIC;
+function _ghRawUrl(){ return 'https://raw.githubusercontent.com/'+_GH_REPO+'/'+_GH_BRANCH+'/'+_GH_LOGIC; }
+function _ghApiUrl(){
+  var u = 'https://api.github.com/repos/'+_GH_REPO+'/contents/'+_GH_LOGIC;
+  if (_GH_BRANCH && _GH_BRANCH !== 'main') u += '?ref='+encodeURIComponent(_GH_BRANCH);
+  return u;
+}
+const _GH_RAW      = _ghRawUrl();
 const _CLAUDE_MDL  = 'claude-sonnet-4-6';
 
 let _ideUnlocked     = false;
@@ -15613,6 +15625,65 @@ function ideSetStatus(state, text='') {
   if(txt&&text) txt.textContent=text;
 }
 
+// ── Code Console target management ──────────────────────────
+// Point Autumn at any repo/branch/file the active PAT can reach.
+// Never writes credentials anywhere — only updates which file the
+// existing, already-secure read/propose/commit pipeline operates on.
+function ideSetTarget() {
+  var repoIn   = document.getElementById('ide-target-repo');
+  var branchIn = document.getElementById('ide-target-branch');
+  var pathIn   = document.getElementById('ide-target-path');
+  var repo   = (repoIn?.value   || '').trim().replace(/^\/+|\/+$/g,'');
+  var branch = (branchIn?.value || '').trim() || 'main';
+  var path   = (pathIn?.value   || '').trim().replace(/^\/+/,'');
+  if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo)) { ideToast('Enter a valid repo as owner/repo', true); return; }
+  if (!path) { ideToast('Enter a file path', true); return; }
+  _GH_REPO   = repo;
+  _GH_BRANCH = branch;
+  _GH_LOGIC  = path;
+  _ideFileSHA = null;
+  var info = document.getElementById('ide-file-info');
+  if (info) info.textContent = _GH_LOGIC + ' · ' + _GH_REPO + (branch!=='main' ? ' @'+branch : '');
+  document.getElementById('ide-target-list').style.display = 'none';
+  ideToast('◈ Target set → ' + _GH_REPO + '/' + _GH_LOGIC);
+  ideReload();
+}
+
+// ── Directory listing — lightweight discovery, no recursion ────
+async function ideListDirPrompt() {
+  var repoIn = document.getElementById('ide-target-repo');
+  var repo = (repoIn?.value || '').trim().replace(/^\/+|\/+$/g,'') || _GH_REPO;
+  var pathIn = document.getElementById('ide-target-path');
+  var curPath = (pathIn?.value || _GH_LOGIC || '').trim();
+  var dir = curPath.includes('/') ? curPath.substring(0, curPath.lastIndexOf('/')) : '';
+  await ideListDir(repo, dir);
+}
+async function ideListDir(repo, dir) {
+  var pat = _getPAT();
+  if (!pat) { document.getElementById('ide-pat-modal').classList.add('open'); return; }
+  var listEl = document.getElementById('ide-target-list');
+  listEl.style.display = 'block';
+  listEl.innerHTML = '<div style="color:rgba(0,255,204,.5)">Loading '+(repo||_GH_REPO)+'/'+(dir||'/')+'…</div>';
+  try {
+    var url = 'https://api.github.com/repos/'+(repo||_GH_REPO)+'/contents/'+(dir||'');
+    var r = await fetch(url, {headers:{Authorization:`token ${pat}`,Accept:'application/vnd.github.v3+json'}});
+    if (!r.ok) throw new Error('GitHub '+r.status);
+    var items = await r.json();
+    if (!Array.isArray(items)) items = [items];
+    items.sort(function(a,b){ if(a.type!==b.type) return a.type==='dir'?-1:1; return a.name.localeCompare(b.name); });
+    listEl.innerHTML = items.map(function(it){
+      var icon = it.type === 'dir' ? '📁' : '📄';
+      var full = it.path;
+      var action = it.type === 'dir'
+        ? `ideListDir('${(repo||_GH_REPO).replace(/'/g,"\\'")}','${full.replace(/'/g,"\\'")}')`
+        : `document.getElementById('ide-target-repo').value='${(repo||_GH_REPO).replace(/'/g,"\\'")}';document.getElementById('ide-target-path').value='${full.replace(/'/g,"\\'")}';ideSetTarget()`;
+      return `<div style="padding:3px 4px;cursor:pointer;color:${it.type==='dir'?'#7fdbca':'#c8fff2'}" onclick="${action}">${icon} ${full}</div>`;
+    }).join('') || '<div style="color:rgba(255,255,255,.3)">Empty directory</div>';
+  } catch(e) {
+    listEl.innerHTML = '<div style="color:var(--red)">Error: '+e.message+'</div>';
+  }
+}
+
 // ── Open IDE ──────────────────────────────────────────────────
 function openIDE() {
   if (!_ideUnlocked) {
@@ -15683,7 +15754,7 @@ function _initMonaco() {
 // ── GitHub file fetch ─────────────────────────────────────────
 async function ideFetchFile() {
   const pat=_getPAT();
-  const r=await fetch(_GH_API,{headers:{Authorization:`token ${pat}`,Accept:'application/vnd.github.v3+json'}});
+  const r=await fetch(_ghApiUrl(),{headers:{Authorization:`token ${pat}`,Accept:'application/vnd.github.v3+json'}});
   if (!r.ok) throw new Error(`GitHub ${r.status}`);
   const d=await r.json();
   _ideFileSHA=d.sha;
@@ -15726,15 +15797,16 @@ async function ideCommit() {
       }
     } catch(e) { /* not JSON, commit as-is */ }
   }
-  const msg=document.getElementById('ide-commit-msg')?.value||'Update autumn-logic.js via IDE';
+  const msg=document.getElementById('ide-commit-msg')?.value||('Update '+_GH_LOGIC+' via Code Console');
   ideSetStatus('working','Committing to GitHub…');
   try {
     if (!_ideFileSHA) {
       try { await ideFetchFile(); } catch(e) { /* new file, no sha needed */ }
     }
     const body={ message:msg, content:btoa(unescape(encodeURIComponent(code))) };
+    if (_GH_BRANCH && _GH_BRANCH !== 'main') body.branch = _GH_BRANCH;
     if (_ideFileSHA) body.sha=_ideFileSHA;
-    const r=await fetch(_GH_API,{
+    const r=await fetch(_ghApiUrl(),{
       method:'PUT',
       headers:{Authorization:`token ${pat}`,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},
       body:JSON.stringify(body)
@@ -15743,10 +15815,10 @@ async function ideCommit() {
     const d=await r.json();
     _ideFileSHA=d.content.sha;
     ideSetStatus('saved','Committed · '+new Date().toLocaleTimeString());
-    ideToast('◈ Committed to GitHub → templates/autumn-logic.js');
-    ideLog('commit', {message: msg, lines: code.split('\n').length});
+    ideToast('◈ Committed to GitHub → '+_GH_REPO+'/'+_GH_LOGIC);
+    ideLog('commit', {message: msg, lines: code.split('\n').length, repo:_GH_REPO, path:_GH_LOGIC});
     if(document.getElementById('ide-commit-msg'))
-      document.getElementById('ide-commit-msg').value='Update autumn-logic.js via IDE';
+      document.getElementById('ide-commit-msg').value='Update '+_GH_LOGIC+' via Code Console';
   } catch(e) {
     ideSetStatus('error','Commit failed: '+e.message);
     ideToast('Commit failed: '+e.message,true);
@@ -15929,7 +16001,8 @@ async function ideSubmitPrompt() {
     try { currentLogic = await ideFetchFile(); } catch(e) { currentLogic = _ideStarterTemplate(); }
   }
 
-  const systemPrompt = `You are Claude, the AI developer assistant integrated into the Autumn Logic IDE at radicaldeepscale.com.
+  const _isBrainFile = /autumn-logic\.js$/i.test(_GH_LOGIC) && _GH_REPO === _GH_DEFAULT_REPO;
+  const systemPrompt = _isBrainFile ? `You are Claude, the AI developer assistant integrated into the Autumn Code Console at radicaldeepscale.com.
 
 Autumn is an AI chat assistant built on the LEATR (Lead Edge Ash Tree Reflex) v2 neural system. You are updating autumn-logic.js — her brain extension file that runs via new Function(code) on top of autumn.html.
 
@@ -15948,6 +16021,26 @@ Code rules:
 - Keep the console.log timestamp line at the end
 
 CURRENT autumn-logic.js:
+---
+${currentLogic}
+---` : `You are Claude, acting as a careful software engineer inside Autumn's Code Console — a tool that lets its owner point Autumn at any file in their own GitHub repositories (auth'd with their own personal access token, never a shared/hardcoded one) and ask for edits in plain language.
+
+You are currently editing: ${_GH_LOGIC} in repository ${_GH_REPO} (branch ${_GH_BRANCH}).
+
+You must respond with ONLY a JSON object in this exact format — no text outside the JSON:
+{
+  "message": "A conversational explanation of what you changed and why. 2-4 sentences.",
+  "code": "THE COMPLETE UPDATED FILE CONTENT HERE, in full — not a diff or snippet"
+}
+
+Rules:
+- Preserve the file's existing language, framework conventions, and style
+- Make the minimal change needed to satisfy the request — do not rewrite unrelated code
+- If the request is ambiguous or could break the build, say so in "message" and make the safest reasonable interpretation
+- Never invent or embed API keys, tokens, or credentials in code you write
+- This file may power a live, publicly-deployed site or app — treat every change as production-facing
+
+CURRENT FILE CONTENT (${_GH_LOGIC}):
 ---
 ${currentLogic}
 ---`;
@@ -15993,9 +16086,10 @@ ${currentLogic}
       const _pat2 = _getPAT();
       if(!_pat2) throw new Error('No GitHub token');
       if(!_ideFileSHA){try{await ideFetchFile();}catch(e){}}
-      const _ab={message:'Autumn IDE: '+prompt.substring(0,65),content:btoa(unescape(encodeURIComponent(newCode)))};
+      const _ab={message:'Autumn Code Console: '+prompt.substring(0,65),content:btoa(unescape(encodeURIComponent(newCode)))};
+      if (_GH_BRANCH && _GH_BRANCH !== 'main') _ab.branch = _GH_BRANCH;
       if(_ideFileSHA)_ab.sha=_ideFileSHA;
-      const _ar=await fetch(_GH_API,{method:'PUT',headers:{Authorization:`token ${_pat2}`,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},body:JSON.stringify(_ab)});
+      const _ar=await fetch(_ghApiUrl(),{method:'PUT',headers:{Authorization:`token ${_pat2}`,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},body:JSON.stringify(_ab)});
       if(!_ar.ok){const _ae=await _ar.json();throw new Error(_ae.message||_ar.status);}
       const _ad=await _ar.json();_ideFileSHA=_ad.content?.sha;
       try{(new Function(newCode))();}catch(e){console.warn('[Autumn IDE hot-reload]',e);}
@@ -16077,12 +16171,70 @@ const _LOGIC_TRIGGERS = [
   /improve (autumn'?s?|her|the) (logic|brain|response|handling)/i,
   /teach (autumn|her) (to|how)/i,
   /connect to (claude|your api|the api) (to |and )?update/i,
-  /open (the )?(ide|editor|logic editor)/i,
+  /open (the )?(ide|editor|logic editor|code console)/i,
   /update her (logic|brain|api|behavior|code)/i,
   /push (a|an)? ?(update|change|fix) to (autumn|her|the logic)/i,
+  // ── Generalized code-console triggers — require an action verb AND
+  //    a repo/file-shaped signal, to avoid firing on ordinary chat ──
+  /\b(commit|push|pull|edit|update|rewrite|create|write)\b.{0,60}\b(repo|repository)\b/i,
+  /\b(commit|push|edit|update|write)\b.{0,60}\.(html|js|css|json|py|jsx|ts|tsx|md|yml|yaml)\b/i,
+  /\bmake (this|it|the (site|app|page|web ?app))\b.{0,20}\blive\b/i,
+  /\bin (the )?[\w.-]+\/[\w.-]+\b.{0,40}\b(edit|update|commit|push|write|change)\b/i,
 ];
 function checkLogicUpdateIntent(text) {
   return _LOGIC_TRIGGERS.some(r=>r.test(text));
+}
+
+// ── Friendly repo name lookup — lets chat say "the autumn repo" etc. ──
+const _GH_REPO_ALIASES = {
+  'autumn':        'DART-Skyboard/Autumn',
+  'ariel':         'DART-Skyboard/Ariel',
+  'leatr-ash':     'DART-Skyboard/leatr-ash',
+  'leatr ash':     'DART-Skyboard/leatr-ash',
+  'ash repo':      'DART-Skyboard/leatr-ash',
+};
+
+// ── Parse an explicit repo/branch/path out of natural chat text ──
+// Only repoints the live target if BOTH a repo and a file are found —
+// otherwise leaves whatever is currently pinned (via 🗂 TARGET) alone,
+// so mid-conversation follow-ups don't need to restate the target.
+function _parseTargetFromText(text) {
+  var lc = text.toLowerCase();
+  var repo = null, branch = null, path = null;
+
+  var repoMatch = text.match(/\b([A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*)\b/);
+  if (repoMatch) repo = repoMatch[1];
+  if (!repo) {
+    for (var alias in _GH_REPO_ALIASES) {
+      if (lc.indexOf(alias + ' repo') !== -1 || lc.indexOf('the ' + alias) !== -1) {
+        repo = _GH_REPO_ALIASES[alias];
+        break;
+      }
+    }
+  }
+
+  var branchMatch = text.match(/\bbranch\s+([\w.\/-]+)/i) || text.match(/\bon the\s+([\w.-]+)\s+branch\b/i);
+  if (branchMatch) branch = branchMatch[1];
+
+  var pathMatch = text.match(/\b([\w][\w./-]*\.(?:html|js|css|json|py|jsx|ts|tsx|md|yml|yaml|txt))\b/i);
+  if (pathMatch) path = pathMatch[1].replace(/^\/+/, '');
+
+  if (repo && path) {
+    _GH_REPO   = repo;
+    _GH_BRANCH = branch || 'main';
+    _GH_LOGIC  = path;
+    _ideFileSHA = null;
+    var repoIn = document.getElementById('ide-target-repo');
+    var pathIn = document.getElementById('ide-target-path');
+    var branchIn = document.getElementById('ide-target-branch');
+    if (repoIn) repoIn.value = _GH_REPO;
+    if (pathIn) pathIn.value = _GH_LOGIC;
+    if (branchIn) branchIn.value = _GH_BRANCH;
+    var info = document.getElementById('ide-file-info');
+    if (info) info.textContent = _GH_LOGIC + ' · ' + _GH_REPO + (_GH_BRANCH!=='main' ? ' @'+_GH_BRANCH : '');
+    return true;
+  }
+  return false;
 }
 
 // ── Claude → GitHub pipeline ──────────────────────────────────
@@ -16104,7 +16256,8 @@ async function runLogicUpdate(userRequest) {
   let currentLogic='';
   try { currentLogic=await ideFetchFile(); } catch(e) { currentLogic=_ideStarterTemplate(); }
 
-  const systemPrompt=`You are an expert JavaScript developer updating autumn-logic.js — the brain extension file for Autumn, an AI chat assistant built on the LEATR (Lead Edge Ash Tree Reflex) v2 neural system for radicaldeepscale.com.
+  const _isBrainFile2 = /autumn-logic\.js$/i.test(_GH_LOGIC) && _GH_REPO === _GH_DEFAULT_REPO;
+  const systemPrompt = _isBrainFile2 ? `You are an expert JavaScript developer updating autumn-logic.js — the brain extension file for Autumn, an AI chat assistant built on the LEATR (Lead Edge Ash Tree Reflex) v2 neural system for radicaldeepscale.com.
 
 The file is executed via new Function(code) on top of autumn.html and can override/extend any function. Key functions available: composeResponse(input,analysis,reflexData), handleSend(), autumnReflex(text,mode), processLEATR(text), generateReply(text,analysis,reflexData). The global state object is S (sessions, memory, journal, etc).
 
@@ -16122,7 +16275,23 @@ ${currentLogic}
 
 User request: ${userRequest}
 
-Return the complete updated autumn-logic.js file only.`;
+Return the complete updated autumn-logic.js file only.` : `You are an expert software engineer. You are editing ${_GH_LOGIC} in the repository ${_GH_REPO} (branch ${_GH_BRANCH}), on the owner's own GitHub account, authenticated with their own personal access token.
+
+RULES:
+1. Return ONLY the complete updated file content — no markdown, no backtick fences, no preamble, no explanation text
+2. Preserve the file's existing language, framework and style conventions
+3. Make the minimal change needed to satisfy the request — don't rewrite unrelated code
+4. Never invent or embed API keys, tokens, or credentials
+5. This may be a production file for a live site or app — be precise and don't break the build
+
+CURRENT FILE (${_GH_LOGIC}):
+---
+${currentLogic}
+---
+
+User request: ${userRequest}
+
+Return the complete updated file content only.`;
 
   try {
     const ak=_getAK();
@@ -16139,9 +16308,10 @@ Return the complete updated autumn-logic.js file only.`;
     newCode=newCode.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
 
     // Commit to GitHub
-    const body={message:`Autumn IDE: ${userRequest.substring(0,70)}`,content:btoa(unescape(encodeURIComponent(newCode)))};
+    const body={message:`Autumn Code Console: ${userRequest.substring(0,70)}`,content:btoa(unescape(encodeURIComponent(newCode)))};
+    if (_GH_BRANCH && _GH_BRANCH !== 'main') body.branch = _GH_BRANCH;
     if(_ideFileSHA) body.sha=_ideFileSHA;
-    const cr=await fetch(_GH_API,{method:'PUT',headers:{Authorization:`token ${pat}`,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},body:JSON.stringify(body)});
+    const cr=await fetch(_ghApiUrl(),{method:'PUT',headers:{Authorization:`token ${pat}`,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},body:JSON.stringify(body)});
     if(!cr.ok){ const e=await cr.json(); throw new Error('GitHub: '+(e.message||cr.status)); }
     const cd=await cr.json();
     _ideFileSHA=cd.content?.sha;
@@ -16170,6 +16340,7 @@ Return the complete updated autumn-logic.js file only.`;
     if(!text) { _origHandleSend(); return; }
 
     if(checkLogicUpdateIntent(text)){
+      _parseTargetFromText(text); // repoint target if an explicit repo/file was named
       input.value='';
       const userMsg={role:'user',text,ts:new Date().toISOString()};
       msgs().push(userMsg);
@@ -16199,12 +16370,12 @@ Return the complete updated autumn-logic.js file only.`;
           replyText='◈ Authentication required. Enter your credentials and I will proceed with the update.';
           replyBadge='<div class="logic-update-badge"><span class="lu-dot"></span>LOGIC UPDATE · AWAITING CREDENTIALS</div>';
         } else if(result.success){
-          replyText=`◈ Logic update complete.
+          replyText=`◈ Committed to ${_GH_REPO}/${_GH_LOGIC}${_GH_BRANCH!=='main'?' @'+_GH_BRANCH:''}.
 
 Commit: "${result.commitMsg}"
 
-Hot-reloaded into this session. Open ◈ IDE to review.`;
-          replyBadge='<div class="logic-update-badge"><span class="lu-dot"></span>LOGIC UPDATE · COMMITTED & LIVE</div>';
+${_GH_LOGIC===_GH_DEFAULT_LOGIC&&_GH_REPO===_GH_DEFAULT_REPO?'Hot-reloaded into this session. ':''}If this repo has GitHub Pages enabled, the live site will update shortly. Open 🗂 TARGET in the Code Console to review or point me at a different file.`;
+          replyBadge='<div class="logic-update-badge"><span class="lu-dot"></span>COMMITTED & PUSHED</div>';
         } else {
           replyText=`◈ Logic update failed: ${result.error}`;
           replyBadge='<div class="logic-update-badge" style="border-color:rgba(255,68,102,.3);color:var(--red)">LOGIC UPDATE · ERROR</div>';
@@ -16573,12 +16744,12 @@ loadAutumnLogic();
   <div id="ide-header">
     <div style="display:flex;align-items:center;gap:6px;min-width:0">
       <span id="ide-status-dot"></span>
-      <span id="ide-title">◈ AUTUMN LOGIC IDE</span>
-      <span id="ide-file-info">templates/autumn-logic.js · DART-Skyboard/Ariel</span>
+      <span id="ide-title">◈ AUTUMN CODE CONSOLE</span>
+      <span id="ide-file-info">js/autumn-logic.js · DART-Skyboard/Ariel</span>
     </div>
     <div class="ide-btns">
       <button class="ide-btn" onclick="closeIDE()" title="Back to Autumn chat" style="color:var(--cyan);border-color:rgba(0,255,204,.3);font-size:.52rem">← CHAT</button>
-      <input id="ide-commit-msg" placeholder="Commit message…" type="text" value="Update autumn-logic.js via IDE">
+      <input id="ide-commit-msg" placeholder="Commit message…" type="text" value="Update via Code Console">
       <button class="ide-btn save" onclick="ideCommit()">▲ COMMIT</button>
       <button class="ide-btn" onclick="ideReload()">↺ RELOAD</button>
       <button class="ide-btn" onclick="ideHotReload()">⚡ HOT-RELOAD</button>
@@ -16587,6 +16758,16 @@ loadAutumnLogic();
       <button class="ide-btn danger" onclick="closeIDE()" title="Close IDE">✕</button>
     </div>
   </div>
+  <!-- 🗂 Target bar — pick which repo/branch/file Autumn reads, edits and commits -->
+  <div id="ide-target-bar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 12px;background:rgba(0,255,204,.03);border-bottom:1px solid rgba(0,255,204,.12)">
+    <span style="font-family:var(--font-d);font-size:.4rem;letter-spacing:1px;color:rgba(0,255,204,.55)">🗂 TARGET</span>
+    <input id="ide-target-repo" placeholder="owner/repo" type="text" style="width:170px;background:rgba(0,255,204,.05);border:1px solid rgba(0,255,204,.2);border-radius:4px;color:#c8fff2;font-size:11px;padding:4px 8px;font-family:monospace">
+    <input id="ide-target-branch" placeholder="branch" type="text" value="main" style="width:80px;background:rgba(0,255,204,.05);border:1px solid rgba(0,255,204,.2);border-radius:4px;color:#c8fff2;font-size:11px;padding:4px 8px;font-family:monospace">
+    <input id="ide-target-path" placeholder="path/to/file.ext" type="text" style="flex:1;min-width:160px;background:rgba(0,255,204,.05);border:1px solid rgba(0,255,204,.2);border-radius:4px;color:#c8fff2;font-size:11px;padding:4px 8px;font-family:monospace">
+    <button class="ide-btn" onclick="ideSetTarget()" title="Point Autumn at this repo/branch/file">◈ SET</button>
+    <button class="ide-btn" onclick="ideListDirPrompt()" title="Browse a folder in the target repo">📂 LIST</button>
+  </div>
+  <div id="ide-target-list" style="display:none;max-height:140px;overflow-y:auto;padding:6px 12px;background:rgba(0,0,0,.4);border-bottom:1px solid rgba(0,255,204,.1);font-family:monospace;font-size:11px"></div>
   <div id="ide-editor-wrap">
     <div id="ide-editor"></div>
   </div>
