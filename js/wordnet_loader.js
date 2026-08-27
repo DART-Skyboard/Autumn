@@ -1,45 +1,40 @@
 /**
- * wordnet_loader.js  v1.0
+ * wordnet_loader.js  v1.1
  * © 2025 DART Meadow LLC / Radical Deepscale LLC
  *
- * Loads WordNet 3.1 (147,442 words) split across 3 JSON files
- * hosted in the leatr-ash repository.
+ * Loads WordNet 3.1 when the JSON buckets are available locally or as
+ * public files. Never attaches GitHub tokens. Private leatr-ash buckets
+ * are optional; missing definition data is a journaled boundary, not a
+ * fabricated sense.
  *
- * Files:
- *   wordnet/wordnet_a_h.json  — words a through h  (66,841 words)
- *   wordnet/wordnet_i_r.json  — words i through r  (46,899 words)
- *   wordnet/wordnet_s_z.json  — words s through z  (33,702 words)
+ * Files (tried in order, no credentials):
+ *   wordnet/wordnet_a_h.json   — local public clone
+ *   nlp/wordnet/wordnet_a_h.json
+ *   assets/wordnet/wordnet_a_h.json
+ *   raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/  (public only)
+ *
+ * Per-word fallback: dictionaryapi.dev (already used by Autumn, no key).
  *
  * Each entry: word → [{pos:"noun"|"verb"|"adj"|"adv", def:"...", syn:["...",...]}]
- *
- * Usage:
- *   await window.AutumnWordNet.lookup("grammar")
- *   → [{pos:"noun", def:"the branch of linguistics...", syn:["syntax","morphology"]}]
- *
- *   window.AutumnWordNet.define("grammar")
- *   → "the branch of linguistics that deals with syntax and morphology"
- *
- *   window.AutumnWordNet.synonyms("happy", "adj")
- *   → ["felicitous","glad","content",...]
  */
 
 'use strict';
 
 window.AutumnWordNet = (function(){
 
-  const BASE = 'https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/';
+  const REMOTE_BASE = 'https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/';
+  const LOCAL_BASES = ['wordnet/', 'nlp/wordnet/', 'assets/wordnet/', './wordnet/'];
   const FILES = {
     a: 'wordnet_a_h.json',   // a–h
     i: 'wordnet_i_r.json',   // i–r
     s: 'wordnet_s_z.json'    // s–z
   };
 
-  // Loaded buckets (null = not yet loaded, {} = loading/loaded)
   const _data    = { a: null, i: null, s: null };
   const _loading = { a: false, i: false, s: false };
-  const _wordCache = {};   // word → entries (cross-bucket cache)
+  const _wordCache = {};
+  const _bucketFailed = { a: false, i: false, s: false };
 
-  // Determine which bucket a word belongs to
   function _bucket(word) {
     if (!word || !word.length) return null;
     const c = word[0].toLowerCase();
@@ -48,59 +43,100 @@ window.AutumnWordNet = (function(){
     return 's';
   }
 
-  // Fetch and cache a bucket
+  async function _fetchJson(url) {
+    const res = await fetch(url); // never send Authorization / PATs
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+
   async function _loadBucket(key) {
-    if (_data[key]) return _data[key];
+    if (_data[key] && Object.keys(_data[key]).length) return _data[key];
     if (_loading[key]) {
-      // Wait for in-flight request
       return new Promise(resolve => {
         const interval = setInterval(() => {
-          if (_data[key]) { clearInterval(interval); resolve(_data[key]); }
+          if (!_loading[key]) { clearInterval(interval); resolve(_data[key] || {}); }
         }, 50);
       });
     }
     _loading[key] = true;
-    try {
-      const res = await fetch(BASE + FILES[key]);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      _data[key] = await res.json();
-      console.log('[AutumnWordNet] Loaded ' + FILES[key] +
+    const fname = FILES[key];
+    let loaded = null;
+    let from = '';
+
+    for (let i = 0; i < LOCAL_BASES.length; i++) {
+      try {
+        loaded = await _fetchJson(LOCAL_BASES[i] + fname);
+        if (loaded && typeof loaded === 'object') { from = LOCAL_BASES[i] + fname; break; }
+      } catch (e) { loaded = null; }
+    }
+
+    if (!loaded && !_bucketFailed[key]) {
+      try {
+        loaded = await _fetchJson(REMOTE_BASE + fname);
+        if (loaded && typeof loaded === 'object') from = REMOTE_BASE + fname;
+      } catch (e) {
+        _bucketFailed[key] = true;
+        loaded = null;
+      }
+    }
+
+    _data[key] = (loaded && typeof loaded === 'object') ? loaded : {};
+    _loading[key] = false;
+    if (from) {
+      console.log('[AutumnWordNet] Loaded ' + fname + ' from ' + from +
                   ' (' + Object.keys(_data[key]).length + ' words)');
-    } catch (e) {
-      console.warn('[AutumnWordNet] Failed to load ' + FILES[key] + ':', e.message);
-      _data[key] = {};
+    } else {
+      console.warn('[AutumnWordNet] Bucket ' + fname + ' unavailable locally/publicly. Per-word lookup uses the public dictionary API; unknown words stay a journaled boundary.');
     }
     return _data[key];
   }
 
-  // Preload all 3 buckets in background (called on init)
-  function _preloadAll() {
-    setTimeout(() => { _loadBucket('a'); }, 200);
-    setTimeout(() => { _loadBucket('i'); }, 800);
-    setTimeout(() => { _loadBucket('s'); }, 1400);
+  function _preloadLocal() {
+    setTimeout(function(){ _loadBucket('a'); }, 200);
+    setTimeout(function(){ _loadBucket('i'); }, 800);
+    setTimeout(function(){ _loadBucket('s'); }, 1400);
   }
 
-  /**
-   * lookup(word) → Promise<Array<{pos, def, syn}>>
-   * Returns all senses for the word across all POS.
-   */
+  // Public no-key dictionary API already used by Autumn (composeResponse / lookupWord).
+  async function _publicDefine(word) {
+    try {
+      const res = await fetch(
+        'https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word),
+        { signal: AbortSignal.timeout(4000) }
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (!Array.isArray(data) || !data[0]) return [];
+      const entries = [];
+      (data[0].meanings || []).forEach(function(m) {
+        const def = m.definitions && m.definitions[0] ? m.definitions[0].definition : '';
+        if (!def) return;
+        const posRaw = m.partOfSpeech || 'noun';
+        const pos = posRaw === 'adjective' ? 'adj' : posRaw === 'adverb' ? 'adv' : posRaw;
+        entries.push({ pos: pos, def: def, syn: (m.synonyms || []).slice(0, 6), _source: 'dictionaryapi' });
+      });
+      return entries;
+    } catch (e) {
+      return [];
+    }
+  }
+
   async function lookup(word) {
     if (!word) return [];
-    const w = word.toLowerCase().trim();
+    const w = word.toLowerCase().trim().replace(/[^a-z'-]/g, '');
+    if (!w) return [];
     if (_wordCache[w]) return _wordCache[w];
     const bk = _bucket(w);
     if (!bk) return [];
     const bucket = await _loadBucket(bk);
-    const entries = bucket[w] || [];
+    let entries = bucket[w] || [];
+    if (!entries.length) {
+      entries = await _publicDefine(w);
+    }
     _wordCache[w] = entries;
     return entries;
   }
 
-  /**
-   * define(word, preferPos?) → string | null
-   * Returns the best single definition for a word.
-   * If preferPos given ('noun','verb','adj','adv'), prefers that POS.
-   */
   async function define(word, preferPos) {
     const entries = await lookup(word);
     if (!entries.length) return null;
@@ -111,13 +147,9 @@ window.AutumnWordNet = (function(){
     return entries[0].def;
   }
 
-  /**
-   * Synchronous define — returns from cache only, null if not loaded yet.
-   * Use after warmCache() or after lookup() has been called.
-   */
   function defineSync(word, preferPos) {
     if (!word) return null;
-    const w = word.toLowerCase().trim();
+    const w = word.toLowerCase().trim().replace(/[^a-z'-]/g, '');
     const entries = _wordCache[w];
     if (!entries || !entries.length) return null;
     if (preferPos) {
@@ -127,10 +159,6 @@ window.AutumnWordNet = (function(){
     return entries[0].def;
   }
 
-  /**
-   * synonyms(word, preferPos?) → Promise<string[]>
-   * Returns synonym list for a word.
-   */
   async function synonyms(word, preferPos) {
     const entries = await lookup(word);
     if (!entries.length) return [];
@@ -138,7 +166,6 @@ window.AutumnWordNet = (function(){
       const match = entries.find(e => e.pos === preferPos);
       if (match) return match.syn || [];
     }
-    // Merge all synonyms across senses, deduplicate
     const all = [];
     for (const e of entries) {
       for (const s of (e.syn || [])) {
@@ -148,26 +175,17 @@ window.AutumnWordNet = (function(){
     return all.slice(0, 8);
   }
 
-  /**
-   * warmCache(words) — preload a list of words into cache.
-   * Good for priming frequently-used topic words.
-   */
   async function warmCache(words) {
-    await Promise.all(words.map(w => lookup(w)));
+    await Promise.all((words || []).map(w => lookup(w)));
   }
 
-  /**
-   * isLoaded(bucketKey?) — check load status.
-   * bucketKey: 'a', 'i', or 's'. Omit to check if ALL loaded.
-   */
   function isLoaded(bucketKey) {
-    if (bucketKey) return !!_data[bucketKey];
-    return !!_data.a && !!_data.i && !!_data.s;
+    if (bucketKey) return !!(_data[bucketKey] && Object.keys(_data[bucketKey]).length);
+    return isLoaded('a') && isLoaded('i') && isLoaded('s');
   }
 
-  // Start preloading on init
-  _preloadAll();
-  console.log('[AutumnWordNet] Initialised — 147,442 words across 3 buckets. Preloading...');
+  _preloadLocal();
+  console.log('[AutumnWordNet] Initialised — local/public buckets first, no tokens. Per-word dictionary fallback when buckets are absent.');
 
   return { lookup, define, defineSync, synonyms, warmCache, isLoaded, _data };
 

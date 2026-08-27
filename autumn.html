@@ -2529,11 +2529,11 @@ select.ash-ctrl-input{cursor:pointer}
 }
 </style>
 <script src="js/autumn-nlp.js"></script>
-<script src="js/wordnet_loader.js"></script>
+<script src="js/wordnet_loader.js?v=2026082701"></script>
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
-<script src="js/conceptnet_loader.js"></script>
-<script src="js/autumn-grammar-engine.js?v=2026050102"></script>
+<script src="js/conceptnet_loader.js?v=2026082701"></script>
+<script src="js/autumn-grammar-engine.js?v=2026082701"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
 </head>
 <body>
@@ -10802,6 +10802,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   let fullReply = (reply && typeof reply === 'object') ? (reply.text||'') : (reply||'');
   let grammarMeta = (reply && typeof reply === 'object') ? reply.grammarMeta : '';
   let brpnMeta = (reply && typeof reply === 'object') ? reply.brpnMeta : '';
+  var _fromBuoyancyReflex = !!(reply && typeof reply === 'object' && reply._fromBuoyancyReflex);
   // Only append web data when user explicitly requests search/news/media — suppress for normal conversation
   var _liveIntent = detectIntent(text);
   // Only append web data if user is EXPLICITLY asking for it
@@ -10820,10 +10821,15 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     // No API reply and no live data — fall through to native engine silently
     // Never tell users they need a key — Autumn runs fine without one
     try {
-      var _native = await composeResponse(text, analysis, reflexData);
-      if (_native && _native.text) fullReply = _native.text;
+      var _native = await buoyancyReflexReply(text, analysis, reflexData);
+      if (_native && _native.text) {
+        fullReply = _native.text;
+        if (_native.grammarMeta) grammarMeta = _native.grammarMeta;
+        if (_native.brpnMeta) brpnMeta = _native.brpnMeta;
+        _fromBuoyancyReflex = true;
+      }
     } catch(e) {}
-    if (!fullReply && !_placeMapHtml) fullReply = buildResponse(text, analysis);
+    if (!fullReply && !_placeMapHtml) fullReply = (typeof buildResponse==='function' ? (buildResponse(text, analysis)||'') : '');
     if (!fullReply && _placeMapHtml) {
       fullReply = /navigate|direction|how.+get/i.test(text)
         ? 'Map ready — select a mode and type your destination.'
@@ -10870,6 +10876,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     role:"autumn", text:fullReply, ts:new Date().toISOString(), id:msgId,
     meta:{ elapsed:analysis.elapsed, qs:analysis.quantumSocket, grammar:grammarSignature(analysis.grammar) },
     grammarMeta, brpnMeta,
+    _fromBuoyancyReflex: !!_fromBuoyancyReflex,
     contextType: reflexData.contextType,
     contextEmotional: reflexData.context?.emotional||"neutral",
     improvHtml: reflexData.improvHtml||'',
@@ -11012,6 +11019,44 @@ window.autumnNLP = (function(){
           buildNLPContext:buildNLPContext, process:process};
 })();
 
+
+// Local buoyancy reflex — grammatical conversation with no third-party model key.
+// WordNet + grammar dictionary + GEO/MAR/AERO Natural Tools. Claude is an optional add-on.
+async function buoyancyReflexReply(text, analysis, reflexData) {
+  analysis = analysis || {grammar:{mood:'declarative',tense:'present',sentences:[]},toolReflexes:[]};
+  var tools = (analysis.toolReflexes||[]).filter(function(t){return t.active;}).map(function(t){return t.tool;});
+  function _meta(msg){
+    return {
+      text: msg,
+      grammarMeta: (typeof buildGrammarMeta==='function') ? buildGrammarMeta(analysis.grammar, analysis, tools) : 'Buoyancy Reflex · local',
+      brpnMeta: (typeof buildBRPNMeta==='function') ? buildBRPNMeta(analysis) : '',
+      _fromBuoyancyReflex: true
+    };
+  }
+  try {
+    var GE = window.AutumnGrammarEngine;
+    if (GE && typeof GE.processForChat === 'function') {
+      var packed = await GE.processForChat(text, {});
+      if (packed && packed.response && packed.response.length > 8) {
+        try { if (window.S) window.S.geResult = packed; } catch(e) {}
+        var out = _meta(packed.response);
+        out.grammarMeta = (out.grammarMeta ? out.grammarMeta+' · ' : '') + 'Buoyancy Reflex';
+        return out;
+      }
+    }
+  } catch(e) { console.warn('[Autumn buoyancy reflex]', e); }
+  try {
+    var _fb = await composeResponse(text, analysis, reflexData);
+    if (_fb && _fb.text) { _fb._fromBuoyancyReflex = true; return _fb; }
+  } catch(e) {}
+  var local = '';
+  try { if (typeof assembleLinguisticResponse==='function') local = await assembleLinguisticResponse(text, analysis, reflexData); } catch(e) {}
+  if (!local || local.length < 8) {
+    local = 'I can parse the grammatical pattern of that, but I do not have a definition for the key terms yet. That boundary is journaled — I will recognize it when reference data is available.';
+  }
+  return _meta(local);
+}
+
 async function generateReply(text, analysis, reflexData) {
   /* ── Buoyancy NLP — grammar + live data pre-analysis ── */
   var _nlpG={intent:'conversation',tone:'neutral',dataTargets:[],tokenCount:0,isQuestion:false};
@@ -11021,6 +11066,11 @@ async function generateReply(text, analysis, reflexData) {
     if(_nlpG.dataTargets.length) try{_nlpD=await window.autumnNLP.gatherLiveData(_nlpG);}catch(e){}
   }
   var _nlpCtx=window.autumnNLP ? window.autumnNLP.buildNLPContext(_nlpG,_nlpD) : '';
+  // Default path: local grammar + WordNet + buoyancy reflex. Third-party models are add-ons.
+  var _akEarly = (typeof _getAK==='function' && _getAK()) || '';
+  if (!_akEarly) {
+    return await buoyancyReflexReply(text, analysis, reflexData);
+  }
   try {
     const city = reflexData?.geoInfo?.address?.city || reflexData?.geoInfo?.address?.town || '';
     // Archive context — surface relevant past sessions
@@ -11238,13 +11288,12 @@ ${(function(){
     }
   } catch(e){ console.warn('[Autumn generateReply]', e); }
 
-  // Fallback: always use Autumn's native engine — never show error text to user
+  // Fallback: local buoyancy reflex — never show a "need API key" wall
   try {
-    const _fb = await composeResponse(text, analysis, reflexData);
+    const _fb = await buoyancyReflexReply(text, analysis, reflexData);
     if(_fb && _fb.text) return _fb;
-  } catch(e) { console.warn('[Autumn] composeResponse failed:', e.message); }
-  // Last resort — build from LEATR grammar directly
-  return { text: buildResponse(text, analysis), grammarMeta:'', brpnMeta:'' };
+  } catch(e) { console.warn('[Autumn] buoyancyReflexReply failed:', e.message); }
+  return { text: (typeof buildResponse==='function' ? (buildResponse(text, analysis)||'') : ''), grammarMeta:'Buoyancy Reflex', brpnMeta:'', _fromBuoyancyReflex:true };
 }
 
 // ============================================================
@@ -18748,8 +18797,14 @@ _syncActionBtn();
           if(geResult&&geResult.topicalResponse) _replaceLastAutumnMsg(geResult.topicalResponse);
           _isFirst=false;
         } else {
-          geResult=_isFirst?GE.processInitial(text):GE.processContinuation(text);
-          _isFirst=false;
+          var _hasAK = typeof _getAK==='function' && !!_getAK();
+          if (window.S && window.S.geResult && window.S.geResult._fromBuoyancyReflex) {
+            geResult = window.S.geResult;
+            _isFirst = false;
+          } else {
+            geResult=_isFirst?GE.processInitial(text):GE.processContinuation(text);
+            _isFirst=false;
+          }
           // Only replace if the original response is NOT a special handled type
           // (analytics, connection status, backup, etc. must not be overwritten)
           try{
@@ -18757,7 +18812,10 @@ _syncActionBtn();
             var _lastMsg=_lastMsgs&&_lastMsgs.length?_lastMsgs[_lastMsgs.length-1]:null;
             var _protectedCtx=new Set(['ANALYTICS','CONNECTION_STATUS','BACKUP','MEMORY_ANALYSIS','EXPORT','IMPORT']);
             var _isProtected=_lastMsg&&_lastMsg.contextType&&_protectedCtx.has(_lastMsg.contextType);
-            if(!_isProtected){
+            // Third-party models are optional add-ons: never overwrite Claude when a key is active.
+            // Local buoyancy-reflex replies from generateReply are already grammatical — do not replace.
+            var _alreadyLocal = !!( _lastMsg && (_lastMsg._fromBuoyancyReflex || (typeof _lastMsg.grammarMeta==='string' && _lastMsg.grammarMeta.indexOf('Buoyancy Reflex')>=0)) );
+            if(!_isProtected && !_hasAK){
               // ── Broad social/activity interceptor (inline — not cached) ────
               var _rawQ=text.toLowerCase();
               var _intercepted=false;
@@ -18806,7 +18864,7 @@ _syncActionBtn();
                 if(_r2&&_r2.length>20){ _replaceLastAutumnMsg(_r2); _intercepted=true; }
               }
 
-              if(!_intercepted){
+              if(!_intercepted && !_alreadyLocal){
                 var convResp=GE._engine&&GE._engine.a?
                   GE._engine.a.buildConversational(geResult,text,{}):null;
                 if(convResp&&convResp.length>20) _replaceLastAutumnMsg(convResp);
@@ -24612,16 +24670,14 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 <script>
 /* FEEDBACK MODULE — Autumn · DART-Skyboard
    All users (guest + logged-in) can submit.
-   Writes to DART-Skyboard/leatr-ash  feedback/inbox.json (chunked at 4.5MB).
+   Writes to DART-Skyboard/leatr-ash  feedback/inbox.json via GAS ashwrite proxy.
    Admin views/manages from Admin Console → FEEDBACK tab. */
 (function(){
   'use strict';
 
-  var REPO  = 'DART-Skyboard/leatr-ash';
-  var IPATH = 'feedback/inbox.json'; // primary chunk; overflow → inbox-002.json etc.
-  var LIMIT = 4718592; // 4.5 MB in bytes
-  // Write token — scoped bot PAT (replace with fine-grained PAT scoped to leatr-ash contents only)
-  var _wt   = function(){ return ['ghp_','IsnQD','c0xH4','YrdCr','PJWLX','4oPRE','u9aEB','0FGyyB'].join(''); };
+  var IPATH = 'feedback/inbox.json';
+  // No client-side token — all leatr-ash writes go via GAS proxy
+  var _wt   = function(){ return ''; };
 
   /* ── Helpers ── */
   window.closeFeedback = function(){
@@ -24728,9 +24784,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if(el){ el.textContent = msg; el.style.color = color || 'rgba(0,229,255,.6)'; }
   }
 
-  /* ── Submit to leatr-ash ── */
+  /* ── Submit via GAS ashwrite proxy (same shape as _ashFlushNow) ── */
   function _doSubmit(msg, cat){
-    var tok = _wt();
     var user = (window._ghAuth && window._ghAuth.username) ? window._ghAuth.username : 'guest';
     var entry = {
       id:   Date.now().toString(16) + '-' + Math.random().toString(16).slice(2,6),
@@ -24740,98 +24795,41 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       user: user
     };
 
-    // Read current inbox, append, write back (chunk if needed)
-    _readFile(REPO, IPATH, tok, function(err, data){
-      var arr = [];
-      var sha = null;
-      var path = IPATH;
-
-      if(!err && data){
-        arr = data.arr;
-        sha = data.sha;
-        // Check size — if near limit, find next chunk
-        if(JSON.stringify(arr).length > LIMIT - 2048){
-          path = _nextChunk(arr, sha, tok, entry);
-          return; // nextChunk handles write
-        }
-      }
-
-      arr.push(entry);
-      _writeFile(REPO, path, arr, sha, tok, 'feedback: new entry from '+user, function(ok){
-        if(ok){
-          _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU', 'rgba(0,229,255,.9)');
-          setTimeout(window.closeFeedback, 1800);
-        } else {
-          _fbStatus('\u26a0 Submission failed \u2014 please try again', 'rgba(255,100,80,.8)');
-          var bs = document.getElementById('fb-submit'); if(bs) bs.disabled = false;
-        }
-      });
-    });
-  }
-
-  function _nextChunk(existArr, existSha, tok, entry){
-    // Find last chunk number by checking inbox-002, inbox-003…
-    var base = 'feedback/inbox';
-    var n = 2;
-    function tryChunk(){
-      var p = base + '-' + String(n).padStart(3,'0') + '.json';
-      _readFile(REPO, p, tok, function(err, data){
-        if(err || !data){
-          // This chunk doesn't exist yet — create it
-          _writeFile(REPO, p, [entry], null, tok, 'feedback: new chunk '+n, function(ok){
-            if(ok){
-              _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU','rgba(0,229,255,.9)');
-              setTimeout(window.closeFeedback, 1800);
-            } else {
-              _fbStatus('\u26a0 Submission failed','rgba(255,100,80,.8)');
-              var bs = document.getElementById('fb-submit'); if(bs) bs.disabled=false;
-            }
-          });
-        } else if(JSON.stringify(data.arr).length > LIMIT - 2048){
-          n++; tryChunk();
-        } else {
-          data.arr.push(entry);
-          _writeFile(REPO, p, data.arr, data.sha, tok, 'feedback: append chunk '+n, function(ok){
-            if(ok){
-              _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU','rgba(0,229,255,.9)');
-              setTimeout(window.closeFeedback,1800);
-            } else {
-              _fbStatus('\u26a0 Submission failed','rgba(255,100,80,.8)');
-              var bs = document.getElementById('fb-submit'); if(bs) bs.disabled=false;
-            }
-          });
-        }
-      });
+    var gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))
+      ? AUTUMN_GAS_URL
+      : (typeof window !== 'undefined' ? window.AUTUMN_GAS_URL : null);
+    if (!gasUrl) {
+      _fbStatus('\u26a0 Submission failed \u2014 please try again', 'rgba(255,100,80,.8)');
+      var bs0 = document.getElementById('fb-submit'); if(bs0) bs0.disabled = false;
+      return;
     }
-    tryChunk();
-  }
 
-  /* ── GitHub API helpers ── */
-  function _readFile(repo, path, tok, cb){
-    fetch('https://api.github.com/repos/'+repo+'/contents/'+path+'?ts='+Date.now(), {
-      cache:'no-store',
-      headers:{ Authorization:'token '+tok, Accept:'application/vnd.github.v3+json', 'User-Agent':'DART/1.0' }
+    var uid = (typeof _aut_uid !== 'undefined' && _aut_uid) ? _aut_uid : 'guest';
+    fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // avoid CORS preflight
+      body: JSON.stringify({
+        action:  'ashwrite',
+        path:    IPATH,
+        uid:     uid,
+        append:  true,
+        payload: [entry]
+      }),
+      signal: AbortSignal.timeout(12000)
     })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(!d.content) throw new Error('empty');
-      var raw = decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
-      cb(null, { arr: JSON.parse(raw), sha: d.sha });
+    .then(function(r){
+      if(r && r.ok){
+        _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU', 'rgba(0,229,255,.9)');
+        setTimeout(window.closeFeedback, 1800);
+      } else {
+        _fbStatus('\u26a0 Submission failed \u2014 please try again', 'rgba(255,100,80,.8)');
+        var bs = document.getElementById('fb-submit'); if(bs) bs.disabled = false;
+      }
     })
-    .catch(function(){ cb(new Error('read failed'), null); });
-  }
-
-  function _writeFile(repo, path, arr, sha, tok, msg, cb){
-    var body = { message:msg, content: btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2)))) };
-    if(sha) body.sha = sha;
-    fetch('https://api.github.com/repos/'+repo+'/contents/'+path, {
-      method:'PUT',
-      headers:{ Authorization:'token '+tok, 'Content-Type':'application/json', 'User-Agent':'DART/1.0' },
-      body: JSON.stringify(body)
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){ cb(!!(d.commit)); })
-    .catch(function(){ cb(false); });
+    .catch(function(){
+      _fbStatus('\u26a0 Submission failed \u2014 please try again', 'rgba(255,100,80,.8)');
+      var bs = document.getElementById('fb-submit'); if(bs) bs.disabled = false;
+    });
   }
 })();
 </script>

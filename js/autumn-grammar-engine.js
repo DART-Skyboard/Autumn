@@ -987,14 +987,22 @@ class ResponseBuilder {
     this._loadGrammar();
   }
 
-  // Load english_grammar.json from leatr-ash
+  // Load grammar dictionary: local public file first, then optional remote, never a token.
   _loadGrammar(){
     if(this._grammarLoading||this._grammar) return;
     this._grammarLoading=true;
-    fetch('https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/grammar/english_grammar.json')
-      .then(r=>r.ok?r.json():null)
-      .then(d=>{if(d){this._grammar=d;console.log('[Autumn GE] Grammar dictionary loaded.');}})
-      .catch(()=>{});
+    const locals = ['nlp/grammar-dictionary.json','assets/grammar-dictionary.json','grammar/english_grammar.json'];
+    const remote = 'https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/grammar/english_grammar.json';
+    const tryNext = (urls) => {
+      if(!urls.length){
+        console.warn('[Autumn GE] Grammar dictionary unavailable — using built-in buoyancy reflex templates.');
+        return;
+      }
+      fetch(urls[0]).then(r=>r.ok?r.json():Promise.reject())
+        .then(d=>{ if(d){ this._grammar=d; console.log('[Autumn GE] Grammar dictionary loaded from '+urls[0]); }})
+        .catch(()=>tryNext(urls.slice(1)));
+    };
+    tryNext(locals.concat([remote]));
   }
 
   // Trigger async WordNet load for a word so next call has it cached
@@ -1101,6 +1109,10 @@ class ResponseBuilder {
   // builds 2-3 sentences that acknowledge + add perspective
   buildConversational(flowResult, rawText, knownFacts={}) {
     const WN=typeof window!=='undefined'&&window.AutumnWordNet;
+    const _voiceMode = knownFacts['_voiceActive'] === true ||
+                       (typeof window!=='undefined'&&window._lastVoiceState===true);
+    const lexResult = knownFacts['_lexResult'] || flowResult.lexical ||
+                      (typeof S!=='undefined'&&S.geResult&&S.geResult.lexical) || null;
     const SKIP_CONV=new Set(['today','yesterday','now','just','went','come','came','going',
       'got','get','look','looked','little','great','good','cool','thing','things','stuff',
       'time','pretty','really','very','also','too','then','there','here','back','down','up',
@@ -1285,9 +1297,7 @@ class ResponseBuilder {
       });
     }
 
-    // Voice mode: strip markdown, use spoken cadence
-    const _voiceMode = knownFacts['_voiceActive'] === true ||
-                       (typeof window!=='undefined'&&window._lastVoiceState===true);
+    // Voice mode: strip markdown, use spoken cadence (_voiceMode set at top)
 
     let builtResponse = sentences.filter(Boolean).join(' ')
       .replace(/\s{2,}/g,' ').replace(/\s([.,!?])/g,'$1').trim();
@@ -1355,7 +1365,7 @@ class ResponseBuilder {
     // Try grammar-API bridge first (ConceptNet + code ref + grammar templates)
     const _cnCtxB = (typeof window!=='undefined'&&window._lastCnCtx)||null;
     const _codeCtxB = (typeof window!=='undefined'&&window._lastCodeCtx)||null;
-    const _bridgeB = this._buildFromAPIs(topic, domTool, sigType||'SIG_D', _cnCtxB, _codeCtxB, primDef||altWord);
+    const _bridgeB = this._buildFromAPIs(topic, domTool, 'SIG_D', _cnCtxB, _codeCtxB, wnDef||altWord);
     if(_bridgeB) {
       s1 = _bridgeB;
     } else if(CF&&CF.opening_by_tool){
@@ -1472,7 +1482,7 @@ class ResponseBuilder {
 
   async lookupWord(word){
     if(this._dc[word])return this._dc[word];
-    try{const res=await fetch(`https://api.dictionarapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+    try{const res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
       if(!res.ok)return null;const data=await res.json();if(!Array.isArray(data)||!data[0])return null;
       const e=data[0];const ms=e.meanings||[];
       const r={word,phonetic:e.phonetic||'',partsOfSpeech:ms.map(m=>m.partOfSpeech),
@@ -2890,10 +2900,7 @@ class StoryEngine {
       this._sentence(`The ${heroAlt} was something different than when they had arrived, and this was precisely what ${G.stakes.split(' ').slice(-1)[0]} required`)
     ].join(' ');
 
-    const story = [title+'
-', p1, p2, p3, p4, p5, p6, p7, p8, p9].join('
-
-');
+    const story = [title+'\n', p1, p2, p3, p4, p5, p6, p7, p8, p9].join('\n\n');
     const wordCount = story.split(/\s+/).length;
     return { title, genre, story, wordCount, tone: G.tone };
   }
@@ -3381,7 +3388,40 @@ class ANLPCA {
            lexical:lexResult?{dominantTool:lexResult.dominantTool,
              buoyancyContext:lexResult.buoyancyContext,
              sentenceType:lexResult.sentenceType,
-             totalMazeSigma:lexResult.totalMazeSigma}:null};
+             totalMazeSigma:lexResult.totalMazeSigma,
+             consensus:lexResult.consensus||null}:null};
+  }
+
+  // Buoyancy reflex chat path — await WordNet, then grammatical reply. No LLM key.
+  async processForChat(text, facts={}) {
+    const WN = typeof window !== 'undefined' && window.AutumnWordNet;
+    const content = (text||'').toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/)
+      .filter(w => w.length > 3);
+    if (WN && typeof WN.lookup === 'function') {
+      await Promise.all(content.slice(0,8).map(w => WN.lookup(w).catch(()=>[])));
+    }
+    const packed = this.s.lastFlow
+      ? this.processContinuation(text, facts)
+      : this.processInitial(text, facts);
+    const knownFacts = Object.assign({}, facts);
+    if (packed && packed.lexical) knownFacts['_lexResult'] = packed.lexical;
+    const defined = content.filter(w => WN && WN.defineSync && WN.defineSync(w));
+    if (content.length && !defined.length) {
+      try {
+        if (this._dual && typeof this._dual.writeInner === 'function') {
+          this._dual.writeInner({
+            type: 'boundary',
+            topic: content[0] || 'unknown',
+            thought: 'No definition data available for this input. Structural pattern journaled; no fabricated sense.',
+            trigger: 'buoyancy_reflex'
+          });
+        }
+      } catch(e) {}
+    }
+    let conv = '';
+    try { conv = this.a.buildConversational(packed, text, knownFacts); } catch(e) { conv = ''; }
+    const response = (conv && conv.length > 8) ? conv : ((packed && packed.response) || '');
+    return Object.assign({}, packed, { response, conversational: true, _fromBuoyancyReflex: true });
   }
 }
 
@@ -3393,6 +3433,7 @@ const engine=new ANLPCA({autoThink:true,thinkInterval:30000});
 return{
   processInitial:(t,f)=>engine.processInitial(t,f),
   processContinuation:(t,f)=>engine.processContinuation(t,f),
+  processForChat:(t,f)=>engine.processForChat(t,f),
   processCrossSession:(t,f)=>engine.processCrossSession(t,f),
   processTopical:(t,f)=>engine.processTopical(t,f),
   generateStory:(prompt,opts)=>engine.generateStory(prompt,opts),

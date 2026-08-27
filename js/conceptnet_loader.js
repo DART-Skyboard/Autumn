@@ -28,10 +28,17 @@ function _cnLangBucket(word) {
 async function _cnLoadBucket(bucketName, token) {
   if (CN_BUCKETS[bucketName]) return CN_BUCKETS[bucketName];
   try {
-    const tok = token || (window._ghAuth && window._ghAuth.token);
+    // Public/local only — never attach a GitHub PAT to leatr-ash fetches.
     const fname = `cn_${bucketName}.json.gz`;
-    const url = `https://raw.githubusercontent.com/${CN_REPO}/main/${CN_PATH}/${fname}`;
-    const res = await fetch(url, tok ? {headers:{'Authorization':'token '+tok}} : {});
+    const localCandidates = ['conceptnet/'+fname, 'nlp/conceptnet/'+fname, 'assets/conceptnet/'+fname];
+    let res = null;
+    for (const loc of localCandidates) {
+      try { res = await fetch(loc); if (res && res.ok) break; } catch(e) { res = null; }
+    }
+    if (!res || !res.ok) {
+      const url = `https://raw.githubusercontent.com/${CN_REPO}/main/${CN_PATH}/${fname}`;
+      res = await fetch(url); // no Authorization header
+    }
     if (!res.ok) return null;
     const buf = await res.arrayBuffer();
     // Decompress using pako (already loaded in Autumn)
