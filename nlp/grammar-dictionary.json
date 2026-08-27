@@ -238,5 +238,34 @@
       { "id": "SEQ_I", "name": "Guiding Sequence",     "structure": "SIG_D → SIG_I → SIG_D",      "tool_sequence": ["MAZE","HAMMER","STICK"],      "emotion_class": "guiding" },
       { "id": "SEQ_J", "name": "Relational Flow",      "structure": "SIG_C → SIG_D → SIG_Q",      "tool_sequence": ["STICK","ENVELOPE","PUZZLE"],  "emotion_class": "love" }
     ]
+  },
+  "conversationFramework": {
+    "opening_by_tool": {
+      "maze": "{topic} sits at the foundation of this — {detail}.",
+      "puzzle": "The pattern around {topic} comes together through {detail}.",
+      "envelope": "{topic} is contained here: {detail}.",
+      "hammer": "{topic} takes a direct line — {detail}.",
+      "stick": "{topic} extends from {detail}.",
+      "knife": "{topic} divides cleanly around {detail}.",
+      "scissors": "{topic} holds two edges: {detail}."
+    },
+    "transition_phrases": {
+      "elaboration": ["More precisely,", "In that register,", "Worth noting:", "Structurally,"],
+      "addition": ["Alongside that,", "Related:", "Also,", "In parallel,"]
+    }
+  },
+
+  "responseTemplates": {
+    "greeting": ["Hey. What are we working on?", "Here. What do you need?"],
+    "farewell": ["I'll be here.", "Take your time — the journal stays open."],
+    "affirmation": ["That tracks.", "Right framing."],
+    "negation_response": ["Fair. What's the actual direction?"],
+    "personal": ["I engage with that through what accumulates in the journal."],
+    "conversational": ["I hear that. {topic} — {detail}."],
+    "social": ["That's worth sitting with."],
+    "explanatory": ["{topic} refers to {definition}."],
+    "analytical": ["The process of {topic} works through {detail}."],
+    "declarative": ["{topic} {verb} {detail}."],
+    "elaborative": ["{topic} connects to {related} through {link}."]
   }
 }

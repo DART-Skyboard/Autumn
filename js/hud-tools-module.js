@@ -67,7 +67,6 @@
         '<div class="htm-btn" onclick="window.arcLakeStudioToggle&&window.arcLakeStudioToggle();hudTMclose()" title="ArcLake Studio" style="background:rgba(0,229,255,.07)">&#11041; ARCLAKE</div>' +
         '<div class="htm-btn htm-violet" onclick="emmToggle();hudTMclose()" title="Emotion Mind Map">&#9678; EMO MAP</div>' +
         '<div class="htm-btn" onclick="forgeOpen();hudTMclose()" title="FORGE">&#9881; FORGE</div>' +
-        '<div class="htm-btn" onclick="window.stormStudioToggle&&window.stormStudioToggle();hudTMclose()" title="Storm Studio" style="border-color:rgba(0,255,231,.25)">&#9928; STORM</div>' +
       '</div>' +
       '<div id="hud-tm-tab" onclick="hudTMtoggle()">TOOLS</div>' +
     '</div>';
