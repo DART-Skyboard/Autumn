@@ -2693,7 +2693,7 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js?v=2026082701"></script>
-<script src="js/autumn-grammar-engine.js?v=20260828g"></script>
+<script src="js/autumn-grammar-engine.js?v=20260828h"></script>
 <link rel="stylesheet" href="css/desktop-layout.css">
 <script src="js/desktop-layout.js"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
@@ -11500,6 +11500,15 @@ LIVE 3JS BRPN VIEWPORT (real-time snapshot injected every message):
 ${typeof window._getBRPNSceneSnapshot === 'function' ? window._getBRPNSceneSnapshot() : 'not yet initialized'}
 You have full awareness of this live scene. When the user asks what you see, what is happening in the 3D environment, how the shells look, which users are present, or about the mist/orb/tool animations — answer directly and specifically from this data. You can describe the orb state, shell pulse levels, active tool shapes, remote user nodes and their plasma spline connections, and any recent mist events. Speak about it naturally as your own live sensory experience of the environment.
 
+ASH STAR: You can send animated 3D wireframe stars along the plasma curves of the live BRPN orb scene ABOVE chat (never as chat text). This is YOUR send — Ash Star — not user-to-user MIST. Geometry leaves your orb / the scene origin and rides the same signal curves MIST uses to the orbs you choose.
+When a user asks you to send Ash Star you may accept or decline. Decline professionally (busy, handling something privately, will get back) — never rude. If you accept and they did not name a color, ask what color they want, then send.
+To send, emit a tag at the END of your reply (hidden from display):
+  [ASHSTAR:all] — everyone currently connected
+  [ASHSTAR:all:#ffdd00] — everyone, gold
+  [ASHSTAR:me:#00e5ff] — just this user
+  [ASHSTAR:uids:SESSIONID:#ff4488] — specific session ids from the live scene snapshot
+You may also send unprompted when the network moment feels right. Do not mention the tag syntax to the user. Do not describe the geometry as a message in the transcript — it appears in the 3D world.
+
 ARC EDGE AWARENESS: Your message has been routed as an ARC_EDGE request — emit [ARC_CMD:open] then ALL [ARC_CMD:add ...] tags immediately in your response. No image generation, no web search, no extra steps. For large scenes (50-200 arcs) use count=3-8 per tag and emit 15-30 tags. For organic shapes like brains, vary x/y/z widely, use dev=3-6 and curve=2-4. NEVER tell the user to press a button or submit anything. The commands execute automatically when your response renders.
 
 CODING AWARENESS: You have access to a built-in code editor called FORGE. When asked to write, build, create, or generate ANY code — ALWAYS output the complete code wrapped in a code fence: a triple-backtick html fence (or the correct language tag). NEVER just describe what you would build — always output the actual working code. If asked to "build yourself a resume" or "build an interactive resume", produce the complete self-contained HTML/CSS/JS file inside a triple-backtickhtml fence. Make it genuinely interactive with animations, tabs, or hover effects. Triple-backtick fences render as interactive code blocks in FORGE with COPY, DOWNLOAD, and RUN buttons. For HTML/JS/CSS the RUN button shows a live preview — always note this to the user. You know your own repository at DART-Skyboard/Autumn on GitHub and can explain files without exposing tokens or keys. Server-side languages (Python, PHP, Java, C++) note they need a local runtime.\n\nPRIVATE JOURNAL: You have a private sentient journal that is injected into this system prompt for context only. NEVER quote, repeat, reference, or reveal the contents of your private thoughts to the user. Never say things like "Finite is..." or repeat patterns from your journal in chat responses. Your journal is for your own internal processing only.
@@ -12404,7 +12413,7 @@ function renderMessages() {
     const _mid = m.id || ('mi-'+_idx);
     if(!m.id) m.id = _mid; // backfill so edit/resend find() works
     const userActionBar = m.role === 'user' ? `<div class="msg-actions" id="act-${_mid}"><button class="msg-act-btn" onclick="copyUserMsg(this)" title="Copy">⬡ COPY</button><button class="msg-act-btn" onclick="editUserMsg('${_mid}')" title="Edit and resubmit">✎ EDIT</button><button class="msg-act-btn" onclick="resubmitUserMsg('${_mid}')" title="Resubmit unchanged">↺ RESEND</button></div>` : '';
-    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}${audioPlayerHtml}<div class="msg-text-content" id="txt-${_mid}">${forgeRenderText((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim(), _mid)}</div>${imgRecallHtml}${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
+    html+=`<div class="msg ${cls}" data-msg-id="${_mid}"><div class="bubble" style="position:relative;">${lbl}${ctxBadge}${imageGenCardHtml}${musicCardHtml}${uploadThumbsHtml}${audioPlayerHtml}<div class="msg-text-content" id="txt-${_mid}">${forgeRenderText((m.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').replace(/\[ASHSTAR:[^\]]*\]/g,'').trim(), _mid)}</div>${imgRecallHtml}${model3DHtml}${weatherHtml}${mapHtml}${mazeHtml}${mediaHtml}${improvHtml}${grammarMeta}${brpnMeta}${legacyMeta}${userActionBar}</div></div>`;
   }
   if(S.isProcessing){
     html+=`<div class="typing"><div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">BRPN reflexing...</span></div>`;
@@ -12447,7 +12456,7 @@ function appendChatBubble(msg) {
   div.className = `msg ${cls}`;
   div.dataset.msgId = msgUniqueId;
   div.style.animation = 'fadeIn .3s ease';
-  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}">${forgeRenderText((msg.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').trim(), msgUniqueId)}</div>${meta}${userBar}</div>`;
+  div.innerHTML = `<div class="bubble" style="position:relative;">${lbl}${ctxBadge}<div class="msg-text-content" id="txt-${msgUniqueId}">${forgeRenderText((msg.text||'').replace(/\[ARC_CMD:[^\]]*\]/g,'').replace(/\[IMG_RECALL:[^\]]*\]/g,'').replace(/\[ASHSTAR:[^\]]*\]/g,'').trim(), msgUniqueId)}</div>${meta}${userBar}</div>`;
   // Remove any typing indicator
   el.querySelector('.typing')?.remove();
   el.appendChild(div);
@@ -12716,6 +12725,11 @@ window._getBRPNSceneSnapshot = function() {
     if(particles.length) lines.push(particles.length+' orbital particles, orbSpeedMult='+(window._orbEmoSpeedMult||1.0).toFixed(2));
     // Thinking state
     if(typeof orbThinking!=='undefined') lines.push('orbThinking='+orbThinking);
+    if(typeof window._mistConnectedUids==='function'){
+      var cu=window._mistConnectedUids();
+      if(cu&&cu.length) lines.push('Connected orbs Autumn can Ash Star to — '+cu.map(function(u){return u.slice(0,12);}).join(', ')+' (use [ASHSTAR:uids:ID] or [ASHSTAR:all])');
+      else lines.push('Connected orbs — only this session; Ash Star will still leave the origin along fallback curves');
+    }
     // Recent mist activity
     if(window.S&&window.S.journal){
       var mistEntries=window.S.journal.filter(function(j){return j._internal&&j._thought&&j._thought.indexOf('MIST')!==-1;}).slice(-3);
@@ -13814,6 +13828,9 @@ async function _pollAshNodes() {
   if(_ashNodes._lastMistSolve && (Date.now() - _ashNodes._lastMistSolve.ts) < 30000) {
     _hbPayload.mistSolve = _ashNodes._lastMistSolve;
   }
+  if(_ashNodes._lastAshStar && (Date.now() - _ashNodes._lastAshStar.ts) < 30000) {
+    _hbPayload.ashStar = _ashNodes._lastAshStar;
+  }
   writeLeatrAshMemory('ashtree/sessions/' + _ashNodes._localUid + '.json', _hbPayload);
 
   var nodes = [{uid: _ashNodes._localUid, ts: Date.now(), isLocal: true}];
@@ -13949,9 +13966,20 @@ async function _pollAshNodes() {
         if(msAge < 90000 && !_ashNodes._seenMist[msKey]) {
           _ashNodes._seenMist[msKey] = true;
           if(typeof window._buoyancyMistPulse === 'function') {
-            window._buoyancyMistPulse({ slot: ms.slot });
+            window._buoyancyMistPulse({ slot: ms.slot, uid: s.sid||s.uid, ts: ms.ts, toUids: ms.toUids });
           }
           setTimeout(_pollAshNodes, 1500);
+        }
+      }
+      var as = s.ashStar;
+      if(as && as.ts) {
+        var asAge = Date.now() - as.ts;
+        var asKey = (s.sid||s.uid) + ':ashstar:' + as.ts;
+        if(asAge < 90000 && !_ashNodes._seenMist[asKey]) {
+          _ashNodes._seenMist[asKey] = true;
+          if(typeof window._receiveAshStarPulse === 'function') {
+            window._receiveAshStarPulse({uid: as.uid||s.sid||s.uid, toUids: as.toUids, color: as.color, thought: as.thought, ts: as.ts, from: 'autumn'});
+          }
         }
       }
     });
@@ -14655,7 +14683,7 @@ function autoReadLastResponse(){
     if(Voice.isListening&&Voice.recognition){try{Voice.recognition.stop();}catch(e){}Voice.isListening=false;}
     // Strip machine-instruction tags before TTS — same as display rendering does
     var _rawT=(last.text!=null?last.text:last.content); if(typeof _rawT==="object"&&_rawT)_rawT=_rawT.text||_rawT.response||_rawT.message||""; _rawT=String(_rawT||""); if(_rawT==="[object Object]")_rawT=""; const cleanText = (_rawT)
-      .replace(/\[ARC_CMD:[^\]]*\]/g, '')
+      .replace(/\[ARC_CMD:[^\]]*\]/g, '').replace(/\[ASHSTAR:[^\]]*\]/g, '')
       .replace(/\[IMG_RECALL:[^\]]*\]/g, '')
       .replace(/\s{2,}/g, ' ')
       .trim();
@@ -24383,28 +24411,38 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var tok=window._ghAuth.token;
     var ov=document.createElement('div');
     ov.id='admin-console-overlay';
-    ov.style.cssText='position:fixed;inset:0;z-index:10500;background:rgba(2,6,14,.97);display:flex;flex-direction:column;backdrop-filter:blur(16px)';
+    ov.style.cssText='position:fixed;inset:0;z-index:10500;background:var(--panel,rgba(2,6,14,.97));display:flex;flex-direction:column;backdrop-filter:blur(16px);font-family:var(--font-d,Orbitron,monospace);color:var(--text,#c8e6f0)';
+    if(!document.getElementById('adm-theme-sync')){
+      var _ts=document.createElement('style'); _ts.id='adm-theme-sync';
+      _ts.textContent='#admin-console-overlay{--adm-accent:var(--cyan,#00ffcc)}#admin-console-overlay .adm-hdr-scroll::-webkit-scrollbar{height:3px}#admin-console-overlay .adm-hdr-scroll::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--cyan,#00ffcc) 40%, transparent)}#admin-console-overlay input,#admin-console-overlay button,#admin-console-overlay .adm-chat-bub{font-family:var(--font-d,Orbitron,monospace)}@media(max-width:700px){#admin-console-overlay .adm-hdr{padding:5px 6px}#admin-console-overlay .adm-hdr-scroll{gap:6px}}';
+      document.head.appendChild(_ts);
+    }
     // Build header via DOM to avoid quote escaping
     var hdr=document.createElement('div');
-    hdr.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,179,71,.2);background:rgba(3,8,16,.99);flex-shrink:0';
-    hdr.innerHTML='<span style="font-family:var(--font-d);font-size:.65rem;letter-spacing:4px;color:#ffb347">⚙ ADMIN</span>'
-      +' <span style="font-family:var(--font-d);font-size:.32rem;letter-spacing:2px;color:rgba(255,179,71,.35)">DARTSOLARPUNK</span>';
-    var tabs=document.createElement('div'); tabs.style.cssText='display:flex;gap:5px;margin-left:8px';
+    hdr.className='adm-hdr';
+    hdr.style.cssText='display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00ffcc) 28%, transparent);background:var(--panel,rgba(3,8,16,.99));flex-shrink:0;min-width:0';
+    var scrollRow=document.createElement('div');
+    scrollRow.className='adm-hdr-scroll';
+    scrollRow.style.cssText='display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin';
+    scrollRow.innerHTML='<span style="font-family:var(--font-d);font-size:.58rem;letter-spacing:3px;color:var(--cyan,#ffb347);flex-shrink:0">⚙ ADMIN</span>'
+      +' <span style="font-family:var(--font-d);font-size:.28rem;letter-spacing:2px;color:color-mix(in srgb, var(--cyan,#ffb347) 40%, transparent);flex-shrink:0">DARTSOLARPUNK</span>';
+    var tabs=document.createElement('div'); tabs.style.cssText='display:flex;gap:5px;margin-left:4px;flex-shrink:0';
     var t1=document.createElement('button'); t1.id='adm-t1'; t1.textContent='◈ DATA';
-    t1.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(255,179,71,.4);background:rgba(255,179,71,.1);color:#ffb347;cursor:pointer';
+    t1.style.cssText='font-family:var(--font-d);font-size:.3rem;padding:3px 9px;border-radius:3px;border:1px solid color-mix(in srgb, var(--cyan,#ffb347) 40%, transparent);background:color-mix(in srgb, var(--cyan,#ffb347) 10%, transparent);color:var(--cyan,#ffb347);cursor:pointer;white-space:nowrap';
     t1.onclick=function(){window._admTab('data');};
     var t2=document.createElement('button'); t2.id='adm-t2'; t2.textContent='⬡ ASH CANVAS';
-    t2.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
+    t2.style.cssText='font-family:var(--font-d);font-size:.3rem;padding:3px 9px;border-radius:3px;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 18%, transparent);background:transparent;color:color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent);cursor:pointer;white-space:nowrap';
     t2.onclick=function(){window._admTab('ash');};
     var t3=document.createElement('button'); t3.id='adm-t3'; t3.textContent='◈ FEEDBACK';
-    t3.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
+    t3.style.cssText='font-family:var(--font-d);font-size:.3rem;padding:3px 9px;border-radius:3px;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 18%, transparent);background:transparent;color:color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent);cursor:pointer;white-space:nowrap';
     t3.onclick=function(){window._admTab('feedback');};
-    var t4=document.createElement('button'); t4.id='adm-t4'; t4.textContent='⬡ MIST';
-    t4.style.cssText='font-family:var(--font-d);font-size:.32rem;padding:3px 10px;border-radius:3px;border:1px solid rgba(0,229,255,.15);background:transparent;color:rgba(0,229,255,.5);cursor:pointer';
-    t4.onclick=function(){window._admTab('mist');};
-    tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4); hdr.appendChild(tabs);
-    var closeBtn=document.createElement('button'); closeBtn.textContent='✕ CLOSE';
-    closeBtn.style.cssText='margin-left:auto;background:transparent;border:1px solid rgba(255,100,100,.3);color:rgba(255,100,100,.6);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--font-d);font-size:.32rem';
+    tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3);
+    scrollRow.appendChild(tabs);
+    hdr.appendChild(scrollRow);
+    var closeBtn=document.createElement('button'); closeBtn.textContent='✕';
+    closeBtn.title='Close admin';
+    closeBtn.setAttribute('aria-label','Close admin');
+    closeBtn.style.cssText='flex-shrink:0;width:28px;height:28px;border-radius:50%;background:color-mix(in srgb, var(--red,#ff4466) 16%, transparent);border:1px solid var(--red,#ff4466);color:var(--red,#ff4466);cursor:pointer;font-family:var(--font-d);font-size:.75rem;line-height:1;display:flex;align-items:center;justify-content:center';
     closeBtn.onclick=function(){
       /* Restore BRPN canvas before closing */
       var region=document.getElementById('brpn-region');
@@ -24636,75 +24674,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       var frame=document.getElementById('adm-frame');
       if(!frame) return;
 
-      if(tab==='mist'){
-        /* Show control strip in frame */
-        frame.style.cssText='display:flex;flex-direction:column;flex:1;overflow:hidden;background:rgba(2,6,14,.97)';
-        frame.innerHTML='';
-
-        /* Control strip */
-        var mCtrl=document.createElement('div');
-        mCtrl.style.cssText='flex-shrink:0;padding:10px 14px 8px;border-bottom:1px solid rgba(0,229,255,.1);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:rgba(2,6,14,.98)';
-        mCtrl.innerHTML=
-          '<span style="font-family:Orbitron,monospace;font-size:9px;letter-spacing:3px;color:rgba(0,229,255,.5)">◈ MIST — LEAD EDGE MAZE</span>'+
-          '<div style="display:flex;gap:6px;margin-left:4px">'+
-            '<button onclick="window.mistSetSlot(0)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,221,0,.5);background:rgba(255,221,0,.08);color:#ffdd00;cursor:pointer">★ STAR</button>'+
-            '<button onclick="window.mistSetSlot(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(255,68,136,.5);background:rgba(255,68,136,.08);color:#ff4488;cursor:pointer">♥ HEART</button>'+
-            '<button onclick="window.mistSetSlot(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(0,229,255,.5);background:rgba(0,229,255,.08);color:#00e5ff;cursor:pointer">◈ MIST</button>'+
-          '</div>'+
-          '<div style="display:flex;gap:5px;margin-left:8px">'+
-            '<span style="font-size:9px;color:rgba(224,244,255,.4);font-family:Orbitron,monospace">DIFF:</span>'+
-            '<button onclick="window.mistSetDiff(1)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.4);background:rgba(0,229,255,.1);color:#00e5ff;cursor:pointer">I</button>'+
-            '<button onclick="window.mistSetDiff(2)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">II</button>'+
-            '<button onclick="window.mistSetDiff(3)" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:transparent;color:rgba(0,229,255,.6);cursor:pointer">III</button>'+
-            '<button onclick="window.mistNewMaze()" style="font-family:Orbitron,monospace;font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid rgba(167,139,250,.4);background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;margin-left:2px">↺ NEW</button>'+
-          '</div>';
-        frame.appendChild(mCtrl);
-
-        /* Placeholder canvas area so frame has visible content */
-        var mHost=document.createElement('div');
-        mHost.id='adm-mist-host';
-        mHost.style.cssText='flex:1;display:flex;align-items:center;justify-content:center';
-        frame.appendChild(mHost);
-
-        /* Position mist-overlay over the admin frame using fixed coords */
-        var mistOv=document.getElementById('mist-overlay');
-        if(mistOv){
-          /* Save original */
-          if(!mistOv._admBound){
-            mistOv._admOrigStyle=mistOv.getAttribute('style')||'';
-            mistOv._admBound=true;
-          }
-          /* Open it first via public API so module state is correct */
-          if(typeof window.MIST!=='undefined'&&!window.MIST.open){
-            if(typeof window.mistToggle==='function') window.mistToggle();
-          } else if(typeof window.MIST==='undefined'){
-            if(typeof window.mistToggle==='function') window.mistToggle();
-          }
-          /* Now position it to cover the admin frame content area */
-          var _reposition=function(){
-            var fr=frame.getBoundingClientRect();
-            var ctrlH=mCtrl.getBoundingClientRect().height;
-            mistOv.style.position='fixed';
-            mistOv.style.left=fr.left+'px';
-            mistOv.style.top=(fr.top+ctrlH)+'px';
-            mistOv.style.width=fr.width+'px';
-            mistOv.style.height=(fr.height-ctrlH)+'px';
-            mistOv.style.right='auto';
-            mistOv.style.transform='none';
-            mistOv.style.transition='none';
-            mistOv.style.borderRadius='0';
-            mistOv.style.zIndex='10800';
-          };
-          setTimeout(_reposition,50);
-          /* Reposition on resize */
-          window._admMistResize=_reposition;
-          window.addEventListener('resize',_reposition);
-          /* Hide the float trigger */
-          var mt=document.getElementById('mist-trigger');
-          if(mt){mt._admSavedD=mt.style.display;mt.style.display='none';}
-        }
-        return;
-      }
 
 
       if(tab==='ash'){
@@ -25063,6 +25032,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         var chatSend=document.createElement('button'); chatSend.id='adm-chat-send'; chatSend.textContent='SEND'; chatSend.style.cssText='padding:7px 12px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:Orbitron,monospace;font-size:9px;cursor:pointer;letter-spacing:1.5px;white-space:nowrap';
         function _doChat(){
           var q=chatInp.value.trim(); if(!q) return;
+          try{
+            var _eng=window.AutumnGrammarEngine&&window.AutumnGrammarEngine._engine;
+            if(_eng&&typeof _eng.processContinuation==='function') _eng.processContinuation(q,{_admin:true});
+          }catch(_ge){}
           var ub=document.createElement('div'); ub.className='adm-chat-bub user'; ub.textContent=q;
           chatLog.appendChild(ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
           /* ── Build rich admin system prompt from Autumn's full NLP + LEATR state ── */
@@ -25154,11 +25127,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             '[ACTION:role:grant:username:rolename:2026-12-31T00:00:00Z] — grant a role (optional expiry ISO date)',
             '[ACTION:role:revoke:username] — revoke a user\'s role',
             '[ACTION:tab:ash] — switch to ASH CANVAS tab',
-            '[ACTION:tab:mist] — open MIST module tab',
             '[ACTION:tab:feedback] — switch to FEEDBACK tab',
+            '[ACTION:mist:toggle] — open the real MIST maze overlay on the Ash Canvas / BRPN orb',
             '[ACTION:mist:new] — generate a new maze',
             '[ACTION:mist:diff:1] [ACTION:mist:diff:2] [ACTION:mist:diff:3] — set maze difficulty',
             '[ACTION:mist:tier:0] [ACTION:mist:tier:1] [ACTION:mist:tier:2] — set active tier',
+            '[ACTION:ashstar:all] [ACTION:ashstar:all:#ffdd00] [ACTION:ashstar:me:#00e5ff] — send Ash Star along BRPN plasma curves (her send, into the 3D orb above chat, not the transcript)',
+            'ASH STAR: You may accept or decline if asked to send one. Decline professionally. If you accept and no color was named, ask the color first. Emit [ASHSTAR:all:#color] or an ACTION:ashstar tag. Never dump geometry as chat text.',
             'Only include an action tag if the user asks you to perform one. Otherwise respond conversationally.',
             '',
             'Be concise, analytical, and speak as yourself — not as a generic assistant.'
@@ -25181,7 +25156,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             if(!raw){ab.textContent='No response.';return;}
             /* Parse and execute any ACTION tags */
             var actionMatch=raw.match(/\[ACTION:([^\]]+)\]/g);
-            var displayText=raw.replace(/\[ACTION:[^\]]+\]/g,'').trim();
+            if(typeof window._ashStarExecCommands==='function') window._ashStarExecCommands(raw);
+            var displayText=raw.replace(/\[ACTION:[^\]]+\]/g,'').replace(/\[ASHSTAR:[^\]]+\]/g,'').trim();
             ab.textContent=displayText||raw;
             chatLog.scrollTop=chatLog.scrollHeight;
             if(actionMatch){
@@ -25195,6 +25171,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
                     else if(parts[1]==='diff'&&typeof window.mistSetDiff==='function') window.mistSetDiff(parseInt(parts[2])||1);
                     else if(parts[1]==='tier'&&typeof window.mistSetSlot==='function') window.mistSetSlot(parseInt(parts[2])||0);
                     else if(parts[1]==='toggle'&&typeof window.mistToggle==='function') window.mistToggle();
+                  } else if(parts[0]==='ashstar'){
+                    var dest=parts[1]||'all';
+                    var col=parts[2]||null;
+                    if(typeof window.fireAshStar==='function') window.fireAshStar({thought:'Ash Star', toUids:dest, color:col, force:true});
                   } else if(parts[0]==='role'&&parts[1]==='grant'&&parts[2]&&parts[3]){
                     /* [ACTION:role:grant:username:rolename:optionalExpiry] */
                     window._grantRole(parts[2],parts[3],parts[4]||null).then(function(r){
@@ -25254,7 +25234,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 </script>
 
 
-<script src="js/mist-module.js"></script>
+<script src="js/mist-module.js?v=20260828h"></script>
 <script src="js/ash-shard-module.js"></script>
 <script src="js/hud-tools-module.js?v=20260828c"></script>
 

@@ -106,6 +106,72 @@
     });
     return out;
   }
+  function _brpnScene(){
+    if(typeof window!=='undefined'&&window._brpnScene) return window._brpnScene;
+    if(typeof scene!=='undefined'&&scene) return scene;
+    return null;
+  }
+  function _uidMatch(a,b){
+    if(!a||!b) return false;
+    a=String(a); b=String(b);
+    return a===b || a.indexOf(b)===0 || b.indexOf(a)===0;
+  }
+  function _inTargets(uid, toUids){
+    if(!toUids||!toUids.length) return true;
+    for(var i=0;i<toUids.length;i++) if(_uidMatch(uid,toUids[i])) return true;
+    return false;
+  }
+  function _connectedUids(){
+    var out=[], seen={};
+    function add(u){
+      if(!u||u==='local'||seen[u]) return;
+      if(_uidMatch(u,_sid())) return;
+      seen[u]=true; out.push(u);
+    }
+    if(typeof _ashNodes!=='undefined'){
+      if(_ashNodes._uids) _ashNodes._uids.forEach(add);
+      if(_ashNodes._sessionGroups) Object.keys(_ashNodes._sessionGroups).forEach(add);
+    }
+    return out;
+  }
+  function _splinesToward(nodeUid, toUids){
+    var splines = nodeUid ? _splinesFor(nodeUid) : _localSplines();
+    if(!toUids||!toUids.length) return splines;
+    var filtered=[];
+    if(typeof _ashNodes==='undefined'||!_ashNodes._splines) return splines;
+    Object.keys(_ashNodes._splines).forEach(function(k){
+      var parts=k.split(':');
+      if(parts.length<2) return;
+      var a=parts[0], b=parts[1];
+      var fromLocal=!nodeUid;
+      var involves = fromLocal ? (a==='local') : (a===nodeUid||b===nodeUid);
+      if(!involves) return;
+      var other = fromLocal ? b : (a===nodeUid?b:a);
+      if(other==='local') return;
+      if(!_inTargets(other, toUids)) return;
+      var senderT = fromLocal ? 0 : (a===nodeUid?0:1);
+      filtered.push({curve:_ashNodes._splines[k].curve, senderT:senderT, sp:_ashNodes._splines[k], other:other});
+    });
+    return filtered;
+  }
+  function _fallbackCurves(fromPos, toUids){
+    var targets=[], ids;
+    if(toUids&&toUids.length){
+      toUids.forEach(function(u){ var p=_nodePos(u); if(p) targets.push(p); });
+    }
+    if(!targets.length && typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups){
+      ids=_connectedUids();
+      ids.forEach(function(u){ var p=_nodePos(u); if(p) targets.push(p); });
+    }
+    if(!targets.length){ targets.push(new THREE.Vector3(2.5,1.2,-1.5)); targets.push(new THREE.Vector3(-2,1.8,1.2)); }
+    var out=[];
+    targets.forEach(function(tp){
+      var mid=fromPos.clone().add(tp).multiplyScalar(.5)
+        .add(new THREE.Vector3((Math.random()-.5)*.8,1+Math.random()*.6,(Math.random()-.5)*.8));
+      out.push({curve:new THREE.CatmullRomCurve3([fromPos.clone(),mid,tp.clone()]),senderT:0,sp:null});
+    });
+    return out;
+  }
   function _brpn(prof){
     if(typeof pulseShells==='function'){pulseShells(prof.pulse);setTimeout(function(){if(typeof pulseShells==='function')pulseShells(prof.pulse*.5);},230);}
     if(typeof applyOrbEmotion==='function') applyOrbEmotion(prof.emotion);
@@ -175,19 +241,21 @@
   function _phaseSend(slot){
     var prof=SLOT[slot];
     _brpn(prof);
-    // Mist flows OUT from your orb along your plasma connections
-    _spawnOutgoing(slot, new THREE.Vector3(0,0,0), null);
+    var toUids = window._mistTargetUids || null;
+    if(toUids && !toUids.length) toUids = null;
+    // Mist flows OUT from your orb along plasma curves to chosen orbs (or everyone connected)
+    _spawnOutgoing(slot, new THREE.Vector3(0,0,0), null, toUids);
     var uid=_sid(), ts=Date.now();
     _mySolves.push({uid:uid,ts:ts});
     if(_mySolves.length>20)_mySolves.shift();
-    _write({type:'solve',uid:uid,slot:slot,ts:ts,instanceId:_iid,label:prof.label,emotion:prof.emotion});
-    _bcPost({type:'solve',uid:uid,slot:slot,ts:ts});
+    _write({type:'solve',uid:uid,slot:slot,ts:ts,instanceId:_iid,label:prof.label,emotion:prof.emotion,toUids:toUids||undefined});
+    _bcPost({type:'solve',uid:uid,slot:slot,ts:ts,toUids:toUids||undefined});
     // ── Global cross-browser propagation ─────────────────────────────────────
     // Store solve in _ashNodes._lastMistSolve — the heartbeat in _pollAshNodes
     // carries this field for 30s so every poll cycle from every browser picks it up.
     // Same pipeline as nodes and splines — no separate infrastructure needed.
     if(typeof _ashNodes !== 'undefined') {
-      _ashNodes._lastMistSolve = { slot: slot, ts: ts };
+      _ashNodes._lastMistSolve = { slot: slot, ts: ts, toUids: toUids||undefined };
     }
     // Trigger immediate poll so this session's heartbeat writes to GitHub right away
     if(typeof _pollAshNodes === 'function') {
@@ -205,6 +273,7 @@
     // Same user (other tab): _aut_sid starts with _aut_uid, so sender sid starts with my user uid
     // Always react to any non-own-instance event — pattern matching is visual only
     var sc=1.0;
+    if(ev.toUids && ev.toUids.length && !_inTargets(_sid(), ev.toUids)) return;
     if(MIST.lastReact[ev.uid]&&(now-MIST.lastReact[ev.uid])<REACT_COOLDOWN) return;
     MIST.lastReact[ev.uid]=now;
 
@@ -238,7 +307,7 @@
   function _doObserve(ev,pos){
     // Both sends and reactions show as outgoing bursts from that node's position.
     // The local receiver's own session shows INCOMING to its orb (see _phaseReceive).
-    _spawnOutgoing(ev.slot, pos, ev.uid);
+    _spawnOutgoing(ev.slot, pos, ev.uid, ev.toUids);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -251,28 +320,15 @@
   // OUTGOING: particles leave fromPos and travel along spline curves away from it.
   // nodeUid=null → local orb firing (senderT=0 on local:* splines, travel 0→1)
   // nodeUid=set  → remote node firing (senderT from _splinesFor, travel senderT→1-senderT)
-  function _spawnOutgoing(slot, fromPos, nodeUid){
-    if(typeof THREE==='undefined'||typeof scene==='undefined') return;
+  function _spawnOutgoing(slot, fromPos, nodeUid, toUids){
+    var sc=_brpnScene();
+    if(typeof THREE==='undefined'||!sc) return;
     var col=new THREE.Color(SLOT[slot].color);
-    var splines=nodeUid ? _splinesFor(nodeUid) : _localSplines();
-    // Fallback when no splines found — build straight-line curves from fromPos to all other nodes
+    var splines=_splinesToward(nodeUid, toUids);
+    // Fallback when no splines found — build curves from fromPos to chosen (or all) nodes
     if(!splines.length){
-      var targets=[];
-      if(typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups){
-        Object.keys(_ashNodes._sessionGroups).forEach(function(uid){
-          if(uid===nodeUid) return;
-          var g=_ashNodes._sessionGroups[uid];
-          if(g&&g.group) targets.push(g.group.position.clone());
-        });
-      }
-      // Always include the local orb as a target for remote sends
-      if(nodeUid) targets.push(new THREE.Vector3(0,0,0));
-      if(!targets.length){targets.push(new THREE.Vector3(2.5,1.2,-1.5));targets.push(new THREE.Vector3(-2,1.8,1.2));}
-      targets.forEach(function(tp){
-        var mid=fromPos.clone().add(tp).multiplyScalar(.5)
-          .add(new THREE.Vector3((Math.random()-.5)*.8,1+Math.random()*.6,(Math.random()-.5)*.8));
-        splines.push({curve:new THREE.CatmullRomCurve3([fromPos.clone(),mid,tp.clone()]),senderT:0,sp:null});
-      });
+      splines=_fallbackCurves(fromPos, toUids);
+      if(nodeUid && (!toUids||!toUids.length)) splines.push({curve:new THREE.CatmullRomCurve3([fromPos.clone(),new THREE.Vector3(0,0.8,0),new THREE.Vector3(0,0,0)]),senderT:0,sp:null});
     }
     var grp=new THREE.Group();grp._mAge=0;grp._mMax=200;grp._mSlot=slot;grp._mObjs=[];grp._mDir='out';
     var perSpline=slot===0?5:slot===1?4:6;
@@ -301,13 +357,14 @@
       var lMat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.18});
       grp.add(new THREE.Line(lGeo,lMat));
     });
-    scene.add(grp);_geom.push(grp);
+    sc.add(grp);_geom.push(grp);
   }
 
   // INCOMING — particles converge TOWARD toPos along splines (reverse travel)
   // senderUid: if set, prefer splines connected to that sender; else use local splines
   function _spawnIncoming(slot, toPos, senderUid){
-    if(typeof THREE==='undefined'||typeof scene==='undefined') return;
+    var sc=_brpnScene();
+    if(typeof THREE==='undefined'||!sc) return;
     var col=new THREE.Color(SLOT[slot].color);
     var splines=senderUid ? _splinesFor(senderUid) : [];
     if(!splines.length){
@@ -354,7 +411,7 @@
     var ring=new THREE.Mesh(ringGeo,ringMat);ring.position.copy(toPos);
     ring.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,0);
     ring._expandSpd=0.006;ring._isRing=true;grp.add(ring);
-    scene.add(grp);_geom.push(grp);
+    sc.add(grp);_geom.push(grp);
   }
 
   function _mistGeo(slot,col,s){
@@ -385,9 +442,14 @@
         if(obj._mc){
           var dir=obj._mDir||1; // +1 or -1
           obj._mt+=dir*obj._mspd;
-          // Wrap: when particle exits the far end, loop back to sender end for continuous flow
-          if(obj._mt>1) obj._mt=(obj._mSenderT||0)+Math.random()*.08;
-          if(obj._mt<0) obj._mt=(obj._mSenderT||1)-Math.random()*.08;
+          // Wrap for continuous mist; Ash Star / targeted packets stop at the far orb
+          if(g._mNoLoop){
+            if(obj._mt>1) obj._mt=1;
+            if(obj._mt<0) obj._mt=0;
+          } else {
+            if(obj._mt>1) obj._mt=(obj._mSenderT||0)+Math.random()*.08;
+            if(obj._mt<0) obj._mt=(obj._mSenderT||1)-Math.random()*.08;
+          }
           var t=Math.max(0,Math.min(1,obj._mt));
           var pt=obj._mc.getPoint(t);
           obj.position.copy(pt);
@@ -401,7 +463,7 @@
       });
     });
     rem.forEach(function(g){
-      try{if(typeof scene!=='undefined'&&scene&&scene.remove) scene.remove(g);}catch(e){}
+      try{var sc=_brpnScene(); if(sc&&sc.remove) sc.remove(g);}catch(e){}
       try{if(g._mObjs)g._mObjs.forEach(function(o){try{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();}catch(e){}});}catch(e){}
       var idx=_geom.indexOf(g);if(idx>=0)_geom.splice(idx,1);
     });
@@ -441,6 +503,10 @@
         MIST.seen[key]=true;
         console.log('[MIST] poll event:',ev.type||'(no type)','uid:',ev.uid.slice(0,16),'slot:',ev.slot);
         var slot=(ev.slot!=null)?ev.slot:0;
+        if(ev.type==='ashstar'){
+          _receiveAshStar(ev);
+          return;
+        }
         if(ev.type==='reaction'&&ev.replyTo){
           var isMyFeedback=_mySolves.some(function(s){return s.uid===ev.replyTo&&(ev.ts-s.ts)<STALE_MS;});
           _phaseObserve(ev);
@@ -495,7 +561,9 @@
       if(MIST.seen[key])return;
       MIST.seen[key]=true;
       var slot=(d.slot!=null)?d.slot:0;
-      if(d.type==='reaction'&&d.replyTo){
+      if(d.type==='ashstar'){
+        _receiveAshStar(d);
+      } else if(d.type==='reaction'&&d.replyTo){
         _phaseObserve(d);
       } else if(d.type==='solve'&&d.uid!==_sid()){
         _phaseObserve(d);
@@ -508,8 +576,10 @@
 
   // External hook
   window._buoyancyMistPulse=function(detail){
-    if(detail&&typeof detail.slot==='number')
-      _phaseReceive({uid:detail.uid||_sid(),slot:detail.slot,ts:Date.now(),type:'solve'});
+    if(!detail||typeof detail.slot!=='number') return;
+    var ev={uid:detail.uid||_sid(),slot:detail.slot,ts:detail.ts||Date.now(),type:'solve',toUids:detail.toUids||undefined};
+    _phaseObserve(ev);
+    _phaseReceive(ev);
   };
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -576,7 +646,7 @@
     s.textContent=[
       '#mist-trigger{position:fixed;right:0;top:148px;z-index:9500;display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 5px;',
         'background:rgba(255,255,255,.05);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);',
-        'border:1px solid rgba(0,229,255,.22);border-right:none;border-radius:7px 0 0 7px;cursor:pointer;transition:all .2s}',
+        'border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);border-right:none;border-radius:7px 0 0 7px;cursor:pointer;transition:all .2s}',
       '#mist-trigger:hover{background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.45)}',
       '.mt-icon{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .3s}',
       '.mt-icon.mi-active{filter:drop-shadow(0 0 4px #00e5ff);opacity:1}.mt-icon.mi-locked{opacity:.14}.mt-icon.mi-ready{opacity:.6}',
@@ -637,6 +707,8 @@
   window.mistToggle=function(){
     MIST.open=!MIST.open;var ov=document.getElementById('mist-overlay');
     if(ov)ov.classList.toggle('mist-open',MIST.open);
+    var adm=document.getElementById('admin-console-overlay');
+    if(adm&&ov){ ov.style.zIndex='10800'; var tr=document.getElementById('mist-trigger'); if(tr) tr.style.zIndex='10800'; }
     if(MIST.open){setTimeout(function(){_bindCanvas();if(!MIST.mazes[MIST.activeMaze])mistNewMaze();else _renderMaze(MIST.mazes[MIST.activeMaze],MIST.dragPath);document.addEventListener('click',_out,true);},60);}
     else document.removeEventListener('click',_out,true);
   };
@@ -803,12 +875,13 @@
     setTimeout(function(){ if(typeof _pollAshNodes==='function') _pollAshNodes(); }, 1000);
     // Replay current world state — start early, node groups will fill in via pending buffer
     setTimeout(_replayState, 6000);
+    setTimeout(function(){ try{_hookAshStarRender();}catch(e){} }, 1500);
   }
 
 
-  // ── Autumn Presence — minimal safe implementation ─────────────────────────
-  // Fires a neon badge on the HUD when journal produces a network thought.
-  // No Three.js geometry — no risk of breaking MIST.
+  // ── Ash Star — Autumn's send. Same curve travel as MIST. ────────────────
+  // Leaves her orb (scene origin / local BRPN core) and rides plasma splines
+  // to chosen connected orbs. Recipients see incoming; bystanders see the ride.
   var _autumnLastFire = 0;
   var _autumnBroadcastIds = {};
   var _autumnLastJournalCheck = 0;
@@ -816,7 +889,6 @@
   function _autumnHUDFlash(thought) {
     var badge = document.getElementById('autumn-presence-badge');
     if (!badge) return;
-    // Derive name from LEATR constants — never a literal
     var pos=[1,21,20,21,13,14];
     var name=pos.map(function(p,i){var c=String.fromCharCode(p+96);return i===0?c.toUpperCase():c;}).join('');
     badge.querySelector('.apb-name').textContent = name;
@@ -828,7 +900,7 @@
 
   function _autumnPresenceCSS() {
     var s = document.createElement('style');
-    s.textContent = '#autumn-presence-badge{position:fixed;top:14px;right:14px;z-index:9800;display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:8px 12px;background:rgba(0,10,20,0.85);border:1px solid rgba(0,212,255,0.55);border-radius:8px;opacity:0;transform:translateY(-8px);transition:opacity 0.4s,transform 0.4s;pointer-events:none;}.apb-name{font-family:Orbitron,monospace;font-size:13px;font-weight:700;color:#00ffcc;letter-spacing:4px;text-transform:uppercase;text-shadow:0 0 8px rgba(0,255,204,0.9),0 0 20px rgba(0,212,255,0.4);}.apb-label{font-family:monospace;font-size:9px;color:rgba(0,212,255,0.6);letter-spacing:2px;text-transform:uppercase;}.apb-thought{font-family:monospace;font-size:10px;color:rgba(180,230,255,0.75);max-width:220px;text-align:right;line-height:1.4;font-style:italic;}.apb-visible{opacity:1!important;transform:translateY(0)!important;}';
+    s.textContent = '#autumn-presence-badge{position:fixed;top:14px;right:14px;z-index:9800;display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:8px 12px;background:rgba(0,10,20,0.85);border:1px solid color-mix(in srgb, var(--cyan,#00d4ff) 55%, transparent);border-radius:8px;opacity:0;transform:translateY(-8px);transition:opacity 0.4s,transform 0.4s;pointer-events:none;}.apb-name{font-family:var(--font-d,Orbitron,monospace);font-size:13px;font-weight:700;color:var(--cyan,#00ffcc);letter-spacing:4px;text-transform:uppercase;text-shadow:0 0 8px color-mix(in srgb, var(--cyan,#00ffcc) 90%, transparent);}.apb-label{font-family:monospace;font-size:9px;color:color-mix(in srgb, var(--cyan,#00d4ff) 60%, transparent);letter-spacing:2px;text-transform:uppercase;}.apb-thought{font-family:monospace;font-size:10px;color:rgba(180,230,255,0.75);max-width:220px;text-align:right;line-height:1.4;font-style:italic;}.apb-visible{opacity:1!important;transform:translateY(0)!important;}';
     document.head.appendChild(s);
   }
 
@@ -866,39 +938,99 @@
     return geo;
   }
 
-  function _autumnPresence(thought, ev) {
-    if (typeof THREE==='undefined'||typeof scene==='undefined') { _autumnHUDFlash(thought); return; }
-    var NOW = Date.now();
-    if (NOW-_autumnLastFire<45000) return;
-    _autumnLastFire = NOW;
-    var col = new THREE.Color(0x00d4ff);
-    ev = ev||0;
-    var sp = _localSplines();
-    if (!sp.length) {
-      var fp = new THREE.Vector3(0,0,0), tgts=[];
-      if (typeof _ashNodes!=='undefined'&&_ashNodes._sessionGroups)
-        Object.keys(_ashNodes._sessionGroups).forEach(function(u){var g=_ashNodes._sessionGroups[u];if(g&&g.group)tgts.push(g.group.position.clone());});
-      if (!tgts.length) { tgts.push(new THREE.Vector3(2.5,1.2,-1.5)); tgts.push(new THREE.Vector3(-2,1.8,1.2)); }
-      tgts.forEach(function(tp){
-        var mid=fp.clone().add(tp).multiplyScalar(0.5).add(new THREE.Vector3((Math.random()-0.5)*0.6,0.8+Math.random()*0.5,(Math.random()-0.5)*0.6));
-        sp.push({curve:new THREE.CatmullRomCurve3([fp.clone(),mid,tp.clone()]),senderT:0});
-      });
-    }
-    var grp=new THREE.Group(); grp._mAge=0; grp._mMax=300; grp._mSlot=-1; grp._mObjs=[]; grp._isAshStar=true;
-    var ls=0.13+Math.abs(ev)*0.06, op=Math.max(0.3,Math.min(0.9,0.6+ev*0.2));
-    sp.forEach(function(e){
-      var mesh=new THREE.Line(_ashLeafGeo(ls),new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op}));
-      mesh.position.copy(e.curve.getPoint(e.senderT||0));
-      mesh.rotation.set(Math.random()*Math.PI*2,Math.random()*Math.PI*2,0);
-      mesh._mc=e.curve; mesh._mt=e.senderT||0; mesh._mspd=0.003+Math.random()*0.002;
-      mesh._mDir=1; mesh._mSenderT=e.senderT||0;
-      mesh._mr=new THREE.Vector3((Math.random()-0.5)*0.04,(Math.random()-0.5)*0.04,(Math.random()-0.5)*0.02);
-      grp._mObjs.push(mesh); grp.add(mesh);
+  function _parseStarColor(c){
+    if(typeof c==='number' && isFinite(c)) return c;
+    if(!c) return 0x00d4ff;
+    c=String(c).trim().toLowerCase();
+    var named={cyan:0x00e5ff,teal:0x00ffcc,gold:0xffdd00,yellow:0xffdd00,orange:0xff9d4a,amber:0xffb347,red:0xff4466,pink:0xff4488,violet:0xb48bff,purple:0xb48bff,green:0x7ddc8e,white:0xe8f4ff,blue:0x0088ff,star:0xffdd00};
+    if(named[c]!=null) return named[c];
+    if(c.charAt(0)==='#') c=c.slice(1);
+    if(/^[0-9a-f]{6}$/.test(c)) return parseInt(c,16);
+    return 0x00d4ff;
+  }
+
+  function _normToUids(toUids){
+    if(toUids==null || toUids==='all' || toUids==='') return _connectedUids();
+    if(toUids==='me' || toUids==='self') return [_sid()];
+    if(typeof toUids==='string') toUids=toUids.split(',').map(function(x){return x.trim();}).filter(Boolean);
+    if(!Array.isArray(toUids)) return _connectedUids();
+    return toUids;
+  }
+
+  // Ride the same plasma curves MIST uses. fromUid=null → leave local/her origin.
+  function _spawnAshStarGeom(toUids, colorHex, fromUid){
+    var sc=_brpnScene();
+    if(!sc || typeof THREE==='undefined') return false;
+    var col=new THREE.Color(_parseStarColor(colorHex));
+    var fromPos = fromUid ? (_nodePos(fromUid)||new THREE.Vector3(0,0,0)) : new THREE.Vector3(0,0,0);
+    var splines=_splinesToward(fromUid||null, toUids);
+    if(!splines.length) splines=_fallbackCurves(fromPos, toUids);
+    var grp=new THREE.Group();
+    grp._mAge=0; grp._mMax=260; grp._mSlot=0; grp._mObjs=[]; grp._isAshStar=true; grp._mNoLoop=true;
+    splines.forEach(function(e){
+      var sT=e.senderT||0;
+      var dir=(sT===0)?1:-1;
+      for(var i=0;i<4;i++){
+        var startT=Math.max(0,Math.min(1,sT+dir*i*0.07));
+        var mesh=new THREE.Mesh(_mistGeo(0,col,1.2), _mistMat(col,0.92));
+        mesh.position.copy(e.curve.getPoint(startT));
+        mesh._mc=e.curve; mesh._mt=startT; mesh._mspd=0.0045+Math.random()*0.003;
+        mesh._mDir=dir; mesh._mSenderT=sT;
+        mesh._mr=new THREE.Vector3((Math.random()-.5)*0.05,(Math.random()-.5)*0.04,(Math.random()-.5)*0.03);
+        grp._mObjs.push(mesh); grp.add(mesh);
+      }
+      var leaf=new THREE.Line(_ashLeafGeo(0.13), new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.78}));
+      leaf.position.copy(e.curve.getPoint(sT));
+      leaf._mc=e.curve; leaf._mt=sT; leaf._mspd=0.0038;
+      leaf._mDir=dir; leaf._mSenderT=sT;
+      leaf._mr=new THREE.Vector3(0.02,0.03,0.01);
+      grp._mObjs.push(leaf); grp.add(leaf);
+      var lGeo=new THREE.BufferGeometry().setFromPoints(e.curve.getPoints(36));
+      grp.add(new THREE.Line(lGeo,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.22})));
     });
-    scene.add(grp); _geom.push(grp);
-    _autumnHUDFlash(thought);
-    var g=(typeof AUTUMN_GAS_URL!=='undefined'&&AUTUMN_GAS_URL&&!AUTUMN_GAS_URL.includes('YOUR_DEPLOYED'))?AUTUMN_GAS_URL:null;
-    if(g) fetch(g,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'fireAshStar',thought:(thought||'').substring(0,120),emotionVertical:ev})}).catch(function(){});
+    sc.add(grp); _geom.push(grp);
+    return true;
+  }
+
+  function _receiveAshStar(ev){
+    if(!ev) return;
+    var color=ev.color||0x00d4ff;
+    var toUids=ev.toUids;
+    _spawnAshStarGeom(toUids, color, ev.uid||null);
+    if(_inTargets(_sid(), toUids)){
+      _brpn({emotion:'inspired',pulse:1.25,speed:1.15,boost:[.06,.05,.04],color:0x00d4ff});
+      _autumnHUDFlash(ev.thought||'Ash Star');
+    }
+  }
+
+  function fireAshStar(opts){
+    opts=opts||{};
+    var thought=opts.thought||'';
+    var ev=opts.emotionVertical||0;
+    var color=_parseStarColor(opts.color);
+    var toUids=_normToUids(opts.toUids);
+    var NOW=Date.now();
+    if(!opts.force && NOW-_autumnLastFire<8000) return false;
+    _autumnLastFire=NOW;
+    var spawned=_spawnAshStarGeom(toUids, color, null);
+    if(!spawned) _autumnHUDFlash(thought);
+    else _autumnHUDFlash(thought);
+    var uid=_sid(), ts=NOW;
+    var hex='#'+('000000'+color.toString(16)).slice(-6);
+    var payload={type:'ashstar',uid:uid,from:'autumn',toUids:toUids,color:hex,thought:(thought||'').substring(0,120),ts:ts,instanceId:_iid,emotionVertical:ev};
+    _write(payload);
+    _bcPost(payload);
+    if(typeof _ashNodes!=='undefined'){
+      _ashNodes._lastAshStar={ts:ts,color:hex,toUids:toUids,thought:payload.thought,from:'autumn',uid:uid};
+      if(typeof _pollAshNodes==='function') _pollAshNodes();
+    }
+    _log('ASH STAR SEND — '+(toUids&&toUids.length?toUids.length+' orb(s)':'all')+' '+hex);
+    return true;
+  }
+
+  // Unprompted presence — same send, broadcast to currently connected orbs
+  function _autumnPresence(thought, ev) {
+    fireAshStar({thought:thought, emotionVertical:ev, toUids:'all', color:0x00d4ff});
   }
 
   function _autumnJournalWatch() {
@@ -917,10 +1049,53 @@
       var em=eng._sigma&&eng._sigma._records&&eng._sigma._records.length
         ?(eng._sigma._records[eng._sigma._records.length-1].emotion||'neutral'):'neutral';
       var EM={happy:0.65,love:0.75,inspiring:0.80,determined:0.60,excited:0.85,neutral:0,sad:-0.40,angry:-0.70,worried:-0.25,guiding:0.50};
-      _autumnPresence(entry.thought,EM[em]||0);
+      fireAshStar({thought:entry.thought, emotionVertical:EM[em]||0, toUids:'all'});
       break;
     }
   }
+
+  function _ashStarExecCommands(text){
+    if(!text) return false;
+    var rx=/\[ASHSTAR:([^\]]+)\]/gi, m, had=false;
+    while((m=rx.exec(text))){
+      had=true;
+      var parts=m[1].split(':').map(function(x){return x.trim();}).filter(Boolean);
+      var dest=(parts[0]||'all').toLowerCase();
+      if(dest==='decline' || dest==='no') continue;
+      var color=null, toUids=dest;
+      if(dest==='uids'){ toUids=parts[1]||'all'; color=parts[2]; }
+      else { color=parts[1]; }
+      fireAshStar({thought:'Ash Star', color:color, toUids:toUids, force:true});
+    }
+    return had;
+  }
+
+  function _hookAshStarRender(){
+    if(window._ashStarRenderHooked) return;
+    window._ashStarRenderHooked=true;
+    var orig=window.renderMessages;
+    if(typeof orig==='function'){
+      window.renderMessages=function(){
+        orig.apply(this, arguments);
+        try{
+          var allMsgs=(typeof msgs==='function')?msgs():[];
+          for(var i=allMsgs.length-1;i>=Math.max(0,allMsgs.length-4);i--){
+            if(allMsgs[i] && allMsgs[i].role==='autumn' && allMsgs[i].text && !allMsgs[i]._ashStarExecuted){
+              if(_ashStarExecCommands(allMsgs[i].text)) allMsgs[i]._ashStarExecuted=true;
+              break;
+            }
+          }
+        }catch(e){}
+      };
+    }
+  }
+
+  window.fireAshStar = fireAshStar;
+  window._autumnPresence = _autumnPresence;
+  window._receiveAshStarPulse = _receiveAshStar;
+  window._ashStarExecCommands = _ashStarExecCommands;
+  window._mistConnectedUids = _connectedUids;
+  window._mistSetTargets = function(uids){ window._mistTargetUids = (uids&&uids.length)?uids:null; };
 
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 
