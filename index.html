@@ -1437,6 +1437,62 @@ body.theme-ashtree .glass,body.theme-ashtree .msg-autumn{
   background:rgba(4,14,6,0.72);border-color:rgba(80,200,100,0.16);
 }
 body.theme-ashtree ::-webkit-scrollbar-thumb{background:rgba(80,200,100,.28)}
+
+/* ── Void theme — Grok-style dark business, solid black + identity watermark ── */
+html[data-aut-theme="void"],html[data-aut-theme="void"] body{background:#000;}
+html[data-aut-theme="void"] #backdrop-video{opacity:0!important;visibility:hidden;}
+html[data-aut-theme="void"] #vid-scrim{background:#000!important;}
+body.theme-void{
+  --cyan:#9ec4d4;--blue:#7aa8c0;--red:#c45a6a;
+  --bg:#000000;--bg2:#0a0a0a;
+  --border:rgba(255,255,255,0.08);
+  --text:#e8eaed;--dim:#8b9198;--bright:#f1f3f4;
+  --tt-color:#c5cad0;
+  background:#000;
+}
+body.theme-void header{
+  background:#000;
+  border-bottom-color:rgba(255,255,255,0.08);
+}
+body.theme-void #vid-scrim{
+  background:#000!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+body.theme-void #backdrop-video{opacity:0!important;visibility:hidden;}
+body.theme-void .ov-grid{opacity:0!important;}
+body.theme-void .logo{
+  background:linear-gradient(135deg,#e8eaed 0%,#9ec4d4 55%,#7aa8c0 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 6px rgba(200,210,220,0.25));
+}
+body.theme-void .chat-bubble,body.theme-void .msg-wrap{
+  background:rgba(18,18,20,0.92)!important;
+  border-color:rgba(255,255,255,0.08)!important;
+}
+body.theme-void .msg.user .bubble{
+  background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
+  border-color:rgba(255,255,255,.12);
+}
+body.theme-void .msg.autumn .bubble{
+  background:linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+  border-color:rgba(255,255,255,.08);
+}
+body.theme-void #input-area{background:rgba(0,0,0,.88);border-top-color:rgba(255,255,255,.08);}
+body.theme-void #input-pill{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1);}
+body.theme-void #brpn-region{border-bottom-color:rgba(255,255,255,0.08)}
+body.theme-void #multi-user-bar{border-top-color:rgba(255,255,255,0.08)}
+body.theme-void .glass,body.theme-void .msg-autumn{
+  background:rgba(16,16,18,0.88);border-color:rgba(255,255,255,0.08);
+}
+body.theme-void ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18)}
+#chat-void-mark{
+  display:none;position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:url(assets/autumn_identity_logo.png) center 46% / min(78%,560px) no-repeat;
+  opacity:0.08;filter:grayscale(0.2) brightness(1.2);
+}
+body.theme-void #chat-void-mark{display:block;}
+body.theme-void #chat-scroll{position:relative;z-index:1;background:transparent;}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden}
 body{background:transparent;font-family:var(--font-b);color:var(--text);display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
@@ -1594,7 +1650,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #ctx-bar.show{opacity:1}
 #ctx-label{position:absolute;top:28px;left:10px;z-index:9;font-size:.4rem;font-family:var(--font-d);letter-spacing:2px;color:rgba(0,255,204,.3);pointer-events:none}
 /* Chat region */
-#chat-region{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#chat-region{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;position:relative}
 #chat-scroll{flex:1;overflow-y:auto;padding:14px 14px 8px;display:flex;flex-direction:column;gap:12px;min-height:0}
 #scroll-to-top,#scroll-to-bottom{position:fixed;right:16px;z-index:800;width:36px;height:36px;border-radius:50%;border:1px solid rgba(0,229,255,.3);background:rgba(2,14,28,.85);backdrop-filter:blur(8px);color:var(--cyan);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;opacity:0;pointer-events:none;box-shadow:0 2px 12px rgba(0,229,255,.15)}
 #scroll-to-top{bottom:120px}
@@ -2693,7 +2749,7 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js?v=2026082701"></script>
-<script src="js/autumn-grammar-engine.js?v=20260828h"></script>
+<script src="js/autumn-grammar-engine.js?v=20260828i"></script>
 <link rel="stylesheet" href="css/desktop-layout.css">
 <script src="js/desktop-layout.js"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
@@ -2875,6 +2931,15 @@ header {
 }
 </style>
 </head>
+<script>
+(function(){
+  var k=null;
+  try{var m=document.cookie.match(/aut_theme=([a-z]+)/); if(m)k=m[1];}catch(e){}
+  if(!k){try{k=localStorage.getItem('aut_theme');}catch(e){}}
+  if(!k) k='void';
+  document.documentElement.setAttribute('data-aut-theme', k);
+})();
+</script>
 <body>
 
 <!-- ░░ BACKDROP VIDEO ░░ -->
@@ -3461,6 +3526,7 @@ header {
 
   <!-- Chat -->
   <div id="chat-region">
+    <div id="chat-void-mark" aria-hidden="true"></div>
     <div id="chat-scroll"></div>
     <button id="scroll-to-top" onclick="document.getElementById('chat-scroll').scrollTo({top:0,behavior:'smooth'})" title="Scroll to top">↑</button>
     <button id="scroll-to-bottom" onclick="document.getElementById('chat-scroll').scrollTo({top:999999,behavior:'smooth'})" title="Scroll to bottom">↓</button>
@@ -10847,8 +10913,18 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     return;
   }
 
-  // ── Maze widget: check before IMAGE_GEN so "generate a cubic maze" routes correctly ──
-  if (!_pendingImgs.length && detectMazeRequest(augmentedText)) {
+  // ── Orb maze cube (BRPN core) — never Maze Studio ──
+  var _cubeAct = typeof detectOrbCubeIntent==='function' ? detectOrbCubeIntent(augmentedText) : null;
+  if (_cubeAct) {
+    try {
+      if (_cubeAct==='solve' && typeof window.solveOrbMazeCube==='function') window.solveOrbMazeCube();
+      else if (_cubeAct==='new' && typeof window.regenOrbMazeCube==='function') window.regenOrbMazeCube();
+      else if (_cubeAct==='out' && typeof window.dollyOutOrbCube==='function') window.dollyOutOrbCube();
+    } catch(_ce) {}
+  }
+
+  // ── Maze Studio widget: ONLY explicit make/generate/design/build + maze ──
+  if (!_pendingImgs.length && !_cubeAct && detectMazeRequest(augmentedText)) {
     const _rm = await autumnReflex(augmentedText,'default').catch(function(){ return {}; });
     S.lastReflex = _rm;
     try { S.journal.push(createJournalEntry(augmentedText, analysis, _rm)); } catch(e) {}
@@ -11699,16 +11775,45 @@ function destroyAllMazeWidgets() {
 }
 
 const MAZE_TRIGGERS = [
-  "make me a maze","generate a maze","show me a maze","create a maze","build a maze",
-  "maze please","give me a maze","maze for me","show a maze","display a maze",
-  "3d maze","draw me a maze","render a maze","maze generator","a maze",
-  "cubic maze","planar maze","generate maze","make maze","new maze",
-  "solve the maze","pathfind","show maze","maze tool","labyrinth"
+  "make me a maze","generate a maze","create a maze","build a maze","design a maze",
+  "draw me a maze","render a maze","generate maze","make maze","create maze","build maze",
+  "open maze studio","use maze studio","open lead edge","use lead edge","maze studio"
 ];
 
+function detectOrbCubeIntent(input) {
+  const l = String(input||'').toLowerCase();
+  if (/ash\s*star/.test(l)) return null;
+  if (/\b(pull out|zoom out|back out|back to the orb|leave the cube|full (orb|scene|view)|dolly out)\b/.test(l))
+    return 'out';
+  if (typeof window!=='undefined' && typeof window.isOrbCubeLooking==='function' && window.isOrbCubeLooking() &&
+      /^(i'?m done|im done|that'?s enough|thats enough)\b/.test(l.trim()))
+    return 'out';
+  if (/\b(new|another|fresh|regenerate|regen)\b/.test(l) && /\b(cube|orb maze|maze cube)\b/.test(l))
+    return 'new';
+  if (/\b(generate|make|build)\b/.test(l) && /\b(maze cube|cube)\b/.test(l) && /\b(orb|realtime|real-time|shell|my)\b/.test(l))
+    return 'new';
+  if (/\bsolve my (maze |realtime |real-time )?(cube|orb)\b/.test(l)) return 'solve';
+  if (/\b(solve|show|dolly|zoom in|look at|watch)\b/.test(l) &&
+      /\b(cube|maze cube|orb maze|maze in (the |my )?orb|realtime orb|real-time orb|my orb)\b/.test(l))
+    return 'solve';
+  return null;
+}
+
+function detectMazeStudioIntent(input) {
+  const l = String(input||'').toLowerCase();
+  if (detectOrbCubeIntent(l)) return false;
+  if (/ash\s*star/.test(l)) return false;
+  if (/\b(maze studio|lemac)\b/.test(l) && /\b(open|use|launch|start|show|make|generate|design|build|create)\b/.test(l)) return true;
+  if (/\b(open|use|launch|start)\b/.test(l) && /\b(lead edge|maze studio)\b/.test(l)) return true;
+  const mazeNoun = /\bmaze\b/.test(l);
+  if (!mazeNoun) return false;
+  if (/\b(cube|orb|realtime|real-time|shell|buoyancy)\b/.test(l)) return false;
+  const studioVerb = /\b(make|generate|design|build|create|draw|render)\b/.test(l);
+  return studioVerb;
+}
+
 function detectMazeRequest(input) {
-  const l = input.toLowerCase();
-  return MAZE_TRIGGERS.some(t => l.includes(t));
+  return detectMazeStudioIntent(input);
 }
 
 function chatMazeGenGrid(w, h, d) {
@@ -12733,6 +12838,7 @@ let orbThinking=false;
 let toolShapeGroups={};   // knife, stick, hammer, envelope, scissors groups
 let mazeOrbGroup=null;    // THREE.Group for the core maze
 let mazeOrbState={grid:null,width:7,height:7,depth:7,solution:[],pathMeshes:[],frame:0,solveStep:0,solveActive:false,regenTimer:0};
+let _orbCam={mode:'wide',looking:false,idle:0,postSolveIdle:0,postRegenIdle:0,home:{x:0,y:1.5,z:5},close:{x:0,y:0.32,z:1.38}};
 let toolSeqIndex=0;       // which tool shape is currently spawning
 let toolSeqTimer=0;
 let orbFrame=0;
@@ -13139,16 +13245,22 @@ function initBRPN() {
       rotY+=(e.clientX-prevX)*0.005; rotX+=(e.clientY-prevY)*0.005;
       rotX=Math.max(-1.2,Math.min(1.2,rotX));
       prevX=e.clientX; prevY=e.clientY;
+      if(_orbCam.looking) _orbCam.idle=0;
     });
     window.addEventListener("pointerup",()=>{isDrag=false});
   }
-  el.addEventListener("wheel",e=>{camera.position.z=Math.max(2.5,Math.min(10,camera.position.z+e.deltaY*0.005))},{passive:true});
+  el.addEventListener("wheel",e=>{
+    var minZ=_orbCam.looking?0.85:2.5;
+    camera.position.z=Math.max(minZ,Math.min(10,camera.position.z+e.deltaY*0.005));
+    if(_orbCam.looking){ _orbCam.idle=0; _orbCam.postSolveIdle=_orbCam.postSolveIdle?1:0; _orbCam.postRegenIdle=_orbCam.postRegenIdle?1:0; }
+  },{passive:true});
   el.addEventListener("touchstart",e=>{if(e.touches.length===1){isDrag=true;prevX=e.touches[0].clientX;prevY=e.touches[0].clientY}},{passive:true});
   el.addEventListener("touchmove",e=>{
     if(!isDrag||e.touches.length!==1)return;
     rotY+=(e.touches[0].clientX-prevX)*0.005; rotX+=(e.touches[0].clientY-prevY)*0.005;
     rotX=Math.max(-1.2,Math.min(1.2,rotX));
     prevX=e.touches[0].clientX; prevY=e.touches[0].clientY;
+    if(_orbCam.looking) _orbCam.idle=0;
   },{passive:true});
   el.addEventListener("touchend",()=>{isDrag=false},{passive:true});
 
@@ -13200,7 +13312,7 @@ function initBRPN() {
 
     // ── Maze path solve animation ─────────────────────────────────────────
     mazeOrbState.frame++;
-    if(isThinking||shellPulse>0.3){
+    if(!_orbCam.looking && (isThinking||shellPulse>0.3)){
       if(!mazeOrbState.solveActive&&mazeOrbState.solution.length>0){
         mazeOrbState.solveActive=true; mazeOrbState.solveStep=0;
         // Reset path visibility
@@ -13219,13 +13331,19 @@ function initBRPN() {
         mazeOrbState.solveStep++;
       }
       if(mazeOrbState.solveStep>=mazeOrbState.pathMeshes.length){
-        // Path fully solved — wait, then regenerate
         mazeOrbState.solveActive=false;
-        mazeOrbState.regenTimer=isThinking?90:240;
+        if(_orbCam.looking){
+          mazeOrbState.regenTimer=0;
+          _orbCam.postSolveIdle=1;
+          _orbCam.postRegenIdle=0;
+          _orbCam.idle=0;
+        } else {
+          mazeOrbState.regenTimer=isThinking?90:240;
+        }
       }
     }
     // Regen countdown
-    if(mazeOrbState.regenTimer>0){
+    if(!_orbCam.looking && mazeOrbState.regenTimer>0){
       mazeOrbState.regenTimer--;
       if(mazeOrbState.regenTimer===0){
         buildOrbMazeGeometry();
@@ -13386,6 +13504,40 @@ function initBRPN() {
       if(peakFlash > 0) shellPulse = Math.min(shellPulse + 0.18, 1.2);
     }
     if(window._brpnTickMantisNodes) { try{ window._brpnTickMantisNodes(orbFrame); }catch(_te){ console.warn('[BRPN] mantisNodes tick err:',_te.message); } }
+    // ── Orb cube camera dolly (aimed at cube; drag/wheel still work) ──
+    if(_orbCam.mode==='in'){
+      camera.position.x+=(_orbCam.close.x-camera.position.x)*0.07;
+      camera.position.y+=(_orbCam.close.y-camera.position.y)*0.07;
+      camera.position.z+=(_orbCam.close.z-camera.position.z)*0.07;
+      camera.lookAt(0,0,0);
+      if(Math.abs(camera.position.z-_orbCam.close.z)<0.05) _orbCam.mode='hold';
+    } else if(_orbCam.mode==='out'){
+      camera.position.x+=(_orbCam.home.x-camera.position.x)*0.055;
+      camera.position.y+=(_orbCam.home.y-camera.position.y)*0.055;
+      camera.position.z+=(_orbCam.home.z-camera.position.z)*0.055;
+      camera.lookAt(0,0,0);
+      if(Math.abs(camera.position.z-_orbCam.home.z)<0.08){ _orbCam.mode='wide'; _orbCam.looking=false; }
+    } else if(_orbCam.looking){
+      camera.lookAt(0,0,0);
+      _orbCam.idle++;
+      if(_orbCam.postSolveIdle>0){
+        _orbCam.postSolveIdle++;
+        if(_orbCam.postSolveIdle>420){
+          _orbCam.postSolveIdle=0;
+          buildOrbMazeGeometry();
+          _orbCam.postRegenIdle=1;
+          _orbCam.idle=0;
+        }
+      } else if(_orbCam.postRegenIdle>0){
+        _orbCam.postRegenIdle++;
+        if(_orbCam.postRegenIdle>540){
+          _orbCam.postRegenIdle=0;
+          _orbCam.mode='out';
+        }
+      } else if(_orbCam.idle>720 && !mazeOrbState.solveActive){
+        _orbCam.mode='out';
+      }
+    }
     try{ renderer.render(scene,camera); }catch(_re){ console.warn('[BRPN] render err:',_re.message); }
     animId=requestAnimationFrame(animate);
   }
@@ -13554,10 +13706,12 @@ function pulseShells(intensity){
       firstGrp[0].mesh.userData.active=true;
       firstGrp[0].mesh.userData.spawnT=orbFrame;
     }
-    // Trigger maze re-solve
-    mazeOrbState.solveActive=true;
-    mazeOrbState.solveStep=0;
-    mazeOrbState.pathMeshes.forEach(m=>{ if(m&&m.material)m.material.opacity=0; });
+    // Ambient re-solve — skip while the user is dolly-focused on the cube
+    if(!_orbCam.looking){
+      mazeOrbState.solveActive=true;
+      mazeOrbState.solveStep=0;
+      mazeOrbState.pathMeshes.forEach(m=>{ if(m&&m.material)m.material.opacity=0; });
+    }
   }
 }
 
@@ -13578,11 +13732,29 @@ function setOrbThinking(active){
       delay+=180;
     });
   } else {
-    // Trigger final regen of maze on response delivery
-    mazeOrbState.regenTimer=60;
+    if(!_orbCam.looking) mazeOrbState.regenTimer=60;
     pulseShells(0.6);
   }
 }
+
+window.isOrbCubeLooking=function(){ return !!(_orbCam&&_orbCam.looking); };
+window.dollyInOrbCube=function(){
+  _orbCam.looking=true; _orbCam.mode='in'; _orbCam.idle=0; _orbCam.postSolveIdle=0; _orbCam.postRegenIdle=0;
+};
+window.dollyOutOrbCube=function(){
+  if(!_orbCam.looking && _orbCam.mode==='wide') return;
+  _orbCam.mode='out'; _orbCam.postSolveIdle=0; _orbCam.postRegenIdle=0; _orbCam.idle=0;
+};
+window.solveOrbMazeCube=function(){
+  window.dollyInOrbCube();
+  mazeOrbState.solveActive=true; mazeOrbState.solveStep=0; mazeOrbState.regenTimer=0;
+  mazeOrbState.pathMeshes.forEach(function(m){ if(m&&m.material)m.material.opacity=0; });
+};
+window.regenOrbMazeCube=function(){
+  if(typeof buildOrbMazeGeometry==='function') buildOrbMazeGeometry();
+  if(!_orbCam.looking) window.dollyInOrbCube();
+  else { _orbCam.idle=0; _orbCam.postSolveIdle=0; _orbCam.postRegenIdle=1; }
+};
 
 // ============================================================
 //  LEATR-ASH MULTI-USER NODE LAYER  v2
@@ -18476,6 +18648,14 @@ ashLoadDefs();
 (function(){
   const THEMES = [
     {
+      key:   'void',
+      label: 'VOID',
+      dot:   '●',
+      color: '#c5cad0',
+      video: null,
+      bodyClass: 'theme-void'
+    },
+    {
       key:   'day',
       label: 'DAY',
       dot:   '☀',
@@ -18528,8 +18708,10 @@ ashLoadDefs();
   let idx = 0;
 
   function resolveSystemTheme() {
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? THEMES[1] : THEMES[0];
+    var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var night = THEMES.find(function(x){ return x.key==='night'; }) || THEMES[2];
+    var day = THEMES.find(function(x){ return x.key==='day'; }) || THEMES[1];
+    return dark ? night : day;
   }
 
   function applyTheme(t) {
@@ -18541,19 +18723,30 @@ ashLoadDefs();
     const btn   = document.getElementById('theme-toggle');
 
     // Swap body class
-    body.classList.remove('theme-night','theme-stealth','theme-departure','theme-ashtree');
+    body.classList.remove('theme-night','theme-stealth','theme-departure','theme-ashtree','theme-void');
     if (effective.bodyClass) body.classList.add(effective.bodyClass);
 
-    // Swap video with crossfade
-    if (vid && effective.video && vid.getAttribute('src') !== effective.video) {
-      vid.style.transition = 'opacity .6s ease';
-      vid.style.opacity = '0';
-      setTimeout(function() {
-        vid.src = effective.video;
-        vid.load();
-        vid.play().catch(function(){});
-        vid.style.opacity = '1';
-      }, 400);
+    // Swap video with crossfade. Void is solid black — hide the video.
+    if (vid) {
+      vid.style.transition = 'opacity .45s ease';
+      if (effective.video) {
+        vid.style.visibility = 'visible';
+        if (vid.getAttribute('src') !== effective.video) {
+          vid.style.opacity = '0';
+          setTimeout(function() {
+            vid.src = effective.video;
+            vid.load();
+            vid.play().catch(function(){});
+            vid.style.opacity = '1';
+          }, 400);
+        } else {
+          vid.style.opacity = '1';
+          vid.play().catch(function(){});
+        }
+      } else {
+        vid.style.opacity = '0';
+        try { vid.pause(); } catch(e){}
+      }
     }
 
     // Swap header logo image for stealth mode
@@ -18576,6 +18769,9 @@ ashLoadDefs();
       } else if (effective.key === 'ashtree') {
         _logoImg.src = 'assets/autumnashtree.png';
         _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(80,220,100,0.65))';
+      } else if (effective.key === 'void') {
+        _logoImg.src = 'assets/autumn_identity_logo.png';
+        _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(200,210,220,0.28))';
       } else {
         _logoImg.src = 'assets/autumn.png';
         _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(191,0,255,.3))';
@@ -18594,8 +18790,9 @@ ashLoadDefs();
       btn.style.boxShadow   = `0 0 8px ${t.color}22`;
     }
 
-    // Cookie persistence
     try { document.cookie = 'aut_theme=' + t.key + ';path=/;max-age=31536000'; } catch(e){}
+    try { localStorage.setItem('aut_theme', t.key); } catch(e){}
+    try { document.documentElement.setAttribute('data-aut-theme', t.key); } catch(e){}
   }
 
   window.cycleTheme = function() {
@@ -18603,13 +18800,18 @@ ashLoadDefs();
     applyTheme(THEMES[idx]);
   };
 
-  // Read saved cookie on load
   document.addEventListener('DOMContentLoaded', function() {
     try {
+      var key = null;
       var m = document.cookie.match(/aut_theme=([a-z]+)/);
-      if (m) {
-        var saved = THEMES.findIndex(function(t){ return t.key === m[1]; });
+      if (m) key = m[1];
+      if (!key) { try { key = localStorage.getItem('aut_theme'); } catch(e2){} }
+      if (key) {
+        var saved = THEMES.findIndex(function(t){ return t.key === key; });
         if (saved >= 0) idx = saved;
+      } else {
+        var voidIdx = THEMES.findIndex(function(t){ return t.key === 'void'; });
+        if (voidIdx >= 0) idx = voidIdx;
       }
     } catch(e) {}
     applyTheme(THEMES[idx]);
@@ -25407,7 +25609,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 </script>
 
 
-<script src="js/mist-module.js?v=20260828h"></script>
+<script src="js/mist-module.js?v=20260828i"></script>
 <script src="js/ash-shard-module.js"></script>
 <script src="js/hud-tools-module.js?v=20260828c"></script>
 
