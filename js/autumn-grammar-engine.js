@@ -1623,15 +1623,9 @@ class ResponseBuilder {
     }
 
     if (!hasData && !hasPriorMemory) {
-      // Honest boundary — she doesn't have reference data for this topic.
-      // She uses her grammar/LEATR execution to describe what she CAN see:
-      // the structural/lexical properties of the words themselves.
       const lexWords = topics.slice(0,2).join(' and ') || primary;
       const boundaryResponse = [
-        `${primary?primary.charAt(0).toUpperCase()+primary.slice(1):'This topic'} isn't in my reference data yet.`,
-        `What I can process is its grammatical and structural pattern — the word itself carries ${primary?primary.length:0} characters, ` +
-        `${primary?(primary.match(/[aeiou]/g)||[]).length:0} vowels, and its shell analysis routes through the ${lexResult&&lexResult.consensus?lexResult.consensus.finalTool:'MAZE'} layer.`,
-        `When reference data for ${lexWords} becomes available, the pattern is already logged — I'll recognize it and apply the same execution from there.`
+        "I don't know that yet, I'll look."
       ];
       // Log the unknown topic to the journal so the structural hook is stored
       const mem=typeof window!=='undefined'&&window.AutumnGrammarEngine&&
@@ -1799,7 +1793,7 @@ class ResponseBuilder {
       if(wnDef){
         // "Topic — definition — opens the subject."
         const shortDef=wnDef.split('.')[0].toLowerCase().replace(/,\s*$/, '');
-        s1=`${subj} — ${shortDef} — is the subject being addressed here.`;
+        s1=`${subj} is ${shortDef}.`;
       } else if(mods.length>0){
         // "The [modifier] nature of topic is what this concerns."
         s1=`The ${mods[0].toLowerCase()} nature of ${topic} is what this concerns.`;
@@ -1808,7 +1802,7 @@ class ResponseBuilder {
         s1=`${subj} and ${nouns[1]} share structural ground that is worth examining here.`;
       } else {
         // Grammatically complete minimal sentence: "Topic is a subject with precise internal structure."
-        s1=`${subj} is a subject with precise internal structure that the grammar layer can address.`;
+        s1=`I'm with you.`;
       }
     }
     let s2='';
@@ -4916,6 +4910,378 @@ class ANLPCA {
     return out.slice(0, maxSent);
   }
 
+  _NO_WEB_TALK(){
+    return ['ash_star','orb_cube_solve','orb_cube_new','orb_cube_out','maze_studio','story','greeting','presence','thanks','how_feel','how_are_you','farewell','affirmation','negation','activity_offer'];
+  }
+  _noWebTalk(kind){
+    return !kind ? false : this._NO_WEB_TALK().indexOf(kind)>=0;
+  }
+  _hideAnalysis(text){
+    let t = String(text||'');
+    if(!t) return '';
+    t = t.replace(/\bCONVERSATION-GRAMMAR-CONTACTS\b[^.\n]*/gi,'');
+    t = t.replace(/\b(?:SIG_[A-Z0-9]+)\b[^.\n]*/g,'');
+    t = t.replace(/\b(?:FRP|GEO\/MAR\/AERO)\b[^.\n]*/gi,'');
+    t = t.replace(/\b\w+\s+is the subject of that question\.?/gi,'');
+    t = t.replace(/\brepeat is the subject\b/gi,'');
+    t = t.replace(/Geo\s*\([^)]*\)\s*→\s*Mar\s*\([^)]*\)\s*→\s*Aero\s*\([^)]*\)[^|]*/g,'');
+    t = t.replace(/◈\s*(From the Web|Quick Answer):\s*/gi,'');
+    t = t.replace(/\bFrom the Web:\s*/gi,'');
+    t = t.replace(/\bQuick Answer:\s*/gi,'');
+    t = t.replace(/\s+/g,' ').trim();
+    return t;
+  }
+  _isWhoSeek(raw){
+    const s = String(raw||'').toLowerCase();
+    return /\bwho\s+(is|was|are)\b/.test(s) && !/\bwho\s+(are you|is autumn|am i)\b/.test(s);
+  }
+  _isKnowledgeSeek(raw, parsed){
+    const s = String(raw||'').trim().toLowerCase();
+    if(!s) return false;
+    const conv = this._conversationIntent(raw, parsed);
+    if(this._noWebTalk(conv)) return false;
+    if(this._worldIntent && this._worldIntent(s)) return false;
+    if(/\b(who are you|what are you|what is your|what are your|who is autumn|tell me about yourself)\b/.test(s)) return false;
+    if(/\b(what time|what.?s the time|what date|what.?s the date|what day|what year|what month)\b/.test(s)) return false;
+    if(/-?\d+(?:\.\d+)?\s*[\+\-\*\/x×÷]\s*-?\d+/.test(s)) return false;
+    if(/\b(how\s+(do|are)\s+you\s+feel|how are you)\b/.test(s)) return false;
+    if(/\bwho\s+(is|was|are)\b/.test(s)) return true;
+    if(/\bwhat\s+(is|was|are)\b/.test(s) && !/\bwhat\s+(is|are)\s+your\b/.test(s)) return true;
+    if(/\bwhat does\b/.test(s) || /\bstand for\b/.test(s)) return true;
+    if(/\be\s*(equals|=)\s*m\s*c/i.test(s) || /\bmc[\s-]*squared\b/.test(s)) return true;
+    if(/\b(where is|where was|when did|when was|why did|which is)\b/.test(s)) return true;
+    if(/\b(tell me about|look up|looked up|search for|facts about|information about|history of|background on|ever heard of|have you heard of|do you know(?: who| about)?)\b/.test(s)) return true;
+    if(/\b(current events|what.?s happening|latest news|breaking news)\b/.test(s)) return true;
+    if((parsed && parsed.isInterrogative) || /\?/.test(s)){
+      const names = this._extractProperNames(raw);
+      if(names.length) return true;
+      if(/\b(he|him|she|her|they|them)\b/.test(s) && /\b(who|what|tell)\b/.test(s)) return true;
+    }
+    return false;
+  }
+  _pronounGender(p){
+    const n = String(p||'').toLowerCase();
+    if(['he','him','his','himself'].indexOf(n)>=0) return 'm';
+    if(['she','her','hers','herself'].indexOf(n)>=0) return 'f';
+    return 'n';
+  }
+  _pronounObj(p){
+    const n = String(p||'').toLowerCase();
+    if(['he','him','his','himself'].indexOf(n)>=0) return 'him';
+    if(['she','her','hers','herself'].indexOf(n)>=0) return 'her';
+    if(['they','them','their','themselves'].indexOf(n)>=0) return 'them';
+    return 'that';
+  }
+  _entitySlug(name){
+    return String(name||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,48);
+  }
+  _extractProperNames(text){
+    const s = String(text||'');
+    const names = [];
+    const skip = new Set(['the','a','an','i','i\'m','who','what','where','when','why','how','tell','hi','hey','hello','so','well','and','but','please','did','does','do','is','are','was','were','my','your','this','that','ok','okay','yes','no','thanks','thank','autumn','maze','cube','orb']);
+    const re = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,4})\b/g;
+    let m;
+    while((m = re.exec(s))){
+      const name = m[1].trim();
+      const parts = name.split(/\s+/);
+      const first = parts[0].toLowerCase();
+      if(skip.has(first) && parts.length===1) continue;
+      if(name.toLowerCase()==='autumn') continue;
+      if(names.indexOf(name)<0) names.push(name);
+    }
+    return names;
+  }
+  _knowledgeQuery(raw){
+    let s = String(raw||'').trim().replace(/[?!.]+$/,'');
+    const parts = s.split(/[.!;]+/).map(function(x){ return x.trim(); }).filter(Boolean);
+    if(parts.length>1) s = parts[parts.length-1];
+    s = s.replace(/^(please\s+)?(can you |could you |would you )?(tell me about|tell me who|look up|search for|do you know(?: who| about)?|have you heard of|ever heard of|who is|who was|who are|what is|what was|what are|what does|where is|where was|when did|when was|why did|explain|define)\s+/i,'');
+    s = s.replace(/\s+stand for$/i,'');
+    s = s.replace(/^(the|a|an)\s+/i,'');
+    return s.trim();
+  }
+  _lastNamedPerson(facts, gender){
+    const owner = (facts && facts._memoryOwner) || this._userMemoryScope().owner;
+    try {
+      const params = this._habitat && this._habitat.getCoreParameters ? this._habitat.getCoreParameters() : {};
+      const last = params['last_named_entity_'+owner];
+      if(last && last.name) return last.name;
+      const list = params['named_entities_'+owner];
+      if(Array.isArray(list) && list.length){
+        if(gender && gender!=='n'){
+          for(let i=list.length-1;i>=0;i--){
+            if(list[i] && list[i].name && list[i].gender===gender) return list[i].name;
+          }
+        }
+        const tail = list[list.length-1];
+        if(tail && tail.name) return tail.name;
+      }
+    } catch(e){}
+    const turns = (facts && facts._recentTurns) || [];
+    for(let i=turns.length-1;i>=0;i--){
+      const names = this._extractProperNames(turns[i] && turns[i].snippet);
+      if(names.length) return names[names.length-1];
+    }
+    try {
+      const inner = this._dual && this._dual.readInner ? this._dual.readInner(40) : [];
+      for(let i=(inner||[]).length-1;i>=0;i--){
+        const e = inner[i];
+        if(e && e.type==='learned_fact' && e.topic && (!e.owner || e.owner===owner)) return e.topic;
+      }
+    } catch(e){}
+    return null;
+  }
+  _rememberEntityName(name, facts){
+    const n = String(name||'').trim();
+    if(!n || n.length<2) return;
+    if(skipDefLookup(n) && n.split(/\s+/).length===1) return;
+    const owner = (facts && facts._memoryOwner) || this._userMemoryScope().owner;
+    try {
+      const params = this._habitat && this._habitat.getCoreParameters ? this._habitat.getCoreParameters() : {};
+      let list = params['named_entities_'+owner];
+      if(!Array.isArray(list)) list = [];
+      const slug = this._entitySlug(n);
+      const self = this;
+      list = list.filter(function(x){ return x && self._entitySlug(x.name)!==slug; });
+      list.push({name:n, ts:Date.now()});
+      if(list.length>12) list = list.slice(-12);
+      if(this._habitat && typeof this._habitat.updateCoreParameter==='function'){
+        this._habitat.updateCoreParameter('named_entities_'+owner, list);
+        this._habitat.updateCoreParameter('last_named_entity_'+owner, {name:n, ts:Date.now(), owner:owner});
+      }
+    } catch(e){}
+  }
+  _rememberNamedFromTurn(raw, facts){
+    const s = String(raw||'');
+    if(this._worldIntent && this._worldIntent(s)) return;
+    const conv = this._conversationIntent(s, null);
+    if(this._noWebTalk(conv)) return;
+    const names = this._extractProperNames(s);
+    const q = this._knowledgeQuery(s);
+    if(q && !this._extractProperNames(q).length && /[a-z]/.test(q) && q.split(/\s+/).length<=6 && ['he','him','she','her','they','them','it'].indexOf(q.toLowerCase())<0){
+      if(!skipDefLookup(q) || q.split(/\s+/).length>1) names.push(q.replace(/\b\w/g, function(c){ return c.toUpperCase(); }));
+    }
+    for(let i=0;i<names.length;i++) this._rememberEntityName(names[i], facts);
+  }
+  _resolveEntity(raw, parsed, facts){
+    const names = this._extractProperNames(raw);
+    if(names.length) return {name:names[names.length-1], query:names[names.length-1]};
+    const q = this._knowledgeQuery(raw);
+    const ql = q.toLowerCase();
+    const PR = ['he','him','she','her','they','them','his','hers'];
+    let pron = PR.indexOf(ql)>=0 ? ql : null;
+    if(!pron){
+      const m = String(raw||'').toLowerCase().match(/\bwho\s+(is|was|are)\s+(he|him|she|her|they|them)\b/);
+      if(m) pron = m[2];
+    }
+    if(pron){
+      const name = this._lastNamedPerson(facts, this._pronounGender(pron));
+      return {pronoun:pron, name:name||null, query:name||''};
+    }
+    if(q && q.length>=2 && ['it','this','that'].indexOf(ql)<0) return {name:q, query:q};
+    return {query:q||''};
+  }
+  _lookupLearnedFact(query, facts){
+    const q = String(query||'').trim();
+    if(!q) return null;
+    const owner = (facts && facts._memoryOwner) || this._userMemoryScope().owner;
+    const slug = this._entitySlug(q);
+    try {
+      const params = this._habitat && this._habitat.getCoreParameters ? this._habitat.getCoreParameters() : {};
+      const rec = params['learned_fact_'+owner+'_'+slug];
+      if(rec && rec.speak) return rec;
+    } catch(e){}
+    try {
+      const inner = this._dual && this._dual.readInner ? this._dual.readInner(80) : [];
+      const needle = q.toLowerCase();
+      for(let i=(inner||[]).length-1;i>=0;i--){
+        const e = inner[i];
+        if(!e || (e.owner && e.owner!==owner)) continue;
+        if(e.type==='learned_fact' && e.topic && String(e.topic).toLowerCase()===needle && (e.speak||e.thought))
+          return {name:e.topic, speak:e.speak||e.thought, source:e.source||'journal'};
+        if(e.type==='self_retention' && e.topic && String(e.topic).toLowerCase()===needle && e.insight)
+          return {name:e.topic, speak:e.insight, source:'journal'};
+      }
+    } catch(e){}
+    return null;
+  }
+  _journalLearnedFact(name, speak, ext, facts){
+    const n = String(name||'').trim();
+    const spoken = String(speak||'').trim();
+    if(!n || !spoken) return;
+    const owner = (facts && facts._memoryOwner) || this._userMemoryScope().owner;
+    const slug = this._entitySlug(n);
+    let source = 'web';
+    let url = '';
+    if(ext && ext.wiki && ext.wiki.title){ source = 'wikipedia'; url = ext.wiki.url||''; }
+    else if(ext && ext.ddg && (ext.ddg.abstract||ext.ddg.answer)){ source = 'ddg'; url = ext.ddg.abstractUrl||''; }
+    else if(ext && ext.brave && ext.brave.abstract){ source = 'brave'; url = ext.brave.abstractUrl||''; }
+    const rec = {name:n, speak:spoken, source:source, url:url, owner:owner, ts:Date.now()};
+    try {
+      if(this._habitat && typeof this._habitat.updateCoreParameter==='function')
+        this._habitat.updateCoreParameter('learned_fact_'+owner+'_'+slug, rec);
+    } catch(e){}
+    try {
+      if(this._dual && typeof this._dual.writeInner==='function'){
+        this._dual.writeInner({
+          type:'learned_fact', topic:n, speak:spoken, source:source, url:url, owner:owner,
+          thought:spoken,
+          trigger:'measure'
+        });
+      }
+      if(this._dual && typeof this._dual.keepForSelf==='function')
+        this._dual.keepForSelf(n, spoken, 'measure');
+    } catch(e){}
+    this._rememberEntityName(n, facts);
+  }
+  _firstSpokenSentences(text, n){
+    const t = String(text||'').replace(/\n+/g,' ').replace(/\s+/g,' ').trim();
+    if(!t) return '';
+    const sents = t.match(/[^.!?]+[.!?]+(?:\s|$)/g) || [t];
+    let out = sents.filter(function(s){ return s.trim().length>20; }).slice(0, n||2).join(' ').trim();
+    if(!out) out = sents.slice(0, n||2).join(' ').trim();
+    if(out.length>480) out = out.slice(0, 460).replace(/\s+\S*$/, '')+'.';
+    return out;
+  }
+  _speakFromExternal(query, ext){
+    if(!ext) return '';
+    let spoken = '';
+    if(ext.wiki && ext.wiki.extract) spoken = this._firstSpokenSentences(ext.wiki.extract, 2);
+    if(!spoken && ext.summary && ext.summary.extract) spoken = this._firstSpokenSentences(ext.summary.extract, 2);
+    if(!spoken && ext.ddg && ext.ddg.abstract) spoken = this._firstSpokenSentences(ext.ddg.abstract, 2);
+    if(!spoken && ext.ddg && ext.ddg.answer) spoken = String(ext.ddg.answer).trim();
+    if(!spoken && ext.wikidata && ext.wikidata.extract){
+      const t = ext.wikidata.title ? ext.wikidata.title+' is ' : '';
+      spoken = this._firstSpokenSentences(t+ext.wikidata.extract+'.', 2);
+    }
+    if(!spoken && ext.brave && ext.brave.abstract) spoken = this._firstSpokenSentences(ext.brave.abstract, 2);
+    if(!spoken && ext.news && ext.news.length && ext.news[0].title)
+      spoken = String(ext.news[0].title)+(ext.news[0].desc ? ' — '+ext.news[0].desc : '')+'.';
+    spoken = this._hideAnalysis(spoken);
+    if(!spoken) return '';
+    return spoken;
+  }
+  async _measureExternal(query){
+    const q = String(query||'').trim();
+    if(!q) return null;
+    const w = (typeof window!=='undefined') ? window : {};
+    if(typeof w.autumnBroadSearch==='function'){
+      try {
+        const broad = await w.autumnBroadSearch(q);
+        if(broad && (broad.wiki || broad.ddg || broad.summary || broad.wikidata || broad.brave || (broad.news&&broad.news.length)))
+          return broad;
+      } catch(e) {}
+    }
+    const jobs = [];
+    const labels = [];
+    const wikiFn = (typeof w.fetchWiki==='function') ? w.fetchWiki : (typeof w.wikiSearch==='function' ? w.wikiSearch : null);
+    if(wikiFn){ jobs.push(Promise.resolve().then(function(){ return wikiFn(q); }).catch(function(){ return null; })); labels.push('wiki'); }
+    if(typeof w.fetchWikiSummary==='function'){ jobs.push(Promise.resolve().then(function(){ return w.fetchWikiSummary(q); }).catch(function(){ return null; })); labels.push('summary'); }
+    if(typeof w.fetchDDG==='function'){ jobs.push(Promise.resolve().then(function(){ return w.fetchDDG(q); }).catch(function(){ return null; })); labels.push('ddg'); }
+    if(typeof w.fetchBraveWeb==='function'){ jobs.push(Promise.resolve().then(function(){ return w.fetchBraveWeb(q); }).catch(function(){ return null; })); labels.push('brave'); }
+    if(typeof w.fetchWikidataDesc==='function'){ jobs.push(Promise.resolve().then(function(){ return w.fetchWikidataDesc(q); }).catch(function(){ return null; })); labels.push('wikidata'); }
+    if(typeof w.fetchNews==='function'){ jobs.push(Promise.resolve().then(function(){ return w.fetchNews(q); }).catch(function(){ return null; })); labels.push('news'); }
+    if(!jobs.length) return null;
+    const vals = await Promise.all(jobs);
+    const out = {};
+    for(let i=0;i<labels.length;i++) out[labels[i]] = vals[i];
+    return out;
+  }
+  _lookLineFor(entity){
+    if(entity && entity.pronoun) return "I don't know "+this._pronounObj(entity.pronoun)+" yet, I'll look";
+    if(entity && entity.name) return "I don't know them yet, I'll look";
+    return "I don't know that yet, I'll look.";
+  }
+  _formulaQueries(raw){
+    const s = String(raw||'');
+    const out = [];
+    if(/\be\s*(equals|=)\s*m\s*c/i.test(s) || /\bmc[\s-]*squared\b/i.test(s) || /\be\s*=\s*mc/i.test(s)){
+      out.push('mass-energy equivalence');
+      out.push('E=mc2');
+    }
+    return out;
+  }
+  _collectMeasureQueries(raw, entity){
+    const queries = [];
+    const push = function(q){
+      const n = String(q||'').replace(/\s+/g,' ').trim();
+      if(!n || n.length<2) return;
+      if(/^(he|him|she|her|they|them|it|this|that|stand|equals|squared)$/i.test(n)) return;
+      const low = n.toLowerCase();
+      for(let i=0;i<queries.length;i++){ if(queries[i].toLowerCase()===low) return; }
+      queries.push(n);
+    };
+    const names = this._extractProperNames(raw);
+    for(let i=0;i<names.length;i++) push(names[i]);
+    if(entity && entity.name) push(entity.name);
+    const formulas = this._formulaQueries(raw);
+    for(let i=0;i<formulas.length;i++) push(formulas[i]);
+    const whoM = String(raw||'').match(/\bwho\s+(?:is|was|are)\s+([^?.,;]+)/i);
+    if(whoM) push(whoM[1].trim());
+    const standM = String(raw||'').match(/\bwhat does\s+(.+?)\s+stand for/i);
+    if(standM){
+      let q = standM[1].trim();
+      if(/\be\s*(equals|=)\s*m/i.test(q) || /mc/i.test(q)) q = 'mass-energy equivalence E=mc2';
+      push(q);
+    }
+    if(!queries.length && entity && entity.query) push(entity.query);
+    if(!queries.length){
+      const kq = this._knowledgeQuery(raw);
+      if(kq) push(kq);
+    }
+    return queries.slice(0, 3);
+  }
+  _joinMeasured(speaks){
+    const seen = [];
+    for(let i=0;i<speaks.length;i++){
+      const t = this._hideAnalysis(speaks[i]);
+      if(!t) continue;
+      const key = t.slice(0, 80).toLowerCase();
+      let dup = false;
+      for(let j=0;j<seen.length;j++){ if(seen[j].slice(0,80).toLowerCase()===key){ dup=true; break; } }
+      if(!dup) seen.push(t);
+    }
+    return seen.join(' ');
+  }
+  async _measureThenSpeak(raw, parsed, defs, missing, reflex, facts){
+    facts = facts || {};
+    const conv = this._conversationIntent(raw, parsed) || (reflex && reflex.talkKind) || null;
+    if(this._noWebTalk(conv)) return null;
+    if(this._worldIntent && this._worldIntent(raw)) return null;
+    this._rememberNamedFromTurn(raw, facts);
+    const seek = this._isKnowledgeSeek(raw, parsed);
+    const entity = this._resolveEntity(raw, parsed, facts);
+    if(entity && entity.name) this._rememberEntityName(entity.name, facts);
+    if(!seek) return null;
+    if(entity && entity.pronoun && !entity.name)
+      return {look:"I'm not sure who you mean yet."};
+    const queries = this._collectMeasureQueries(raw, entity);
+    if(!queries.length) return {look:this._lookLineFor(entity)};
+    const who = this._isWhoSeek(raw) || this._formulaQueries(raw).length>0 || /\bwhat does\b/i.test(raw||'');
+    const speaks = [];
+    for(let i=0;i<queries.length;i++){
+      const q = queries[i];
+      const learned = this._lookupLearnedFact(q, facts);
+      if(learned && learned.speak){ speaks.push(learned.speak); continue; }
+      if(!who && defs && i===0){
+        const topic = this._contentTopic(parsed, defs, missing);
+        if(topic && defs[topic] && String(topic).toLowerCase()===String(q).toLowerCase()){
+          const d = this._shortDef(defs[topic]);
+          if(d){ speaks.push(this._capWord(topic)+' is '+d+'.'); continue; }
+        }
+      }
+      const ext = await this._measureExternal(q);
+      const spoken = this._speakFromExternal(q, ext);
+      if(spoken){
+        this._journalLearnedFact(q, spoken, ext, facts);
+        speaks.push(spoken);
+      }
+    }
+    const joined = this._joinMeasured(speaks);
+    if(joined) return {speak:joined, from:'web'};
+    return {look:this._lookLineFor(entity)};
+  }
+
   _composeLocalGrammarReply(raw, parsed, lex, defs, missing, reflex, facts){
     facts = facts || this._turnFacts || {};
     const intent = (parsed && parsed.intent) || 'statement_pos';
@@ -4947,6 +5313,8 @@ class ANLPCA {
       const reply = this._convReply(conv, raw, parsed, G);
       if(reply) return reply;
     }
+    if(facts._measuredSpeak) return this._hideAnalysis(facts._measuredSpeak);
+    if(facts._lookLine && this._isKnowledgeSeek(raw, parsed)) return facts._lookLine;
 
     const geo = (lex && lex.emotionGeometry) || this._locateEmotionGeometry(raw, parsed, lex, reflex, G);
     if(lex) lex.emotionGeometry = geo;
@@ -4955,11 +5323,8 @@ class ANLPCA {
     if(ck) return ck;
 
     const ooo = lex && lex.ooo;
-    if(ooo && (ooo.mathNote || ooo.measurementPath) && conv!=='how_feel'){
-      const path = ooo.measurementPath || (geo && geo.measurement) || {};
-      const t = String(path.tool || (geo && geo.tool) || 'MAZE').toUpperCase();
-      const frame = t==='KNIFE' ? 'Dividing that: ' : t==='PUZZLE' ? 'The pattern: ' : t==='SCISSORS' ? 'Reduced: ' : t==='MAZE' ? 'Grouped: ' : t==='HAMMER' ? 'Direct: ' : '';
-      if(ooo.mathNote) return frame + ooo.mathNote;
+    if(ooo && ooo.mathNote && conv!=='how_feel'){
+      return ooo.mathNote;
     }
 
     const topic = this._contentTopic(parsed, defs, missing);
@@ -4989,26 +5354,28 @@ class ANLPCA {
     }).filter(Boolean);
 
     if(isQ){
-      if(primDef){
-        // WordNet is enrichment for a known content noun — never a gate.
+      if(facts._measuredSpeak) return this._hideAnalysis(facts._measuredSpeak);
+      if(facts._lookLine) return facts._lookLine;
+      const seeking = this._isKnowledgeSeek(raw, parsed);
+      if(primDef && !seeking && !this._isWhoSeek(raw)){
         if(intent==='question_how') sentences.push(this._capWord(prim)+' works as '+primDef+'.');
         else sentences.push(this._capWord(prim)+' is '+primDef+'.');
-        if(wordCount>8 && defKeys[1] && defs[defKeys[1]] && tool==='PUZZLE'){
-          sentences.push(this._capWord(defKeys[1])+' is '+this._shortDef(defs[defKeys[1]])+'.');
-        }
-      } else if(numToks.length && !topic){
+      } else if(numToks.length && !topic && !seeking){
         sentences.push(numToks.map(n=>this._describeNumber(n)).join(' '));
       } else {
-        // Grammar first: journal a missing content noun without blocking the reply.
         if(topic && this._isContentNoun(topic)){
           this._journalBoundary(topic, 'Question with no dictionary definition. Boundary journaled; grammatical reply continues.');
         }
         const cue = this._liveTurnCue ? this._liveTurnCue(raw, parsed, reflex) : null;
-        if(cue || this._turnResolved || facts._repeatLastAction){
-          sentences.push(this._turnResolved==='ash_star' ? 'On it — sending one along the live curves.' : "I'm with you — one moment.");
-        } else if(subj && pred) sentences.push(this._svoSentence(parsed, 'I', pred, obj, '.'));
-        else if(topic) sentences.push(this._capWord(topic)+' is the subject of that question.');
-        else sentences.push(this._svoSentence(parsed, 'I', 'am', 'here', '.'));
+        if(this._turnResolved==='ash_star'){
+          sentences.push('On it — sending one along the live curves.');
+        } else if(cue || this._turnResolved || facts._repeatLastAction){
+          sentences.push("I'm with you — one moment.");
+        } else if(seeking){
+          sentences.push("I don't know that yet, I'll look.");
+        } else {
+          sentences.push("I'm with you.");
+        }
       }
       return this._applyToolShape(sentences, tool, shell, wordCount).join(' ');
     }
@@ -5022,13 +5389,15 @@ class ANLPCA {
     }
 
     if(intent==='command_tell' || intent==='command_do'){
-      if(primDef){
+      if(facts._measuredSpeak) return this._hideAnalysis(facts._measuredSpeak);
+      if(facts._lookLine) return facts._lookLine;
+      if(this._isKnowledgeSeek(raw, parsed)){
+        sentences.push("I don't know that yet, I'll look.");
+      } else if(primDef && !this._isWhoSeek(raw)){
         sentences.push(this._capWord(prim)+' is '+primDef+'.');
-        if(defKeys[1] && defs[defKeys[1]]) sentences.push(this._capWord(defKeys[1])+' is '+this._shortDef(defs[defKeys[1]])+'.');
-      } else if(!topic){
-        sentences.push('Understood.');
       } else {
-        this._journalBoundary(topic, 'Command with no dictionary definition. Boundary journaled; grammatical reply continues.');
+        if(topic && this._isContentNoun(topic))
+          this._journalBoundary(topic, 'Command with no dictionary definition. Boundary journaled; grammatical reply continues.');
         sentences.push('Understood.');
       }
       return this._applyToolShape(sentences, tool, shell, wordCount).join(' ');
@@ -5166,6 +5535,19 @@ class ANLPCA {
       }
     }
 
+    // MEASURE after FRP + triangulation + journal research. Speak later; never dump analysis.
+    try {
+      if (!this._noWebTalk(convNow)) {
+        const measured = await this._measureThenSpeak(raw, parsed, defs, missing, reflex, facts);
+        if (measured) {
+          if (measured.speak) facts._measuredSpeak = measured.speak;
+          if (measured.look) facts._lookLine = measured.look;
+        }
+      } else {
+        this._rememberNamedFromTurn(raw, facts);
+      }
+    } catch (e) {}
+
     const packed = this.s.lastFlow
       ? this.processContinuation(text, facts)
       : this.processInitial(text, facts);
@@ -5194,13 +5576,16 @@ class ANLPCA {
       try { response = this._composeLocalGrammarReply(raw, parsed, lex, defs, missing, reflex, facts); } catch(e) { response = ''; }
     }
     if (!response && ooo.mathNote && !convNow) response = ooo.mathNote;
-    if (!response || response.length < 3) {
+    if ((!response || response.length < 3) && !this._isKnowledgeSeek(raw, parsed) && !facts._lookLine && !facts._measuredSpeak) {
       try { response = this.a.buildConversational(packed, text, knownFacts); } catch(e) { response = ''; }
     }
     if (!response) response = (packed && packed.response) || '';
     response = String(response||'').replace(/\bI want to make sure I'?m reading the full text\b[\s\S]{0,80}/gi,'').trim();
     response = String(response||'').replace(/\[object Object\]/g,'').replace(/\s+/g,' ').trim();
+    response = this._hideAnalysis(response);
     if (response && this._isEchoReply(response, raw) && !facts._ashStarReply && !facts._orbCubeReply) response = '';
+    if ((!response || response.length < 3) && facts._measuredSpeak) response = this._hideAnalysis(facts._measuredSpeak);
+    if ((!response || response.length < 3) && facts._lookLine) response = facts._lookLine;
     if (!response) {
       const conv = this._conversationIntent(raw, parsed);
       if(conv==='how_feel'){
