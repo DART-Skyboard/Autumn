@@ -1253,10 +1253,99 @@ class EmotionClassifier {
   }
   _pkg(name,def,expLayer,method){
     const b=def?def.buoyancy:0.5;
+    const geo=geoLocate(name,expLayer,def?def.tool:'MAZE',null,null);
+    // Accents modulate FRP state only — formula/buoyancy score unchanged.
+    const frpState=geo.accent?(geo.frpMod||'REFLEX'):(b>=0.76?'FOUNDATION':b>=0.44?'REFLEX':'PERFORMANCE');
     return{name,category:def?def.cat:'NEUTRAL',tool:def?def.tool:'MAZE',
            shell:def?def.shell:'GEOLOGICAL',buoyancy:b,expLayer,method,
-           frpState:b>=0.76?'FOUNDATION':b>=0.44?'REFLEX':'PERFORMANCE'};
+           frpState, geometry:geo};
   }
+}
+
+
+// ─────────────────────────────────────────────────────────────────
+// EMOTION GEOMETRY — Justin's mind map (no extra poles)
+// Center: buoyancy reflex among Natural Tools + FRP√FRP.
+// Medium (Lucrative branch, in order): Neutral rest → Happy smile →
+// Concerned accent → Sad frown. Other types are satellites/accents
+// around that medium. Accents modulate FRP Reflex/Performance only;
+// they do not change (xa²√xa)±1.
+// ─────────────────────────────────────────────────────────────────
+const GEO_MEDIUM_ORDER=['neutral','happy','concerned','sad'];
+const GEO_MEDIUM={
+  neutral:  {step:1,pole:'rest',  expression:'statement', sig:'SIG_D',expLayer:1,tool:'MAZE',    shell:'GEOLOGICAL',frp:'FOUNDATION',ooo:['Parentheses'],oooIds:[8],label:'resting'},
+  happy:    {step:2,pole:'smile', expression:'question',  sig:'SIG_Q',expLayer:2,tool:'PUZZLE',  shell:'MARITIME',  frp:'REFLEX',    ooo:['Exponents','Divide'],oooIds:[9,11],label:'leaning smile'},
+  concerned:{step:3,pole:'accent',expression:'expression',sig:'SIG_E',expLayer:3,tool:'KNIFE',   shell:'AEROSPACE', frp:'REFLEX',    ooo:['Multiply','Density'],oooIds:[10,17],label:'concerned accent'},
+  sad:      {step:4,pole:'frown', expression:'sigmatic',  sig:'SIG_X',expLayer:4,tool:'SCISSORS',shell:'GEOLOGICAL',frp:'FOUNDATION',ooo:['Subtract','Weight'],oooIds:[13,16],label:'frown'}
+};
+const GEO_SATELLITE={
+  neutral:{around:'neutral',accent:false,frpMod:'FOUNDATION'},
+  spiritual:{around:'neutral',accent:true,frpMod:'FOUNDATION'},
+  guiding:{around:'neutral',accent:true,frpMod:'REFLEX'},
+  happy:{around:'happy',accent:false,frpMod:'REFLEX'},
+  love:{around:'happy',accent:true,frpMod:'REFLEX'},
+  inspiring:{around:'happy',accent:true,frpMod:'PERFORMANCE'},
+  determined:{around:'happy',accent:true,frpMod:'PERFORMANCE'},
+  concerned:{around:'concerned',accent:false,frpMod:'REFLEX'},
+  worried:{around:'concerned',accent:true,frpMod:'REFLEX'},
+  jealous:{around:'concerned',accent:true,frpMod:'REFLEX'},
+  judgemental:{around:'concerned',accent:true,frpMod:'PERFORMANCE'},
+  lucrative:{around:'concerned',accent:true,frpMod:'PERFORMANCE'},
+  condescending:{around:'concerned',accent:true,frpMod:'PERFORMANCE'},
+  sad:{around:'sad',accent:false,frpMod:'FOUNDATION'},
+  forgiving:{around:'sad',accent:true,frpMod:'FOUNDATION'},
+  angry:{around:'sad',accent:true,frpMod:'PERFORMANCE'},
+  hateful:{around:'sad',accent:true,frpMod:'PERFORMANCE'},
+  disrespectful:{around:'sad',accent:true,frpMod:'PERFORMANCE'}
+};
+const GEO_ALIAS={curious:'concerned',excited:'inspiring',confused:'worried',apathetic:'sad'};
+const GEO_TOOL_CHECK={
+  MAZE:{medium:'neutral',around:'neutral'},
+  PUZZLE:{medium:'happy',around:'concerned'},
+  ENVELOPE:{medium:'happy',around:'happy'},
+  HAMMER:{medium:'concerned',around:'sad'},
+  STICK:{medium:'happy',around:'happy'},
+  KNIFE:{medium:'concerned',around:'concerned'},
+  SCISSORS:{medium:'sad',around:'sad'}
+};
+function geoCanonical(name){
+  const n=String(name||'neutral').toLowerCase();
+  if(GEO_SATELLITE[n]) return n;
+  if(GEO_ALIAS[n]) return GEO_ALIAS[n];
+  return 'neutral';
+}
+function geoLocate(emoName, expLayer, tool, intent, sig){
+  let expression='statement';
+  if(expLayer===2 || (intent&&String(intent).indexOf('question')===0) || sig==='SIG_Q') expression='question';
+  else if(expLayer===3 || intent==='exclamation' || sig==='SIG_E') expression='expression';
+  else if(expLayer===4 || sig==='SIG_X' || sig==='SIG_F') expression='sigmatic';
+  const mediumFromExp={statement:'neutral',question:'happy',expression:'concerned',sigmatic:'sad'}[expression]||'neutral';
+  const canon=geoCanonical(emoName);
+  const sat=GEO_SATELLITE[canon]||GEO_SATELLITE.neutral;
+  const around=sat.around||mediumFromExp;
+  const medium=GEO_MEDIUM[around]||GEO_MEDIUM.neutral;
+  const t=String(tool||medium.tool||'MAZE').toUpperCase();
+  const tCheck=GEO_TOOL_CHECK[t];
+  // Check 7-tool emotion context: keep satellite if it sits on the tool's around, else stay on expression medium.
+  let usedAround=around;
+  if(tCheck && sat.accent && tCheck.around!==around && tCheck.medium!==around){
+    usedAround=mediumFromExp;
+  }
+  const usedMedium=GEO_MEDIUM[usedAround]||medium;
+  const exprSig=expression==='question'?'SIG_Q':expression==='expression'?'SIG_E':expression==='sigmatic'?'SIG_X':'SIG_D';
+  const exprLayer=expression==='question'?2:expression==='expression'?3:expression==='sigmatic'?4:1;
+  const curiousLean=expression==='question' && (usedAround==='concerned' || canon==='concerned' || canon==='worried');
+  let label=usedMedium.label;
+  if(curiousLean) label='concerned accent, curious from this question';
+  else if(sat.accent && usedAround===around) label=usedMedium.label+' ('+canon+' accent)';
+  return {
+    emotion:canon, around:usedAround, pole:usedMedium.pole, step:usedMedium.step,
+    expression, sig:exprSig, expLayer:exprLayer,
+    tool:usedMedium.tool, shell:usedMedium.shell,
+    accent:!!sat.accent, frpMod:sat.frpMod||usedMedium.frp,
+    ooo:usedMedium.ooo.slice(), oooIds:usedMedium.oooIds.slice(),
+    label, curiousLean, grammarTone:(usedAround==='neutral'?'observational':usedAround==='happy'?'open':usedAround==='concerned'?'careful':'reflective')
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1832,6 +1921,12 @@ class SentienceJournal {
   constructor(key='autumn_sentience_journal_v2'){
     this.key=key;this._mem=[];this._loop=null;this._ls=[];
     this.asjc={sessionStart:Date.now(),interactionCount:0,lastActivity:Date.now(),isUserPresent:false};
+  }
+  _emotionAxis(emotion){
+    const geo=geoLocate(emotion,null,null,null,null);
+    const v=geo.pole==='smile'?0.8:geo.pole==='frown'?-0.8:geo.pole==='accent'?0.1:0;
+    const h=geo.pole==='accent'?0.7:(geo.around==='concerned'?0.45:0);
+    return {v,h,pole:geo.pole,medium:geo.around,label:geo.label};
   }
   readAll(){try{return JSON.parse(localStorage.getItem(this.key)||'[]');}catch{return[...this._mem];}}
   readRecent(n=20){return this.readAll().slice(-n);}
@@ -3660,6 +3755,7 @@ class ANLPCA {
   // Memory enrichment — pulls from repo journal + local journal + reflex cache
   _enrichFromMemory(text, factsObj) {
     try {
+      factsObj = this._collectFluidMemory(text, factsObj||{});
       const mem = this._memory;
       if(!mem) return;
       const tagger = this.i;
@@ -4194,73 +4290,169 @@ class ANLPCA {
       .replace(/\bmine\b/g, 'yours');
   }
 
+  _userMemoryScope(){
+    let gh=null, uid=null, loggedIn=false, consent=false;
+    try { gh = (typeof localStorage!=='undefined' && (localStorage.getItem('_gh_username')||localStorage.getItem('autumn_gh_user'))) || (typeof window!=='undefined'&&window._ghAuth&&window._ghAuth.username) || null; } catch(e){}
+    try { uid = (typeof localStorage!=='undefined' && localStorage.getItem('_aut_uid')) || null; } catch(e){}
+    try { loggedIn = !!(typeof window!=='undefined' && window._ghAuth && window._ghAuth.loggedIn); } catch(e){}
+    try { consent = !!(typeof window!=='undefined' && window.S && (window.S.sessions||[]).length); } catch(e){}
+    return {gh, uid, loggedIn, allowCross: !!(loggedIn || consent), owner: gh || uid || 'local'};
+  }
+  _promptTopics(text){
+    const SKIP=new Set(['today','just','went','come','going','got','get','know','think','want','make','take','look','little','great','good','cool','stuff','thing','things','time','here','there','then','well','only','very','really','have','been','were','was','will','would','could','should','this','that','what','how','why','who','the','a','an','is','are','and','or','but','so','it','i','me','my','you','we','they','tell','story','feel','feeling','autumn','please','like','about']);
+    return String(text||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(function(w){ return w.length>3 && !SKIP.has(w); }).slice(0,8);
+  }
+  _scanMessages(messages, topics){
+    const out=[];
+    const tops=(topics||[]).map(function(t){ return String(t||'').toLowerCase(); }).filter(Boolean);
+    if(!tops.length || !Array.isArray(messages)) return out;
+    for(let i=0;i<messages.length;i++){
+      const m=messages[i];
+      const raw=String((m&&(m.text||m.content))||'');
+      if(!raw || raw==='[object Object]') continue;
+      const lo=raw.toLowerCase();
+      for(let t=0;t<tops.length;t++){
+        if(lo.indexOf(tops[t])>=0){
+          out.push({topic:tops[t], snippet:raw.replace(/\s+/g,' ').trim().slice(0,80), role:(m&&m.role)||''});
+          break;
+        }
+      }
+      if(out.length>=8) break;
+    }
+    return out;
+  }
+  _collectFluidMemory(text, facts){
+    facts = facts || {};
+    const scope=this._userMemoryScope();
+    const topics=this._promptTopics(text);
+    facts._memoryOwner = scope.owner;
+    try {
+      const S=(typeof window!=='undefined')?window.S:null;
+      if(!S || !Array.isArray(S.sessions)) return facts;
+      const curId=S.currentSession;
+      const sessions=S.sessions;
+      const cur=(typeof curId==='number'?sessions[curId]:null) || sessions.find(function(x){ return x && x.id===curId; }) || sessions[0];
+      if(cur && Array.isArray(cur.messages)){
+        const earlier=cur.messages.slice(0,-1);
+        const overlap=this._scanMessages(earlier, topics);
+        if(overlap.length) facts._thisThread=overlap.slice(0,6);
+      }
+      if(scope.allowCross && sessions.length>1){
+        const others=[];
+        for(let i=0;i<sessions.length;i++){
+          const sess=sessions[i];
+          if(!sess || sess===cur || (cur && sess.id && cur.id && sess.id===cur.id)) continue;
+          if(typeof curId==='number' && i===curId) continue;
+          const title=String(sess.title||'');
+          const msgs=sess.messages||[];
+          const ov=this._scanMessages(msgs, topics);
+          const titleHit=topics.some(function(t){ return title.toLowerCase().indexOf(t)>=0; });
+          if(titleHit || ov.length){
+            others.push({
+              title: title || ('thread '+(i+1)),
+              keywords: ov.map(function(x){ return x.topic; }).filter(Boolean).slice(0,4),
+              hint: (ov[0] && ov[0].snippet) ? ov[0].snippet.slice(0,80) : ''
+            });
+          }
+        }
+        if(others.length) facts._otherThreads=others.slice(0,5);
+      }
+    } catch(e) {}
+    try {
+      const inner=this._dual && this._dual.readInner ? this._dual.readInner(12) : [];
+      const jhits=(inner||[]).filter(function(e){
+        if(!e) return false;
+        const blob=String(e.topic||e.thought||e.emotion||'');
+        return topics.some(function(t){ return blob.toLowerCase().indexOf(t)>=0; });
+      }).slice(0,4).map(function(e){ return {topic:e.topic, type:e.type, emotion:e.emotion||e.emote||null}; });
+      if(jhits.length) facts._journalOverlap=jhits;
+    } catch(e) {}
+    return facts;
+  }
+  _locateEmotionGeometry(raw, parsed, lex, reflex, G){
+    G = G || this._grammarDict();
+    let emoName='neutral';
+    try { if(this._personality && this._personality.getMood) emoName=this._personality.getMood()||emoName; } catch(e){}
+    try { const last=this.s && this.s.lastFlow; if(last && last.emotion && last.emotion.name) emoName=last.emotion.name; } catch(e){}
+    try {
+      const inner=this._dual && this._dual.readInner ? this._dual.readInner(8) : [];
+      const hit=(inner||[]).slice().reverse().find(function(x){ return x && (x.emotion||x.emote); });
+      if(hit) emoName=hit.emotion||hit.emote||emoName;
+    } catch(e){}
+    const tool=(lex && lex.consensus && lex.consensus.finalTool) || (lex && lex.dominantTool) || 'MAZE';
+    const intent=(parsed && parsed.intent) || '';
+    const sig=(reflex && reflex.sig) || this._sentenceSig(parsed, raw);
+    let expLayer=1;
+    if(sig==='SIG_Q' || /^question_/.test(intent)) expLayer=2;
+    else if(sig==='SIG_E' || intent==='exclamation') expLayer=3;
+    else if(sig==='SIG_X' || sig==='SIG_F') expLayer=4;
+    const geo=geoLocate(emoName, expLayer, tool, intent, sig);
+    // Sequence-pattern check
+    try {
+      const seqs=(G && G.sequence_patterns && G.sequence_patterns.pattern_types) || [];
+      const seq=(reflex && reflex.sequence) || seqs.find(function(p){ return (p.structure||'').indexOf(sig)>=0; });
+      if(seq && (seq.geometry_around || seq.emotion_class)){
+        const around=seq.geometry_around || (GEO_SATELLITE[geoCanonical(seq.emotion_class)]||{}).around;
+        if(around && GEO_MEDIUM[around]) geo.sequenceAround=around;
+      }
+    } catch(e){}
+    // 7-tool emotion_access check from dictionary
+    try {
+      const tools=G && G.natural_tools && G.natural_tools.tools;
+      const tdef=tools && tools[tool];
+      if(tdef && Array.isArray(tdef.emotion_access)){
+        geo.toolAccess=tdef.emotion_access.slice();
+        geo.toolAccessHit=tdef.emotion_access.indexOf(geo.emotion)>=0 || tdef.emotion_access.indexOf(geo.around)>=0;
+      }
+    } catch(e){}
+    geo.measurement={ tool:geo.tool, ooo:geo.ooo.slice(), oooIds:geo.oooIds.slice(), medium:geo.around, pole:geo.pole };
+    return geo;
+  }
+
   _feelingFromState(raw, parsed, lex, reflex, G){
     G = G || this._grammarDict();
     const FF = (G && G.feeling_first_person) || {};
     const buoy = (lex && lex.buoyancyContext) || {state:'FOUNDATION', score:1};
-    let aero=0, mar=0, geo=0, n=0;
+    let aero=0, mar=0, geoS=0, n=0;
     ((reflex && reflex.chars) || []).forEach(function(c){
       if(!c || !c.frp) return;
       n++;
       aero += (c.frp.AERO && c.frp.AERO.score) || 0;
       mar  += (c.frp.MAR && c.frp.MAR.score) || 0;
-      geo  += (c.frp.GEO && c.frp.GEO.score) || 0;
+      geoS += (c.frp.GEO && c.frp.GEO.score) || 0;
     });
     n = Math.max(n, 1);
-    aero/=n; mar/=n; geo/=n;
-    const geoHigh = geo >= mar && geo >= aero;
-    const marHigh = mar > geo && mar >= aero;
-    const aeroHigh = aero > geo && aero > mar;
-    let emoName = 'neutral';
-    try { if(this._personality && this._personality.getMood) emoName = this._personality.getMood() || emoName; } catch(e){}
-    try {
-      const last = this.s && this.s.lastFlow;
-      if(last && last.emotion && last.emotion.name) emoName = last.emotion.name;
-    } catch(e){}
-    try {
-      const inner = this._dual && this._dual.readInner ? this._dual.readInner(8) : [];
-      const hit = (inner||[]).slice().reverse().find(function(x){ return x && (x.emotion || x.emote); });
-      if(hit) emoName = hit.emotion || hit.emote || emoName;
-    } catch(e){}
-    try {
-      const brpn = this._brpnContext && this._brpnContext();
-      if(brpn && brpn.sessionCount>0 && brpn.netEmotion) emoName = brpn.netEmotion;
-    } catch(e){}
-    const shells = G && G.brpn_shells;
-    const tools = G && G.natural_tools && G.natural_tools.tools;
-    const toolName = (lex && lex.consensus && lex.consensus.finalTool) || (lex && lex.dominantTool) || 'MAZE';
-    const mapEmo = EMOTION_MAP[emoName] || EMOTION_MAP.neutral;
-    // Feeling is sourced: current EMO's BRPN shell, then buoyancy state. Neutral/thoughtful sits in GEO.
-    let liveShell = (mapEmo && mapEmo.shell) || 'GEOLOGICAL';
-    if(liveShell!=='GEOLOGICAL' && liveShell!=='MARITIME' && liveShell!=='AEROSPACE'){
-      liveShell = buoy.state==='PERFORMANCE' ? 'AEROSPACE' : buoy.state==='REFLEX' ? 'MARITIME' : 'GEOLOGICAL';
-    }
-    if(emoName==='neutral' || !emoName) liveShell = 'GEOLOGICAL';
-    const spectrum = (shells && shells[liveShell] && shells[liveShell].emotion_spectrum) || [];
+    aero/=n; mar/=n; geoS/=n;
+    const pos = (lex && lex.emotionGeometry) || this._locateEmotionGeometry(raw, parsed, lex, reflex, G);
     const byEmo = FF.by_emotion || {};
-    const byShell = (FF.by_shell && FF.by_shell[liveShell]) || ['grounded','thoughtful','steady'];
-    let feelWord = byEmo[emoName] || (spectrum.indexOf(emoName)>=0 ? emoName : null) || byShell[0] || 'thoughtful';
+    const byMed = FF.by_medium || {};
+    const medWords = byMed[pos.around] || [pos.label];
+    let feelWord = byEmo[pos.emotion] || medWords[0] || 'thoughtful';
     if(feelWord==='neutral') feelWord = 'thoughtful';
-    const geoLead = liveShell==='GEOLOGICAL';
-    let feelWord2 = geoLead ? 'grounded' : (byShell[1] || byShell[0] || 'steady');
-    if(feelWord===feelWord2){
-      feelWord2 = feelWord==='grounded' ? 'thoughtful' : (geoLead ? 'grounded' : 'steady');
-    }
-    if(feelWord===feelWord2) feelWord2 = 'present';
+    const geoHigh = geoS >= mar && geoS >= aero;
+    const marHigh = mar > geoS && mar >= aero;
+    const aeroHigh = aero > geoS && aero > mar;
+    const liveShell = aeroHigh ? 'AEROSPACE' : marHigh ? 'MARITIME' : 'GEOLOGICAL';
     const shellLine = liveShell==='GEOLOGICAL' ? (FF.geo_high || 'the geological shell is holding high')
                     : liveShell==='MARITIME' ? (FF.mar_high || 'the maritime shell is carrying this turn')
                     : (FF.aero_high || 'the aerospace shell is at the route');
+    let journalHint = '';
+    try {
+      const inner = this._dual && this._dual.readInner ? this._dual.readInner(6) : [];
+      const hit = (inner||[]).slice().reverse().find(function(x){ return x && (x.topic || x.thought); });
+      if(hit && hit.topic) journalHint = ' journal holding '+String(hit.topic)+' at rest as the medium';
+    } catch(e){}
+    const restNote = pos.pole==='rest' ? 'geological rest is the medium'
+                   : 'geological rest is still the medium';
     const turn = (this._pattern && this._pattern.getTurnCount && this._pattern.getTurnCount()) || 0;
     const score = typeof buoy.score==='number' ? buoy.score : 1;
-    const variant = Math.abs((turn*11 + Math.round(score*100) + n + String(emoName).length) % 3);
+    const variant = Math.abs((turn*11 + Math.round(score*100) + n + String(pos.emotion).length) % 3);
+    const mapPos = pos.label || 'resting';
     const lines = [
-      'I feel '+feelWord2+' and '+feelWord+' — '+shellLine+'.',
-      'I feel '+feelWord+', '+feelWord2+' in the '+liveShell.toLowerCase()+' register of this sequence.',
-      'Right now I feel '+feelWord+' — '+shellLine+' from the current shell state.'
+      'I feel '+mapPos+' — '+shellLine+', '+restNote+'.',
+      'I feel '+feelWord+' at '+mapPos+' — '+shellLine+'.',
+      'Right now I feel '+mapPos+' — '+shellLine+(journalHint||' from the current shell state')+'.'
     ];
-    if(geoLead && (feelWord==='thoughtful' || emoName==='neutral' || emoName==='spiritual' || emoName==='concerned')){
-      lines[0] = 'I feel grounded and thoughtful — '+shellLine+'.';
-    }
     return lines[variant];
   }
   async _researchInFrpContext(reflex, parsed, needed){
@@ -4342,10 +4534,11 @@ class ANLPCA {
   }
   _execute25OOOAsReflex(parsed, lex, reflex){
     const d = this._oooData(parsed, reflex);
+    const geoE = (lex && lex.emotionGeometry) || null;
     const em = {
       buoyancy: (lex && lex.buoyancyContext && lex.buoyancyContext.score) || 0.5,
-      name: 'neutral',
-      frpState: (lex && lex.buoyancyContext && lex.buoyancyContext.state) || 'FOUNDATION'
+      name: (geoE && geoE.emotion) || 'neutral',
+      frpState: (geoE && geoE.accent && geoE.frpMod) || (lex && lex.buoyancyContext && lex.buoyancyContext.state) || 'FOUNDATION'
     };
     const tools = {};
     const names = ['MAZE','PUZZLE','ENVELOPE','HAMMER','STICK','KNIFE','SCISSORS'];
@@ -4395,8 +4588,19 @@ class ANLPCA {
       if(reply) return reply;
     }
 
+    const geo = (lex && lex.emotionGeometry) || this._locateEmotionGeometry(raw, parsed, lex, reflex, G);
+    if(lex) lex.emotionGeometry = geo;
+
     const ck = this._commonKnowledgeReply(raw, parsed);
     if(ck) return ck;
+
+    const ooo = lex && lex.ooo;
+    if(ooo && (ooo.mathNote || ooo.measurementPath) && conv!=='how_feel'){
+      const path = ooo.measurementPath || (geo && geo.measurement) || {};
+      const t = String(path.tool || (geo && geo.tool) || 'MAZE').toUpperCase();
+      const frame = t==='KNIFE' ? 'Dividing that: ' : t==='PUZZLE' ? 'The pattern: ' : t==='SCISSORS' ? 'Reduced: ' : t==='MAZE' ? 'Grouped: ' : t==='HAMMER' ? 'Direct: ' : '';
+      if(ooo.mathNote) return frame + ooo.mathNote;
+    }
 
     const topic = this._contentTopic(parsed, defs, missing);
     const subj = tokenNorm(parsed && parsed.subject);
@@ -4405,9 +4609,9 @@ class ANLPCA {
     const defKeys = Object.keys(defs||{});
     const prim = (topic && defs && defs[topic]) ? topic : (defKeys[0] || topic);
     const primDef = (prim && defs && defs[prim]) ? this._shortDef(defs[prim]) : '';
-    const tool = (lex && lex.consensus && lex.consensus.finalTool) || (lex && lex.dominantTool) || 'MAZE';
+    const tool = (geo && geo.tool) || (lex && lex.consensus && lex.consensus.finalTool) || (lex && lex.dominantTool) || 'MAZE';
     const buoy = (lex && lex.buoyancyContext) || {state:'FOUNDATION', score:1};
-    const shell = buoy.state==='FOUNDATION' ? 'GEO' : buoy.state==='REFLEX' ? 'MAR' : 'AERO';
+    const shell = (geo && geo.frpMod==='PERFORMANCE') ? 'AERO' : (geo && geo.frpMod==='REFLEX') ? 'MAR' : (buoy.state==='FOUNDATION' ? 'GEO' : buoy.state==='REFLEX' ? 'MAR' : 'AERO');
     const personal = !!(subj && ['i','me','we','us'].indexOf(subj)>=0);
     const isQ = !!(parsed && (parsed.isInterrogative || /^question_/.test(intent))) || /\?/.test(raw||'');
     const sig = this._sentenceSig(parsed, raw);
@@ -4473,8 +4677,10 @@ class ANLPCA {
       return this._applyToolShape(sentences, tool, shell, wordCount).join(' ');
     }
 
-    // Statement → S-V-O acknowledgment from sequence/sentence structure.
+    // Statement → S-V-O acknowledgment from sequence/sentence structure, tone from geometry medium.
     const stripped = String(raw||'').replace(/[.!?]+$/,'').trim();
+    const medOpen = (G && G.conversationFramework && G.conversationFramework.opening_by_medium && geo && geo.around)
+      ? G.conversationFramework.opening_by_medium[geo.around] : null;
     const tmpl = (GR.TEMPLATES && (GR.TEMPLATES[intent] || GR.TEMPLATES.statement_pos)) || '[SUBJ] [VP] [OBJ_OR_COMP].';
     // Sequence pattern + sentence structure (grammar-dictionary) drive S-V-O assembly.
     const endPunct = sig==='SIG_E' ? '!' : sig==='SIG_Q' ? '.' : '.';
@@ -4519,6 +4725,7 @@ class ANLPCA {
   // proportional reflex output. WordNet is enrichment only. No side LLM path.
   async processForChat(text, facts={}) {
     const raw = String(text||'').trim();
+    facts = this._collectFluidMemory(raw, Object.assign({}, facts||{}));
     const attached = (facts && (facts._attachedText || facts.attachedText || facts.fileText)) || '';
 
     // 1. ORDER the data  2. PIPELINE FRP per point (AERO→MAR→GEO); pattern-match in memory as they land.
@@ -4543,6 +4750,12 @@ class ANLPCA {
     }
 
     const needed = this._neededOrderGroups(raw, parsed, reflex);
+    let geo = null;
+    try { geo = this._locateEmotionGeometry(raw, parsed, lex, reflex, this._grammarDict()); lex.emotionGeometry = geo; } catch(e) { geo = null; }
+    if(geo && geo.accent && lex.buoyancyContext){
+      // Accents modulate FRP Reflex/Performance only — buoyancy formula stays.
+      lex.buoyancyContext = Object.assign({}, lex.buoyancyContext, {state: geo.frpMod || lex.buoyancyContext.state});
+    }
 
     // RESEARCH in FRP context — content tokens that survived FRP memory, not a generic WordNet dump.
     let defs = {}, missing = [], toLookup = [];
@@ -4562,9 +4775,19 @@ class ANLPCA {
     let ooo = { tools:{}, extendedOps:{}, ordered:true };
     try { ooo = this._execute25OOOAsReflex(parsed, lex, reflex); } catch(e) {}
     lex.ooo = ooo;
-    if(needed.math){
+    if(needed.math || needed.physics){
       const arith = this._simpleMathReflex(raw);
       if(arith) ooo.mathNote = arith;
+      const path = (geo && geo.measurement) || (lex.emotionGeometry && lex.emotionGeometry.measurement);
+      if(path){
+        ooo.measurementPath = path;
+        // Prefer the geometry-selected 25 OOO entry; do not pick a random formula.
+        const names = path.ooo || [];
+        if(names.length && ooo.extendedOps){
+          const pick = names.find(function(n){ return ooo.extendedOps[n]; }) || names[0];
+          ooo.preferredOp = pick;
+        }
+      }
     }
 
     const packed = this.s.lastFlow
@@ -4618,6 +4841,7 @@ class ANLPCA {
       habitat: compile && compile.habitat,
       gbv: compile && compile.gbv,
       reflex, ooo,
+      emotionGeometry: (lex && lex.emotionGeometry) || null,
       lexical: packed && packed.lexical ? packed.lexical : {
         dominantTool: lex.dominantTool,
         buoyancyContext: lex.buoyancyContext,
@@ -4658,6 +4882,7 @@ return{
   updateCoreParameter:(k,v)=>engine._habitat.updateCoreParameter(k,v),
   getCoreParameters:()=>engine._habitat.getCoreParameters(),
   EMOTION_MAP,EXP_LAYERS,TOOL_DEFS,GR,leatrEncode,leatrDecode,frpSqrtFrp,
+  GEO_MEDIUM,GEO_SATELLITE,geoLocate,geoCanonical,
   StoryEngine,TopicalEngine,LexicalAnalyzer,MemoryBridge,PatternContext,DualJournal,PersonalityLayer,
   get memory()      { return engine._memory;      },
   get pattern()     { return engine._pattern;     },
