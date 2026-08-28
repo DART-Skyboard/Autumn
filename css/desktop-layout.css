@@ -1,0 +1,368 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Autumn desktop / landscape layout
+   Applied only when html/body has .layout-desktop (see js/desktop-layout.js).
+   Portrait / .layout-mobile keeps the existing stacked mobile HUD untouched.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+html.layout-desktop {
+  --desk-nav-width: clamp(132px, 16vw, 200px);
+  --desk-stage-width: clamp(280px, 36vw, 440px);
+}
+
+/* Body: left nav | workspace+stage | footer under the content column */
+html.layout-desktop body,
+body.layout-desktop {
+  display: grid !important;
+  grid-template-columns: var(--desk-nav-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "nav main"
+    "nav footer";
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  flex-direction: unset !important;
+}
+
+html.layout-desktop body > header,
+body.layout-desktop > header {
+  grid-area: nav;
+}
+
+html.layout-desktop body > #main,
+body.layout-desktop > #main {
+  grid-area: main;
+}
+
+html.layout-desktop body > #footer-bar,
+body.layout-desktop > #footer-bar {
+  grid-area: footer;
+}
+
+/* ── LEFT SIDE MENU (was the top bar) ──────────────────────────────── */
+html.layout-desktop header,
+body.layout-desktop header {
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  width: var(--desk-nav-width) !important;
+  min-width: var(--desk-nav-width) !important;
+  max-width: var(--desk-nav-width) !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 10px 8px 12px !important;
+  gap: 8px !important;
+  border-bottom: none !important;
+  border-right: 1px solid var(--border, rgba(0, 255, 204, 0.12));
+  background: linear-gradient(90deg, rgba(0, 255, 204, 0.05) 0%, transparent 100%) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  z-index: 120;
+}
+
+html.layout-desktop .logo-wrap,
+body.layout-desktop .logo-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 2px !important;
+  margin-right: 0 !important;
+  margin-bottom: 6px !important;
+  flex-shrink: 0 !important;
+  min-width: 0 !important;
+}
+
+html.layout-desktop .logo-sub,
+body.layout-desktop .logo-sub {
+  display: block !important;
+}
+
+html.layout-desktop .hdr-btns,
+body.layout-desktop .hdr-btns {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  gap: 5px !important;
+  width: 100% !important;
+}
+
+html.layout-desktop .hdr-btn,
+html.layout-desktop #scrim-toggle,
+html.layout-desktop #theme-toggle,
+html.layout-desktop .gh-user-btn,
+html.layout-desktop #hdr-gh-login,
+html.layout-desktop .world-studio-btn,
+html.layout-desktop .help-btn,
+html.layout-desktop .draft-drip-btn,
+body.layout-desktop .hdr-btn,
+body.layout-desktop #scrim-toggle,
+body.layout-desktop #theme-toggle,
+body.layout-desktop .gh-user-btn,
+body.layout-desktop #hdr-gh-login,
+body.layout-desktop .world-studio-btn,
+body.layout-desktop .help-btn,
+body.layout-desktop .draft-drip-btn {
+  width: 100% !important;
+  max-width: 100% !important;
+  justify-content: flex-start !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  height: auto !important;
+  min-height: 30px !important;
+}
+
+html.layout-desktop .hdr-btn,
+body.layout-desktop .hdr-btn {
+  padding: 7px 10px !important;
+  font-size: 0.48rem !important;
+  white-space: nowrap !important;
+}
+
+html.layout-desktop #frax-active-badge,
+body.layout-desktop #frax-active-badge {
+  align-self: stretch;
+  text-align: center;
+}
+
+/* ── MAIN: center workspace (Ash Canvas / drawers) | right stage (BRPN + chat) */
+html.layout-desktop #main,
+body.layout-desktop #main {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) var(--desk-stage-width);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  flex: unset !important;
+  flex-direction: unset !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* Unknown in-flow children land in the center workspace, not the chat column */
+html.layout-desktop #main > *,
+body.layout-desktop #main > * {
+  grid-column: 1;
+}
+
+/* Right column: 3D scene on top, optional multi-user bar, chat fills the rest.
+   Kept relatively narrow + tall so the scene/chat do not stretch across the screen. */
+html.layout-desktop #brpn-region,
+body.layout-desktop #brpn-region {
+  grid-column: 2 !important;
+  grid-row: 1 / 2 !important;
+  width: auto !important;
+  height: clamp(200px, 38vh, 420px) !important;
+  min-height: 180px !important;
+  max-height: none !important;
+  flex-shrink: 0 !important;
+  margin: 8px 8px 0 0 !important;
+  border-bottom: none !important;
+  border-left: 1px solid var(--border, rgba(0, 255, 204, 0.12));
+  align-self: stretch;
+  min-width: 0;
+}
+
+html.layout-desktop #brpn-canvas,
+body.layout-desktop #brpn-canvas {
+  inset: 6px;
+}
+
+html.layout-desktop #brpn-resize,
+body.layout-desktop #brpn-resize {
+  display: none !important;
+}
+
+html.layout-desktop #multi-user-bar,
+body.layout-desktop #multi-user-bar {
+  grid-column: 2 !important;
+  grid-row: 2 / 3 !important;
+  min-width: 0;
+}
+
+html.layout-desktop #chat-region,
+body.layout-desktop #chat-region {
+  grid-column: 2 !important;
+  grid-row: 3 / 4 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border-left: 1px solid var(--border, rgba(0, 255, 204, 0.12));
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+html.layout-desktop #chat-scroll,
+body.layout-desktop #chat-scroll {
+  min-height: 0;
+}
+
+html.layout-desktop #input-area,
+body.layout-desktop #input-area {
+  flex-shrink: 0;
+}
+
+/* Center column: Ash Canvas fills leftover width/height beside the right stage
+   (trigger sits on top; drawer spans the column so it is not crushed). */
+html.layout-desktop #ash-canvas-trigger,
+body.layout-desktop #ash-canvas-trigger {
+  grid-column: 1 !important;
+  grid-row: 1 / 2 !important;
+  width: auto !important;
+  align-self: start;
+  z-index: 3;
+  border-bottom: 1px solid rgba(167, 139, 250, 0.12);
+}
+
+html.layout-desktop #ash-canvas-drawer,
+body.layout-desktop #ash-canvas-drawer {
+  grid-column: 1 !important;
+  grid-row: 1 / -1 !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden;
+  align-self: stretch;
+  margin-top: 34px;
+  z-index: 1;
+}
+
+html.layout-desktop #ash-canvas-drawer.open,
+body.layout-desktop #ash-canvas-drawer.open {
+  max-height: none !important;
+  height: auto !important;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+html.layout-desktop #ash-canvas-drawer.open .ac-drawer-inner,
+body.layout-desktop #ash-canvas-drawer.open .ac-drawer-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+html.layout-desktop .ac-canvas-area,
+body.layout-desktop .ac-canvas-area {
+  height: min(62vh, 640px) !important;
+  flex: 1 1 auto;
+  min-height: 220px;
+}
+
+/* HUD TOOLS (CALC / ARC EDGE / …) stay as the left tab on the BRPN scene.
+   Do not relocate them; they remain position:absolute inside #brpn-region. */
+html.layout-desktop #cognition-state,
+body.layout-desktop #cognition-state {
+  z-index: 12;
+}
+
+/* ── Tools panel: occupy the center workspace, do not cover the chat/scene column */
+html.layout-desktop #tools-overlay,
+body.layout-desktop #tools-overlay {
+  left: var(--desk-nav-width) !important;
+  right: var(--desk-stage-width) !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: auto !important;
+  background: rgba(2, 10, 20, 0.55) !important;
+}
+
+html.layout-desktop #tools-panel,
+body.layout-desktop #tools-panel {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  height: 100% !important;
+}
+
+/* ── Keys modal: more room in the workspace */
+html.layout-desktop #keys-modal,
+body.layout-desktop #keys-modal {
+  padding-left: var(--desk-nav-width);
+}
+
+html.layout-desktop #keys-box,
+body.layout-desktop #keys-box {
+  max-width: min(720px, 92%) !important;
+  width: min(720px, 92%) !important;
+  max-height: 88vh;
+  overflow: auto;
+}
+
+/* Overlays that assumed a 52px top header now start at the top, beside the nav */
+html.layout-desktop #forge-overlay,
+body.layout-desktop #forge-overlay {
+  top: 0 !important;
+  left: var(--desk-nav-width) !important;
+}
+
+html.layout-desktop #arc-studio-overlay,
+body.layout-desktop #arc-studio-overlay {
+  top: 12px !important;
+}
+
+html.layout-desktop #emm-overlay,
+body.layout-desktop #emm-overlay {
+  top: 12px !important;
+}
+
+html.layout-desktop #footer-bar,
+body.layout-desktop #footer-bar {
+  min-width: 0;
+  overflow: hidden;
+}
+
+html.layout-desktop #scroll-to-top,
+html.layout-desktop #scroll-to-bottom,
+body.layout-desktop #scroll-to-top,
+body.layout-desktop #scroll-to-bottom {
+  right: 14px;
+}
+
+/* Slightly roomier chat bubbles in the tall right column */
+html.layout-desktop #chat-region .msg,
+body.layout-desktop #chat-region .msg {
+  max-width: 92%;
+}
+
+/* ── Compact landscape (phone landscape ~640–899px): tighter nav, keep stage usable */
+@media (orientation: landscape) and (max-width: 899px) {
+  html.layout-desktop {
+    --desk-nav-width: clamp(112px, 20vw, 148px);
+    --desk-stage-width: clamp(250px, 42vw, 340px);
+  }
+
+  html.layout-desktop .logo,
+  body.layout-desktop .logo {
+    font-size: 0.95rem !important;
+  }
+
+  html.layout-desktop .hdr-btn,
+  body.layout-desktop .hdr-btn {
+    padding: 6px 8px !important;
+    font-size: 0.42rem !important;
+  }
+
+  html.layout-desktop #brpn-region,
+  body.layout-desktop #brpn-region {
+    height: clamp(160px, 44vh, 280px) !important;
+    min-height: 140px !important;
+    margin: 4px 4px 0 0 !important;
+  }
+
+  html.layout-desktop .ac-canvas-area,
+  body.layout-desktop .ac-canvas-area {
+    height: min(52vh, 360px) !important;
+    min-height: 140px;
+  }
+}

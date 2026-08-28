@@ -982,15 +982,29 @@ function stripRTF(rtfStr){
 import { pipeline, env } from './js/transformers.min.js';
 env.allowLocalModels = false;
 env.backends.onnx.wasm.numThreads = 2;
+window._ttsIsPhone=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||"")||((navigator.maxTouchPoints||0)>2&&Math.min(screen.width,screen.height)<900);
+window._ttsHasWebGPU=!!(navigator.gpu);
 window._kokoroLoad = (async () => {
+  if (window._ttsIsPhone || !window._ttsHasWebGPU) {
+    window._kokoroReady = false;
+    console.log("[Kokoro] skipped (phone or no WebGPU) — Piper/WebSpeech");
+    return;
+  }
   try {
     window._kokoroPipe = await pipeline('text-to-speech', 'onnx-community/Kokoro-82M-ONNX',
-      { dtype: 'q8', device: 'wasm' });
-    window._kokoroReady = true;
-    console.log('[Kokoro] TTS pipeline ready');
+      { dtype: 'fp16', device: 'webgpu' });
+    window._kokoroReady = true; window._kokoroTTS = window._kokoroPipe;
+    console.log("[Kokoro] TTS pipeline ready (WebGPU af_heart)");
   } catch(e) {
-    console.warn('[Kokoro] Failed, using Web Speech API:', e.message);
-    window._kokoroReady = false;
+    try {
+      window._kokoroPipe = await pipeline('text-to-speech', 'onnx-community/Kokoro-82M-ONNX',
+        { dtype: 'q8', device: 'wasm' });
+      window._kokoroReady = true; window._kokoroTTS = window._kokoroPipe;
+      console.log("[Kokoro] TTS pipeline ready (wasm)");
+    } catch(e2) {
+      console.warn("[Kokoro] Failed, using Piper/Web Speech:", e2.message);
+      window._kokoroReady = false;
+    }
   }
 })();
 </script>
@@ -1897,7 +1911,7 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .mic-bar{width:3px;background:#00e5ff;border-radius:2px;animation:micwv .55s ease-in-out infinite}
 .mic-bar:nth-child(1){height:5px;animation-delay:0s}.mic-bar:nth-child(2){height:11px;animation-delay:.1s}.mic-bar:nth-child(3){height:17px;animation-delay:.2s}.mic-bar:nth-child(4){height:11px;animation-delay:.3s}.mic-bar:nth-child(5){height:5px;animation-delay:.4s}
 @keyframes micwv{0%,100%{transform:scaleY(.35);opacity:.5}50%{transform:scaleY(1);opacity:1}}/* Speaker (TTS) button — cyan when voice output is active */
-.speaker-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,255,204,.1);box-shadow:0 0 10px rgba(0,255,204,.25)}
+.speaker-btn.active,.tray-btn.speaker-btn.active{color:#ffb347;border-color:#ffb347;background:rgba(255,179,71,.14);box-shadow:0 0 10px rgba(255,179,71,.35)}
 .listen-btn{background:transparent;border:1px solid var(--border);color:var(--dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0}
 .listen-btn:hover{color:#ffb347;border-color:#ffb347;box-shadow:0 0 10px rgba(255,179,71,.15)}
 .listen-btn.tuning{color:#ffb347;border-color:#ffb347;background:rgba(255,179,71,.1);animation:musicPulse 1.2s ease-in-out infinite}
@@ -2679,7 +2693,9 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js?v=2026082701"></script>
-<script src="js/autumn-grammar-engine.js?v=20260828c"></script>
+<script src="js/autumn-grammar-engine.js?v=20260828d"></script>
+<link rel="stylesheet" href="css/desktop-layout.css">
+<script src="js/desktop-layout.js"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
 
 <style id="rd-responsive-v2">
@@ -9976,6 +9992,7 @@ async function handleSend() {
     saveState(); renderMessages(); updateFooter();
     if(typeof setOrbThinking==='function') setOrbThinking(false);
     S.isProcessing = false;
+    if(typeof autoReadLastResponse==='function') autoReadLastResponse();
   };
 
   if(_intentLabel === 'CLEAR_CHAT') {
@@ -14264,7 +14281,7 @@ function _tickAshNodes(frame) {
 // ============================================================
 const Voice={
   synth:window.speechSynthesis||null,voices:[],selectedVoice:null,speed:1.0,pitch:1.0,
-  autoRead:false,active:false,speaking:false,cancelled:false,
+  autoRead:false,enabled:false,active:false,speaking:false,cancelled:false,
   sttLang:'en-US',chatLang:'en',recognition:null,isListening:false,liveMode:false,
   _currentSentences:null,_currentSentIdx:0,_interruptedRemaining:''
 };
@@ -14296,6 +14313,7 @@ function populateVoiceSelect(){
     if(saved.pitch){Voice.pitch=saved.pitch;document.getElementById('voice-pitch').value=saved.pitch;document.getElementById('pitch-val').textContent=saved.pitch;}
     if(saved.sttLang){Voice.sttLang=saved.sttLang;const sl=document.getElementById('stt-lang-select');if(sl)sl.value=saved.sttLang;}
     if(saved.chatLang){Voice.chatLang=saved.chatLang;const cl=document.getElementById('lang-select');if(cl)cl.value=saved.chatLang;}
+    if(saved.autoRead){Voice.autoRead=true;Voice.enabled=true;var _sb=document.getElementById('speaker-btn');if(_sb){_sb.classList.add('active');_sb.title='Speaker on — tap to mute Autumn';}}
   }catch(e){}
 }
 
@@ -14528,7 +14546,7 @@ async function extractGLBGeometry(file) {
     return null; // non-GLB or parse error — graceful fallback
   }
 }
-var _KOKORO_VOICE = 'af_bella';
+var _KOKORO_VOICE = 'af_heart';
 
 async function _speakKokoro(text, onEnd) {
   try {
@@ -14539,7 +14557,7 @@ async function _speakKokoro(text, onEnd) {
     if (_mb && Voice.active) _mb.style.boxShadow = '0 0 14px rgba(0,229,255,.6)';
     var clean = cleanForTTS(text);
     // Generate audio — pipeline returns {audio: Float32Array, sampling_rate: number}
-    var result = await pipe(clean, { speaker_id: 0, speed: Voice.speed || 1.0 });
+    var result = await pipe(clean, { voice: (_KOKORO_VOICE||"af_heart"), speed: Voice.speed || 1.0 });
     if (Voice.cancelled) { Voice.speaking = false; if(onEnd) onEnd(); return; }
     // Convert Float32Array PCM to WAV blob
     var sr = result.sampling_rate || 24000;
@@ -14601,7 +14619,7 @@ function _speakWebSpeech(text, onEnd) {
     if(Voice.cancelled||i>=sentences.length){Voice.speaking=false;Voice._currentSentences=null;Voice._currentSentIdx=0;if(onEnd)onEnd();return;}
     Voice._currentSentIdx = i;
     const u=new SpeechSynthesisUtterance(sentences[i].trim());
-    if(Voice.selectedVoice) u.voice=Voice.selectedVoice;
+    if(!Voice.selectedVoice||(/male/i.test((Voice.selectedVoice.name||""))&&!/female/i.test(Voice.selectedVoice.name||""))){var _vv=Voice.voices||(Voice.synth&&Voice.synth.getVoices())||[];var _pick=_vv.find(function(v){return /female|samantha|victoria|karen|zira|aria|jenny|ava|hazel|google us english/i.test((v.name||"")+" "+(v.lang||""));})||_vv.find(function(v){return /^en/i.test(v.lang||"")&&/neural|natural|enhanced/i.test(v.name||"");})||_vv.find(function(v){return /^en-US/i.test(v.lang||"");});if(_pick)Voice.selectedVoice=_pick;} if(Voice.selectedVoice) u.voice=Voice.selectedVoice;
     u.rate=Voice.speed; u.pitch=Voice.pitch;
     u.onend=()=>{i++;Voice._currentSentIdx=i;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;Voice._currentSentences=null;Voice._currentSentIdx=0;if(onEnd)onEnd();}};
     u.onerror=()=>{i++;Voice._currentSentIdx=i;if(!Voice.cancelled)speakNext();else{Voice.speaking=false;Voice._currentSentences=null;Voice._currentSentIdx=0;if(onEnd)onEnd();}};
@@ -14611,7 +14629,7 @@ function _speakWebSpeech(text, onEnd) {
 }
 
 function speak(text, onEnd) {
-  if (window._kokoroReady && window._kokoroTTS) {
+  if (window._kokoroReady && (window._kokoroTTS || window._kokoroPipe)) {
     _speakKokoro(text, onEnd);
   } else {
     _speakWebSpeech(text, onEnd);
@@ -14631,16 +14649,17 @@ function stopSpeaking(){
   if(_mb) _mb.style.boxShadow='';
 }
 function autoReadLastResponse(){
-  if(!Voice.autoRead) return;
+  if(!Voice.autoRead && !Voice.enabled) return;
   const m=msgs();const last=m[m.length-1];
   if(last&&last.role==='autumn'){
     if(Voice.isListening&&Voice.recognition){try{Voice.recognition.stop();}catch(e){}Voice.isListening=false;}
     // Strip machine-instruction tags before TTS — same as display rendering does
-    const cleanText = (last.text||'')
+    var _rawT=(last.text!=null?last.text:last.content); if(typeof _rawT==="object"&&_rawT)_rawT=_rawT.text||_rawT.response||_rawT.message||""; _rawT=String(_rawT||""); if(_rawT==="[object Object]")_rawT=""; const cleanText = (_rawT)
       .replace(/\[ARC_CMD:[^\]]*\]/g, '')
       .replace(/\[IMG_RECALL:[^\]]*\]/g, '')
       .replace(/\s{2,}/g, ' ')
       .trim();
+    if(!cleanText) return;
     // Grab any interrupted remainder before clearing it
     const remainder = Voice._interruptedRemaining||'';
     Voice._interruptedRemaining = '';
@@ -14684,12 +14703,18 @@ function initSTT(){
 // Speaker button: toggles TTS (Autumn speaks responses). No STT.
 function toggleSpeakerMode(){
   Voice.autoRead=!Voice.autoRead;
+  Voice.enabled=!!Voice.autoRead;
   var sb=document.getElementById('speaker-btn');
   if(sb){
     sb.classList.toggle('active',Voice.autoRead);
     sb.title=Voice.autoRead?'Speaker on — tap to mute Autumn':'Enable Autumn voice responses';
   }
+  try{var _vs=JSON.parse(localStorage.getItem('autumn_voice')||'{}');_vs.autoRead=!!Voice.autoRead;localStorage.setItem('autumn_voice',JSON.stringify(_vs));}catch(e){}
   if(!Voice.autoRead) stopSpeaking();
+  else {
+    try{var AC=window.AudioContext||window.webkitAudioContext;if(AC){var ctx=window._autumnAudioCtx||new AC();window._autumnAudioCtx=ctx;if(ctx.state==='suspended')ctx.resume();}}catch(e){}
+    try{if(Voice.synth){var u=new SpeechSynthesisUtterance(' ');u.volume=0;Voice.synth.speak(u);Voice.synth.cancel();}}catch(e){}
+  }
 }
 // Keep toggleVoiceMode as alias for live-mode compatibility
 function toggleVoiceMode(){ toggleSpeakerMode(); }
@@ -22183,14 +22208,14 @@ window.openNate = function() {
   window._speakKokoro = async function(text, onEnd) {
     var np = window._nateVoiceParams;
     var cfg = JSON.parse(localStorage.getItem('_nate_voice_config')||'null');
-    var kokoroVoice = cfg && cfg.kokoroVoice ? cfg.kokoroVoice : null;
+    var kokoroVoice = cfg && cfg.kokoroVoice ? cfg.kokoroVoice : "af_heart";
     var pipe = window._kokoroPipe;
     if (!pipe) { window._speakWebSpeech(text, onEnd); return; }
     try {
       Voice.speaking = true; Voice.cancelled = false;
       var speed = np ? (np.speed || 1.0) : (Voice.speed || 1.0);
       var opts = { speed: Math.min(2.0, Math.max(0.4, speed)) };
-      if (kokoroVoice) opts.voice = kokoroVoice;
+      opts.voice = kokoroVoice;
       var result = await pipe(text, opts);
       if (Voice.cancelled) { Voice.speaking=false; if(onEnd) onEnd(); return; }
       var sr = result.sampling_rate || 24000;
@@ -27565,6 +27590,7 @@ console.info('[MantisRadar] Controller ready. URL:', MR_URL);
 
 })();
 </script>
+<script src="./js/autumn-tts.js"></script>
 
 </body>
 </html>

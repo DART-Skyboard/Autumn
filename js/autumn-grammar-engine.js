@@ -322,6 +322,78 @@ const GR = {
   }
 };
 
+const NUMBER_WORDS = new Set([
+  'zero','one','two','three','four','five','six','seven','eight','nine','ten',
+  'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen',
+  'twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety',
+  'hundred','thousand','million','billion','trillion',
+  'first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth'
+]);
+
+const FUNCTION_SKIP = new Set([
+  'i','you','he','she','it','we','they','me','him','her','us','them',
+  'my','your','his','its','our','their','mine','yours','hers','ours','theirs',
+  'myself','yourself','himself','herself','itself','ourselves','themselves',
+  'a','an','the','this','that','these','those','there','here',
+  'is','are','was','were','be','been','being','am',
+  'have','has','had','do','does','did','will','would','shall','should',
+  'may','might','must','can','could','need','ought','going',
+  'who','what','where','when','why','how','which','whose','whom',
+  'and','or','but','nor','so','if','than','as','because','while','although',
+  'to','of','in','on','at','by','for','with','from','about','into','onto',
+  'up','down','off','out','over','under','today','yesterday','tomorrow','now','then',
+  'just','very','really','also','too','even','still','only','well','please',
+  'thing','things','stuff','time','way','kind','type','sort',
+  'hey','hi','hello','yo','sup','heya','howdy','morning','evening',
+  'bye','goodbye','thanks','thank','ok','okay','yes','yeah','yep','no','nope',
+  'autumn','doing','like','want','wanna','gonna','kinda',
+  'would','could','should','shall'
+]);
+
+function tokenNorm(x){
+  if(x==null) return '';
+  const t = typeof x;
+  if(t==='string') return x;
+  if(t==='number' || t==='boolean') return String(x);
+  if(t==='object'){
+    if(typeof x.norm==='string' && x.norm) return x.norm;
+    if(typeof x.word==='string' && x.word) return x.word;
+    if(typeof x.norm==='number') return String(x.norm);
+    if(typeof x.word==='number') return String(x.word);
+    return '';
+  }
+  try {
+    const s = String(x);
+    return s==='[object Object]' ? '' : s;
+  } catch(e){ return ''; }
+}
+
+function classifyNumber(raw){
+  const s = String(raw==null?'':raw).trim();
+  if(!s) return null;
+  if(/^-?\d+\.\d+$/.test(s)) return {kind:'decimal', form:'digit', isInteger:false, display:s};
+  if(/^-?\d+$/.test(s)) return {kind:'digit_cardinal', form:'digit', isInteger:true, display:s};
+  const w = s.toLowerCase().replace(/,/g,'');
+  const compact = w.replace(/[\s-]/g,'');
+  if(NUMBER_WORDS.has(w) || NUMBER_WORDS.has(compact))
+    return {kind:'word_form', form:'word', isInteger:true, display:s};
+  if(/^(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[\s-]?(one|two|three|four|five|six|seven|eight|nine)$/.test(w))
+    return {kind:'word_form', form:'word', isInteger:true, display:s};
+  return null;
+}
+
+function skipDefLookup(w){
+  const n = tokenNorm(w).toLowerCase();
+  if(!n) return true;
+  if(FUNCTION_SKIP.has(n)) return true;
+  if(classifyNumber(n) || classifyNumber(w)) return true;
+  if(GR.ARTICLES.has(n)||GR.PRONOUNS.has(n)||GR.AUXILIARIES.has(n)) return true;
+  if(GR.PREPOSITIONS.has(n)||GR.CONJUNCTIONS.has(n)||GR.DETERMINERS.has(n)) return true;
+  if(GR.INTERROGATIVES.has(n)||GR.NEGATION.has(n)) return true;
+  if(n.length<=2) return true;
+  return false;
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LEXICAL ANALYZER  — Character-level LEATR cascade
@@ -689,6 +761,12 @@ class POSTagger {
     return text.replace(/([.,!?;:'"()\[\]])/g,' $1 ').replace(/\s+/g,' ').trim().split(' ').filter(Boolean);
   }
   tag(word, prev=null) {
+    const num=classifyNumber(word);
+    if(num){
+      const n=String(word).toLowerCase();
+      return {word,norm:n,pos:'NUM',role:'number',vowelScore:this._vs(n.replace(/[^a-z]/g,'')),
+              numberKind:num.kind,numberForm:num.form,isInteger:num.isInteger};
+    }
     const w=word.toLowerCase().replace(/[^a-z']/g,'');
     const pos=this._pos(w,prev);
     return {word,norm:w,pos,role:this._role(pos),vowelScore:this._vs(w)};
@@ -721,7 +799,8 @@ class POSTagger {
   _role(pos) {
     return({NN:'noun',NNP:'noun',PRN:'pronoun',VB:'verb',AUX:'verb',ADJ:'adjective',
             ADV:'adverb',PREP:'preposition',CONJ:'conjunction',ART:'adjective',
-            DET:'adjective',NEG:'negation',INT:'interrogative',SDLM:'delimiter'})[pos]||'unknown';
+            DET:'adjective',NEG:'negation',INT:'interrogative',SDLM:'delimiter',
+            NUM:'number'})[pos]||'unknown';
   }
   _vs(w){const v=(w.match(/[aeiou]/g)||[]).length;return w.length?+(v/w.length).toFixed(4):0;}
   _c(w,p){this._cache[w]=p;return p;}
@@ -759,6 +838,10 @@ class SentenceParser {
     if(words.length<=5&&['yes','yeah','yep','yup','exactly','right','agreed','ok','okay','sure','totally','true'].some(w=>ws.has(w))) return 'affirmation';
     // Negation
     if(words.length<=5&&['no','nope','nah','wrong','incorrect','disagree'].some(w=>ws.has(w))) return 'negation';
+    // How-are-you / activity offer — conversation, not dictionary lookup
+    if(/\bhow(\s+are|\s+'?s|\s+is)\s+(you|it|things)\b/.test(raw) ||
+       /\b(you doing|how.?s it going|how are you doing)\b/.test(raw)) return 'how_are_you';
+    if(/\bwhat (would you like|do you (want|like) to do|shall we do|should we do)\b/.test(raw)) return 'activity_offer';
     // Personal — about Autumn
     if(['do you','are you','can you','what do you','how do you','do you feel','have you','would you'].some(p=>raw.includes(p))) return 'personal';
     // Casual — wanna, gonna etc
@@ -865,7 +948,7 @@ class SentenceParser {
   _object(tagged){
     const vi=tagged.findIndex(t=>t.pos==='VB'||t.pos==='AUX');
     if(vi===-1)return null;
-    return tagged.slice(vi+1).find(t=>['NN','NNP'].includes(t.pos))||null;
+    return tagged.slice(vi+1).find(t=>['NN','NNP','NUM'].includes(t.pos))||null;
   }
   _topic(tagged,subject,obj){
     const FILLER=new Set(['today','yesterday','tomorrow','now','just','went','come','came',
@@ -3614,7 +3697,7 @@ class ANLPCA {
   }
 
   _capWord(s){
-    s = String(s||'');
+    s = tokenNorm(s);
     if(!s) return s;
     return s.charAt(0).toUpperCase()+s.slice(1);
   }
@@ -3622,12 +3705,186 @@ class ANLPCA {
     if(!d) return '';
     return String(d).split('.')[0].toLowerCase().replace(/;.*$/,'').replace(/\s+/g,' ').trim();
   }
+  _tokenNorm(x){ return tokenNorm(x); }
+  _numberKind(x){
+    const raw = (x && typeof x==='object') ? (x.word || x.norm) : x;
+    return classifyNumber(raw);
+  }
+  _grammarDict(){
+    return (this.a && this.a._grammar) || null;
+  }
+  _skipDefLookup(w){ return skipDefLookup(w); }
+  _isContentNoun(tok){
+    const n = tokenNorm(tok).toLowerCase();
+    if(!n || skipDefLookup(n)) return false;
+    if(classifyNumber(n) || (tok && classifyNumber(tok.word))) return false;
+    const pos = tok && tok.pos;
+    if(pos && ['ART','PRN','AUX','PREP','CONJ','DET','NEG','INT','SDLM','NUM'].includes(pos)) return false;
+    return n.length >= 3;
+  }
+  _conversationIntent(raw, parsed){
+    const s = String(raw||'').trim().toLowerCase();
+    const intent = (parsed && parsed.intent) || '';
+    if(intent==='how_are_you' ||
+       /\bhow(\s+are|\s+'?s|\s+is)\s+(you|it|things)\b/.test(s) ||
+       /\b(you doing|how.?s it going|how are you doing)\b/.test(s))
+      return 'how_are_you';
+    if(intent==='activity_offer' ||
+       /\bwhat (would you like|do you (want|like) to do|shall we do|should we do)\b/.test(s))
+      return 'activity_offer';
+    if(intent==='greeting' ||
+       /^(hey|hi|hello|yo|sup|heya|howdy)(\b|[!. ,])/.test(s))
+      return 'greeting';
+    if(intent==='farewell' ||
+       /^(bye|goodbye|later|goodnight|cya)\b/.test(s))
+      return 'farewell';
+    if(intent==='affirmation') return 'affirmation';
+    if(intent==='negation') return 'negation';
+    return null;
+  }
+  _sentenceSig(parsed, raw){
+    const intent = (parsed && parsed.intent) || '';
+    const t = String(raw||'').trim();
+    if(intent==='how_are_you' || intent==='activity_offer' || intent==='greeting') return 'SIG_D';
+    if((parsed && parsed.isInterrogative) || /\?/.test(t) || /^question_/.test(intent)) return 'SIG_Q';
+    if(t.endsWith('!') || intent==='exclamation') return 'SIG_E';
+    if(intent==='command_do' || intent==='command_tell') return 'SIG_I';
+    if((parsed && parsed.tokens || []).some(x=>x && x.pos==='CONJ')) return 'SIG_C';
+    return 'SIG_D';
+  }
+  _contentTopic(parsed, defs, missing){
+    const central = tokenNorm(parsed && parsed.centralTopic);
+    if(central && !skipDefLookup(central) && this._isContentNoun(parsed.centralTopic)) return central;
+    const cws = (parsed && parsed.contentWords) || [];
+    for(let i=0;i<cws.length;i++){
+      const n = tokenNorm(cws[i]);
+      if(n && !skipDefLookup(n) && this._isContentNoun(cws[i])) return n;
+    }
+    const toks = (parsed && parsed.tokens) || [];
+    for(let i=0;i<toks.length;i++){
+      const tk = toks[i];
+      if(tk && ['NN','NNP','VB'].includes(tk.pos) && this._isContentNoun(tk)) return tokenNorm(tk);
+    }
+    const miss = missing || [];
+    for(let i=0;i<miss.length;i++){
+      const n = tokenNorm(miss[i]);
+      if(n && !skipDefLookup(n)) return n;
+    }
+    if(defs){
+      const keys = Object.keys(defs);
+      if(keys.length) return keys[0];
+    }
+    return '';
+  }
+  _describeNumber(n){
+    if(!n) return '';
+    if(n.kind==='digit_cardinal') return n.display+' is a digit cardinal integer.';
+    if(n.kind==='word_form') return this._capWord(n.display)+' is a written-out number.';
+    if(n.kind==='decimal') return n.display+' is a decimal.';
+    return (n.display||'That')+' is a number.';
+  }
+  _commonKnowledgeReply(raw, parsed){
+    const s = String(raw||'').toLowerCase();
+    const G = this._grammarDict();
+    const asks = /\b(what|which|list|name|order|are|is|tell|explain)\b/.test(s) ||
+                 (parsed && parsed.isInterrogative) || /\?/.test(s);
+    if(!asks) return '';
+    if(/\bvowels?\b/.test(s)){
+      const v = (G && G.vowels && G.vowels.primary) || ['a','e','i','o','u'];
+      return 'English vowels in order are '+v.join(', ')+'.';
+    }
+    if(/\bconsonants?\b/.test(s)){
+      const by = G && G.consonants && G.consonants.by_class;
+      if(by){
+        const parts = Object.keys(by).map(k=>k+': '+by[k].join(', '));
+        return 'English consonants by class are '+parts.join('; ')+'.';
+      }
+      return 'English consonants are the letters that are not a, e, i, o, or u.';
+    }
+    if(/\bpunctuation\b/.test(s)){
+      const marks = G && G.punctuation && G.punctuation.markers;
+      if(marks) return 'English punctuation marks include '+Object.keys(marks).join(', ')+'.';
+      return 'English punctuation includes period, question mark, exclamation, comma, semicolon, colon, dash, and quotation marks.';
+    }
+    if(/\b(sentence structure|sentence structures|declarative|interrogative|imperative)\b/.test(s)){
+      const ss = G && G.sentence_structures;
+      if(ss){
+        const names = Object.keys(ss).join(', ');
+        return 'Known sentence structures are '+names+'. A declarative takes subject-verb-object. An interrogative asks. An imperative directs.';
+      }
+      return 'A sentence is subject, verb, and object, ended by punctuation. Declarative states. Interrogative asks. Imperative directs.';
+    }
+    if(/\b(paragraph|story structure|sequence pattern)\b/.test(s)){
+      const seqs = G && G.sequence_patterns && G.sequence_patterns.pattern_types;
+      if(seqs && seqs.length){
+        const narr = seqs.find(p=>p.id==='SEQ_D') || seqs[0];
+        return 'A story extends as '+narr.structure+' — '+narr.name+'. A paragraph is a sequence of sentences on one topic.';
+      }
+      return 'A paragraph is a sequence of sentences on one topic. A story extends declarative clauses into compound narrative.';
+    }
+    if(/\btense\b/.test(s)){
+      const tm = G && G.tense_map;
+      if(tm) return 'English tense includes '+Object.keys(tm).join(', ')+'.';
+      return 'English tense includes present, past, future, continuous, conditional, imperative, and interrogative.';
+    }
+    const toks = (parsed && parsed.tokens) || [];
+    const nums = toks.map(t=>this._numberKind(t)).filter(Boolean);
+    if(nums.length && /\b(number|digit|integer|decimal|five|cardinal)\b/.test(s)){
+      return nums.map(n=>{
+        if(n.kind==='digit_cardinal') return n.display+' is a digit cardinal integer.';
+        if(n.kind==='word_form') return this._capWord(n.display)+' is a written-out number.';
+        if(n.kind==='decimal') return n.display+' is a decimal.';
+        return n.display+' is a number.';
+      }).join(' ');
+    }
+    return '';
+  }
+  _svoSentence(parsed, fallbackSubj, fallbackPred, fallbackObj, punct){
+    const subj = tokenNorm(parsed && parsed.subject) || fallbackSubj || 'it';
+    const pred = tokenNorm(parsed && parsed.predicate) || fallbackPred || 'is';
+    const obj  = tokenNorm(parsed && parsed.object) || fallbackObj || '';
+    let s = this._capWord(subj)+' '+pred;
+    if(obj) s += ' '+obj;
+    const end = punct || '.';
+    if(!/[.!?]$/.test(s)) s += end;
+    return s.replace(/\s+/g,' ').trim();
+  }
+  _convReply(kind, raw, parsed, G){
+    const s = String(raw||'').toLowerCase();
+    const named = /\bautumn\b/.test(s);
+    const hasToday = /\btoday\b/.test(s);
+    const RT = G && G.responseTemplates;
+    if(kind==='greeting'){
+      if(RT && RT.greeting && RT.greeting[0] && String(raw||'').trim().split(/\s+/).length>2)
+        return RT.greeting[0];
+      return 'Hello.';
+    }
+    if(kind==='farewell'){
+      if(RT && RT.farewell && RT.farewell[0]) return RT.farewell[0];
+      return 'Goodbye.';
+    }
+    if(kind==='affirmation') return 'Yes.';
+    if(kind==='negation') return 'Understood.';
+    if(kind==='how_are_you'){
+      const parts = [];
+      if(named || /^(hi|hey|hello)\b/.test(s.trim())) parts.push('Hello.');
+      parts.push(hasToday ? 'I am well today.' : 'I am well.');
+      return parts.join(' ');
+    }
+    if(kind==='activity_offer'){
+      return hasToday ? 'I would follow your lead today.' : 'I would follow your lead.';
+    }
+    return '';
+  }
   _journalBoundary(topic, reason){
+    const t = tokenNorm(topic);
+    if(!t || t==='[object Object]') return;
+    if(t!=='cbs_compile' && skipDefLookup(t)) return;
     try {
       if (this._dual && typeof this._dual.writeInner === 'function') {
         this._dual.writeInner({
           type: 'boundary',
-          topic: topic || 'unknown',
+          topic: t,
           thought: reason || 'No definition data. Structural pattern journaled; no fabricated sense.',
           trigger: 'buoyancy_reflex'
         });
@@ -3663,77 +3920,108 @@ class ANLPCA {
   _composeLocalGrammarReply(raw, parsed, lex, defs, missing){
     const intent = (parsed && parsed.intent) || 'statement_pos';
     const tokens = (parsed && parsed.tokens) || [];
-    const wordCount = tokens.filter(t => t && t.norm && !/^[.,!?;:'"()\[\]]$/.test(t.word||'')).length;
-    const isQ = !!(parsed && (parsed.isInterrogative || /^question_/.test(intent))) || /\?/.test(raw||'');
-    const contentWords = (parsed && parsed.contentWords) || [];
-    const topic = (parsed && parsed.centralTopic) || (contentWords[0] && contentWords[0].norm) || '';
-    const subjTok = parsed && parsed.subject;
-    const predTok = parsed && parsed.predicate;
-    const objTok  = parsed && parsed.object;
-    const subj = subjTok && subjTok.norm;
-    const pred = predTok && predTok.norm;
-    const obj  = objTok && objTok.norm;
+    const wordCount = tokens.filter(t => t && (t.norm||t.word) && !/^[.,!?;:'"()\[\]]$/.test(t.word||'')).length;
+    const G = this._grammarDict();
+    const conv = this._conversationIntent(raw, parsed);
+    if(conv){
+      const reply = this._convReply(conv, raw, parsed, G);
+      if(reply) return reply;
+    }
+
+    const ck = this._commonKnowledgeReply(raw, parsed);
+    if(ck) return ck;
+
+    const topic = this._contentTopic(parsed, defs, missing);
+    const subj = tokenNorm(parsed && parsed.subject);
+    const pred = tokenNorm(parsed && parsed.predicate);
+    const obj  = tokenNorm(parsed && parsed.object);
     const defKeys = Object.keys(defs||{});
-    const prim = (topic && defs[topic]) ? topic : (defKeys[0] || topic);
-    const primDef = (prim && defs[prim]) ? this._shortDef(defs[prim]) : '';
+    const prim = (topic && defs && defs[topic]) ? topic : (defKeys[0] || topic);
+    const primDef = (prim && defs && defs[prim]) ? this._shortDef(defs[prim]) : '';
     const tool = (lex && lex.consensus && lex.consensus.finalTool) || (lex && lex.dominantTool) || 'MAZE';
     const buoy = (lex && lex.buoyancyContext) || {state:'FOUNDATION', score:1};
     const shell = buoy.state==='FOUNDATION' ? 'GEO' : buoy.state==='REFLEX' ? 'MAR' : 'AERO';
     const personal = !!(subj && ['i','me','we','us'].indexOf(subj)>=0);
-
-    if(intent==='greeting') return wordCount<=2 ? 'Hello.' : 'Hello. Autumn is on the LEATR network.';
-    if(intent==='farewell') return 'Goodbye.';
-    if(intent==='affirmation' && wordCount<=4) return 'Yes.';
-    if(intent==='negation' && wordCount<=3) return 'Understood.';
+    const isQ = !!(parsed && (parsed.isInterrogative || /^question_/.test(intent))) || /\?/.test(raw||'');
+    const sig = this._sentenceSig(parsed, raw);
+    const ss = G && G.sentence_structures;
+    const seqs = (G && G.sequence_patterns && G.sequence_patterns.pattern_types) || [];
+    const seq = seqs.find(function(p){ return (p.structure||'').indexOf(sig)>=0; }) || null;
+    const contentMissing = (missing||[]).map(tokenNorm).filter(w => w && !skipDefLookup(w));
 
     const sentences = [];
 
-    // Question → grammatical answer from dictionary; never invent a sense.
+    // Number tokens in the prompt — known kinds, never a dictionary miss.
+    const numToks = tokens.map(t => {
+      const k = this._numberKind(t);
+      return k ? Object.assign({tok:t}, k) : null;
+    }).filter(Boolean);
+
     if(isQ){
       if(primDef){
         if(intent==='question_how') sentences.push(this._capWord(prim)+' works as '+primDef+'.');
-        else if(intent==='question_why') sentences.push(this._capWord(prim)+' is '+primDef+'.');
-        else if(intent==='question_where') sentences.push(this._capWord(prim)+' is '+primDef+'.');
-        else if(intent==='question_when') sentences.push(this._capWord(prim)+' is '+primDef+'.');
         else sentences.push(this._capWord(prim)+' is '+primDef+'.');
         if(wordCount>8 && defKeys[1] && defs[defKeys[1]] && tool==='PUZZLE'){
           sentences.push(this._capWord(defKeys[1])+' is '+this._shortDef(defs[defKeys[1]])+'.');
         }
+      } else if(numToks.length && !topic){
+        sentences.push(numToks.map(n=>this._describeNumber(n)).join(' '));
+      } else if(!topic){
+        // Ordinary English question with no content noun — answer from roles, not a dictionary hole.
+        if(subj && pred) sentences.push(this._svoSentence(parsed, 'I', pred, obj, '.'));
+        else sentences.push('I can take that as a question.');
       } else {
-        const qTopic = prim || topic || 'that';
-        this._journalBoundary(qTopic, 'Question with no dictionary definition. No fabricated answer.');
-        sentences.push('The question is grammatical, but '+qTopic+' has no definition in the local dictionary yet.');
+        this._journalBoundary(topic, 'Question with no dictionary definition. No fabricated answer.');
+        sentences.push('The question is grammatical, but '+topic+' has no definition in the local dictionary yet.');
         sentences.push('That boundary is journaled rather than filled in.');
       }
       return this._applyToolShape(sentences, tool, shell, wordCount).join(' ');
     }
 
-    // Short prompt
     if(wordCount<=3){
       if(primDef) return this._capWord(prim)+' is '+primDef+'.';
-      const w = ((raw||'').replace(/[^\w\s]/g,' ').trim().split(/\s+/)[0]||'that');
-      this._journalBoundary(w.toLowerCase(), 'Short prompt with no dictionary definition. Pattern journaled.');
-      return this._capWord(w)+' is noted. No dictionary definition is on hand for that term yet.';
+      if(numToks.length) return numToks.map(n=>this._describeNumber(n)).join(' ');
+      if(topic) this._journalBoundary(topic, 'Short prompt with no dictionary definition. Pattern journaled.');
+      if(intent==='greeting') return 'Hello.';
+      const strippedShort = String(raw||'').replace(/[.!?]+$/,'').trim();
+      if(strippedShort){
+        let ack = this._capWord(strippedShort);
+        if(!/[.!?]$/.test(ack)) ack += '.';
+        return ack;
+      }
+      return this._svoSentence(parsed, subj||'That', pred||'is', obj||'noted', '.');
     }
 
-    // Command: tell / explain
     if(intent==='command_tell' || intent==='command_do'){
       if(primDef){
         sentences.push(this._capWord(prim)+' is '+primDef+'.');
         if(defKeys[1] && defs[defKeys[1]]) sentences.push(this._capWord(defKeys[1])+' is '+this._shortDef(defs[defKeys[1]])+'.');
+      } else if(!topic){
+        sentences.push('Understood.');
       } else {
-        const tpc = prim || topic || 'that';
-        this._journalBoundary(tpc, 'Command with no dictionary definition. Boundary journaled.');
-        sentences.push(this._capWord(tpc)+' has no local definition yet. That boundary is journaled.');
+        this._journalBoundary(topic, 'Command with no dictionary definition. Boundary journaled.');
+        sentences.push(this._capWord(topic)+' has no local definition yet. That boundary is journaled.');
       }
       return this._applyToolShape(sentences, tool, shell, wordCount).join(' ');
     }
 
-    // Statement → grammatical acknowledgment / continuation on the same topic.
+    // Statement → S-V-O acknowledgment from sequence/sentence structure.
     const stripped = String(raw||'').replace(/[.!?]+$/,'').trim();
+    const tmpl = (GR.TEMPLATES && (GR.TEMPLATES[intent] || GR.TEMPLATES.statement_pos)) || '[SUBJ] [VP] [OBJ_OR_COMP].';
+    // Sequence pattern + sentence structure (grammar-dictionary) drive S-V-O assembly.
+    const endPunct = sig==='SIG_E' ? '!' : sig==='SIG_Q' ? '.' : '.';
     if(personal && stripped){
       sentences.push(this._capWord(this._shiftPerson(stripped))+'.');
     } else if(subj && pred){
+      let ack = tmpl.replace('[SUBJ]', this._capWord(subj))
+                    .replace('[VP]', pred)
+                    .replace('[OBJ_OR_COMP]', obj)
+                    .replace('[COMP]', obj)
+                    .replace('[OBJ]', obj)
+                    .replace(/\s+/g,' ').replace(/\s+\./g,'.').trim();
+      if(!/[.!?]$/.test(ack)) ack += endPunct;
+      sentences.push(ack);
+    } else if(stripped){
       let ack = this._capWord(stripped);
       if(!/[.!?]$/.test(ack)) ack += '.';
       sentences.push(ack);
@@ -3743,18 +4031,17 @@ class ANLPCA {
 
     if(!personal && primDef && tool!=='HAMMER'){
       sentences.push(this._capWord(prim)+' is '+primDef+'.');
-    } else if(!primDef && missing && missing.length){
-      this._journalBoundary(missing[0], 'Statement terms without definition. Boundary journaled.');
-      if(!personal && wordCount>4){
-        sentences.push('No dictionary definition is on hand for '+missing.slice(0,2).join(' or ')+' — that boundary is journaled, not invented.');
-      }
+    } else if(!primDef && contentMissing.length){
+      // Journal the content-noun hole; do not dump the dictionary fallback into ordinary English.
+      this._journalBoundary(contentMissing[0], 'Statement terms without definition. Boundary journaled.');
     }
 
     if(wordCount>12 && defKeys[1] && defs[defKeys[1]] && !personal && tool==='PUZZLE'){
       sentences.push(this._capWord(defKeys[1])+' is '+this._shortDef(defs[defKeys[1]])+'.');
     }
 
-    return this._applyToolShape(sentences, tool, shell, wordCount).join(' ').replace(/\s+/g,' ').trim();
+    const shaped = this._applyToolShape(sentences, tool, shell, wordCount).join(' ').replace(/\s+/g,' ').trim();
+    return shaped.replace(/\[object Object\]/g,'').replace(/\s+/g,' ').trim();
   }
 
   // Buoyancy reflex chat path — parse POS/roles, dictionary, FRP GEO/MAR/AERO + Natural Tools.
@@ -3777,25 +4064,24 @@ class ANLPCA {
       this._journalBoundary('cbs_compile', (compile.falseReason||'mapped false')+' — reflex, never loop.');
     }
 
-    const fromParse = (parsed.contentWords||[]).map(t=>t.norm).filter(Boolean);
+    const fromParse = (parsed.contentWords||[]).map(t=>tokenNorm(t)).filter(Boolean);
     const extra = raw.toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).filter(w => w.length > 3);
-    const toLookup = [...new Set(fromParse.concat(extra))].slice(0,10);
+    const toLookup = [...new Set(fromParse.concat(extra))].filter(w => !skipDefLookup(w)).slice(0,10);
     if (WN && typeof WN.lookup === 'function') {
       await Promise.all(toLookup.map(w => WN.lookup(w).catch(()=>[])));
     }
 
-    const SKIP_DEF = new Set(['today','yesterday','tomorrow','this','that','these','those','here','there',
-      'thing','things','stuff','time','just','then','than','very','really','also']);
     const defs = {};
     const missing = [];
     toLookup.forEach(w => {
-      if (SKIP_DEF.has(w)) return;
+      if (skipDefLookup(w)) return;
       const d = WN && WN.defineSync ? WN.defineSync(w) : null;
       if (d) defs[w] = d;
       else missing.push(w);
     });
-    if (toLookup.length && !Object.keys(defs).length) {
-      this._journalBoundary(toLookup[0]||'unknown', 'No definition data available for this input. Structural pattern journaled; no fabricated sense.');
+    const contentMissing = missing.filter(w => !skipDefLookup(w));
+    if (contentMissing.length && !Object.keys(defs).length) {
+      this._journalBoundary(contentMissing[0], 'No definition data available for this input. Structural pattern journaled; no fabricated sense.');
     }
 
     const packed = this.s.lastFlow
@@ -3825,10 +4111,20 @@ class ANLPCA {
     if (!response) response = (packed && packed.response) || '';
     // Strip Claude-style hedging if a fallback ever produces it.
     response = String(response||'').replace(/\bI want to make sure I'?m reading the full text\b[\s\S]{0,80}/gi,'').trim();
+    response = String(response||'').replace(/\[object Object\]/g,'').replace(/\s+/g,' ').trim();
     if (!response) {
-      const tpc = (parsed && parsed.centralTopic) || toLookup[0] || 'that';
-      this._journalBoundary(tpc, 'Empty local reply. Boundary journaled.');
-      response = 'The grammatical pattern is parsed. No dictionary definition is on hand for '+tpc+' yet — that boundary is journaled.';
+      const conv = this._conversationIntent(raw, parsed);
+      if(conv){
+        response = this._convReply(conv, raw, parsed, this._grammarDict()) || 'Hello.';
+      } else {
+        const tpc = tokenNorm(parsed && parsed.centralTopic) || toLookup[0] || '';
+        if(tpc && !skipDefLookup(tpc)){
+          this._journalBoundary(tpc, 'Empty local reply. Boundary journaled.');
+          response = 'The grammatical pattern is parsed. No dictionary definition is on hand for '+tpc+' yet — that boundary is journaled.';
+        } else {
+          response = this._svoSentence(parsed, 'I', 'am', 'here', '.');
+        }
+      }
     }
     return Object.assign({}, packed, {
       response, conversational: true, _fromBuoyancyReflex: true,
@@ -3844,6 +4140,7 @@ class ANLPCA {
       }
     });
   }
+
 }
 
 // ─────────────────────────────────────────────────────────────────
