@@ -320,10 +320,10 @@
   // OUTGOING: particles leave fromPos and travel along spline curves away from it.
   // nodeUid=null → local orb firing (senderT=0 on local:* splines, travel 0→1)
   // nodeUid=set  → remote node firing (senderT from _splinesFor, travel senderT→1-senderT)
-  function _spawnOutgoing(slot, fromPos, nodeUid, toUids){
+  function _spawnOutgoing(slot, fromPos, nodeUid, toUids, colorHex){
     var sc=_brpnScene();
-    if(typeof THREE==='undefined'||!sc) return;
-    var col=new THREE.Color(SLOT[slot].color);
+    if(typeof THREE==='undefined'||!sc) return false;
+    var col=new THREE.Color(colorHex!=null?_parseStarColor(colorHex):SLOT[slot].color);
     var splines=_splinesToward(nodeUid, toUids);
     // Fallback when no splines found — build curves from fromPos to chosen (or all) nodes
     if(!splines.length){
@@ -358,6 +358,7 @@
       grp.add(new THREE.Line(lGeo,lMat));
     });
     sc.add(grp);_geom.push(grp);
+    return true;
   }
 
   // INCOMING — particles converge TOWARD toPos along splines (reverse travel)
@@ -1012,9 +1013,19 @@
     var NOW=Date.now();
     if(!opts.force && NOW-_autumnLastFire<8000) return false;
     _autumnLastFire=NOW;
-    var spawned=_spawnAshStarGeom(toUids, color, null);
-    if(!spawned) _autumnHUDFlash(thought);
-    else _autumnHUDFlash(thought);
+    // Same travel as maze-complete _phaseSend: pulse orb + packets on plasma curves.
+    // Solo / send-to-self still animates (null toUids -> local splines + fallback curves).
+    var selfOnly=toUids&&toUids.length===1&&_uidMatch(toUids[0],_sid());
+    var spawnTo=selfOnly?null:((toUids&&toUids.length)?toUids:null);
+    var prof={emotion:'inspired',pulse:1.4,speed:1.25,boost:[.08,.06,.04],color:color};
+    try{ _brpn(prof); }catch(e){}
+    var spawned=false;
+    try{ spawned=!!_spawnOutgoing(0, new THREE.Vector3(0,0,0), null, spawnTo, color); }catch(e){}
+    if(!spawned){
+      try{ spawned=!!_spawnAshStarGeom(spawnTo||toUids, color, null); }catch(e){}
+    }
+    // User-requested sends never pop the ASH STAR glossary HUD card.
+    if(!opts.noHud) _autumnHUDFlash(thought);
     var uid=_sid(), ts=NOW;
     var hex='#'+('000000'+color.toString(16)).slice(-6);
     var payload={type:'ashstar',uid:uid,from:'autumn',toUids:toUids,color:hex,thought:(thought||'').substring(0,120),ts:ts,instanceId:_iid,emotionVertical:ev};

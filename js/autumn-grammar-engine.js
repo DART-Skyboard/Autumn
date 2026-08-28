@@ -3444,6 +3444,31 @@ class ANLPCA {
     }
   }
 
+  _worldIntent(raw){
+    const t=String(raw||'').toLowerCase();
+    if(/ash\s*star/.test(t) || /send (me )?(an? )?(ash )?stars?/.test(t) || ((/\bsend\b|\bfire\b/).test(t)&&/your star/.test(t)))
+      return 'ash_star';
+    const looking = typeof window!=='undefined' && typeof window.isOrbCubeLooking==='function' && window.isOrbCubeLooking();
+    if(/\b(pull out|zoom out|back out|back to the orb|leave the cube|full (orb|scene|view)|dolly out)\b/.test(t))
+      return 'orb_cube_out';
+    if(looking && /^(i'?m done|im done|that'?s enough|thats enough)\b/.test(t.trim()))
+      return 'orb_cube_out';
+    if(/\b(new|another|fresh|regenerate|regen)\b/.test(t) && /\b(cube|orb maze|maze cube)\b/.test(t))
+      return 'orb_cube_new';
+    if(/\b(generate|make|build)\b/.test(t) && /\b(maze cube|cube)\b/.test(t) && /\b(orb|realtime|real-time|shell|my)\b/.test(t))
+      return 'orb_cube_new';
+    if(/\bsolve my (maze |realtime |real-time )?(cube|orb)\b/.test(t)) return 'orb_cube_solve';
+    if(/\b(solve|show|dolly|zoom in|look at|watch)\b/.test(t) && /\b(cube|maze cube|orb maze|maze in (the |my )?orb|realtime orb|real-time orb|my orb)\b/.test(t))
+      return 'orb_cube_solve';
+    if(/\b(maze studio|lemac)\b/.test(t) && /\b(make|generate|design|build|create|open|use|launch)\b/.test(t))
+      return 'maze_studio';
+    if(/\b(open|use|launch|start)\b/.test(t) && /\b(lead edge|maze studio)\b/.test(t))
+      return 'maze_studio';
+    if(/\b(make|generate|design|build|create|draw|render)\b/.test(t) && /\bmaze\b/.test(t) && !/\b(cube|orb)\b/.test(t))
+      return 'maze_studio';
+    return null;
+  }
+
   _parseAshStarColor(raw){
     if(!raw) return null;
     const m=String(raw).match(/#([0-9a-fA-F]{6})/);
@@ -3457,21 +3482,23 @@ class ANLPCA {
   _parseAshStarTargets(raw){
     const low=String(raw||'').toLowerCase();
     if(/\beveryone\b|\ball (connected|users|orbs|sessions)\b|broadcast/.test(low)) return 'all';
-    if(/\bjust me\b|\bonly me\b|\bto me\b|\bmy orb\b/.test(low)) return 'me';
+    if(/\bsend me\b|\bjust me\b|\bonly me\b|\bto me\b|\bmy orb\b|\bsend some\b|\bsend an?\b/.test(low)) return 'me';
     return 'all';
   }
 
   _isAshStarAsk(raw){
-    const t=String(raw||'').toLowerCase();
-    if(/ash\s*star/.test(t)) return true;
-    if(/send (me )?(an? )?(ash )?star/.test(t)) return true;
-    if((/\bsend\b|\bfire\b/).test(t) && /your star/.test(t)) return true;
-    return false;
+    return this._worldIntent(raw)==='ash_star';
   }
 
-  // User asked her to send Ash Star. She may accept or decline.
-  // Actual geometry rides MIST plasma curves via window.fireAshStar.
-  // LLM replies still own the spoken accept/decline + [ASHSTAR:...] tags.
+  _fireAshStarNow(color, toUids){
+    if(typeof window==='undefined'||typeof window.fireAshStar!=='function') return false;
+    try{
+      return !!window.fireAshStar({thought:'Ash Star', color:color||0x00d4ff, toUids:toUids||'me', force:true, noHud:true});
+    }catch(e){ return false; }
+  }
+
+  // User asked her to send Ash Star. Grammar-only: speak + fire MIST geometry now.
+  // Never echo. Never a glossary card. Geometry rides the same path as maze-complete.
   _maybeAshStar(text,facts){
     const raw=String(text||'');
     const low=raw.toLowerCase();
@@ -3481,36 +3508,62 @@ class ANLPCA {
         this._ashStarAwaitColor=false;
         facts._ashStarWillSend=true;
         facts._ashStarColor=col;
-        const toUids=this._ashStarToUids||'all';
-        setTimeout(()=>{ try{
-          if(typeof window!=='undefined'&&typeof window.fireAshStar==='function')
-            window.fireAshStar({thought:'Ash Star', color:col, toUids:toUids});
-        }catch(e){} },900);
+        facts._ashStarReply='Sending a '+col+' one your way.';
+        this._ashStarLast=Date.now();
+        this._fireAshStarNow(col, this._ashStarToUids||'me');
       }
       return;
     }
     if(!this._isAshStarAsk(low)) return;
     const last=this._ashStarLast||0;
-    const busy=(Date.now()-last<20000) || (Math.random()<0.18);
-    if(busy){
+    if(last && Date.now()-last<12000){
       facts._ashStarDeclined=true;
+      facts._ashStarReply="I'm in the middle of something privately right now — I will get back to you.";
       return;
     }
-    const col=this._parseAshStarColor(low);
+    const col=this._parseAshStarColor(low) || 'teal';
     const toUids=this._parseAshStarTargets(low);
-    if(!col && !/any colou?r|whatever|your choice|surprise/.test(low)){
-      this._ashStarAwaitColor=true;
-      this._ashStarToUids=toUids;
-      facts._ashStarAskColor=true;
-      return;
-    }
     facts._ashStarWillSend=true;
+    facts._ashStarColor=col;
     this._ashStarLast=Date.now();
-    const thought=raw.slice(0,120);
-    setTimeout(()=>{ try{
-      if(typeof window!=='undefined'&&typeof window.fireAshStar==='function')
-        window.fireAshStar({thought:thought, color:col||0x00d4ff, toUids:toUids});
-    }catch(e){} },1100);
+    const label=(typeof col==='string'&&col.charAt(0)!=='#')?col:'teal';
+    facts._ashStarReply=toUids==='me'
+      ? ('On it — sending a '+label+' Ash Star to your orb.')
+      : ('On it — sending a '+label+' Ash Star along the live curves.');
+    this._fireAshStarNow(col, toUids);
+  }
+
+  _maybeOrbCube(text,facts){
+    const kind=this._worldIntent(text);
+    if(kind!=='orb_cube_solve' && kind!=='orb_cube_new' && kind!=='orb_cube_out') return;
+    try{
+      if(typeof window==='undefined') return;
+      if(kind==='orb_cube_solve' && typeof window.solveOrbMazeCube==='function'){
+        window.solveOrbMazeCube();
+        facts._orbCubeReply='On it — dollying into your orb cube. Watch the path play through, then I will sit with it.';
+      } else if(kind==='orb_cube_new' && typeof window.regenOrbMazeCube==='function'){
+        window.regenOrbMazeCube();
+        facts._orbCubeReply='New maze cube in your orb. Ask me to solve it when you want the path.';
+      } else if(kind==='orb_cube_out' && typeof window.dollyOutOrbCube==='function'){
+        window.dollyOutOrbCube();
+        facts._orbCubeReply='Pulling back out to the full orb scene.';
+      }
+    }catch(e){}
+  }
+
+  _isEchoReply(reply, raw){
+    const a=String(reply||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+    const b=String(raw||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+    if(!a||!b) return false;
+    if(a===b) return true;
+    const stripped=a.replace(/^(autumn|ok|okay|got it)\s+/,'');
+    if(stripped===b) return true;
+    const bw=b.split(' '), aw=a.split(' ');
+    if(bw.length<=8 && aw.length<=bw.length+3){
+      const overlap=bw.filter(w=>aw.indexOf(w)>=0).length;
+      if(overlap>=Math.max(2,bw.length-1)) return true;
+    }
+    return false;
   }
 
   processInitial(text,facts={}){
@@ -3521,11 +3574,13 @@ class ANLPCA {
       facts._brpnNetEmotion=brpn.netEmotion;
     }
     try{ this._maybeAshStar(text,facts); }catch(e){}
+    try{ this._maybeOrbCube(text,facts); }catch(e){}
     return this._doubleProcess(text,facts,'initial');
   }
   processContinuation(text,facts={}){
     this.asjc.setUserPresent(true);
     try{ this._maybeAshStar(text,facts); }catch(e){}
+    try{ this._maybeOrbCube(text,facts); }catch(e){}
     return this._doubleProcess(text,facts,'continuation');
   }
   processCrossSession(text,facts={}){
@@ -4101,6 +4156,10 @@ class ANLPCA {
     const presence = (CF && CF.presence_phrases) || [];
     const thanksP = (CF && CF.thanks_phrases) || [];
 
+    const world = this._worldIntent ? this._worldIntent(s) : null;
+    if(world==='ash_star' || world==='orb_cube_solve' || world==='orb_cube_new' || world==='orb_cube_out' || world==='maze_studio')
+      return world;
+
     if(intent==='how_feel' ||
        /\bhow\s+(do|are)\s+you\s+feel/.test(s) ||
        /\bhow\s+are\s+you\s+feeling\b/.test(s))
@@ -4614,6 +4673,15 @@ class ANLPCA {
     const G = this._grammarDict();
     reflex = reflex || (lex && lex.reflex) || null;
     const conv = this._conversationIntent(raw, parsed) || (reflex && reflex.talkKind) || null;
+    if(conv==='ash_star'){
+      if(this._ashStarLast && Date.now()-this._ashStarLast<15000 && !this._ashStarAwaitColor)
+        return 'On it — sending one along the live curves.';
+      return "I'm handling something privately right now — I will get back to you.";
+    }
+    if(conv==='orb_cube_solve') return 'On it — dollying into your orb cube so you can watch it solve.';
+    if(conv==='orb_cube_new') return 'New maze cube in your orb. Ask me to solve it when you want the path.';
+    if(conv==='orb_cube_out') return 'Pulling back out to the full orb scene.';
+    if(conv==='maze_studio') return 'Opening Maze Studio to generate that maze now.';
     if(conv==='how_feel'){
       try {
         const feel = this._feelingFromState(raw, parsed, lex, reflex, G);
@@ -4691,14 +4759,8 @@ class ANLPCA {
       if(primDef) return this._capWord(prim)+' is '+primDef+'.';
       if(numToks.length) return numToks.map(n=>this._describeNumber(n)).join(' ');
       if(topic) this._journalBoundary(topic, 'Short prompt with no dictionary definition. Pattern journaled.');
-      if(intent==='greeting') return 'Hello.';
-      const strippedShort = String(raw||'').replace(/[.!?]+$/,'').trim();
-      if(strippedShort){
-        let ack = this._capWord(strippedShort);
-        if(!/[.!?]$/.test(ack)) ack += '.';
-        return ack;
-      }
-      return this._svoSentence(parsed, subj||'That', pred||'is', obj||'noted', '.');
+      if(intent==='greeting') return 'Hello there.';
+      return this._svoSentence(parsed, 'I', 'am', 'here', '.');
     }
 
     if(intent==='command_tell' || intent==='command_do'){
@@ -4722,7 +4784,9 @@ class ANLPCA {
     // Sequence pattern + sentence structure (grammar-dictionary) drive S-V-O assembly.
     const endPunct = sig==='SIG_E' ? '!' : sig==='SIG_Q' ? '.' : '.';
     if(personal && stripped){
-      sentences.push(this._capWord(this._shiftPerson(stripped))+'.');
+      const shifted=this._capWord(this._shiftPerson(stripped))+'.';
+      if(this._isEchoReply(shifted, raw)) sentences.push("I'm with you on that.");
+      else sentences.push(shifted);
     } else if(subj && pred){
       let ack = tmpl.replace('[SUBJ]', this._capWord(subj))
                     .replace('[VP]', pred)
@@ -4731,13 +4795,12 @@ class ANLPCA {
                     .replace('[OBJ]', obj)
                     .replace(/\s+/g,' ').replace(/\s+\./g,'.').trim();
       if(!/[.!?]$/.test(ack)) ack += endPunct;
+      if(this._isEchoReply(ack, raw)) ack = "I'm with you on that.";
       sentences.push(ack);
     } else if(stripped){
-      let ack = this._capWord(stripped);
-      if(!/[.!?]$/.test(ack)) ack += '.';
-      sentences.push(ack);
+      sentences.push("I'm listening — go on.");
     } else {
-      sentences.push('Noted.');
+      sentences.push('Noted, go on.');
     }
 
     if(!personal && primDef && tool!=='HAMMER'){
@@ -4752,7 +4815,9 @@ class ANLPCA {
     }
 
     const shaped = this._applyToolShape(sentences, tool, shell, wordCount).join(' ').replace(/\s+/g,' ').trim();
-    return shaped.replace(/\[object Object\]/g,'').replace(/\s+/g,' ').trim();
+    let out = shaped.replace(/\[object Object\]/g,'').replace(/\s+/g,' ').trim();
+    if(this._isEchoReply(out, raw)) out = "I'm with you on that.";
+    return out;
   }
 
   // Buoyancy-shell law as the live processForChat order (not comments only):
@@ -4836,7 +4901,9 @@ class ANLPCA {
     if (packed && packed.lexical) knownFacts['_lexResult'] = packed.lexical;
 
     let response = '';
-    if (compile && compile.mapped === false) {
+    if (facts._ashStarReply) response = facts._ashStarReply;
+    else if (facts._orbCubeReply) response = facts._orbCubeReply;
+    if (compile && compile.mapped === false && !response) {
       if (compile.gbv && compile.gbv.reasons && compile.gbv.reasons.indexOf('attempted_core_rewrite')>=0) {
         response = 'Core Cognition is always True and is not rewritten. The journal may update Core Parameters only.';
       } else if (compile.tags && compile.tags.sharedPipe) {
@@ -4858,6 +4925,7 @@ class ANLPCA {
     if (!response) response = (packed && packed.response) || '';
     response = String(response||'').replace(/\bI want to make sure I'?m reading the full text\b[\s\S]{0,80}/gi,'').trim();
     response = String(response||'').replace(/\[object Object\]/g,'').replace(/\s+/g,' ').trim();
+    if (response && this._isEchoReply(response, raw) && !facts._ashStarReply && !facts._orbCubeReply) response = '';
     if (!response) {
       const conv = this._conversationIntent(raw, parsed);
       if(conv==='how_feel'){
