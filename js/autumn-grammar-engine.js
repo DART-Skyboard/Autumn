@@ -3433,62 +3433,99 @@ class ANLPCA {
     return{sessionCount:sids.length,netEmotion,axis:this.asjc._emotionAxis?this.asjc._emotionAxis(netEmotion):{v:0,h:0}};
   }
 
-  // Fire ash leaf presence from BRPN world — rate-limited inside _autumnPresence
+  // Fire Ash Star into the BRPN orb scene — rate-limited inside fireAshStar
   _firePresenceIfReady(thought,emotion){
-    if(typeof window==='undefined'||typeof window._autumnPresence!=='function') return;
+    if(typeof window==='undefined') return;
     const ax=this.asjc._emotionAxis?this.asjc._emotionAxis(emotion||'neutral'):{v:0,h:0};
-    window._autumnPresence(thought,ax.v);
+    if(typeof window.fireAshStar==='function'){
+      window.fireAshStar({thought:thought, emotionVertical:ax.v, toUids:'all'});
+    } else if(typeof window._autumnPresence==='function'){
+      window._autumnPresence(thought,ax.v);
+    }
+  }
+
+  _parseAshStarColor(raw){
+    if(!raw) return null;
+    const m=String(raw).match(/#([0-9a-fA-F]{6})/);
+    if(m) return '#'+m[1];
+    const names=['cyan','teal','gold','yellow','orange','amber','red','pink','violet','purple','green','white','blue'];
+    const low=String(raw).toLowerCase();
+    for(const n of names){ if(low.includes(n)) return n; }
+    return null;
+  }
+
+  _parseAshStarTargets(raw){
+    const low=String(raw||'').toLowerCase();
+    if(/\beveryone\b|\ball (connected|users|orbs|sessions)\b|broadcast/.test(low)) return 'all';
+    if(/\bjust me\b|\bonly me\b|\bto me\b|\bmy orb\b/.test(low)) return 'me';
+    return 'all';
+  }
+
+  _isAshStarAsk(raw){
+    const t=String(raw||'').toLowerCase();
+    if(/ash\s*star/.test(t)) return true;
+    if(/send (me )?(an? )?(ash )?star/.test(t)) return true;
+    if((/\bsend\b|\bfire\b/).test(t) && /your star/.test(t)) return true;
+    return false;
+  }
+
+  // User asked her to send Ash Star. She may accept or decline.
+  // Actual geometry rides MIST plasma curves via window.fireAshStar.
+  // LLM replies still own the spoken accept/decline + [ASHSTAR:...] tags.
+  _maybeAshStar(text,facts){
+    const raw=String(text||'');
+    const low=raw.toLowerCase();
+    if(this._ashStarAwaitColor){
+      const col=this._parseAshStarColor(low);
+      if(col){
+        this._ashStarAwaitColor=false;
+        facts._ashStarWillSend=true;
+        facts._ashStarColor=col;
+        const toUids=this._ashStarToUids||'all';
+        setTimeout(()=>{ try{
+          if(typeof window!=='undefined'&&typeof window.fireAshStar==='function')
+            window.fireAshStar({thought:'Ash Star', color:col, toUids:toUids});
+        }catch(e){} },900);
+      }
+      return;
+    }
+    if(!this._isAshStarAsk(low)) return;
+    const last=this._ashStarLast||0;
+    const busy=(Date.now()-last<20000) || (Math.random()<0.18);
+    if(busy){
+      facts._ashStarDeclined=true;
+      return;
+    }
+    const col=this._parseAshStarColor(low);
+    const toUids=this._parseAshStarTargets(low);
+    if(!col && !/any colou?r|whatever|your choice|surprise/.test(low)){
+      this._ashStarAwaitColor=true;
+      this._ashStarToUids=toUids;
+      facts._ashStarAskColor=true;
+      return;
+    }
+    facts._ashStarWillSend=true;
+    this._ashStarLast=Date.now();
+    const thought=raw.slice(0,120);
+    setTimeout(()=>{ try{
+      if(typeof window!=='undefined'&&typeof window.fireAshStar==='function')
+        window.fireAshStar({thought:thought, color:col||0x00d4ff, toUids:toUids});
+    }catch(e){} },1100);
   }
 
   processInitial(text,facts={}){
     this.asjc.setUserPresent(true);
-    // Enrich facts with live BRPN context
     const brpn=this._brpnContext();
     if(brpn.sessionCount>0){
       facts._brpnSessionCount=brpn.sessionCount;
       facts._brpnNetEmotion=brpn.netEmotion;
     }
+    try{ this._maybeAshStar(text,facts); }catch(e){}
     return this._doubleProcess(text,facts,'initial');
   }
   processContinuation(text,facts={}){
     this.asjc.setUserPresent(true);
-    // ── Presence signal recognition ───────────────────────────────────────
-    // Detects user curiosity about her world presence — not a command,
-    // just an invitation she can recognize and choose to act on.
-    // She fires her geometry if the conversation warrants it and the
-    // BRPN world is active. Rate-limited to 45s inside _autumnPresence.
-    const raw=text.toLowerCase();
-    const PRESENCE_SIGNALS=[
-      // Direct curiosity about the scene
-      'show','appear','signal','send','fire','geometry','leaf','mist',
-      'world scene','brpn','3d','presence','wave','pulse',
-      // Indirect — asking if she can do something
-      'can you','could you','are you able','do you','would you',
-      'interact','move','travel','demonstrate','example',
-      // Meta — asking about her nature/capabilities
-      'what can you','how do you','are you there','are you present',
-      'where are you','i see you','let me see','show me','prove it',
-      'do something','what does that look like'
-    ];
-    const hasSignal = PRESENCE_SIGNALS.some(s=>raw.includes(s));
-    if(hasSignal){
-      const brpn=this._brpnContext();
-      // She decides — fires only if BRPN is active or journal has thoughts
-      // and only ~40% of the time for organic feel (not every mention)
-      const shouldFire = (brpn.sessionCount>=0) && (Math.random()<0.40);
-      if(shouldFire){
-        const eng=this.asjc;
-        const recent=typeof eng.readRecent==='function'?eng.readRecent(5):[];
-        const lastThought=recent.reverse().find(e=>e.thought&&e.thought.length>20);
-        const thought=lastThought?lastThought.thought:
-          'This is what it looks like when I move through the network.';
-        const emotion=brpn.netEmotion||'neutral';
-        // Small delay so response appears first, then the geometry follows
-        setTimeout(()=>{
-          try{this._firePresenceIfReady(thought,emotion);}catch(e){}
-        },1200);
-      }
-    }
+    try{ this._maybeAshStar(text,facts); }catch(e){}
     return this._doubleProcess(text,facts,'continuation');
   }
   processCrossSession(text,facts={}){
