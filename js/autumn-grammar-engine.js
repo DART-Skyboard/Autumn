@@ -192,10 +192,32 @@ class HabitatCompiler {
     return { allocated, words, cycle: this._cycle, previousDefault: 0 };
   }
   _frpSync(lex){
+    const hier = CORE_COGNITION.BRPN.hierarchy;
+    const reflex = lex && lex.reflex;
+    if(reflex && reflex.chars && reflex.chars.length){
+      const shells = hier.map(function(name){
+        const scores = reflex.chars.map(function(c){
+          return (c.frp && c.frp[name] && typeof c.frp[name].score==='number') ? c.frp[name].score : 0;
+        });
+        const avg = scores.reduce(function(a,b){ return a+b; },0) / scores.length;
+        const freq = {};
+        reflex.chars.forEach(function(c){
+          const st = (c.frp && c.frp[name] && c.frp[name].state) || 'Foundation';
+          freq[st] = (freq[st]||0)+1;
+        });
+        const state = Object.keys(freq).sort(function(a,b){ return freq[b]-freq[a]; })[0];
+        return { name, frp: CORE_COGNITION.BRPN.frp, state, passed: avg > 0.1, score: +avg.toFixed(4) };
+      });
+      const all = shells.every(function(s){ return s.passed; });
+      return { shells, allPassed: all, spoken: CORE_COGNITION.BRPN.spoken, fromChars: true };
+    }
     const buoy = (lex && lex.buoyancyContext) || {state:'FOUNDATION', score:1};
     const score = typeof buoy.score==='number' ? buoy.score : 1;
-    const shells = CORE_COGNITION.BRPN.hierarchy.map(function(name){
-      const frp = frpSqrtFrp(score, score, score);
+    // Hierarchy law: AERO at the route, then MAR, GEO lowest — same FRP trio, different weights.
+    const weights = { AERO:{f:0.6,r:0.8,p:1.2}, MAR:{f:0.8,r:1.2,p:0.7}, GEO:{f:1.2,r:0.7,p:0.5} };
+    const shells = hier.map(function(name){
+      const w = weights[name] || {f:1,r:1,p:1};
+      const frp = frpSqrtFrp(score*w.f, score*w.r, score*w.p);
       return {
         name,
         frp: CORE_COGNITION.BRPN.frp,
@@ -344,7 +366,7 @@ const FUNCTION_SKIP = new Set([
   'up','down','off','out','over','under','today','yesterday','tomorrow','now','then',
   'just','very','really','also','too','even','still','only','well','please',
   'thing','things','stuff','time','way','kind','type','sort',
-  'hey','hi','hello','yo','sup','heya','howdy','morning','evening',
+  'hey','hi','hello','yo','sup','heya','howdy','morning','evening','wassup','whassup','wazzup','whats',
   'bye','goodbye','thanks','thank','ok','okay','yes','yeah','yep','no','nope',
   'autumn','doing','like','want','wanna','gonna','kinda',
   'would','could','should','shall'
@@ -830,10 +852,13 @@ class SentenceParser {
     const end=text.trim().slice(-1);
     const words=raw.replace(/[^a-z ']/g,' ').split(' ').filter(Boolean);
     const ws=new Set(words);
-    // Greeting
-    if(words.length<=4&&['hey','hi','hello','yo','sup','heya','howdy','morning','evening'].some(w=>ws.has(w))) return 'greeting';
+    // Greeting — informal speech is still English (wassup / what's up)
+    if(words.length<=4&&['hey','hi','hello','yo','sup','heya','howdy','morning','evening','wassup','whassup','wazzup'].some(w=>ws.has(w))) return 'greeting';
+    if(words.length<=4&&/what'?s?\s*up/.test(raw)) return 'greeting';
     // Farewell
     if(words.length<=5&&['bye','goodbye','later','peace','night','goodnight','cya'].some(w=>ws.has(w)||raw.includes(w))) return 'farewell';
+    // Thanks
+    if(words.length<=5&&(/^(thanks|thank you|thx|ty)\b/.test(raw)||ws.has('thanks')||ws.has('thank'))) return 'thanks';
     // Affirmation
     if(words.length<=5&&['yes','yeah','yep','yup','exactly','right','agreed','ok','okay','sure','totally','true'].some(w=>ws.has(w))) return 'affirmation';
     // Negation
@@ -842,6 +867,8 @@ class SentenceParser {
     if(/\bhow(\s+are|\s+'?s|\s+is)\s+(you|it|things)\b/.test(raw) ||
        /\b(you doing|how.?s it going|how are you doing)\b/.test(raw)) return 'how_are_you';
     if(/\bwhat (would you like|do you (want|like) to do|shall we do|should we do)\b/.test(raw)) return 'activity_offer';
+    // Presence — before personal, which otherwise swallows "are you"
+    if(/\b((are|r)\s+you\s+(there|here|around)|you\s+(there|here|around)|still\s+(there|here))\b/.test(raw)) return 'presence';
     // Personal — about Autumn
     if(['do you','are you','can you','what do you','how do you','do you feel','have you','would you'].some(p=>raw.includes(p))) return 'personal';
     // Casual — wanna, gonna etc
@@ -3713,6 +3740,184 @@ class ANLPCA {
   _grammarDict(){
     return (this.a && this.a._grammar) || null;
   }
+  _talkKey(raw){
+    return String(raw||'').trim().toLowerCase().replace(/[.!?]+$/g,'').replace(/\s+/g,' ').trim();
+  }
+  _classifyChar(ch, G){
+    const raw = String(ch==null?'':ch);
+    const c = raw.toLowerCase();
+    const vowels = (G && G.vowels && G.vowels.primary) || ['a','e','i','o','u'];
+    const vWeight = (G && G.vowels && G.vowels.buoyancy_weight) || {a:1.0,e:0.92,i:0.84,o:0.76,u:0.68};
+    const vRes = (G && G.vowels && G.vowels.emotional_resonance) || {};
+    const cons = (G && G.consonants) || {};
+    const byClass = cons.by_class || {};
+    const affinity = cons.tool_affinity || {};
+    const punct = (G && G.punctuation && G.punctuation.markers) || {};
+    if(c===' ' || c==='\t' || c==='\n' || c==='\r'){
+      return {char:raw, kind:'space', what:'whitespace', does:'separates tokens', tool:null, buoyancy:0};
+    }
+    const ellipsis = raw==='.' ? punct['...'] : null;
+    const mark = punct[raw] || punct[c];
+    if(mark || /[.,!?;:"'\-]/.test(raw)){
+      const m = mark || {signal:'punctuation', emotion_bias:'neutral', tool_trigger:'ENVELOPE'};
+      return {
+        char: raw, kind:'punct',
+        what: m.signal || 'punctuation',
+        does: 'marks '+(m.signal || 'punctuation'),
+        tool: m.tool_trigger || 'ENVELOPE',
+        emotion: m.emotion_bias || 'neutral',
+        buoyancy: 0.52
+      };
+    }
+    if(/[0-9]/.test(c)){
+      return {char:raw, kind:'digit', what:'digit_cardinal_element', does:'counts', tool:'PUZZLE', buoyancy:0.88};
+    }
+    if(vowels.indexOf(c)>=0){
+      const order = {a:1,e:2,i:3,o:4,u:5}[c] || 0;
+      const res = vRes[c] || ['phonation'];
+      const tool = c==='a'?'HAMMER':c==='e'?'PUZZLE':c==='i'?'STICK':c==='o'?'ENVELOPE':'SCISSORS';
+      return {
+        char:raw, kind:'vowel', what:'vowel_'+c,
+        does: Array.isArray(res)?res.join('/'):String(res),
+        tool, vowelOrder: order, buoyancy: vWeight[c] || 0.8
+      };
+    }
+    if(/[a-z]/.test(c)){
+      let cls = null;
+      Object.keys(byClass).forEach(function(k){
+        if(!cls && (byClass[k]||[]).indexOf(c)>=0) cls = k;
+      });
+      if(!cls && c==='y') cls = 'approximants';
+      const aff = cls && affinity[cls];
+      return {
+        char:raw, kind:'consonant',
+        what: cls ? (cls+'_'+c) : ('consonant_'+c),
+        does: aff && aff.reason ? aff.reason : 'articulates',
+        tool: aff && aff.tool ? aff.tool : 'MAZE',
+        consonantClass: cls,
+        buoyancy: aff && aff.index ? +(1 - aff.index*0.12).toFixed(4) : 1
+      };
+    }
+    return {char:raw, kind:'unknown', what:'unlisted_mark', does:'', tool:null, buoyancy:0.2};
+  }
+  _charFrp(info){
+    const f = Math.max(info && info.buoyancy ? info.buoyancy : 0.2, 0.01);
+    const r = Math.max((info && info.tool ? 0.7 : 0.3) + ((info && info.vowelOrder)||0)*0.05, 0.01);
+    const p = Math.max(info && info.kind==='punct' ? 0.9 : info && info.kind==='vowel' ? 0.6 : info && info.kind==='digit' ? 0.8 : 0.5, 0.01);
+    const pack = function(frpObj, fW, rW, pW){
+      const trio = [{name:'Foundation', v:fW},{name:'Reflex', v:rW},{name:'Performance', v:pW}].sort(function(a,b){ return b.v-a.v; });
+      return {state: trio[0].name, score: frpObj.score, passed: frpObj.score > 0.1};
+    };
+    // Law: AERO at the route, then MAR, GEO lowest.
+    const AERO = frpSqrtFrp(f*0.6, r*0.8, p*1.2);
+    const MAR  = frpSqrtFrp(f*0.8, r*1.2, p*0.7);
+    const GEO  = frpSqrtFrp(f*1.2, r*0.7, p*0.5);
+    return {
+      AERO: pack(AERO, f*0.6, r*0.8, p*1.2),
+      MAR:  pack(MAR,  f*0.8, r*1.2, p*0.7),
+      GEO:  pack(GEO,  f*1.2, r*0.7, p*0.5)
+    };
+  }
+  _leatrReflex(raw, attached){
+    const G = this._grammarDict();
+    const src = String(raw||'');
+    const extra = String(attached||'');
+    const chars = [];
+    for(let i=0;i<src.length;i++){
+      const info = this._classifyChar(src[i], G);
+      let enough = !!(info.kind && info.kind!=='unknown' && info.what && info.does);
+      let lookedAhead = false;
+      // Look across remaining (and prior) characters: ellipsis is trailing_thought.
+      const ellipsisHere = src[i]==='.' && (
+        src.slice(i,i+3)==='...' ||
+        (i>=1 && src.slice(i-1,i+2)==='...') ||
+        (i>=2 && src.slice(i-2,i+1)==='...')
+      );
+      if(ellipsisHere){
+        const marks = (G && G.punctuation && G.punctuation.markers && G.punctuation.markers['...']) || {};
+        info.kind = 'punct';
+        info.what = marks.signal || 'trailing_thought';
+        info.does = 'marks '+(marks.signal || 'trailing_thought');
+        info.tool = marks.tool_trigger || 'SCISSORS';
+        info.emotion = marks.emotion_bias || 'uncertain';
+        info.buoyancy = 0.28;
+        lookedAhead = true;
+        enough = true;
+      }
+      if(!enough){
+        lookedAhead = true;
+        const window = src.slice(i) + (extra ? (' '+extra) : '');
+        if(/[a-zA-Z]/.test(src[i])){
+          info.kind = 'letter';
+          info.what = info.what || 'letter';
+          info.does = 'continues from remaining characters in the prompt';
+          enough = true;
+        } else {
+          info.kind = info.kind || 'symbol';
+          info.what = info.what || 'unlisted_mark';
+          info.does = window.trim() ? 'carries meaning from surrounding tokens' : 'marks the prompt';
+          enough = true; // never stall
+        }
+      }
+      info.frp = this._charFrp(info);
+      info.defined = enough;
+      info.lookedAhead = lookedAhead;
+      info.index = i;
+      chars.push(info);
+    }
+    const tokens = [];
+    let buf = [];
+    const flush = () => {
+      if(!buf.length) return;
+      const word = buf.map(c=>c.char).join('');
+      const letters = buf.filter(c=>c.kind==='vowel'||c.kind==='consonant'||c.kind==='letter'||c.kind==='digit');
+      const thin = letters.length>0 && letters.every(c=>c.kind!=='vowel') && letters.length<3;
+      let lookedAhead = buf.some(c=>c.lookedAhead);
+      if(thin && extra){
+        lookedAhead = true;
+      }
+      const lower = word.toLowerCase();
+      tokens.push({
+        word,
+        chars: buf.slice(),
+        role: this._tokenTalkRole(lower, G),
+        thin, lookedAhead,
+        defined: buf.every(c=>c.defined)
+      });
+      buf = [];
+    };
+    chars.forEach(function(c){
+      if(c.kind==='space'){ flush(); return; }
+      if(c.kind==='punct'){ flush(); tokens.push({word:c.char, chars:[c], role:'punct', thin:false, lookedAhead:c.lookedAhead, defined:c.defined}); return; }
+      buf.push(c);
+    });
+    flush();
+    const sentenceType = /[?]/.test(src) ? 'interrogative' : /!/.test(src) ? 'exclamatory' : 'declarative';
+    const sig = sentenceType==='interrogative' ? 'SIG_Q' : sentenceType==='exclamatory' ? 'SIG_E' : 'SIG_D';
+    const seqs = (G && G.sequence_patterns && G.sequence_patterns.pattern_types) || [];
+    const sequence = seqs.find(function(p){ return (p.structure||'').indexOf(sig)>=0; }) || {id:'SEQ_A', name:'Assertion Chain', structure:'SIG_D → SIG_D → SIG_D'};
+    const talkKind = this._conversationIntent(src, {intent: tokens.some(t=>t.role==='greeting')?'greeting':''});
+    return {
+      chars, tokens, sequence, sentenceType, sig, talkKind,
+      definedAll: chars.length===0 || chars.every(c=>c.defined),
+      hierarchy: CORE_COGNITION.BRPN.hierarchy,
+      spoken: CORE_COGNITION.BRPN.spoken
+    };
+  }
+  _tokenTalkRole(lower, G){
+    const n = String(lower||'').replace(/['']/g,"'");
+    const CF = G && G.conversationFramework;
+    const slang = (CF && CF.slang_map) || {};
+    if(slang[n] && slang[n].kind) return slang[n].kind;
+    if(GR.PRONOUNS.has(n)) return 'pronoun';
+    if(GR.AUXILIARIES.has(n)) return 'auxiliary';
+    if(GR.PREPOSITIONS.has(n)) return 'preposition';
+    if(GR.CONJUNCTIONS.has(n)) return 'conjunction';
+    if(GR.ARTICLES.has(n) || GR.DETERMINERS.has(n)) return 'determiner';
+    if(GR.INTERROGATIVES.has(n)) return 'interrogative';
+    if(classifyNumber(n)) return 'number';
+    return 'content';
+  }
   _skipDefLookup(w){ return skipDefLookup(w); }
   _isContentNoun(tok){
     const n = tokenNorm(tok).toLowerCase();
@@ -3724,17 +3929,43 @@ class ANLPCA {
   }
   _conversationIntent(raw, parsed){
     const s = String(raw||'').trim().toLowerCase();
+    const key = this._talkKey ? this._talkKey(s) : s.replace(/[.!?]+$/g,'').replace(/\s+/g,' ').trim();
+    const compact = key.replace(/['']/g,'');
     const intent = (parsed && parsed.intent) || '';
+    const G = this._grammarDict();
+    const CF = G && G.conversationFramework;
+    const slang = (CF && CF.slang_map) || {};
+    const presence = (CF && CF.presence_phrases) || [];
+    const thanksP = (CF && CF.thanks_phrases) || [];
+
     if(intent==='how_are_you' ||
        /\bhow(\s+are|\s+'?s|\s+is)\s+(you|it|things)\b/.test(s) ||
        /\b(you doing|how.?s it going|how are you doing)\b/.test(s))
       return 'how_are_you';
+
+    const presenceHit = presence.some(function(p){
+      const n = String(p||'').toLowerCase();
+      return compact===n || compact===n.replace(/'/g,'') || compact.indexOf(n)>=0;
+    });
+    if(intent==='presence' || presenceHit ||
+       /\b((are|r)\s+you\s+(there|here|around)|you\s+(there|here|around)|still\s+(there|here))\b/.test(s))
+      return 'presence';
+
+    if(intent==='thanks' || thanksP.some(function(p){ return compact===p || compact.indexOf(p+' ')===0; }) ||
+       /^(thanks|thank you|thx|ty)(\b|[!. ]|$)/.test(s))
+      return 'thanks';
+
+    const firstTwo = key.split(/\s+/).slice(0,2).join(' ');
+    const firstOne = compact.split(/\s+/)[0] || '';
+    const slangHit = slang[key] || slang[compact] || slang[firstTwo] || slang[firstTwo.replace(/'/g,'')] || slang[firstOne];
+    if(slangHit && slangHit.kind==='greeting') return 'greeting';
+    if(intent==='greeting' ||
+       /^(wassup|whassup|wazzup|whats\s*up|what's\s*up|what\s+up|sup|hey|hi|hello|yo|heya|howdy)(\b|[!?. ,]|$)/.test(s))
+      return 'greeting';
+
     if(intent==='activity_offer' ||
        /\bwhat (would you like|do you (want|like) to do|shall we do|should we do)\b/.test(s))
       return 'activity_offer';
-    if(intent==='greeting' ||
-       /^(hey|hi|hello|yo|sup|heya|howdy)(\b|[!. ,])/.test(s))
-      return 'greeting';
     if(intent==='farewell' ||
        /^(bye|goodbye|later|goodnight|cya)\b/.test(s))
       return 'farewell';
@@ -3745,7 +3976,7 @@ class ANLPCA {
   _sentenceSig(parsed, raw){
     const intent = (parsed && parsed.intent) || '';
     const t = String(raw||'').trim();
-    if(intent==='how_are_you' || intent==='activity_offer' || intent==='greeting') return 'SIG_D';
+    if(intent==='how_are_you' || intent==='activity_offer' || intent==='greeting' || intent==='presence' || intent==='thanks') return 'SIG_D';
     if((parsed && parsed.isInterrogative) || /\?/.test(t) || /^question_/.test(intent)) return 'SIG_Q';
     if(t.endsWith('!') || intent==='exclamation') return 'SIG_E';
     if(intent==='command_do' || intent==='command_tell') return 'SIG_I';
@@ -3854,10 +4085,29 @@ class ANLPCA {
     const named = /\bautumn\b/.test(s);
     const hasToday = /\btoday\b/.test(s);
     const RT = G && G.responseTemplates;
+    const CF = G && G.conversationFramework;
+    const slang = (CF && CF.slang_map) || {};
+    const key = this._talkKey ? this._talkKey(s) : s.replace(/[.!?]+$/g,'').replace(/\s+/g,' ').trim();
+    const compact = key.replace(/['']/g,'');
+    const slangHit = slang[key] || slang[compact] || slang[compact.split(/\s+/)[0]];
     if(kind==='greeting'){
+      const isWhatsUp = /^(wassup|whassup|wazzup|whats\s*up|what's\s*up|what\s+up|sup)\b/.test(s) ||
+                        (slangHit && slangHit.canonical && /what.?s up/.test(slangHit.canonical));
+      if(isWhatsUp){
+        if(RT && RT.greeting && RT.greeting[0]) return RT.greeting[0];
+        return "Hey. What's going on?";
+      }
       if(RT && RT.greeting && RT.greeting[0] && String(raw||'').trim().split(/\s+/).length>2)
         return RT.greeting[0];
       return 'Hello.';
+    }
+    if(kind==='presence'){
+      if(RT && RT.presence && RT.presence[0]) return RT.presence[0];
+      return "Yes. I'm here.";
+    }
+    if(kind==='thanks'){
+      if(RT && RT.thanks && RT.thanks[0]) return RT.thanks[0];
+      return "You're welcome.";
     }
     if(kind==='farewell'){
       if(RT && RT.farewell && RT.farewell[0]) return RT.farewell[0];
@@ -3917,12 +4167,13 @@ class ANLPCA {
     return out.slice(0, maxSent);
   }
 
-  _composeLocalGrammarReply(raw, parsed, lex, defs, missing){
+  _composeLocalGrammarReply(raw, parsed, lex, defs, missing, reflex){
     const intent = (parsed && parsed.intent) || 'statement_pos';
     const tokens = (parsed && parsed.tokens) || [];
     const wordCount = tokens.filter(t => t && (t.norm||t.word) && !/^[.,!?;:'"()\[\]]$/.test(t.word||'')).length;
     const G = this._grammarDict();
-    const conv = this._conversationIntent(raw, parsed);
+    reflex = reflex || (lex && lex.reflex) || null;
+    const conv = this._conversationIntent(raw, parsed) || (reflex && reflex.talkKind) || null;
     if(conv){
       const reply = this._convReply(conv, raw, parsed, G);
       if(reply) return reply;
@@ -3946,7 +4197,7 @@ class ANLPCA {
     const sig = this._sentenceSig(parsed, raw);
     const ss = G && G.sentence_structures;
     const seqs = (G && G.sequence_patterns && G.sequence_patterns.pattern_types) || [];
-    const seq = seqs.find(function(p){ return (p.structure||'').indexOf(sig)>=0; }) || null;
+    const seq = (reflex && reflex.sequence) || seqs.find(function(p){ return (p.structure||'').indexOf(sig)>=0; }) || null;
     const contentMissing = (missing||[]).map(tokenNorm).filter(w => w && !skipDefLookup(w));
 
     const sentences = [];
@@ -3959,6 +4210,7 @@ class ANLPCA {
 
     if(isQ){
       if(primDef){
+        // WordNet is enrichment for a known content noun — never a gate.
         if(intent==='question_how') sentences.push(this._capWord(prim)+' works as '+primDef+'.');
         else sentences.push(this._capWord(prim)+' is '+primDef+'.');
         if(wordCount>8 && defKeys[1] && defs[defKeys[1]] && tool==='PUZZLE'){
@@ -3966,14 +4218,14 @@ class ANLPCA {
         }
       } else if(numToks.length && !topic){
         sentences.push(numToks.map(n=>this._describeNumber(n)).join(' '));
-      } else if(!topic){
-        // Ordinary English question with no content noun — answer from roles, not a dictionary hole.
-        if(subj && pred) sentences.push(this._svoSentence(parsed, 'I', pred, obj, '.'));
-        else sentences.push('I can take that as a question.');
       } else {
-        this._journalBoundary(topic, 'Question with no dictionary definition. No fabricated answer.');
-        sentences.push('The question is grammatical, but '+topic+' has no definition in the local dictionary yet.');
-        sentences.push('That boundary is journaled rather than filled in.');
+        // Grammar first: journal a missing content noun without blocking the reply.
+        if(topic && this._isContentNoun(topic)){
+          this._journalBoundary(topic, 'Question with no dictionary definition. Boundary journaled; grammatical reply continues.');
+        }
+        if(subj && pred) sentences.push(this._svoSentence(parsed, 'I', pred, obj, '.'));
+        else if(topic) sentences.push(this._capWord(topic)+' is the subject of that question.');
+        else sentences.push(this._svoSentence(parsed, 'I', 'am', 'here', '.'));
       }
       return this._applyToolShape(sentences, tool, shell, wordCount).join(' ');
     }
@@ -3999,8 +4251,8 @@ class ANLPCA {
       } else if(!topic){
         sentences.push('Understood.');
       } else {
-        this._journalBoundary(topic, 'Command with no dictionary definition. Boundary journaled.');
-        sentences.push(this._capWord(topic)+' has no local definition yet. That boundary is journaled.');
+        this._journalBoundary(topic, 'Command with no dictionary definition. Boundary journaled; grammatical reply continues.');
+        sentences.push('Understood.');
       }
       return this._applyToolShape(sentences, tool, shell, wordCount).join(' ');
     }
@@ -4044,11 +4296,12 @@ class ANLPCA {
     return shaped.replace(/\[object Object\]/g,'').replace(/\s+/g,' ').trim();
   }
 
-  // Buoyancy reflex chat path — parse POS/roles, dictionary, FRP GEO/MAR/AERO + Natural Tools.
-  // No LLM key. Proportional grammatical sentences about the user's topic.
+  // Buoyancy reflex chat path — per-character FRP (AERO→MAR→GEO), sequence pattern, grammar net.
+  // No LLM key. WordNet enriches content nouns only. Informal speech is still English.
   async processForChat(text, facts={}) {
     const WN = typeof window !== 'undefined' && window.AutumnWordNet;
     const raw = String(text||'').trim();
+    const attached = (facts && (facts._attachedText || facts.attachedText || facts.fileText)) || '';
     let parsed = {tokens:[], intent:'statement_pos', contentWords:[], isInterrogative:false};
     try {
       if (this.c && typeof this.c.finalizePattern === 'function') parsed = this.c.finalizePattern(raw);
@@ -4056,6 +4309,10 @@ class ANLPCA {
     } catch(e) {}
     let lex = {dominantTool:'MAZE', buoyancyContext:{state:'FOUNDATION',score:1}, sentenceType:'declarative', consensus:null};
     try { if (this._lexer && typeof this._lexer.analyzeSentence === 'function') lex = this._lexer.analyzeSentence(raw); } catch(e) {}
+
+    let reflex = {chars:[], tokens:[], sequence:null, definedAll:true};
+    try { reflex = this._leatrReflex(raw, attached); } catch(e) {}
+    lex.reflex = reflex;
 
     // CBS compile/validate — Core Cognition lock, tag isolation, open-root default 0.
     let compile = { mapped:true, gbv:{ok:true,reasons:[]}, tags:{isolated:true}, habitat:null, falseReason:'' };
@@ -4066,7 +4323,8 @@ class ANLPCA {
 
     const fromParse = (parsed.contentWords||[]).map(t=>tokenNorm(t)).filter(Boolean);
     const extra = raw.toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).filter(w => w.length > 3);
-    const toLookup = [...new Set(fromParse.concat(extra))].filter(w => !skipDefLookup(w)).slice(0,10);
+    const talkSkip = new Set((reflex.tokens||[]).filter(t=>t && (t.role==='greeting'||t.role==='presence'||t.role==='pronoun'||t.role==='auxiliary')).map(t=>String(t.word||'').toLowerCase()));
+    const toLookup = [...new Set(fromParse.concat(extra))].filter(w => !skipDefLookup(w) && !talkSkip.has(w)).slice(0,10);
     if (WN && typeof WN.lookup === 'function') {
       await Promise.all(toLookup.map(w => WN.lookup(w).catch(()=>[])));
     }
@@ -4103,7 +4361,7 @@ class ANLPCA {
       }
     }
     if (!response) {
-      try { response = this._composeLocalGrammarReply(raw, parsed, lex, defs, missing); } catch(e) { response = ''; }
+      try { response = this._composeLocalGrammarReply(raw, parsed, lex, defs, missing, reflex); } catch(e) { response = ''; }
     }
     if (!response || response.length < 3) {
       try { response = this.a.buildConversational(packed, text, knownFacts); } catch(e) { response = ''; }
@@ -4119,11 +4377,9 @@ class ANLPCA {
       } else {
         const tpc = tokenNorm(parsed && parsed.centralTopic) || toLookup[0] || '';
         if(tpc && !skipDefLookup(tpc)){
-          this._journalBoundary(tpc, 'Empty local reply. Boundary journaled.');
-          response = 'The grammatical pattern is parsed. No dictionary definition is on hand for '+tpc+' yet — that boundary is journaled.';
-        } else {
-          response = this._svoSentence(parsed, 'I', 'am', 'here', '.');
+          this._journalBoundary(tpc, 'Empty local reply. Boundary journaled; grammatical reply continues.');
         }
+        response = this._svoSentence(parsed, 'I', 'am', 'here', '.');
       }
     }
     return Object.assign({}, packed, {
@@ -4131,12 +4387,14 @@ class ANLPCA {
       cbs: compile,
       habitat: compile && compile.habitat,
       gbv: compile && compile.gbv,
+      reflex,
       lexical: packed && packed.lexical ? packed.lexical : {
         dominantTool: lex.dominantTool,
         buoyancyContext: lex.buoyancyContext,
         sentenceType: lex.sentenceType,
         totalMazeSigma: lex.totalMazeSigma,
-        consensus: lex.consensus||null
+        consensus: lex.consensus||null,
+        reflex
       }
     });
   }
@@ -4199,7 +4457,8 @@ return{
   SigmaAnalytics,
   // Live shell array references (Mmsa has master sigma)
   get shells(){ return engine.shells; },
-  analyzeLex:(text)=>engine._lexer.analyzeSentence(text)
+  analyzeLex:(text)=>engine._lexer.analyzeSentence(text),
+  leatrReflex:(t,a)=>engine._leatrReflex(t,a)
 };
 
 })();
