@@ -2785,7 +2785,7 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js?v=2026082701"></script>
-<script src="js/autumn-grammar-engine.js?v=20260828m"></script>
+<script src="js/autumn-grammar-engine.js?v=20260828n"></script>
 <link rel="stylesheet" href="css/desktop-layout.css">
 <script src="js/desktop-layout.js"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
@@ -11366,7 +11366,8 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
 
   // Run live web query ONLY when intent may need external data
   var _preIntent = detectIntent(text);
-  var _needsWeb = ['factual','general','howto','news','video','image'].includes(_preIntent);
+  var _mathAsk = /\b(cube|square)\s+roots?\b/i.test(text) || (/\d/.test(text) && /[\+\-\*\/x×÷^=()]/.test(text));
+  var _needsWeb = !_mathAsk && ['factual','general','howto','news','video','image'].includes(_preIntent);
   const _emptyLive = {liveText:'',spoken:'',videos:[],images:[],links:[],sources:[],placeMapHtml:''};
   const [liveData,reply] = await Promise.all([
     _needsWeb ? liveQuery(augmentedText, reflexData).catch(()=>_emptyLive) : Promise.resolve(_emptyLive),
