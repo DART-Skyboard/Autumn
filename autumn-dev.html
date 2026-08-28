@@ -1442,17 +1442,20 @@ body.theme-ashtree ::-webkit-scrollbar-thumb{background:rgba(80,200,100,.28)}
 html[data-aut-theme="void"],html[data-aut-theme="void"] body{background:#000;}
 html[data-aut-theme="void"] #backdrop-video{opacity:0!important;visibility:hidden;}
 html[data-aut-theme="void"] #vid-scrim{background:#000!important;}
-body.theme-void{
-  --cyan:#9ec4d4;--blue:#7aa8c0;--red:#c45a6a;
-  --bg:#000000;--bg2:#0a0a0a;
-  --border:rgba(255,255,255,0.08);
-  --text:#e8eaed;--dim:#8b9198;--bright:#f1f3f4;
-  --tt-color:#c5cad0;
+html[data-aut-theme="void"],body.theme-void{
+  --cyan:#d1d1d6;--blue:#a1a1a6;--red:#8e8e93;
+  --bg:#000000;--bg2:#1C1C1E;
+  --panel:rgba(28,28,30,0.72);
+  --border:rgba(255,255,255,0.10);
+  --text:#ffffff;--dim:#8e8e93;--bright:#ffffff;
+  --tt-color:#aeaeb2;
+  color:#fff;
   background:#000;
 }
 body.theme-void header{
   background:#000;
   border-bottom-color:rgba(255,255,255,0.08);
+  background-image:none;
 }
 body.theme-void #vid-scrim{
   background:#000!important;
@@ -1462,22 +1465,55 @@ body.theme-void #vid-scrim{
 body.theme-void #backdrop-video{opacity:0!important;visibility:hidden;}
 body.theme-void .ov-grid{opacity:0!important;}
 body.theme-void .logo{
-  background:linear-gradient(135deg,#e8eaed 0%,#9ec4d4 55%,#7aa8c0 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  filter:drop-shadow(0 0 6px rgba(200,210,220,0.25));
+  background:none;
+  -webkit-background-clip:unset;-webkit-text-fill-color:#fff;background-clip:unset;
+  color:#fff;filter:none;
 }
-body.theme-void .chat-bubble,body.theme-void .msg-wrap{
-  background:rgba(18,18,20,0.92)!important;
-  border-color:rgba(255,255,255,0.08)!important;
+body.theme-void .chat-bubble,body.theme-void .msg-wrap,body.theme-void .msg .bubble{
+  background:#1C1C1E!important;
+  border-color:rgba(255,255,255,0.10)!important;
+  color:#fff;
 }
 body.theme-void .msg.user .bubble{
-  background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
-  border-color:rgba(255,255,255,.12);
+  background:#262626!important;
+  border-color:rgba(255,255,255,.12)!important;
+  color:#fff;
 }
 body.theme-void .msg.autumn .bubble{
-  background:linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
-  border-color:rgba(255,255,255,.08);
+  background:#1C1C1E!important;
+  border-color:rgba(255,255,255,.10)!important;
+  color:#fff;
 }
+body.theme-void .msg-text-content,body.theme-void .msg .bubble{color:#fff;}
+body.theme-void .msg-lbl,body.theme-void .msg-meta,body.theme-void .typing-lbl{color:#8e8e93!important;}
+body.theme-void .dbg-toggle,body.theme-void .dbg-line,body.theme-void .msg-grammar{color:#636366!important;border-color:rgba(255,255,255,.08)!important;}
+body.theme-void header button,body.theme-void .hdr-btn,body.theme-void .nav-btn,body.theme-void .tray-btn,body.theme-void #send-btn{
+  color:#d1d1d6;border-color:rgba(255,255,255,.14);
+  background:#1C1C1E;
+}
+body.theme-void header button:hover,body.theme-void .hdr-btn:hover,body.theme-void .tray-btn:hover,body.theme-void #send-btn:hover{
+  color:#fff;border-color:rgba(255,255,255,.28);background:#262626;
+}
+body.theme-void #input-area{background:#000;border-top-color:rgba(255,255,255,.08);}
+body.theme-void #input-pill,body.theme-void #chat-input,body.theme-void input,body.theme-void textarea{
+  background:#1C1C1E;color:#fff;border-color:rgba(255,255,255,.12);
+}
+body.theme-void #cognition-state,body.theme-void #hud-geo,body.theme-void #hud-mar,body.theme-void #hud-aero,
+body.theme-void #cog-state-lbl,body.theme-void [id^="hud-"]{
+  color:#aeaeb2;
+}
+body.theme-void #hud-calc-btn,body.theme-void #hud-arc-btn,body.theme-void #hud-arclake-btn,
+body.theme-void #hud-emomap-btn,body.theme-void #hud-forge-btn,body.theme-void #hud-radar-btn,
+body.theme-void #hud-mavisnav-btn,body.theme-void #hud-alc-btn{
+  color:#d1d1d6!important;border-color:rgba(255,255,255,.16)!important;background:rgba(28,28,30,.55)!important;
+  text-shadow:none!important;
+}
+body.theme-void #brpn-region,body.theme-void #multi-user-bar{
+  border-color:rgba(255,255,255,0.08);
+  color:#d1d1d6;
+}
+body.theme-void .src-pill,body.theme-void .media-label,body.theme-void .link-title{color:#d1d1d6;}
+body.theme-void .src-strip,body.theme-void .media-section{border-color:rgba(255,255,255,.1);}
 body.theme-void #input-area{background:rgba(0,0,0,.88);border-top-color:rgba(255,255,255,.08);}
 body.theme-void #input-pill{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1);}
 body.theme-void #brpn-region{border-bottom-color:rgba(255,255,255,0.08)}
@@ -2749,7 +2785,7 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js?v=2026082701"></script>
-<script src="js/autumn-grammar-engine.js?v=20260828j"></script>
+<script src="js/autumn-grammar-engine.js?v=20260828m"></script>
 <link rel="stylesheet" href="css/desktop-layout.css">
 <script src="js/desktop-layout.js"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
@@ -6830,15 +6866,94 @@ async function fetchWiki(q){
   }catch(e){return null}}
 
 async function fetchDDG(q){try{const r=await ft(`https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_html=1&skip_disambig=1`,7000);if(!r.ok)return null;const d=await r.json();return{answer:d.Answer||'',abstract:d.AbstractText||'',abstractUrl:d.AbstractURL||'',heading:d.Heading||''}}catch(e){return null}}
+window.fetchWiki = fetchWiki;
+window.wikiSearch = fetchWiki;
+window.fetchDDG = fetchDDG;
+if (typeof fetchBraveWeb === 'function') window.fetchBraveWeb = fetchBraveWeb;
+
 
 async function fetchNews(q){
-  const out=[];const [gd,hn]=await Promise.allSettled([ft(`https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&maxrecords=6&format=json&sort=hybridrel&timespan=MONTH`,8000),ft(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&hitsPerPage=5`,7000)]);
+  const out=[];const [gd,hn]=await Promise.allSettled([ft(`https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&maxrecords=8&format=json&sort=hybridrel&timespan=WEEK`,8000),ft(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&hitsPerPage=8`,7000)]);
   if(gd.status==='fulfilled'&&gd.value.ok){const text=await gd.value.text().catch(()=>'');if(!text.trim().startsWith('<')){try{const d=JSON.parse(text);(d.articles||[]).filter(a=>a.url&&a.title).forEach(a=>out.push({title:a.title,url:a.url,desc:`${a.domain||'news'} · ${(a.seendate||'').slice(0,8)}`}))}catch(e){}}}
   if(hn.status==='fulfilled'&&hn.value.ok){const d=await hn.value.json().catch(()=>({hits:[]}));(d.hits||[]).filter(h=>h.title).forEach(h=>out.push({title:h.title,url:h.url||`https://news.ycombinator.com/item?id=${h.objectID}`,desc:`HN · ${h.points||0}pts · ${h.num_comments||0} comments`}))}
   return out.slice(0,5);
 }
 
-async function fetchReddit(q){try{const r=await ft(`https://www.reddit.com/search.json?q=${encodeURIComponent(q)}&sort=top&limit=5&t=month`,7000);if(!r.ok)return[];const d=await r.json();return(d.data?.children||[]).map(c=>c.data).filter(p=>p&&p.title).map(p=>({title:p.title,url:`https://reddit.com${p.permalink}`,desc:`r/${p.subreddit} · ${p.score||0}↑ · ${p.num_comments||0} comments`})).slice(0,4)}catch(e){return[]}}
+async function fetchReddit(q){try{const r=await ft(`https://www.reddit.com/search.json?q=${encodeURIComponent(q)}&sort=new&limit=8&t=week`,7000);if(!r.ok)return[];const d=await r.json();return(d.data?.children||[]).map(c=>c.data).filter(p=>p&&p.title).map(p=>({title:p.title,url:`https://reddit.com${p.permalink}`,desc:`r/${p.subreddit} · ${p.score||0}↑ · ${p.num_comments||0} comments`})).slice(0,6)}catch(e){return[]}}
+
+async function fetchWikiSummary(q){
+  try{
+    const enc=encodeURIComponent(q);
+    const r=await ft('https://en.wikipedia.org/api/rest_v1/page/summary/'+enc,7000);
+    if(!r.ok) return null;
+    const d=await r.json();
+    if(!d||d.type==='disambiguation') return null;
+    return {title:d.title||q, extract:(d.extract||'').trim(), url:d.content_urls&&d.content_urls.desktop&&d.content_urls.desktop.page||('https://en.wikipedia.org/wiki/'+enc), snippet:d.description||''};
+  }catch(e){return null;}
+}
+async function fetchWikidataDesc(q){
+  try{
+    const sr=await ft('https://www.wikidata.org/w/api.php?action=wbsearchentities&search='+encodeURIComponent(q)+'&language=en&format=json&origin=*&limit=3',7000);
+    if(!sr.ok) return null;
+    const sd=await sr.json();
+    const hit=(sd.search||[])[0];
+    if(!hit) return null;
+    return {title:hit.label||q, extract:(hit.description||'').trim(), url:hit.concepturi||('https://www.wikidata.org/wiki/'+hit.id), id:hit.id||''};
+  }catch(e){return null;}
+}
+async function fetchGitHubRepos(q){
+  try{
+    const r=await ft('https://api.github.com/search/repositories?q='+encodeURIComponent(q)+'&sort=updated&order=desc&per_page=4',7000);
+    if(!r.ok) return [];
+    const d=await r.json();
+    return (d.items||[]).filter(function(i){return i.html_url&&i.full_name;}).map(function(i){
+      return {title:i.full_name+' — GitHub', url:i.html_url, desc:(i.description||'GitHub repository')+' · ★ '+(i.stargazers_count||0)};
+    });
+  }catch(e){return [];}
+}
+async function autumnBroadSearch(q){
+  const query=String(q||'').trim();
+  if(!query) return null;
+  const settled=await Promise.allSettled([
+    fetchWiki(query),
+    fetchWikiSummary(query),
+    fetchDDG(query),
+    (typeof fetchBraveWeb==='function') ? fetchBraveWeb(query) : Promise.resolve(null),
+    fetchNews(query),
+    fetchReddit(query),
+    fetchWikidataDesc(query),
+    fetchGitHubRepos(query)
+  ]);
+  const pick=function(i){ const r=settled[i]; return (r&&r.status==='fulfilled') ? r.value : null; };
+  const wiki=pick(0), summary=pick(1), ddg=pick(2), brave=pick(3), news=pick(4)||[], reddit=pick(5)||[], wikidata=pick(6), github=pick(7)||[];
+  const links=[];
+  const sources=[];
+  if(wiki&&wiki.title){ sources.push('WIKIPEDIA'); if(wiki.url) links.push({title:wiki.title+' — Wikipedia', url:wiki.url, desc:'Wikipedia'}); }
+  if(ddg&&(ddg.abstract||ddg.answer)) sources.push('DDG');
+  if(brave&&brave.abstract) sources.push('BRAVE');
+  if(news.length){ sources.push('GDELT','HN'); news.slice(0,4).forEach(function(n){ links.push(n); }); }
+  if(reddit.length){ sources.push('REDDIT'); reddit.slice(0,2).forEach(function(n){ links.push(n); }); }
+  if(wikidata&&wikidata.extract) sources.push('WIKIDATA');
+  if(github.length){ sources.push('GITHUB'); github.slice(0,2).forEach(function(n){ links.push(n); }); }
+  return {
+    wiki: wiki || summary || null,
+    summary: summary||null,
+    ddg: ddg||null,
+    brave: brave||null,
+    news: news,
+    reddit: reddit,
+    wikidata: wikidata||null,
+    github: github,
+    links: links.slice(0,8),
+    sources: Array.from(new Set(sources))
+  };
+}
+window.fetchWikiSummary=fetchWikiSummary;
+window.fetchWikidataDesc=fetchWikidataDesc;
+window.fetchGitHubRepos=fetchGitHubRepos;
+window.autumnBroadSearch=autumnBroadSearch;
+window.fetchNews=fetchNews;
+window.fetchReddit=fetchReddit;
 
 function detectIntent(text){
   const lc=text.toLowerCase().trim();
@@ -6867,15 +6982,25 @@ function detectIntent(text){
   if(/\b(breaking news|latest news|news today|news this week|current events|what.s happening|headlines|top stories|recent news|in the news)\b/.test(lc)) return'news';
   if(/\b(how to|how do i|how can i|how do you|how does one)\b/.test(lc)) return'howto';
 
-  // ── Factual — explicit lookup signals only ──────────────────────────────
-  // Only treat as factual if there's a clear external-world topic to look up
+  // Ash Star / maze / cube / greetings / feelings stay off the web.
+  if(/\b(ash\s*star|ashstar)\b/.test(lc) && !/\b(who is|tell me about)\b/.test(lc)) return'personal';
+  if(/\b(maze studio|solve (my )?(maze )?cube|dolly)\b/.test(lc) && !/\b(who is|tell me about)\b/.test(lc)) return'personal';
+
+  // ── Factual — named people, topics, pronouns, current events, common knowledge
+  if(/\bwho\s+(is|was|are)\s+(he|she|they|him|her|them)\b/.test(lc)) return'factual';
   if(/^(who is|what is|where is|when did|why did|which is|how is|who was|what was|where was|when was)\b/.test(lc)) return'factual';
-  if(/\b(explain|define|definition of|meaning of|tell me about|background on|history of|facts about|information about|what happened to|who invented|who discovered)\b/.test(lc)) return'factual';
+  if(/\bwhat does\b/.test(lc) || /\bstand for\b/.test(lc)) return'factual';
+  if(/\be\s*(equals|=)\s*m\s*c/i.test(text) || /\bmc[\s-]*squared\b/i.test(lc)) return'factual';
+  if(/\b(explain|define|definition of|meaning of|tell me about|background on|history of|facts about|information about|what happened to|who invented|who discovered|ever heard of|have you heard of|do you know(?: who| about)?)\b/.test(lc)) return'factual';
+  if(/\b(current events|what.?s happening in the world)\b/.test(lc)) return'news';
 
   // ── General search — only when clearly asking for external information ──
   if(/\b(search for|look up|find out about|research|google|look for information)\b/.test(lc)) return'general';
 
-  // Anything else: treat as personal/conversational — do NOT default to web search
+  // Named-entity question ("Ada Lovelace?" / "what about Marie Curie")
+  if(/\?/.test(text) && /[A-Z][a-z]+\s+[A-Z][a-z]+/.test(text) && !/^(hi|hello|hey|how)\b/i.test(text)) return'factual';
+
+  // Anything else: conversational — greetings/feelings already returned personal above
   return'personal';
 }
 
@@ -6891,10 +7016,13 @@ async function liveQuery(userText, reflexData){
   } else if(reflexData?.contextType==="LOCATION_POI"){
     // POI handled by map widget
   } else {
-    if(intent==='personal'){/* personal/conversational — no web fetch needed */}
-    else if(['factual','general','howto','news'].includes(intent)){jobs.wiki=fetchWiki(cleanQ);jobs.ddg=fetchDDG(cleanQ);jobs.brave=fetchBraveWeb(cleanQ);}
-    if(intent==='news'){jobs.news=fetchNews(cleanQ);jobs.reddit=fetchReddit(cleanQ);jobs.bravenews=fetchBraveNews(cleanQ);}
-    if(intent==='general'){jobs.reddit=fetchReddit(cleanQ);jobs.brave=jobs.brave||fetchBraveWeb(cleanQ);}
+    if(intent==='personal'){/* greetings/feelings/ash-star/maze stay off the web */}
+    else if(['factual','general','howto','news'].includes(intent)){
+      jobs.wiki=fetchWiki(cleanQ);jobs.ddg=fetchDDG(cleanQ);jobs.brave=fetchBraveWeb(cleanQ);
+      jobs.news=fetchNews(cleanQ);jobs.reddit=fetchReddit(cleanQ);
+      jobs.wikidata=fetchWikidataDesc(cleanQ);jobs.github=fetchGitHubRepos(cleanQ);jobs.wikisum=fetchWikiSummary(cleanQ);
+    }
+    if(intent==='news'){jobs.bravenews=fetchBraveNews(cleanQ);}
     if(/\b(show me where|where is|map of|locate|navigate to|directions to|how.+get to|find on map|take me to)\b/i.test(userText)){
       jobs.geoplace = geocodePlace(cleanQ).catch(function(){return null;});
     }
@@ -6916,11 +7044,14 @@ async function liveQuery(userText, reflexData){
     data.bravenews.forEach(function(r){ links.push({title:r.title,url:r.url,desc:r.desc}); });
     if(!sources.includes('BRAVE')) sources.push('BRAVE NEWS');
   }
+  if(!data.wiki&&data.wikisum) data.wiki=data.wikisum;
   if(data.ddg?.answer) liveText+=`\n\n◈ Quick Answer: ${data.ddg.answer}`;
-  if(data.wiki?.extract){const sents=data.wiki.extract.replace(/\n+/g,' ').replace(/\s{2,}/g,' ').trim().match(/[^.!?]+[.!?]+(?:\s|$)/g)||[];const summary=sents.filter(s=>s.trim().length>30&&s.trim().length<400).slice(0,3).join(' ').trim();if(summary){liveText+=`\n\n◈ From the Web: ${summary}`;sources.push('WIKIPEDIA');links.push({title:data.wiki.title+' — Wikipedia',url:data.wiki.url,desc:'Read the full Wikipedia article'})}}
-  else if(data.ddg?.abstract){liveText+=`\n\n◈ From the Web: ${data.ddg.abstract}`;if(data.ddg.heading)sources.push('DDG');if(data.ddg.abstractUrl)links.push({title:data.ddg.heading||cleanQ,url:data.ddg.abstractUrl})}
+  if(data.wiki?.extract){const sents=data.wiki.extract.replace(/\n+/g,' ').replace(/\s{2,}/g,' ').trim().match(/[^.!?]+[.!?]+(?:\s|$)/g)||[];const summary=sents.filter(s=>s.trim().length>30&&s.trim().length<400).slice(0,3).join(' ').trim();if(summary){liveText+=`\n\n${summary}`;sources.push('WIKIPEDIA');links.push({title:data.wiki.title+' — Wikipedia',url:data.wiki.url,desc:'Read the full Wikipedia article'})}}
+  else if(data.ddg?.abstract){liveText+=`\n\n${data.ddg.abstract}`;if(data.ddg.heading)sources.push('DDG');if(data.ddg.abstractUrl)links.push({title:data.ddg.heading||cleanQ,url:data.ddg.abstractUrl})}
+  else if(data.wikidata?.extract){liveText+=`\n\n${data.wikidata.title?data.wikidata.title+' — ':''}${data.wikidata.extract}`;sources.push('WIKIDATA');}
   if(data.reddit?.length){links.push(...data.reddit.slice(0,2).map(r=>({title:r.title,url:r.url,desc:r.desc})));sources.push('REDDIT')}
   if(data.news?.length){data.news.forEach(i=>links.push({title:i.title,url:i.url,desc:i.desc}));sources.push('GDELT','HN')}
+  if(data.github?.length){data.github.slice(0,2).forEach(function(i){links.push(i);});sources.push('GITHUB')}
   var _allVids = [...(data.videos||[]), ...(data.bravevideos||[])].filter(safeVideo).slice(0,8);
   if(_allVids.length){
     liveText+=`\n\n◈ Found ${_allVids.length} video${_allVids.length>1?'s':''} for you:`;
@@ -6935,7 +7066,16 @@ async function liveQuery(userText, reflexData){
     setTimeout(function(){renderMapWidget(gpId,{lat:data.geoplace.lat,lon:data.geoplace.lon,zoom:10},[]);},300);
     sources.push('OPENSTREETMAP');
   }
-  return{liveText,placeMapHtml,videos:(data.videos||[]).filter(safeVideo).slice(0,6),images:(data.images||[]).filter(safeImg).slice(0,6),links:links.slice(0,5),sources:[...new Set(sources)]};
+  let spoken='';
+  if(data.wiki&&data.wiki.extract){
+    const sents=data.wiki.extract.replace(/\n+/g,' ').replace(/\s{2,}/g,' ').trim().match(/[^.!?]+[.!?]+(?:\s|$)/g)||[];
+    spoken=sents.filter(s=>s.trim().length>20).slice(0,2).join(' ').trim();
+  }
+  if(!spoken && data.ddg&&data.ddg.abstract) spoken=String(data.ddg.abstract).trim();
+  if(!spoken && data.ddg&&data.ddg.answer) spoken=String(data.ddg.answer).trim();
+  if(!spoken && data.brave&&data.brave.abstract) spoken=String(data.brave.abstract).trim();
+  spoken=String(spoken||'').replace(/◈\s*(From the Web|Quick Answer):\s*/gi,'').replace(/\s+/g,' ').trim();
+  return{liveText,spoken,placeMapHtml,videos:(data.videos||[]).filter(safeVideo).slice(0,6),images:(data.images||[]).filter(safeImg).slice(0,6),links:links.slice(0,5),sources:[...new Set(sources)]};
 }
 
 // Media card renderers
@@ -11227,7 +11367,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   // Run live web query ONLY when intent may need external data
   var _preIntent = detectIntent(text);
   var _needsWeb = ['factual','general','howto','news','video','image'].includes(_preIntent);
-  const _emptyLive = {liveText:'',videos:[],images:[],links:[],sources:[],placeMapHtml:''};
+  const _emptyLive = {liveText:'',spoken:'',videos:[],images:[],links:[],sources:[],placeMapHtml:''};
   const [liveData,reply] = await Promise.all([
     _needsWeb ? liveQuery(augmentedText, reflexData).catch(()=>_emptyLive) : Promise.resolve(_emptyLive),
     generateReply(augmentedText, analysis, reflexData).catch(function(e){ return { text: 'Error: ' + e.message, grammarMeta:'', brpnMeta:'' }; })
@@ -11243,12 +11383,13 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
   var _liveIntentNeedsWeb = ['factual','general','howto','news','video','image'].includes(_liveIntent);
   var _explicitMediaRequest = _liveIntentNeedsWeb && /\b(search|look up|search for|find out|news|latest news|recent news|video|videos|youtube|images|photos|pictures|articles|headlines|what.s happening)\b/i.test(text);
   // Also allow if intent is factual/howto AND there's a clear non-personal search query
-  if(!_explicitMediaRequest && ['factual','howto'].includes(_liveIntent) && liveData.liveText) {
-    // Only append if liveText adds real value — not just random web noise
-    var _queryHasTopic = text.trim().split(/\s+/).length > 4;
-    _explicitMediaRequest = _queryHasTopic;
+  if(!_explicitMediaRequest && ['factual','howto','news','general'].includes(_liveIntent) && (liveData.liveText || liveData.spoken)) {
+    _explicitMediaRequest = true;
   }
-  if(liveData.liveText && _liveIntent !== 'personal' && _explicitMediaRequest) fullReply += liveData.liveText;
+  // Grammar-first replies already measured-and-spoke. Never dump "From the Web:" lab reports onto them.
+  if(liveData.liveText && _liveIntent !== 'personal' && _explicitMediaRequest && !_fromBuoyancyReflex) {
+    fullReply += (liveData.spoken ? ('\n\n'+liveData.spoken) : liveData.liveText);
+  }
   var _placeMapHtml = liveData.placeMapHtml || '';
   // If we still have nothing, it means the API call failed — skip pushing an empty bubble
   if(!fullReply && !liveData.videos.length && !liveData.images.length) {
@@ -11462,8 +11603,8 @@ async function buoyancyReflexReply(text, analysis, reflexData) {
   function _meta(msg){
     return {
       text: msg,
-      grammarMeta: (typeof buildGrammarMeta==='function') ? buildGrammarMeta(analysis.grammar, analysis, tools) : 'Buoyancy Reflex · local',
-      brpnMeta: (typeof buildBRPNMeta==='function') ? buildBRPNMeta(analysis) : '',
+      grammarMeta: '',
+      brpnMeta: '',
       _fromBuoyancyReflex: true
     };
   }
@@ -11474,7 +11615,6 @@ async function buoyancyReflexReply(text, analysis, reflexData) {
       if (packed && packed.response && packed.response.length > 8) {
         try { if (window.S) window.S.geResult = packed; } catch(e) {}
         var out = _meta(packed.response);
-        out.grammarMeta = (out.grammarMeta ? out.grammarMeta+' · ' : '') + 'Buoyancy Reflex';
         return out;
       }
     }
