@@ -2693,7 +2693,7 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js?v=2026082701"></script>
-<script src="js/autumn-grammar-engine.js?v=20260828e"></script>
+<script src="js/autumn-grammar-engine.js?v=20260828f"></script>
 <link rel="stylesheet" href="css/desktop-layout.css">
 <script src="js/desktop-layout.js"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
@@ -14412,7 +14412,7 @@ function cleanForTTS(raw) {
   t = t.replace(/\s{2,}/g, ' ');
 
   // 22. Trim and cap length
-  return t.trim().substring(0, 2400);
+  return t.trim();
 }
 
 // ── GLB/glTF Geometry Extractor ─────────────────────────────────────
@@ -19748,7 +19748,7 @@ _syncActionBtn();
           if(m[i].content!==undefined) m[i].content=newText;
           if(typeof saveState==='function') saveState();
           if(typeof renderMessages==='function') renderMessages();
-          if(typeof autoReadLastResponse==='function') setTimeout(autoReadLastResponse,200);
+          if(typeof stopSpeaking==='function'){try{stopSpeaking();}catch(e){}} if(typeof autoReadLastResponse==='function') setTimeout(autoReadLastResponse,80);
           return true;
         }
       }
@@ -27590,7 +27590,7 @@ console.info('[MantisRadar] Controller ready. URL:', MR_URL);
 
 })();
 </script>
-<script src="./js/autumn-tts.js"></script>
+<script src="./js/autumn-tts.js?v=20260828f"></script>
 
 </body>
 </html>
