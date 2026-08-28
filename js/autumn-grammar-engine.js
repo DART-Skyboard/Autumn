@@ -5027,6 +5027,41 @@ class ANLPCA {
     facts._selfTeach=rec;
     return rec;
   }
+  _allocateIncomingReflex(raw, attached, facts){
+    facts=facts||{};
+    const owner=this._userMemoryScope().owner;
+    let reflex={chars:[],tokens:[],sequence:null,definedAll:true,pipelined:false,allocated:false};
+    try { reflex=this._leatrReflex(raw, attached)||reflex; } catch(e){}
+    reflex.allocated=true;
+    reflex.owner=owner;
+    let last=null;
+    try{
+      const params=this._habitat && this._habitat.getCoreParameters ? this._habitat.getCoreParameters() : {};
+      const root=params['self_teach_spine_'+owner]||[];
+      last=root.length?root[root.length-1]:null;
+    }catch(e){}
+    const purpose=this._sharePurpose(raw, facts);
+    facts._journalRoot=last||null;
+    facts._allocatedOwner=owner;
+    facts._incomingReflex={
+      owner:owner, ts:Date.now(),
+      live:String(raw||'').slice(0,120),
+      rootWhy:last&&last.why||null,
+      rootPurpose:last&&last.purpose||null,
+      rootShell:last&&last.shell||'FOUNDATION',
+      context:(last && last.purpose && last.purpose!==purpose)?'different':'same'
+    };
+    try{
+      if(this._dual && typeof this._dual.writeInner==='function'){
+        this._dual.writeInner({
+          type:'incoming_allocation', owner:owner, ts:Date.now(),
+          live:facts._incomingReflex.live, rootKind:last&&last.kind||null,
+          context:facts._incomingReflex.context, purpose:purpose
+        });
+      }
+    }catch(e){}
+    return reflex;
+  }
   _mannerForOwner(facts){
     const owner=this._userMemoryScope().owner;
     let explainBias=0;
@@ -5629,9 +5664,11 @@ class ANLPCA {
     this._turnFacts = facts;
     const attached = (facts && (facts._attachedText || facts.attachedText || facts.fileText)) || '';
 
-    // 1. ORDER the data  2. PIPELINE FRP per point (AERO→MAR→GEO); pattern-match in memory as they land.
+    // Whole net: allocate incoming user data as ONE buoyancy reflex, then contrast journal root.
     let reflex = {chars:[], tokens:[], sequence:null, definedAll:true, pipelined:false};
-    try { reflex = this._leatrReflex(raw, attached); } catch(e) {}
+    try { reflex = this._allocateIncomingReflex(raw, attached, facts); } catch(e) {
+      try { reflex = this._leatrReflex(raw, attached); } catch(e2) {}
+    }
 
     // 3. After all FRP is in: take that memory to the grammar/neural path.
     let parsed = {tokens:[], intent:'statement_pos', contentWords:[], isInterrogative:false, raw:raw};
