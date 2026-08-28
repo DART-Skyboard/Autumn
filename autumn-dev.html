@@ -1810,6 +1810,10 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .keys-btn-clear:hover{background:rgba(255,68,102,.18)}
 .keys-remember{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:10px;color:var(--dim);user-select:none}
 .keys-remember input[type=checkbox]{accent-color:#00ffcc;width:13px;height:13px;cursor:pointer}
+.keys-claude-row{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}
+.keys-claude-toggle{background:transparent;border:1px solid rgba(224,244,255,.15);color:rgba(224,244,255,.45);padding:8px 12px;border-radius:5px;font-family:'Orbitron',sans-serif;font-size:.36rem;letter-spacing:.6px;cursor:pointer;white-space:nowrap;transition:all .18s}
+.keys-claude-toggle:hover{border-color:rgba(0,255,136,.35);color:rgba(0,255,136,.8)}
+.keys-claude-hint{font-size:9px;color:var(--dim);line-height:1.4;flex:1;min-width:160px}
 .keys-perms{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .keys-perm-pill{font-family:'Orbitron',sans-serif;font-size:.32rem;letter-spacing:.5px;padding:2px 7px;border-radius:10px;border:1px solid rgba(0,255,204,.2);color:rgba(0,255,204,.5);background:rgba(0,255,204,.04)}
 .keys-perm-pill.pat{border-color:rgba(255,179,71,.2);color:rgba(255,179,71,.5);background:rgba(255,179,71,.04)}
@@ -2671,11 +2675,11 @@ select.ash-ctrl-input{cursor:pointer}
 }
 </style>
 <script src="js/autumn-nlp.js"></script>
-<script src="js/wordnet_loader.js?v=2026082701"></script>
+<script src="js/wordnet_loader.js?v=20260828c"></script>
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js?v=2026082701"></script>
-<script src="js/autumn-grammar-engine.js?v=2026082701"></script>
+<script src="js/autumn-grammar-engine.js?v=20260828c"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
 
 <style id="rd-responsive-v2">
@@ -11394,6 +11398,29 @@ async function buoyancyReflexReply(text, analysis, reflexData) {
   return _meta(local);
 }
 
+function _isAnthropicChatAddOn(text, analysis, reflexData) {
+  var t = String(text || '');
+  var low = t.toLowerCase();
+  // Explicit user phrase — the only way ordinary chat asks for Claude
+  if (/\b(ask\s+claude|use\s+claude|with\s+claude|have\s+claude|ask\s+anthropic|use\s+anthropic)\b/.test(low)) return true;
+  // Vision / attached media still pending on this turn
+  try {
+    var pending = (typeof S !== 'undefined' && S.pendingImages && S.pendingImages.length) ? S.pendingImages : [];
+    if (pending.length) return true;
+  } catch (e) {}
+  // Image gen / vision / audio commentary paths
+  var ctx = (reflexData && reflexData.contextType) ? String(reflexData.contextType) : '';
+  if (/^(IMAGE_GEN|VISION|VISION_ANALYSIS|AUDIO_ANALYSIS)$/.test(ctx)) return true;
+  // URL summary — handleSend injects this marker after a fetch
+  if (/\[CONTEXT FROM SCANNED LINKS\]/.test(t)) return true;
+  // Forge Ask Claude / CLAUDE ON — only when Forge assist is on AND this is Forge code
+  try {
+    var forgeOn = !!(window._forge && window._forge.claudeEnabled);
+    if (forgeOn && /\[FORGE CODE/.test(t)) return true;
+  } catch (e) {}
+  return false;
+}
+
 async function generateReply(text, analysis, reflexData) {
   /* ── Buoyancy NLP — grammar + live data pre-analysis ── */
   var _nlpG={intent:'conversation',tone:'neutral',dataTargets:[],tokenCount:0,isQuestion:false};
@@ -11403,7 +11430,15 @@ async function generateReply(text, analysis, reflexData) {
     if(_nlpG.dataTargets.length) try{_nlpD=await window.autumnNLP.gatherLiveData(_nlpG);}catch(e){}
   }
   var _nlpCtx=window.autumnNLP ? window.autumnNLP.buildNLPContext(_nlpG,_nlpD) : '';
-  // Default path: local grammar + WordNet + buoyancy reflex. Third-party models are add-ons.
+  // Chat voice: LEATR buoyancy unless KEYS Claude layer is ON (key stays stored either way).
+  // Add-on tools (vision/image/FRAX/URL, Forge CLAUDE ON, explicit "ask Claude") may still use the key.
+  var _layerOn = (typeof _claudeLayerOn==='function') && _claudeLayerOn();
+  var _addonClaude = (typeof _isAnthropicChatAddOn==='function')
+    ? _isAnthropicChatAddOn(text, analysis, reflexData)
+    : false;
+  if (!_layerOn && !_addonClaude) {
+    return await buoyancyReflexReply(text, analysis, reflexData);
+  }
   var _akEarly = (typeof _getAK==='function' && _getAK()) || '';
   if (!_akEarly) {
     return await buoyancyReflexReply(text, analysis, reflexData);
@@ -15463,6 +15498,54 @@ function closeKeysModal() {
 function _keysReadAK()  { try { return window._sessionAK || sessionStorage.getItem('_aut_ide_ak_session') || localStorage.getItem('_aut_ide_ak') || ''; } catch(e){ return ''; } }
 function _keysReadPAT() { try { return sessionStorage.getItem('_aut_ide_pat') || localStorage.getItem('_aut_pat_persist') || ''; } catch(e){ return ''; } }
 
+// Claude chat layer — ON/OFF without clearing the stored Anthropic key.
+// Default OFF (missing localStorage = LEATR). Key stays in _aut_ide_ak / session.
+function _claudeLayerPref() {
+  try { return localStorage.getItem('_aut_claude_layer') === '1'; } catch(e){ return false; }
+}
+function _claudeLayerOn() {
+  var has = false;
+  try { has = !!(typeof _getAK === 'function' && _getAK()); } catch(e){}
+  if (!has) {
+    try { has = !!(typeof _keysReadAK === 'function' && _keysReadAK()); } catch(e){}
+  }
+  return _claudeLayerPref() && !!has;
+}
+function _refreshClaudeLayerToggle() {
+  var btn = document.getElementById('claude-layer-toggle');
+  if (!btn) return;
+  var has = false;
+  try { has = !!(typeof _keysReadAK === 'function' ? _keysReadAK() : (typeof _getAK==='function' && _getAK())); } catch(e){}
+  var on = has && _claudeLayerPref();
+  btn.textContent = on ? '◈ CLAUDE LAYER ON' : '◈ CLAUDE LAYER OFF';
+  btn.style.borderColor  = on ? 'rgba(0,255,136,.45)' : 'rgba(224,244,255,.15)';
+  btn.style.color        = on ? '#00ff88' : 'rgba(224,244,255,.45)';
+  btn.style.textShadow   = on ? '0 0 8px rgba(0,255,136,.25)' : 'none';
+  btn.disabled = !has;
+  btn.style.opacity = has ? '1' : '0.5';
+  btn.style.cursor  = has ? 'pointer' : 'not-allowed';
+  btn.title = !has
+    ? 'Store an Anthropic key with ACTIVATE first — this switch does not clear the key'
+    : (on
+      ? 'Claude is the chat layer — click for LEATR grammar (key stays stored)'
+      : 'LEATR grammar for chat — click to use the stored Claude key (key stays stored)');
+}
+function toggleClaudeLayer() {
+  var has = false;
+  try { has = !!(typeof _keysReadAK === 'function' ? _keysReadAK() : (typeof _getAK==='function' && _getAK())); } catch(e){}
+  if (!has) {
+    if (typeof ideToast==='function') ideToast('Store an Anthropic key first, then switch Claude layer on. ✕ is what removes the key.', true);
+    return;
+  }
+  var next = !_claudeLayerPref();
+  try { localStorage.setItem('_aut_claude_layer', next ? '1' : '0'); } catch(e){}
+  _refreshClaudeLayerToggle();
+  if (typeof ideToast==='function')
+    ideToast(next ? '◈ CLAUDE LAYER ON — chat uses Claude. Key stays stored.' : '◈ CLAUDE LAYER OFF — LEATR grammar. Key stays stored.');
+}
+
+
+
 function _refreshKeysDots() {
   var hasAK  = !!_keysReadAK();
   var hasPAT = !!_keysReadPAT();
@@ -15497,6 +15580,7 @@ function _refreshKeysDots() {
 
   // ── Header key button ──────────────────────────────────────
   _updateKeyBtn();
+  if (typeof _refreshClaudeLayerToggle === 'function') _refreshClaudeLayerToggle();
 }
 
 // Run on page load so header button is always correct
@@ -16551,6 +16635,10 @@ loadAutumnLogic();
           <input type="password" class="keys-input" id="keys-ak-input" placeholder="sk-ant-api03-…" autocomplete="new-password" data-lpignore="true" onkeydown="if(event.key==='Enter')saveKeysAK()">
           <button class="keys-btn-save" onclick="saveKeysAK()">ACTIVATE</button>
           <button class="keys-btn-clear" onclick="clearKeysAK()" title="Remove key">✕</button>
+        </div>
+        <div class="keys-claude-row">
+          <button type="button" id="claude-layer-toggle" class="keys-claude-toggle" onclick="toggleClaudeLayer()" title="Use Claude for chat without clearing your stored key">◈ CLAUDE LAYER OFF</button>
+          <span class="keys-claude-hint">Chat voice. OFF = LEATR grammar. ON = Claude with the stored key. Does not clear the key. ✕ still removes it.</span>
         </div>
         <label class="keys-remember">
           <input type="checkbox" id="ak-remember" checked> Remember on this device
@@ -19691,7 +19779,7 @@ _syncActionBtn();
           if(geResult&&geResult.topicalResponse) _replaceLastAutumnMsg(geResult.topicalResponse);
           _isFirst=false;
         } else {
-          var _hasAK = typeof _getAK==='function' && !!_getAK();
+          // A stored Anthropic key is NOT a reason to skip local grammar or prefer Claude.
           if (window.S && window.S.geResult && window.S.geResult._fromBuoyancyReflex) {
             geResult = window.S.geResult;
             _isFirst = false;
@@ -19704,12 +19792,14 @@ _syncActionBtn();
           try{
             var _lastMsgs=_getMsgs();
             var _lastMsg=_lastMsgs&&_lastMsgs.length?_lastMsgs[_lastMsgs.length-1]:null;
-            var _protectedCtx=new Set(['ANALYTICS','CONNECTION_STATUS','BACKUP','MEMORY_ANALYSIS','EXPORT','IMPORT']);
+            var _protectedCtx=new Set(['ANALYTICS','CONNECTION_STATUS','BACKUP','MEMORY_ANALYSIS','EXPORT','IMPORT','VISION','VISION_ANALYSIS','IMAGE_GEN','AUDIO_ANALYSIS']);
             var _isProtected=_lastMsg&&_lastMsg.contextType&&_protectedCtx.has(_lastMsg.contextType);
-            // Third-party models are optional add-ons: never overwrite Claude when a key is active.
-            // Local buoyancy-reflex replies from generateReply are already grammatical — do not replace.
+            // Local buoyancy-reflex replies already sit on the bubble — never overwrite with Claude or a second GE pass.
             var _alreadyLocal = !!( _lastMsg && (_lastMsg._fromBuoyancyReflex || (typeof _lastMsg.grammarMeta==='string' && _lastMsg.grammarMeta.indexOf('Buoyancy Reflex')>=0)) );
-            if(!_isProtected && !_hasAK){
+            var _explicitClaude = /\b(ask\s+claude|use\s+claude|with\s+claude|have\s+claude|ask\s+anthropic|use\s+anthropic)\b/i.test(text||'');
+            var _layerOn = (typeof _claudeLayerOn==='function' && _claudeLayerOn());
+            // Prefer local grammar. Do not overwrite Claude when the KEYS Claude layer is ON or the user asked for Claude.
+            if(!_isProtected && !_alreadyLocal && !_explicitClaude && !_layerOn){
               // ── Broad social/activity interceptor (inline — not cached) ────
               var _rawQ=text.toLowerCase();
               var _intercepted=false;
@@ -25141,7 +25231,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
 <script src="js/mist-module.js"></script>
 <script src="js/ash-shard-module.js"></script>
-<script src="js/hud-tools-module.js"></script>
+<script src="js/hud-tools-module.js?v=20260828c"></script>
 
 <script>(function(){var s=document.createElement("script");s.src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/scripts/sentience-journal.js";s.async=true;s.onerror=function(){console.warn("[Autumn] sentience-journal.js unavailable");};document.head.appendChild(s);})();</script>
 <script>
