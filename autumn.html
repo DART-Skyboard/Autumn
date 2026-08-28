@@ -2551,7 +2551,7 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js?v=2026082701"></script>
-<script src="js/autumn-grammar-engine.js?v=20260828f"></script>
+<script src="js/autumn-grammar-engine.js?v=20260828g"></script>
 <link rel="stylesheet" href="css/desktop-layout.css">
 <script src="js/desktop-layout.js"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
@@ -18854,7 +18854,7 @@ _syncActionBtn();
           if(m[i].content!==undefined) m[i].content=newText;
           if(typeof saveState==='function') saveState();
           if(typeof renderMessages==='function') renderMessages();
-          if(typeof stopSpeaking==='function'){try{stopSpeaking();}catch(e){}} if(typeof autoReadLastResponse==='function') setTimeout(autoReadLastResponse,80);
+          if(typeof stopSpeaking==='function'){try{stopSpeaking({replace:true});}catch(e){}} if(typeof autoReadLastResponse==='function') autoReadLastResponse();
           return true;
         }
       }
@@ -26018,7 +26018,7 @@ window.mantisRadarTabMounted = function(){
 console.info('[MantisRadar] Controller ready. URL:', MR_URL);
 })();
 </script>
-<script src="./js/autumn-tts.js?v=20260828f"></script>
+<script src="./js/autumn-tts.js?v=20260828g"></script>
 
 </body>
 </html>
