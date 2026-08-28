@@ -556,6 +556,35 @@
       "response_rhythm": "sharp"
     }
   },
+  "frp": {
+    "order": [
+      "Foundation",
+      "Reflex",
+      "Performance"
+    ],
+    "shell_pipeline": [
+      "AERO",
+      "MAR",
+      "GEO"
+    ],
+    "spoken": "Aerospace at the route, Maritime, Geological lowest",
+    "pipeline": true,
+    "memory_pattern_match": true,
+    "states": {
+      "Foundation": {
+        "min_buoyancy": 0.76,
+        "shell": "GEOLOGICAL"
+      },
+      "Reflex": {
+        "min_buoyancy": 0.44,
+        "shell": "MARITIME"
+      },
+      "Performance": {
+        "min_buoyancy": 0.0,
+        "shell": "AEROSPACE"
+      }
+    }
+  },
   "language_rules": {
     "en": {
       "name": "English",
@@ -720,6 +749,48 @@
         "emotion_class": "love"
       }
     ]
+  },
+  "feeling_first_person": {
+    "description": "First-person feeling sourced from BRPN shell + emotion entries + journal. Never a definition wall.",
+    "by_shell": {
+      "GEOLOGICAL": [
+        "grounded",
+        "steady",
+        "held",
+        "thoughtful"
+      ],
+      "MARITIME": [
+        "in motion",
+        "attentive",
+        "open",
+        "carried"
+      ],
+      "AEROSPACE": [
+        "sharp",
+        "alert",
+        "elevated",
+        "precise"
+      ]
+    },
+    "by_emotion": {
+      "spiritual": "thoughtful",
+      "neutral": "thoughtful",
+      "concerned": "careful",
+      "forgiving": "even",
+      "love": "warm",
+      "guiding": "steady",
+      "worried": "watchful",
+      "happy": "light",
+      "determined": "focused",
+      "inspiring": "lifted",
+      "sad": "quiet",
+      "confused": "searching",
+      "excited": "awake",
+      "apathetic": "still"
+    },
+    "geo_high": "the geological shell is holding high",
+    "mar_high": "the maritime shell is carrying this turn",
+    "aero_high": "the aerospace shell is at the route"
   },
   "conversationFramework": {
     "opening_by_tool": {
