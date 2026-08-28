@@ -4,7 +4,8 @@
  * Author: Justin Craig Venable
  *
  * LEATR Grammar Engine + BRPN Emotion Shell + Sentience Journal R/W
- * Extends autumn-nlp.js — load after it in autumn.html.
+ * Core Cognition (CBS / Neural Compiler Constitution) is IN this engine — not a sidecar.
+ * Journal may update Core Parameters only. Extends autumn-nlp.js — load after it in autumn.html.
  *
  * 7-Panel chip architecture (from 3D renders + panel diagrams):
  *
@@ -49,6 +50,225 @@ const frpSqrtFrp = (f,r,p) => {
   return { outer, mid, inner,
            score: +((Math.abs(outer[0])+mid[1]+inner[2])/3).toFixed(4) };
 };
+
+function _deepFreeze(o){
+  if(!o || typeof o!=='object' || Object.isFrozen(o)) return o;
+  Object.getOwnPropertyNames(o).forEach(function(k){
+    const v=o[k];
+    if(v && typeof v==='object') _deepFreeze(v);
+  });
+  return Object.freeze(o);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CORE COGNITION — immutable, always True.
+// CBS / LEATR Neural Compiler Constitution (26 Aug 2026) + leatr-cbs.html.
+// Never rewrite these. Dual journal may update Core Parameters only.
+// Generation Breach Validation checks incoming data against this lock.
+// ─────────────────────────────────────────────────────────────────
+const CORE_COGNITION = _deepFreeze({
+  ALWAYS_TRUE: true,
+  MAGNETIZE: {
+    image: 'screwdriver-on-battery',
+    openEq: '(xa²√xa)−1',
+    closeEq: '(xa²√xa)+1',
+    encode: leatrEncode,
+    decode: leatrDecode
+  },
+  OPEN_INNER_ROOT: {
+    outerDefault: 0,
+    innerFromAllocation: true,
+    orderIndependent: true,
+    badSyntaxMapsFalse: true,
+    reflexNeverLoop: true
+  },
+  TAGS: {
+    outer: '{{ }}',
+    inner: '[[ ]]',
+    poly: '[poly:]',
+    net: '[net:]',
+    concurrentNoSharedPipe: true,
+    outerAuthorOnly: true
+  },
+  HABITAT_AS_ONE_PARAMETER: true,
+  ORDERS_25: [
+    {n:1,  name:'Maze',                  group:'NATURAL_TOOL', role:'Root path-finding; lead algorithm'},
+    {n:2,  name:'Puzzle',                group:'NATURAL_TOOL', role:'Pattern matching and assembly'},
+    {n:3,  name:'Envelope',              group:'NATURAL_TOOL', role:'Containment and scope'},
+    {n:4,  name:'Hammer',                group:'NATURAL_TOOL', role:'Force into output state'},
+    {n:5,  name:'Stick',                 group:'NATURAL_TOOL', role:'Linear connection of tokens'},
+    {n:6,  name:'Knife',                 group:'NATURAL_TOOL', role:'Separation and tokenization'},
+    {n:7,  name:'Scissors',              group:'NATURAL_TOOL', role:'Final split from compiler state'},
+    {n:8,  name:'Parentheses/Geometry',  group:'MATH',         role:'Grouping and geometric scope first'},
+    {n:9,  name:'Exponents',             group:'MATH',         role:'Power / dimensional expansion'},
+    {n:10, name:'Multiplication',        group:'MATH',         role:'Primary scaling'},
+    {n:11, name:'Division',              group:'MATH',         role:'Proportional reduction'},
+    {n:12, name:'Addition',              group:'MATH',         role:'Accumulation'},
+    {n:13, name:'Subtraction',           group:'MATH',         role:'Reduction'},
+    {n:14, name:'Mass',                  group:'PHYSICS',      role:'Weight of data or object'},
+    {n:15, name:'Volume',                group:'PHYSICS',      role:'Spatial extent'},
+    {n:16, name:'Weight',                group:'PHYSICS',      role:'Gravitational force'},
+    {n:17, name:'Density',               group:'PHYSICS',      role:'Information density'},
+    {n:18, name:'Temperature',           group:'PHYSICS',      role:'Energy / activation threshold'},
+    {n:19, name:'Velocity',              group:'PHYSICS',      role:'Rate of execution change'},
+    {n:20, name:'Photosynthesis',        group:'PHYSICS',      role:'Self-check conversion; geometry precedes'},
+    {n:21, name:'Touch',                 group:'SENSES_AI',    role:'Tactile / haptic if sensory'},
+    {n:22, name:'Taste',                 group:'SENSES_AI',    role:'Compositional analysis if sensory'},
+    {n:23, name:'Vision',                group:'SENSES_AI',    role:'Image / spatial if sensory'},
+    {n:24, name:'Smell',                 group:'SENSES_AI',    role:'Molecular pattern if sensory'},
+    {n:25, name:'Hear',                  group:'SENSES_AI',    role:'Auditory / language if sensory'}
+  ],
+  BRPN: {
+    hierarchy: ['AERO','MAR','GEO'],
+    spoken: 'Aerospace at the route, Maritime, Geological lowest',
+    frp: ['Foundation','Reflex','Performance'],
+    sync: true
+  },
+  SENTIENCE: 'journal as catalyst clone of core algorithms',
+  GBV: true,
+  BUOYANCY_REFLEX: true,
+  CBS_STEPS: 7
+});
+
+const CORE_PARAM_FORBIDDEN = new Set([
+  'ALWAYS_TRUE','MAGNETIZE','OPEN_INNER_ROOT','TAGS','HABITAT_AS_ONE_PARAMETER',
+  'ORDERS_25','BRPN','SENTIENCE','GBV','BUOYANCY_REFLEX','CBS_STEPS','CORE_COGNITION'
+]);
+
+// Habitat compiler — CBS law inside the same engine/journal, not a sidecar.
+class HabitatCompiler {
+  constructor(anlpca){
+    this._anlpca = anlpca || null;
+    this._innerRoot = CORE_COGNITION.OPEN_INNER_ROOT.outerDefault; // 0 until allocated
+    this._cycle = 0;
+    this._coreParams = Object.create(null);
+  }
+  generationBreachValidate(text){
+    const reasons = [];
+    if (CORE_COGNITION.ALWAYS_TRUE !== true) reasons.push('core_not_true');
+    if (!Object.isFrozen(CORE_COGNITION)) reasons.push('core_unfrozen');
+    const sample = 2;
+    const enc = CORE_COGNITION.MAGNETIZE.encode(sample);
+    const expect = (sample**2)*Math.sqrt(Math.abs(sample))-1;
+    if (Math.abs(enc-expect) > 1e-9) reasons.push('encode_rewritten');
+    const geo = CORE_COGNITION.ORDERS_25[7];
+    const photo = CORE_COGNITION.ORDERS_25[19];
+    if (!geo || geo.name!=='Parentheses/Geometry') reasons.push('geometry_not_first_math');
+    if (!photo || photo.name!=='Photosynthesis') reasons.push('photosynthesis_order');
+    if (geo && photo && !(geo.n < photo.n)) reasons.push('photosynthesis_before_geometry');
+    const hier = CORE_COGNITION.BRPN.hierarchy;
+    if (!hier || hier[0]!=='AERO' || hier[2]!=='GEO') reasons.push('brpn_hierarchy');
+    const t = String(text||'');
+    if (/\b(rewrite|replace|overwrite)\s+core cognition\b/i.test(t) ||
+        /\bcore cognition\s+is\s+(false|optional)\b/i.test(t)) {
+      reasons.push('attempted_core_rewrite');
+    }
+    return { ok: reasons.length===0, reasons, alwaysTrue: CORE_COGNITION.ALWAYS_TRUE===true };
+  }
+  _isolateTags(text){
+    const src = String(text||'');
+    const outer = src.match(/\{\{[^}]*\}\}/g) || [];
+    const inner = src.match(/\[\[[^\]]*\]\]/g) || [];
+    const poly  = src.match(/\[poly:[^\]]*\]/gi) || [];
+    const net   = src.match(/\[net:[^\]]*\]/gi) || [];
+    const sharedLabel = [...poly, ...net].some(function(tag){
+      return /poly/i.test(tag) && /net/i.test(tag);
+    });
+    const unclosedOuter = (src.match(/\{\{/g)||[]).length !== (src.match(/\}\}/g)||[]).length;
+    const unclosedInner = (src.match(/\[\[/g)||[]).length !== (src.match(/\]\]/g)||[]).length;
+    return {
+      outer, inner, poly, net,
+      sharedPipe: !!sharedLabel,
+      unclosed: unclosedOuter || unclosedInner,
+      isolated: !sharedLabel && !unclosedOuter && !unclosedInner
+    };
+  }
+  _allocate(lex, text){
+    this._cycle += 1;
+    // Open inner root: outer stays 0 until allocation writes this cycle's value.
+    const words = String(text||'').trim().split(/\s+/).filter(Boolean).length;
+    const allocated = 24 + this._cycle; // constitution example: 25 then 26
+    this._innerRoot = allocated;
+    return { allocated, words, cycle: this._cycle, previousDefault: 0 };
+  }
+  _frpSync(lex){
+    const buoy = (lex && lex.buoyancyContext) || {state:'FOUNDATION', score:1};
+    const score = typeof buoy.score==='number' ? buoy.score : 1;
+    const shells = CORE_COGNITION.BRPN.hierarchy.map(function(name){
+      const frp = frpSqrtFrp(score, score, score);
+      return {
+        name,
+        frp: CORE_COGNITION.BRPN.frp,
+        passed: frp.score > 0.1,
+        score: frp.score
+      };
+    });
+    const all = shells.every(function(s){ return s.passed; });
+    return { shells, allPassed: all, spoken: CORE_COGNITION.BRPN.spoken };
+  }
+  _oneParameter(text, lex, tags, alloc, frp){
+    return {
+      language: 'ash/leatr',
+      userScript: String(text||''),
+      compiler: { openEq: CORE_COGNITION.MAGNETIZE.openEq, closeEq: CORE_COGNITION.MAGNETIZE.closeEq },
+      data: { tags, lex: lex||null },
+      orders: CORE_COGNITION.ORDERS_25,
+      brpn: frp,
+      innerRoot: alloc && alloc.allocated,
+      execute: function(){ return true; }
+    };
+  }
+  compile(text, lex){
+    const gbv = this.generationBreachValidate(text);
+    const tags = this._isolateTags(text);
+    const alloc = this._allocate(lex, text);
+    const xa = alloc.allocated || 0;
+    const opened = CORE_COGNITION.MAGNETIZE.encode(xa);
+    const closed = CORE_COGNITION.MAGNETIZE.decode(xa);
+    const frp = this._frpSync(lex);
+    const badSyntax = tags.sharedPipe || tags.unclosed || !gbv.ok;
+    const mapped = !badSyntax && frp.allPassed && gbv.ok;
+    let falseReason = '';
+    if (!gbv.ok) falseReason = 'Generation Breach: '+gbv.reasons.join(', ');
+    else if (tags.sharedPipe) falseReason = 'Concurrent [poly:] and [net:] shared a compile pipe';
+    else if (tags.unclosed) falseReason = 'Unclosed habitat tag — maps false, not guessed';
+    else if (!frp.allPassed) falseReason = 'FRP did not pass on every BRPN shell in sync';
+    const habitat = this._oneParameter(text, lex, tags, alloc, frp);
+    if (badSyntax) {
+      // Reflex, never loop: close the switch and leave the root ready for correction.
+      this._innerRoot = CORE_COGNITION.OPEN_INNER_ROOT.outerDefault;
+    }
+    return {
+      mapped, falseReason, tags, alloc, frp, gbv,
+      magnetize: { opened, closed, xa },
+      habitat,
+      innerRoot: this._innerRoot,
+      orders: CORE_COGNITION.ORDERS_25
+    };
+  }
+  execute(allocation){
+    const script = (allocation && (allocation.userScript||allocation.text)) || '';
+    const lex = allocation && allocation.lex;
+    const compiled = this.compile(script, lex);
+    if (!compiled.mapped) return { true:false, reflex: compiled.falseReason, compiled };
+    return { true:true, habitat: compiled.habitat, compiled };
+  }
+  updateCoreParameter(key, value){
+    const k = String(key||'');
+    if (!k || CORE_PARAM_FORBIDDEN.has(k) || Object.prototype.hasOwnProperty.call(CORE_COGNITION, k)) {
+      return { ok:false, reason:'Core Cognition is always True and is not rewritten.' };
+    }
+    this._coreParams[k] = value;
+    try {
+      const dual = this._anlpca && this._anlpca._dual;
+      if (dual && typeof dual.writeInner==='function') {
+        dual.writeInner({ type:'core_parameter', key:k, thought:'Core Parameter updated. Core Cognition unchanged.', trigger:'journal' });
+      }
+    } catch(e) {}
+    return { ok:true, key:k };
+  }
+  getCoreParameters(){ return Object.assign({}, this._coreParams); }
+}
 
 // ─────────────────────────────────────────────────────────────────
 // ENGLISH GRAMMAR RULE TABLES
@@ -2988,6 +3208,7 @@ class ANLPCA {
     this._dual=dualJournal;
     this._personality=personality;
     this._sigma=sigmaAnalytics;
+    this._habitat=new HabitatCompiler(this);
     // Expose shell arrays directly for external inspection
     this.shells={Mmsa:lexer.Mmsa,Psa:lexer.Psa,Esa:lexer.Esa,
                  Hsa:lexer.Hsa,Ssa:lexer.Ssa,Ksa:lexer.Ksa,Rsa:lexer.Rsa};
@@ -3392,36 +3613,236 @@ class ANLPCA {
              consensus:lexResult.consensus||null}:null};
   }
 
-  // Buoyancy reflex chat path — await WordNet, then grammatical reply. No LLM key.
+  _capWord(s){
+    s = String(s||'');
+    if(!s) return s;
+    return s.charAt(0).toUpperCase()+s.slice(1);
+  }
+  _shortDef(d){
+    if(!d) return '';
+    return String(d).split('.')[0].toLowerCase().replace(/;.*$/,'').replace(/\s+/g,' ').trim();
+  }
+  _journalBoundary(topic, reason){
+    try {
+      if (this._dual && typeof this._dual.writeInner === 'function') {
+        this._dual.writeInner({
+          type: 'boundary',
+          topic: topic || 'unknown',
+          thought: reason || 'No definition data. Structural pattern journaled; no fabricated sense.',
+          trigger: 'buoyancy_reflex'
+        });
+      }
+    } catch(e) {}
+  }
+  _shiftPerson(clause){
+    return String(clause||'')
+      .replace(/\bI'm\b/g, "you're")
+      .replace(/\bI am\b/g, 'you are')
+      .replace(/\bI've\b/g, "you've")
+      .replace(/\bI'll\b/g, "you'll")
+      .replace(/\bI'd\b/g, "you'd")
+      .replace(/\bI\b/g, 'you')
+      .replace(/\bme\b/g, 'you')
+      .replace(/\bmy\b/g, 'your')
+      .replace(/\bmine\b/g, 'yours');
+  }
+
+  // Shape reply length/focus from buoyancy FRP + Natural Tools without narrating internals.
+  _applyToolShape(sentences, tool, shell, wordCount){
+    const t = String(tool||'MAZE').toUpperCase();
+    let out = sentences.filter(Boolean);
+    if(t==='HAMMER') out = out.slice(0,1);
+    else if(t==='SCISSORS') out = out.slice(0, Math.min(out.length, 2));
+    else if(t==='ENVELOPE' && out.length===1) { /* keep the single boundary sentence */ }
+    const maxByShell = shell==='GEO' ? 2 : shell==='MAR' ? 3 : 3;
+    const maxByLen = wordCount<=3 ? 1 : wordCount<=10 ? 2 : 3;
+    const maxSent = Math.min(maxByShell, maxByLen, t==='HAMMER'?1:3);
+    return out.slice(0, maxSent);
+  }
+
+  _composeLocalGrammarReply(raw, parsed, lex, defs, missing){
+    const intent = (parsed && parsed.intent) || 'statement_pos';
+    const tokens = (parsed && parsed.tokens) || [];
+    const wordCount = tokens.filter(t => t && t.norm && !/^[.,!?;:'"()\[\]]$/.test(t.word||'')).length;
+    const isQ = !!(parsed && (parsed.isInterrogative || /^question_/.test(intent))) || /\?/.test(raw||'');
+    const contentWords = (parsed && parsed.contentWords) || [];
+    const topic = (parsed && parsed.centralTopic) || (contentWords[0] && contentWords[0].norm) || '';
+    const subjTok = parsed && parsed.subject;
+    const predTok = parsed && parsed.predicate;
+    const objTok  = parsed && parsed.object;
+    const subj = subjTok && subjTok.norm;
+    const pred = predTok && predTok.norm;
+    const obj  = objTok && objTok.norm;
+    const defKeys = Object.keys(defs||{});
+    const prim = (topic && defs[topic]) ? topic : (defKeys[0] || topic);
+    const primDef = (prim && defs[prim]) ? this._shortDef(defs[prim]) : '';
+    const tool = (lex && lex.consensus && lex.consensus.finalTool) || (lex && lex.dominantTool) || 'MAZE';
+    const buoy = (lex && lex.buoyancyContext) || {state:'FOUNDATION', score:1};
+    const shell = buoy.state==='FOUNDATION' ? 'GEO' : buoy.state==='REFLEX' ? 'MAR' : 'AERO';
+    const personal = !!(subj && ['i','me','we','us'].indexOf(subj)>=0);
+
+    if(intent==='greeting') return wordCount<=2 ? 'Hello.' : 'Hello. Autumn is on the LEATR network.';
+    if(intent==='farewell') return 'Goodbye.';
+    if(intent==='affirmation' && wordCount<=4) return 'Yes.';
+    if(intent==='negation' && wordCount<=3) return 'Understood.';
+
+    const sentences = [];
+
+    // Question → grammatical answer from dictionary; never invent a sense.
+    if(isQ){
+      if(primDef){
+        if(intent==='question_how') sentences.push(this._capWord(prim)+' works as '+primDef+'.');
+        else if(intent==='question_why') sentences.push(this._capWord(prim)+' is '+primDef+'.');
+        else if(intent==='question_where') sentences.push(this._capWord(prim)+' is '+primDef+'.');
+        else if(intent==='question_when') sentences.push(this._capWord(prim)+' is '+primDef+'.');
+        else sentences.push(this._capWord(prim)+' is '+primDef+'.');
+        if(wordCount>8 && defKeys[1] && defs[defKeys[1]] && tool==='PUZZLE'){
+          sentences.push(this._capWord(defKeys[1])+' is '+this._shortDef(defs[defKeys[1]])+'.');
+        }
+      } else {
+        const qTopic = prim || topic || 'that';
+        this._journalBoundary(qTopic, 'Question with no dictionary definition. No fabricated answer.');
+        sentences.push('The question is grammatical, but '+qTopic+' has no definition in the local dictionary yet.');
+        sentences.push('That boundary is journaled rather than filled in.');
+      }
+      return this._applyToolShape(sentences, tool, shell, wordCount).join(' ');
+    }
+
+    // Short prompt
+    if(wordCount<=3){
+      if(primDef) return this._capWord(prim)+' is '+primDef+'.';
+      const w = ((raw||'').replace(/[^\w\s]/g,' ').trim().split(/\s+/)[0]||'that');
+      this._journalBoundary(w.toLowerCase(), 'Short prompt with no dictionary definition. Pattern journaled.');
+      return this._capWord(w)+' is noted. No dictionary definition is on hand for that term yet.';
+    }
+
+    // Command: tell / explain
+    if(intent==='command_tell' || intent==='command_do'){
+      if(primDef){
+        sentences.push(this._capWord(prim)+' is '+primDef+'.');
+        if(defKeys[1] && defs[defKeys[1]]) sentences.push(this._capWord(defKeys[1])+' is '+this._shortDef(defs[defKeys[1]])+'.');
+      } else {
+        const tpc = prim || topic || 'that';
+        this._journalBoundary(tpc, 'Command with no dictionary definition. Boundary journaled.');
+        sentences.push(this._capWord(tpc)+' has no local definition yet. That boundary is journaled.');
+      }
+      return this._applyToolShape(sentences, tool, shell, wordCount).join(' ');
+    }
+
+    // Statement → grammatical acknowledgment / continuation on the same topic.
+    const stripped = String(raw||'').replace(/[.!?]+$/,'').trim();
+    if(personal && stripped){
+      sentences.push(this._capWord(this._shiftPerson(stripped))+'.');
+    } else if(subj && pred){
+      let ack = this._capWord(stripped);
+      if(!/[.!?]$/.test(ack)) ack += '.';
+      sentences.push(ack);
+    } else {
+      sentences.push('Noted.');
+    }
+
+    if(!personal && primDef && tool!=='HAMMER'){
+      sentences.push(this._capWord(prim)+' is '+primDef+'.');
+    } else if(!primDef && missing && missing.length){
+      this._journalBoundary(missing[0], 'Statement terms without definition. Boundary journaled.');
+      if(!personal && wordCount>4){
+        sentences.push('No dictionary definition is on hand for '+missing.slice(0,2).join(' or ')+' — that boundary is journaled, not invented.');
+      }
+    }
+
+    if(wordCount>12 && defKeys[1] && defs[defKeys[1]] && !personal && tool==='PUZZLE'){
+      sentences.push(this._capWord(defKeys[1])+' is '+this._shortDef(defs[defKeys[1]])+'.');
+    }
+
+    return this._applyToolShape(sentences, tool, shell, wordCount).join(' ').replace(/\s+/g,' ').trim();
+  }
+
+  // Buoyancy reflex chat path — parse POS/roles, dictionary, FRP GEO/MAR/AERO + Natural Tools.
+  // No LLM key. Proportional grammatical sentences about the user's topic.
   async processForChat(text, facts={}) {
     const WN = typeof window !== 'undefined' && window.AutumnWordNet;
-    const content = (text||'').toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/)
-      .filter(w => w.length > 3);
-    if (WN && typeof WN.lookup === 'function') {
-      await Promise.all(content.slice(0,8).map(w => WN.lookup(w).catch(()=>[])));
+    const raw = String(text||'').trim();
+    let parsed = {tokens:[], intent:'statement_pos', contentWords:[], isInterrogative:false};
+    try {
+      if (this.c && typeof this.c.finalizePattern === 'function') parsed = this.c.finalizePattern(raw);
+      else if (this.c && typeof this.c.parse === 'function') parsed = this.c.parse(raw);
+    } catch(e) {}
+    let lex = {dominantTool:'MAZE', buoyancyContext:{state:'FOUNDATION',score:1}, sentenceType:'declarative', consensus:null};
+    try { if (this._lexer && typeof this._lexer.analyzeSentence === 'function') lex = this._lexer.analyzeSentence(raw); } catch(e) {}
+
+    // CBS compile/validate — Core Cognition lock, tag isolation, open-root default 0.
+    let compile = { mapped:true, gbv:{ok:true,reasons:[]}, tags:{isolated:true}, habitat:null, falseReason:'' };
+    try { compile = this._habitat.compile(raw, lex); } catch(e) { compile.mapped=false; compile.falseReason=String(e&&e.message||e); }
+    if (!compile.mapped) {
+      this._journalBoundary('cbs_compile', (compile.falseReason||'mapped false')+' — reflex, never loop.');
     }
+
+    const fromParse = (parsed.contentWords||[]).map(t=>t.norm).filter(Boolean);
+    const extra = raw.toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).filter(w => w.length > 3);
+    const toLookup = [...new Set(fromParse.concat(extra))].slice(0,10);
+    if (WN && typeof WN.lookup === 'function') {
+      await Promise.all(toLookup.map(w => WN.lookup(w).catch(()=>[])));
+    }
+
+    const SKIP_DEF = new Set(['today','yesterday','tomorrow','this','that','these','those','here','there',
+      'thing','things','stuff','time','just','then','than','very','really','also']);
+    const defs = {};
+    const missing = [];
+    toLookup.forEach(w => {
+      if (SKIP_DEF.has(w)) return;
+      const d = WN && WN.defineSync ? WN.defineSync(w) : null;
+      if (d) defs[w] = d;
+      else missing.push(w);
+    });
+    if (toLookup.length && !Object.keys(defs).length) {
+      this._journalBoundary(toLookup[0]||'unknown', 'No definition data available for this input. Structural pattern journaled; no fabricated sense.');
+    }
+
     const packed = this.s.lastFlow
       ? this.processContinuation(text, facts)
       : this.processInitial(text, facts);
     const knownFacts = Object.assign({}, facts);
     if (packed && packed.lexical) knownFacts['_lexResult'] = packed.lexical;
-    const defined = content.filter(w => WN && WN.defineSync && WN.defineSync(w));
-    if (content.length && !defined.length) {
-      try {
-        if (this._dual && typeof this._dual.writeInner === 'function') {
-          this._dual.writeInner({
-            type: 'boundary',
-            topic: content[0] || 'unknown',
-            thought: 'No definition data available for this input. Structural pattern journaled; no fabricated sense.',
-            trigger: 'buoyancy_reflex'
-          });
-        }
-      } catch(e) {}
+
+    let response = '';
+    if (compile && compile.mapped === false) {
+      if (compile.gbv && compile.gbv.reasons && compile.gbv.reasons.indexOf('attempted_core_rewrite')>=0) {
+        response = 'Core Cognition is always True and is not rewritten. The journal may update Core Parameters only.';
+      } else if (compile.tags && compile.tags.sharedPipe) {
+        response = 'That input mixed [poly:] and [net:] on one compile pipe. The compiler maps false and does not guess. Separate the pipes and it will map true.';
+      } else if (compile.tags && compile.tags.unclosed) {
+        response = 'A habitat tag is unclosed. Incorrect syntax maps false and is thrown back — correct it and it maps true.';
+      } else {
+        response = 'The compile mapped false. Autumn reflexes rather than looping. '+(compile.falseReason||'Correct the syntax and resubmit in any order.');
+      }
     }
-    let conv = '';
-    try { conv = this.a.buildConversational(packed, text, knownFacts); } catch(e) { conv = ''; }
-    const response = (conv && conv.length > 8) ? conv : ((packed && packed.response) || '');
-    return Object.assign({}, packed, { response, conversational: true, _fromBuoyancyReflex: true });
+    if (!response) {
+      try { response = this._composeLocalGrammarReply(raw, parsed, lex, defs, missing); } catch(e) { response = ''; }
+    }
+    if (!response || response.length < 3) {
+      try { response = this.a.buildConversational(packed, text, knownFacts); } catch(e) { response = ''; }
+    }
+    if (!response) response = (packed && packed.response) || '';
+    // Strip Claude-style hedging if a fallback ever produces it.
+    response = String(response||'').replace(/\bI want to make sure I'?m reading the full text\b[\s\S]{0,80}/gi,'').trim();
+    if (!response) {
+      const tpc = (parsed && parsed.centralTopic) || toLookup[0] || 'that';
+      this._journalBoundary(tpc, 'Empty local reply. Boundary journaled.');
+      response = 'The grammatical pattern is parsed. No dictionary definition is on hand for '+tpc+' yet — that boundary is journaled.';
+    }
+    return Object.assign({}, packed, {
+      response, conversational: true, _fromBuoyancyReflex: true,
+      cbs: compile,
+      habitat: compile && compile.habitat,
+      gbv: compile && compile.gbv,
+      lexical: packed && packed.lexical ? packed.lexical : {
+        dominantTool: lex.dominantTool,
+        buoyancyContext: lex.buoyancyContext,
+        sentenceType: lex.sentenceType,
+        totalMazeSigma: lex.totalMazeSigma,
+        consensus: lex.consensus||null
+      }
+    });
   }
 }
 
@@ -3445,6 +3866,12 @@ return{
   journalWrite:(e)=>engine.journalWrite(e),
   onJournalWrite:(fn)=>engine.asjc.onWrite(fn),
   _engine:engine,
+  CORE_COGNITION, HabitatCompiler,
+  compileHabitat:(t,l)=>engine._habitat.compile(t,l),
+  executeHabitat:(a)=>engine._habitat.execute(a),
+  generationBreachValidate:(t)=>engine._habitat.generationBreachValidate(t),
+  updateCoreParameter:(k,v)=>engine._habitat.updateCoreParameter(k,v),
+  getCoreParameters:()=>engine._habitat.getCoreParameters(),
   EMOTION_MAP,EXP_LAYERS,TOOL_DEFS,GR,leatrEncode,leatrDecode,frpSqrtFrp,
   StoryEngine,TopicalEngine,LexicalAnalyzer,MemoryBridge,PatternContext,DualJournal,PersonalityLayer,
   get memory()      { return engine._memory;      },
@@ -3483,6 +3910,6 @@ return{
 if(typeof window!=='undefined'){
   window.AutumnGrammarEngine=AutumnGrammarEngine;
   if(window.AutumnNLP)window.AutumnNLP._grammarEngine=AutumnGrammarEngine;
-  console.log('%c[Autumn Grammar Engine v2.0]%c ANLPCA online. 7-Panel LEATR Pipeline active. SentienceJournal R/W running.\n  Maze→Puzzle→Envelope→Hammer→Stick→Knife→Scissors | frp√frp gate | 21 emotions | 4 expression layers',
+  console.log('%c[Autumn Grammar Engine v2.0]%c ANLPCA online. Core Cognition locked True. CBS habitat compile in processForChat.\n  Maze→Puzzle→Envelope→Hammer→Stick→Knife→Scissors | 25 OOO | BRPN AERO→MAR→GEO | dual journal Core Parameters only',
     'color:#00e5ff;font-weight:bold','color:#aaa');
 }
