@@ -3497,7 +3497,9 @@ class ANLPCA {
     const raw=String(text||'');
     const low=raw.toLowerCase();
     facts=facts||{};
-    const repeating=!!(facts._repeatLastAction || this._turnResolved==='ash_star' || facts._resolvedWorld==='ash_star');
+    if(facts._mathSpeak || (typeof this._isMathAsk==='function' && this._isMathAsk(raw))) return;
+    const explicit=this._isAshStarAsk(low);
+    const repeating=!!(explicit?false:(facts._repeatLastAction && (this._turnResolved==='ash_star' || facts._resolvedWorld==='ash_star')));
     if(this._ashStarAwaitColor){
       const col=this._parseAshStarColor(low);
       if(col){
@@ -3511,7 +3513,7 @@ class ANLPCA {
       }
       return;
     }
-    if(!this._isAshStarAsk(low) && !repeating) return;
+    if(!explicit && !repeating) return;
     const last=this._ashStarLast||0;
     if(last && Date.now()-last<12000 && !repeating){
       facts._ashStarDeclined=true;
@@ -3581,14 +3583,18 @@ class ANLPCA {
       facts._brpnSessionCount=brpn.sessionCount;
       facts._brpnNetEmotion=brpn.netEmotion;
     }
-    try{ this._maybeAshStar(text,facts); }catch(e){}
-    try{ this._maybeOrbCube(text,facts); }catch(e){}
+    if(!(facts&&facts._mathSpeak) && !(typeof this._isMathAsk==='function' && this._isMathAsk(text))){
+      try{ this._maybeAshStar(text,facts); }catch(e){}
+      try{ this._maybeOrbCube(text,facts); }catch(e){}
+    }
     return this._doubleProcess(text,facts,'initial');
   }
   processContinuation(text,facts={}){
     this.asjc.setUserPresent(true);
-    try{ this._maybeAshStar(text,facts); }catch(e){}
-    try{ this._maybeOrbCube(text,facts); }catch(e){}
+    if(!(facts&&facts._mathSpeak) && !(typeof this._isMathAsk==='function' && this._isMathAsk(text))){
+      try{ this._maybeAshStar(text,facts); }catch(e){}
+      try{ this._maybeOrbCube(text,facts); }catch(e){}
+    }
     return this._doubleProcess(text,facts,'continuation');
   }
   processCrossSession(text,facts={}){
@@ -4503,7 +4509,8 @@ class ANLPCA {
     if(direct) return direct;
     if(/\bashar\b|\bashstar\b|\bash\s*star\b/.test(t)) return 'ash_star';
     if(/\bstars?\b/.test(t) && !/\bstaring\b|\bstarter\b|\bstart\b|\bsuperstar\b/.test(t)) return 'ash_star';
-    if(/\b(cube|dolly)\b/.test(t)) return 'orb_cube_solve';
+    if(/\bcube\s+roots?\b/.test(t) || /\bcbrt\b/.test(t)) return null;
+    if(/\b(orb cube|maze cube|dolly)\b/.test(t) || (/\bcube\b/.test(t) && !/\broot\b/.test(t))) return 'orb_cube_solve';
     if(/\bmaze\b/.test(t) && !/\bcube\b/.test(t)) return 'maze_studio';
     if(/\bstory\b|\btale\b/.test(t)) return 'story';
     return null;
@@ -4635,6 +4642,7 @@ class ANLPCA {
   _liveTurnCue(raw, parsed, reflex){
     const s=String(raw||'').trim().toLowerCase();
     if(!s) return null;
+    if(typeof this._isMathAsk==='function' && this._isMathAsk(s)) return null;
     const explicit=this._worldIntent ? this._worldIntent(s) : null;
     if(explicit) return {kind:'explicit', world:explicit, leftover:[]};
     const talk=this._conversationIntent ? this._conversationIntent(raw, parsed) : null;
@@ -4851,26 +4859,186 @@ class ANLPCA {
   }
   _neededOrderGroups(raw, parsed, reflex){
     const conv = this._conversationIntent(raw, parsed) || (reflex && reflex.talkKind);
+    if(this._isMathAsk && this._isMathAsk(raw)) return {math:true, physics:false, senses:false, grammar:false, conv:false};
     if(conv && conv!=='how_feel') return {math:false, physics:false, senses:false, grammar:false, conv:true};
     const s = String(raw||'').toLowerCase();
-    const math = /[0-9+\-*/^=()]/.test(s) || /\b(plus|minus|times|multipl|divid|exponent|geometry|parentheses|add(?:ition)?|subtract)\b/.test(s);
+    const math = /[0-9+\-*/^=()]/.test(s) || /\b(plus|minus|times|multipl|divid|exponent|geometry|parentheses|add(?:ition)?|subtract|cube roots?|square roots?|sqrt|cbrt)\b/.test(s);
     const physics = /\b(mass|volume|weight|density|temperature|velocity|speed|photosynthesis|gravity|force)\b/.test(s);
     const senses = /\b(touch|taste|smell|scent|hear|heard|sound|listen|see|saw|look|vision)\b/.test(s)
       && !/\bhow\s+(do|are)\s+you\s+feel/.test(s);
     const grammar = /\b(vowel|consonant|punctuation|tense|sentence structure|paragraph|grammar)\b/.test(s);
     return {math, physics, senses, grammar, conv:false};
   }
+  _isMathAsk(raw){
+    const s=String(raw||'').toLowerCase();
+    if(!s) return false;
+    if(/\b(ash\s*star|ashstar|maze studio|how do you feel|how are you)\b/.test(s)) return false;
+    if(/\b(cube|square)\s+roots?\b/.test(s)) return true;
+    if(/\broots?\s+of\b/.test(s) && /\d/.test(s)) return true;
+    if(/\b(sqrt|cbrt|nthroot)\b/.test(s)) return true;
+    if(/\bwhat(?:'s| is)\s+(the\s+)?(cube|square)\s+root\b/.test(s)) return true;
+    if(/\d/.test(s) && /[\+\-\*\/x×÷^=()]/.test(s)) return true;
+    if(/\d/.test(s) && /\b(plus|minus|times|multipl|divid|squared|cubed|to the power)\b/.test(s)) return true;
+    if(/\b(sin|cos|tan|log|ln)\s*\(/.test(s)) return true;
+    return false;
+  }
+  _ensureMathParser(){
+    try{
+      if(typeof math==='undefined' || !math.parser) return this._brpnMathParser||null;
+      if(!this._brpnMathParser){
+        this._brpnMathParser=math.parser();
+        try{
+          this._brpnMathParser.set('m',0); this._brpnMathParser.set('p',0);
+          this._brpnMathParser.set('h',0); this._brpnMathParser.set('s',0);
+          this._brpnMathParser.set('k',0); this._brpnMathParser.set('z',0);
+        }catch(e){}
+      }
+      return this._brpnMathParser;
+    }catch(e){ return null; }
+  }
+  _nlToMathExpr(raw){
+    let s=String(raw||'');
+    s=s.replace(/[?!]+$/g,'');
+    s=s.replace(/^(please\s+)?((can|could|would) you\s+)?(tell me\s+)?(what(?:'s| is)|whats|calculate|compute|solve|evaluate|find)\s+/i,'');
+    s=s.replace(/\bthe\b/gi,' ');
+    s=s.replace(/\bcube roots?\s+of\b/gi,'cbrt');
+    s=s.replace(/\bsquare roots?\s+of\b/gi,'sqrt');
+    s=s.replace(/\bnth roots?\s+of\b/gi,'nthRoot');
+    s=s.replace(/\broots?\s+of\b/gi,'sqrt');
+    s=s.replace(/\bsquared\b/gi,'^2');
+    s=s.replace(/\bcubed\b/gi,'^3');
+    s=s.replace(/\bto the power of\b/gi,'^');
+    s=s.replace(/\bplus\b/gi,'+');
+    s=s.replace(/\bminus\b/gi,'-');
+    s=s.replace(/\btimes\b/gi,'*');
+    s=s.replace(/\bmultipl(?:ied|y)(?:\s+by)?\b/gi,'*');
+    s=s.replace(/\bdivid(?:ed|e)(?:\s+by)?\b/gi,'/');
+    s=s.replace(/×/g,'*').replace(/÷/g,'/');
+    s=s.replace(/\s+/g,' ').trim();
+    s=s.replace(/\b(cbrt|sqrt|sin|cos|tan|log|ln|abs)\s+(-?\d+(?:\.\d+)?)/g,'$1($2)');
+    return s;
+  }
+  _formatMathResult(v){
+    if(v==null) return null;
+    if(typeof v==='boolean') return v?'true':'false';
+    if(typeof v==='object' && v!==null && typeof v.toString==='function' && !Array.isArray(v)){
+      try{ v=v.toString(); }catch(e){}
+    }
+    const n=typeof v==='number'?v:parseFloat(v);
+    if(typeof n==='number' && isFinite(n)){
+      if(Math.abs(n-Math.round(n))<1e-10) return String(Math.round(n));
+      return String(n);
+    }
+    const str=String(v);
+    if(!str || /error/i.test(str)) return null;
+    return str;
+  }
+  _mathSpoken(part, expr, pretty){
+    const low=String(part||'').toLowerCase();
+    if(/\bcube roots?\b/.test(low) || /\bcbrt\b/.test(expr)){
+      const m=low.match(/(-?\d+(?:\.\d+)?)/);
+      return 'The cube root of '+(m?m[1]:'that')+' is '+pretty+'.';
+    }
+    if(/\bsquare roots?\b/.test(low) || /^sqrt\(/.test(expr)){
+      const m=low.match(/(-?\d+(?:\.\d+)?)/);
+      return 'The square root of '+(m?m[1]:'that')+' is '+pretty+'.';
+    }
+    return expr+' is '+pretty+'.';
+  }
+  _evalMathSpeak(raw){
+    const chunks=String(raw||'').split(/\n|;/).map(function(x){ return x.trim(); }).filter(Boolean);
+    let parts=chunks;
+    if(chunks.length>1){
+      parts=chunks.filter(function(c){ return this._isMathAsk(c) || /[\d(]/.test(c); }.bind(this));
+      if(!parts.length) parts=chunks;
+    }
+    const parser=this._ensureMathParser();
+    const lines=[];
+    for(let i=0;i<parts.length;i++){
+      const expr=this._nlToMathExpr(parts[i]);
+      if(!expr) continue;
+      let val=null;
+      try{
+        if(parser && typeof parser.evaluate==='function') val=parser.evaluate(expr);
+        else if(typeof math!=='undefined' && typeof math.evaluate==='function') val=math.evaluate(expr);
+      }catch(e){ val=null; }
+      const pretty=this._formatMathResult(val);
+      if(pretty==null) continue;
+      lines.push(this._mathSpoken(parts[i], expr, pretty));
+    }
+    return lines.join(' ');
+  }
   _simpleMathReflex(raw){
-    const m = String(raw||'').match(/(-?\d+(?:\.\d+)?)\s*([\+\-\*\/x×÷])\s*(-?\d+(?:\.\d+)?)/);
-    if(!m) return '';
-    const a = parseFloat(m[1]), b = parseFloat(m[3]), op = m[2];
-    let v = null;
-    if(op==='+') v = a+b;
-    else if(op==='-') v = a-b;
-    else if(op==='*'||op==='x'||op==='×') v = a*b;
-    else if((op==='/'||op==='÷') && b!==0) v = a/b;
-    if(v==null || !isFinite(v)) return '';
-    return m[1]+' '+op+' '+m[3]+' is '+v+'.';
+    return this._evalMathSpeak(raw)||'';
+  }
+  _sharePurpose(raw, facts){
+    const s=String(raw||'').toLowerCase();
+    if(/\bwhy\b|\bexplain\b|\bhow (does|do|did)\b/.test(s)) return 'explain';
+    if(this._isMathAsk && this._isMathAsk(s)) return 'compute';
+    if(/\bhelp\b|\bfor them\b|\bsomeone else\b/.test(s)) return 'help_other';
+    const owner=(facts && facts._memoryOwner) || this._userMemoryScope().owner;
+    return 'share:'+owner;
+  }
+  _selfTeachSpine(raw, facts, ooo, needed, geo){
+    facts=facts||{};
+    const owner=this._userMemoryScope().owner;
+    const shell=(geo && geo.frpMod) || (lexShell(facts)) || 'FOUNDATION';
+    function lexShell(f){ return (f && f._buoyancyState) || null; }
+    const why=[];
+    if(facts._mathSpeak){
+      why.push('Computed on Natural Tool math orders. Parentheses/geometry first so nesting is true, then exponents, multiply/divide, add/subtract. Not web.');
+    } else if(needed && needed.physics){
+      why.push('Physics orders after geometry. Photosynthesis self-check stays after parentheses.');
+    } else if(needed && needed.grammar){
+      why.push('Grammar orders as reflex after tools, not a dictionary dump.');
+    } else {
+      why.push('Buoyancy FRP reflexed the live turn against journal and the 25-order spine.');
+    }
+    const orders=[];
+    try{
+      const list=(typeof CORE_COGNITION!=='undefined' && CORE_COGNITION.ORDERS_25) || [];
+      for(let i=0;i<list.length;i++){
+        const o=list[i];
+        if(facts._mathSpeak && o.group==='MATH') orders.push(o.n+':'+o.name);
+        else if(needed && needed.physics && o.group==='PHYSICS') orders.push(o.n+':'+o.name);
+        else if(o.group==='NATURAL_TOOL' && orders.length<3) orders.push(o.n+':'+o.name);
+      }
+    }catch(e){}
+    const rec={
+      type:'self_teach', owner:owner, ts:Date.now(),
+      foundation:true, reflex:true, performance:true,
+      shell:shell, orders:orders, why:why.join(' '),
+      topic:String(raw||'').slice(0,80),
+      kind: facts._mathSpeak?'math':(facts._resolvedWorld||'talk'),
+      purpose:this._sharePurpose(raw, facts)
+    };
+    try{
+      if(this._dual && typeof this._dual.writeInner==='function') this._dual.writeInner(rec);
+    }catch(e){}
+    try{
+      if(this._habitat && typeof this._habitat.updateCoreParameter==='function'){
+        const key='self_teach_spine_'+owner;
+        const params=this._habitat.getCoreParameters ? this._habitat.getCoreParameters() : {};
+        const prev=params[key]||[];
+        const next=(Array.isArray(prev)?prev:[]).concat([rec]).slice(-24);
+        this._habitat.updateCoreParameter(key, next);
+      }
+    }catch(e){}
+    facts._selfTeach=rec;
+    return rec;
+  }
+  _mannerForOwner(facts){
+    const owner=this._userMemoryScope().owner;
+    let explainBias=0;
+    try{
+      const params=this._habitat && this._habitat.getCoreParameters ? this._habitat.getCoreParameters() : {};
+      const spine=params['self_teach_spine_'+owner]||[];
+      for(let i=0;i<spine.length;i++){
+        if(spine[i] && spine[i].purpose==='explain') explainBias++;
+        if(spine[i] && spine[i].purpose==='compute') explainBias--;
+      }
+    }catch(e){}
+    return {owner:owner, explain:explainBias>1};
   }
   _execute25OOOAsReflex(parsed, lex, reflex){
     const d = this._oooData(parsed, reflex);
@@ -4938,6 +5106,7 @@ class ANLPCA {
   _isKnowledgeSeek(raw, parsed){
     const s = String(raw||'').trim().toLowerCase();
     if(!s) return false;
+    if(this._isMathAsk && this._isMathAsk(s)) return false;
     const conv = this._conversationIntent(raw, parsed);
     if(this._noWebTalk(conv)) return false;
     if(this._worldIntent && this._worldIntent(s)) return false;
@@ -5289,6 +5458,7 @@ class ANLPCA {
     const wordCount = tokens.filter(t => t && (t.norm||t.word) && !/^[.,!?;:'"()\[\]]$/.test(t.word||'')).length;
     const G = this._grammarDict();
     reflex = reflex || (lex && lex.reflex) || null;
+    if(facts._mathSpeak) return facts._mathSpeak;
     if(facts._clarifyReply) return facts._clarifyReply;
     if(facts._ashStarReply) return facts._ashStarReply;
     if(facts._orbCubeReply) return facts._orbCubeReply;
@@ -5474,8 +5644,20 @@ class ANLPCA {
     lex.reflex = reflex;
     this.s.lexResult = lex;
 
+    try {
+      if(this._isMathAsk(raw)){
+        const spoken=this._evalMathSpeak(raw);
+        if(spoken){
+          facts._mathSpeak=spoken;
+          facts._measuredSpeak=spoken;
+          this._rememberWorldAction('math', {prompt:raw});
+        }
+      }
+    } catch(e) {}
+
     // Triangulate live turn + operating network + journal BEFORE compose or world-action fire.
     try {
+      if(!facts._mathSpeak){
       const tri = this._triangulateFollowThrough(raw, parsed, facts, reflex);
       if(tri){
         facts._triangled = tri;
@@ -5485,6 +5667,7 @@ class ANLPCA {
         }
         if(tri.repeat) facts._repeatLastAction = true;
         if(tri.clarify && tri.reply) facts._clarifyReply = tri.reply;
+      }
       }
     } catch(e) {}
 
@@ -5537,7 +5720,8 @@ class ANLPCA {
 
     // MEASURE after FRP + triangulation + journal research. Speak later; never dump analysis.
     try {
-      if (!this._noWebTalk(convNow)) {
+      if (facts._mathSpeak) { /* already computed on the math tool */ }
+      else if (!this._noWebTalk(convNow)) {
         const measured = await this._measureThenSpeak(raw, parsed, defs, missing, reflex, facts);
         if (measured) {
           if (measured.speak) facts._measuredSpeak = measured.speak;
@@ -5548,6 +5732,8 @@ class ANLPCA {
       }
     } catch (e) {}
 
+    try { this._selfTeachSpine(raw, facts, ooo, needed, geo); } catch(e) {}
+
     const packed = this.s.lastFlow
       ? this.processContinuation(text, facts)
       : this.processInitial(text, facts);
@@ -5557,7 +5743,8 @@ class ANLPCA {
     if (packed && packed.lexical) knownFacts['_lexResult'] = packed.lexical;
 
     let response = '';
-    if (facts._ashStarReply) response = facts._ashStarReply;
+    if (facts._mathSpeak) response = facts._mathSpeak;
+    else if (facts._ashStarReply) response = facts._ashStarReply;
     else if (facts._orbCubeReply) response = facts._orbCubeReply;
     else if (facts._clarifyReply) response = facts._clarifyReply;
     if (compile && compile.mapped === false && !response) {
