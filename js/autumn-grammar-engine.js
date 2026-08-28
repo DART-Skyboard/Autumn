@@ -3446,7 +3446,7 @@ class ANLPCA {
 
   _worldIntent(raw){
     const t=String(raw||'').toLowerCase();
-    if(/ash\s*star/.test(t) || /send (me )?(an? )?(ash )?stars?/.test(t) || ((/\bsend\b|\bfire\b/).test(t)&&/your star/.test(t)))
+    if(/ash\s*star/.test(t) || /ashstar/.test(t) || /\bashar\b/.test(t) || /send (me )?(an? )?(ash )?stars?/.test(t) || ((/\bsend\b|\bfire\b/).test(t)&&(/\bstars?\b/.test(t)||/your star/.test(t))))
       return 'ash_star';
     const looking = typeof window!=='undefined' && typeof window.isOrbCubeLooking==='function' && window.isOrbCubeLooking();
     if(/\b(pull out|zoom out|back out|back to the orb|leave the cube|full (orb|scene|view)|dolly out)\b/.test(t))
@@ -3502,6 +3502,8 @@ class ANLPCA {
   _maybeAshStar(text,facts){
     const raw=String(text||'');
     const low=raw.toLowerCase();
+    facts=facts||{};
+    const repeating=!!(facts._repeatLastAction || this._turnResolved==='ash_star' || facts._resolvedWorld==='ash_star');
     if(this._ashStarAwaitColor){
       const col=this._parseAshStarColor(low);
       if(col){
@@ -3511,30 +3513,41 @@ class ANLPCA {
         facts._ashStarReply='Sending a '+col+' one your way.';
         this._ashStarLast=Date.now();
         this._fireAshStarNow(col, this._ashStarToUids||'me');
+        this._rememberWorldAction('ash_star', {color:col, toUids:this._ashStarToUids||'me', prompt:raw});
       }
       return;
     }
-    if(!this._isAshStarAsk(low)) return;
+    if(!this._isAshStarAsk(low) && !repeating) return;
     const last=this._ashStarLast||0;
-    if(last && Date.now()-last<12000){
+    if(last && Date.now()-last<12000 && !repeating){
       facts._ashStarDeclined=true;
       facts._ashStarReply="I'm in the middle of something privately right now — I will get back to you.";
       return;
     }
-    const col=this._parseAshStarColor(low) || 'teal';
-    const toUids=this._parseAshStarTargets(low);
+    const prev=this._lastWorldAction;
+    const col=this._parseAshStarColor(low) || (repeating && prev && prev.color) || this._ashStarColor || 'teal';
+    const dest=repeating
+      ? ((prev && prev.toUids) || this._ashStarToUids || this._parseAshStarTargets(low) || 'me')
+      : this._parseAshStarTargets(low);
     facts._ashStarWillSend=true;
     facts._ashStarColor=col;
     this._ashStarLast=Date.now();
+    this._ashStarColor=col;
+    this._ashStarToUids=dest;
     const label=(typeof col==='string'&&col.charAt(0)!=='#')?col:'teal';
-    facts._ashStarReply=toUids==='me'
-      ? ('On it — sending a '+label+' Ash Star to your orb.')
-      : ('On it — sending a '+label+' Ash Star along the live curves.');
-    this._fireAshStarNow(col, toUids);
+    facts._ashStarReply=repeating
+      ? ('Another '+label+' one — sending it now.')
+      : (dest==='me'
+        ? ('On it — sending a '+label+' Ash Star to your orb.')
+        : ('On it — sending a '+label+' Ash Star along the live curves.'));
+    this._fireAshStarNow(col, dest);
+    this._rememberWorldAction('ash_star', {color:col, toUids:dest, prompt:raw});
   }
 
   _maybeOrbCube(text,facts){
-    const kind=this._worldIntent(text);
+    facts=facts||{};
+    const resolved=(facts._resolvedWorld || this._turnResolved || '');
+    const kind=(resolved.indexOf('orb_cube')===0) ? resolved : this._worldIntent(text);
     if(kind!=='orb_cube_solve' && kind!=='orb_cube_new' && kind!=='orb_cube_out') return;
     try{
       if(typeof window==='undefined') return;
@@ -3548,6 +3561,7 @@ class ANLPCA {
         window.dollyOutOrbCube();
         facts._orbCubeReply='Pulling back out to the full orb scene.';
       }
+      this._rememberWorldAction(kind, {prompt:String(text||'')});
     }catch(e){}
   }
 
@@ -3641,6 +3655,7 @@ class ANLPCA {
     const result=this._story.generate(prompt,options);
     this.asjc.write({type:'fiction_story',prompt,title:result.title,genre:result.genre,
                      wordCount:result.wordCount,timestamp:Date.now()});
+    try{ this._rememberWorldAction('story', {prompt:prompt}); }catch(e){}
     return result;
   }
 
@@ -4159,6 +4174,9 @@ class ANLPCA {
     const world = this._worldIntent ? this._worldIntent(s) : null;
     if(world==='ash_star' || world==='orb_cube_solve' || world==='orb_cube_new' || world==='orb_cube_out' || world==='maze_studio')
       return world;
+    const resolved = this._turnResolved || (this._turnFacts && this._turnFacts._resolvedWorld) || null;
+    if(resolved==='ash_star' || resolved==='orb_cube_solve' || resolved==='orb_cube_new' || resolved==='orb_cube_out' || resolved==='maze_studio' || resolved==='story')
+      return resolved;
 
     if(intent==='how_feel' ||
        /\bhow\s+(do|are)\s+you\s+feel/.test(s) ||
@@ -4424,7 +4442,8 @@ class ANLPCA {
     facts._memoryOwner = scope.owner;
     try {
       const S=(typeof window!=='undefined')?window.S:null;
-      if(!S || !Array.isArray(S.sessions)) return facts;
+      if(!S || !Array.isArray(S.sessions)) { /* journal still collected below */ }
+      else {
       const curId=S.currentSession;
       const sessions=S.sessions;
       const cur=(typeof curId==='number'?sessions[curId]:null) || sessions.find(function(x){ return x && x.id===curId; }) || sessions[0];
@@ -4432,6 +4451,13 @@ class ANLPCA {
         const earlier=cur.messages.slice(0,-1);
         const overlap=this._scanMessages(earlier, topics);
         if(overlap.length) facts._thisThread=overlap.slice(0,6);
+        facts._recentTurns=earlier.slice(-10).map(function(m){
+          return {role:(m&&m.role)||'', snippet:String((m&&(m.text||m.content))||'').replace(/\s+/g,' ').trim().slice(0,160)};
+        }).filter(function(x){ return x.snippet && x.snippet!=='[object Object]'; });
+        for(let i=facts._recentTurns.length-1;i>=0;i--){
+          const k=this._kindFromSnippet(facts._recentTurns[i].snippet);
+          if(k){ facts._threadLastKind=k; break; }
+        }
       }
       if(scope.allowCross && sessions.length>1){
         const others=[];
@@ -4453,18 +4479,242 @@ class ANLPCA {
         }
         if(others.length) facts._otherThreads=others.slice(0,5);
       }
+      } // sessions present
     } catch(e) {}
     try {
-      const inner=this._dual && this._dual.readInner ? this._dual.readInner(12) : [];
+      const owner=scope.owner;
+      const inner=this._dual && this._dual.readInner ? this._dual.readInner(24) : [];
       const jhits=(inner||[]).filter(function(e){
         if(!e) return false;
-        const blob=String(e.topic||e.thought||e.emotion||'');
+        if(e.owner && e.owner!==owner) return false;
+        const blob=String(e.topic||e.thought||e.emotion||e.kind||e.resolves||'');
+        if(e.type==='world_action' || e.type==='learned_resolution' || e.type==='core_parameter') return true;
         return topics.some(function(t){ return blob.toLowerCase().indexOf(t)>=0; });
-      }).slice(0,4).map(function(e){ return {topic:e.topic, type:e.type, emotion:e.emotion||e.emote||null}; });
+      }).slice(0,8).map(function(e){ return {topic:e.topic, type:e.type, kind:e.kind||e.resolves||null, emotion:e.emotion||e.emote||null}; });
       if(jhits.length) facts._journalOverlap=jhits;
+    } catch(e) {}
+    try {
+      if(this._lastWorldAction && (!this._lastWorldAction.owner || this._lastWorldAction.owner===scope.owner))
+        facts._lastWorldAction=this._lastWorldAction;
     } catch(e) {}
     return facts;
   }
+
+  // Contrast live turn + operating network + journal (per-user). Not a phrase table.
+  // Resolve what a follow-through MEANS, enact that world action, and journal the lesson.
+  _kindFromSnippet(raw){
+    const t=String(raw||'').toLowerCase();
+    if(!t) return null;
+    const direct=this._worldIntent ? this._worldIntent(t) : null;
+    if(direct) return direct;
+    if(/\bashar\b|\bashstar\b|\bash\s*star\b/.test(t)) return 'ash_star';
+    if(/\bstars?\b/.test(t) && !/\bstaring\b|\bstarter\b|\bstart\b|\bsuperstar\b/.test(t)) return 'ash_star';
+    if(/\b(cube|dolly)\b/.test(t)) return 'orb_cube_solve';
+    if(/\bmaze\b/.test(t) && !/\bcube\b/.test(t)) return 'maze_studio';
+    if(/\bstory\b|\btale\b/.test(t)) return 'story';
+    return null;
+  }
+  _rememberWorldAction(kind, meta){
+    if(!kind) return;
+    meta=meta||{};
+    const owner=this._userMemoryScope().owner;
+    const rec={
+      kind, owner, ts:Date.now(),
+      color:meta.color||this._ashStarColor||null,
+      toUids:meta.toUids||this._ashStarToUids||null,
+      prompt:meta.prompt||null
+    };
+    this._lastWorldAction=rec;
+    if(kind==='ash_star'){
+      this._ashStarLast=rec.ts;
+      if(rec.color) this._ashStarColor=rec.color;
+      if(rec.toUids) this._ashStarToUids=rec.toUids;
+    }
+    try{ if(this._pattern && this._pattern._context) this._pattern._context.lastWorldAction=rec; }catch(e){}
+    try{
+      if(this._habitat && typeof this._habitat.updateCoreParameter==='function')
+        this._habitat.updateCoreParameter('last_world_action_'+owner, rec);
+    }catch(e){}
+    try{
+      if(this._dual && typeof this._dual.writeInner==='function'){
+        this._dual.writeInner({
+          type:'world_action', topic:kind, kind, owner,
+          color:rec.color, toUids:rec.toUids,
+          thought:'World action enacted for this user. Core Cognition unchanged.',
+          trigger:'network'
+        });
+      }
+    }catch(e){}
+  }
+  _learnResolution(cue, kind, facts){
+    if(!kind) return;
+    const owner=(facts&&facts._memoryOwner)||this._userMemoryScope().owner;
+    const payload={cue:String(cue||'').slice(0,48), resolves:kind, owner, ts:Date.now()};
+    try{
+      if(this._habitat && typeof this._habitat.updateCoreParameter==='function')
+        this._habitat.updateCoreParameter('deixis_map_'+owner, payload);
+    }catch(e){}
+    try{
+      if(this._dual && typeof this._dual.writeInner==='function'){
+        this._dual.writeInner({
+          type:'learned_resolution', topic:payload.cue, kind, resolves:kind, owner,
+          thought:'Follow-through cue resolves to '+kind+' for this user. Core Cognition unchanged.',
+          trigger:'self_teach'
+        });
+      }
+      if(this._dual && typeof this._dual.keepForSelf==='function' && payload.cue){
+        this._dual.keepForSelf(payload.cue, 'When this user refers back after '+kind+', enact '+kind+'.', 'triangulation');
+      }
+    }catch(e){}
+  }
+  _networkLastAction(facts){
+    const owner=(facts&&facts._memoryOwner)||this._userMemoryScope().owner;
+    const recs=[];
+    const push=function(r,src){ if(r&&r.kind) recs.push(Object.assign({src:src}, r)); };
+    if(this._lastWorldAction && (!this._lastWorldAction.owner || this._lastWorldAction.owner===owner))
+      push(this._lastWorldAction, 'engine');
+    try{
+      const ctx=this._pattern && this._pattern.get && this._pattern.get();
+      if(ctx && ctx.lastWorldAction && (!ctx.lastWorldAction.owner || ctx.lastWorldAction.owner===owner))
+        push(ctx.lastWorldAction, 'pattern');
+    }catch(e){}
+    try{
+      const nodes=typeof window!=='undefined' && window._ashNodes;
+      if(nodes && nodes._lastAshStar && nodes._lastAshStar.ts && Date.now()-nodes._lastAshStar.ts<600000)
+        push({kind:'ash_star', ts:nodes._lastAshStar.ts, color:nodes._lastAshStar.color, toUids:nodes._lastAshStar.toUids}, 'brpn');
+    }catch(e){}
+    if(this._ashStarLast && Date.now()-this._ashStarLast<600000)
+      push({kind:'ash_star', ts:this._ashStarLast, color:this._ashStarColor||'teal', toUids:this._ashStarToUids||'me'}, 'ashStarLast');
+    if(facts && facts._lastWorldAction) push(facts._lastWorldAction, 'facts');
+    if(facts && facts._threadLastKind) push({kind:facts._threadLastKind, ts:0}, 'thread');
+    recs.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    return recs[0]||null;
+  }
+  _journalLastAction(facts){
+    const owner=(facts&&facts._memoryOwner)||this._userMemoryScope().owner;
+    const recs=[];
+    const self=this;
+    const consider=function(e,src){
+      if(!e) return;
+      if(e.owner && e.owner!==owner) return;
+      const kind=e.kind||e.resolves||null;
+      if((e.type==='world_action' || e.type==='learned_resolution') && kind)
+        recs.push({kind:kind, ts:e.timestamp||e.ts||0, color:e.color, toUids:e.toUids, src:src, learned:e.type==='learned_resolution', cue:e.topic});
+      if(e.type==='core_parameter' && e.value && e.value.kind)
+        recs.push(Object.assign({src:src}, e.value));
+      const blob=String(e.userInput||e.thought||e.response||e.snippet||'');
+      if(/\bash star\b/i.test(blob) || /\bsending a .*ash star/i.test(blob) || /\banother \w+ one — sending/i.test(blob))
+        recs.push({kind:'ash_star', ts:e.timestamp||e.ts||0, src:src});
+    };
+    try{
+      const inner=this._dual && this._dual.readInner ? this._dual.readInner(24) : [];
+      (inner||[]).forEach(function(e){ consider(e,'inner'); });
+    }catch(e){}
+    try{
+      const outer=this._dual && this._dual.readOuter ? this._dual.readOuter(16) : [];
+      (outer||[]).forEach(function(e){ consider(e,'outer'); });
+    }catch(e){}
+    try{
+      const sj=this.asjc && this.asjc.readRecent ? this.asjc.readRecent(16) : [];
+      (sj||[]).forEach(function(e){ consider(e,'sentience'); });
+    }catch(e){}
+    try{
+      const params=this._habitat && this._habitat.getCoreParameters ? this._habitat.getCoreParameters() : {};
+      const last=params['last_world_action_'+owner];
+      if(last && last.kind) recs.push(Object.assign({src:'core_param'}, last));
+      const deix=params['deixis_map_'+owner];
+      if(deix && deix.resolves) recs.push({kind:deix.resolves, ts:deix.ts||0, src:'core_param', learned:true, cue:deix.cue});
+    }catch(e){}
+    if(facts && Array.isArray(facts._journalOverlap)){
+      facts._journalOverlap.forEach(function(e){ consider(e,'facts_journal'); });
+    }
+    if(facts && Array.isArray(facts._recentTurns)){
+      for(let i=facts._recentTurns.length-1;i>=0;i--){
+        const sn=facts._recentTurns[i];
+        const k=self._kindFromSnippet(sn && sn.snippet);
+        if(k) recs.push({kind:k, ts:i, src:'thread', snippet:sn.snippet});
+      }
+    }
+    recs.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    return recs[0]||null;
+  }
+  _liveTurnCue(raw, parsed, reflex){
+    const s=String(raw||'').trim().toLowerCase();
+    if(!s) return null;
+    const explicit=this._worldIntent ? this._worldIntent(s) : null;
+    if(explicit) return {kind:'explicit', world:explicit, leftover:[]};
+    const talk=this._conversationIntent ? this._conversationIntent(raw, parsed) : null;
+    if(talk && ['greeting','presence','thanks','how_feel','how_are_you','farewell','affirmation','negation','activity_offer'].indexOf(talk)>=0)
+      return null;
+    const reject=/\b(don'?t|do not|never|not want|stop)\b/.test(s) && !/,\s*not\b/.test(s);
+    if(reject) return null;
+    const words=s.replace(/[.!?]+$/g,'').split(/\s+/).filter(Boolean);
+    const tokens=(parsed && parsed.tokens) || (reflex && reflex.tokens) || [];
+    const ITER_ADV=new Set(['again','once']);
+    const TIME_ANAPHORA=new Set(['ago','minute','minutes','moment','earlier','before','last','time','now']);
+    const DEIXIS=new Set(['that','this','it','those','these']);
+    let deictic=false, iterativeDet=false, hasNeg=false, leftover=[];
+    for(let i=0;i<words.length;i++){
+      const n=words[i].replace(/[^a-z0-9']/g,'');
+      if(!n) continue;
+      if(GR.NEGATION.has(n)) { hasNeg=true; continue; }
+      if(DEIXIS.has(n)) { deictic=true; continue; }
+      if((GR.DETERMINERS.has(n) && (n==='another'||n==='more'||n==='other')) || ITER_ADV.has(n)) { iterativeDet=true; continue; }
+      if(TIME_ANAPHORA.has(n) || FUNCTION_SKIP.has(n)) continue;
+      if(GR.ARTICLES.has(n)||GR.AUXILIARIES.has(n)||GR.PREPOSITIONS.has(n)||GR.CONJUNCTIONS.has(n)||GR.PRONOUNS.has(n)||GR.INTERROGATIVES.has(n)) continue;
+      leftover.push(n);
+    }
+    const repair=/\bmean(?:s|t)?\s+by\b|\bmeant\b/.test(s);
+    const newNouns=leftover.filter(function(w){
+      if(ITER_ADV.has(w) || TIME_ANAPHORA.has(w)) return false;
+      const tok=tokens.find(function(t){ return tokenNorm(t).toLowerCase()===w; });
+      if(tok && (tok.pos==='VB' || tok.role==='verb' || tok.pos==='ADV' || tok.pos==='ADJ')) return false;
+      return w.length>=3;
+    });
+    const named=leftover.map(function(w){ return this._kindFromSnippet(w); }.bind(this)).filter(Boolean);
+    const namedFromRaw=this._kindFromSnippet(s);
+    if(namedFromRaw && named.indexOf(namedFromRaw)<0) named.push(namedFromRaw);
+    // Negation plus a new non-world noun ("don't repeat my password") is not a follow-through.
+    if(hasNeg && newNouns.length && !named.length) return null;
+    if(repair) return {kind:'correction', leftover, deictic, iterativeDet, named, hasNeg};
+    const namedNouns=newNouns.map(function(w){ return this._kindFromSnippet(w); }.bind(this)).filter(Boolean);
+    // Deictic NP with two+ new non-world nouns ("the chorus of that song") is a new topic, not last-action follow-through.
+    // A single leftover with a deictic object ("repeat that") is V+that anaphora — POS may not mark the verb.
+    if(deictic && newNouns.length>=2 && !namedNouns.length && !named.length) return null;
+    if(deictic && newNouns.length<=2) return {kind:'anaphora', leftover, deictic:true, named: named.length?named:namedNouns};
+    if(iterativeDet && newNouns.length>=2 && !namedNouns.length && !named.length) return null;
+    if(iterativeDet && newNouns.length<=2) return {kind:'iterate', leftover, iterativeDet:true, named: named.length?named:namedNouns};
+    if(words.length<=3 && leftover.length<=2 && !hasNeg && (deictic || iterativeDet || leftover.length>=1))
+      return {kind:'ellipsis', leftover, named};
+    if(named.length===1 && leftover.length<=6) return {kind:'part', leftover, named};
+    return null;
+  }
+  _triangulateFollowThrough(raw, parsed, facts, reflex){
+    facts=facts||{};
+    const live=this._liveTurnCue(raw, parsed, reflex);
+    const network=this._networkLastAction(facts);
+    const journal=this._journalLastAction(facts);
+    const last=(network && network.kind) ? network : journal;
+    const lastKind=last && last.kind;
+    if(live && live.kind==='explicit'){
+      const recent=network && network.kind===live.world && network.ts && (Date.now()-network.ts<180000);
+      if(recent) this._learnResolution(String(raw||'').slice(0,40), live.world, facts);
+      return {kind:live.world, repeat:!!recent, from:'explicit'};
+    }
+    if(!live) return null;
+    let resolved=null;
+    if(live.named && live.named.length===1) resolved=live.named[0];
+    else if(network && journal && network.kind===journal.kind) resolved=network.kind;
+    else if(network && network.kind) resolved=network.kind;
+    else if(journal && journal.kind) resolved=journal.kind;
+    if(!resolved){
+      return {kind:null, clarify:true, reply:'Which part should I do again?', from:'ambiguous'};
+    }
+    const cue=(live.leftover && live.leftover[0]) || live.kind || 'follow-through';
+    this._learnResolution(cue, resolved, facts);
+    return {kind:resolved, repeat:true, from:live.kind, network:network&&network.kind, journal:journal&&journal.kind};
+  }
+
   _locateEmotionGeometry(raw, parsed, lex, reflex, G){
     G = G || this._grammarDict();
     let emoName='neutral';
@@ -4666,15 +4916,19 @@ class ANLPCA {
     return out.slice(0, maxSent);
   }
 
-  _composeLocalGrammarReply(raw, parsed, lex, defs, missing, reflex){
+  _composeLocalGrammarReply(raw, parsed, lex, defs, missing, reflex, facts){
+    facts = facts || this._turnFacts || {};
     const intent = (parsed && parsed.intent) || 'statement_pos';
     const tokens = (parsed && parsed.tokens) || [];
     const wordCount = tokens.filter(t => t && (t.norm||t.word) && !/^[.,!?;:'"()\[\]]$/.test(t.word||'')).length;
     const G = this._grammarDict();
     reflex = reflex || (lex && lex.reflex) || null;
+    if(facts._clarifyReply) return facts._clarifyReply;
+    if(facts._ashStarReply) return facts._ashStarReply;
+    if(facts._orbCubeReply) return facts._orbCubeReply;
     const conv = this._conversationIntent(raw, parsed) || (reflex && reflex.talkKind) || null;
     if(conv==='ash_star'){
-      if(this._ashStarLast && Date.now()-this._ashStarLast<15000 && !this._ashStarAwaitColor)
+      if(facts._repeatLastAction || this._turnResolved==='ash_star' || (this._ashStarLast && Date.now()-this._ashStarLast<15000 && !this._ashStarAwaitColor))
         return 'On it — sending one along the live curves.';
       return "I'm handling something privately right now — I will get back to you.";
     }
@@ -4682,6 +4936,7 @@ class ANLPCA {
     if(conv==='orb_cube_new') return 'New maze cube in your orb. Ask me to solve it when you want the path.';
     if(conv==='orb_cube_out') return 'Pulling back out to the full orb scene.';
     if(conv==='maze_studio') return 'Opening Maze Studio to generate that maze now.';
+    if(conv==='story') return 'Writing another one now.';
     if(conv==='how_feel'){
       try {
         const feel = this._feelingFromState(raw, parsed, lex, reflex, G);
@@ -4748,7 +5003,10 @@ class ANLPCA {
         if(topic && this._isContentNoun(topic)){
           this._journalBoundary(topic, 'Question with no dictionary definition. Boundary journaled; grammatical reply continues.');
         }
-        if(subj && pred) sentences.push(this._svoSentence(parsed, 'I', pred, obj, '.'));
+        const cue = this._liveTurnCue ? this._liveTurnCue(raw, parsed, reflex) : null;
+        if(cue || this._turnResolved || facts._repeatLastAction){
+          sentences.push(this._turnResolved==='ash_star' ? 'On it — sending one along the live curves.' : "I'm with you — one moment.");
+        } else if(subj && pred) sentences.push(this._svoSentence(parsed, 'I', pred, obj, '.'));
         else if(topic) sentences.push(this._capWord(topic)+' is the subject of that question.');
         else sentences.push(this._svoSentence(parsed, 'I', 'am', 'here', '.'));
       }
@@ -4827,7 +5085,9 @@ class ANLPCA {
   // proportional reflex output. WordNet is enrichment only. No side LLM path.
   async processForChat(text, facts={}) {
     const raw = String(text||'').trim();
+    this._turnResolved = null;
     facts = this._collectFluidMemory(raw, Object.assign({}, facts||{}));
+    this._turnFacts = facts;
     const attached = (facts && (facts._attachedText || facts.attachedText || facts.fileText)) || '';
 
     // 1. ORDER the data  2. PIPELINE FRP per point (AERO→MAR→GEO); pattern-match in memory as they land.
@@ -4844,6 +5104,20 @@ class ANLPCA {
     try { if (this._lexer && typeof this._lexer.analyzeSentence === 'function') lex = this._lexer.analyzeSentence(raw); } catch(e) {}
     lex.reflex = reflex;
     this.s.lexResult = lex;
+
+    // Triangulate live turn + operating network + journal BEFORE compose or world-action fire.
+    try {
+      const tri = this._triangulateFollowThrough(raw, parsed, facts, reflex);
+      if(tri){
+        facts._triangled = tri;
+        if(tri.kind){
+          this._turnResolved = tri.kind;
+          facts._resolvedWorld = tri.kind;
+        }
+        if(tri.repeat) facts._repeatLastAction = true;
+        if(tri.clarify && tri.reply) facts._clarifyReply = tri.reply;
+      }
+    } catch(e) {}
 
     let compile = { mapped:true, gbv:{ok:true,reasons:[]}, tags:{isolated:true}, habitat:null, falseReason:'' };
     try { compile = this._habitat.compile(raw, lex); } catch(e) { compile.mapped=false; compile.falseReason=String(e&&e.message||e); }
@@ -4903,6 +5177,7 @@ class ANLPCA {
     let response = '';
     if (facts._ashStarReply) response = facts._ashStarReply;
     else if (facts._orbCubeReply) response = facts._orbCubeReply;
+    else if (facts._clarifyReply) response = facts._clarifyReply;
     if (compile && compile.mapped === false && !response) {
       if (compile.gbv && compile.gbv.reasons && compile.gbv.reasons.indexOf('attempted_core_rewrite')>=0) {
         response = 'Core Cognition is always True and is not rewritten. The journal may update Core Parameters only.';
@@ -4916,7 +5191,7 @@ class ANLPCA {
     }
     // Proportional reflex output. Conversational kinds (greeting/presence/how_feel) fire first.
     if (!response) {
-      try { response = this._composeLocalGrammarReply(raw, parsed, lex, defs, missing, reflex); } catch(e) { response = ''; }
+      try { response = this._composeLocalGrammarReply(raw, parsed, lex, defs, missing, reflex, facts); } catch(e) { response = ''; }
     }
     if (!response && ooo.mathNote && !convNow) response = ooo.mathNote;
     if (!response || response.length < 3) {
