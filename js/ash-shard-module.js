@@ -739,7 +739,7 @@
         'font-family:var(--font-d,monospace);font-size:.32rem;letter-spacing:2px;color:#bf5fff;',
         'padding:8px 16px;z-index:9999;opacity:0;transition:all .3s;pointer-events:none}',
       '#as-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}',
-      '@media (orientation:landscape) and (max-height:500px){#as-trigger{top:130px}#as-overlay{top:122px}}',
+      '@media (orientation:landscape) and (max-height:500px){#as-trigger{top:188px}#as-overlay{top:180px}}',
     ].join('');
     document.head.appendChild(s);
   }

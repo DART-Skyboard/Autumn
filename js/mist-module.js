@@ -74,12 +74,12 @@
         '.aut-drag-grip.dragging{cursor:grabbing}',
         '@media (orientation:landscape) and (max-height:500px){',
           '#mist-trigger{top:56px}',
-          '#as-trigger{top:130px}',
-          '#astar-trigger{top:188px}',
+          '#as-trigger{top:188px}',
+          '#astar-trigger{top:130px}',
           '#sysbrd-trigger{top:248px}',
           '#mist-overlay{top:48px}',
-          '#as-overlay{top:122px}',
-          '#astar-overlay{top:180px}',
+          '#as-overlay{top:180px}',
+          '#astar-overlay{top:122px}',
           '#sysbrd-overlay{top:240px}',
         '}'
       ].join('');
@@ -90,14 +90,14 @@
       var land=_isLandscapePack();
       var tabs={
         'mist-trigger':{p:148,l:56},
-        'as-trigger':{p:280,l:130},
-        'astar-trigger':{p:412,l:188},
+        'as-trigger':{p:280,l:188},
+        'astar-trigger':{p:214,l:130},
         'sysbrd-trigger':{p:360,l:248}
       };
       var ovs={
         'mist-overlay':{p:140,l:48},
-        'as-overlay':{p:272,l:122},
-        'astar-overlay':{p:400,l:180},
+        'as-overlay':{p:272,l:180},
+        'astar-overlay':{p:206,l:122},
         'sysbrd-overlay':{p:352,l:240}
       };
       Object.keys(tabs).forEach(function(id){
