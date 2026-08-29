@@ -739,6 +739,7 @@
         'font-family:var(--font-d,monospace);font-size:.32rem;letter-spacing:2px;color:#bf5fff;',
         'padding:8px 16px;z-index:9999;opacity:0;transition:all .3s;pointer-events:none}',
       '#as-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}',
+      '@media (orientation:landscape) and (max-height:500px){#as-trigger{top:130px}#as-overlay{top:122px}}',
     ].join('');
     document.head.appendChild(s);
   }
@@ -790,6 +791,8 @@
     ].join('');
     ov.addEventListener('click',function(e){ e.stopPropagation(); });
     document.body.appendChild(ov);
+    if(typeof window._autumnBindOverlayDrag==='function') window._autumnBindOverlayDrag('as-overlay','_aut_ovpos_as-overlay');
+    if(typeof window._autumnSideTabLayout==='function') window._autumnSideTabLayout();
   }
 
   // ── Public API (window globals) ────────────────────────────────────────────
@@ -797,6 +800,7 @@
     AS.open=!AS.open;
     var ov=document.getElementById('as-overlay');
     if(ov) ov.classList.toggle('as-open',AS.open);
+    if(AS.open && ov && typeof ov._autApplySavedPos==='function') ov._autApplySavedPos();
     if(AS.open){
       setTimeout(function(){
         _initCanvas();
@@ -905,6 +909,7 @@
   function init(){
     injectCSS();
     injectHTML();
+    if(typeof window._autumnSideTabLayout==='function') window._autumnSideTabLayout();
     // Start poll loop
     setTimeout(function(){
       _poll();

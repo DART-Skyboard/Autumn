@@ -25892,7 +25892,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 </script>
 
 
-<script src="js/mist-module.js?v=20260828i"></script>
+<script src="js/mist-module.js?v=20260828p"></script>
+<script src="js/ash-star-archive.js?v=20260828p"></script>
 <script src="js/ash-shard-module.js"></script>
 <script src="js/hud-tools-module.js?v=20260828c"></script>
 
@@ -25991,6 +25992,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       '@keyframes sbdpulse{0%,100%{opacity:1}50%{opacity:.35}}' +
       '#sysbrd-tlbl{font-family:var(--font-d,monospace);font-size:.3rem;letter-spacing:2px;' +
         'color:rgba(0,229,255,.4);writing-mode:vertical-rl;text-orientation:mixed}' +
+      '@media (orientation:landscape) and (max-height:500px){' +
+        '#sysbrd-trigger{top:248px}' +
+        '#sysbrd-overlay{top:240px}' +
+      '}' +
       /* Slide panel */
       '#sysbrd-overlay{position:fixed;right:36px;top:352px;z-index:9397;width:min(340px,calc(100vw - 48px));' +
         'display:flex;flex-direction:column;' +
@@ -26085,6 +26090,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     ov.appendChild(pn);
     ov.addEventListener('click', function(e){ e.stopPropagation(); });
     document.body.appendChild(ov);
+    if(typeof window._autumnBindOverlayDrag==='function') window._autumnBindOverlayDrag('sysbrd-overlay','_aut_ovpos_sysbrd-overlay');
+    if(typeof window._autumnSideTabLayout==='function') window._autumnSideTabLayout();
   }
 
   /* ── Toggle ── */
@@ -26092,6 +26099,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _open = !_open;
     var ov = document.getElementById('sysbrd-overlay');
     if(ov) ov.classList.toggle('sbd-open', _open);
+    if(_open && ov && typeof ov._autApplySavedPos==='function') ov._autApplySavedPos();
     if(_open){
       _render();
       setTimeout(function(){ document.addEventListener('click', _outside); }, 60);
