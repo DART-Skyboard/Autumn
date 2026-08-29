@@ -30,6 +30,33 @@
 <link rel="apple-touch-icon" sizes="512x512" href="https://leatr.xyz/assets/autumn512.png">
 
 <link rel="manifest" href="/manifest.json">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<script>
+(function(){
+  var KEY='_aut_build';
+  function check(){
+    fetch('version.json?t='+Date.now(),{cache:'no-store'})
+      .then(function(r){return r.ok?r.json():null;})
+      .then(function(d){
+        if(!d||!d.v) return;
+        var prev=null;
+        try{ prev=localStorage.getItem(KEY);}catch(e){}
+        try{ localStorage.setItem(KEY,d.v);}catch(e){}
+        if(prev && prev!==d.v){
+          try{
+            if(sessionStorage.getItem('_aut_reloaded_'+d.v)) return;
+            sessionStorage.setItem('_aut_reloaded_'+d.v,'1');
+          }catch(e){}
+          location.reload();
+        }
+      }).catch(function(){});
+  }
+  check();
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) check(); });
+  window.addEventListener('pageshow',function(e){ if(e.persisted) check(); });
+})();
+</script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
