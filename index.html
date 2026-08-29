@@ -1438,6 +1438,46 @@ body.theme-ashtree .glass,body.theme-ashtree .msg-autumn{
 }
 body.theme-ashtree ::-webkit-scrollbar-thumb{background:rgba(80,200,100,.28)}
 
+/* ── Ariel theme — desert sky, navy armor, sand gold ── */
+body.theme-ariel{
+  --cyan:#7ec8e8;--blue:#2a4a78;--red:#c4a36a;
+  --bg:#081420;--bg2:#0c1a28;
+  --border:rgba(126,200,232,0.16);
+  --text:#e8eef4;--dim:#7a8aa0;--bright:#fff8ee;
+  --tt-color:#c4a36a;
+}
+body.theme-ariel header{
+  background:linear-gradient(180deg,rgba(20,60,90,.12) 0%,transparent 100%);
+  border-bottom-color:rgba(126,200,232,0.18);
+}
+body.theme-ariel #vid-scrim{
+  background:rgba(8,20,36,0.28)!important;
+  backdrop-filter:blur(5px) saturate(1.25) hue-rotate(-4deg)!important;
+  -webkit-backdrop-filter:blur(5px) saturate(1.25) hue-rotate(-4deg)!important;
+}
+body.theme-ariel #backdrop-video{
+  object-position:center 28%;
+}
+body.theme-ariel .logo{
+  background:linear-gradient(135deg,#e8eef4 0%,#7ec8e8 42%,#c4a36a 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 8px rgba(196,163,106,0.55));
+}
+body.theme-ariel .chat-bubble,.theme-ariel .msg-wrap{
+  background:rgba(8,18,32,0.72)!important;
+  border-color:rgba(126,200,232,0.18)!important;
+}
+body.theme-ariel .ov-grid{
+  background-image:linear-gradient(rgba(126,200,232,.16) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(196,163,106,.14) 1px,transparent 1px);
+}
+body.theme-ariel #brpn-region{border-bottom-color:rgba(126,200,232,0.15)}
+body.theme-ariel #multi-user-bar{border-top-color:rgba(126,200,232,0.15)}
+body.theme-ariel .glass,body.theme-ariel .msg-autumn{
+  background:rgba(8,18,32,0.72);border-color:rgba(126,200,232,0.16);
+}
+body.theme-ariel ::-webkit-scrollbar-thumb{background:rgba(196,163,106,.28)}
+
 /* ── Void theme — Grok-style dark business, solid black + identity watermark ── */
 html[data-aut-theme="void"],html[data-aut-theme="void"] body{background:#000;}
 html[data-aut-theme="void"] #backdrop-video{opacity:0!important;visibility:hidden;}
@@ -18837,6 +18877,14 @@ ashLoadDefs();
       bodyClass: 'theme-ashtree'
     },
     {
+      key:   'ariel',
+      label: 'ARIEL',
+      dot:   '◇',
+      color: '#c4a36a',      // desert sand gold
+      video: 'assets/ariel.mp4',
+      bodyClass: 'theme-ariel'
+    },
+    {
       key:   'system',
       label: 'AUTO',
       dot:   '◈',
@@ -18864,7 +18912,7 @@ ashLoadDefs();
     const btn   = document.getElementById('theme-toggle');
 
     // Swap body class
-    body.classList.remove('theme-night','theme-stealth','theme-departure','theme-ashtree','theme-void');
+    body.classList.remove('theme-night','theme-stealth','theme-departure','theme-ashtree','theme-ariel','theme-void');
     if (effective.bodyClass) body.classList.add(effective.bodyClass);
 
     // Swap video with crossfade. Void is solid black — hide the video.
@@ -18913,6 +18961,9 @@ ashLoadDefs();
       } else if (effective.key === 'void') {
         _logoImg.src = 'assets/autumn_identity_logo.png';
         _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(200,210,220,0.28))';
+      } else if (effective.key === 'ariel') {
+        _logoImg.src = 'assets/autumnsensor.png';
+        _logoImg.style.filter = 'drop-shadow(0 0 10px rgba(126,200,232,0.55)) drop-shadow(0 0 4px rgba(196,163,106,0.4))';
       } else {
         _logoImg.src = 'assets/autumn.png';
         _logoImg.style.filter = 'drop-shadow(0 0 8px rgba(191,0,255,.3))';
