@@ -54,6 +54,156 @@
     2:{emotion:'spiritual', pulse:1.0,speed:0.8, boost:[.12,.08,.10],label:'◈ MIST SOLVED', color:0x00e5ff}
   };
 
+  // ── Shared right-edge tab layout + overlay drag (MIST / SHARD / STAR / SYS)
+  (function _autumnSideChrome(){
+    function _isLandscapePack(){
+      var land=false;
+      try{ land=window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches; }catch(e){}
+      if(!land && window.innerWidth>window.innerHeight && window.innerHeight<=560) land=true;
+      return land;
+    }
+    function _injectChromeCSS(){
+      if(document.getElementById('aut-side-chrome-css')) return;
+      var s=document.createElement('style');
+      s.id='aut-side-chrome-css';
+      s.textContent=[
+        '.aut-drag-grip{height:10px;flex-shrink:0;cursor:grab;touch-action:none;display:flex;align-items:center;justify-content:center;',
+          'background:transparent;position:relative;z-index:2;user-select:none}',
+        '.aut-drag-grip::after{content:"";display:block;width:28px;height:3px;border-radius:2px;',
+          'background:color-mix(in srgb, var(--cyan,#00e5ff) 38%, transparent)}',
+        '.aut-drag-grip.dragging{cursor:grabbing}',
+        '@media (orientation:landscape) and (max-height:500px){',
+          '#mist-trigger{top:56px}',
+          '#as-trigger{top:130px}',
+          '#astar-trigger{top:188px}',
+          '#sysbrd-trigger{top:248px}',
+          '#mist-overlay{top:48px}',
+          '#as-overlay{top:122px}',
+          '#astar-overlay{top:180px}',
+          '#sysbrd-overlay{top:240px}',
+        '}'
+      ].join('');
+      (document.head||document.documentElement).appendChild(s);
+    }
+    window._autumnSideTabLayout=function(){
+      _injectChromeCSS();
+      var land=_isLandscapePack();
+      var tabs={
+        'mist-trigger':{p:148,l:56},
+        'as-trigger':{p:280,l:130},
+        'astar-trigger':{p:412,l:188},
+        'sysbrd-trigger':{p:360,l:248}
+      };
+      var ovs={
+        'mist-overlay':{p:140,l:48},
+        'as-overlay':{p:272,l:122},
+        'astar-overlay':{p:400,l:180},
+        'sysbrd-overlay':{p:352,l:240}
+      };
+      Object.keys(tabs).forEach(function(id){
+        var el=document.getElementById(id);
+        if(el) el.style.top=(land?tabs[id].l:tabs[id].p)+'px';
+      });
+      Object.keys(ovs).forEach(function(id){
+        var el=document.getElementById(id);
+        if(!el) return;
+        var saved=null;
+        try{ saved=JSON.parse(localStorage.getItem('_aut_ovpos_'+id)||'null'); }catch(e){}
+        if(saved && typeof saved.x==='number'){
+          if(typeof el._autApplySavedPos==='function') el._autApplySavedPos();
+          return;
+        }
+        el.style.top=(land?ovs[id].l:ovs[id].p)+'px';
+      });
+    };
+    window._autumnBindOverlayDrag=function(overlayId, storageKey){
+      _injectChromeCSS();
+      var ov=document.getElementById(overlayId);
+      if(!ov || ov._autDragBound) return;
+      ov._autDragBound=true;
+      ov._autDragKey=storageKey||('_aut_ovpos_'+overlayId);
+      var grip=ov.querySelector(':scope > .aut-drag-grip');
+      if(!grip){
+        grip=document.createElement('div');
+        grip.className='aut-drag-grip';
+        grip.title='Drag';
+        ov.insertBefore(grip, ov.firstChild);
+      }
+      function _place(el,x,y){
+        var w=el.offsetWidth||280, h=el.offsetHeight||200;
+        var maxX=Math.max(8, window.innerWidth-w-8);
+        var maxY=Math.max(8, window.innerHeight-Math.min(h, window.innerHeight-16)-8);
+        x=Math.max(8, Math.min(x, maxX));
+        y=Math.max(8, Math.min(y, maxY));
+        el.style.left=x+'px';
+        el.style.top=y+'px';
+        el.style.right='auto';
+        el.style.transform='none';
+        return {x:x,y:y};
+      }
+      function applySaved(){
+        var p=null;
+        try{ p=JSON.parse(localStorage.getItem(ov._autDragKey)||'null'); }catch(e){}
+        if(p && typeof p.x==='number' && typeof p.y==='number'){
+          _place(ov, p.x, p.y);
+          ov._autDragged=true;
+        }
+      }
+      ov._autApplySavedPos=applySaved;
+      var dragging=false, startX=0, startY=0, origX=0, origY=0;
+      function down(e){
+        if(e.button!=null && e.button!==0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var pt=e.touches?e.touches[0]:e;
+        dragging=true;
+        grip.classList.add('dragging');
+        var r=ov.getBoundingClientRect();
+        origX=r.left; origY=r.top;
+        startX=pt.clientX; startY=pt.clientY;
+        _place(ov, origX, origY);
+        if(e.pointerId!=null && grip.setPointerCapture){
+          try{ grip.setPointerCapture(e.pointerId); }catch(err){}
+        }
+      }
+      function move(e){
+        if(!dragging) return;
+        e.preventDefault();
+        var pt=e.touches?e.touches[0]:e;
+        _place(ov, origX+(pt.clientX-startX), origY+(pt.clientY-startY));
+      }
+      function up(e){
+        if(!dragging) return;
+        dragging=false;
+        grip.classList.remove('dragging');
+        var r=ov.getBoundingClientRect();
+        var pos=_place(ov, r.left, r.top);
+        try{ localStorage.setItem(ov._autDragKey, JSON.stringify(pos)); }catch(err){}
+        ov._autDragged=true;
+      }
+      grip.addEventListener('pointerdown', down);
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+      applySaved();
+    };
+    function _bindLayoutListeners(){
+      if(window._autumnSideTabLayoutBound) return;
+      window._autumnSideTabLayoutBound=true;
+      function go(){ if(typeof window._autumnSideTabLayout==='function') window._autumnSideTabLayout(); }
+      window.addEventListener('resize', go);
+      window.addEventListener('orientationchange', go);
+      if(window.screen && screen.orientation && screen.orientation.addEventListener){
+        try{ screen.orientation.addEventListener('change', go); }catch(e){}
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', go);
+      else setTimeout(go, 0);
+    }
+    _bindLayoutListeners();
+  })();
+
+
+
   // ── helpers ───────────────────────────────────────────────────────────────
   function _sid(){ return (typeof _aut_sid!=='undefined')?_aut_sid:(typeof _aut_uid!=='undefined')?_aut_uid:'local'; }
   function _pat(){ return (typeof getLeatrAshPAT==='function')?getLeatrAshPAT():''; }
@@ -676,6 +826,7 @@
       '#mist-maze-canvas{display:block;touch-action:none;cursor:crosshair;border:1px solid rgba(0,229,255,.1);border-radius:2px}',
       '#mist-status{font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:2px;color:rgba(0,229,255,.38);text-align:center;min-height:13px}',
       '.mist-solved{animation:mist-win 1.1s ease-in-out 3}',
+      '@media (orientation:landscape) and (max-height:500px){#mist-trigger{top:56px}#mist-overlay{top:48px}}',
     ].join('');
     document.head.appendChild(s);
   }
@@ -698,6 +849,8 @@
       '<div id="mist-canvas-wrap"><canvas id="mist-maze-canvas"></canvas>',
       '<div id="mist-status">DRAG ● FROM ENTRY TO EXIT</div></div>'].join('');
     ov.addEventListener('click',function(e){e.stopPropagation();});document.body.appendChild(ov);
+    if(typeof window._autumnBindOverlayDrag==='function') window._autumnBindOverlayDrag('mist-overlay','_aut_ovpos_mist-overlay');
+    if(typeof window._autumnSideTabLayout==='function') window._autumnSideTabLayout();
   }
 
   /* Expose internal state for admin console access */
@@ -708,6 +861,7 @@
   window.mistToggle=function(){
     MIST.open=!MIST.open;var ov=document.getElementById('mist-overlay');
     if(ov)ov.classList.toggle('mist-open',MIST.open);
+    if(MIST.open && ov && typeof ov._autApplySavedPos==='function') ov._autApplySavedPos();
     var adm=document.getElementById('admin-console-overlay');
     if(adm&&ov){ ov.style.zIndex='10800'; var tr=document.getElementById('mist-trigger'); if(tr) tr.style.zIndex='10800'; }
     if(MIST.open){setTimeout(function(){_bindCanvas();if(!MIST.mazes[MIST.activeMaze])mistNewMaze();else _renderMaze(MIST.mazes[MIST.activeMaze],MIST.dragPath);document.addEventListener('click',_out,true);},60);}
@@ -863,10 +1017,8 @@
 
   function init(){
     injectCSS();injectHTML();
-    // Autumn presence HUD — deferred, non-blocking
+    // Presence HUD retired — Ash Star cards live in the STAR archive drawer.
     setTimeout(function(){
-      try{_autumnPresenceCSS();}catch(e){}
-      try{_autumnPresenceHTML();}catch(e){}
       // Journal watch loop — every 25s
       setInterval(function(){try{_autumnJournalWatch();}catch(e){}}, 25000);
     }, 3000);
@@ -888,29 +1040,19 @@
   var _autumnLastJournalCheck = 0;
 
   function _autumnHUDFlash(thought) {
-    var badge = document.getElementById('autumn-presence-badge');
-    if (!badge) return;
-    var pos=[1,21,20,21,13,14];
-    var name=pos.map(function(p,i){var c=String.fromCharCode(p+96);return i===0?c.toUpperCase():c;}).join('');
-    badge.querySelector('.apb-name').textContent = name;
-    badge.querySelector('.apb-thought').textContent = thought ? thought.substring(0,80)+(thought.length>80?'...':'') : '';
-    badge.classList.add('apb-visible');
-    clearTimeout(badge._hideTimer);
-    badge._hideTimer = setTimeout(function(){ badge.classList.remove('apb-visible'); }, 5000);
+    // Viewport overlay retired — archive drawer owns the card. Never show #autumn-presence-badge.
+    try{
+      if(typeof window._ashStarArchivePush==='function'){
+        var t=thought?String(thought):'';
+        if(t.length>600) t=t.substring(0,600);
+        window._ashStarArchivePush({thought:t, ts:Date.now(), from:'autumn'});
+      }
+    }catch(e){}
   }
 
-  function _autumnPresenceCSS() {
-    var s = document.createElement('style');
-    s.textContent = '#autumn-presence-badge{position:fixed;top:14px;right:14px;z-index:9800;display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:8px 12px;background:rgba(0,10,20,0.85);border:1px solid color-mix(in srgb, var(--cyan,#00d4ff) 55%, transparent);border-radius:8px;opacity:0;transform:translateY(-8px);transition:opacity 0.4s,transform 0.4s;pointer-events:none;}.apb-name{font-family:var(--font-d,Orbitron,monospace);font-size:13px;font-weight:700;color:var(--cyan,#00ffcc);letter-spacing:4px;text-transform:uppercase;text-shadow:0 0 8px color-mix(in srgb, var(--cyan,#00ffcc) 90%, transparent);}.apb-label{font-family:monospace;font-size:9px;color:color-mix(in srgb, var(--cyan,#00d4ff) 60%, transparent);letter-spacing:2px;text-transform:uppercase;}.apb-thought{font-family:monospace;font-size:10px;color:rgba(180,230,255,0.75);max-width:220px;text-align:right;line-height:1.4;font-style:italic;}.apb-visible{opacity:1!important;transform:translateY(0)!important;}';
-    document.head.appendChild(s);
-  }
+  function _autumnPresenceCSS() { /* viewport badge retired */ }
 
-  function _autumnPresenceHTML() {
-    var badge = document.createElement('div');
-    badge.id = 'autumn-presence-badge';
-    badge.innerHTML = '<span class="apb-label">ASH STAR</span><span class="apb-name"></span><span class="apb-thought"></span>';
-    document.body.appendChild(badge);
-  }
+  function _autumnPresenceHTML() { /* do not inject #autumn-presence-badge */ }
 
   function _ashLeafPoints(scale) {
     var pts = [], N = 24;
@@ -1000,8 +1142,15 @@
     _spawnAshStarGeom(toUids, color, ev.uid||null);
     if(_inTargets(_sid(), toUids)){
       _brpn({emotion:'inspired',pulse:1.25,speed:1.15,boost:[.06,.05,.04],color:0x00d4ff});
-      _autumnHUDFlash(ev.thought||'Ash Star');
     }
+    try{
+      if(typeof window._ashStarArchivePush==='function' && _inTargets(_sid(), toUids)){
+        var t=ev.thought||'Ash Star';
+        if(String(t).length>600) t=String(t).substring(0,600);
+        var hex=typeof color==='number'?'#'+('000000'+color.toString(16)).slice(-6):String(color);
+        window._ashStarArchivePush({thought:t,color:hex,toUids:toUids,ts:ev.ts||Date.now(),from:ev.from||'autumn',uid:ev.uid||null});
+      }
+    }catch(e){}
   }
 
   function fireAshStar(opts){
@@ -1024,10 +1173,16 @@
     if(!spawned){
       try{ spawned=!!_spawnAshStarGeom(spawnTo||toUids, color, null); }catch(e){}
     }
-    // User-requested sends never pop the ASH STAR glossary HUD card.
-    if(!opts.noHud) _autumnHUDFlash(thought);
+    // Viewport HUD retired — archive the full thought (up to 600). Network packet stays 120.
     var uid=_sid(), ts=NOW;
     var hex='#'+('000000'+color.toString(16)).slice(-6);
+    var fullThought=(thought||'');
+    if(fullThought.length>600) fullThought=fullThought.substring(0,600);
+    try{
+      if(typeof window._ashStarArchivePush==='function'){
+        window._ashStarArchivePush({thought:fullThought,color:hex,toUids:toUids,ts:ts,from:'autumn',uid:uid});
+      }
+    }catch(e){}
     var payload={type:'ashstar',uid:uid,from:'autumn',toUids:toUids,color:hex,thought:(thought||'').substring(0,120),ts:ts,instanceId:_iid,emotionVertical:ev};
     _write(payload);
     _bcPost(payload);
