@@ -2821,7 +2821,7 @@ select.ash-ctrl-input{cursor:pointer}
 <script src="js/cn_loader.js"></script>
 <script src="js/code_loader.js"></script>
 <script src="js/conceptnet_loader.js?v=2026082701"></script>
-<script src="js/autumn-grammar-engine.js?v=20260828o"></script>
+<script src="js/autumn-grammar-engine.js?v=20260829a"></script>
 <link rel="stylesheet" href="css/desktop-layout.css">
 <script src="js/desktop-layout.js"></script>
 <script src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/wordnet/wordnet-loader.js"></script>
@@ -25687,6 +25687,31 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           });
         }).catch(function(){});
         left.appendChild(userSec);
+
+        /* Grammar Study — first train is admin-triggered; later listeners self-optimize */
+        var gsSec=document.createElement('div'); gsSec.className='adm-sec'; gsSec.style.cssText='display:flex;flex-direction:column;gap:4px;margin-top:8px';
+        var gsBtn=document.createElement('button'); gsBtn.id='adm-grammar-study-btn'; gsBtn.textContent='GRAMMAR STUDY';
+        gsBtn.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:1px;padding:6px 8px;border-radius:3px;border:1px solid rgba(255,179,71,.45);background:rgba(255,179,71,.08);color:rgba(255,179,71,.9);cursor:pointer;text-align:left;width:100%;box-sizing:border-box';
+        var gsSt=document.createElement('div'); gsSt.id='adm-grammar-status';
+        gsSt.style.cssText='font-family:sans-serif;font-size:10px;line-height:1.4;color:rgba(224,244,255,.55);padding:2px 0';
+        (function _gsStatusInit(){
+          var trained=window.AutumnGrammarEngine && typeof window.AutumnGrammarEngine.isGrammarStudyTrained==='function' && window.AutumnGrammarEngine.isGrammarStudyTrained();
+          gsSt.textContent=trained?'Grammar study trained. File created (ashtree/grammar-study/index.json).':'Grammar study — not trained. First run uses the button.';
+        })();
+        gsBtn.onclick=function(){
+          var GE=window.AutumnGrammarEngine;
+          if(!GE || typeof GE.runGrammarStudy!=='function'){ gsSt.textContent='Grammar engine not loaded.'; return; }
+          gsBtn.disabled=true; gsBtn.style.opacity='0.5';
+          var rpt=document.getElementById('adm-rpt-txt');
+          function _set(msg){ gsSt.textContent=msg; if(rpt) rpt.textContent=msg; }
+          _set('Grammar study — starting…');
+          GE.runGrammarStudy({
+            onProgress:function(m){ _set(m); },
+            onDone:function(){ _set('Grammar study trained. File created (ashtree/grammar-study/index.json).'); gsBtn.disabled=false; gsBtn.style.opacity='1'; },
+            onError:function(e){ _set('Grammar study skipped a boundary — '+(e&&e.message||'error')+'.'); gsBtn.disabled=false; gsBtn.style.opacity='1'; }
+          });
+        };
+        gsSec.appendChild(gsBtn); gsSec.appendChild(gsSt); left.appendChild(gsSec);
         body.appendChild(left);
 
         /* Right — report + chat */
@@ -25717,6 +25742,18 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         var chatSend=document.createElement('button'); chatSend.id='adm-chat-send'; chatSend.textContent='SEND'; chatSend.style.cssText='padding:7px 12px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:Orbitron,monospace;font-size:9px;cursor:pointer;letter-spacing:1.5px;white-space:nowrap';
         function _doChat(){
           var q=chatInp.value.trim(); if(!q) return;
+          var _studyChk=document.getElementById('adm-study-chk');
+          if(_studyChk && _studyChk.checked){
+            var _ub=document.createElement('div'); _ub.className='adm-chat-bub user'; _ub.textContent=q;
+            chatLog.appendChild(_ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
+            var _ab=document.createElement('div'); _ab.className='adm-chat-bub autumn';
+            try{
+              var GE=window.AutumnGrammarEngine;
+              _ab.textContent=(GE && typeof GE.applyGrammarStudyNote==='function') ? GE.applyGrammarStudyNote(q) : 'Grammar study is not loaded.';
+            }catch(_se){ _ab.textContent='I could not apply that study note.'; }
+            chatLog.appendChild(_ab); chatLog.scrollTop=chatLog.scrollHeight;
+            return;
+          }
           try{
             var _eng=window.AutumnGrammarEngine&&window.AutumnGrammarEngine._engine;
             if(_eng&&typeof _eng.processContinuation==='function') _eng.processContinuation(q,{_admin:true});
@@ -25881,8 +25918,14 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             }
           }).catch(function(e){ab.textContent='API not connected \u2014 offline pattern mode. ('+e.message+')';chatLog.scrollTop=chatLog.scrollHeight;});
         }
+        var studyLab=document.createElement('label'); studyLab.id='adm-study-lab';
+        studyLab.style.cssText='display:flex;align-items:center;gap:4px;flex-shrink:0;cursor:pointer;font-family:Orbitron,monospace;font-size:8px;letter-spacing:1px;color:rgba(255,179,71,.75);user-select:none';
+        var studyChk=document.createElement('input'); studyChk.type='checkbox'; studyChk.id='adm-study-chk'; studyChk.checked=false;
+        studyChk.title='When checked, SEND applies a grammar-study note instead of admin chat';
+        var studyTxt=document.createElement('span'); studyTxt.textContent='STUDY';
+        studyLab.appendChild(studyChk); studyLab.appendChild(studyTxt);
         chatSend.onclick=_doChat; chatInp.onkeydown=function(e){if(e.key==='Enter')_doChat();};
-        chatRow.appendChild(chatInp); chatRow.appendChild(chatSend);
+        chatRow.appendChild(studyLab); chatRow.appendChild(chatInp); chatRow.appendChild(chatSend);
         chat.appendChild(chatTitleEl); chat.appendChild(chatLog); chat.appendChild(chatRow);
         right.appendChild(chat);
         body.appendChild(right);
