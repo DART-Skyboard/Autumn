@@ -77,10 +77,12 @@
           '#as-trigger{top:188px}',
           '#astar-trigger{top:130px}',
           '#sysbrd-trigger{top:248px}',
+          '#adm-trigger{top:64px}',
           '#mist-overlay{top:48px}',
           '#as-overlay{top:180px}',
           '#astar-overlay{top:122px}',
           '#sysbrd-overlay{top:240px}',
+          '#adm-overlay{top:56px}',
         '}'
       ].join('');
       (document.head||document.documentElement).appendChild(s);
@@ -92,13 +94,15 @@
         'mist-trigger':{p:148,l:56},
         'as-trigger':{p:280,l:188},
         'astar-trigger':{p:214,l:130},
-        'sysbrd-trigger':{p:360,l:248}
+        'sysbrd-trigger':{p:360,l:248},
+        'adm-trigger':{p:180,l:64}
       };
       var ovs={
         'mist-overlay':{p:140,l:48},
         'as-overlay':{p:272,l:180},
         'astar-overlay':{p:206,l:122},
-        'sysbrd-overlay':{p:352,l:240}
+        'sysbrd-overlay':{p:352,l:240},
+        'adm-overlay':{p:140,l:56}
       };
       Object.keys(tabs).forEach(function(id){
         var el=document.getElementById(id);
@@ -862,8 +866,6 @@
     MIST.open=!MIST.open;var ov=document.getElementById('mist-overlay');
     if(ov)ov.classList.toggle('mist-open',MIST.open);
     if(MIST.open && ov && typeof ov._autApplySavedPos==='function') ov._autApplySavedPos();
-    var adm=document.getElementById('admin-console-overlay');
-    if(adm&&ov){ ov.style.zIndex='10800'; var tr=document.getElementById('mist-trigger'); if(tr) tr.style.zIndex='10800'; }
     if(MIST.open){setTimeout(function(){_bindCanvas();if(!MIST.mazes[MIST.activeMaze])mistNewMaze();else _renderMaze(MIST.mazes[MIST.activeMaze],MIST.dragPath);document.addEventListener('click',_out,true);},60);}
     else document.removeEventListener('click',_out,true);
   };

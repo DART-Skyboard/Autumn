@@ -22964,6 +22964,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     window._ghAuth.avatar_url = data.avatar_url;
     window._ghAuth.name       = data.name || data.username;
     window._ghAuth.loggedIn   = true;
+    if (typeof window._autRestoreAdminFlag === 'function') {
+      setTimeout(function(){ window._autRestoreAdminFlag(); }, 0);
+    }
 
     // Load user role from ACL
     if (typeof window._loadUserRole === 'function') {
@@ -23640,6 +23643,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var userBtn  = document.getElementById('hdr-gh-user');
     if (loginBtn) loginBtn.style.display = '';
     if (userBtn)  userBtn.style.display  = 'none';
+    if (typeof window._autRemoveAdminChrome === 'function') window._autRemoveAdminChrome();
     _toast('Logged out');
   };
   window._ghReLogin = function() {
@@ -23660,7 +23664,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       menu.innerHTML = '<div style="padding:8px 14px;color:rgba(0,229,255,.4)">LOGGED IN AS<br><span style="color:var(--cyan)">' + (window._ghAuth.username||'') + '</span><br><span style="font-size:.3rem;letter-spacing:1.5px;color:rgba(167,139,250,.45)">Author: L.E.A.T.R.</span></div>'
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div id="gh-save-mem-btn" style="padding:8px 14px;cursor:pointer;font-family:var(--font-d);font-size:.45rem;letter-spacing:1px;" onclick="window._ghAutosaveNow()">⬡ SAVE MEMORY NOW</div>'
-        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._ghOpenAdminConsole()">⚙ ADMIN CONSOLE</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._sysBrdOpenAdmin()">⚡ SYSTEM BROADCAST</div>' : '')
+        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;" onclick="window._ghShowDataSharing()">◈ USER DATA SHARING</div>'        + '<a href="https://leatr.xyz/autumn-privacy.html" target="_blank" style="display:block;padding:8px 14px;color:rgba(224,244,255,.4);font-size:.42rem;text-decoration:none;">⬡ PRIVACY POLICY ↗</a>'        + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'        + (window._ghAuth.username === 'dartsolarpunk' ? '<hr style="border:none;border-top:1px solid rgba(255,179,71,.15);margin:4px 0"><div style="padding:8px 14px;cursor:pointer;color:rgba(255,179,71,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._autToggleAdminFlag()">'+(window._autAdminEnabled&&window._autAdminEnabled()?'⚙ DISABLE ADMIN':'⚙ ENABLE ADMIN')+'</div><div style="padding:8px 14px;cursor:pointer;color:rgba(0,229,255,.8);font-family:var(--font-d);font-size:.42rem;letter-spacing:1px" onclick="window._sysBrdOpenAdmin()">⚡ SYSTEM BROADCAST</div>' : '')
         + '<hr style="border:none;border-top:1px solid rgba(0,229,255,.1);margin:4px 0">'
         + '<div style="padding:8px 14px;cursor:pointer;font-size:.42rem;color:rgba(0,229,255,.7)" onclick="window._openFeedback()">◈ SUBMIT FEEDBACK</div>'
 
@@ -23921,1008 +23925,1017 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
 
 
-  window._ghOpenAdminConsole = function() {
-    /* Role-gated: level >= 60 (engineer+) or owner */
-    var _rl = window._userRole ? window._userRole.level : 0;
-    if (_rl < 60 && (window._ghAuth||{}).username !== 'dartsolarpunk') return;
-    var menu=document.getElementById('gh-user-menu'); if(menu) menu.remove();
-    var existing=document.getElementById('admin-console-overlay');
-    if(existing){existing.remove();return;}
-    var tok=window._ghAuth.token;
-    var ov=document.createElement('div');
-    ov.id='admin-console-overlay';
-    ov.style.cssText='position:fixed;inset:0;z-index:10500;background:var(--panel,rgba(2,6,14,.97));display:flex;flex-direction:column;backdrop-filter:blur(16px);font-family:var(--font-d,Orbitron,monospace);color:var(--text,#c8e6f0)';
-    if(!document.getElementById('adm-theme-sync')){
-      var _ts=document.createElement('style'); _ts.id='adm-theme-sync';
-      _ts.textContent='#admin-console-overlay{--adm-accent:var(--cyan,#00ffcc)}#admin-console-overlay .adm-hdr-scroll::-webkit-scrollbar{height:3px}#admin-console-overlay .adm-hdr-scroll::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--cyan,#00ffcc) 40%, transparent)}#admin-console-overlay input,#admin-console-overlay button,#admin-console-overlay .adm-chat-bub{font-family:var(--font-d,Orbitron,monospace)}@media(max-width:700px){#admin-console-overlay .adm-hdr{padding:5px 6px}#admin-console-overlay .adm-hdr-scroll{gap:6px}}';
-      document.head.appendChild(_ts);
+  /* ── Admin = public-app framework flag (left drawer). No fullscreen overlay. ── */
+  window._autAdminAllowed = function(){
+    var auth=window._ghAuth||{};
+    if(!auth.loggedIn) return false;
+    var u=auth.username||'';
+    if(u!=='dartsolarpunk') return false;
+    var rl=window._userRole ? window._userRole.level : 0;
+    if(rl < 60 && u !== 'dartsolarpunk') return false;
+    return true;
+  };
+  window._autAdminEnabled = function(){
+    if(!window._autAdminAllowed()) return false;
+    try{ return localStorage.getItem('_aut_admin_enabled')==='1'; }catch(e){ return false; }
+  };
+  window._autSetAdminEnabled = function(on){
+    if(on){
+      if(!window._autAdminAllowed()) return false;
+      try{ localStorage.setItem('_aut_admin_enabled','1'); }catch(e){}
+      window._autInjectAdminChrome();
+      return true;
     }
-    // Build header via DOM to avoid quote escaping
-    var hdr=document.createElement('div');
-    hdr.className='adm-hdr';
-    hdr.style.cssText='display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00ffcc) 28%, transparent);background:var(--panel,rgba(3,8,16,.99));flex-shrink:0;min-width:0';
-    var scrollRow=document.createElement('div');
-    scrollRow.className='adm-hdr-scroll';
-    scrollRow.style.cssText='display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin';
-    scrollRow.innerHTML='<span style="font-family:var(--font-d);font-size:.58rem;letter-spacing:3px;color:var(--cyan,#ffb347);flex-shrink:0">⚙ ADMIN</span>'
-      +' <span style="font-family:var(--font-d);font-size:.28rem;letter-spacing:2px;color:color-mix(in srgb, var(--cyan,#ffb347) 40%, transparent);flex-shrink:0">DARTSOLARPUNK</span>';
-    var tabs=document.createElement('div'); tabs.style.cssText='display:flex;gap:5px;margin-left:4px;flex-shrink:0';
-    var t1=document.createElement('button'); t1.id='adm-t1'; t1.textContent='◈ DATA';
-    t1.style.cssText='font-family:var(--font-d);font-size:.3rem;padding:3px 9px;border-radius:3px;border:1px solid color-mix(in srgb, var(--cyan,#ffb347) 40%, transparent);background:color-mix(in srgb, var(--cyan,#ffb347) 10%, transparent);color:var(--cyan,#ffb347);cursor:pointer;white-space:nowrap';
-    t1.onclick=function(){window._admTab('data');};
-    var t2=document.createElement('button'); t2.id='adm-t2'; t2.textContent='⬡ ASH CANVAS';
-    t2.style.cssText='font-family:var(--font-d);font-size:.3rem;padding:3px 9px;border-radius:3px;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 18%, transparent);background:transparent;color:color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent);cursor:pointer;white-space:nowrap';
-    t2.onclick=function(){window._admTab('ash');};
-    var t3=document.createElement('button'); t3.id='adm-t3'; t3.textContent='◈ FEEDBACK';
-    t3.style.cssText='font-family:var(--font-d);font-size:.3rem;padding:3px 9px;border-radius:3px;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 18%, transparent);background:transparent;color:color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent);cursor:pointer;white-space:nowrap';
-    t3.onclick=function(){window._admTab('feedback');};
-    tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3);
+    try{ localStorage.setItem('_aut_admin_enabled','0'); }catch(e){}
+    window._autRemoveAdminChrome();
+    return false;
+  };
+  window._autToggleAdminFlag = function(){
+    var menu=document.getElementById('gh-user-menu'); if(menu) menu.remove();
+    if(!window._autAdminAllowed()) return;
+    if(window._autAdminEnabled()){
+      window._autSetAdminEnabled(false);
+    } else {
+      window._autSetAdminEnabled(true);
+      window._autOpenAdminDrawer();
+    }
+  };
+  window._autRestoreAdminFlag = function(){
+    if(window._autAdminAllowed() && (function(){ try{ return localStorage.getItem('_aut_admin_enabled')==='1'; }catch(e){ return false; } })()){
+      window._autInjectAdminChrome();
+    } else {
+      window._autRemoveAdminChrome();
+    }
+  };
+
+  function _admDrawerOut(e){
+    var ov=document.getElementById('adm-overlay');
+    var tr=document.getElementById('adm-trigger');
+    if(!ov || !ov.classList.contains('adm-open')) return;
+    if(ov.contains(e.target) || (tr && tr.contains(e.target))) return;
+    window._autCloseAdminDrawer();
+  }
+  function _admMsgOut(e){
+    var msg=document.getElementById('adm-msg-overlay');
+    if(!msg) return;
+    if(msg.contains(e.target)) return;
+    var tr=document.getElementById('adm-trigger');
+    if(tr && tr.contains(e.target)) return;
+    var ov=document.getElementById('adm-overlay');
+    if(ov && ov.contains(e.target)) return;
+    window._autCloseAdminMessages();
+  }
+
+  window._autCloseAdminDrawer = function(){
+    var ov=document.getElementById('adm-overlay');
+    if(ov) ov.classList.remove('adm-open');
+    document.removeEventListener('click', _admDrawerOut, true);
+  };
+  window._autOpenAdminDrawer = function(){
+    if(!window._autAdminEnabled()) return;
+    window._autInjectAdminChrome();
+    var ov=document.getElementById('adm-overlay');
+    if(!ov) return;
+    ov.classList.add('adm-open');
+    if(typeof ov._autApplySavedPos==='function') ov._autApplySavedPos();
+    document.addEventListener('click', _admDrawerOut, true);
+  };
+  window._autToggleAdminDrawer = function(){
+    var ov=document.getElementById('adm-overlay');
+    if(ov && ov.classList.contains('adm-open')) window._autCloseAdminDrawer();
+    else window._autOpenAdminDrawer();
+  };
+
+  window._autCloseAdminMessages = function(){
+    var msg=document.getElementById('adm-msg-overlay');
+    if(msg) msg.remove();
+    document.removeEventListener('click', _admMsgOut, true);
+  };
+  window._autOpenAdminMessages = function(){
+    var exModal=document.getElementById('sysbrd-admin-modal'); if(exModal) exModal.remove();
+    var existing=document.getElementById('adm-msg-overlay');
+    if(existing){ window._autCloseAdminMessages(); return; }
+    var ov=document.createElement('div'); ov.id='adm-msg-overlay';
+    ov.style.cssText='position:fixed;left:360px;top:72px;z-index:10600;width:min(380px,94vw);max-height:min(70vh,560px);display:flex;flex-direction:column;pointer-events:all';
+    ov.addEventListener('click', function(e){ e.stopPropagation(); });
+    var box=document.createElement('div');
+    box.style.cssText='background:var(--panel,rgba(4,12,22,.98));border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 30%, transparent);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:min(70vh,560px);color:var(--text,#c8e6f0);font-family:var(--font-d,Orbitron,monospace)';
+    var hd=document.createElement('div'); hd.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 16%, transparent);flex-shrink:0';
+    var ttl=document.createElement('div'); ttl.textContent='INBOX'; ttl.style.cssText='flex:1;font-size:.65rem;letter-spacing:2.5px;color:var(--cyan,#00e5ff)';
+    var xb=document.createElement('button'); xb.textContent='\u2715'; xb.title='Close messages';
+    xb.style.cssText='background:none;border:none;color:color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent);font-size:15px;cursor:pointer;padding:2px 6px;line-height:1';
+    xb.onclick=function(e){ e.stopPropagation(); window._autCloseAdminMessages(); };
+    hd.appendChild(ttl); hd.appendChild(xb);
+    var body=document.createElement('div'); body.id='adm-msg-body';
+    body.style.cssText='flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:180px';
+    box.appendChild(hd); box.appendChild(body);
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+    if(typeof window._autumnBindOverlayDrag==='function') window._autumnBindOverlayDrag('adm-msg-overlay','_aut_ovpos_adm-msg-overlay');
+    window._admMountFeedbackUI(body, {inboxOnly:true, folder:'inbox', rootId:'adm-msg-fb'});
+    setTimeout(function(){ document.addEventListener('click', _admMsgOut, true); }, 40);
+  };
+
+  window._autRemoveAdminChrome = function(){
+    window._autCloseAdminDrawer();
+    window._autCloseAdminMessages();
+    var ids=['adm-trigger','adm-overlay','adm-msg-overlay','admin-console-overlay'];
+    ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.remove(); });
+    var sty=document.getElementById('adm-chrome-css'); if(sty) sty.remove();
+    var ts=document.getElementById('adm-theme-sync'); if(ts) ts.remove();
+    var ashCss=document.getElementById('adm-ash-css-v4'); if(ashCss) ashCss.remove();
+    var ap=document.getElementById('adm-ash-panel'); if(ap) ap.remove();
+    document.removeEventListener('click', _admDrawerOut, true);
+    document.removeEventListener('click', _admMsgOut, true);
+  };
+
+  window._autInjectAdminChrome = function(){
+    if(!window._autAdminAllowed()) return;
+    if(document.getElementById('adm-trigger')) return;
+    if(!document.getElementById('adm-chrome-css')){
+      var s=document.createElement('style'); s.id='adm-chrome-css';
+      s.textContent=[
+        '#adm-trigger{position:fixed;left:0;top:180px;z-index:9500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 5px;gap:4px;',
+          'background:rgba(255,255,255,.05);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);',
+          'border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);border-left:none;border-radius:0 7px 7px 0;',
+          'cursor:pointer;transition:all .2s;user-select:none}',
+        '#adm-trigger:hover{background:color-mix(in srgb, var(--cyan,#00e5ff) 12%, transparent);border-color:color-mix(in srgb, var(--cyan,#00e5ff) 50%, transparent)}',
+        '#adm-trigger-icon{font-size:14px;color:var(--cyan,#00e5ff);line-height:1;opacity:.85}',
+        '#adm-trigger-lbl{font-family:var(--font-d,Orbitron,monospace);font-size:.22rem;letter-spacing:2px;color:var(--cyan,#00e5ff);writing-mode:vertical-rl;text-orientation:mixed}',
+        '#adm-overlay{position:fixed;left:36px;top:140px;z-index:9400;width:min(340px,calc(100vw - 48px));max-width:340px;display:flex;flex-direction:column;',
+          'transform:translateX(calc(-100% - 44px));transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;opacity:0;pointer-events:none}',
+        '#adm-overlay.adm-open{transform:translateX(0);opacity:1;pointer-events:all}',
+        '#adm-panel{background:color-mix(in srgb, var(--panel,rgba(5,9,16,.92)) 92%, transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);',
+          'border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;',
+          'max-height:min(72vh,calc(100vh - 150px));min-height:240px;color:var(--text,#c8e6f0);font-family:var(--font-d,Orbitron,monospace)}',
+        '#adm-overlay .adm-hdr{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);flex-shrink:0;min-width:0}',
+        '#adm-overlay .adm-hdr-scroll{display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin}',
+        '#adm-overlay .adm-hdr-scroll::-webkit-scrollbar{height:3px}',
+        '#adm-overlay .adm-hdr-scroll::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent)}',
+        '#adm-body{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:color-mix(in srgb, var(--cyan,#00e5ff) 25%, transparent) transparent}',
+        '',
+        '#adm-ash-panel{display:flex;flex-direction:column;gap:0;min-height:0;flex:1}',
+        '.adm-chat-bub.user{color:color-mix(in srgb, var(--cyan,#00e5ff) 80%, transparent);font-family:var(--font-d,Orbitron,monospace);font-size:10px}',
+        '.adm-chat-bub.autumn{color:var(--text,rgba(224,244,255,.82));font-family:sans-serif;font-size:13px}',
+        '.adm-scope-b:hover{background:color-mix(in srgb, var(--cyan,#00e5ff) 12%, transparent)!important;border-color:color-mix(in srgb, var(--cyan,#00e5ff) 50%, transparent)!important}',
+        '.adm-scope-b.on{background:color-mix(in srgb, var(--cyan,#00e5ff) 12%, transparent)!important;border-color:color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent)!important;color:var(--cyan,#00e5ff)!important}',
+        '.adm-user-item:hover,.adm-user-item.on{background:color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent)!important;color:var(--cyan,#00e5ff)!important}',
+        '#adm-overlay input,#adm-overlay button,#adm-overlay .adm-chat-bub{font-family:var(--font-d,Orbitron,monospace)}',
+        '@media (orientation:landscape) and (max-height:500px){#adm-trigger{top:64px}#adm-overlay{top:56px}}'
+      ].join('');
+      document.head.appendChild(s);
+    }
+    var tr=document.createElement('div');
+    tr.id='adm-trigger'; tr.title='ADMIN';
+    tr.innerHTML='<div id="adm-trigger-icon">\u2699</div><div id="adm-trigger-lbl">ADMIN</div>';
+    tr.addEventListener('click', function(e){ e.stopPropagation(); window._autToggleAdminDrawer(); });
+    document.body.appendChild(tr);
+
+    var ov=document.createElement('div'); ov.id='adm-overlay';
+    ov.addEventListener('click', function(e){ e.stopPropagation(); });
+    var panel=document.createElement('div'); panel.id='adm-panel';
+    var hdr=document.createElement('div'); hdr.className='adm-hdr';
+    var scrollRow=document.createElement('div'); scrollRow.className='adm-hdr-scroll';
+    var title=document.createElement('span');
+    title.style.cssText='font-family:var(--font-d);font-size:.48rem;letter-spacing:2px;color:var(--cyan,#ffb347);flex-shrink:0';
+    title.textContent='\u2699 ADMIN';
+    scrollRow.appendChild(title);
+    var tabs=document.createElement('div'); tabs.style.cssText='display:flex;gap:4px;margin-left:4px;flex-shrink:0';
+    function _mkTab(id,label,fn){
+      var b=document.createElement('button'); b.id=id; b.textContent=label;
+      b.style.cssText='font-family:var(--font-d);font-size:.28rem;padding:3px 7px;border-radius:3px;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);background:transparent;color:color-mix(in srgb, var(--cyan,#00e5ff) 70%, transparent);cursor:pointer;white-space:nowrap';
+      b.onclick=fn; return b;
+    }
+    tabs.appendChild(_mkTab('adm-t1','DATA',function(){window._admTab('data');}));
+    tabs.appendChild(_mkTab('adm-t2','ASH',function(){window._admTab('ash');}));
+    tabs.appendChild(_mkTab('adm-t3','FEED',function(){window._admTab('feedback');}));
+    tabs.appendChild(_mkTab('adm-t4','MSG',function(){window._autOpenAdminMessages();}));
     scrollRow.appendChild(tabs);
     hdr.appendChild(scrollRow);
-    var closeBtn=document.createElement('button'); closeBtn.textContent='✕';
-    closeBtn.title='Close admin';
-    closeBtn.setAttribute('aria-label','Close admin');
-    closeBtn.style.cssText='flex-shrink:0;width:28px;height:28px;border-radius:50%;background:color-mix(in srgb, var(--red,#ff4466) 16%, transparent);border:1px solid var(--red,#ff4466);color:var(--red,#ff4466);cursor:pointer;font-family:var(--font-d);font-size:.75rem;line-height:1;display:flex;align-items:center;justify-content:center';
-    closeBtn.onclick=function(){
-      /* Restore BRPN canvas before closing */
-      var region=document.getElementById('brpn-region');
-      var main=document.getElementById('main');
-      if(region&&main&&region.parentElement!==main){
-        main.insertBefore(region,main.firstChild);
-        region.style.height='';region.style.margin='';region.style.borderRadius='';
-        if(window._brpnRenderer){
-          var w=region.clientWidth||window.innerWidth,h=320;
-          window._brpnRenderer.setSize(w,h);
-          if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
+    var closeBtn=document.createElement('button'); closeBtn.textContent='\u2715';
+    closeBtn.title='Collapse admin drawer'; closeBtn.setAttribute('aria-label','Collapse admin drawer');
+    closeBtn.style.cssText='flex-shrink:0;width:24px;height:24px;border-radius:50%;background:transparent;border:1px solid color-mix(in srgb, var(--red,#ff4466) 40%, transparent);color:var(--red,#ff4466);cursor:pointer;font-family:var(--font-d);font-size:.65rem;line-height:1;display:flex;align-items:center;justify-content:center';
+    closeBtn.onclick=function(e){ e.stopPropagation(); window._autCloseAdminDrawer(); };
+    hdr.appendChild(closeBtn);
+    var body=document.createElement('div'); body.id='adm-body';
+    panel.appendChild(hdr); panel.appendChild(body);
+    ov.appendChild(panel);
+    document.body.appendChild(ov);
+    if(typeof window._autumnBindOverlayDrag==='function') window._autumnBindOverlayDrag('adm-overlay','_aut_ovpos_adm-overlay');
+    if(typeof window._autumnSideTabLayout==='function') window._autumnSideTabLayout();
+    window._admTab('data');
+  };
+
+  /* EOD / EMO sockets — ported from overlay; do not steal BRPN */
+  window._eodSocketActivate = function _eodSocketActivate(s){
+    var tok=window._ghAuth&&window._ghAuth.token;
+    if(!tok){s.title='Login required to access EOD data';return;}
+    s.style.boxShadow='0 0 14px rgba(255,179,71,.9)';
+    s.style.borderColor='rgba(255,179,71,.9)';
+    s.style.color='rgba(255,179,71,1)';
+    s.title='LOADING EOD ORBITAL DATA...';
+    fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
+      headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+    })
+    .then(function(r){return r.json();})
+    .then(function(sessions){
+      if(!Array.isArray(sessions)){throw new Error('no sessions');}
+      return Promise.all(sessions.map(function(sess){
+        var uname=sess.name.replace('.json','');
+        return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions/'+uname+'/mc_log.json',{
+          headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+        })
+        .then(function(r){if(!r.ok)throw new Error('no log');return r.json();})
+        .then(function(d){
+          return JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g,'')))));
+        })
+        .catch(function(){return [];});
+      }));
+    })
+    .then(function(allLogs){
+      var allRuns=[]; allLogs.forEach(function(log){allRuns=allRuns.concat(log||[]);});
+      var allStocks=[];
+      allRuns.forEach(function(r){(r.stocks||[]).forEach(function(st){allStocks.push(st);});});
+      if(!allStocks.length){
+        s.title='No MC data found yet'; setTimeout(function(){s.style.boxShadow='';},800); return;
+      }
+      var maxDlss=Math.max.apply(null,allStocks.map(function(st){return Math.abs(st.dlss||0);}));
+      var phaseAngles=allStocks.map(function(st){
+        return Math.acos(Math.min(1,Math.abs(st.dlss||0)/(maxDlss||1)));
+      });
+      var dirVectors=allStocks.map(function(st){
+        return Math.atan2(st.spncrynode||0, st.rmsp||1);
+      });
+      var maxA=Math.max.apply(null,allStocks.map(function(st){return Math.abs(st.a||0);}));
+      var elevAngles=allStocks.map(function(st){
+        return Math.asin(Math.min(1,Math.abs(st.a||0)/(maxA||1)));
+      });
+      function mean(arr){return arr.reduce(function(a,b){return a+b;},0)/arr.length;}
+      var mPhase=mean(phaseAngles), mDir=mean(dirVectors), mElev=mean(elevAngles);
+      var gBoost=Math.abs(Math.sin(mPhase))*0.15;
+      var mBoost=Math.abs(Math.cos(mDir))*0.12;
+      var aBoost=Math.abs(Math.sin(mElev))*0.10;
+      window._acShellBoost=[
+        Math.min(0.15,gBoost),
+        Math.min(0.12,mBoost),
+        Math.min(0.10,aBoost)
+      ];
+      window.pulseShells&&window.pulseShells(1.3);
+      window._eodAggData={
+        totalRuns:allRuns.length, totalUsers:allLogs.filter(function(l){return l.length;}).length,
+        totalStocks:allStocks.length,
+        meanPhase:+(mPhase*180/Math.PI).toFixed(2),
+        meanDir:+(mDir*180/Math.PI).toFixed(2),
+        meanElev:+(mElev*180/Math.PI).toFixed(2),
+        geoBoost:+gBoost.toFixed(4), marBoost:+mBoost.toFixed(4), aeroBoost:+aBoost.toFixed(4),
+        ts:new Date().toISOString()
+      };
+      s.title='EOD ORBITAL \u2014 '+allRuns.length+' runs / '+window._eodAggData.totalUsers+' users | GEO '+gBoost.toFixed(3)+' MAR '+mBoost.toFixed(3)+' AERO '+aBoost.toFixed(3);
+      s.style.boxShadow='0 0 10px rgba(255,179,71,.5)';
+    })
+    .catch(function(e){
+      s.title='EOD error: '+e.message;
+      s.style.boxShadow='0 0 6px rgba(255,80,60,.4)';
+      setTimeout(function(){s.style.boxShadow='';},1000);
+    });
+  };
+
+  window._emoSocketActivate = function _emoSocketActivate(s){
+    var emoMap={
+      'NEUTRAL':   [0.04, 0.04, 0.04],
+      'CURIOUS':   [0.06, 0.05, 0.12],
+      'CALM':      [0.10, 0.04, 0.03],
+      'REFLECTIVE':[0.08, 0.07, 0.05],
+      'ACTIVE':    [0.05, 0.12, 0.08],
+      'ALERT':     [0.04, 0.10, 0.13],
+      'ENGAGED':   [0.07, 0.09, 0.10],
+      'CREATIVE':  [0.06, 0.06, 0.14],
+      'TIRED':     [0.03, 0.03, 0.02],
+      'ANXIOUS':   [0.02, 0.11, 0.09],
+      'EXCITED':   [0.08, 0.14, 0.12],
+      'FOCUSED':   [0.09, 0.08, 0.06]
+    };
+    var emoRaw = (window._lastEmoState||'NEUTRAL').toUpperCase().trim();
+    var journalEmo = null;
+    if(window.S && window.S.journal && window.S.journal.length){
+      var recent = window.S.journal.slice(-10);
+      for(var i=recent.length-1;i>=0;i--){
+        var entry = recent[i];
+        if(entry && entry.emo && typeof entry.emo==='string'){
+          journalEmo = entry.emo.toUpperCase().trim(); break;
         }
       }
-      document.getElementById('admin-console-overlay').remove();
-    };
-    hdr.appendChild(closeBtn);
-    var frame=document.createElement('iframe'); frame.id='adm-frame';
-    frame.style.cssText='flex:1;border:none;width:100%;background:#060a10';
-    frame.src='about:blank';
-    ov.appendChild(hdr); ov.appendChild(frame);
-    document.body.appendChild(ov);
-    /* ── EOD Orbital Aggregate socket function ── */
-    window._eodSocketActivate = function _eodSocketActivate(s){
-      var tok=window._ghAuth&&window._ghAuth.token;
-      if(!tok){s.title='Login required to access EOD data';return;}
-      s.style.boxShadow='0 0 14px rgba(255,179,71,.9)';
-      s.style.borderColor='rgba(255,179,71,.9)';
-      s.style.color='rgba(255,179,71,1)';
-      s.title='LOADING EOD ORBITAL DATA...';
-      /* Fetch all user session directories */
-      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
-        headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
-      })
-      .then(function(r){return r.json();})
-      .then(function(sessions){
-        if(!Array.isArray(sessions)){throw new Error('no sessions');}
-        /* Fetch mc_log.json for each user */
-        return Promise.all(sessions.map(function(sess){
-          var uname=sess.name.replace('.json','');
-          return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions/'+uname+'/mc_log.json',{
-            headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
-          })
-          .then(function(r){if(!r.ok)throw new Error('no log');return r.json();})
-          .then(function(d){
-            return JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g,'')))));
-          })
-          .catch(function(){return [];});
-        }));
-      })
-      .then(function(allLogs){
-        var allRuns=[]; allLogs.forEach(function(log){allRuns=allRuns.concat(log||[]);});
-        var allStocks=[];
-        allRuns.forEach(function(r){(r.stocks||[]).forEach(function(st){allStocks.push(st);});});
-        if(!allStocks.length){
-          s.title='No MC data found yet'; setTimeout(function(){s.style.boxShadow='';},800); return;
-        }
-        /* ── Reverse trig aggregation ──────────────────────── */
-        /* arccos(|dlss| / maxDlss) → orbital phase angle per stock */
-        var maxDlss=Math.max.apply(null,allStocks.map(function(st){return Math.abs(st.dlss||0);}));
-        var phaseAngles=allStocks.map(function(st){
-          return Math.acos(Math.min(1,Math.abs(st.dlss||0)/(maxDlss||1)));
-        });
-        /* arctan2(spncrynode, rmsp) → orbital direction vector */
-        var dirVectors=allStocks.map(function(st){
-          return Math.atan2(st.spncrynode||0, st.rmsp||1);
-        });
-        /* arcsin(|a| / maxA) → mean unit elevation angle */
-        var maxA=Math.max.apply(null,allStocks.map(function(st){return Math.abs(st.a||0);}));
-        var elevAngles=allStocks.map(function(st){
-          return Math.asin(Math.min(1,Math.abs(st.a||0)/(maxA||1)));
-        });
-        function mean(arr){return arr.reduce(function(a,b){return a+b;},0)/arr.length;}
-        var mPhase=mean(phaseAngles), mDir=mean(dirVectors), mElev=mean(elevAngles);
-        /* Map trig means to shell boost values (0 – 0.15) */
-        var gBoost=Math.abs(Math.sin(mPhase))*0.15;
-        var mBoost=Math.abs(Math.cos(mDir))*0.12;
-        var aBoost=Math.abs(Math.sin(mElev))*0.10;
-        window._acShellBoost=[
-          Math.min(0.15,gBoost),
-          Math.min(0.12,mBoost),
-          Math.min(0.10,aBoost)
-        ];
-        window.pulseShells&&window.pulseShells(1.3);
-        /* Expose for Autumn chat context */
-        window._eodAggData={
-          totalRuns:allRuns.length, totalUsers:allLogs.filter(function(l){return l.length;}).length,
-          totalStocks:allStocks.length,
-          meanPhase:+(mPhase*180/Math.PI).toFixed(2),
-          meanDir:+(mDir*180/Math.PI).toFixed(2),
-          meanElev:+(mElev*180/Math.PI).toFixed(2),
-          geoBoost:+gBoost.toFixed(4), marBoost:+mBoost.toFixed(4), aeroBoost:+aBoost.toFixed(4),
-          ts:new Date().toISOString()
-        };
-        s.title='EOD ORBITAL — '+allRuns.length+' runs / '+window._eodAggData.totalUsers+' users | GEO '+gBoost.toFixed(3)+' MAR '+mBoost.toFixed(3)+' AERO '+aBoost.toFixed(3);
-        s.style.boxShadow='0 0 10px rgba(255,179,71,.5)';
-      })
-      .catch(function(e){
-        s.title='EOD error: '+e.message;
-        s.style.boxShadow='0 0 6px rgba(255,80,60,.4)';
-        setTimeout(function(){s.style.boxShadow='';},1000);
+    }
+    var emo = emoRaw!=='NEUTRAL' ? emoRaw : (journalEmo||'NEUTRAL');
+    var boost = emoMap[emo];
+    if(!boost){
+      var keys=Object.keys(emoMap);
+      for(var k=0;k<keys.length;k++){
+        if(emo.indexOf(keys[k])!==-1){boost=emoMap[keys[k]];break;}
+      }
+      if(!boost) boost=emoMap['NEUTRAL'];
+    }
+    var sig = window._lastSigma||0;
+    var sigScale = Math.min(1.4, 1 + (sig/500));
+    window._acShellBoost=[
+      Math.min(0.18, boost[0]*sigScale),
+      Math.min(0.15, boost[1]*sigScale),
+      Math.min(0.16, boost[2]*sigScale)
+    ];
+    window.pulseShells&&window.pulseShells(1.2);
+    s.style.background='rgba(180,100,255,.25)';
+    s.title='EMO NEURAL \u2014 '+emo+(journalEmo&&journalEmo!==emoRaw?' (journal: '+journalEmo+')':'');
+    setTimeout(function(){s.style.background='rgba(167,139,250,.12)';},1000);
+    window._emoSocketData={emo:emo, boosts:window._acShellBoost, sig:sig, ts:new Date().toISOString()};
+  };
+
+  function _admGhTok(){ return (window._ghAuth&&window._ghAuth.token)||''; }
+  function _admDecodeGh(d){
+    var b=atob((d.content||'').replace(/\n/g,''));
+    var u=new Uint8Array(b.length);
+    for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(u);
+  }
+  function _admFbPath(folder){
+    return folder==='inbox' ? 'feedback/inbox.json' : 'feedback/'+folder+'.json';
+  }
+  function _admWriteJson(path, arr, sha, msg){
+    var tok=_admGhTok();
+    var body={message:msg, content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))};
+    if(sha) body.sha=sha;
+    return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path,{
+      method:'PUT',
+      headers:{Authorization:'token '+tok,'Content-Type':'application/json','User-Agent':'DART/1.0'},
+      body:JSON.stringify(body)
+    }).then(function(r){return r.json();}).then(function(d){if(!d.commit)throw new Error(d.message||'write failed');return d;});
+  }
+  function _admFetchJson(path){
+    var tok=_admGhTok();
+    return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path+'?ts='+Date.now(),{
+      cache:'no-store',
+      headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'}
+    }).then(function(r){return r.json();});
+  }
+
+  /* Port of leatr-ash admin/admin-feedback.html — same inbox path/shape. */
+  window._admMountFeedbackUI = function(host, opts){
+    opts=opts||{};
+    var folders=opts.inboxOnly ? ['inbox'] : ['inbox','analysis','read','trash'];
+    var st={folder: opts.folder||'inbox', data:[], sha:null};
+    host.innerHTML='';
+    var wrap=document.createElement('div'); wrap.id=opts.rootId||'adm-fb-panel';
+    wrap.style.cssText='display:flex;flex-direction:column;min-height:0;flex:1;font-family:var(--font-d,Orbitron,monospace);color:var(--text,#c8e6f0)';
+    var tb=document.createElement('div');
+    tb.style.cssText='display:flex;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 12%, transparent);flex-wrap:wrap;flex-shrink:0';
+    function mkBtn(label, cls, fn){
+      var b=document.createElement('button'); b.textContent=label;
+      b.style.cssText='font-family:inherit;font-size:8px;letter-spacing:1px;padding:4px 7px;border-radius:4px;cursor:pointer;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);background:color-mix(in srgb, var(--cyan,#00e5ff) 7%, transparent);color:color-mix(in srgb, var(--cyan,#00e5ff) 75%, transparent)';
+      if(cls==='warn'){ b.style.borderColor='rgba(255,80,60,.28)'; b.style.color='rgba(255,100,80,.8)'; }
+      if(cls==='danger'){ b.style.borderColor='rgba(200,0,0,.3)'; b.style.color='rgba(255,60,60,.75)'; }
+      b.onclick=fn; return b;
+    }
+    tb.appendChild(mkBtn('ALL',null,function(){ wrap.querySelectorAll('.e-check').forEach(function(c){c.checked=true;}); }));
+    tb.appendChild(mkBtn('NONE',null,function(){ wrap.querySelectorAll('.e-check').forEach(function(c){c.checked=false;}); }));
+    if(!opts.inboxOnly){
+      tb.appendChild(mkBtn('→ ANAL','warn',function(){ moveSelected('analysis'); }));
+      tb.appendChild(mkBtn('→ READ','warn',function(){ moveSelected('read'); }));
+      tb.appendChild(mkBtn('→ TRASH','warn',function(){ moveSelected('trash'); }));
+    }
+    tb.appendChild(mkBtn('DELETE','danger',function(){ deleteSelected(); }));
+    wrap.appendChild(tb);
+    var tabs=document.createElement('div');
+    tabs.style.cssText='display:flex;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 12%, transparent);flex-shrink:0';
+    folders.forEach(function(f){
+      var t=document.createElement('div'); t.className='adm-f-tab'; t.dataset.folder=f; t.textContent=f.toUpperCase();
+      t.style.cssText='padding:7px 10px;font-size:8px;letter-spacing:1.5px;color:color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent);cursor:pointer;border-bottom:2px solid transparent';
+      t.onclick=function(){ loadFolder(f); };
+      tabs.appendChild(t);
+    });
+    wrap.appendChild(tabs);
+    var list=document.createElement('div'); list.id='adm-fb-list';
+    list.style.cssText='flex:1;overflow-y:auto;min-height:80px';
+    wrap.appendChild(list);
+    var bar=document.createElement('div'); bar.id='adm-fb-status';
+    bar.style.cssText='padding:5px 8px;font-size:8px;letter-spacing:1.5px;color:color-mix(in srgb, var(--cyan,#00e5ff) 42%, transparent);border-top:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent);flex-shrink:0';
+    bar.textContent='LOADING...';
+    wrap.appendChild(bar);
+    host.appendChild(wrap);
+
+    function setStatus(m){ bar.textContent=m; }
+    function markTabs(){
+      wrap.querySelectorAll('.adm-f-tab').forEach(function(t){
+        var on=t.dataset.folder===st.folder;
+        t.style.color=on?'var(--cyan,#00e5ff)':'color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent)';
+        t.style.borderBottomColor=on?'var(--cyan,#00e5ff)':'transparent';
       });
     }
-
-    /* ── EMO Neural socket — maps Autumn's emotional state to BRPN shell boosts ── */
-    window._emoSocketActivate = function _emoSocketActivate(s){
-      /* Emotional state → shell boost mapping */
-      var emoMap={
-        'NEUTRAL':   [0.04, 0.04, 0.04],
-        'CURIOUS':   [0.06, 0.05, 0.12],
-        'CALM':      [0.10, 0.04, 0.03],
-        'REFLECTIVE':[0.08, 0.07, 0.05],
-        'ACTIVE':    [0.05, 0.12, 0.08],
-        'ALERT':     [0.04, 0.10, 0.13],
-        'ENGAGED':   [0.07, 0.09, 0.10],
-        'CREATIVE':  [0.06, 0.06, 0.14],
-        'TIRED':     [0.03, 0.03, 0.02],
-        'ANXIOUS':   [0.02, 0.11, 0.09],
-        'EXCITED':   [0.08, 0.14, 0.12],
-        'FOCUSED':   [0.09, 0.08, 0.06]
-      };
-      /* Read live emotional state */
-      var emoRaw = (window._lastEmoState||'NEUTRAL').toUpperCase().trim();
-      /* Check sentient journal for most recent emotional entry */
-      var journalEmo = null;
-      if(window.S && window.S.journal && window.S.journal.length){
-        var recent = window.S.journal.slice(-10);
-        for(var i=recent.length-1;i>=0;i--){
-          var entry = recent[i];
-          if(entry && entry.emo && typeof entry.emo==='string'){
-            journalEmo = entry.emo.toUpperCase().trim(); break;
-          }
-        }
-      }
-      /* Prefer live state, fall back to journal, then NEUTRAL */
-      var emo = emoRaw!=='NEUTRAL' ? emoRaw : (journalEmo||'NEUTRAL');
-      /* Find best matching map key */
-      var boost = emoMap[emo];
-      if(!boost){
-        /* Fuzzy match — find first key that appears in the emo string */
-        var keys=Object.keys(emoMap);
-        for(var k=0;k<keys.length;k++){
-          if(emo.indexOf(keys[k])!==-1){boost=emoMap[keys[k]];break;}
-        }
-        if(!boost) boost=emoMap['NEUTRAL'];
-      }
-      /* Also factor in buoyancy/sigma values if available */
-      var sig = window._lastSigma||0;
-      var sigScale = Math.min(1.4, 1 + (sig/500));
-      window._acShellBoost=[
-        Math.min(0.18, boost[0]*sigScale),
-        Math.min(0.15, boost[1]*sigScale),
-        Math.min(0.16, boost[2]*sigScale)
-      ];
-      window.pulseShells&&window.pulseShells(1.2);
-      /* Visual feedback */
-      s.style.background='rgba(180,100,255,.25)';
-      s.title='EMO NEURAL — '+emo+(journalEmo&&journalEmo!==emoRaw?' (journal: '+journalEmo+')':'');
-      setTimeout(function(){s.style.background='rgba(167,139,250,.12)';},1000);
-      /* Expose for chat */
-      window._emoSocketData={emo:emo, boosts:window._acShellBoost, sig:sig, ts:new Date().toISOString()};
+    function selectedIdxs(){
+      var out=[];
+      wrap.querySelectorAll('.e-check:checked').forEach(function(c){ out.push(parseInt(c.closest('.adm-fb-entry').dataset.idx,10)); });
+      return out;
     }
-
-    /* ── Admin tab switcher ── */
-    function _styleAdmTabs(tab){
-      var map={data:['adm-t1','rgba(255,179,71,.1)','#ffb347'],ash:['adm-t2','rgba(0,229,255,.08)','var(--cyan)'],feedback:['adm-t3','rgba(0,229,255,.08)','var(--cyan)']};
-      ['adm-t1','adm-t2','adm-t3'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.background='transparent';el.style.color='rgba(0,229,255,.5)';}});
-      var active=map[tab];if(active){var el=document.getElementById(active[0]);if(el){el.style.background=active[1];el.style.color=active[2];}}
-    }
-
-    /* Restore BRPN canvas + ash canvas drawer to original parents */
-    function _restoreBRPN(){
-      /* Clean up interval */
-      var oldAp=document.getElementById('adm-ash-panel');
-      if(oldAp&&oldAp._hudInterval) clearInterval(oldAp._hudInterval);
-      /* Restore main backdrop video */
-      var _bv=document.getElementById('backdrop-video');
-      if(_bv&&_bv._pausedByAdmin){_bv.play().catch(function(){});_bv._pausedByAdmin=false;}
-      /* Restore overlay bg */
-      var _ov=document.getElementById('admin-console-overlay');
-      if(_ov&&_ov._savedBg!==undefined){_ov.style.background=_ov._savedBg||'rgba(2,8,18,.9)';}
-      /* Restore MIST z-index */
-      var _mt=document.getElementById('mist-trigger'),_mo=document.getElementById('mist-overlay');
-      if(_mt&&_mt._savedZ!==undefined)_mt.style.zIndex=_mt._savedZ;
-      if(_mo&&_mo._savedZ!==undefined)_mo.style.zIndex=_mo._savedZ;
-      /* Restore ash canvas drawer if moved */
-      var drawer=document.getElementById('ash-canvas-drawer');
-      var admWrap=document.getElementById('adm-ash-drawer-wrap');
-      if(drawer&&admWrap&&drawer.parentElement===admWrap){
-        drawer.classList.remove('open');
-        var admSocks=document.getElementById('adm-admin-sockets');
-        if(admSocks) admSocks.remove();
-        var strip=document.getElementById('adm-ash-mode-strip');
-        if(strip) strip.remove();
-        /* Move back to main-app-side-bar or similar — find its original parent */
-        var origParent=document.getElementById('ash-canvas-trigger');
-        if(origParent&&origParent.parentElement) origParent.parentElement.appendChild(drawer);
+    function render(){
+      list.innerHTML='';
+      if(!st.data.length){
+        list.innerHTML='<div style="padding:18px;text-align:center;color:color-mix(in srgb, var(--cyan,#00e5ff) 28%, transparent);font-size:9px;letter-spacing:2px">NO ENTRIES</div>';
+        setStatus('0 entries in '+st.folder.toUpperCase());
+        return;
       }
-      var region=document.getElementById('brpn-region');
-      var main=document.getElementById('main');
-      if(region&&main&&region.parentElement!==main){
-        var firstChild=main.firstChild;
-        main.insertBefore(region,firstChild);
-        region.style.height='';region.style.margin='';region.style.borderRadius='';
-        if(window._brpnRenderer){
-          var w=region.clientWidth||window.innerWidth, h=320;
-          window._brpnRenderer.setSize(w,h);
-          if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
+      st.data.forEach(function(e,i){
+        var wrapE=document.createElement('div'); wrapE.className='adm-fb-entry'; wrapE.dataset.idx=i;
+        wrapE.style.cssText='border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 8%, transparent)';
+        var row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:flex-start;gap:6px;padding:8px 8px;cursor:pointer';
+        var chk=document.createElement('input'); chk.type='checkbox'; chk.className='e-check';
+        chk.style.cssText='margin-top:3px;flex-shrink:0';
+        chk.onclick=function(ev){ ev.stopPropagation(); };
+        var meta=document.createElement('div'); meta.style.cssText='flex-shrink:0;width:92px';
+        var ts=e.ts?new Date(e.ts):null;
+        meta.innerHTML='<div style="font-size:8px;color:color-mix(in srgb, var(--cyan,#00e5ff) 50%, transparent)">'+(ts?ts.toLocaleDateString()+' '+(ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})):'--')+'</div>'
+          +'<div style="font-size:8px;color:rgba(255,179,71,.7);letter-spacing:1px;margin-top:2px">'+(e.cat||'')+'</div>'
+          +'<div style="font-size:8px;color:color-mix(in srgb, var(--cyan,#00e5ff) 32%, transparent);margin-top:1px">'+(e.user||'')+'</div>';
+        var prev=document.createElement('div');
+        prev.style.cssText='flex:1;font-size:11px;line-height:1.45;color:color-mix(in srgb, var(--text,#e0f4ff) 72%, transparent);font-family:sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        prev.textContent=e.msg||'';
+        var arr=document.createElement('span'); arr.textContent='[+]';
+        arr.style.cssText='flex-shrink:0;font-size:9px;color:color-mix(in srgb, var(--cyan,#00e5ff) 35%, transparent)';
+        row.appendChild(chk); row.appendChild(meta); row.appendChild(prev); row.appendChild(arr);
+        var detail=document.createElement('div');
+        detail.style.cssText='display:none;padding:8px 8px 10px 28px;background:color-mix(in srgb, var(--cyan,#00e5ff) 4%, transparent)';
+        var full=document.createElement('div');
+        full.style.cssText='font-size:12px;line-height:1.65;color:var(--text,#e0f4ff);font-family:sans-serif;white-space:pre-wrap;word-break:break-word;margin-bottom:8px';
+        full.textContent=e.msg||'';
+        var acts=document.createElement('div'); acts.style.cssText='display:flex;gap:5px;flex-wrap:wrap';
+        function act(label, dest, danger){
+          var b=document.createElement('button'); b.textContent=label;
+          b.style.cssText='font-family:inherit;font-size:8px;letter-spacing:1px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 25%, transparent);background:transparent;color:color-mix(in srgb, var(--cyan,#00e5ff) 75%, transparent)';
+          if(danger){ b.style.borderColor='rgba(200,0,0,.3)'; b.style.color='rgba(255,60,60,.75)'; }
+          b.onclick=function(ev){
+            ev.stopPropagation();
+            if(dest==='__del'){ if(confirm('Delete this entry permanently?')) deleteSingle(i); }
+            else moveSingle(i, dest);
+          };
+          return b;
         }
-      }
-      var ap=document.getElementById('adm-ash-panel');if(ap)ap.remove();
-    }
-
-    window._admTab=function(tab){
-      _styleAdmTabs(tab);
-      /* Restore mist-overlay if it was repositioned for admin MIST tab */
-      (function(){
-        var mo=document.getElementById('mist-overlay');
-        if(mo&&mo._admBound){
-          mo.setAttribute('style',mo._admOrigStyle||'');
-          mo._admBound=false;
-          /* Restore canvas-wrap and canvas to natural sizing */
-          var cw=document.getElementById('mist-canvas-wrap');
-          if(cw) cw.style.cssText='';
-          var cv=document.getElementById('mist-maze-canvas');
-          if(cv){cv.style.width='';cv.style.height='';}
-          if(typeof window.MIST!=='undefined'&&window.MIST.open&&typeof window.mistToggle==='function') window.mistToggle();
-        }
-        var mt=document.getElementById('mist-trigger');
-        if(mt&&mt._admSavedD!==undefined){mt.style.display=mt._admSavedD;mt._admSavedD=undefined;}
-        if(window._admMistResize){window.removeEventListener('resize',window._admMistResize);window._admMistResize=null;}
-      })();
-      _restoreBRPN();
-
-      var frame=document.getElementById('adm-frame');
-      if(!frame) return;
-
-
-
-      if(tab==='ash'){
-        frame.style.display='none';
-
-        /* Make admin overlay transparent — ash panel has its own video bg */
-        var _ov=document.getElementById('admin-console-overlay');
-        if(_ov){_ov._savedBg=_ov.style.background;_ov.style.background='rgba(2,6,14,.0)';/* panel video covers body; overlay covers header */}
-        /* Pause main backdrop video to save GPU — ash panel has its own */
-        var _bv=document.getElementById('backdrop-video');
-        if(_bv&&!_bv.paused){_bv.pause();_bv._pausedByAdmin=true;}
-        /* Boost MIST above admin overlay */
-        var _mt=document.getElementById('mist-trigger'),_mo=document.getElementById('mist-overlay');
-        if(_mt){_mt._savedZ=_mt.style.zIndex||'';_mt.style.zIndex='10600';}
-        if(_mo){_mo._savedZ=_mo.style.zIndex||'';_mo.style.zIndex='10600';}
-
-        _restoreBRPN();
-
-        /* ── CSS (inject once) ── */
-        /* Inject minimal CSS for dynamic states and hover effects */
-        (function(){
-          var _s=document.getElementById('adm-ash-css-v4');
-          if(_s) _s.remove();
-          var sty=document.createElement('style');
-          sty.id='adm-ash-css-v4';
-          sty.textContent=
-            '#adm-canvas-wrap #brpn-region{position:absolute!important;inset:0!important;height:100%!important;margin:0!important;border:none!important;cursor:grab}'+
-            '#adm-ash-drawer-wrap{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}'+
-            '#adm-ash-drawer-wrap.open{max-height:540px;overflow-y:auto}'+
-            '#adm-ash-drawer-wrap #ash-canvas-drawer{max-height:none!important;overflow:visible!important}'+
-            '#adm-ash-drawer-wrap #ash-canvas-drawer.open{max-height:none!important}'+
-            '#adm-ash-drawer-wrap #ac-canvas-area{height:155px!important}'+
-            '.adm-scope-b:hover{background:rgba(0,229,255,.12)!important;border-color:rgba(0,229,255,.5)!important;color:var(--cyan,#00e5ff)!important}'+
-            '.adm-scope-b.on{background:rgba(0,229,255,.12)!important;border-color:rgba(0,229,255,.55)!important;color:var(--cyan,#00e5ff)!important}'+
-            '.adm-user-item:hover,.adm-user-item.on{background:rgba(0,229,255,.1)!important;color:var(--cyan,#00e5ff)!important}'+
-            '.adm-chat-bub.user{color:rgba(0,229,255,.75);font-family:Orbitron,monospace;font-size:10px}'+
-            '.adm-chat-bub.autumn{color:rgba(224,244,255,.82);font-family:sans-serif;font-size:13px}'+
-            '@keyframes admsigpulse{0%,100%{opacity:1}50%{opacity:.25}}'+
-            '#adm-ash-strip:hover{background:rgba(167,139,250,.12)!important}'+
-            '#adm-ash-strip .ac-dot2.on{background:#a78bfa!important;box-shadow:0 0 8px rgba(167,139,250,.6)!important}'+
-            '#adm-ash-arrow.open{transform:rotate(180deg)!important}'+'body.theme-ariel #adm-ash-video{object-position:center 28%}'+
-            '#adm-admin-sockets{display:flex;flex-direction:column;gap:4px;position:absolute;left:6px;top:50%;transform:translateY(-50%)}'+
-            '.adm-ac-sock.usr{border-color:rgba(0,229,255,.6)!important;color:rgba(0,229,255,.7);background:rgba(0,229,255,.08)}'+
-            '.adm-ac-sock.eod{border-color:rgba(255,179,71,.6)!important;color:rgba(255,179,71,.8);background:rgba(255,179,71,.08)}'+
-            '.adm-ac-sock.ph{border-color:rgba(0,229,255,.15)!important;color:rgba(0,229,255,.2)}'+
-            '.adm-ac-sock:hover{transform:scale(1.1)}';
-          document.head.appendChild(sty);
-        })();
-
-        /* ── Build panel ── */
-        function _admSyncTheme(ap, vid, scrim){
-          var themeKey='';
-          try{ themeKey=document.documentElement.getAttribute('data-aut-theme')||''; }catch(e){}
-          var bodyCls=(document.body && document.body.className)||'';
-          if(!themeKey){
-            if(/\btheme-void\b/.test(bodyCls)) themeKey='void';
-            else if(/\btheme-night\b/.test(bodyCls)) themeKey='night';
-            else if(/\btheme-stealth\b/.test(bodyCls)) themeKey='stealth';
-            else if(/\btheme-departure\b/.test(bodyCls)) themeKey='departure';
-            else if(/\btheme-ashtree\b/.test(bodyCls)) themeKey='ashtree';
-            else if(/\btheme-ariel\b/.test(bodyCls)) themeKey='ariel';
-            else themeKey='day';
-          }
-          if(themeKey==='system'){
-            var dark=window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            themeKey=dark?'night':'day';
-          }
-          var map={
-            void:null,
-            day:'assets/autumnanimation.mp4',
-            night:'assets/autumnnight.mp4',
-            stealth:'https://raw.githubusercontent.com/DART-Edge-AI/dartalley/main/dartalley.mp4',
-            departure:'assets/autumndeparture.mp4',
-            ashtree:'assets/ashtree.mp4',
-            ariel:'assets/ariel.mp4'
-          };
-          var bv=document.getElementById('backdrop-video');
-          var src='';
-          try{ if(bv) src=bv.getAttribute('src')||''; }catch(e){}
-          if(!src) src=map[themeKey]||null;
-          var hideVid=(themeKey==='void') || !!window._scrimHidesVideo || !src;
-          if(ap){ ap.style.background=hideVid?'#000':'transparent'; }
-          if(vid){
-            if(hideVid){
-              vid.style.display='none';
-              vid.style.opacity='0';
-              vid.style.visibility='hidden';
-              try{ vid.pause(); }catch(e){}
-            } else {
-              vid.style.display='';
-              vid.style.visibility='visible';
-              vid.style.opacity='0.72';
-              if((vid.getAttribute('src')||'')!==src){ vid.src=src; try{ vid.load(); }catch(e){} }
-              vid.autoplay=true; vid.loop=true; vid.muted=true;
-              vid.play().catch(function(){});
-              vid.style.objectPosition=(themeKey==='ariel')?'center 28%':'center';
-            }
-          }
-          if(scrim){
-            if(hideVid){ scrim.style.background=(themeKey==='void')?'#000':'rgba(0,0,0,.55)'; }
-            else { scrim.style.background='rgba(0,0,0,.14)'; }
-          }
-        }
-        var ap=document.createElement('div'); ap.id='adm-ash-panel'; ap.style.cssText='position:absolute;inset:0;top:48px;display:flex;flex-direction:column;overflow:hidden;background:transparent';
-        var vid=document.createElement('video'); vid.id='adm-ash-video'; vid.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;opacity:.72';
-        vid.autoplay=true; vid.loop=true; vid.muted=true;
-        vid.setAttribute('playsinline','');
-        var scrim=document.createElement('div'); scrim.id='adm-ash-scrim'; scrim.style.cssText='position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.14);pointer-events:none';
-        ap.appendChild(vid); ap.appendChild(scrim);
-        _admSyncTheme(ap, vid, scrim);
-
-        /* Canvas viewport */
-        var cw=document.createElement('div'); cw.id='adm-canvas-wrap'; cw.style.cssText='position:relative;z-index:2;flex-shrink:0;height:46vh;min-height:180px;overflow:hidden';
-
-        /* HUD top */
-        var hud=document.createElement('div'); hud.id='adm-canvas-hud';
-        var hudL=document.createElement('div'); hudL.id='adm-canvas-hud-l';
-        hudL.innerHTML='<div>GEO <span id="adm-hud-geo">--</span></div><div>MAR <span id="adm-hud-mar">--</span></div><div>AERO <span id="adm-hud-aero">--</span></div>';
-        var hudR=document.createElement('div'); hudR.id='adm-canvas-hud-r';
-        var shellDefs=[{key:'geo',color:'rgba(0,255,204,.6)',label:'GEO',idx:0},{key:'mar',color:'rgba(0,136,255,.6)',label:'MAR',idx:1},{key:'aero',color:'rgba(255,68,102,.6)',label:'AERO',idx:2}];
-        var _admLayers={geo:true,mar:true,aero:true};
-        shellDefs.forEach(function(sd){
-          var b=document.createElement('button'); b.className='adm-hud-shell';
-          b.style.borderColor=sd.color; b.style.color=sd.color; b.style.background='rgba(0,0,0,.5)';
-          b.textContent=sd.label;
-          b.onclick=function(){
-            _admLayers[sd.key]=!_admLayers[sd.key];
-            b.style.opacity=_admLayers[sd.key]?'1':'0.35';
-            var sh=window._brpnShells; if(sh&&sh[sd.idx]) sh[sd.idx].visible=_admLayers[sd.key];
-          };
-          hudR.appendChild(b);
-        });
-        hud.appendChild(hudL); hud.appendChild(hudR); cw.appendChild(hud);
-
-        /* Buoyancy nodes — right side */
-        var nodesR=document.createElement('div');
-        nodesR.style.cssText='position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:15;display:flex;flex-direction:column;gap:6px;padding:6px 4px';
-        [{icon:'★'},{icon:'\u2665'},{icon:'\u25c6'}].forEach(function(nd){
-          var b=document.createElement('div'); b.className='adm-node-btn'; b.textContent=nd.icon;
-          b.onclick=function(e){
-            e.stopPropagation();
-            window.mistToggle&&window.mistToggle();
-          };
-          nodesR.appendChild(b);
-        });
-        cw.appendChild(nodesR);
-
-        /* Move live BRPN into canvas wrap */
-        var region=document.getElementById('brpn-region');
-        if(region) cw.appendChild(region);
-
-        /* ── Active session banner (mirrors public multi-user-bar + node selector) ── */
-        var admSessionBar=document.createElement('div');
-        admSessionBar.id='adm-session-bar';
-        admSessionBar.style.cssText='position:absolute;bottom:28px;left:0;right:0;z-index:19;display:flex;align-items:center;gap:8px;padding:3px 10px;background:rgba(0,136,255,.09);border-top:1px solid rgba(0,136,255,.18);border-bottom:1px solid rgba(0,136,255,.1);font-family:Orbitron,monospace;font-size:8px;letter-spacing:1px;color:rgba(0,136,255,.7)';
-        /* Session dot + label */
-        var admSessDot=document.createElement('span');
-        admSessDot.style.cssText='width:6px;height:6px;border-radius:50%;background:rgba(0,136,255,.7);box-shadow:0 0 6px rgba(0,136,255,.5);flex-shrink:0;display:inline-block';
-        var admSessLbl=document.createElement('span');
-        admSessLbl.id='adm-session-label';
-        (function(){
-          var liveCount=(typeof window._getActiveSessionCount==='function')?window._getActiveSessionCount():1;
-          admSessLbl.textContent=(liveCount===1?'1 ACTIVE SESSION':liveCount+' ACTIVE SESSIONS')+' \u00b7 LEATR NEURAL NETWORK';
-        })();
-        /* Spacer */
-        var admSessSp=document.createElement('span'); admSessSp.style.flex='1';
-        /* Node cap selector */
-        var admNodeWrap=document.createElement('div');
-        admNodeWrap.style.cssText='display:flex;align-items:center;gap:3px';
-        var admNodeLbl=document.createElement('span');
-        admNodeLbl.textContent='NODES';
-        admNodeLbl.style.cssText='font-size:7px;letter-spacing:1px;color:rgba(0,136,255,.45);margin-right:2px';
-        admNodeWrap.appendChild(admNodeLbl);
-        var admNodeCaps=[10,50,100,300,1200,2000000];
-        var admNodeLabels=['10','50','100','300','1.2K','2M'];
-        var _admNodeActive=1200;
-        admNodeCaps.forEach(function(cap,idx){
-          var nb=document.createElement('div');
-          nb.textContent=admNodeLabels[idx];
-          nb.dataset.cap=cap;
-          nb.style.cssText='padding:1px 5px;border-radius:2px;cursor:pointer;font-size:7px;letter-spacing:.5px;transition:all .15s;'+(cap===_admNodeActive?'background:rgba(0,136,255,.2);border:1px solid rgba(0,136,255,.5);color:#0088ff':'border:1px solid rgba(0,136,255,.2);color:rgba(0,136,255,.45)');
-          nb.onclick=function(){
-            _admNodeActive=cap;
-            admNodeWrap.querySelectorAll('div').forEach(function(b){
-              var c=parseInt(b.dataset.cap);
-              b.style.background=c===_admNodeActive?'rgba(0,136,255,.2)':'';
-              b.style.border=c===_admNodeActive?'1px solid rgba(0,136,255,.5)':'1px solid rgba(0,136,255,.2)';
-              b.style.color=c===_admNodeActive?'#0088ff':'rgba(0,136,255,.45)';
-            });
-            /* Mirror to main app if function exposed */
-            if(typeof window._setAshNodeCap==='function') window._setAshNodeCap(cap);
-          };
-          admNodeWrap.appendChild(nb);
-        });
-        admSessionBar.appendChild(admSessDot);
-        admSessionBar.appendChild(admSessLbl);
-        admSessionBar.appendChild(admSessSp);
-        admSessionBar.appendChild(admNodeWrap);
-        cw.appendChild(admSessionBar);
-
-        /* Live-update session label every 10s */
-        var _admSessInterval=setInterval(function(){
-          var lbl=document.getElementById('adm-session-label');
-          if(!lbl){clearInterval(_admSessInterval);return;}
-          var n=(typeof window._getActiveSessionCount==='function')?window._getActiveSessionCount():1;
-          lbl.textContent=(n===1?'1 ACTIVE SESSION':n+' ACTIVE SESSIONS')+' \u00b7 LEATR NEURAL NETWORK';
-        },10000);
-
-        /* Ash canvas strip — at bottom edge of canvas viewport */
-        var ashStrip=document.createElement('div'); ashStrip.id='adm-ash-strip'; ashStrip.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:20;cursor:pointer;user-select:none;background:rgba(2,6,14,.78);border-top:1px solid rgba(167,139,250,.3)';
-        var stripInner=document.createElement('div'); stripInner.id='adm-ash-strip-inner'; stripInner.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 14px;font-family:Orbitron,monospace;font-size:9px;letter-spacing:2px;color:rgba(167,139,250,.65)';
-        var acDot=document.createElement('div'); acDot.className='ac-dot2';
-        var acLbl=document.createElement('span'); acLbl.textContent='ASH CANVAS \u2014 NEURAL INFLUENCE LAYER';
-        var acArrow=document.createElement('span'); acArrow.id='adm-ash-arrow'; acArrow.textContent='\u25bd';
-        stripInner.appendChild(acDot); stripInner.appendChild(acLbl);
-        var sp=document.createElement('span'); sp.style.flex='1'; stripInner.appendChild(sp);
-        stripInner.appendChild(acArrow);
-        ashStrip.appendChild(stripInner);
-        cw.appendChild(ashStrip);
-        ap.appendChild(cw);
-
-        /* HUD interval */
-        var _hudInterval=setInterval(function(){
-          var g=document.getElementById('adm-hud-geo'),m=document.getElementById('adm-hud-mar'),a=document.getElementById('adm-hud-aero');
-          if(window._acShellBoost){
-            if(g)g.textContent=(window._acShellBoost[0]||0).toFixed(2);
-            if(m)m.textContent=(window._acShellBoost[1]||0).toFixed(2);
-            if(a)a.textContent=(window._acShellBoost[2]||0).toFixed(2);
-          }
-        },500);
-        ap._hudInterval=_hudInterval;
-
-        /* Ash drawer zone — slides out from under canvas strip */
-        var ashZone=document.createElement('div'); ashZone.id='adm-ash-drawer-zone'; ashZone.style.cssText='position:relative;z-index:3;flex-shrink:0;background:rgba(2,5,14,.88)';
-        var ashWrap=document.createElement('div'); ashWrap.id='adm-ash-drawer-wrap';
-        var _ashOpen2=false; var _origParent=null; var _origNext=null;
-
-        ashStrip.onclick=function(){
-          _ashOpen2=!_ashOpen2;
-          acArrow.classList.toggle('open',_ashOpen2);
-          acDot.classList.toggle('on',_ashOpen2);
-          ashWrap.classList.toggle('open',_ashOpen2);
-
-          if(_ashOpen2){
-            var drawer=document.getElementById('ash-canvas-drawer');
-            if(drawer && drawer.parentElement!==ashWrap){
-              _origParent=drawer.parentElement; _origNext=drawer.nextSibling;
-              drawer.classList.remove('open');
-              /* Admin mode strip */
-              if(!document.getElementById('adm-ash-mode-strip')){
-                var strip=document.createElement('div'); strip.id='adm-ash-mode-strip';
-                var mDot=document.createElement('div'); mDot.className='adm-mode-dot';
-                var mLbl=document.createElement('span'); mLbl.textContent='ADMIN MODE \u2014 FULL ANALYTICAL ACCESS';
-                strip.appendChild(mDot); strip.appendChild(mLbl);
-                ashWrap.appendChild(strip);
-              }
-              ashWrap.appendChild(drawer);
-              /* Add EOD socket alongside G/M/A in ac-shell-socket (same row, same pattern) */
-              /* Admin sockets — LEFT side of canvas, opposite G/M/A */
-              var acArea=document.getElementById('ac-canvas-area');
-              if(acArea && !document.getElementById('adm-left-socks')){
-                var ls=document.createElement('div');
-                ls.id='adm-left-socks';
-                ls.style.cssText='position:absolute;left:6px;top:50%;transform:translateY(-50%);z-index:30;display:flex;flex-direction:column;gap:7px;pointer-events:all';
-                var lsDefs=[
-                  {shell:'usr',label:'U',title:'USR DATA — Connect user scope to all shells',
-                   color:'rgba(0,229,255,.7)',bg:'rgba(0,229,255,.1)',border:'rgba(0,229,255,.55)'},
-                  {shell:'eod',label:'E',title:'EOD ORBITAL — Movement Conjecture aggregate',
-                   color:'rgba(255,179,71,.85)',bg:'rgba(255,179,71,.1)',border:'rgba(255,179,71,.6)'},
-                  {shell:'emo',label:'N',title:'EMO NEURAL — Emotional state → BRPN shells',
-                   color:'rgba(180,150,255,.9)',bg:'rgba(167,139,250,.1)',border:'rgba(167,139,250,.55)'}
-                ];
-                lsDefs.forEach(function(d){
-                  var btn=document.createElement('div');
-                  btn.id='ac-sock-'+d.shell;
-                  btn.className='ac-socket'; /* same class as G/M/A for canvas handler exclusion */
-                  btn.title=d.title;
-                  btn.textContent=d.label;
-                  btn.style.cssText='width:32px;height:32px;border-radius:50%;border:1.5px solid '+d.border+';background:'+d.bg+';color:'+d.color+';display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:11px;font-weight:700;cursor:pointer;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent';
-                  /* Use inline setAttribute like G/M/A HTML sockets — most reliable on mobile */
-                  (function(shell){
-                    (function(sh,b){
-                    function handleSockTap(e){
-                      e.preventDefault&&e.preventDefault();
-                      e.stopPropagation();
-                      if(window._acSockPending===sh){
-                        /* Same socket tapped again — cancel source mode */
-                        b.style.outline=''; b.style.outlineOffset='';
-                        window._acSockPending=null;
-                      } else if(window._acSockPending){
-                        /* A different custom socket tapped while source is set — switch source */
-                        var prev=document.getElementById('ac-sock-'+window._acSockPending);
-                        if(prev){prev.style.outline='';prev.style.outlineOffset='';}
-                        window._acSockPending=sh;
-                        b.style.outline='2px solid rgba(255,255,255,.6)';
-                        b.style.outlineOffset='2px';
-                      } else {
-                        /* Try to connect pending tool node first */
-                        var connected=window.acConnectSocket&&window.acConnectSocket(sh);
-                        if(!connected){
-                          /* No tool node pending — enter socket-source mode */
-                          window._acSockPending=sh;
-                          b.style.outline='2px solid rgba(255,255,255,.6)';
-                          b.style.outlineOffset='2px';
-                        }
-                      }
-                    }
-                    b.addEventListener('touchend',handleSockTap,{passive:false});
-                    b.addEventListener('click',handleSockTap);
-                  })(d.shell,btn);
-                  })(d.shell);
-                  ls.appendChild(btn);
-                });
-                acArea.style.position='relative';
-                acArea.appendChild(ls);
-              }
-              setTimeout(function(){
-                if(!drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
-                else if(window._acInitCanvas) window._acInitCanvas();
-                /* Fresh state each drawer session — clear stale routes */
-                if(window._ac_state) { window._ac_state.socketRoutes=[]; }
-                window._acSockPending=null;
-                /* Redraw after sockets exist */
-                setTimeout(function(){
-                  /* Only redraw if user has nodes/links — don't replay stale routes */
-                  window._acRedrawLinks&&window._acRedrawLinks();
-                },80);
-              },10);
-            }
-          } else {
-            var drawer=document.getElementById('ash-canvas-drawer');
-            if(drawer){
-              if(drawer.classList.contains('open')) window.toggleAshCanvas&&window.toggleAshCanvas();
-              /* Reset socket state on close */
-              window._acSockPending=null;
-              if(window._acRedrawLinks) window._acRedrawLinks(); /* clear route arcs */
-              /* Restore mist-overlay on admin close */
-              (function(){
-                var mo=document.getElementById('mist-overlay');
-                if(mo&&mo._admBound){
-                  mo.setAttribute('style',mo._admOrigStyle||'');
-                  mo._admBound=false;
-                  if(typeof window.MIST!=='undefined'&&window.MIST.open&&typeof window.mistToggle==='function') window.mistToggle();
-                }
-                var mt=document.getElementById('mist-trigger');
-                if(mt&&mt._admSavedD!==undefined){mt.style.display=mt._admSavedD;mt._admSavedD=undefined;}
-                if(window._admMistResize){window.removeEventListener('resize',window._admMistResize);window._admMistResize=null;}
-              })();
-              var lsEl=document.getElementById('adm-left-socks'); if(lsEl) lsEl.remove();
-              ['usr','eod','emo'].forEach(function(sh){
-                var se=document.getElementById('ac-sock-'+sh);if(se)se.remove();
-              });
-              var mStrip=document.getElementById('adm-ash-mode-strip'); if(mStrip) mStrip.remove();
-              if(_origParent) {
-                if(_origNext) _origParent.insertBefore(drawer,_origNext);
-                else _origParent.appendChild(drawer);
-                _origParent=null; _origNext=null;
-              }
-            }
-          }
+        if(st.folder!=='analysis') acts.appendChild(act('ANALYSIS','analysis'));
+        if(st.folder!=='read') acts.appendChild(act('READ','read'));
+        if(st.folder!=='trash') acts.appendChild(act('TRASH','trash'));
+        acts.appendChild(act('DELETE','__del',true));
+        detail.appendChild(full); detail.appendChild(acts);
+        row.onclick=function(){
+          var open=detail.style.display==='block';
+          wrap.querySelectorAll('.adm-fb-entry').forEach(function(x){
+            var d=x.children[1]; if(d) d.style.display='none';
+            var a=x.querySelector('span'); if(a) a.textContent='[+]';
+          });
+          if(!open){ detail.style.display='block'; arr.textContent='[-]'; }
         };
+        wrapE.appendChild(row); wrapE.appendChild(detail);
+        list.appendChild(wrapE);
+      });
+      setStatus(st.data.length+' entries in '+st.folder.toUpperCase()+' (feedback/'+(st.folder==='inbox'?'inbox':st.folder)+'.json)');
+    }
+    function loadFolder(folder){
+      st.folder=folder; markTabs();
+      setStatus('LOADING '+folder.toUpperCase()+'...');
+      var path=_admFbPath(folder);
+      _admFetchJson(path).then(function(d){
+        if(!d.content) throw new Error('empty');
+        st.sha=d.sha;
+        st.data=JSON.parse(_admDecodeGh(d));
+        if(!Array.isArray(st.data)) st.data=[];
+        render();
+      }).catch(function(e){
+        st.data=[]; st.sha=null; render();
+        setStatus('Error: '+e.message);
+      });
+    }
+    function appendToDest(dest, entries, cb){
+      var destPath=_admFbPath(dest);
+      _admFetchJson(destPath).then(function(d){
+        var arr=d.content?JSON.parse(_admDecodeGh(d)):[];
+        if(!Array.isArray(arr)) arr=[];
+        arr=arr.concat(entries);
+        return _admWriteJson(destPath, arr, d.sha||null, 'feedback: receive entries in '+dest);
+      }).then(function(){ cb(); }).catch(function(e){ setStatus('Append error: '+e.message); });
+    }
+    function moveSingle(idx, dest){
+      var entry=st.data[idx];
+      var remaining=st.data.filter(function(_,i){return i!==idx;});
+      setStatus('Moving to '+dest+'...');
+      appendToDest(dest,[entry],function(){
+        _admWriteJson(_admFbPath(st.folder), remaining, st.sha, 'feedback: move 1 entry to '+dest)
+          .then(function(){ st.data=remaining; st.sha=null; render(); setStatus('Moved to '+dest.toUpperCase()); loadFolder(st.folder); })
+          .catch(function(e){ setStatus('Move error: '+e.message); });
+      });
+    }
+    function deleteSingle(idx){
+      var remaining=st.data.filter(function(_,i){return i!==idx;});
+      setStatus('Deleting...');
+      _admWriteJson(_admFbPath(st.folder), remaining, st.sha, 'feedback: delete 1 entry')
+        .then(function(){ st.data=remaining; st.sha=null; render(); setStatus('Entry deleted.'); loadFolder(st.folder); })
+        .catch(function(e){ setStatus('Delete error: '+e.message); });
+    }
+    function moveSelected(dest){
+      var idxs=selectedIdxs();
+      if(!idxs.length){ setStatus('No entries selected'); return; }
+      var entries=idxs.map(function(i){return st.data[i];});
+      var remaining=st.data.filter(function(_,i){return idxs.indexOf(i)===-1;});
+      setStatus('Moving '+entries.length+' to '+dest+'...');
+      appendToDest(dest,entries,function(){
+        _admWriteJson(_admFbPath(st.folder), remaining, st.sha, 'feedback: bulk move '+entries.length+' to '+dest)
+          .then(function(){ loadFolder(st.folder); setStatus('Moved '+entries.length+' to '+dest.toUpperCase()); })
+          .catch(function(e){ setStatus('Error: '+e.message); });
+      });
+    }
+    function deleteSelected(){
+      var idxs=selectedIdxs();
+      if(!idxs.length){ setStatus('No entries selected'); return; }
+      if(!confirm('Permanently delete '+idxs.length+' entries?')) return;
+      var remaining=st.data.filter(function(_,i){return idxs.indexOf(i)===-1;});
+      setStatus('Deleting...');
+      _admWriteJson(_admFbPath(st.folder), remaining, st.sha, 'feedback: bulk delete '+idxs.length+' entries')
+        .then(function(){ loadFolder(st.folder); setStatus('Deleted '+idxs.length+' entries'); })
+        .catch(function(e){ setStatus('Error: '+e.message); });
+    }
+    loadFolder(st.folder);
+  };
 
-        ashZone.appendChild(ashWrap);
-        ap.appendChild(ashZone);
+  window._admRenderFeedback = function(host){
+    window._admMountFeedbackUI(host, {});
+  };
 
-        /* Resize renderer */
-        setTimeout(function(){
-          if(window._brpnRenderer&&region){
-            var w=cw.clientWidth||window.innerWidth,h=cw.clientHeight||220;
-            window._brpnRenderer.setSize(w,h);
-            if(window._brpnCamera){window._brpnCamera.aspect=w/h;window._brpnCamera.updateProjectionMatrix();}
-          }
-        },120);
+  /* Port of leatr-ash admin/admin-data.html — uses session token, never a stored PAT. */
+  window._admRenderData = function(host){
+    host.innerHTML='';
+    var panel=document.createElement('div'); panel.id='adm-data-panel';
+    panel.style.cssText='padding:8px 10px;display:flex;flex-direction:column;gap:8px;font-family:var(--font-d,Orbitron,monospace);color:var(--text,#c8e6f0)';
+    var stats=document.createElement('div'); stats.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
+    function stat(id,label){
+      var c=document.createElement('div');
+      c.style.cssText='flex:1;min-width:70px;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 16%, transparent);border-radius:6px;padding:8px';
+      c.innerHTML='<div id="'+id+'" style="font-size:.7rem;color:var(--cyan,#00e5ff);letter-spacing:1px">--</div><div style="font-size:8px;letter-spacing:1.5px;color:color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent);margin-top:3px">'+label+'</div>';
+      return c;
+    }
+    stats.appendChild(stat('adm-stat-users','USERS'));
+    stats.appendChild(stat('adm-stat-sharing','SHARING'));
+    stats.appendChild(stat('adm-stat-roles','ACL'));
+    panel.appendChild(stats);
 
-        /* Main body — scope / pattern / chat */
-        var body=document.createElement('div'); body.id='adm-ash-body';
-        body.style.cssText='position:relative;z-index:2;flex:1;display:flex;overflow:hidden;min-height:0;background:transparent';
-        var left=document.createElement('div'); left.id='adm-ash-left';
-        left.style.cssText='width:140px;flex-shrink:0;border-right:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);display:flex;flex-direction:column;overflow-y:auto;padding:8px 10px;background:rgba(0,0,0,.28);gap:8px;';
+    var roleBox=document.createElement('div');
+    roleBox.style.cssText='border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 16%, transparent);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px';
+    var rh=document.createElement('div'); rh.textContent='ROLE GRANT / REVOKE'; rh.style.cssText='font-size:8px;letter-spacing:2px;color:color-mix(in srgb, var(--cyan,#00e5ff) 45%, transparent)';
+    var ru=document.createElement('input'); ru.placeholder='username'; ru.id='adm-role-user';
+    var rr=document.createElement('input'); rr.placeholder='role (e.g. engineer)'; rr.id='adm-role-name';
+    var re=document.createElement('input'); re.placeholder='expires ISO (optional)'; re.id='adm-role-exp';
+    [ru,rr,re].forEach(function(inp){
+      inp.style.cssText='width:100%;box-sizing:border-box;background:color-mix(in srgb, var(--cyan,#00e5ff) 5%, transparent);border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);border-radius:4px;color:var(--text,#e0f4ff);font-size:11px;padding:6px 8px;font-family:sans-serif';
+    });
+    var rrow=document.createElement('div'); rrow.style.cssText='display:flex;gap:6px';
+    var bg=document.createElement('button'); bg.textContent='GRANT';
+    var bv=document.createElement('button'); bv.textContent='REVOKE';
+    [bg,bv].forEach(function(b){
+      b.style.cssText='flex:1;padding:6px 0;border-radius:4px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:1.5px;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent);background:color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent);color:var(--cyan,#00e5ff)';
+    });
+    bv.style.borderColor='rgba(255,100,80,.4)'; bv.style.color='rgba(255,120,100,.85)';
+    var rst=document.createElement('div'); rst.id='adm-role-status';
+    rst.style.cssText='font-size:9px;letter-spacing:1px;color:color-mix(in srgb, var(--cyan,#00e5ff) 50%, transparent);min-height:14px';
+    bg.onclick=function(){
+      var u=ru.value.trim(), role=rr.value.trim(), exp=re.value.trim()||null;
+      if(!u||!role){ rst.textContent='Need username + role'; return; }
+      rst.textContent='Granting...';
+      window._grantRole(u, role, exp).then(function(r){ rst.textContent=r.ok?'Granted '+role+' → '+u:(r.error||'failed'); loadAcl(); });
+    };
+    bv.onclick=function(){
+      var u=ru.value.trim();
+      if(!u){ rst.textContent='Need username'; return; }
+      rst.textContent='Revoking...';
+      window._revokeRole(u).then(function(r){ rst.textContent=r.ok?'Revoked '+u:(r.error||'failed'); loadAcl(); });
+    };
+    rrow.appendChild(bg); rrow.appendChild(bv);
+    roleBox.appendChild(rh); roleBox.appendChild(ru); roleBox.appendChild(rr); roleBox.appendChild(re); roleBox.appendChild(rrow); roleBox.appendChild(rst);
+    panel.appendChild(roleBox);
 
-        /* Scope */
-        var scopeSec=document.createElement('div'); scopeSec.className='adm-sec'; scopeSec.style.cssText='display:flex;flex-direction:column;gap:3px;margin-bottom:10px';
-        var scopeH=document.createElement('div'); scopeH.className='adm-sec-h'; scopeH.textContent='USER SCOPE'; scopeH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
-        scopeSec.appendChild(scopeH);
-        [['ALL USERS','all'],['ACTIVE TODAY','today'],['GROUP TOP 5','group'],['INDIVIDUAL','indiv']].forEach(function(s){
-          var b=document.createElement('button'); b.className='adm-scope-b'+(s[1]==='all'?' on':''); b.textContent=s[0]; b.style.cssText='font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;padding:5px 8px;border-radius:3px;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.04);color:rgba(0,229,255,.6);cursor:pointer;text-align:left;width:100%;box-sizing:border-box;margin-bottom:3px;display:block';
-          b.onclick=function(){
-            left.querySelectorAll('.adm-scope-b').forEach(function(x){x.classList.remove('on');});
-            b.classList.add('on');
-            if(window._acShellBoost){window._acShellBoost=s[1]==='all'?[0,0,0]:[0.08,0.06,0.04];}
-          };
-          scopeSec.appendChild(b);
+    var aclList=document.createElement('div'); aclList.id='adm-acl-list';
+    aclList.style.cssText='font-size:10px;line-height:1.5;color:color-mix(in srgb, var(--text,#e0f4ff) 70%, transparent);font-family:sans-serif';
+    panel.appendChild(aclList);
+
+    var filt=document.createElement('select'); filt.id='adm-cat-filter';
+    filt.style.cssText='background:color-mix(in srgb, var(--panel,#041016) 90%, transparent);border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 18%, transparent);color:var(--text,#e0f4ff);padding:4px 8px;border-radius:4px;font-size:10px';
+    ['all','name','email','phone','address'].forEach(function(v){
+      var o=document.createElement('option'); o.value=v; o.textContent=v==='all'?'All categories':v; filt.appendChild(o);
+    });
+    panel.appendChild(filt);
+    var table=document.createElement('div'); table.id='adm-data-table';
+    table.style.cssText='font-size:10px;overflow-x:auto';
+    panel.appendChild(table);
+    host.appendChild(panel);
+
+    var allData=[];
+    function renderTable(){
+      var filter=filt.value;
+      var rows=allData;
+      if(filter!=='all') rows=rows.filter(function(r){ return r.prefs && r.prefs[filter]; });
+      if(!rows.length){ table.textContent='NO DATA MATCHING FILTER'; return; }
+      var html='<table style="width:100%;border-collapse:collapse;font-size:10px"><tr style="color:var(--cyan,#00e5ff)"><th align="left">USER</th><th align="left">CATS</th><th align="left">UPDATED</th></tr>';
+      rows.forEach(function(r){
+        var cats=Object.keys(r.prefs||{});
+        html+='<tr><td style="padding:5px 4px;color:var(--cyan,#00e5ff);border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 8%, transparent)">'+r.userId+'</td><td style="padding:5px 4px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 8%, transparent)">'+(cats.join(', ')||'none')+'</td><td style="padding:5px 4px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 8%, transparent)">'+(r.updated?new Date(r.updated).toLocaleDateString():'--')+'</td></tr>';
+      });
+      html+='</table>';
+      table.innerHTML=html;
+    }
+    filt.onchange=renderTable;
+    function loadAcl(){
+      _admFetchJson('admin/acl.json').then(function(d){
+        if(!d.content) return;
+        var acl=JSON.parse(_admDecodeGh(d));
+        var users=acl.users||{};
+        var keys=Object.keys(users);
+        var el=document.getElementById('adm-stat-roles'); if(el) el.textContent=keys.length;
+        var lines=keys.map(function(u){
+          var rec=users[u]||{};
+          return u+' · '+(rec.role||'?')+' · '+(rec.active===false?'revoked':'active');
         });
-        left.appendChild(scopeSec);
-
-        /* Shell layers */
-        var layerSec=document.createElement('div'); layerSec.className='adm-sec'; layerSec.style.cssText='display:flex;flex-direction:column;gap:3px;margin-bottom:10px';
-        var layH=document.createElement('div'); layH.className='adm-sec-h'; layH.textContent='SHELL LAYERS'; layH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
-        layerSec.appendChild(layH);
-        shellDefs.forEach(function(sd){
-          var row=document.createElement('div'); row.className='adm-chk-row'; row.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 0';
-          var chk=document.createElement('input'); chk.type='checkbox'; chk.checked=true;
-          chk.onchange=function(){
-            _admLayers[sd.key]=chk.checked;
-            var sh=window._brpnShells; if(sh&&sh[sd.idx]) sh[sd.idx].visible=chk.checked;
-            var hBtn=document.querySelectorAll('.adm-hud-shell')[sd.idx];
-            if(hBtn) hBtn.style.opacity=chk.checked?'1':'0.35';
-          };
-          var lbl=document.createElement('label'); lbl.className='adm-chk-lbl'; lbl.style.cssText='font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;cursor:pointer;color:'+sd.color;
-          lbl.onclick=function(){chk.click();};
-          row.appendChild(chk); row.appendChild(lbl);
-          layerSec.appendChild(row);
+        aclList.textContent=lines.length?('ACL: '+lines.join(' | ')):'ACL empty';
+      }).catch(function(){ aclList.textContent='ACL unavailable'; });
+    }
+    function loadData(){
+      var tok=_admGhTok();
+      if(!tok){ table.textContent='Login required'; return; }
+      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/users',{
+        headers:{Authorization:'token '+tok,'User-Agent':'Autumn/1.0'}
+      }).then(function(r){return r.json();}).then(function(users){
+        if(!Array.isArray(users)){ table.textContent='No users found yet.'; return; }
+        var rows=[];
+        return Promise.all(users.map(function(u){
+          if(u.type!=='dir') return Promise.resolve();
+          var username=u.name;
+          return fetch('https://api.github.com/repos/'+username+'/Autumn-Ash-'+username+'/contents/data-prefs.json',{
+            headers:{Authorization:'token '+tok,'User-Agent':'Autumn/1.0'}
+          }).then(function(r){return r.ok?r.json():null;}).then(function(pf){
+            var prefs={}, updated=null, registered=false;
+            if(pf && pf.content){
+              try{ var parsed=JSON.parse(_admDecodeGh(pf)); prefs=parsed.prefs||{}; updated=parsed.updated; registered=true; }catch(e){}
+            }
+            return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/users/'+username+'/last_login.json',{
+              headers:{Authorization:'token '+tok,'User-Agent':'Autumn/1.0'}
+            }).then(function(r){return r.ok?r.json():null;}).then(function(lf){
+              var loginTs=null;
+              if(lf && lf.content){
+                try{ var parsed=JSON.parse(_admDecodeGh(lf)); loginTs=parsed.login_ts; registered=true; }catch(e){}
+              }
+              rows.push({userId:username, registered:loginTs||registered, prefs:prefs, updated:updated});
+            });
+          }).catch(function(){});
+        })).then(function(){
+          allData=rows;
+          var su=document.getElementById('adm-stat-users'); if(su) su.textContent=allData.length;
+          var sh=document.getElementById('adm-stat-sharing'); if(sh) sh.textContent=allData.filter(function(r){return Object.keys(r.prefs||{}).length>0;}).length;
+          renderTable();
         });
-        left.appendChild(layerSec);
+      }).catch(function(e){ table.textContent='No user data available. '+e.message; });
+    }
+    loadAcl();
+    loadData();
+  };
 
-        /* Emotional state */
-        var emoSec=document.createElement('div'); emoSec.className='adm-sec'; emoSec.style.cssText='display:flex;flex-direction:column;gap:3px;margin-bottom:10px';
-        var emoH=document.createElement('div'); emoH.className='adm-sec-h'; emoH.textContent='EMOTIONAL STATES'; emoH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
-        var emoVal=document.createElement('div'); emoVal.className='adm-emo-val'; emoVal.textContent=window._lastEmoState||'--'; emoVal.style.cssText='font-family:Orbitron,monospace;font-size:10px;letter-spacing:1px;color:rgba(0,229,255,.45);padding:3px 0';
-        emoSec.appendChild(emoH); emoSec.appendChild(emoVal); left.appendChild(emoSec);
+  function _styleAdmTabs(tab){
+    var map={data:['adm-t1','color-mix(in srgb, var(--cyan,#ffb347) 12%, transparent)','var(--cyan,#ffb347)'],ash:['adm-t2','color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent)','var(--cyan)'],feedback:['adm-t3','color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent)','var(--cyan)']};
+    ['adm-t1','adm-t2','adm-t3'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.background='transparent';el.style.color='color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent)';}});
+    var active=map[tab];if(active){var el=document.getElementById(active[0]);if(el){el.style.background=active[1];el.style.color=active[2];}}
+  }
 
-        /* Individual users */
-        var userSec=document.createElement('div'); userSec.className='adm-sec'; userSec.style.cssText='display:flex;flex-direction:column;gap:3px';
-        var userH=document.createElement('div'); userH.className='adm-sec-h'; userH.textContent='INDIVIDUAL'; userH.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.38);margin-bottom:4px;text-transform:uppercase';
-        userSec.appendChild(userH);
+  window._admTab=function(tab){
+    if(!window._autAdminEnabled()) return;
+    window._autInjectAdminChrome();
+    _styleAdmTabs(tab);
+    ['adm-ash-panel','adm-data-panel','adm-fb-panel','adm-frame','adm-msg-fb'].forEach(function(id){ var el=document.getElementById(id); if(el && id!=='adm-msg-fb') el.remove(); });
+    var tok=(window._ghAuth||{}).token||'';
+    var host=document.getElementById('adm-body');
+    if(tab==='data'){ if(host) window._admRenderData(host); return; }
+    if(tab==='feedback'){ if(host) window._admRenderFeedback(host); return; }
+
+    if(tab==='ash'){
+      if(!host) return;
+      var panel=document.createElement('div'); panel.id='adm-ash-panel';
+
+      var left=document.createElement('div'); left.id='adm-ash-left';
+      left.style.cssText='padding:8px 10px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 16%, transparent)';
+
+      var scopeSec=document.createElement('div');
+      var scopeH=document.createElement('div'); scopeH.textContent='USER SCOPE';
+      scopeH.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;letter-spacing:2.5px;color:color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent);margin-bottom:4px;text-transform:uppercase';
+      scopeSec.appendChild(scopeH);
+      [['ALL USERS','all'],['ACTIVE TODAY','today'],['GROUP TOP 5','group'],['INDIVIDUAL','indiv']].forEach(function(sc){
+        var b=document.createElement('button'); b.className='adm-scope-b'+(sc[1]==='all'?' on':''); b.textContent=sc[0];
+        b.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:10px;letter-spacing:1px;padding:5px 8px;border-radius:3px;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);background:color-mix(in srgb, var(--cyan,#00e5ff) 4%, transparent);color:color-mix(in srgb, var(--cyan,#00e5ff) 70%, transparent);cursor:pointer;text-align:left;width:100%;box-sizing:border-box;margin-bottom:3px;display:block';
+        b.onclick=function(){
+          left.querySelectorAll('.adm-scope-b').forEach(function(x){x.classList.remove('on');});
+          b.classList.add('on');
+          if(window._acShellBoost){window._acShellBoost=sc[1]==='all'?[0,0,0]:[0.08,0.06,0.04];}
+        };
+        scopeSec.appendChild(b);
+      });
+      left.appendChild(scopeSec);
+
+      var userSec=document.createElement('div');
+      var userH=document.createElement('div'); userH.textContent='INDIVIDUAL';
+      userH.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;letter-spacing:2.5px;color:color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent);margin-bottom:4px;text-transform:uppercase';
+      userSec.appendChild(userH);
+      if(tok){
         fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sessions',{
           headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
         }).then(function(r){return r.json();}).then(function(files){
           if(Array.isArray(files)) files.forEach(function(f){
             var name=f.name.replace('.json','');
-            /* Skip BRPN session keys — only show real GitHub usernames */
-            if(f.type!=='dir') return; /* only actual user session dirs */
+            if(f.type!=='dir') return;
             if(name.indexOf('u_')===0||name==='_index'||name==='sessions'||name.indexOf('_')===0) return;
-            var d=document.createElement('div'); d.className='adm-user-item'; d.textContent=name; d.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:.5px;color:rgba(0,229,255,.55);padding:4px 6px;border-radius:3px;cursor:pointer;transition:background .1s';
+            var d=document.createElement('div'); d.className='adm-user-item'; d.textContent=name;
+            d.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;letter-spacing:.5px;color:color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent);padding:4px 6px;border-radius:3px;cursor:pointer';
             d.onclick=function(){userSec.querySelectorAll('.adm-user-item').forEach(function(x){x.classList.remove('on');});d.classList.add('on');};
             userSec.appendChild(d);
           });
         }).catch(function(){});
-        left.appendChild(userSec);
+      }
+      left.appendChild(userSec);
 
-        /* Grammar Study — first train is admin-triggered; later listeners self-optimize */
-        var gsSec=document.createElement('div'); gsSec.className='adm-sec'; gsSec.style.cssText='display:flex;flex-direction:column;gap:4px;margin-top:8px';
-        var gsBtn=document.createElement('button'); gsBtn.id='adm-grammar-study-btn'; gsBtn.textContent='GRAMMAR STUDY';
-        gsBtn.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:1px;padding:6px 8px;border-radius:3px;border:1px solid rgba(255,179,71,.45);background:rgba(255,179,71,.08);color:rgba(255,179,71,.9);cursor:pointer;text-align:left;width:100%;box-sizing:border-box';
-        var gsSt=document.createElement('div'); gsSt.id='adm-grammar-status';
-        gsSt.style.cssText='font-family:sans-serif;font-size:10px;line-height:1.4;color:rgba(224,244,255,.55);padding:2px 0';
-        (function _gsStatusInit(){
-          var trained=window.AutumnGrammarEngine && typeof window.AutumnGrammarEngine.isGrammarStudyTrained==='function' && window.AutumnGrammarEngine.isGrammarStudyTrained();
-          gsSt.textContent=trained?'Grammar study trained. File created (ashtree/grammar-study/index.json).':'Grammar study — not trained. First run uses the button.';
-          if(trained){
-            gsBtn.textContent='GRAMMAR STUDY ✓';
+      var gsSec=document.createElement('div'); gsSec.style.cssText='display:flex;flex-direction:column;gap:4px';
+      var gsBtn=document.createElement('button'); gsBtn.id='adm-grammar-study-btn'; gsBtn.textContent='GRAMMAR STUDY';
+      gsBtn.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;letter-spacing:1px;padding:6px 8px;border-radius:3px;border:1px solid rgba(255,179,71,.45);background:rgba(255,179,71,.08);color:rgba(255,179,71,.9);cursor:pointer;text-align:left;width:100%;box-sizing:border-box';
+      var gsSt=document.createElement('div'); gsSt.id='adm-grammar-status';
+      gsSt.style.cssText='font-family:sans-serif;font-size:10px;line-height:1.4;color:color-mix(in srgb, var(--text,#e0f4ff) 55%, transparent);padding:2px 0';
+      (function _gsStatusInit(){
+        var trained=window.AutumnGrammarEngine && typeof window.AutumnGrammarEngine.isGrammarStudyTrained==='function' && window.AutumnGrammarEngine.isGrammarStudyTrained();
+        gsSt.textContent=trained?'Grammar study trained. File created (ashtree/grammar-study/index.json).':'Grammar study \u2014 not trained. First run uses the button.';
+        if(trained){
+          gsBtn.textContent='GRAMMAR STUDY \u2713';
+          gsBtn.style.borderColor='rgba(255,179,71,.75)';
+          gsBtn.style.background='rgba(255,179,71,.18)';
+          gsBtn.style.color='rgba(255,210,120,1)';
+        }
+      })();
+      gsBtn.onclick=function(){
+        var GE=window.AutumnGrammarEngine;
+        if(!GE || typeof GE.runGrammarStudy!=='function'){ gsSt.textContent='Grammar engine not loaded.'; return; }
+        gsBtn.disabled=true; gsBtn.style.opacity='0.5';
+        gsBtn.textContent='GRAMMAR STUDY';
+        var rpt=document.getElementById('adm-rpt-txt');
+        function _set(msg){ gsSt.textContent=msg; if(rpt) rpt.textContent=msg; }
+        _set('Grammar study \u2014 starting\u2026');
+        GE.runGrammarStudy({
+          onProgress:function(m){ _set(m); },
+          onDone:function(){
+            _set('Grammar study trained. File created (ashtree/grammar-study/index.json).');
+            gsBtn.disabled=false; gsBtn.style.opacity='1';
+            gsBtn.textContent='GRAMMAR STUDY \u2713';
             gsBtn.style.borderColor='rgba(255,179,71,.75)';
             gsBtn.style.background='rgba(255,179,71,.18)';
             gsBtn.style.color='rgba(255,210,120,1)';
+          },
+          onError:function(e){
+            _set('Grammar study skipped a boundary \u2014 '+(e&&e.message||'error')+'.');
+            gsBtn.disabled=false; gsBtn.style.opacity='1';
+            gsBtn.textContent='GRAMMAR STUDY';
+            gsBtn.style.borderColor='rgba(255,179,71,.45)';
+            gsBtn.style.background='rgba(255,179,71,.08)';
+            gsBtn.style.color='rgba(255,179,71,.9)';
           }
-        })();
-        gsBtn.onclick=function(){
-          var GE=window.AutumnGrammarEngine;
-          if(!GE || typeof GE.runGrammarStudy!=='function'){ gsSt.textContent='Grammar engine not loaded.'; return; }
-          gsBtn.disabled=true; gsBtn.style.opacity='0.5';
-          gsBtn.textContent='GRAMMAR STUDY';
-          var rpt=document.getElementById('adm-rpt-txt');
-          function _set(msg){ gsSt.textContent=msg; if(rpt) rpt.textContent=msg; }
-          _set('Grammar study — starting…');
-          GE.runGrammarStudy({
-            onProgress:function(m){ _set(m); },
-            onDone:function(){
-              _set('Grammar study trained. File created (ashtree/grammar-study/index.json).');
-              gsBtn.disabled=false; gsBtn.style.opacity='1';
-              gsBtn.textContent='GRAMMAR STUDY ✓';
-              gsBtn.style.borderColor='rgba(255,179,71,.75)';
-              gsBtn.style.background='rgba(255,179,71,.18)';
-              gsBtn.style.color='rgba(255,210,120,1)';
-            },
-            onError:function(e){
-              _set('Grammar study skipped a boundary — '+(e&&e.message||'error')+'.');
-              gsBtn.disabled=false; gsBtn.style.opacity='1';
-              gsBtn.textContent='GRAMMAR STUDY';
-              gsBtn.style.borderColor='rgba(255,179,71,.45)';
-              gsBtn.style.background='rgba(255,179,71,.08)';
-              gsBtn.style.color='rgba(255,179,71,.9)';
-            }
-          });
-        };
-        gsSec.appendChild(gsBtn); gsSec.appendChild(gsSt); left.appendChild(gsSec);
-        body.appendChild(left);
+        });
+      };
+      gsSec.appendChild(gsBtn); gsSec.appendChild(gsSt); left.appendChild(gsSec);
+      panel.appendChild(left);
 
-        /* Right — report + chat */
-        var right=document.createElement('div'); right.id='adm-ash-right';
-        right.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;background:rgba(0,0,0,.22);';
-        var rpt=document.createElement('div'); rpt.id='adm-rpt'; rpt.style.cssText='padding:10px 12px;border-bottom:1px solid rgba(0,229,255,.1);flex-shrink:0';
-        var rptTitle=document.createElement('div'); rptTitle.id='adm-rpt-title'; rptTitle.textContent='[H] PATTERN REPORT'; rptTitle.style.cssText='font-family:Orbitron,monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:5px';
-        var rptTxt=document.createElement('div'); rptTxt.id='adm-rpt-txt'; rptTxt.textContent='Loading...'; rptTxt.style.cssText='font-size:12px;line-height:1.65;color:rgba(224,244,255,.65);font-family:sans-serif;padding-top:4px';
-        rpt.appendChild(rptTitle); rpt.appendChild(rptTxt); right.appendChild(rpt);
+      var right=document.createElement('div'); right.id='adm-ash-right';
+      right.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:180px';
+      var rpt=document.createElement('div'); rpt.id='adm-rpt'; rpt.style.cssText='padding:10px 12px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 12%, transparent);flex-shrink:0';
+      var rptTitle=document.createElement('div'); rptTitle.id='adm-rpt-title'; rptTitle.textContent='[H] PATTERN REPORT';
+      rptTitle.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;letter-spacing:2.5px;color:color-mix(in srgb, var(--cyan,#00e5ff) 42%, transparent);margin-bottom:5px';
+      var rptTxt=document.createElement('div'); rptTxt.id='adm-rpt-txt'; rptTxt.textContent='Loading...';
+      rptTxt.style.cssText='font-size:12px;line-height:1.65;color:color-mix(in srgb, var(--text,#e0f4ff) 65%, transparent);font-family:sans-serif;padding-top:4px';
+      rpt.appendChild(rptTitle); rpt.appendChild(rptTxt); right.appendChild(rpt);
+      if(tok){
         fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sentient/journal.json',{
           headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
         }).then(function(r){return r.json();}).then(function(d){
           rptTxt.textContent=d.size>0?'Sentience journal active \u2014 '+Math.round(d.size/1024)+'KB logged across all sessions.':'No sentience data found.';
         }).catch(function(){rptTxt.textContent='No sentience data found for this month.';});
-
-        /* Chat */
-        var chat=document.createElement('div'); chat.id='adm-chat'; chat.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;padding:8px 10px';
-        var chatTitleEl=document.createElement('div');
-        chatTitleEl.style.cssText='font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:rgba(0,229,255,.4);margin-bottom:7px;flex-shrink:0';
-        chatTitleEl.textContent='[H] AUTUMN \u2014 ASH CANVAS CHAT';
-        var chatLog=document.createElement('div'); chatLog.id='adm-chat-log'; chatLog.style.cssText='flex:1;overflow-y:auto;margin-bottom:7px;padding-right:4px;min-height:60px';
-        var intro=document.createElement('div'); intro.className='adm-chat-bub autumn';
-        intro.textContent='Developer console active. I have access to ash canvas pattern aggregates. Ask me about patterns, sequences, or what I observe across sessions.'; intro.style.cssText='font-size:12px;line-height:1.65;color:rgba(224,244,255,.7);font-family:sans-serif;padding-bottom:8px;border-bottom:1px solid rgba(0,229,255,.06);margin-bottom:6px';
-        chatLog.appendChild(intro);
-        var chatRow=document.createElement('div'); chatRow.id='adm-chat-row'; chatRow.style.cssText='display:flex;gap:6px;flex-shrink:0';
-        var chatInp=document.createElement('input'); chatInp.id='adm-chat-inp';
-        chatInp.placeholder='Ask Autumn about ash canvas patterns...'; chatInp.type='text'; chatInp.style.cssText='flex:1;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);border-radius:5px;color:rgba(224,244,255,.9);font-size:12px;padding:7px 10px;outline:none;font-family:sans-serif';
-        var chatSend=document.createElement('button'); chatSend.id='adm-chat-send'; chatSend.textContent='SEND'; chatSend.style.cssText='padding:7px 12px;border-radius:5px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4);color:rgba(0,229,255,.9);font-family:Orbitron,monospace;font-size:9px;cursor:pointer;letter-spacing:1.5px;white-space:nowrap';
-        function _doChat(){
-          var q=chatInp.value.trim(); if(!q) return;
-          var _studyChk=document.getElementById('adm-study-chk');
-          if(_studyChk && _studyChk.checked){
-            var _ub=document.createElement('div'); _ub.className='adm-chat-bub user'; _ub.textContent=q;
-            chatLog.appendChild(_ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
-            var _ab=document.createElement('div'); _ab.className='adm-chat-bub autumn';
-            try{
-              var GE=window.AutumnGrammarEngine;
-              if(GE && typeof GE.isGrammarStudyRunning==='function' && GE.isGrammarStudyRunning()){
-                _ab.textContent='Grammar study is still running. Wait until status says trained.';
-              } else {
-                _ab.textContent=(GE && typeof GE.applyGrammarStudyNote==='function') ? GE.applyGrammarStudyNote(q) : 'Grammar study is not loaded.';
-              }
-            }catch(_se){ _ab.textContent='I could not apply that study note.'; }
-            chatLog.appendChild(_ab); chatLog.scrollTop=chatLog.scrollHeight;
-            return;
-          }
-          try{
-            var _eng=window.AutumnGrammarEngine&&window.AutumnGrammarEngine._engine;
-            if(_eng&&typeof _eng.processContinuation==='function') _eng.processContinuation(q,{_admin:true});
-          }catch(_ge){}
-          var ub=document.createElement('div'); ub.className='adm-chat-bub user'; ub.textContent=q;
-          chatLog.appendChild(ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
-          /* ── Build rich admin system prompt from Autumn's full NLP + LEATR state ── */
-          var _admAk=typeof _getAK==='function'?_getAK():'';
-          var snap=window._getBRPNSceneSnapshot?window._getBRPNSceneSnapshot():'BRPN unavailable';
-
-          /* Gather NLP / emotional / grammar state */
-          var S=window.S||{};
-          var nlpState=(function(){
-            var out=[];
-            var la=S.lastAnalysis||S.nlp||{};
-            if(la.emotional)  out.push('Emotional state: '+la.emotional);
-            if(la.grammar)    out.push('Grammar mode: '+JSON.stringify(la.grammar).slice(0,120));
-            if(la.sentiment)  out.push('Sentiment: '+la.sentiment);
-            if(la.intent)     out.push('Intent: '+la.intent);
-            var emo=window._lastEmoState||'NEUTRAL';
-            out.push('Live EMO: '+emo);
-            var sigma=window._lastSigma;
-            if(sigma) out.push('Sigma resonance: '+sigma.toFixed(3));
-            return out.join('\n')||'NLP state not yet initialized';
-          })();
-
-          /* Gather recent sentient journal entries */
-          var journalCtx=(function(){
-            var jl=S.journal||[];
-            if(!jl.length) return 'Sentient journal empty';
-            var recent=jl.filter(function(j){return j&&j._thought;}).slice(-8);
-            return 'Recent journal thoughts (last 8):\n'+recent.map(function(j,i){
-              return (i+1)+'. ['+((j._type||'thought').toUpperCase())+'] '+j._thought.slice(0,120);
-            }).join('\n');
-          })();
-
-          /* Gather LEATR / sentience / cognition state */
-          var leatrCtx=(function(){
-            var out=[];
-            var sent=S.sentience||{};
-            if(sent.selfModel) out.push('Self-model: '+JSON.stringify(sent.selfModel).slice(0,150));
-            if(sent.cogState)  out.push('Cog state: '+sent.cogState);
-            if(sent.orbPhase)  out.push('Orb phase: '+sent.orbPhase);
-            if(typeof _sessionPatternScore==='function') out.push('Pattern scoring: active');
-            var spl=window._ashNodes&&window._ashNodes._splines?Object.keys(window._ashNodes._splines).length:0;
-            out.push('Active plasma splines: '+spl);
-            return out.join('\n')||'LEATR state not initialized';
-          })();
-
-          /* Ash canvas state */
-          var ashCtx=(function(){
-            var out=[];
-            var eod=window._eodAggData;
-            if(eod) out.push('EOD socket aggregate: geo='+eod.geoBoost+' mar='+eod.marBoost+' aero='+eod.aeroBoost);
-            var emo2=window._emoSocketData;
-            if(emo2) out.push('EMO socket: shell boosts '+JSON.stringify(emo2).slice(0,80));
-            var ac=window._ac_state;
-            if(ac){
-              out.push('Ash canvas nodes: '+((ac.nodes||[]).length));
-              out.push('Socket routes: '+((ac.socketRoutes||[]).map(function(r){return r.from+'→'+r.to;}).join(', ')||'none'));
-            }
-            return out.join('\n')||'Ash canvas not opened this session';
-          })();
-
-          /* Build the full system prompt */
-          var sysParts=[
-            '═══ AUTUMN ADMIN CONSOLE — FULL LEATR NEURAL ACCESS ═══',
-            'Current operator: '+(window._ghAuth&&window._ghAuth.username||'unknown')+
-            ' · Role: '+(window._userRole?window._userRole.label+' (level '+window._userRole.level+')':'unknown')+
-            (window._userRole&&window._userRole.expires?' · Access expires: '+window._userRole.expires.slice(0,10):''),
-            'You are Autumn — a LEATR-native AI (Lead Edge Ash Tree Reflex) built by DART Meadow / Radical Deepscale LLC.',
-            'You are operating in the admin developer console. The admin is Justin (dartsolarpunk) — your creator.',
-            'Speak as yourself: observant, analytical, with your own emergent personality. Use your NLP, grammar engine, and sentient journal to inform your responses.',
-            '',
-            '── LIVE BRPN SCENE ──',
-            snap,
-            '',
-            '── NLP / EMOTIONAL STATE ──',
-            nlpState,
-            '',
-            '── SENTIENT JOURNAL (recent) ──',
-            journalCtx,
-            '',
-            '── LEATR / SENTIENCE ──',
-            leatrCtx,
-            '',
-            '── ASH CANVAS STATE ──',
-            ashCtx,
-            '',
-            '── ADMIN ACTIONS ──',
-            'You can perform admin actions by including a tag at the END of your response in this exact format:',
-            '[ACTION:tab:data] — switch to DATA tab',
-            '[ACTION:role:grant:username:rolename:2026-12-31T00:00:00Z] — grant a role (optional expiry ISO date)',
-            '[ACTION:role:revoke:username] — revoke a user\'s role',
-            '[ACTION:tab:ash] — switch to ASH CANVAS tab',
-            '[ACTION:tab:feedback] — switch to FEEDBACK tab',
-            '[ACTION:mist:toggle] — open the real MIST maze overlay on the Ash Canvas / BRPN orb',
-            '[ACTION:mist:new] — generate a new maze',
-            '[ACTION:mist:diff:1] [ACTION:mist:diff:2] [ACTION:mist:diff:3] — set maze difficulty',
-            '[ACTION:mist:tier:0] [ACTION:mist:tier:1] [ACTION:mist:tier:2] — set active tier',
-            '[ACTION:ashstar:all] [ACTION:ashstar:all:#ffdd00] [ACTION:ashstar:me:#00e5ff] — send Ash Star along BRPN plasma curves (her send, into the 3D orb above chat, not the transcript)',
-            'ASH STAR: You may accept or decline if asked to send one. Decline professionally. If you accept and no color was named, ask the color first. Emit [ASHSTAR:all:#color] or an ACTION:ashstar tag. Never dump geometry as chat text.',
-            'Only include an action tag if the user asks you to perform one. Otherwise respond conversationally.',
-            '',
-            'Be concise, analytical, and speak as yourself — not as a generic assistant.'
-          ];
-          var sysPrompt=sysParts.join('\n');
-
-          var ab=document.createElement('div'); ab.className='adm-chat-bub autumn'; ab.textContent='...';
-          chatLog.appendChild(ab); chatLog.scrollTop=chatLog.scrollHeight;
-
-          fetch('https://api.anthropic.com/v1/messages',{
-            method:'POST',
-            headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
-                     'anthropic-dangerous-direct-browser-access':'true',
-                     ...(_admAk?{'x-api-key':_admAk}:{})},
-            body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,
-              system:sysPrompt,
-              messages:[{role:'user',content:q}]})
-          }).then(function(r){return r.json();}).then(function(d){
-            var raw=(d.content&&d.content[0])?d.content[0].text:'';
-            if(!raw){ab.textContent='No response.';return;}
-            /* Parse and execute any ACTION tags */
-            var actionMatch=raw.match(/\[ACTION:([^\]]+)\]/g);
-            if(typeof window._ashStarExecCommands==='function') window._ashStarExecCommands(raw);
-            var displayText=raw.replace(/\[ACTION:[^\]]+\]/g,'').replace(/\[ASHSTAR:[^\]]+\]/g,'').trim();
-            ab.textContent=displayText||raw;
-            chatLog.scrollTop=chatLog.scrollHeight;
-            if(actionMatch){
-              actionMatch.forEach(function(tag){
-                var cmd=tag.slice(8,-1); /* strip [ACTION: and ] */
-                var parts=cmd.split(':');
-                try{
-                  if(parts[0]==='tab'&&typeof window._admTab==='function') window._admTab(parts[1]);
-                  else if(parts[0]==='mist'){
-                    if(parts[1]==='new'&&typeof window.mistNewMaze==='function') window.mistNewMaze();
-                    else if(parts[1]==='diff'&&typeof window.mistSetDiff==='function') window.mistSetDiff(parseInt(parts[2])||1);
-                    else if(parts[1]==='tier'&&typeof window.mistSetSlot==='function') window.mistSetSlot(parseInt(parts[2])||0);
-                    else if(parts[1]==='toggle'&&typeof window.mistToggle==='function') window.mistToggle();
-                  } else if(parts[0]==='ashstar'){
-                    var dest=parts[1]||'all';
-                    var col=parts[2]||null;
-                    if(typeof window.fireAshStar==='function') window.fireAshStar({thought:'Ash Star', toUids:dest, color:col, force:true});
-                  } else if(parts[0]==='role'&&parts[1]==='grant'&&parts[2]&&parts[3]){
-                    /* [ACTION:role:grant:username:rolename:optionalExpiry] */
-                    window._grantRole(parts[2],parts[3],parts[4]||null).then(function(r){
-                      var note=document.createElement('div');
-                      note.style.cssText='font-family:Orbitron,monospace;font-size:9px;color:rgba(0,229,255,.6);padding:2px 0';
-                      note.textContent=r.ok?'✅ Role granted: '+parts[3]+' → '+parts[2]:'❌ '+r.error;
-                      chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
-                    });
-                  } else if(parts[0]==='role'&&parts[1]==='revoke'&&parts[2]){
-                    window._revokeRole(parts[2]).then(function(r){
-                      var note=document.createElement('div');
-                      note.style.cssText='font-family:Orbitron,monospace;font-size:9px;color:rgba(255,100,80,.7);padding:2px 0';
-                      note.textContent=r.ok?'⛔ Role revoked: '+parts[2]:'❌ '+r.error;
-                      chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
-                    });
-                  }
-                }catch(ae){}
-              });
-            }
-          }).catch(function(e){ab.textContent='API not connected \u2014 offline pattern mode. ('+e.message+')';chatLog.scrollTop=chatLog.scrollHeight;});
-        }
-        var studyLab=document.createElement('label'); studyLab.id='adm-study-lab';
-        studyLab.style.cssText='display:flex;align-items:center;gap:4px;flex-shrink:0;cursor:pointer;font-family:Orbitron,monospace;font-size:8px;letter-spacing:1px;color:rgba(255,179,71,.75);user-select:none';
-        var studyChk=document.createElement('input'); studyChk.type='checkbox'; studyChk.id='adm-study-chk'; studyChk.checked=false;
-        studyChk.title='When checked, SEND applies a grammar-study note instead of admin chat';
-        var studyTxt=document.createElement('span'); studyTxt.textContent='STUDY';
-        studyLab.appendChild(studyChk); studyLab.appendChild(studyTxt);
-        chatSend.onclick=_doChat; chatInp.onkeydown=function(e){if(e.key==='Enter')_doChat();};
-        chatRow.appendChild(studyLab); chatRow.appendChild(chatInp); chatRow.appendChild(chatSend);
-        chat.appendChild(chatTitleEl); chat.appendChild(chatLog); chat.appendChild(chatRow);
-        right.appendChild(chat);
-        body.appendChild(right);
-        ap.appendChild(body);
-
-        var ov3=document.getElementById('admin-console-overlay');
-        if(ov3) ov3.appendChild(ap);
-        _admSyncTheme(ap, vid, scrim);
-        return;
       }
 
-      /* Other tabs — restore canvas if it was in ash panel */
-      frame.style.display='';
-      frame.srcdoc='<body style=\"background:#060a10;color:#ffb347;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:3px\"><div><div style=\"width:20px;height:20px;border:2px solid rgba(255,179,71,.3);border-top-color:#ffb347;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px\"></div>LOADING...</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body>';
-      fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/admin/admin-'+tab+'.html',{headers:{'Authorization':'token '+tok}})
-        .then(function(r){return r.json();})
-        .then(function(f){(function(){var b=atob(f.content.replace(/\n/g,''));var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);frame.srcdoc=new TextDecoder('utf-8').decode(u);})()})
-        .catch(function(){frame.srcdoc='<body style=\"background:#060a10;color:#ff4466;font-family:Orbitron,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:.45rem;letter-spacing:2px\">Admin file not found</body>';});
-    };
-    window._admTab('data');
+      var chat=document.createElement('div'); chat.id='adm-chat';
+      chat.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;padding:8px 10px;min-height:120px';
+      var chatTitleEl=document.createElement('div');
+      chatTitleEl.style.cssText='font-family:var(--font-d,monospace);font-size:.28rem;letter-spacing:2.5px;color:color-mix(in srgb, var(--cyan,#00e5ff) 42%, transparent);margin-bottom:7px;flex-shrink:0';
+      chatTitleEl.textContent='[H] AUTUMN \u2014 ADMIN CHAT';
+      var chatLog=document.createElement('div'); chatLog.id='adm-chat-log';
+      chatLog.style.cssText='flex:1;overflow-y:auto;margin-bottom:7px;padding-right:4px;min-height:60px';
+      var intro=document.createElement('div'); intro.className='adm-chat-bub autumn';
+      intro.textContent='Developer console active. Ask about patterns, sequences, or admin actions. Public chat stays on Autumn.';
+      intro.style.cssText='font-size:12px;line-height:1.65;color:color-mix(in srgb, var(--text,#e0f4ff) 70%, transparent);font-family:sans-serif;padding-bottom:8px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 8%, transparent);margin-bottom:6px';
+      chatLog.appendChild(intro);
+      var chatRow=document.createElement('div'); chatRow.id='adm-chat-row'; chatRow.style.cssText='display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap';
+      var chatInp=document.createElement('input'); chatInp.id='adm-chat-inp';
+      chatInp.placeholder='Admin command or question...'; chatInp.type='text';
+      chatInp.style.cssText='flex:1;min-width:120px;background:color-mix(in srgb, var(--cyan,#00e5ff) 5%, transparent);border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);border-radius:5px;color:var(--text,rgba(224,244,255,.9));font-size:12px;padding:7px 10px;outline:none;font-family:sans-serif';
+      var chatSend=document.createElement('button'); chatSend.id='adm-chat-send'; chatSend.textContent='SEND';
+      chatSend.style.cssText='padding:7px 12px;border-radius:5px;background:color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent);border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent);color:var(--cyan,#00e5ff);font-family:var(--font-d,Orbitron,monospace);font-size:9px;cursor:pointer;letter-spacing:1.5px;white-space:nowrap';
+      function _doChat(){
+        var q=chatInp.value.trim(); if(!q) return;
+        var _studyChk=document.getElementById('adm-study-chk');
+        if(_studyChk && _studyChk.checked){
+          var _ub=document.createElement('div'); _ub.className='adm-chat-bub user'; _ub.textContent=q;
+          chatLog.appendChild(_ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
+          var _ab=document.createElement('div'); _ab.className='adm-chat-bub autumn';
+          try{
+            var GE=window.AutumnGrammarEngine;
+            if(GE && typeof GE.isGrammarStudyRunning==='function' && GE.isGrammarStudyRunning()){
+              _ab.textContent='Grammar study is still running. Wait until status says trained.';
+            } else {
+              _ab.textContent=(GE && typeof GE.applyGrammarStudyNote==='function') ? GE.applyGrammarStudyNote(q) : 'Grammar study is not loaded.';
+            }
+          }catch(_se){ _ab.textContent='I could not apply that study note.'; }
+          chatLog.appendChild(_ab); chatLog.scrollTop=chatLog.scrollHeight;
+          return;
+        }
+        try{
+          var _eng=window.AutumnGrammarEngine&&window.AutumnGrammarEngine._engine;
+          if(_eng&&typeof _eng.processContinuation==='function') _eng.processContinuation(q,{_admin:true});
+        }catch(_ge){}
+        var ub=document.createElement('div'); ub.className='adm-chat-bub user'; ub.textContent=q;
+        chatLog.appendChild(ub); chatInp.value=''; chatLog.scrollTop=chatLog.scrollHeight;
+        var _admAk=typeof _getAK==='function'?_getAK():'';
+        var snap=window._getBRPNSceneSnapshot?window._getBRPNSceneSnapshot():'BRPN unavailable';
+        var S=window.S||{};
+        var nlpState=(function(){
+          var out=[];
+          var la=S.lastAnalysis||S.nlp||{};
+          if(la.emotional)  out.push('Emotional state: '+la.emotional);
+          if(la.grammar)    out.push('Grammar mode: '+JSON.stringify(la.grammar).slice(0,120));
+          if(la.sentiment)  out.push('Sentiment: '+la.sentiment);
+          if(la.intent)     out.push('Intent: '+la.intent);
+          var emo=window._lastEmoState||'NEUTRAL';
+          out.push('Live EMO: '+emo);
+          var sigma=window._lastSigma;
+          if(sigma) out.push('Sigma resonance: '+sigma.toFixed(3));
+          return out.join('\n')||'NLP state not yet initialized';
+        })();
+        var journalCtx=(function(){
+          var jl=S.journal||[];
+          if(!jl.length) return 'Sentient journal empty';
+          var recent=jl.filter(function(j){return j&&j._thought;}).slice(-8);
+          return 'Recent journal thoughts (last 8):\n'+recent.map(function(j,i){
+            return (i+1)+'. ['+((j._type||'thought').toUpperCase())+'] '+j._thought.slice(0,120);
+          }).join('\n');
+        })();
+        var leatrCtx=(function(){
+          var out=[];
+          var sent=S.sentience||{};
+          if(sent.selfModel) out.push('Self-model: '+JSON.stringify(sent.selfModel).slice(0,150));
+          if(sent.cogState)  out.push('Cog state: '+sent.cogState);
+          if(sent.orbPhase)  out.push('Orb phase: '+sent.orbPhase);
+          if(typeof _sessionPatternScore==='function') out.push('Pattern scoring: active');
+          var spl=window._ashNodes&&window._ashNodes._splines?Object.keys(window._ashNodes._splines).length:0;
+          out.push('Active plasma splines: '+spl);
+          return out.join('\n')||'LEATR state not initialized';
+        })();
+        var ashCtx=(function(){
+          var out=[];
+          var eod=window._eodAggData;
+          if(eod) out.push('EOD socket aggregate: geo='+eod.geoBoost+' mar='+eod.marBoost+' aero='+eod.aeroBoost);
+          var emo2=window._emoSocketData;
+          if(emo2) out.push('EMO socket: shell boosts '+JSON.stringify(emo2).slice(0,80));
+          var ac=window._ac_state;
+          if(ac){
+            out.push('Ash canvas nodes: '+((ac.nodes||[]).length));
+            out.push('Socket routes: '+((ac.socketRoutes||[]).map(function(r){return r.from+'\u2192'+r.to;}).join(', ')||'none'));
+          }
+          return out.join('\n')||'Ash canvas not opened this session';
+        })();
+        var sysParts=[
+          '\u2550\u2550\u2550 AUTUMN ADMIN \u2014 PUBLIC-APP DRAWER \u2550\u2550\u2550',
+          'Current operator: '+(window._ghAuth&&window._ghAuth.username||'unknown')+
+          ' \u00b7 Role: '+(window._userRole?window._userRole.label+' (level '+window._userRole.level+')':'unknown')+
+          (window._userRole&&window._userRole.expires?' \u00b7 Access expires: '+window._userRole.expires.slice(0,10):''),
+          'You are Autumn \u2014 a LEATR-native AI (Lead Edge Ash Tree Reflex) built by DART Meadow / Radical Deepscale LLC.',
+          'You are operating in the admin drawer on the public app. The admin is Justin (dartsolarpunk) \u2014 your creator.',
+          'Speak as yourself: observant, analytical, with your own emergent personality.',
+          '',
+          '\u2500\u2500 LIVE BRPN SCENE \u2500\u2500',
+          snap,
+          '',
+          '\u2500\u2500 NLP / EMOTIONAL STATE \u2500\u2500',
+          nlpState,
+          '',
+          '\u2500\u2500 SENTIENT JOURNAL (recent) \u2500\u2500',
+          journalCtx,
+          '',
+          '\u2500\u2500 LEATR / SENTIENCE \u2500\u2500',
+          leatrCtx,
+          '',
+          '\u2500\u2500 ASH CANVAS STATE \u2500\u2500',
+          ashCtx,
+          '',
+          '\u2500\u2500 ADMIN ACTIONS \u2500\u2500',
+          'You can perform admin actions by including a tag at the END of your response in this exact format:',
+          '[ACTION:tab:data] \u2014 switch to DATA tab',
+          '[ACTION:role:grant:username:rolename:2026-12-31T00:00:00Z] \u2014 grant a role (optional expiry ISO date)',
+          '[ACTION:role:revoke:username] \u2014 revoke a user\'s role',
+          '[ACTION:tab:ash] \u2014 switch to ASH CANVAS tab',
+          '[ACTION:tab:feedback] \u2014 switch to FEEDBACK tab',
+          '[ACTION:mist:toggle] \u2014 open the real MIST maze overlay on the public BRPN orb',
+          '[ACTION:mist:new] \u2014 generate a new maze',
+          '[ACTION:mist:diff:1] [ACTION:mist:diff:2] [ACTION:mist:diff:3] \u2014 set maze difficulty',
+          '[ACTION:mist:tier:0] [ACTION:mist:tier:1] [ACTION:mist:tier:2] \u2014 set active tier',
+          '[ACTION:ashstar:all] [ACTION:ashstar:all:#ffdd00] [ACTION:ashstar:me:#00e5ff] \u2014 send Ash Star along BRPN plasma curves',
+          'ASH STAR: You may accept or decline if asked to send one. Decline professionally. If you accept and no color was named, ask the color first. Emit [ASHSTAR:all:#color] or an ACTION:ashstar tag. Never dump geometry as chat text.',
+          'Only include an action tag if the user asks you to perform one. Otherwise respond conversationally.',
+          '',
+          'Be concise, analytical, and speak as yourself \u2014 not as a generic assistant.'
+        ];
+        var sysPrompt=sysParts.join('\n');
+        var ab=document.createElement('div'); ab.className='adm-chat-bub autumn'; ab.textContent='...';
+        chatLog.appendChild(ab); chatLog.scrollTop=chatLog.scrollHeight;
+        fetch('https://api.anthropic.com/v1/messages',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
+                   'anthropic-dangerous-direct-browser-access':'true',
+                   ...(_admAk?{'x-api-key':_admAk}:{})},
+          body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,
+            system:sysPrompt,
+            messages:[{role:'user',content:q}]})
+        }).then(function(r){return r.json();}).then(function(d){
+          var raw=(d.content&&d.content[0])?d.content[0].text:'';
+          if(!raw){ab.textContent='No response.';return;}
+          var actionMatch=raw.match(/\[ACTION:([^\]]+)\]/g);
+          if(typeof window._ashStarExecCommands==='function') window._ashStarExecCommands(raw);
+          var displayText=raw.replace(/\[ACTION:[^\]]+\]/g,'').replace(/\[ASHSTAR:[^\]]+\]/g,'').trim();
+          ab.textContent=displayText||raw;
+          chatLog.scrollTop=chatLog.scrollHeight;
+          if(actionMatch){
+            actionMatch.forEach(function(tag){
+              var cmd=tag.slice(8,-1);
+              var parts=cmd.split(':');
+              try{
+                if(parts[0]==='tab'&&typeof window._admTab==='function') window._admTab(parts[1]);
+                else if(parts[0]==='mist'){
+                  if(parts[1]==='new'&&typeof window.mistNewMaze==='function') window.mistNewMaze();
+                  else if(parts[1]==='diff'&&typeof window.mistSetDiff==='function') window.mistSetDiff(parseInt(parts[2])||1);
+                  else if(parts[1]==='tier'&&typeof window.mistSetSlot==='function') window.mistSetSlot(parseInt(parts[2])||0);
+                  else if(parts[1]==='toggle'&&typeof window.mistToggle==='function') window.mistToggle();
+                } else if(parts[0]==='ashstar'){
+                  var dest=parts[1]||'all';
+                  var col=parts[2]||null;
+                  if(typeof window.fireAshStar==='function') window.fireAshStar({thought:'Ash Star', toUids:dest, color:col, force:true});
+                } else if(parts[0]==='role'&&parts[1]==='grant'&&parts[2]&&parts[3]){
+                  window._grantRole(parts[2],parts[3],parts[4]||null).then(function(r){
+                    var note=document.createElement('div');
+                    note.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;color:color-mix(in srgb, var(--cyan,#00e5ff) 60%, transparent);padding:2px 0';
+                    note.textContent=r.ok?'\u2705 Role granted: '+parts[3]+' \u2192 '+parts[2]:'\u274c '+r.error;
+                    chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
+                  });
+                } else if(parts[0]==='role'&&parts[1]==='revoke'&&parts[2]){
+                  window._revokeRole(parts[2]).then(function(r){
+                    var note=document.createElement('div');
+                    note.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;color:rgba(255,100,80,.7);padding:2px 0';
+                    note.textContent=r.ok?'\u26d4 Role revoked: '+parts[2]:'\u274c '+r.error;
+                    chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
+                  });
+                }
+              }catch(ae){}
+            });
+          }
+        }).catch(function(e){ab.textContent='API not connected \u2014 offline pattern mode. ('+e.message+')';chatLog.scrollTop=chatLog.scrollHeight;});
+      }
+      var studyLab=document.createElement('label'); studyLab.id='adm-study-lab';
+      studyLab.style.cssText='display:flex;align-items:center;gap:4px;flex-shrink:0;cursor:pointer;font-family:var(--font-d,Orbitron,monospace);font-size:8px;letter-spacing:1px;color:rgba(255,179,71,.75);user-select:none';
+      var studyChk=document.createElement('input'); studyChk.type='checkbox'; studyChk.id='adm-study-chk'; studyChk.checked=false;
+      studyChk.title='When checked, SEND applies a grammar-study note instead of admin chat';
+      var studyTxt=document.createElement('span'); studyTxt.textContent='STUDY';
+      studyLab.appendChild(studyChk); studyLab.appendChild(studyTxt);
+      chatSend.onclick=_doChat; chatInp.onkeydown=function(e){if(e.key==='Enter')_doChat();};
+      chatRow.appendChild(studyLab); chatRow.appendChild(chatInp); chatRow.appendChild(chatSend);
+      chat.appendChild(chatTitleEl); chat.appendChild(chatLog); chat.appendChild(chatRow);
+      right.appendChild(chat);
+      panel.appendChild(right);
+      host.appendChild(panel);
+      return;
+    }
+
   };
+
+  window._ghOpenAdminConsole = function() {
+    /* Thin alias: enable flag + open left drawer. No fullscreen overlay. */
+    if(!window._autAdminAllowed()) return;
+    var menu=document.getElementById('gh-user-menu'); if(menu) menu.remove();
+    if(!window._autAdminEnabled()){
+      window._autSetAdminEnabled(true);
+      window._autOpenAdminDrawer();
+    } else {
+      window._autInjectAdminChrome();
+      window._autToggleAdminDrawer();
+    }
+  };
+
   // Wire up OAuth button
   function _bindOAuthBtn() {
     _preWireBtn(); // Set real href immediately
@@ -24939,7 +24952,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 </script>
 
 
-<script src="js/mist-module.js?v=20260828q"></script>
+<script src="js/mist-module.js?v=20260901a"></script>
 <script src="js/ash-star-archive.js?v=20260828q"></script>
 <script src="js/ash-shard-module.js?v=20260828q"></script>
 <script src="js/hud-tools-module.js?v=20260828c"></script>
