@@ -96,6 +96,7 @@
     if(!list) return;
     if(!cards.length){
       list.innerHTML='<div class="astar-empty">NO STARS THIS SESSION</div>';
+      _updateSaveAll();
       return;
     }
     list.innerHTML=cards.map(function(c){
@@ -130,6 +131,7 @@
         _saveCard(btn.getAttribute('data-id'));
       });
     });
+    _updateSaveAll();
   }
 
   function _toast(msg){
@@ -145,11 +147,11 @@
     t._timer=setTimeout(function(){ t.classList.remove('show'); }, 2800);
   }
 
-  function _markSaved(card, okMsg){
+  function _markSaved(card, okMsg, quiet){
     card.saved=true;
     _persist();
     _render();
-    _toast(okMsg||'Saved to Autumn\'s journal');
+    if(!quiet) _toast(okMsg||'Saved to Autumn\'s journal');
   }
 
   function _putUserRepo(card){
@@ -187,10 +189,43 @@
     }).catch(function(){ return false; });
   }
 
-  function _saveCard(id){
+  function _unsavedCards(){
+    return cards.filter(function(c){ return c && !c.saved; });
+  }
+  function _updateSaveAll(){
+    var btn=document.getElementById('astar-save-all');
+    if(!btn) return;
+    var n=_unsavedCards().length;
+    if(btn._busy){
+      btn.disabled=true;
+      btn.textContent='⬡ SAVING…';
+      return;
+    }
+    btn.disabled=n===0;
+    btn.textContent='⬡ SAVE ALL';
+  }
+  function _saveAll(){
+    var unsaved=_unsavedCards();
+    if(!unsaved.length) return;
+    var btn=document.getElementById('astar-save-all');
+    if(btn){ btn._busy=true; btn.disabled=true; btn.textContent='⬡ SAVING…'; }
+    var i=0;
+    function next(){
+      if(i>=unsaved.length){
+        if(btn) btn._busy=false;
+        _updateSaveAll();
+        _toast('⬡ SAVED ALL — '+unsaved.length);
+        return;
+      }
+      var c=unsaved[i++];
+      Promise.resolve(_saveCard(c.id, true)).then(next, next);
+    }
+    next();
+  }
+  function _saveCard(id, quiet){
     var card=null;
     for(var i=0;i<cards.length;i++){ if(cards[i].id===id){ card=cards[i]; break; } }
-    if(!card||card.saved) return;
+    if(!card||card.saved) return Promise.resolve(false);
     var btn=document.querySelector('.astar-save[data-id="'+id+'"]');
     if(btn){ btn.textContent='⬡ SAVING…'; btn.disabled=true; }
 
@@ -231,14 +266,16 @@
     // 4. Personal private repo via the user's OAuth — never a PAT
     var loggedIn=window._ghAuth && window._ghAuth.token && window._ghAuth.username;
     if(loggedIn){
-      _putUserRepo(card).then(function(ok){
-        _markSaved(card, ok ? '⬡ SAVED — journal + repo' : 'Saved to Autumn\'s journal');
+      return _putUserRepo(card).then(function(ok){
+        _markSaved(card, ok ? '⬡ SAVED — journal + repo' : 'Saved to Autumn\'s journal', quiet);
+        return true;
       }).catch(function(){
-        _markSaved(card, 'Saved to Autumn\'s journal');
+        _markSaved(card, 'Saved to Autumn\'s journal', quiet);
+        return true;
       });
-    } else {
-      _markSaved(card, 'Saved to Autumn\'s journal');
     }
+    _markSaved(card, 'Saved to Autumn\'s journal', quiet);
+    return Promise.resolve(true);
   }
 
   function injectCSS(){
@@ -272,8 +309,12 @@
         'text-shadow:0 0 7px color-mix(in srgb, var(--cyan,#00e5ff) 45%, transparent)}',
       '.astar-sub{font-family:var(--font-d,monospace);font-size:.27rem;letter-spacing:2px;',
         'color:color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent)}',
-      '#astar-x{margin-left:auto;background:none;border:none;color:color-mix(in srgb, var(--cyan,#00e5ff) 35%, transparent);',
-        'font-size:12px;cursor:pointer;padding:2px 4px;line-height:1}',
+      '#astar-save-all{margin-left:auto;background:transparent;border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 45%, transparent);',
+        'color:var(--cyan,#00e5ff);padding:2px 6px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);',
+        'font-size:.24rem;letter-spacing:1px;white-space:nowrap;flex-shrink:0}',
+      '#astar-save-all:disabled{opacity:.45;cursor:default}',
+      '#astar-x{background:none;border:none;color:color-mix(in srgb, var(--cyan,#00e5ff) 35%, transparent);',
+        'font-size:12px;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0}',
       '#astar-list{background:rgba(255,255,255,.05);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
         'border:1px solid var(--border, color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent));',
         'border-radius:0 0 7px 7px;padding:8px;max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;',
@@ -328,6 +369,7 @@
         '<div id="astar-head-row">',
           '<span class="astar-lbl">✦ ASH STAR</span>',
           '<span class="astar-sub">ARCHIVE</span>',
+          '<button id="astar-save-all" type="button">⬡ SAVE ALL</button>',
           '<button id="astar-x" type="button">✕</button>',
         '</div>',
       '</div>',
@@ -337,6 +379,9 @@
     document.body.appendChild(ov);
     var xb=document.getElementById('astar-x');
     if(xb) xb.onclick=function(e){ e.stopPropagation(); astarToggle(); };
+    var sab=document.getElementById('astar-save-all');
+    if(sab) sab.onclick=function(e){ e.stopPropagation(); _saveAll(); };
+    _updateSaveAll();
   }
 
   function _out(e){
