@@ -430,6 +430,13 @@ body.iframe-mode #globe-sat-count { font-size: .52rem; padding: 6px 8px; }
 let myLat=null,myLon=null,myAcc=null;
 let currentTab='aerial';
 
+// CARTO basemap key for leatr.xyz. Empty until dispatcher wires the free key.
+// Do not invent one. Fallback is ESRI World Dark Gray.
+var CARTO_BASEMAP_KEY = '';
+var CARTO_DARK_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+var ESRI_DARK_URL  = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+var OSM_CARTO_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
 // Aerial
 let aircraftData=[];
 let selectedIcao=null;
@@ -592,13 +599,19 @@ setInterval(()=>{
 function initMap(lat,lon){
   if(leafMap)return;
   sizeViews();
-  leafMap=L.map('map',{center:[lat,lon],zoom:9,zoomControl:true,attributionControl:false});
+  leafMap=L.map('map',{center:[lat,lon],zoom:9,zoomControl:true,attributionControl:true});
 
-  // ── Dark tiles from CartoDB (no CSS filter hack needed) ──
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    maxZoom:20,
-    subdomains:'abcd'
-  }).addTo(leafMap);
+  // Dark basemap: CARTO dark_all + key when present; ESRI World Dark Gray otherwise.
+  if(CARTO_BASEMAP_KEY){
+    L.tileLayer(CARTO_DARK_URL+'?key='+encodeURIComponent(CARTO_BASEMAP_KEY),{
+      maxZoom:20, subdomains:'abcd', attribution: OSM_CARTO_ATTR
+    }).addTo(leafMap);
+  }else{
+    L.tileLayer(ESRI_DARK_URL,{
+      maxZoom:16,
+      attribution: 'Tiles &copy; Esri — '+OSM_CARTO_ATTR
+    }).addTo(leafMap);
+  }
 
   const markerHtml=`
     <style>@keyframes upr{0%{transform:translate(-50%,-50%) scale(.5);opacity:.9}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}</style>
@@ -756,20 +769,7 @@ async function fetchAircraft(){
     }));
   }
 
-  // ── Primary: airplanes.live — free, no auth, solid CORS ──
-  if(!loaded){
-    try{
-      const r=await fetch(`https://api.airplanes.live/v2/point/${myLat.toFixed(4)}/${myLon.toFixed(4)}/${distNm}`,
-        {signal:makeSignal(10000)});
-      if(!r.ok)throw new Error(`airplanes.live HTTP ${r.status}`);
-      const d=await r.json();
-      aircraftData=mapAc(d.ac||[]);
-      loaded=true;
-      document.getElementById('adsb-status').textContent=`ADS-B LIVE (${aircraftData.length} contacts)`;
-    }catch(e){ console.warn('[ADS-B] airplanes.live failed:',e.message); }
-  }
-
-  // ── Fallback 1: adsb.lol ──
+  // ── Primary: adsb.lol (live 200, user lat/lon — not a hardcoded city) ──
   if(!loaded){
     try{
       const r=await fetch(`https://api.adsb.lol/v2/lat/${myLat.toFixed(4)}/lon/${myLon.toFixed(4)}/dist/${distNm}`,
@@ -780,6 +780,19 @@ async function fetchAircraft(){
       loaded=true;
       document.getElementById('adsb-status').textContent='ADS-B LIVE (LOL)';
     }catch(e){ console.warn('[ADS-B] adsb.lol failed:',e.message); }
+  }
+
+  // ── Fallback 1: airplanes.live ──
+  if(!loaded){
+    try{
+      const r=await fetch(`https://api.airplanes.live/v2/point/${myLat.toFixed(4)}/${myLon.toFixed(4)}/${distNm}`,
+        {signal:makeSignal(10000)});
+      if(!r.ok)throw new Error(`airplanes.live HTTP ${r.status}`);
+      const d=await r.json();
+      aircraftData=mapAc(d.ac||[]);
+      loaded=true;
+      document.getElementById('adsb-status').textContent=`ADS-B LIVE (${aircraftData.length} contacts)`;
+    }catch(e){ console.warn('[ADS-B] airplanes.live failed:',e.message); }
   }
 
   // ── Fallback 2: opendata.adsb.fi ──
