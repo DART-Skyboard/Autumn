@@ -23979,7 +23979,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .catch(function() {
         // Fallback: GAS proxy (used only if direct GitHub call fails)
         return fetch(_gasUrl + '?action=devicepoll&device_code=' + encodeURIComponent(deviceCode), {
-          signal: AbortSignal.timeout(12000)
+          signal: (function(){
+          if(typeof AbortSignal!=='undefined' && typeof AbortSignal.timeout==='function') return AbortSignal.timeout(12000);
+          if(typeof AbortController!=='undefined'){ var c=new AbortController(); setTimeout(function(){ try{ c.abort(); }catch(e){} }, 12000); return c.signal; }
+        })()
         }).then(function(r){ return r.ok ? r.json() : {}; });
       })
       .catch(function(){ return {}; })
@@ -25409,29 +25412,44 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   function _admDecodeGh(d){
     var raw=d && d.content;
     if(!raw && d && typeof d.payload!=='undefined') return typeof d.payload==='string'?d.payload:JSON.stringify(d.payload);
-    if(!raw) return '[]';
-    var b=atob(String(raw).replace(/\n/g,''));
-    var u=new Uint8Array(b.length);
-    for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i);
-    return new TextDecoder('utf-8').decode(u);
+    if(!raw) return null;
+    try{
+      var b=atob(String(raw).replace(/\n/g,''));
+      var u=new Uint8Array(b.length);
+      for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i);
+      return new TextDecoder('utf-8').decode(u);
+    }catch(e){ return null; }
   }
   function _admFbPath(folder){
-    return folder==='inbox' ? 'feedback/inbox.json' : 'feedback/'+folder+'.json';
+    var f=String(folder||'inbox').toLowerCase();
+    if(f==='archive') f='analysis';
+    return 'feedback/'+f+'.json';
   }
-  function _admRaceTimeout(p, ms, label){
-    var settled=false;
-    var timer;
+  function _admFbLegacyPaths(folder){
+    var f=String(folder||'inbox').toLowerCase();
+    if(f==='archive' || f==='analysis'){
+      return ['feedback/analysis.json','feedback/archive.json','feedback/inbox-archive.json','feedback/inbox_archive.json'];
+    }
+    if(f==='inbox') return ['feedback/inbox.json'];
+    if(f==='read') return ['feedback/read.json'];
+    if(f==='trash') return ['feedback/trash.json'];
+    return ['feedback/'+f+'.json'];
+  }
+  function _admWithTimeout(factory, ms, label){
+    var ctrl=typeof AbortController!=='undefined' ? new AbortController() : null;
+    var timer=null;
+    var p;
+    try{ p=factory(ctrl?ctrl.signal:undefined); }
+    catch(e){ return Promise.reject(e); }
     var timeoutP=new Promise(function(_, reject){
       timer=setTimeout(function(){
-        if(!settled) reject(new Error((label||'request')+' timeout'));
+        try{ if(ctrl) ctrl.abort(); }catch(err){}
+        reject(new Error((label||'request')+' timeout'));
       }, ms);
     });
+    function stop(){ if(timer) clearTimeout(timer); }
     return Promise.race([
-      Promise.resolve(p).then(function(v){
-        settled=true; if(timer) clearTimeout(timer); return v;
-      }, function(e){
-        settled=true; if(timer) clearTimeout(timer); throw e;
-      }),
+      Promise.resolve(p).then(function(v){ stop(); return v; }, function(e){ stop(); throw e; }),
       timeoutP
     ]);
   }
@@ -25454,126 +25472,266 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       return o;
     }catch(e){ return null; }
   }
-  function _admCacheSet(path, sha, entries){
+  function _admCacheSet(path, sha, entries, confirmedEmpty){
     try{
+      if(!Array.isArray(entries)) entries=[];
+      if(entries.length===0 && !confirmedEmpty){
+        return;
+      }
       localStorage.setItem(_admCacheKey(path), JSON.stringify({
         sha:sha||null,
-        entries:Array.isArray(entries)?entries:[],
+        entries:entries,
         ts:Date.now()
       }));
     }catch(e){}
   }
   function _admAttachMeta(d, status, via){
-    if(d && typeof d==='object'){ d._http=status; d._via=via; return d; }
-    return {_http:status, _via:via, payload:d};
+    if(d && typeof d==='object'){
+      if(typeof d._http!=='undefined' && d._http!==null && d._http!==''){
+        d._ghHttp=d._http;
+      } else {
+        d._http=status;
+      }
+      d._fetchHttp=status;
+      d._via=via;
+      return d;
+    }
+    return {_http:status, _fetchHttp:status, _via:via, payload:d};
   }
   function _admParseBody(r, via){
-    return r.json().then(function(d){
+    return r.text().then(function(txt){
+      var d=null;
+      try{ d=JSON.parse(txt); }catch(e){ return {_http:r.status, _fetchHttp:r.status, _via:via, _parseError:true}; }
       return _admAttachMeta(d, r.status, via);
     }, function(){
-      return {_http:r.status, _via:via, _parseError:true};
+      return {_http:r.status, _fetchHttp:r.status, _via:via, _parseError:true};
     });
+  }
+  function _admErrText(d){
+    if(!d) return '';
+    return String((d.error||d.message)||'');
   }
   function _admIsRateLimit(d){
     if(!d) return false;
-    if(d._http===403) return true;
-    var m=String((d.message||d.error)||'');
-    return /rate limit/i.test(m) || /API rate limit exceeded/i.test(m);
+    var code=d._ghHttp || d._http || d._fetchHttp;
+    if(code===403 || code===429) return true;
+    var m=_admErrText(d);
+    return /rate limit/i.test(m) || /API rate limit exceeded/i.test(m) || /GitHub read 403/i.test(m) || /GitHub read 429/i.test(m);
   }
   function _admIsNotFound(d){
     if(!d) return false;
-    if(d._http===404) return true;
-    var m=String((d.message||d.error)||'');
-    return /not found/i.test(m);
+    if(d._http===404 || d._ghHttp===404) return true;
+    var m=_admErrText(d);
+    return /not found/i.test(m) || /GitHub read 404/i.test(m);
   }
   function _admUsable(d){
     if(!d || d._parseError) return false;
     if(_admIsRateLimit(d)) return false;
+    var err=_admErrText(d);
+    if(err && (/rate limit/i.test(err) || /GitHub read/i.test(err)) && !/GitHub read 404/i.test(err) && !/not found/i.test(err)) return false;
+    if(d.error && typeof d.payload==='undefined' && !d.content && !Array.isArray(d.data) && !Array.isArray(d)) return false;
     if(_admIsNotFound(d)) return true;
     if(Array.isArray(d)) return true;
     if(Array.isArray(d.data)) return true;
     if(Array.isArray(d.payload)) return true;
-    if(typeof d.content!=='undefined' && d.content!==null) return true;
-    if(d._http===200) return true;
+    if(typeof d.payload!=='undefined' && d.payload!==null) return true;
+    if(typeof d.content==='string' && d.content.length>0) return true;
     return false;
   }
-  function _admWriteJson(path, arr, sha, msg){
+  function _admPayloadArr(d){
+    if(!d || !_admUsable(d)) return null;
+    if(Array.isArray(d)) return d;
+    if(Array.isArray(d.data)) return d.data;
+    if(Array.isArray(d.payload)) return d.payload;
+    if(typeof d.payload==='string'){
+      try{
+        var p=JSON.parse(d.payload);
+        if(Array.isArray(p)) return p;
+        if(p && Array.isArray(p.entries)) return p.entries;
+      }catch(e){}
+    }
+    if(d.content){
+      try{
+        var decoded=_admDecodeGh(d);
+        if(!decoded) return null;
+        var parsed=JSON.parse(decoded);
+        if(Array.isArray(parsed)) return parsed;
+        if(parsed && Array.isArray(parsed.entries)) return parsed.entries;
+      }catch(e){}
+    }
+    return null;
+  }
+  function _admWriteJson(path, arr, sha, msg, opts){
+    opts=opts||{};
+    var append=!!opts.append;
     var gas=_admGasUrl();
     if(!Array.isArray(arr)) arr=[];
     var cached=_admCacheGet(path);
-    if(arr.length===0 && cached && cached.entries && cached.entries.length>0 && !/delete/i.test(msg||"")) return Promise.reject(new Error("refusing to overwrite inbox with empty"));
-    var writeP;
-    if(gas){
-      writeP=fetch(gas,{
-        method:'POST',
-        headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'ashwrite', path:path, uid:(window._ghAuth&&window._ghAuth.username)||'admin', append:false, payload:arr, message:msg||''})
-      }).then(function(r){ if(!r.ok) throw new Error('GAS write failed'); return {commit:true}; });
-    } else {
+    var isDelete=/delete/i.test(msg||'');
+    if(!append && arr.length===0 && cached && cached.entries && cached.entries.length>0 && !isDelete && !/move/i.test(msg||'')){
+      return Promise.reject(new Error('refusing to overwrite '+path+' with empty'));
+    }
+    if(!append && arr.length<=1 && !sha && cached && cached.entries && cached.entries.length>arr.length){
+      return Promise.reject(new Error('refusing to PUT '+arr.length+'-item over '+path+' without confirmed GET'));
+    }
+    function viaGas(useAppend){
+      if(!gas) return Promise.reject(new Error('no gas'));
+      return _admWithTimeout(function(signal){
+        return fetch(gas,{
+          method:'POST',
+          headers:{'Content-Type':'text/plain'},
+          body:JSON.stringify({action:'ashwrite', path:path, uid:(window._ghAuth&&window._ghAuth.username)||'admin', append:!!useAppend, payload:arr, message:msg||''}),
+          signal:signal
+        }).then(function(r){
+          return r.text().then(function(txt){
+            var d=null; try{ d=JSON.parse(txt); }catch(e){}
+            if(d && d.error && !d.ok && !d.commit && !d.sha) throw new Error(d.error||d.message||'GAS write failed');
+            if(!r.ok && !(d && (d.ok||d.commit||d.sha))) throw new Error((d&&(d.error||d.message))||('GAS write failed '+r.status));
+            return d&&(d.commit||d.ok||d.sha||d.path) ? (d.commit?d:{commit:true,sha:d.sha}) : {commit:true};
+          });
+        });
+      }, 12000, 'write');
+    }
+    function viaGh(){
       var tok=_admGhTok();
       if(!tok) return Promise.reject(new Error('no write path'));
-      var body={message:msg, content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))};
-      if(sha) body.sha=sha;
-      writeP=fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path,{
-        method:'PUT',
-        headers:{Authorization:'token '+tok,'Content-Type':'application/json','User-Agent':'DART/1.0'},
-        body:JSON.stringify(body)
-      }).then(function(r){return r.json();}).then(function(d){if(!d.commit)throw new Error(d.message||'write failed');return d;});
+      if(!sha) return Promise.reject(new Error('no sha — refuse PUT without confirmed GET'));
+      var body={message:msg, content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2)))), sha:sha};
+      return _admWithTimeout(function(signal){
+        return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path,{
+          method:'PUT',
+          signal:signal,
+          headers:{Authorization:'token '+tok,'Content-Type':'application/json','User-Agent':'DART/1.0'},
+          body:JSON.stringify(body)
+        }).then(function(r){
+          return r.json().then(function(d){
+            if(!d.commit) throw new Error(d.message||'write failed');
+            return d;
+          });
+        });
+      }, 12000, 'write');
     }
-    return _admRaceTimeout(writeP, 12000, 'write').then(function(d){
-      var newSha=(d && d.content && d.content.sha) || (d && d.sha) || null;
-      _admCacheSet(path, newSha, arr);
+    var writeP;
+    if(append){
+      writeP=viaGas(true);
+    } else if(gas){
+      writeP=viaGas(false).catch(function(){ return viaGh(); });
+    } else {
+      writeP=viaGh();
+    }
+    return writeP.then(function(d){
+      var newSha=(d && d.content && d.content.sha) || (d && d.sha) || sha || null;
+      _admCacheSet(path, newSha, arr, arr.length===0);
       return d;
     });
   }
   function _admFetchJson(path){
     var gas=_admGasUrl();
-    var viaGh=function(){
+    var viaGh=function(signal){
       var tok=_admGhTok();
       if(!tok) return Promise.reject(new Error('no token'));
       return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path+'?ts='+Date.now(),{
         cache:'no-store',
+        signal:signal,
         headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'}
-      }).then(function(r){ return _admParseBody(r, 'gh'); });
+      }).then(function(r){
+        if(r.status===403 || r.status===429){
+          return r.text().then(function(txt){
+            var d=null; try{ d=JSON.parse(txt); }catch(e){}
+            d=d||{error:'GitHub read '+r.status};
+            return _admAttachMeta(d, r.status, 'gh');
+          });
+        }
+        return _admParseBody(r, 'gh');
+      });
     };
-    var viaGas=function(){
+    var viaGas=function(signal){
       if(!gas) return Promise.reject(new Error('no gas'));
       return fetch(gas,{
         method:'POST',
         headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'ashread', path:path})
+        body:JSON.stringify({action:'ashread', path:path}),
+        signal:signal
       }).then(function(r){ return _admParseBody(r, 'gas'); });
     };
-    var ghP=_admRaceTimeout(viaGh(), 8000, 'github');
-    var gasP=gas ? _admRaceTimeout(viaGas(), 12000, 'gas') : Promise.reject(new Error('no gas'));
-    var both=_admAllSettled([ghP, gasP]);
+    var gasP=gas ? _admWithTimeout(viaGas, 12000, 'gas') : Promise.reject(new Error('no gas'));
+    var ghP=_admWithTimeout(viaGh, 8000, 'github').then(function(d){
+      if(d && _admIsRateLimit(d)) return {_http:d._http||403, _via:'gh', _ignored:true, error:d.error||d.message||'rate limit'};
+      return d;
+    }, function(e){
+      return {_via:'gh', _ignored:true, error:(e&&e.message)||'github failed'};
+    });
     function pick(results){
       var gh=results[0].status==='fulfilled' ? results[0].value : null;
       var gs=results[1].status==='fulfilled' ? results[1].value : null;
       var ghErr=results[0].status==='rejected' ? results[0].reason : null;
       var gsErr=results[1].status==='rejected' ? results[1].reason : null;
-      if(gh && _admUsable(gh)) return gh;
-      if(gs && _admUsable(gs)) return gs;
-      var msg=(gh && (gh.message||gh.error))
-        || (gs && (gs.message||gs.error))
-        || (ghErr && ghErr.message)
+      if(gh && (gh._ignored || _admIsRateLimit(gh) || !_admUsable(gh))) gh=null;
+      if(gs && (_admIsRateLimit(gs) || !_admUsable(gs))) gs=null;
+      var ghArr=_admPayloadArr(gh);
+      var gsArr=_admPayloadArr(gs);
+      var ghLen=ghArr ? ghArr.length : -1;
+      var gsLen=gsArr ? gsArr.length : -1;
+      if(gsLen>=0 && ghLen>=0) return gsLen>=ghLen ? gs : gh;
+      if(gsLen>=0) return gs;
+      if(ghLen>=0) return gh;
+      if(gs && _admIsNotFound(gs)) return gs;
+      if(gh && _admIsNotFound(gh)) return gh;
+      var msg=(gs && (gs.error||gs.message))
+        || (gh && (gh.error||gh.message))
         || (gsErr && gsErr.message)
+        || (ghErr && ghErr.message)
         || 'fetch failed';
       throw new Error(msg);
     }
-    return ghP.then(function(d){
-      if(_admUsable(d)) return d;
-      return both.then(pick);
-    }, function(){
-      return both.then(pick);
+    return _admAllSettled([ghP, gasP]).then(pick);
+  }
+  function _admFetchFolder(folder){
+    var paths=_admFbLegacyPaths(folder);
+    var primary=paths[0];
+    function better(a, b){
+      var aa=_admPayloadArr(a);
+      var ba=_admPayloadArr(b);
+      var al=aa?aa.length:-1;
+      var bl=ba?ba.length:-1;
+      if(bl>al) return b;
+      if(al>=0) return a;
+      if(b && _admIsNotFound(b) && !a) return b;
+      return a||b;
+    }
+    return _admFetchJson(primary).then(function(d){
+      var arr=_admPayloadArr(d);
+      if(arr && arr.length) return d;
+      if(paths.length<2) return d;
+      var tries=paths.slice(1).map(function(p){ return _admFetchJson(p).then(function(x){return x;}, function(){ return null; }); });
+      return _admAllSettled(tries).then(function(results){
+        var best=d;
+        results.forEach(function(r){
+          if(r.status==='fulfilled' && r.value) best=better(best, r.value);
+        });
+        return best;
+      });
+    }, function(err){
+      if(paths.length<2) throw err;
+      var tries=paths.slice(1).map(function(p){ return _admFetchJson(p); });
+      return _admAllSettled(tries).then(function(results){
+        var best=null;
+        var lastErr=err;
+        results.forEach(function(r){
+          if(r.status==='fulfilled' && r.value) best=better(best, r.value);
+          else if(r.status==='rejected') lastErr=r.reason;
+        });
+        if(best) return best;
+        throw lastErr;
+      });
     });
   }
 
   /* Port of leatr-ash admin/admin-feedback.html — same inbox path/shape. */
   window._admMountFeedbackUI = function(host, opts){
     opts=opts||{};
-    var folders=opts.inboxOnly ? ['inbox'] : ['inbox','analysis','read','trash'];
-    var st={folder: opts.folder||'inbox', data:[], sha:null};
+    var folders=['inbox','analysis','read','trash'];
+    var st={folder: opts.folder||'inbox', data:[], sha:null, syncOk:false};
     var loadGen=0;
     host.innerHTML='';
     var wrap=document.createElement('div'); wrap.id=opts.rootId||'adm-fb-panel';
@@ -25667,7 +25825,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           if(danger){ b.style.borderColor='rgba(200,0,0,.3)'; b.style.color='rgba(255,60,60,.75)'; }
           b.onclick=function(ev){
             ev.stopPropagation();
-            if(dest==='__del'){ if(confirm('Delete this entry permanently?')) deleteSingle(i); }
+            if(dest==='__del'){
+              if(st.folder!=='trash'){ moveSingle(i, 'trash'); }
+              else if(confirm('Delete this entry permanently?')) deleteSingle(i);
+            }
             else moveSingle(i, dest);
           };
           return b;
@@ -25691,61 +25852,116 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       setStatus(st.data.length+' entries in '+st.folder.toUpperCase()+' (feedback/'+(st.folder==='inbox'?'inbox':st.folder)+'.json)');
     }
     function applyParsed(d, path){
-      if(d && d.message && !d.content && typeof d.payload==='undefined' && !Array.isArray(d.data) && !Array.isArray(d)){
-        if(d._http===404 || /not found/i.test(d.message||'')){
-          return {data:[], sha:null, notFound:true};
+      if(!d) throw new Error('empty response');
+      if(_admIsRateLimit(d)) throw new Error(_admErrText(d)||'rate limit');
+      if(d.error || (d.message && !d.content && typeof d.payload==='undefined' && !Array.isArray(d.data) && !Array.isArray(d))){
+        if(_admIsNotFound(d)){
+          return {data:[], sha:null, notFound:true, confirmedEmpty:true};
         }
-        throw new Error(d.message);
+        throw new Error(d.error||d.message||'fetch failed');
       }
       var parsed=null;
       if(Array.isArray(d)) parsed=d;
       else if(Array.isArray(d.data)) parsed=d.data;
-      else if(typeof d.payload!=='undefined') parsed=d.payload;
-      else parsed=JSON.parse(_admDecodeGh(d)||'[]');
+      else if(typeof d.payload!=='undefined'){
+        parsed=d.payload;
+        if(typeof parsed==='string'){
+          try{ parsed=JSON.parse(parsed); }catch(e){ throw new Error('payload parse failed'); }
+        }
+      } else {
+        var decoded=_admDecodeGh(d);
+        if(decoded==null) throw new Error('no content');
+        parsed=JSON.parse(decoded);
+      }
       if(parsed && !Array.isArray(parsed) && Array.isArray(parsed.entries)) parsed=parsed.entries;
       if(!Array.isArray(parsed)) parsed=[];
-      return {data:parsed, sha:(d && d.sha)||null, notFound:false};
+      var confirmedEmpty=parsed.length===0 && !d.error && !_admIsRateLimit(d);
+      return {data:parsed, sha:(d && d.sha)||null, notFound:false, confirmedEmpty:confirmedEmpty};
     }
-    function loadFolder(folder){
-      st.folder=folder; markTabs();
+    function loadFolder(folder, opts){
+      opts=opts||{};
+      var silent=!!opts.silent;
       var path=_admFbPath(folder);
-      var gen=++loadGen;
-      var cached=_admCacheGet(path);
-      if(cached){
-        st.data=cached.entries;
-        st.sha=cached.sha||null;
-        render();
-        setStatus(st.data.length+' entries (last saved) — syncing…');
+      var gen;
+      if(!silent){
+        st.folder=folder; markTabs();
+        gen=++loadGen;
+        var cached=_admCacheGet(path);
+        if(cached && cached.entries && cached.entries.length){
+          st.data=cached.entries;
+          st.sha=cached.sha||null;
+          st.syncOk=true;
+          render();
+          setStatus(st.data.length+' entries (last saved) — syncing…');
+        } else {
+          setStatus('LOADING '+folder.toUpperCase()+'...');
+        }
       } else {
-        setStatus('LOADING '+folder.toUpperCase()+'...');
+        gen=loadGen;
+        cached=_admCacheGet(path);
       }
-      _admFetchJson(path).then(function(d){
-        if(gen!==loadGen) return;
-        var got=applyParsed(d, path);
-        st.sha=got.sha;
-        st.data=got.data;
-        _admCacheSet(path, st.sha, st.data);
-        render();
-        if(got.notFound) setStatus('0 entries — inbox file not created yet');
-      }).catch(function(e){
-        if(gen!==loadGen) return;
-        if(cached){
-          setStatus('showing last saved — sync failed');
+      var done=false;
+      function keepCache(){
+        if(done) return;
+        if(!silent && gen!==loadGen) return;
+        done=true;
+        if(failTimer) clearTimeout(failTimer);
+        if(silent) return;
+        var cur=_admCacheGet(path);
+        if(cur && cur.entries && cur.entries.length){
+          st.data=cur.entries;
+          st.sha=cur.sha||null;
+          st.syncOk=true;
+          render();
+        }
+        setStatus('showing last saved — sync failed');
+      }
+      var failTimer=null;
+      if(!silent){
+        failTimer=setTimeout(function(){ keepCache(); }, 12000);
+      }
+      _admFetchFolder(folder).then(function(d){
+        if(done) return;
+        if(!silent && gen!==loadGen) return;
+        var got;
+        try{ got=applyParsed(d, path); }catch(err){ keepCache(); return; }
+        var remoteEmpty=!got.data || !got.data.length;
+        var liveCache=_admCacheGet(path);
+        var cacheHas=liveCache && liveCache.entries && liveCache.entries.length;
+        if(remoteEmpty && cacheHas && !got.confirmedEmpty && !got.notFound){
+          keepCache();
           return;
         }
-        st.data=[]; st.sha=null; render();
-        setStatus('Error: '+(e&&e.message||'empty'));
+        if(remoteEmpty && !got.confirmedEmpty && !got.notFound){
+          keepCache();
+          return;
+        }
+        done=true;
+        if(failTimer) clearTimeout(failTimer);
+        if(got.data.length || got.confirmedEmpty || got.notFound){
+          _admCacheSet(path, got.sha, got.data, !!(got.confirmedEmpty||got.notFound));
+        }
+        if(silent) return;
+        st.sha=got.sha;
+        st.data=got.data;
+        st.syncOk=true;
+        render();
+        if(got.notFound) setStatus('0 entries — mailbox file not created yet');
+      }).catch(function(){
+        keepCache();
       });
     }
     function appendToDest(dest, entries, cb){
       var destPath=_admFbPath(dest);
-      _admFetchJson(destPath).then(function(d){
-        var got;
-        try{ got=applyParsed(d, destPath); }catch(err){ got={data:[], sha:(d&&d.sha)||null}; }
-        var arr=got.data.slice();
-        arr=arr.concat(entries);
+      _admFetchFolder(dest).then(function(d){
+        var got=applyParsed(d, destPath);
+        var arr=got.data.slice().concat(entries);
         return _admWriteJson(destPath, arr, got.sha||null, 'feedback: receive entries in '+dest);
-      }).then(function(){ cb(); }).catch(function(e){ setStatus('Append error: '+e.message); });
+      }).then(function(){ cb(); }).catch(function(){
+        return _admWriteJson(destPath, entries, null, 'feedback: receive entries in '+dest, {append:true})
+          .then(function(){ cb(); })
+          .catch(function(e){ setStatus('Append error: '+e.message); });
+      });
     }
     function moveSingle(idx, dest){
       var entry=st.data[idx];
@@ -25758,6 +25974,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       });
     }
     function deleteSingle(idx){
+      if(st.folder!=='trash'){ moveSingle(idx, 'trash'); return; }
       var remaining=st.data.filter(function(_,i){return i!==idx;});
       setStatus('Deleting...');
       _admWriteJson(_admFbPath(st.folder), remaining, st.sha, 'feedback: delete 1 entry')
@@ -25779,6 +25996,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     function deleteSelected(){
       var idxs=selectedIdxs();
       if(!idxs.length){ setStatus('No entries selected'); return; }
+      if(st.folder!=='trash'){ moveSelected('trash'); return; }
       if(!confirm('Permanently delete '+idxs.length+' entries?')) return;
       var remaining=st.data.filter(function(_,i){return idxs.indexOf(i)===-1;});
       setStatus('Deleting...');
@@ -25787,6 +26005,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         .catch(function(e){ setStatus('Error: '+e.message); });
     }
     loadFolder(st.folder);
+    folders.forEach(function(f){
+      if(f!==st.folder) loadFolder(f, {silent:true});
+    });
   };
 
   window._admRenderFeedback = function(host){
@@ -26802,25 +27023,32 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     function _fbWriteGithub(){
       var tok = (window._ghAuth && window._ghAuth.token) || (typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '');
       if(!tok) return Promise.reject(new Error('no token'));
+      var ctrl=typeof AbortController!=='undefined' ? new AbortController() : null;
+      var t=setTimeout(function(){ try{ if(ctrl) ctrl.abort(); }catch(e){} }, 8000);
       return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+IPATH+'?ts='+Date.now(),{
         cache:'no-store',
+        signal: ctrl ? ctrl.signal : undefined,
         headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'}
-      }).then(function(r){ return r.json(); }).then(function(d){
-        var arr=[];
-        if(d && d.content){
-          try{
-            var b=atob(String(d.content).replace(/\n/g,''));
-            arr=JSON.parse(decodeURIComponent(escape(b)));
-          }catch(e){ arr=[]; }
-        }
-        if(!Array.isArray(arr)) arr=[];
+      }).then(function(r){
+        clearTimeout(t);
+        if(r.status===403 || r.status===429 || !r.ok) throw new Error('github get '+r.status);
+        return r.json();
+      }).then(function(d){
+        if(!d || !d.content || !d.sha) throw new Error('github get no content');
+        if(d.message && !d.content) throw new Error(d.message);
+        var arr;
+        try{
+          var b=atob(String(d.content).replace(/\n/g,''));
+          arr=JSON.parse(decodeURIComponent(escape(b)));
+        }catch(e){ throw new Error('github decode failed'); }
+        if(!Array.isArray(arr)) throw new Error('github inbox not array');
         if(arr.some(function(x){ return x && x.id===entry.id; })) return {ok:true, already:true};
         arr.push(entry);
         var body={
           message:'feedback: new entry from '+user,
-          content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))
+          content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2)))),
+          sha:d.sha
         };
-        if(d && d.sha) body.sha=d.sha;
         return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+IPATH,{
           method:'PUT',
           headers:{Authorization:'token '+tok,'Content-Type':'application/json','User-Agent':'DART/1.0'},
@@ -26848,10 +27076,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         });
       });
     }
-    _fbWriteGithub()
+    _fbWriteGas()
       .then(_fbOk)
       .catch(function(){
-        _fbWriteGas().then(_fbOk).catch(function(e){ _fbFail(e && e.message); });
+        _fbWriteGithub().then(_fbOk).catch(function(e){ _fbFail(e && e.message); });
       });
   }
 })();
