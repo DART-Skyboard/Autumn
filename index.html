@@ -25418,25 +25418,113 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   function _admFbPath(folder){
     return folder==='inbox' ? 'feedback/inbox.json' : 'feedback/'+folder+'.json';
   }
+  function _admRaceTimeout(p, ms, label){
+    var settled=false;
+    var timer;
+    var timeoutP=new Promise(function(_, reject){
+      timer=setTimeout(function(){
+        if(!settled) reject(new Error((label||'request')+' timeout'));
+      }, ms);
+    });
+    return Promise.race([
+      Promise.resolve(p).then(function(v){
+        settled=true; if(timer) clearTimeout(timer); return v;
+      }, function(e){
+        settled=true; if(timer) clearTimeout(timer); throw e;
+      }),
+      timeoutP
+    ]);
+  }
+  function _admAllSettled(promises){
+    if(typeof Promise.allSettled==='function') return Promise.allSettled(promises);
+    return Promise.all(promises.map(function(p){
+      return Promise.resolve(p).then(
+        function(v){ return {status:'fulfilled', value:v}; },
+        function(e){ return {status:'rejected', reason:e}; }
+      );
+    }));
+  }
+  function _admCacheKey(path){ return '_adm_cache_'+path; }
+  function _admCacheGet(path){
+    try{
+      var raw=localStorage.getItem(_admCacheKey(path));
+      if(!raw) return null;
+      var o=JSON.parse(raw);
+      if(!o || !Array.isArray(o.entries)) return null;
+      return o;
+    }catch(e){ return null; }
+  }
+  function _admCacheSet(path, sha, entries){
+    try{
+      localStorage.setItem(_admCacheKey(path), JSON.stringify({
+        sha:sha||null,
+        entries:Array.isArray(entries)?entries:[],
+        ts:Date.now()
+      }));
+    }catch(e){}
+  }
+  function _admAttachMeta(d, status, via){
+    if(d && typeof d==='object'){ d._http=status; d._via=via; return d; }
+    return {_http:status, _via:via, payload:d};
+  }
+  function _admParseBody(r, via){
+    return r.json().then(function(d){
+      return _admAttachMeta(d, r.status, via);
+    }, function(){
+      return {_http:r.status, _via:via, _parseError:true};
+    });
+  }
+  function _admIsRateLimit(d){
+    if(!d) return false;
+    if(d._http===403) return true;
+    var m=String((d.message||d.error)||'');
+    return /rate limit/i.test(m) || /API rate limit exceeded/i.test(m);
+  }
+  function _admIsNotFound(d){
+    if(!d) return false;
+    if(d._http===404) return true;
+    var m=String((d.message||d.error)||'');
+    return /not found/i.test(m);
+  }
+  function _admUsable(d){
+    if(!d || d._parseError) return false;
+    if(_admIsRateLimit(d)) return false;
+    if(_admIsNotFound(d)) return true;
+    if(Array.isArray(d)) return true;
+    if(Array.isArray(d.data)) return true;
+    if(Array.isArray(d.payload)) return true;
+    if(typeof d.content!=='undefined' && d.content!==null) return true;
+    if(d._http===200) return true;
+    return false;
+  }
   function _admWriteJson(path, arr, sha, msg){
     var gas=_admGasUrl();
+    if(!Array.isArray(arr)) arr=[];
+    var cached=_admCacheGet(path);
+    if(arr.length===0 && cached && cached.entries && cached.entries.length>0 && !/delete/i.test(msg||"")) return Promise.reject(new Error("refusing to overwrite inbox with empty"));
+    var writeP;
     if(gas){
-      return fetch(gas,{
+      writeP=fetch(gas,{
         method:'POST',
         headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'ashwrite', path:path, uid:(window._ghAuth&&window._ghAuth.username)||'admin', append:false, payload:arr, message:msg||''}),
-        signal:AbortSignal.timeout(12000)
+        body:JSON.stringify({action:'ashwrite', path:path, uid:(window._ghAuth&&window._ghAuth.username)||'admin', append:false, payload:arr, message:msg||''})
       }).then(function(r){ if(!r.ok) throw new Error('GAS write failed'); return {commit:true}; });
+    } else {
+      var tok=_admGhTok();
+      if(!tok) return Promise.reject(new Error('no write path'));
+      var body={message:msg, content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))};
+      if(sha) body.sha=sha;
+      writeP=fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path,{
+        method:'PUT',
+        headers:{Authorization:'token '+tok,'Content-Type':'application/json','User-Agent':'DART/1.0'},
+        body:JSON.stringify(body)
+      }).then(function(r){return r.json();}).then(function(d){if(!d.commit)throw new Error(d.message||'write failed');return d;});
     }
-    var tok=_admGhTok();
-    if(!tok) return Promise.reject(new Error('no write path'));
-    var body={message:msg, content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))};
-    if(sha) body.sha=sha;
-    return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path,{
-      method:'PUT',
-      headers:{Authorization:'token '+tok,'Content-Type':'application/json','User-Agent':'DART/1.0'},
-      body:JSON.stringify(body)
-    }).then(function(r){return r.json();}).then(function(d){if(!d.commit)throw new Error(d.message||'write failed');return d;});
+    return _admRaceTimeout(writeP, 12000, 'write').then(function(d){
+      var newSha=(d && d.content && d.content.sha) || (d && d.sha) || null;
+      _admCacheSet(path, newSha, arr);
+      return d;
+    });
   }
   function _admFetchJson(path){
     var gas=_admGasUrl();
@@ -25446,33 +25534,38 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path+'?ts='+Date.now(),{
         cache:'no-store',
         headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'}
-      }).then(function(r){ return r.json().then(function(d){ d._http=r.status; d._via='gh'; return d; }); });
+      }).then(function(r){ return _admParseBody(r, 'gh'); });
     };
     var viaGas=function(){
       if(!gas) return Promise.reject(new Error('no gas'));
       return fetch(gas,{
         method:'POST',
         headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'ashread', path:path}),
-        signal:AbortSignal.timeout(12000)
-      }).then(function(r){ return r.json().then(function(d){ d._http=r.status; d._via='gas'; return d; }); });
+        body:JSON.stringify({action:'ashread', path:path})
+      }).then(function(r){ return _admParseBody(r, 'gas'); });
     };
-    function usable(d){
-      if(!d) return false;
-      if(Array.isArray(d) && d.length) return true;
-      if(Array.isArray(d.data) && d.data.length) return true;
-      if(Array.isArray(d.payload) && d.payload.length) return true;
-      if(d.content) return true;
-      return false;
+    var ghP=_admRaceTimeout(viaGh(), 8000, 'github');
+    var gasP=gas ? _admRaceTimeout(viaGas(), 12000, 'gas') : Promise.reject(new Error('no gas'));
+    var both=_admAllSettled([ghP, gasP]);
+    function pick(results){
+      var gh=results[0].status==='fulfilled' ? results[0].value : null;
+      var gs=results[1].status==='fulfilled' ? results[1].value : null;
+      var ghErr=results[0].status==='rejected' ? results[0].reason : null;
+      var gsErr=results[1].status==='rejected' ? results[1].reason : null;
+      if(gh && _admUsable(gh)) return gh;
+      if(gs && _admUsable(gs)) return gs;
+      var msg=(gh && (gh.message||gh.error))
+        || (gs && (gs.message||gs.error))
+        || (ghErr && ghErr.message)
+        || (gsErr && gsErr.message)
+        || 'fetch failed';
+      throw new Error(msg);
     }
-    return viaGh().then(function(d){
-      if(usable(d) || (d && d._http===200 && d.content!==undefined)) return d;
-      throw new Error((d && (d.error||d.message)) || 'gh empty');
-    }).catch(function(){
-      return viaGas().then(function(d){
-        if(usable(d) || (d && (Array.isArray(d.payload) || Array.isArray(d.data) || Array.isArray(d)))) return d;
-        throw new Error((d && (d.error||d.message)) || 'gas empty');
-      });
+    return ghP.then(function(d){
+      if(_admUsable(d)) return d;
+      return both.then(pick);
+    }, function(){
+      return both.then(pick);
     });
   }
 
@@ -25481,6 +25574,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     opts=opts||{};
     var folders=opts.inboxOnly ? ['inbox'] : ['inbox','analysis','read','trash'];
     var st={folder: opts.folder||'inbox', data:[], sha:null};
+    var loadGen=0;
     host.innerHTML='';
     var wrap=document.createElement('div'); wrap.id=opts.rootId||'adm-fb-panel';
     wrap.style.cssText='display:flex;flex-direction:column;min-height:0;flex:1;font-family:var(--font-d,Orbitron,monospace);color:var(--text,#c8e6f0)';
@@ -25596,30 +25690,49 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       });
       setStatus(st.data.length+' entries in '+st.folder.toUpperCase()+' (feedback/'+(st.folder==='inbox'?'inbox':st.folder)+'.json)');
     }
+    function applyParsed(d, path){
+      if(d && d.message && !d.content && typeof d.payload==='undefined' && !Array.isArray(d.data) && !Array.isArray(d)){
+        if(d._http===404 || /not found/i.test(d.message||'')){
+          return {data:[], sha:null, notFound:true};
+        }
+        throw new Error(d.message);
+      }
+      var parsed=null;
+      if(Array.isArray(d)) parsed=d;
+      else if(Array.isArray(d.data)) parsed=d.data;
+      else if(typeof d.payload!=='undefined') parsed=d.payload;
+      else parsed=JSON.parse(_admDecodeGh(d)||'[]');
+      if(parsed && !Array.isArray(parsed) && Array.isArray(parsed.entries)) parsed=parsed.entries;
+      if(!Array.isArray(parsed)) parsed=[];
+      return {data:parsed, sha:(d && d.sha)||null, notFound:false};
+    }
     function loadFolder(folder){
       st.folder=folder; markTabs();
-      setStatus('LOADING '+folder.toUpperCase()+'...');
       var path=_admFbPath(folder);
-      _admFetchJson(path).then(function(d){
-        if(d && d.message && !d.content && typeof d.payload==='undefined' && !Array.isArray(d.data) && !Array.isArray(d)){
-          if(d._http===404 || /not found/i.test(d.message||'')){
-            st.data=[]; st.sha=null; render();
-            setStatus('0 entries — inbox file not created yet');
-            return;
-          }
-          throw new Error(d.message);
-        }
-        var parsed=null;
-        if(Array.isArray(d)) parsed=d;
-        else if(Array.isArray(d.data)) parsed=d.data;
-        else if(typeof d.payload!=='undefined') parsed=d.payload;
-        else parsed=JSON.parse(_admDecodeGh(d)||'[]');
-        if(parsed && !Array.isArray(parsed) && Array.isArray(parsed.entries)) parsed=parsed.entries;
-        if(!Array.isArray(parsed)) parsed=[];
-        st.sha=d.sha||null;
-        st.data=parsed;
+      var gen=++loadGen;
+      var cached=_admCacheGet(path);
+      if(cached){
+        st.data=cached.entries;
+        st.sha=cached.sha||null;
         render();
+        setStatus(st.data.length+' entries (last saved) — syncing…');
+      } else {
+        setStatus('LOADING '+folder.toUpperCase()+'...');
+      }
+      _admFetchJson(path).then(function(d){
+        if(gen!==loadGen) return;
+        var got=applyParsed(d, path);
+        st.sha=got.sha;
+        st.data=got.data;
+        _admCacheSet(path, st.sha, st.data);
+        render();
+        if(got.notFound) setStatus('0 entries — inbox file not created yet');
       }).catch(function(e){
+        if(gen!==loadGen) return;
+        if(cached){
+          setStatus('showing last saved — sync failed');
+          return;
+        }
         st.data=[]; st.sha=null; render();
         setStatus('Error: '+(e&&e.message||'empty'));
       });
@@ -25627,10 +25740,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     function appendToDest(dest, entries, cb){
       var destPath=_admFbPath(dest);
       _admFetchJson(destPath).then(function(d){
-        var arr=d.content?JSON.parse(_admDecodeGh(d)):[];
-        if(!Array.isArray(arr)) arr=[];
+        var got;
+        try{ got=applyParsed(d, destPath); }catch(err){ got={data:[], sha:(d&&d.sha)||null}; }
+        var arr=got.data.slice();
         arr=arr.concat(entries);
-        return _admWriteJson(destPath, arr, d.sha||null, 'feedback: receive entries in '+dest);
+        return _admWriteJson(destPath, arr, got.sha||null, 'feedback: receive entries in '+dest);
       }).then(function(){ cb(); }).catch(function(e){ setStatus('Append error: '+e.message); });
     }
     function moveSingle(idx, dest){
