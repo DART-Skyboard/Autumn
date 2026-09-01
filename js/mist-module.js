@@ -120,22 +120,28 @@
         el.style.top=(land?ovs[id].l:ovs[id].p)+'px';
       });
     };
-    window._autumnBindOverlayDrag=function(overlayId, storageKey){
+    window._autumnBindOverlayDrag=function(overlayId, storageKey, handleSelector){
       _injectChromeCSS();
       var ov=document.getElementById(overlayId);
-      if(!ov || ov._autDragBound) return;
-      ov._autDragBound=true;
+      if(!ov) return;
       ov._autDragKey=storageKey||('_aut_ovpos_'+overlayId);
-      var grip=ov.querySelector(':scope > .aut-drag-grip');
+      var grip=null;
+      if(handleSelector) grip=ov.querySelector(handleSelector);
+      if(!grip) grip=ov.querySelector('.adm-hdr, #sysbrd-hd, :scope > .aut-drag-grip');
       if(!grip){
         grip=document.createElement('div');
         grip.className='aut-drag-grip';
         grip.title='Drag';
         ov.insertBefore(grip, ov.firstChild);
       }
+      if(ov._autDragBound){
+        ov._autApplySavedPos&&ov._autApplySavedPos();
+        return;
+      }
+      ov._autDragBound=true;
       function _place(el,x,y){
         var w=el.offsetWidth||280, h=el.offsetHeight||200;
-        var leftG=8, rightG=44;
+        var leftG=8, rightG=8;
         var maxX=Math.max(leftG, window.innerWidth-w-rightG);
         var maxY=Math.max(8, window.innerHeight-Math.min(h, window.innerHeight-16)-8);
         x=Math.max(leftG, Math.min(x, maxX));
@@ -158,6 +164,7 @@
       var dragging=false, startX=0, startY=0, origX=0, origY=0;
       function down(e){
         if(e.button!=null && e.button!==0) return;
+        if(e.target && e.target.closest && e.target.closest('button, input, a, textarea, select, label')) return;
         e.preventDefault();
         e.stopPropagation();
         var pt=e.touches?e.touches[0]:e;

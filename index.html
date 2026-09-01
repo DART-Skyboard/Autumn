@@ -25209,8 +25209,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         '#adm-trigger-icon{font-size:14px;color:var(--cyan,#00e5ff);line-height:1;opacity:.85}',
         '#adm-trigger-lbl{font-family:var(--font-d,Orbitron,monospace);font-size:.22rem;letter-spacing:2px;color:var(--cyan,#00e5ff);writing-mode:vertical-rl;text-orientation:mixed}',
         '#adm-overlay{position:fixed;left:36px;top:140px;z-index:9400;width:min(280px,calc(100vw - 92px));max-width:280px;display:flex;flex-direction:column;',
-          'transform:translateX(calc(-100% - 44px));transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;opacity:0;pointer-events:none}',
-        '#adm-overlay.adm-open{transform:translateX(0);opacity:1;pointer-events:all}',
+          'opacity:0;pointer-events:none;visibility:hidden;transition:opacity .2s}',
+        '#adm-overlay.adm-open{opacity:1;pointer-events:all;visibility:visible}',
+        '#adm-overlay .adm-hdr{cursor:grab;touch-action:none;user-select:none}',
+        '#adm-overlay .adm-hdr.dragging, #adm-overlay .adm-hdr.aut-drag-grip.dragging{cursor:grabbing}',
         '#adm-panel{background:color-mix(in srgb, var(--panel,rgba(5,9,16,.92)) 92%, transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);',
           'border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 22%, transparent);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;',
           'max-height:min(72vh,calc(100vh - 150px));min-height:240px;color:var(--text,#c8e6f0);font-family:var(--font-d,Orbitron,monospace)}',
@@ -25254,7 +25256,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
     tabs.appendChild(_mkTab('adm-t1','DATA',function(){window._admTab('data');}));
     tabs.appendChild(_mkTab('adm-t2','ASH',function(){window._admTab('ash');}));
-    tabs.appendChild(_mkTab('adm-t3','MSG',function(){window._admTab('feedback');}));
+    tabs.appendChild(_mkTab('adm-t3','MESSAGES',function(){window._admTab('feedback');}));
     scrollRow.appendChild(tabs);
     hdr.appendChild(scrollRow);
     var closeBtn=document.createElement('button'); closeBtn.textContent='\u2715';
@@ -25266,7 +25268,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     panel.appendChild(hdr); panel.appendChild(body);
     ov.appendChild(panel);
     document.body.appendChild(ov);
-    if(typeof window._autumnBindOverlayDrag==='function') window._autumnBindOverlayDrag('adm-overlay','_aut_ovpos_adm-overlay');
+    if(typeof window._autumnBindOverlayDrag==='function') window._autumnBindOverlayDrag('adm-overlay','_aut_ovpos_adm-overlay','.adm-hdr');
     if(typeof window._autumnSideTabLayout==='function') window._autumnSideTabLayout();
     window._admTab('data');
   };
@@ -25438,12 +25440,6 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   }
   function _admFetchJson(path){
     var gas=_admGasUrl();
-    var viaGas=gas ? fetch(gas,{
-      method:'POST',
-      headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({action:'ashread', path:path}),
-      signal:AbortSignal.timeout(12000)
-    }).then(function(r){ return r.json().then(function(d){ d._http=r.status; d._via='gas'; return d; }); }) : Promise.reject(new Error('no gas'));
     var viaGh=function(){
       var tok=_admGhTok();
       if(!tok) return Promise.reject(new Error('no token'));
@@ -25452,10 +25448,32 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'}
       }).then(function(r){ return r.json().then(function(d){ d._http=r.status; d._via='gh'; return d; }); });
     };
-    return viaGas.then(function(d){
-      if(d && (d.content || typeof d.payload!=='undefined' || Array.isArray(d.data) || Array.isArray(d))) return d;
-      throw new Error((d && (d.error||d.message)) || 'gas empty');
-    }).catch(function(){ return viaGh(); });
+    var viaGas=function(){
+      if(!gas) return Promise.reject(new Error('no gas'));
+      return fetch(gas,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'ashread', path:path}),
+        signal:AbortSignal.timeout(12000)
+      }).then(function(r){ return r.json().then(function(d){ d._http=r.status; d._via='gas'; return d; }); });
+    };
+    function usable(d){
+      if(!d) return false;
+      if(Array.isArray(d) && d.length) return true;
+      if(Array.isArray(d.data) && d.data.length) return true;
+      if(Array.isArray(d.payload) && d.payload.length) return true;
+      if(d.content) return true;
+      return false;
+    }
+    return viaGh().then(function(d){
+      if(usable(d) || (d && d._http===200 && d.content!==undefined)) return d;
+      throw new Error((d && (d.error||d.message)) || 'gh empty');
+    }).catch(function(){
+      return viaGas().then(function(d){
+        if(usable(d) || (d && (Array.isArray(d.payload) || Array.isArray(d.data) || Array.isArray(d)))) return d;
+        throw new Error((d && (d.error||d.message)) || 'gas empty');
+      });
+    });
   }
 
   /* Port of leatr-ash admin/admin-feedback.html — same inbox path/shape. */
@@ -26148,7 +26166,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 </script>
 
 
-<script src="js/mist-module.js?v=20260901b"></script>
+<script src="js/mist-module.js?v=20260901c"></script>
 <script src="js/ash-star-archive.js?v=20260828q"></script>
 <script src="js/ash-shard-module.js?v=20260828q"></script>
 <script src="js/hud-tools-module.js?v=20260828c"></script>
@@ -26654,31 +26672,73 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
 
     var uid = (typeof _aut_uid !== 'undefined' && _aut_uid) ? _aut_uid : 'guest';
-    fetch(gasUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' }, // avoid CORS preflight
-      body: JSON.stringify({
-        action:  'ashwrite',
-        path:    IPATH,
-        uid:     uid,
-        append:  true,
-        payload: [entry]
-      }),
-      signal: AbortSignal.timeout(12000)
-    })
-    .then(function(r){
-      if(r && r.ok){
-        _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU', 'rgba(0,229,255,.9)');
-        setTimeout(window.closeFeedback, 1800);
-      } else {
-        _fbStatus('\u26a0 Submission failed \u2014 please try again', 'rgba(255,100,80,.8)');
-        var bs = document.getElementById('fb-submit'); if(bs) bs.disabled = false;
-      }
-    })
-    .catch(function(){
-      _fbStatus('\u26a0 Submission failed \u2014 please try again', 'rgba(255,100,80,.8)');
+    function _fbFail(why){
+      _fbStatus('\u26a0 '+(why||'Submission failed \u2014 please try again'), 'rgba(255,100,80,.8)');
       var bs = document.getElementById('fb-submit'); if(bs) bs.disabled = false;
-    });
+    }
+    function _fbOk(){
+      _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU', 'rgba(0,229,255,.9)');
+      try{
+        if(typeof window._admTab==='function' && document.getElementById('adm-fb-panel')){
+          window._admTab('feedback');
+        }
+      }catch(e){}
+      setTimeout(window.closeFeedback, 1800);
+    }
+    function _fbWriteGithub(){
+      var tok = (window._ghAuth && window._ghAuth.token) || (typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '');
+      if(!tok) return Promise.reject(new Error('no token'));
+      return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+IPATH+'?ts='+Date.now(),{
+        cache:'no-store',
+        headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'}
+      }).then(function(r){ return r.json(); }).then(function(d){
+        var arr=[];
+        if(d && d.content){
+          try{
+            var b=atob(String(d.content).replace(/\n/g,''));
+            arr=JSON.parse(decodeURIComponent(escape(b)));
+          }catch(e){ arr=[]; }
+        }
+        if(!Array.isArray(arr)) arr=[];
+        if(arr.some(function(x){ return x && x.id===entry.id; })) return {ok:true, already:true};
+        arr.push(entry);
+        var body={
+          message:'feedback: new entry from '+user,
+          content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))
+        };
+        if(d && d.sha) body.sha=d.sha;
+        return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+IPATH,{
+          method:'PUT',
+          headers:{Authorization:'token '+tok,'Content-Type':'application/json','User-Agent':'DART/1.0'},
+          body:JSON.stringify(body)
+        }).then(function(r){ return r.json().then(function(j){ if(!j.commit) throw new Error(j.message||'github write failed'); return j; }); });
+      });
+    }
+    function _fbWriteGas(){
+      return fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          action:  'ashwrite',
+          path:    IPATH,
+          uid:     uid,
+          append:  true,
+          payload: [entry]
+        }),
+        signal: AbortSignal.timeout(12000)
+      }).then(function(r){
+        return r.text().then(function(txt){
+          var d=null; try{ d=JSON.parse(txt); }catch(e){}
+          if(d && d.ok) return d;
+          throw new Error((d && (d.error||d.message)) || ('gas '+ (r.status||'')));
+        });
+      });
+    }
+    _fbWriteGithub()
+      .then(_fbOk)
+      .catch(function(){
+        _fbWriteGas().then(_fbOk).catch(function(e){ _fbFail(e && e.message); });
+      });
   }
 })();
 </script>
