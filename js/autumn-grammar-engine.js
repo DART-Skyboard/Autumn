@@ -6154,6 +6154,9 @@ class ANLPCA {
     if(!this._gs) this._gsRestore();
     return !!(this._gs && this._gs.trained && this._gs.live && this._gs.live.pass==='complete');
   }
+  isGrammarStudyRunning(){
+    return !!(this._gs && this._gs.running);
+  }
   async runGrammarStudy(opts){
     opts=opts||{};
     const onProgress=typeof opts.onProgress==='function'?opts.onProgress:function(){};
@@ -6302,24 +6305,33 @@ class ANLPCA {
         await this._gsYield(null);
       }
 
-      // WordNet LOOKUP only for function/tense/pronoun words already in the grammar resource
-      onProgress('Grammar study — WordNet sample (lookup only)…');
-      await this._gsYield(null);
+      // WordNet LOOKUP only — never dump, skip on miss, never loop. Cap 8, 400ms race.
       const WN=typeof window!=='undefined' && window.AutumnWordNet;
-      const sampleWords=Object.keys(wordRoles).filter(function(w){
-        return /^(the|a|an|is|are|was|be|have|do|will|i|you|he|she|it|we|they|not|and|or|but|of|to|in|on|for|with|one|two|three|what|who|how)$/.test(w);
-      }).slice(0, 24);
-      if(WN && typeof WN.lookup==='function'){
-        for(let w=0;w<sampleWords.length;w++){
+      if(!WN || typeof WN.lookup!=='function'){
+        onProgress('Grammar study — WordNet sample skipped — not required');
+        await this._gsYield(null);
+      } else {
+        const sampleWords=Object.keys(wordRoles).filter(function(w){
+          return /^(the|a|an|is|are|was|be|have|do|will|i|you|he|she|it|we|they|not|and|or|but|of|to|in|on|for|with|one|two|three|what|who|how)$/.test(w);
+        }).slice(0, 8);
+        const wnN=sampleWords.length;
+        for(let w=0;w<wnN;w++){
+          onProgress('Grammar study — WordNet sample '+(w+1)+'/8 (lookup only)…');
+          await this._gsYield(null);
           try{
-            const entries=await WN.lookup(sampleWords[w]);
+            const word=sampleWords[w];
+            const lookupP=Promise.resolve().then(function(){ return WN.lookup(word); });
+            lookupP.catch(function(){});
+            const entries=await Promise.race([
+              lookupP,
+              new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('timeout')); }, 400); })
+            ]);
             if(entries && entries[0] && entries[0].pos){
-              wordRoles[sampleWords[w]]=Object.assign({}, wordRoles[sampleWords[w]], { pos:entries[0].pos, reflex:'wn_lookup' });
+              wordRoles[word]=Object.assign({}, wordRoles[word], { pos:entries[0].pos, reflex:'wn_lookup' });
             }
           }catch(e){
             this._gsBoundary('grammar_study_wn', 'WordNet lookup missed '+sampleWords[w]+' — skipped.');
           }
-          await this._gsYield(null);
         }
       }
       live.wordRoles=wordRoles;
@@ -6476,6 +6488,9 @@ class ANLPCA {
        /\bcore cognition\s+is\s+(false|optional)\b/i.test(raw)){
       return "That would touch Core Cognition — I'll leave it.";
     }
+    if(this._gs && this._gs.running){
+      return "Grammar study is still running. Wait until status says trained.";
+    }
     if(!this.isGrammarStudyTrained()){
       return "Grammar study isn't trained yet. Use the GRAMMAR STUDY button for the first run.";
     }
@@ -6594,6 +6609,7 @@ return{
   runGrammarStudy:(opts)=>engine.runGrammarStudy(opts||{}),
   getGrammarStudy:()=>engine.getGrammarStudy(),
   isGrammarStudyTrained:()=>engine.isGrammarStudyTrained(),
+  isGrammarStudyRunning:()=>engine.isGrammarStudyRunning(),
   applyGrammarStudyNote:(t)=>engine.applyGrammarStudyNote(t)
 };
 
