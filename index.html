@@ -24662,6 +24662,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if (loginBtn) loginBtn.style.display = '';
     if (userBtn)  userBtn.style.display  = 'none';
     if (typeof window._autRemoveAdminChrome === 'function') window._autRemoveAdminChrome();
+    if (typeof window._autStopCircuit === 'function') window._autStopCircuit(true);
     _toast('Logged out');
   };
   window._ghReLogin = function() {
@@ -25112,10 +25113,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       if(!window._autAdminAllowed()) return false;
       try{ localStorage.setItem('_aut_admin_enabled','1'); }catch(e){}
       window._autInjectAdminChrome();
+      if(typeof window._autStartCircuit==='function') window._autStartCircuit();
       return true;
     }
     try{ localStorage.setItem('_aut_admin_enabled','0'); }catch(e){}
     window._autRemoveAdminChrome();
+    if(typeof window._autStopCircuit==='function') window._autStopCircuit(true);
     return false;
   };
   window._autToggleAdminFlag = function(){
@@ -25131,9 +25134,56 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   window._autRestoreAdminFlag = function(){
     if(window._autAdminAllowed() && (function(){ try{ return localStorage.getItem('_aut_admin_enabled')==='1'; }catch(e){ return false; } })()){
       window._autInjectAdminChrome();
+      if(typeof window._autStartCircuit==='function') window._autStartCircuit();
     } else {
       window._autRemoveAdminChrome();
+      if(typeof window._autStopCircuit==='function') window._autStopCircuit(true);
     }
+  };
+
+  /* Admin circuit — iOS admin only completes while this tab publishes live:true. */
+  window._autCircuitPath = 'admin/circuit.json';
+  window._autCircuitTimer = null;
+  window._autPublishCircuit = function(live){
+    var auth=window._ghAuth||{};
+    if((auth.username||'') !== 'dartsolarpunk') return;
+    var gas=(typeof AUTUMN_GAS_URL!=='undefined' && AUTUMN_GAS_URL && String(AUTUMN_GAS_URL).indexOf('YOUR_DEPLOYED')<0)
+      ? AUTUMN_GAS_URL : (window.AUTUMN_GAS_URL||null);
+    if(!gas) return;
+    var payload = live
+      ? {user:'dartsolarpunk', live:true, ts:new Date().toISOString(), src:'leatr.xyz'}
+      : {user:'dartsolarpunk', live:false, ts:new Date().toISOString(), src:'leatr.xyz'};
+    try{
+      fetch(gas,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'ashwrite', path:window._autCircuitPath, uid:'dartsolarpunk', append:false, payload:payload, message: live?'admin circuit heartbeat':'admin circuit hide'}),
+        keepalive:true
+      }).catch(function(){});
+    }catch(e){}
+  };
+  window._autCircuitShouldLive = function(){
+    return !document.hidden && window._autAdminEnabled && window._autAdminEnabled();
+  };
+  window._autStartCircuit = function(){
+    if(window._autCircuitTimer) return;
+    if(!window._autCircuitShouldLive()) return;
+    window._autPublishCircuit(true);
+    window._autCircuitTimer = setInterval(function(){
+      if(window._autCircuitShouldLive()) window._autPublishCircuit(true);
+      else window._autStopCircuit(true);
+    }, 25000);
+  };
+  window._autStopCircuit = function(writeFalse){
+    if(window._autCircuitTimer){ clearInterval(window._autCircuitTimer); window._autCircuitTimer=null; }
+    if(writeFalse) window._autPublishCircuit(false);
+  };
+  if(!window._autCircuitVisWired){
+    window._autCircuitVisWired=true;
+    document.addEventListener('visibilitychange', function(){
+      if(document.hidden){ window._autStopCircuit(true); }
+      else if(window._autAdminEnabled && window._autAdminEnabled()){ window._autStartCircuit(); }
+    });
   };
 
   function _admDrawerOut(e){
