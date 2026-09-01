@@ -25177,28 +25177,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     document.removeEventListener('click', _admMsgOut, true);
   };
   window._autOpenAdminMessages = function(){
-    var exModal=document.getElementById('sysbrd-admin-modal'); if(exModal) exModal.remove();
-    var existing=document.getElementById('adm-msg-overlay');
-    if(existing){ window._autCloseAdminMessages(); return; }
-    var ov=document.createElement('div'); ov.id='adm-msg-overlay';
-    ov.style.cssText='position:fixed;left:360px;top:72px;z-index:10600;width:min(380px,94vw);max-height:min(70vh,560px);display:flex;flex-direction:column;pointer-events:all';
-    ov.addEventListener('click', function(e){ e.stopPropagation(); });
-    var box=document.createElement('div');
-    box.style.cssText='background:var(--panel,rgba(4,12,22,.98));border:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 30%, transparent);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:min(70vh,560px);color:var(--text,#c8e6f0);font-family:var(--font-d,Orbitron,monospace)';
-    var hd=document.createElement('div'); hd.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid color-mix(in srgb, var(--cyan,#00e5ff) 16%, transparent);flex-shrink:0';
-    var ttl=document.createElement('div'); ttl.textContent='INBOX'; ttl.style.cssText='flex:1;font-size:.65rem;letter-spacing:2.5px;color:var(--cyan,#00e5ff)';
-    var xb=document.createElement('button'); xb.textContent='\u2715'; xb.title='Close messages';
-    xb.style.cssText='background:none;border:none;color:color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent);font-size:15px;cursor:pointer;padding:2px 6px;line-height:1';
-    xb.onclick=function(e){ e.stopPropagation(); window._autCloseAdminMessages(); };
-    hd.appendChild(ttl); hd.appendChild(xb);
-    var body=document.createElement('div'); body.id='adm-msg-body';
-    body.style.cssText='flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:180px';
-    box.appendChild(hd); box.appendChild(body);
-    ov.appendChild(box);
-    document.body.appendChild(ov);
-    if(typeof window._autumnBindOverlayDrag==='function') window._autumnBindOverlayDrag('adm-msg-overlay','_aut_ovpos_adm-msg-overlay');
-    window._admMountFeedbackUI(body, {inboxOnly:true, folder:'inbox', rootId:'adm-msg-fb'});
-    setTimeout(function(){ document.addEventListener('click', _admMsgOut, true); }, 40);
+    /* One mailbox only — same UI as MSG tab (inbox / analysis / read / trash). */
+    window._autOpenAdminDrawer();
+    if(typeof window._admTab==='function') window._admTab('feedback');
   };
 
   window._autRemoveAdminChrome = function(){
@@ -25227,7 +25208,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         '#adm-trigger:hover{background:color-mix(in srgb, var(--cyan,#00e5ff) 12%, transparent);border-color:color-mix(in srgb, var(--cyan,#00e5ff) 50%, transparent)}',
         '#adm-trigger-icon{font-size:14px;color:var(--cyan,#00e5ff);line-height:1;opacity:.85}',
         '#adm-trigger-lbl{font-family:var(--font-d,Orbitron,monospace);font-size:.22rem;letter-spacing:2px;color:var(--cyan,#00e5ff);writing-mode:vertical-rl;text-orientation:mixed}',
-        '#adm-overlay{position:fixed;left:36px;top:140px;z-index:9400;width:min(340px,calc(100vw - 48px));max-width:340px;display:flex;flex-direction:column;',
+        '#adm-overlay{position:fixed;left:36px;top:140px;z-index:9400;width:min(280px,calc(100vw - 92px));max-width:280px;display:flex;flex-direction:column;',
           'transform:translateX(calc(-100% - 44px));transition:transform .32s cubic-bezier(.23,1,.32,1),opacity .32s;opacity:0;pointer-events:none}',
         '#adm-overlay.adm-open{transform:translateX(0);opacity:1;pointer-events:all}',
         '#adm-panel{background:color-mix(in srgb, var(--panel,rgba(5,9,16,.92)) 92%, transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);',
@@ -25273,8 +25254,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
     tabs.appendChild(_mkTab('adm-t1','DATA',function(){window._admTab('data');}));
     tabs.appendChild(_mkTab('adm-t2','ASH',function(){window._admTab('ash');}));
-    tabs.appendChild(_mkTab('adm-t3','FEED',function(){window._admTab('feedback');}));
-    tabs.appendChild(_mkTab('adm-t4','MSG',function(){window._autOpenAdminMessages();}));
+    tabs.appendChild(_mkTab('adm-t3','MSG',function(){window._admTab('feedback');}));
     scrollRow.appendChild(tabs);
     hdr.appendChild(scrollRow);
     var closeBtn=document.createElement('button'); closeBtn.textContent='\u2715';
@@ -25414,9 +25394,21 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     window._emoSocketData={emo:emo, boosts:window._acShellBoost, sig:sig, ts:new Date().toISOString()};
   };
 
-  function _admGhTok(){ return (window._ghAuth&&window._ghAuth.token)||''; }
+  function _admGasUrl(){
+    var u=(typeof AUTUMN_GAS_URL!=='undefined' && AUTUMN_GAS_URL && String(AUTUMN_GAS_URL).indexOf('YOUR_DEPLOYED')<0) ? AUTUMN_GAS_URL : (window.AUTUMN_GAS_URL||null);
+    return u && String(u).indexOf('YOUR_DEPLOYED')<0 ? u : null;
+  }
+  function _admGhTok(){
+    var tok=(window._ghAuth&&window._ghAuth.token)||'';
+    if(tok) return tok;
+    try{ if(typeof getLeatrAshPAT==='function'){ var p=getLeatrAshPAT(); if(p) return p; } }catch(e){}
+    return '';
+  }
   function _admDecodeGh(d){
-    var b=atob((d.content||'').replace(/\n/g,''));
+    var raw=d && d.content;
+    if(!raw && d && typeof d.payload!=='undefined') return typeof d.payload==='string'?d.payload:JSON.stringify(d.payload);
+    if(!raw) return '[]';
+    var b=atob(String(raw).replace(/\n/g,''));
     var u=new Uint8Array(b.length);
     for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i);
     return new TextDecoder('utf-8').decode(u);
@@ -25425,7 +25417,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     return folder==='inbox' ? 'feedback/inbox.json' : 'feedback/'+folder+'.json';
   }
   function _admWriteJson(path, arr, sha, msg){
+    var gas=_admGasUrl();
+    if(gas){
+      return fetch(gas,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({action:'ashwrite', path:path, uid:(window._ghAuth&&window._ghAuth.username)||'admin', append:false, payload:arr, message:msg||''}),
+        signal:AbortSignal.timeout(12000)
+      }).then(function(r){ if(!r.ok) throw new Error('GAS write failed'); return {commit:true}; });
+    }
     var tok=_admGhTok();
+    if(!tok) return Promise.reject(new Error('no write path'));
     var body={message:msg, content:btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))))};
     if(sha) body.sha=sha;
     return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path,{
@@ -25435,11 +25437,25 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }).then(function(r){return r.json();}).then(function(d){if(!d.commit)throw new Error(d.message||'write failed');return d;});
   }
   function _admFetchJson(path){
-    var tok=_admGhTok();
-    return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path+'?ts='+Date.now(),{
-      cache:'no-store',
-      headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'}
-    }).then(function(r){return r.json();});
+    var gas=_admGasUrl();
+    var viaGas=gas ? fetch(gas,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'ashread', path:path}),
+      signal:AbortSignal.timeout(12000)
+    }).then(function(r){ return r.json().then(function(d){ d._http=r.status; d._via='gas'; return d; }); }) : Promise.reject(new Error('no gas'));
+    var viaGh=function(){
+      var tok=_admGhTok();
+      if(!tok) return Promise.reject(new Error('no token'));
+      return fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/'+path+'?ts='+Date.now(),{
+        cache:'no-store',
+        headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'}
+      }).then(function(r){ return r.json().then(function(d){ d._http=r.status; d._via='gh'; return d; }); });
+    };
+    return viaGas.then(function(d){
+      if(d && (d.content || typeof d.payload!=='undefined' || Array.isArray(d.data) || Array.isArray(d))) return d;
+      throw new Error((d && (d.error||d.message)) || 'gas empty');
+    }).catch(function(){ return viaGh(); });
   }
 
   /* Port of leatr-ash admin/admin-feedback.html — same inbox path/shape. */
@@ -25516,9 +25532,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         chk.onclick=function(ev){ ev.stopPropagation(); };
         var meta=document.createElement('div'); meta.style.cssText='flex-shrink:0;width:92px';
         var ts=e.ts?new Date(e.ts):null;
+        var kind=(e.cat||e.type||e.kind||'MESSAGE');
+        var from=e.user||e.from||e.app||e.source||'';
         meta.innerHTML='<div style="font-size:8px;color:color-mix(in srgb, var(--cyan,#00e5ff) 50%, transparent)">'+(ts?ts.toLocaleDateString()+' '+(ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})):'--')+'</div>'
-          +'<div style="font-size:8px;color:rgba(255,179,71,.7);letter-spacing:1px;margin-top:2px">'+(e.cat||'')+'</div>'
-          +'<div style="font-size:8px;color:color-mix(in srgb, var(--cyan,#00e5ff) 32%, transparent);margin-top:1px">'+(e.user||'')+'</div>';
+          +'<div style="font-size:8px;color:rgba(255,179,71,.7);letter-spacing:1px;margin-top:2px">'+kind+'</div>'
+          +'<div style="font-size:8px;color:color-mix(in srgb, var(--cyan,#00e5ff) 32%, transparent);margin-top:1px">'+from+'</div>';
         var prev=document.createElement('div');
         prev.style.cssText='flex:1;font-size:11px;line-height:1.45;color:color-mix(in srgb, var(--text,#e0f4ff) 72%, transparent);font-family:sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
         prev.textContent=e.msg||'';
@@ -25565,14 +25583,27 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       setStatus('LOADING '+folder.toUpperCase()+'...');
       var path=_admFbPath(folder);
       _admFetchJson(path).then(function(d){
-        if(!d.content) throw new Error('empty');
-        st.sha=d.sha;
-        st.data=JSON.parse(_admDecodeGh(d));
-        if(!Array.isArray(st.data)) st.data=[];
+        if(d && d.message && !d.content && typeof d.payload==='undefined' && !Array.isArray(d.data) && !Array.isArray(d)){
+          if(d._http===404 || /not found/i.test(d.message||'')){
+            st.data=[]; st.sha=null; render();
+            setStatus('0 entries — inbox file not created yet');
+            return;
+          }
+          throw new Error(d.message);
+        }
+        var parsed=null;
+        if(Array.isArray(d)) parsed=d;
+        else if(Array.isArray(d.data)) parsed=d.data;
+        else if(typeof d.payload!=='undefined') parsed=d.payload;
+        else parsed=JSON.parse(_admDecodeGh(d)||'[]');
+        if(parsed && !Array.isArray(parsed) && Array.isArray(parsed.entries)) parsed=parsed.entries;
+        if(!Array.isArray(parsed)) parsed=[];
+        st.sha=d.sha||null;
+        st.data=parsed;
         render();
       }).catch(function(e){
         st.data=[]; st.sha=null; render();
-        setStatus('Error: '+e.message);
+        setStatus('Error: '+(e&&e.message||'empty'));
       });
     }
     function appendToDest(dest, entries, cb){
@@ -26117,7 +26148,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 </script>
 
 
-<script src="js/mist-module.js?v=20260901a"></script>
+<script src="js/mist-module.js?v=20260901b"></script>
 <script src="js/ash-star-archive.js?v=20260828q"></script>
 <script src="js/ash-shard-module.js?v=20260828q"></script>
 <script src="js/hud-tools-module.js?v=20260828c"></script>

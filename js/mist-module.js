@@ -135,9 +135,10 @@
       }
       function _place(el,x,y){
         var w=el.offsetWidth||280, h=el.offsetHeight||200;
-        var maxX=Math.max(8, window.innerWidth-w-8);
+        var leftG=8, rightG=44;
+        var maxX=Math.max(leftG, window.innerWidth-w-rightG);
         var maxY=Math.max(8, window.innerHeight-Math.min(h, window.innerHeight-16)-8);
-        x=Math.max(8, Math.min(x, maxX));
+        x=Math.max(leftG, Math.min(x, maxX));
         y=Math.max(8, Math.min(y, maxY));
         el.style.left=x+'px';
         el.style.top=y+'px';
