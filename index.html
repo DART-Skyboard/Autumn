@@ -25472,18 +25472,69 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       return o;
     }catch(e){ return null; }
   }
-  function _admCacheSet(path, sha, entries, confirmedEmpty){
+  var _admPendingSubmit=[];
+  function _admCacheSet(path, sha, entries, confirmedEmpty, extra){
     try{
+      extra=extra||{};
       if(!Array.isArray(entries)) entries=[];
-      if(entries.length===0 && !confirmedEmpty){
+      var prev=null;
+      try{
+        var rawPrev=localStorage.getItem(_admCacheKey(path));
+        if(rawPrev) prev=JSON.parse(rawPrev);
+      }catch(ePrev){ prev=null; }
+      if(entries.length===0 && !confirmedEmpty && !extra.writeConfirmed && !extra.allowEmpty){
         return;
       }
+      var excluded={};
+      if(prev && prev.excluded && typeof prev.excluded==='object' && !Array.isArray(prev.excluded)){
+        Object.keys(prev.excluded).forEach(function(k){ if(prev.excluded[k]) excluded[k]=true; });
+      }
+      if(extra.excluded && typeof extra.excluded==='object'){
+        if(Array.isArray(extra.excluded)) extra.excluded.forEach(function(id){ if(id) excluded[id]=true; });
+        else Object.keys(extra.excluded).forEach(function(k){ if(extra.excluded[k]) excluded[k]=true; });
+      }
+      if(extra.clearExcluded){
+        (extra.clearExcluded||[]).forEach(function(id){ if(id) delete excluded[id]; });
+      }
+      if(extra.writeConfirmed && prev && Array.isArray(prev.entries)){
+        var keep={};
+        entries.forEach(function(e){ if(e && e.id) keep[e.id]=true; });
+        prev.entries.forEach(function(e){
+          if(e && e.id && !keep[e.id]) excluded[e.id]=true;
+        });
+      }
+      var writeConfirmed=extra.writeConfirmed!==undefined ? !!extra.writeConfirmed : !!(prev && prev.writeConfirmed);
       localStorage.setItem(_admCacheKey(path), JSON.stringify({
         sha:sha||null,
         entries:entries,
-        ts:Date.now()
+        ts:Date.now(),
+        writeConfirmed:writeConfirmed,
+        excluded:excluded
       }));
     }catch(e){}
+  }
+  function _admDropPending(ids){
+    var drop={};
+    (ids||[]).forEach(function(id){ if(id) drop[id]=true; });
+    _admPendingSubmit=_admPendingSubmit.filter(function(p){ return !drop[p.id]; });
+  }
+  function _admCacheExcluded(path){
+    var c=_admCacheGet(path);
+    var out={};
+    if(c && c.excluded && typeof c.excluded==='object' && !Array.isArray(c.excluded)){
+      Object.keys(c.excluded).forEach(function(k){ if(c.excluded[k]) out[k]=true; });
+    }
+    return out;
+  }
+  function _admIdInOtherFolderCache(id, exceptPath){
+    var folders=['inbox','analysis','read','trash'];
+    for(var i=0;i<folders.length;i++){
+      var p=_admFbPath(folders[i]);
+      if(p===exceptPath) continue;
+      var c=_admCacheGet(p);
+      if(c && Array.isArray(c.entries) && c.entries.some(function(e){ return e && e.id===id; })) return true;
+    }
+    return false;
   }
   function _admAttachMeta(d, status, via){
     if(d && typeof d==='object'){
@@ -25567,11 +25618,18 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var gas=_admGasUrl();
     if(!Array.isArray(arr)) arr=[];
     var cached=_admCacheGet(path);
-    var isDelete=/delete/i.test(msg||'');
-    if(!append && arr.length===0 && cached && cached.entries && cached.entries.length>0 && !isDelete && !/move/i.test(msg||'')){
+    if(!append && !sha && cached && cached.sha) sha=cached.sha;
+    var isIntentional=/move|delete|unread/i.test(msg||'');
+    var cachedIds={};
+    if(cached && Array.isArray(cached.entries)){
+      cached.entries.forEach(function(e){ if(e && e.id) cachedIds[e.id]=true; });
+    }
+    var remainingIsSubset=arr.every(function(e){ return !e || !e.id || cachedIds[e.id]; });
+    var shrinking=!!(cached && cached.entries && cached.entries.length>arr.length && remainingIsSubset);
+    if(!append && arr.length===0 && cached && cached.entries && cached.entries.length>0 && !isIntentional && !shrinking){
       return Promise.reject(new Error('refusing to overwrite '+path+' with empty'));
     }
-    if(!append && arr.length<=1 && !sha && cached && cached.entries && cached.entries.length>arr.length){
+    if(!append && arr.length<=1 && !sha && cached && cached.entries && cached.entries.length>arr.length && !isIntentional && !shrinking){
       return Promise.reject(new Error('refusing to PUT '+arr.length+'-item over '+path+' without confirmed GET'));
     }
     function viaGas(useAppend){
@@ -25621,7 +25679,20 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
     return writeP.then(function(d){
       var newSha=(d && d.content && d.content.sha) || (d && d.sha) || sha || null;
-      _admCacheSet(path, newSha, arr, arr.length===0);
+      if(append){
+        var prev=_admCacheGet(path);
+        var merged=(prev && Array.isArray(prev.entries)) ? prev.entries.slice() : [];
+        var seen={};
+        merged.forEach(function(e){ if(e && e.id) seen[e.id]=true; });
+        arr.forEach(function(e){
+          if(e && e.id && !seen[e.id]){ merged.push(e); seen[e.id]=true; }
+          else if(e && !e.id) merged.push(e);
+        });
+        var clearIds=arr.map(function(e){ return e && e.id; }).filter(Boolean);
+        _admCacheSet(path, newSha, merged, false, {writeConfirmed:true, clearExcluded:clearIds});
+      } else {
+        _admCacheSet(path, newSha, arr, arr.length===0, {writeConfirmed:true});
+      }
       return d;
     });
   }
@@ -25696,7 +25767,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var cached=_admCacheGet(path);
     var arr=(cached && Array.isArray(cached.entries)) ? cached.entries.slice() : [];
     if(entry && entry.id && !arr.some(function(x){ return x && x.id===entry.id; })) arr.push(entry);
-    _admCacheSet(path, cached && cached.sha, arr, false);
+    _admCacheSet(path, cached && cached.sha, arr, false, {clearExcluded: entry && entry.id ? [entry.id] : []});
+    if(entry && entry.id){
+      _admPendingSubmit=_admPendingSubmit.filter(function(p){ return p.id!==entry.id; });
+      _admPendingSubmit.push({id:entry.id, ts:Date.now(), entry:entry});
+    }
     return arr;
   }
   window._admInboxMergeCache = _admInboxMergeCache;
@@ -25761,7 +25836,9 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
     tb.appendChild(mkBtn('ALL',null,function(){ wrap.querySelectorAll('.e-check').forEach(function(c){c.checked=true;}); }));
     tb.appendChild(mkBtn('NONE',null,function(){ wrap.querySelectorAll('.e-check').forEach(function(c){c.checked=false;}); }));
+    var unreadBtn=mkBtn('UNREAD','warn',function(){ moveSelected('inbox'); });
     if(!opts.inboxOnly){
+      tb.appendChild(unreadBtn);
       tb.appendChild(mkBtn('→ ANAL','warn',function(){ moveSelected('analysis'); }));
       tb.appendChild(mkBtn('→ READ','warn',function(){ moveSelected('read'); }));
       tb.appendChild(mkBtn('→ TRASH','warn',function(){ moveSelected('trash'); }));
@@ -25793,6 +25870,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         t.style.color=on?'var(--cyan,#00e5ff)':'color-mix(in srgb, var(--cyan,#00e5ff) 40%, transparent)';
         t.style.borderBottomColor=on?'var(--cyan,#00e5ff)':'transparent';
       });
+      if(unreadBtn) unreadBtn.style.display=st.folder==='inbox'?'none':'';
     }
     function selectedIdxs(){
       var out=[];
@@ -25847,6 +25925,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           };
           return b;
         }
+        if(st.folder!=='inbox') acts.appendChild(act('UNREAD','inbox'));
         if(st.folder!=='analysis') acts.appendChild(act('ANALYSIS','analysis'));
         if(st.folder!=='read') acts.appendChild(act('READ','read'));
         if(st.folder!=='trash') acts.appendChild(act('TRASH','trash'));
@@ -25906,9 +25985,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           st.sha=cached.sha||null;
           st.syncOk=true;
           render();
-          setStatus(st.data.length+' entries (last saved) — syncing…');
+          if(!opts.keepStatus) setStatus(st.data.length+' entries (last saved) — syncing…');
+        } else if(cached && cached.writeConfirmed){
+          st.data=Array.isArray(cached.entries)?cached.entries:[];
+          st.sha=cached.sha||null;
+          st.syncOk=true;
+          render();
+          if(!opts.keepStatus) setStatus(st.data.length+' entries (last saved) — syncing…');
         } else {
-          setStatus('LOADING '+folder.toUpperCase()+'...');
+          if(!opts.keepStatus) setStatus('LOADING '+folder.toUpperCase()+'...');
         }
       } else {
         gen=loadGen;
@@ -25941,33 +26026,55 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         try{ got=applyParsed(d, path); }catch(err){ keepCache(); return; }
         var liveCache=_admCacheGet(path);
         var cacheHas=liveCache && liveCache.entries && liveCache.entries.length;
-        if(got && Array.isArray(got.data) && cacheHas){
-          var seen={};
-          got.data.forEach(function(e){ if(e && e.id) seen[e.id]=true; });
-          liveCache.entries.forEach(function(e){
-            if(e && e.id && !seen[e.id]){ got.data.push(e); seen[e.id]=true; }
+        var excluded=_admCacheExcluded(path);
+        var seen={};
+        function markSeen(e){ if(e && e.id) seen[e.id]=true; }
+        if(!got.data) got.data=[];
+        got.data=got.data.filter(function(e){ return !e || !e.id || !excluded[e.id]; });
+        if(liveCache && liveCache.writeConfirmed && Array.isArray(liveCache.entries)){
+          var base=liveCache.entries.filter(function(e){ return e && (!e.id || !excluded[e.id]); }).slice();
+          base.forEach(markSeen);
+          got.data.forEach(function(e){
+            if(e && e.id && !seen[e.id] && !excluded[e.id]){ base.push(e); seen[e.id]=true; }
+            else if(e && !e.id) base.push(e);
           });
-          if(got.data.length) got.confirmedEmpty=false;
+          got.data=base;
+        } else {
+          got.data.forEach(markSeen);
+          var now=Date.now();
+          _admPendingSubmit.forEach(function(p){
+            if(!p || !p.id || !p.entry) return;
+            if(now-p.ts>60000) return;
+            if(seen[p.id]) return;
+            if(excluded[p.id]) return;
+            if(_admIdInOtherFolderCache(p.id, path)) return;
+            if(path!=='feedback/inbox.json') return;
+            got.data.push(p.entry);
+            seen[p.id]=true;
+          });
         }
+        if(got.data.length) got.confirmedEmpty=false;
         var remoteEmpty=!got.data || !got.data.length;
+        var wroteEmpty=!!(liveCache && liveCache.writeConfirmed && (!liveCache.entries || !liveCache.entries.length));
         if(remoteEmpty && cacheHas && !got.confirmedEmpty && !got.notFound){
           keepCache();
           return;
         }
-        if(remoteEmpty && !got.confirmedEmpty && !got.notFound){
+        if(remoteEmpty && !got.confirmedEmpty && !got.notFound && !wroteEmpty){
           keepCache();
           return;
         }
         done=true;
         if(failTimer) clearTimeout(failTimer);
-        if(got.data.length || got.confirmedEmpty || got.notFound){
-          _admCacheSet(path, got.sha, got.data, !!(got.confirmedEmpty||got.notFound));
+        if(got.data.length || got.confirmedEmpty || got.notFound || wroteEmpty){
+          _admCacheSet(path, got.sha, got.data, !!(got.confirmedEmpty||got.notFound||wroteEmpty), {writeConfirmed: !!(liveCache && liveCache.writeConfirmed)});
         }
         if(silent) return;
-        st.sha=got.sha;
+        st.sha=got.sha || (liveCache && liveCache.sha) || null;
         st.data=got.data;
         st.syncOk=true;
         render();
+        if(opts.keepStatus) return;
         if(got.notFound && !got.data.length) setStatus('0 entries — mailbox file not created yet');
       }).catch(function(){
         keepCache();
@@ -25975,47 +26082,112 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         if(!silent && gen===loadGen && !done) keepCache();
       });
     }
-    function appendToDest(dest, entries, cb){
+    function appendToDest(dest, entries){
       var destPath=_admFbPath(dest);
-      _admFetchFolder(dest).then(function(d){
-        var got=applyParsed(d, destPath);
-        var arr=got.data.slice().concat(entries);
-        return _admWriteJson(destPath, arr, got.sha||null, 'feedback: receive entries in '+dest);
-      }).then(function(){ cb(); }).catch(function(){
-        return _admWriteJson(destPath, entries, null, 'feedback: receive entries in '+dest, {append:true})
-          .then(function(){ cb(); })
-          .catch(function(e){ setStatus('Append error: '+e.message); });
+      var destCache=_admCacheGet(destPath);
+      function mergeDest(existing){
+        var arr=(existing && existing.slice()) || [];
+        var seen={};
+        arr.forEach(function(e){ if(e && e.id) seen[e.id]=true; });
+        if(destCache && Array.isArray(destCache.entries)){
+          destCache.entries.forEach(function(e){
+            if(e && e.id && !seen[e.id]){ arr.push(e); seen[e.id]=true; }
+          });
+        }
+        (entries||[]).forEach(function(e){
+          if(e && e.id && !seen[e.id]){ arr.push(e); seen[e.id]=true; }
+          else if(e && !e.id) arr.push(e);
+        });
+        return arr;
+      }
+      return _admWriteJson(destPath, entries, null, 'feedback: receive entries in '+dest, {append:true})
+        .catch(function(){
+          return _admFetchFolder(dest).then(function(d){
+            var got=applyParsed(d, destPath);
+            var arr=mergeDest(got.data);
+            var sha=got.sha || (destCache && destCache.sha) || null;
+            return _admWriteJson(destPath, arr, sha, 'feedback: receive entries in '+dest);
+          });
+        }).then(function(d){
+          var cur=_admCacheGet(destPath);
+          var merged=mergeDest(cur && cur.entries);
+          var ids=(entries||[]).map(function(e){ return e && e.id; }).filter(Boolean);
+          var newSha=(d && d.content && d.content.sha) || (d && d.sha) || (cur && cur.sha) || null;
+          _admCacheSet(destPath, newSha, merged, false, {writeConfirmed:true, clearExcluded:ids});
+          return d;
+        });
+    }
+    function applyMove(entries, remaining, dest, label){
+      var srcPath=_admFbPath(st.folder);
+      var destPath=_admFbPath(dest);
+      var ids=entries.map(function(e){ return e && e.id; }).filter(Boolean);
+      var srcSha=st.sha || ((_admCacheGet(srcPath)||{}).sha) || null;
+      return appendToDest(dest, entries).then(function(){
+        return _admWriteJson(srcPath, remaining, srcSha, label);
+      }).then(function(d){
+        _admDropPending(ids);
+        var newSha=(d && d.content && d.content.sha) || (d && d.sha) || srcSha || null;
+        _admCacheSet(srcPath, newSha, remaining, remaining.length===0, {writeConfirmed:true, excluded:ids});
+        var dc=_admCacheGet(destPath);
+        var destArr=(dc && Array.isArray(dc.entries)) ? dc.entries.slice() : [];
+        var seen={};
+        destArr.forEach(function(e){ if(e && e.id) seen[e.id]=true; });
+        entries.forEach(function(e){
+          if(e && e.id && !seen[e.id]){ destArr.push(e); seen[e.id]=true; }
+        });
+        _admCacheSet(destPath, dc && dc.sha, destArr, false, {writeConfirmed:true, clearExcluded:ids});
+        st.data=remaining;
+        st.sha=newSha;
+        render();
+        return d;
       });
     }
     function moveSingle(idx, dest){
+      if(st.folder===dest){ setStatus('Already in '+dest.toUpperCase()); return; }
       var entry=st.data[idx];
+      if(!entry) return;
       var remaining=st.data.filter(function(_,i){return i!==idx;});
       setStatus('Moving to '+dest+'...');
-      appendToDest(dest,[entry],function(){
-        _admWriteJson(_admFbPath(st.folder), remaining, st.sha, 'feedback: move 1 entry to '+dest)
-          .then(function(){ st.data=remaining; st.sha=null; render(); setStatus('Moved to '+dest.toUpperCase()); loadFolder(st.folder); })
-          .catch(function(e){ setStatus('Move error: '+e.message); });
-      });
+      applyMove([entry], remaining, dest, 'feedback: move 1 entry to '+dest)
+        .then(function(){
+          setStatus('Moved to '+dest.toUpperCase());
+          loadFolder(dest, {silent:true});
+        })
+        .catch(function(e){ setStatus('Move error: '+e.message); });
     }
     function deleteSingle(idx){
       if(st.folder!=='trash'){ moveSingle(idx, 'trash'); return; }
       var remaining=st.data.filter(function(_,i){return i!==idx;});
+      var ids=st.data[idx] && st.data[idx].id ? [st.data[idx].id] : [];
+      var srcPath=_admFbPath(st.folder);
+      var srcSha=st.sha || ((_admCacheGet(srcPath)||{}).sha) || null;
       setStatus('Deleting...');
-      _admWriteJson(_admFbPath(st.folder), remaining, st.sha, 'feedback: delete 1 entry')
-        .then(function(){ st.data=remaining; st.sha=null; render(); setStatus('Entry deleted.'); loadFolder(st.folder); })
+      _admWriteJson(srcPath, remaining, srcSha, 'feedback: delete 1 entry')
+        .then(function(d){
+          _admDropPending(ids);
+          var newSha=(d && d.content && d.content.sha) || (d && d.sha) || srcSha || null;
+          _admCacheSet(srcPath, newSha, remaining, remaining.length===0, {writeConfirmed:true, excluded:ids});
+          st.data=remaining;
+          st.sha=newSha;
+          render();
+          setStatus('Entry deleted.');
+        })
         .catch(function(e){ setStatus('Delete error: '+e.message); });
     }
     function moveSelected(dest){
+      if(st.folder===dest){ setStatus('Already in '+dest.toUpperCase()); return; }
       var idxs=selectedIdxs();
       if(!idxs.length){ setStatus('No entries selected'); return; }
       var entries=idxs.map(function(i){return st.data[i];});
       var remaining=st.data.filter(function(_,i){return idxs.indexOf(i)===-1;});
+      var verb=dest==='inbox' ? 'unread' : 'bulk move';
       setStatus('Moving '+entries.length+' to '+dest+'...');
-      appendToDest(dest,entries,function(){
-        _admWriteJson(_admFbPath(st.folder), remaining, st.sha, 'feedback: bulk move '+entries.length+' to '+dest)
-          .then(function(){ loadFolder(st.folder); setStatus('Moved '+entries.length+' to '+dest.toUpperCase()); })
-          .catch(function(e){ setStatus('Error: '+e.message); });
-      });
+      applyMove(entries, remaining, dest, 'feedback: '+verb+' '+entries.length+' to '+dest)
+        .then(function(){
+          setStatus('Moved '+entries.length+' to '+dest.toUpperCase());
+          loadFolder(dest, {silent:true});
+        })
+        .catch(function(e){ setStatus('Error: '+e.message); });
     }
     function deleteSelected(){
       var idxs=selectedIdxs();
@@ -26023,9 +26195,20 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       if(st.folder!=='trash'){ moveSelected('trash'); return; }
       if(!confirm('Permanently delete '+idxs.length+' entries?')) return;
       var remaining=st.data.filter(function(_,i){return idxs.indexOf(i)===-1;});
+      var ids=idxs.map(function(i){ return st.data[i] && st.data[i].id; }).filter(Boolean);
+      var srcPath=_admFbPath(st.folder);
+      var srcSha=st.sha || ((_admCacheGet(srcPath)||{}).sha) || null;
       setStatus('Deleting...');
-      _admWriteJson(_admFbPath(st.folder), remaining, st.sha, 'feedback: bulk delete '+idxs.length+' entries')
-        .then(function(){ loadFolder(st.folder); setStatus('Deleted '+idxs.length+' entries'); })
+      _admWriteJson(srcPath, remaining, srcSha, 'feedback: bulk delete '+idxs.length+' entries')
+        .then(function(d){
+          _admDropPending(ids);
+          var newSha=(d && d.content && d.content.sha) || (d && d.sha) || srcSha || null;
+          _admCacheSet(srcPath, newSha, remaining, remaining.length===0, {writeConfirmed:true, excluded:ids});
+          st.data=remaining;
+          st.sha=newSha;
+          render();
+          setStatus('Deleted '+idxs.length+' entries');
+        })
         .catch(function(e){ setStatus('Error: '+e.message); });
     }
     window._admLoadFbFolder = loadFolder;
@@ -26527,7 +26710,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
 
 <script src="js/mist-module.js?v=20260901c"></script>
-<script src="js/ash-star-archive.js?v=20260828q"></script>
+<script src="js/ash-star-archive.js?v=20260901-mailbox-move"></script>
 <script src="js/ash-shard-module.js?v=20260828q"></script>
 <script src="js/hud-tools-module.js?v=20260828c"></script>
 
