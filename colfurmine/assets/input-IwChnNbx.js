@@ -1,0 +1,1 @@
+import{l as e}from"./link-KLhcpUzt.js";import{t}from"./utils-kL7g1bDL.js";var n=e();function r({className:e,...r}){return(0,n.jsx)(`input`,{className:t(`lab-input`,e),...r})}export{r as t};
