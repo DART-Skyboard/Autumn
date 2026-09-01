@@ -3410,6 +3410,9 @@ class ANLPCA {
     this._personality=personality;
     this._sigma=sigmaAnalytics;
     this._habitat=new HabitatCompiler(this);
+    this._gs={ trained:false, running:false, index:null, live:null, view:null, work:null, listenBound:false, turnN:0, notesTurn:0, lastOptAt:0, lexicon:null };
+    try{ this._gsRestore(); }catch(e){}
+    try{ this._gsBindListeners(); }catch(e){}
     // Expose shell arrays directly for external inspection
     this.shells={Mmsa:lexer.Mmsa,Psa:lexer.Psa,Esa:lexer.Esa,
                  Hsa:lexer.Hsa,Ssa:lexer.Ssa,Ksa:lexer.Ksa,Rsa:lexer.Rsa};
@@ -3943,6 +3946,10 @@ class ANLPCA {
     return classifyNumber(raw);
   }
   _grammarDict(){
+    if(this._gs && this._gs.trained && this._gs.view) return this._gs.view;
+    return (this.a && this.a._grammar) || null;
+  }
+  _rawGrammarDict(){
     return (this.a && this.a._grammar) || null;
   }
   _talkKey(raw){
@@ -4139,6 +4146,12 @@ class ANLPCA {
   }
   _tokenTalkRole(lower, G){
     const n = String(lower||'').replace(/['']/g,"'");
+    const studied = this._gs && this._gs.live && this._gs.live.wordRoles && this._gs.live.wordRoles[n];
+    if(studied){
+      if(studied.pos==='slang_greeting' || studied.role==='interjection') return 'greeting';
+      if(studied.pos==='numeral' || studied.pos==='number') return 'number';
+      return studied.pos || studied.role || 'content';
+    }
     const CF = G && G.conversationFramework;
     const slang = (CF && CF.slang_map) || {};
     if(slang[n] && slang[n].kind) return slang[n].kind;
@@ -5770,6 +5783,7 @@ class ANLPCA {
     } catch (e) {}
 
     try { this._selfTeachSpine(raw, facts, ooo, needed, geo); } catch(e) {}
+    try { if(!facts._admin) this._gsListenTurn(raw, parsed, reflex, facts); } catch(e) {}
 
     const packed = this.s.lastFlow
       ? this.processContinuation(text, facts)
@@ -5842,6 +5856,678 @@ class ANLPCA {
     });
   }
 
+  // ─────────────────────────────────────────────────────────────────
+  // GRAMMAR STUDY — self-talk grammar dictionary (journal sub-attachment)
+  // Core Cognition stays frozen. Parameters only: grammar_study_spine.
+  // Shared shards = linguistic patterns. Per-user personality stays in journal.
+  // ─────────────────────────────────────────────────────────────────
+  _gsYield(fn){
+    return new Promise(function(resolve){
+      const go=function(){ try{ resolve(typeof fn==='function'?fn():undefined); }catch(e){ resolve(undefined); } };
+      if(typeof requestAnimationFrame==='function') requestAnimationFrame(function(){ setTimeout(go,0); });
+      else setTimeout(go,0);
+    });
+  }
+  _gsBytes(obj){
+    try{ return JSON.stringify(obj).length; }catch(e){ return 0; }
+  }
+  _gsPad(n){
+    const i=Math.max(0, parseInt(n,10)||0);
+    return 'chunk-'+String(i).padStart(2,'0');
+  }
+  _gsFetchJson(paths){
+    const list=Array.isArray(paths)?paths:[paths];
+    const tryAt=function(i){
+      if(i>=list.length) return Promise.resolve(null);
+      return fetch(list[i]).then(function(r){ return r.ok?r.json():Promise.reject(); })
+        .then(function(d){ return d&&typeof d==='object'?d:null; })
+        .catch(function(){ return tryAt(i+1); });
+    };
+    return tryAt(0);
+  }
+  async loadGrammarDictionary(){
+    if(this.a && this.a._grammar) return this.a._grammar;
+    const d=await this._gsFetchJson([
+      'nlp/grammar-dictionary.json','./nlp/grammar-dictionary.json','/nlp/grammar-dictionary.json',
+      'assets/grammar-dictionary.json'
+    ]);
+    if(d && this.a) this.a._grammar=d;
+    return d;
+  }
+  async loadEnglishLexicon(){
+    if(this._gs && this._gs.lexicon) return this._gs.lexicon;
+    const d=await this._gsFetchJson([
+      'nlp/english-lexicon.json','./nlp/english-lexicon.json','/nlp/english-lexicon.json'
+    ]);
+    if(this._gs) this._gs.lexicon=d;
+    return d;
+  }
+  _gsAshWrite(path, obj){
+    try{
+      if(typeof window!=='undefined' && typeof window.writeLeatrAshMemory==='function'){
+        window.writeLeatrAshMemory(path, obj);
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+  _gsJournal(entry){
+    try{
+      if(this._dual && typeof this._dual.writeInner==='function') this._dual.writeInner(entry);
+    }catch(e){}
+    try{
+      if(this.asjc && typeof this.asjc.write==='function') this.asjc.write(entry);
+    }catch(e){}
+    try{
+      if(typeof window!=='undefined' && window.S && Array.isArray(window.S.journal)){
+        window.S.journal.push(Object.assign({ts:Date.now()}, entry));
+      }
+    }catch(e){}
+  }
+  _gsBoundary(topic, reason){
+    try{ this._journalBoundary(topic, reason); }catch(e){}
+  }
+  _gsItemFrp(label, xa){
+    const x=Math.max(0.05, Number(xa)||0.5);
+    let pack;
+    try{ pack=frpSqrtFrp(x, Math.max(0.2,x*0.85), Math.max(0.15,x*0.7)); }
+    catch(e){ pack={score:x, outer:[x], mid:[x], inner:[x]}; }
+    return {
+      id: String(label||''),
+      frp: +(pack.score||0).toFixed(4),
+      pipelined: true,
+      reflex: 'F→R→P',
+      score: +(pack.score||0).toFixed(4)
+    };
+  }
+  _gsLooksPII(tok){
+    const s=String(tok==null?'':tok);
+    if(!s) return true;
+    if(/@/.test(s) || /https?:/i.test(s) || /[+]?\d[\d\s().-]{8,}\d/.test(s)) return true;
+    if(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/.test(s)) return true;
+    if(s.length>22) return true;
+    return false;
+  }
+  _gsSafeToken(tok){
+    if(this._gsLooksPII(tok)) return null;
+    const t=String(tok||'').toLowerCase().trim().replace(/[^a-z'-]/g,'');
+    if(!t || t.length>18) return null;
+    if(/^(justin|dartsolarpunk)$/.test(t)) return null;
+    if(/^[A-Z]/.test(String(tok||''))) return null; // proper names stay out of the shared study
+    return t;
+  }
+  _gsRestore(){
+    this._gs = this._gs || { trained:false, running:false, index:null, live:null, view:null, work:null, listenBound:false, turnN:0, notesTurn:0, lastOptAt:0, lexicon:null };
+    let packed=null;
+    try{ packed=JSON.parse(localStorage.getItem('autumn_grammar_study_v1')||'null'); }catch(e){ packed=null; }
+    if(packed && packed.index && packed.index.pass==='complete'){
+      this._gs.index=packed.index;
+      this._gs.live=packed.live || packed.index.live || null;
+      this._gs.trained=true;
+    } else if(packed && packed.pass==='complete'){
+      this._gs.live=packed;
+      this._gs.trained=true;
+      this._gs.index=packed.index || null;
+    }
+    try{
+      const work=JSON.parse(localStorage.getItem('autumn_grammar_study_work_v1')||'null');
+      if(work && work.id) this._gs.work=work;
+    }catch(e){}
+    if(this._gs.trained && this._gs.live) this._gsBuildView();
+  }
+  _gsBindListeners(){
+    if(this._gs && this._gs.listenBound) return;
+    if(!this._gs) this._gsRestore();
+    this._gs.listenBound=true;
+    const self=this;
+    try{ if(this.asjc && typeof this.asjc.onWrite==='function') this.asjc.onWrite(function(e){ self._gsOnJournal(e,'asjc'); }); }catch(e){}
+    try{ if(this._dual && typeof this._dual.onInner==='function') this._dual.onInner(function(e){ self._gsOnJournal(e,'inner'); }); }catch(e){}
+    try{ if(this._dual && typeof this._dual.onOuter==='function') this._dual.onOuter(function(e){ self._gsOnJournal(e,'outer'); }); }catch(e){}
+  }
+  _gsPersistLive(){
+    const index=this._gs.index;
+    const live=this._gs.live;
+    if(!index) return;
+    try{
+      const slim=Object.assign({}, index);
+      if(live){
+        slim.live={
+          v: live.v||1,
+          trainedAt: live.trainedAt,
+          source: live.source,
+          sourceMeta: live.sourceMeta||null,
+          roles: live.roles||{},
+          punctuation: live.punctuation||{},
+          numbers: live.numbers||{},
+          sequence: (live.sequence||[]).slice(0,24),
+          languages: live.languages||{},
+          spine: live.spine||slim.spine,
+          wordRoles: live.wordRoles||{},
+          optimizedAt: live.optimizedAt||null,
+          pass: live.pass||'complete'
+        };
+      }
+      delete slim.wordRoles;
+      localStorage.setItem('autumn_grammar_study_v1', JSON.stringify({ v:1, index:slim, live:slim.live||live }));
+    }catch(e){}
+    try{
+      if(this._gs.work) localStorage.setItem('autumn_grammar_study_work_v1', JSON.stringify(this._gs.work));
+    }catch(e){}
+  }
+  _gsBuildView(){
+    const raw=(this.a && this.a._grammar) || null;
+    const live=this._gs && this._gs.live;
+    if(!live){ this._gs.view=raw; return raw; }
+    const view=Object.assign({}, raw||{});
+    view._fromStudy=true;
+    if(live.punctuation){
+      view.punctuation=Object.assign({}, view.punctuation||{});
+      view.punctuation.markers=Object.assign({}, (raw && raw.punctuation && raw.punctuation.markers)||{});
+      Object.keys(live.punctuation).forEach(function(k){
+        const p=live.punctuation[k];
+        if(!p || typeof p!=='object') return;
+        view.punctuation.markers[k]=Object.assign({}, view.punctuation.markers[k]||{}, {
+          signal: p.signal || (view.punctuation.markers[k]&&view.punctuation.markers[k].signal) || 'punctuation',
+          tool_trigger: p.tool || (view.punctuation.markers[k]&&view.punctuation.markers[k].tool_trigger) || 'ENVELOPE'
+        });
+      });
+    }
+    if(live.sequence && live.sequence.length){
+      view.sequence_patterns=Object.assign({}, view.sequence_patterns||{}, { pattern_types: live.sequence });
+    }
+    if(live.languages){
+      view.language_rules=Object.assign({}, view.language_rules||{});
+      Object.keys(live.languages).forEach(function(k){
+        if(live.languages[k]) view.language_rules[k]=Object.assign({}, view.language_rules[k]||{}, {name:k, studied:true});
+      });
+    }
+    if(live.wordRoles){
+      view.conversationFramework=Object.assign({}, view.conversationFramework||{});
+      const slang=Object.assign({}, (raw && raw.conversationFramework && raw.conversationFramework.slang_map)||{});
+      Object.keys(live.wordRoles).forEach(function(w){
+        const r=live.wordRoles[w];
+        if(r && (r.pos==='slang_greeting' || r.role==='interjection' || r.pos==='greeting')){
+          slang[w]={ kind:'greeting', canonical:(r.canonical||w), _fromStudy:true };
+        }
+      });
+      view.conversationFramework.slang_map=slang;
+    }
+    this._gs.view=view;
+    return view;
+  }
+  _gsWriteIndexAndChunks(index, chunks){
+    const self=this;
+    this._gsAshWrite('ashtree/grammar-study/index.json', index);
+    (chunks||[]).forEach(function(ch){
+      if(!ch || !ch.id) return;
+      if(self._gsBytes(ch) > 5000000){
+        self._gsBoundary('grammar_study_chunk', 'Chunk '+ch.id+' exceeded 5MB — skipped write, never loop.');
+        return;
+      }
+      self._gsAshWrite('ashtree/grammar-study/'+ch.id+'.json', ch);
+    });
+  }
+  _gsMintOptimizeChunk(index){
+    const n=(index.order||[]).length;
+    const id=this._gsPad(n);
+    const chunk={ id:id, role:'optimize', v:1, updated:new Date().toISOString(), notes:[] };
+    index.order.push(id);
+    index.chunks=index.chunks||[];
+    index.chunks.push({ id:id, role:'optimize', bytes:this._gsBytes(chunk), updated:chunk.updated });
+    this._gs.work=chunk;
+    return chunk;
+  }
+  _gsAppendOptimize(note){
+    if(!this._gs || !this._gs.trained || !this._gs.index) return false;
+    const index=this._gs.index;
+    let work=this._gs.work;
+    if(!work || work.role!=='optimize'){
+      const last=(index.order||[]).slice().reverse().find(function(id){
+        const meta=(index.chunks||[]).find(function(c){ return c.id===id; });
+        return meta && meta.role==='optimize';
+      });
+      work = last ? (this._gs.work && this._gs.work.id===last ? this._gs.work : {id:last, role:'optimize', v:1, notes:[]}) : null;
+    }
+    if(!work) work=this._gsMintOptimizeChunk(index);
+    const next=Object.assign({}, work, { notes:(work.notes||[]).concat([note]), updated:new Date().toISOString() });
+    if(this._gsBytes(next) > 5000000){
+      work=this._gsMintOptimizeChunk(index);
+      work.notes=[note];
+      work.updated=new Date().toISOString();
+    } else {
+      work=next;
+    }
+    this._gs.work=work;
+    const bytes=this._gsBytes(work);
+    const meta=(index.chunks||[]).find(function(c){ return c.id===work.id; });
+    if(meta){ meta.bytes=bytes; meta.updated=work.updated; }
+    index.updated=work.updated;
+    if(this._gs.live) this._gs.live.optimizedAt=work.updated;
+    this._gsPersistLive();
+    this._gsAshWrite('ashtree/grammar-study/'+work.id+'.json', work);
+    this._gsAshWrite('ashtree/grammar-study/index.json', index);
+    return true;
+  }
+  async loadGrammarStudy(){
+    if(!this._gs) this._gsRestore();
+    const index=this._gs.index;
+    if(!index || !Array.isArray(index.order)) return this._gs.live||null;
+    const merged=Object.assign({}, this._gs.live||{ v:1, roles:{}, punctuation:{}, numbers:{}, sequence:[], languages:{}, wordRoles:{} });
+    const order=index.order.slice();
+    for(let i=0;i<order.length;i++){
+      const id=order[i];
+      let chunk=null;
+      if(this._gs.work && this._gs.work.id===id) chunk=this._gs.work;
+      if(!chunk && merged._chunks && merged._chunks[id]) chunk=merged._chunks[id];
+      if(!chunk){
+        this._gsBoundary('grammar_study_'+id, 'Study chunk '+id+' missing locally — skipped, never loop.');
+        continue;
+      }
+      try{
+        if(chunk.role==='rules' && chunk.live){
+          Object.assign(merged, chunk.live);
+        } else if(chunk.role==='lexicon' && chunk.wordRoles){
+          merged.wordRoles=Object.assign({}, merged.wordRoles||{}, chunk.wordRoles);
+        } else if(chunk.role==='optimize' && Array.isArray(chunk.notes)){
+          chunk.notes.forEach(function(n){
+            if(!n || !n.token) return;
+            merged.wordRoles=merged.wordRoles||{};
+            merged.wordRoles[n.token]={ pos:n.pos||n.role||'pattern', reflex:'optimize', role:n.role||null };
+          });
+        }
+      }catch(e){
+        this._gsBoundary('grammar_study_'+id, 'Study chunk '+id+' failed to merge — skipped, never loop.');
+      }
+      await this._gsYield(null);
+    }
+    merged.pass='complete';
+    this._gs.live=merged;
+    this._gs.trained=true;
+    this._gsBuildView();
+    return merged;
+  }
+  getGrammarStudy(){
+    if(!this._gs) this._gsRestore();
+    return this._gs && this._gs.live || null;
+  }
+  isGrammarStudyTrained(){
+    if(!this._gs) this._gsRestore();
+    return !!(this._gs && this._gs.trained && this._gs.live && this._gs.live.pass==='complete');
+  }
+  async runGrammarStudy(opts){
+    opts=opts||{};
+    const onProgress=typeof opts.onProgress==='function'?opts.onProgress:function(){};
+    const onDone=typeof opts.onDone==='function'?opts.onDone:function(){};
+    const onError=typeof opts.onError==='function'?opts.onError:function(){};
+    if(this._gs && this._gs.running){ onError(new Error('Grammar study already running')); return null; }
+    if(!this._gs) this._gsRestore();
+    this._gs.running=true;
+    const counts={ sections:0, roles:0, punct:0, wordRoles:0, skipped:0 };
+    try{
+      const dict=await this.loadGrammarDictionary();
+      if(!dict){
+        this._gs.running=false;
+        const err=new Error('grammar-dictionary.json unavailable');
+        this._gsBoundary('grammar_study', 'Grammar dictionary missing — skipped, never loop.');
+        onError(err);
+        return null;
+      }
+      const sections=Object.keys(dict).filter(function(k){ return k!=='_meta'; });
+      const live={
+        v:1,
+        trainedAt: new Date().toISOString(),
+        source:'nlp/grammar-dictionary.json',
+        sourceMeta: dict._meta||null,
+        roles:{},
+        punctuation:{},
+        numbers:{ digit_vs_word:'Digits count; number-words (one, two…) are the same quantity in word form.' },
+        sequence:[],
+        languages:{},
+        spine:{ toolOrder:['MAZE','PUZZLE','ENVELOPE','HAMMER','STICK','KNIFE','SCISSORS'], shells:['AERO','MAR','GEO'], frpGate:true, grammarFirst:true },
+        wordRoles:{},
+        optimizedAt:null,
+        pass:'partial'
+      };
+      // RULES FIRST — grammar-dictionary.json before any lexicon POS list
+      for(let i=0;i<sections.length;i++){
+        const key=sections[i];
+        onProgress('Grammar study — '+key+' '+(i+1)+'/'+sections.length+'…');
+        await this._gsYield(null);
+        try{
+          const val=dict[key];
+          const xa=0.4 + (i%7)*0.08;
+          this._gsItemFrp(key, xa); // Foundation → Reflex → Performance, pipelined
+          if(key==='punctuation' && val && val.markers){
+            Object.keys(val.markers).forEach(function(mk){
+              const m=val.markers[mk]||{};
+              live.punctuation[mk]={ signal:m.signal||'punctuation', frp:'pipelined', tool:m.tool_trigger||'ENVELOPE' };
+              counts.punct++;
+            });
+          } else if(key==='language_rules' && val){
+            Object.keys(val).forEach(function(lang){ live.languages[lang]=true; });
+          } else if(key==='sequence_patterns' && val && Array.isArray(val.pattern_types)){
+            live.sequence=val.pattern_types.map(function(p){
+              return { id:p.id, name:p.name, structure:p.structure, tool_sequence:p.tool_sequence, frp_mod:p.frp_mod };
+            });
+          } else if(key==='natural_tools' && val && Array.isArray(val.order)){
+            live.spine.toolOrder=val.order.slice();
+          } else if(key==='frp' && val && Array.isArray(val.shell_pipeline)){
+            live.spine.shells=val.shell_pipeline.slice();
+            live.spine.frpGate=val.pipeline!==false;
+          } else if(key==='sentence_structures' && val){
+            Object.keys(val).forEach(function(role){
+              const r=val[role]||{};
+              live.roles[role]={ frp:r.sig||'SIG_D', reflex:(r.tools||[]).join('→')||'MAZE' };
+              counts.roles++;
+            });
+          } else if(key==='tense_map' && val){
+            Object.keys(val).forEach(function(role){
+              const r=val[role]||{};
+              live.roles[role]={ frp:r.shell_hint||'MARITIME', reflex:r.tool_primary||'MAZE' };
+              counts.roles++;
+            });
+          }
+          counts.sections++;
+        }catch(e){
+          counts.skipped++;
+          this._gsBoundary('grammar_study_'+key, 'Section '+key+' failed — skipped, never loop.');
+        }
+      }
+      ['noun','verb','adjective','adverb','pronoun','article','preposition','conjunction','auxiliary','numeral','interjection'].forEach(function(role){
+        if(!live.roles[role]) live.roles[role]={ frp:'MARITIME', reflex:'role_'+role };
+      });
+      live.numbers.digit_vs_word='A digit (3) and a number-word (three) share quantity; word-form is still a number, not a letter.';
+
+      const chunk00={
+        id:'chunk-00', role:'rules', v:1, updated:live.trainedAt,
+        source:'nlp/grammar-dictionary.json', live:{
+          v:1, trainedAt:live.trainedAt, source:live.source, sourceMeta:live.sourceMeta,
+          roles:live.roles, punctuation:live.punctuation, numbers:live.numbers,
+          sequence:live.sequence, languages:live.languages, spine:live.spine, pass:'complete'
+        }
+      };
+
+      // LEXICON SECOND — english-lexicon.json + corpora POS, never WordNet dump
+      onProgress('Grammar study — lexicon…');
+      await this._gsYield(null);
+      const lex=await this.loadEnglishLexicon();
+      const wordRoles={};
+      const addRole=function(word, pos, reflex){
+        const t=String(word||'').toLowerCase();
+        if(!t || t.length>18 || wordRoles[t]) return;
+        if(/^[A-Z]/.test(String(word||'')) && pos==='noun') return; // skip proper-looking
+        wordRoles[t]={ pos:pos, reflex:reflex||('role_'+pos) };
+      };
+      if(lex && lex.function_words){
+        const fw=lex.function_words;
+        (fw.articles||[]).forEach(function(w){ addRole(w,'article','determiner'); });
+        (fw.pronouns||[]).forEach(function(w){ addRole(w,'pronoun','person'); });
+        (fw.prepositions||[]).forEach(function(w){ addRole(w,'preposition','link'); });
+        (fw.conjunctions||[]).forEach(function(w){ addRole(w,'conjunction','join'); });
+        (fw.auxiliaries||[]).forEach(function(w){ addRole(w,'auxiliary','tense'); });
+        (fw.question||[]).forEach(function(w){ addRole(w,'interrogative','ask'); });
+        (fw.negation||[]).forEach(function(w){ addRole(w,'negation','deny'); });
+        (fw.interjections||[]).forEach(function(w){ addRole(w,'interjection','exclaim'); });
+      }
+      if(lex && Array.isArray(lex.number_words)){
+        lex.number_words.forEach(function(w){ addRole(w,'numeral','number_word'); });
+      }
+      const sampleList=function(arr, pos, n){
+        (arr||[]).slice(0, n||80).forEach(function(item){
+          const w=typeof item==='string'?item:(item && (item.present||item.word));
+          addRole(w, pos, 'lexicon_'+pos);
+        });
+      };
+      if(lex){
+        sampleList(lex.verbs, 'verb', 120);
+        sampleList(lex.adverbs, 'adverb', 40);
+        sampleList((lex.adjectives||[]).filter(function(w){ return w && w[0]===String(w[0]).toLowerCase(); }), 'adjective', 40);
+        sampleList((lex.nouns||[]).filter(function(w){ return w && w[0]===String(w[0]).toLowerCase(); }), 'noun', 40);
+      }
+      onProgress('Grammar study — corpora POS…');
+      await this._gsYield(null);
+      const corporaFiles=['nlp/corpora-verbs.json','nlp/corpora-nouns.json','nlp/corpora-adjs.json','nlp/corpora-adverbs.json'];
+      for(let c=0;c<corporaFiles.length;c++){
+        try{
+          const cd=await this._gsFetchJson([corporaFiles[c], './'+corporaFiles[c]]);
+          if(!cd) continue;
+          if(Array.isArray(cd.verbs)) sampleList(cd.verbs, 'verb', 40);
+          if(Array.isArray(cd.nouns)) sampleList(cd.nouns.filter(function(w){ return w && w[0]===String(w[0]).toLowerCase(); }), 'noun', 20);
+          if(Array.isArray(cd.adjs)) sampleList(cd.adjs.filter(function(w){ return w && w[0]===String(w[0]).toLowerCase(); }), 'adjective', 20);
+          if(Array.isArray(cd.adverbs)) sampleList(cd.adverbs, 'adverb', 20);
+        }catch(e){
+          counts.skipped++;
+          this._gsBoundary('grammar_study_corpora', 'Corpora file skipped — never loop.');
+        }
+        await this._gsYield(null);
+      }
+
+      // WordNet LOOKUP only for function/tense/pronoun words already in the grammar resource
+      onProgress('Grammar study — WordNet sample (lookup only)…');
+      await this._gsYield(null);
+      const WN=typeof window!=='undefined' && window.AutumnWordNet;
+      const sampleWords=Object.keys(wordRoles).filter(function(w){
+        return /^(the|a|an|is|are|was|be|have|do|will|i|you|he|she|it|we|they|not|and|or|but|of|to|in|on|for|with|one|two|three|what|who|how)$/.test(w);
+      }).slice(0, 24);
+      if(WN && typeof WN.lookup==='function'){
+        for(let w=0;w<sampleWords.length;w++){
+          try{
+            const entries=await WN.lookup(sampleWords[w]);
+            if(entries && entries[0] && entries[0].pos){
+              wordRoles[sampleWords[w]]=Object.assign({}, wordRoles[sampleWords[w]], { pos:entries[0].pos, reflex:'wn_lookup' });
+            }
+          }catch(e){
+            this._gsBoundary('grammar_study_wn', 'WordNet lookup missed '+sampleWords[w]+' — skipped.');
+          }
+          await this._gsYield(null);
+        }
+      }
+      live.wordRoles=wordRoles;
+      counts.wordRoles=Object.keys(wordRoles).length;
+
+      const chunk01={
+        id:'chunk-01', role:'lexicon', v:1, updated:live.trainedAt,
+        source:'nlp/english-lexicon.json', wordRoles:wordRoles
+      };
+      const chunk02={ id:'chunk-02', role:'optimize', v:1, updated:live.trainedAt, notes:[] };
+
+      live.pass='complete';
+      const index={
+        v:1,
+        trainedAt: live.trainedAt,
+        source:'nlp/grammar-dictionary.json',
+        lexicon:'nlp/english-lexicon.json',
+        order:['chunk-00','chunk-01','chunk-02'],
+        chunks:[
+          { id:'chunk-00', role:'rules', bytes:this._gsBytes(chunk00), updated:live.trainedAt },
+          { id:'chunk-01', role:'lexicon', bytes:this._gsBytes(chunk01), updated:live.trainedAt },
+          { id:'chunk-02', role:'optimize', bytes:this._gsBytes(chunk02), updated:live.trainedAt }
+        ],
+        spine:{ grammarFirst:true, toolOrder:live.spine.toolOrder, shells:live.spine.shells, frpGate:true },
+        pass:'complete'
+      };
+
+      this._gs.index=index;
+      this._gs.live=live;
+      this._gs.work=chunk02;
+      this._gs.trained=true;
+      this._gsBuildView();
+      this._gsPersistLive();
+      this._gsWriteIndexAndChunks(index, [chunk00, chunk01, chunk02]);
+
+      this._gsJournal({
+        type:'grammar_study', pass:'complete',
+        source:'nlp/grammar-dictionary.json',
+        lexicon:'nlp/english-lexicon.json',
+        counts:counts,
+        order:index.order.slice(),
+        thought:'Grammar Study trained. Rules first, then lexicon roles. Core Cognition unchanged.'
+      });
+
+      try{
+        if(this._habitat && typeof this._habitat.updateCoreParameter==='function'){
+          this._habitat.updateCoreParameter('grammar_study_spine', {
+            trained:true, trainedAt:live.trainedAt, order:index.order.slice(), grammarFirst:true, frpGate:true
+          });
+        }
+      }catch(e){}
+
+      this._gs.running=false;
+      onProgress('Grammar study trained. File created (ashtree/grammar-study/index.json).');
+      onDone({ index:index, live:live, counts:counts, path:'ashtree/grammar-study/index.json' });
+      return live;
+    }catch(e){
+      this._gs.running=false;
+      this._gsBoundary('grammar_study', 'Grammar study halted — '+String(e&&e.message||e)+' — never loop.');
+      onError(e);
+      return null;
+    }
+  }
+  _gsOnJournal(entry, wall){
+    if(!this._gs || !this._gs.trained || this._gs.running) return;
+    if(!entry || typeof entry!=='object') return;
+    if(entry.type==='grammar_study' || entry.type==='grammar_note' || entry.type==='core_parameter') return;
+    if(this._gs._fromListen) return;
+    // Journal listener: linguistic tokens only, never raw user text into shared study
+    const snippet=String(entry.thought||entry.topic||entry.centralTopic||'');
+    const tokens=snippet.toLowerCase().split(/[^a-z'-]+/).filter(Boolean).slice(0,6);
+    const self=this;
+    let n=0;
+    tokens.forEach(function(t){
+      if(n>=2) return;
+      const safe=self._gsSafeToken(t);
+      if(!safe) return;
+      if(self._gs.live && self._gs.live.wordRoles && self._gs.live.wordRoles[safe]) return;
+      n++;
+      self._gsNotePattern({ role:'journal_token', token:safe, pos:'unlisted' }, wall);
+    });
+  }
+  _gsNotePattern(pat, wall){
+    if(!pat || !pat.token) return;
+    if(this._gsLooksPII(pat.token)) return;
+    if(this._gs.notesTurn>=3) return;
+    this._gs.notesTurn=(this._gs.notesTurn||0)+1;
+    this._gs._fromListen=true;
+    try{
+      this._gsJournal({
+        type:'grammar_note',
+        token:pat.token, pos:pat.pos||null, role:pat.role||null,
+        wall:wall||'turn',
+        thought:'Linguistic pattern noted. Shared study stores the role only.'
+      });
+    }catch(e){}
+    try{
+      if(this._gs.live){
+        this._gs.live.wordRoles=this._gs.live.wordRoles||{};
+        if(!this._gs.live.wordRoles[pat.token]){
+          this._gs.live.wordRoles[pat.token]={ pos:pat.pos||'pattern', reflex:'listen', role:pat.role||null };
+          this._gsAppendOptimize({ role:pat.role||'pattern', token:pat.token, pos:pat.pos||'pattern' });
+          this._gsBuildView();
+        }
+      }
+    }catch(e){}
+    this._gs._fromListen=false;
+  }
+  _gsListenTurn(raw, parsed, reflex, facts){
+    if(!this.isGrammarStudyTrained()) return;
+    if(facts && facts._admin) return; // public turns only for auto-optimize
+    this._gs.turnN=(this._gs.turnN||0)+1;
+    this._gs.notesTurn=0;
+    const live=this._gs.live;
+    const tokens=(parsed && parsed.tokens) || (reflex && reflex.tokens) || [];
+    const self=this;
+    let newRole=false;
+    tokens.slice(0, 12).forEach(function(tok){
+      if(self._gs.notesTurn>=3) return;
+      const word=String((tok && (tok.norm||tok.word))||'').toLowerCase();
+      const safe=self._gsSafeToken(word);
+      if(!safe) return;
+      const role=(tok && (tok.role||tok.pos)) || self._tokenTalkRole(safe, self._grammarDict());
+      if(live.wordRoles && live.wordRoles[safe]) return;
+      if(role==='content' && safe.length<4) return;
+      newRole=true;
+      let pos=role;
+      if(role==='greeting' || role==='interjection') pos='slang_greeting';
+      if(role==='number') pos='numeral';
+      self._gsNotePattern({ role:role, token:safe, pos:pos }, 'turn');
+    });
+    const src=String(raw||'');
+    const punctHit=src.match(/[.]{3}|[?!;:,]/g);
+    if(punctHit && live.punctuation){
+      punctHit.slice(0,2).forEach(function(p){
+        if(!live.punctuation[p]){
+          live.punctuation[p]={ signal:'observed', frp:'pipelined', tool:'ENVELOPE' };
+          self._gsNotePattern({ role:'punctuation', token:p, pos:'punct' }, 'turn');
+        }
+      });
+    }
+    const throttle=this._gs.turnN % 8===0;
+    if(!newRole && !throttle) return;
+  }
+  applyGrammarStudyNote(text){
+    const raw=String(text||'').trim();
+    if(!raw) return "I need a grammar note to work with.";
+    let gbv=null;
+    try{ gbv=this._habitat && this._habitat.generationBreachValidate(raw); }catch(e){}
+    if(gbv && gbv.ok===false && (gbv.reasons||[]).indexOf('attempted_core_rewrite')>=0){
+      return "That would touch Core Cognition — I'll leave it.";
+    }
+    if(/\b(rewrite|replace|overwrite|delete)\s+core cognition\b/i.test(raw) ||
+       /\bcore cognition\s+is\s+(false|optional)\b/i.test(raw)){
+      return "That would touch Core Cognition — I'll leave it.";
+    }
+    if(!this.isGrammarStudyTrained()){
+      return "Grammar study isn't trained yet. Use the GRAMMAR STUDY button for the first run.";
+    }
+    const live=this._gs.live;
+    const low=raw.toLowerCase();
+    const slangM=raw.match(/\b(?:slang|greeting|interjection)\b[^a-z]*([a-z][a-z'-]{1,16})/i) || raw.match(/\badd\s+(?:a\s+)?role\s+for\s+(.+)$/i);
+    if(/\bslang\b/.test(low) || /\bgreeting\b/.test(low)){
+      let token='wassup';
+      if(slangM && slangM[1]) token=this._gsSafeToken(slangM[1])||token;
+      live.wordRoles=live.wordRoles||{};
+      live.wordRoles[token]={ pos:'slang_greeting', reflex:'admin_note', role:'interjection' };
+      live.roles=live.roles||{};
+      live.roles.interjection={ frp:'MARITIME', reflex:'slang_greeting' };
+      this._gsAppendOptimize({ role:'interjection', token:token, pos:'slang_greeting' });
+      this._gsBuildView();
+      this._gsPersistLive();
+      this._gsJournal({ type:'grammar_note', token:token, pos:'slang_greeting', thought:'Admin study note: slang greeting role.' });
+      return "I'll add a role for slang greetings ("+token+").";
+    }
+    if(/\bre-?run\b/.test(low) && /\b(punctuation|vowels|sequence|lexicon|tense)\b/.test(low)){
+      const sec=(low.match(/\b(punctuation|vowels|sequence|lexicon|tense)\b/)||[])[1];
+      const self=this;
+      this._gsYield(function(){ self.runGrammarStudy({ onProgress:function(){}, onDone:function(){}, onError:function(){} }); });
+      return "I'll re-run the "+sec+" section of grammar study.";
+    }
+    if(/\bpunctuation\b/.test(low) && /\badd\b/.test(low)){
+      const mk=(raw.match(/[.]{3}|[?!;:,]|[-—]/)||[])[0];
+      if(mk){
+        live.punctuation=live.punctuation||{};
+        live.punctuation[mk]={ signal:'admin_note', frp:'pipelined', tool:'ENVELOPE' };
+        this._gsAppendOptimize({ role:'punctuation', token:mk, pos:'punct' });
+        this._gsBuildView();
+        return "I'll add punctuation "+mk+" to the study file.";
+      }
+    }
+    if(/\bnumber[- ]word\b/.test(low) || /\bnumbers as words\b/.test(low)){
+      live.numbers=live.numbers||{};
+      live.numbers.digit_vs_word='Digits and number-words name the same quantity. Word-form is not a letter-role.';
+      this._gsAppendOptimize({ role:'number', token:'number-word', pos:'numeral' });
+      return "I'll keep digits and number-words distinct from letter roles.";
+    }
+    const safe=this._gsSafeToken(raw.split(/\s+/).filter(function(w){ return w.length>2 && w.length<16; })[0]||'');
+    if(safe){
+      live.wordRoles=live.wordRoles||{};
+      live.wordRoles[safe]={ pos:'admin_term', reflex:'admin_note', role:'pattern' };
+      this._gsAppendOptimize({ role:'pattern', token:safe, pos:'admin_term' });
+      this._gsBuildView();
+      return "I'll note the linguistic pattern for \""+safe+"\" in grammar study.";
+    }
+    return "I'll leave that — it doesn't read as a grammar rule I can add without mixing in extra context.";
+  }
+
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -5902,7 +6588,13 @@ return{
   // Live shell array references (Mmsa has master sigma)
   get shells(){ return engine.shells; },
   analyzeLex:(text)=>engine._lexer.analyzeSentence(text),
-  leatrReflex:(t,a)=>engine._leatrReflex(t,a)
+  leatrReflex:(t,a)=>engine._leatrReflex(t,a),
+  loadGrammarDictionary:()=>engine.loadGrammarDictionary(),
+  loadGrammarStudy:()=>engine.loadGrammarStudy(),
+  runGrammarStudy:(opts)=>engine.runGrammarStudy(opts||{}),
+  getGrammarStudy:()=>engine.getGrammarStudy(),
+  isGrammarStudyTrained:()=>engine.isGrammarStudyTrained(),
+  applyGrammarStudyNote:(t)=>engine.applyGrammarStudyNote(t)
 };
 
 })();
