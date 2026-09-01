@@ -25686,6 +25686,20 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
     return _admAllSettled([ghP, gasP]).then(pick);
   }
+  window._admFetchJson = _admFetchJson;
+  window._admCacheGet = _admCacheGet;
+  window._admCacheSet = _admCacheSet;
+  window._admPayloadArr = _admPayloadArr;
+  window._admIsRateLimit = _admIsRateLimit;
+  function _admInboxMergeCache(entry){
+    var path='feedback/inbox.json';
+    var cached=_admCacheGet(path);
+    var arr=(cached && Array.isArray(cached.entries)) ? cached.entries.slice() : [];
+    if(entry && entry.id && !arr.some(function(x){ return x && x.id===entry.id; })) arr.push(entry);
+    _admCacheSet(path, cached && cached.sha, arr, false);
+    return arr;
+  }
+  window._admInboxMergeCache = _admInboxMergeCache;
   function _admFetchFolder(folder){
     var paths=_admFbLegacyPaths(folder);
     var primary=paths[0];
@@ -25925,9 +25939,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         if(!silent && gen!==loadGen) return;
         var got;
         try{ got=applyParsed(d, path); }catch(err){ keepCache(); return; }
-        var remoteEmpty=!got.data || !got.data.length;
         var liveCache=_admCacheGet(path);
         var cacheHas=liveCache && liveCache.entries && liveCache.entries.length;
+        if(got && Array.isArray(got.data) && cacheHas){
+          var seen={};
+          got.data.forEach(function(e){ if(e && e.id) seen[e.id]=true; });
+          liveCache.entries.forEach(function(e){
+            if(e && e.id && !seen[e.id]){ got.data.push(e); seen[e.id]=true; }
+          });
+          if(got.data.length) got.confirmedEmpty=false;
+        }
+        var remoteEmpty=!got.data || !got.data.length;
         if(remoteEmpty && cacheHas && !got.confirmedEmpty && !got.notFound){
           keepCache();
           return;
@@ -25946,9 +25968,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         st.data=got.data;
         st.syncOk=true;
         render();
-        if(got.notFound) setStatus('0 entries — mailbox file not created yet');
+        if(got.notFound && !got.data.length) setStatus('0 entries — mailbox file not created yet');
       }).catch(function(){
         keepCache();
+      }).then(function(){
+        if(!silent && gen===loadGen && !done) keepCache();
       });
     }
     function appendToDest(dest, entries, cb){
@@ -26004,6 +26028,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         .then(function(){ loadFolder(st.folder); setStatus('Deleted '+idxs.length+' entries'); })
         .catch(function(e){ setStatus('Error: '+e.message); });
     }
+    window._admLoadFbFolder = loadFolder;
     loadFolder(st.folder);
     folders.forEach(function(f){
       if(f!==st.folder) loadFolder(f, {silent:true});
@@ -27011,14 +27036,31 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       _fbStatus('\u26a0 '+(why||'Submission failed \u2014 please try again'), 'rgba(255,100,80,.8)');
       var bs = document.getElementById('fb-submit'); if(bs) bs.disabled = false;
     }
-    function _fbOk(){
-      _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU', 'rgba(0,229,255,.9)');
+    function _fbPaintInbox(){
       try{
-        if(typeof window._admTab==='function' && document.getElementById('adm-fb-panel')){
-          window._admTab('feedback');
-        }
+        if(!document.getElementById('adm-fb-panel')) return;
+        if(typeof window._admLoadFbFolder==='function') window._admLoadFbFolder('inbox');
+        else if(typeof window._admTab==='function') window._admTab('feedback');
       }catch(e){}
+    }
+    function _fbMerge(){
+      try{
+        if(typeof window._admInboxMergeCache==='function') window._admInboxMergeCache(entry);
+      }catch(e){}
+    }
+    function _fbOk(){
+      _fbMerge();
+      _fbPaintInbox();
+      _fbStatus('\u2713 FEEDBACK SUBMITTED \u2014 THANK YOU', 'rgba(0,229,255,.9)');
       setTimeout(window.closeFeedback, 1800);
+    }
+    function _fbUnverifiable(err){
+      if(err && err.unverifiable) return true;
+      var m=(err && (err.message||err)) ? String(err.message||err) : '';
+      return /403|429|rate limit|timeout|aborted|AbortError|Failed to fetch|network/i.test(m);
+    }
+    function _fbHasId(arr){
+      return Array.isArray(arr) && arr.some(function(x){ return x && x.id===entry.id; });
     }
     function _fbWriteGithub(){
       var tok = (window._ghAuth && window._ghAuth.token) || (typeof getLeatrAshPAT==='function' ? getLeatrAshPAT() : '');
@@ -27031,7 +27073,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','User-Agent':'DART/1.0'}
       }).then(function(r){
         clearTimeout(t);
-        if(r.status===403 || r.status===429 || !r.ok) throw new Error('github get '+r.status);
+        if(r.status===403 || r.status===429){
+          var e403=new Error('github get '+r.status);
+          e403.unverifiable=true;
+          throw e403;
+        }
+        if(!r.ok) throw new Error('github get '+r.status);
         return r.json();
       }).then(function(d){
         if(!d || !d.content || !d.sha) throw new Error('github get no content');
@@ -27042,7 +27089,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           arr=JSON.parse(decodeURIComponent(escape(b)));
         }catch(e){ throw new Error('github decode failed'); }
         if(!Array.isArray(arr)) throw new Error('github inbox not array');
-        if(arr.some(function(x){ return x && x.id===entry.id; })) return {ok:true, already:true};
+        if(arr.some(function(x){ return x && x.id===entry.id; })) return {ok:true, already:true, commit:true};
         arr.push(entry);
         var body={
           message:'feedback: new entry from '+user,
@@ -27054,9 +27101,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           headers:{Authorization:'token '+tok,'Content-Type':'application/json','User-Agent':'DART/1.0'},
           body:JSON.stringify(body)
         }).then(function(r){ return r.json().then(function(j){ if(!j.commit) throw new Error(j.message||'github write failed'); return j; }); });
+      }).catch(function(e){
+        clearTimeout(t);
+        if(e && (e.name==='AbortError' || /timeout|aborted/i.test(String(e.message||e.name||'')))){
+          e.unverifiable=true;
+        }
+        throw e;
       });
     }
     function _fbWriteGas(){
+      var ctrl=typeof AbortController!=='undefined' ? new AbortController() : null;
+      var t=setTimeout(function(){ try{ if(ctrl) ctrl.abort(); }catch(e){} }, 12000);
       return fetch(gasUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
@@ -27067,19 +27122,53 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           append:  true,
           payload: [entry]
         }),
-        signal: AbortSignal.timeout(12000)
+        signal: ctrl ? ctrl.signal : undefined
       }).then(function(r){
+        clearTimeout(t);
         return r.text().then(function(txt){
           var d=null; try{ d=JSON.parse(txt); }catch(e){}
           if(d && d.ok) return d;
           throw new Error((d && (d.error||d.message)) || ('gas '+ (r.status||'')));
         });
+      }).catch(function(e){
+        clearTimeout(t);
+        if(e && (e.name==='AbortError' || /timeout|aborted/i.test(String(e.message||e.name||'')))){
+          e.unverifiable=true;
+        }
+        throw e;
+      });
+    }
+    function _fbVerify(){
+      if(typeof window._admFetchJson!=='function') return Promise.reject(new Error('no ashread'));
+      return window._admFetchJson(IPATH).then(function(d){
+        var arr = (typeof window._admPayloadArr==='function') ? window._admPayloadArr(d) : null;
+        if(_fbHasId(arr)) return {verified:true, arr:arr};
+        return {verified:false, arr:arr, d:d};
+      });
+    }
+    function _fbGithubOrFail(prevErr, allowUnverifiable){
+      return _fbWriteGithub().then(function(j){
+        if(j && (j.commit || j.already || j.ok)){ _fbOk(); return; }
+        _fbFail((prevErr && prevErr.message) || 'github write failed');
+      }).catch(function(e){
+        if(allowUnverifiable && _fbUnverifiable(e)){ _fbOk(); return; }
+        _fbFail((e && e.message) || (prevErr && prevErr.message));
       });
     }
     _fbWriteGas()
-      .then(_fbOk)
-      .catch(function(){
-        _fbWriteGithub().then(_fbOk).catch(function(e){ _fbFail(e && e.message); });
+      .then(function(){
+        _fbMerge();
+        _fbPaintInbox();
+        return _fbVerify().then(function(v){
+          if(v && v.verified){ _fbOk(); return; }
+          return _fbGithubOrFail(new Error('inbox missing new entry'), true);
+        }).catch(function(e){
+          if(_fbUnverifiable(e)){ _fbOk(); return; }
+          return _fbGithubOrFail(e, true);
+        });
+      })
+      .catch(function(gasErr){
+        return _fbGithubOrFail(gasErr, false);
       });
   }
 })();
