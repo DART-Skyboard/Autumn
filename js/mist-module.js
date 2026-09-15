@@ -937,9 +937,8 @@
   // cubicShellAndPassageVerts on iOS, and this page's own buildOrbMazeGeometry
   // for the fixed all-six-faces version this reuses).
   var CUBE_DIFF={1:5,2:7,3:9};
-  var _cube={inited:false,scene:null,camera:null,renderer:null,group:null,
-    grid:null,w:7,h:7,d:7,solution:[],pathMeshes:[],solving:false,solveStep:0,
-    rotX:0.4,rotY:0.6,dragging:false,lastX:0,lastY:0,rafId:null};
+  var _cube={inited:false,scene:null,camera:null,renderer:null,group:null,controls:null,
+    grid:null,w:7,h:7,d:7,solution:[],pathMeshes:[],solving:false,solveStep:0,rafId:null};
 
   function _cubeEnsureThree(){ return typeof THREE!=='undefined' && typeof orbGenMaze==='function' && typeof orbSolveMaze==='function'; }
 
@@ -958,23 +957,28 @@
     var group=new THREE.Group();scene.add(group);
     _cube.scene=scene;_cube.camera=camera;_cube.renderer=renderer;_cube.group=group;_cube.inited=true;
 
-    // Drag to rotate — pointer events cover touch + mouse
-    var dragging=false,lastX=0,lastY=0;
-    cv.addEventListener('pointerdown',function(e){dragging=true;lastX=e.clientX;lastY=e.clientY;cv.setPointerCapture(e.pointerId);});
-    cv.addEventListener('pointermove',function(e){
-      if(!dragging)return;
-      var dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
-      _cube.rotY+=dx*0.008;_cube.rotX+=dy*0.008;
-      _cube.rotX=Math.max(-1.3,Math.min(1.3,_cube.rotX));
-    });
-    cv.addEventListener('pointerup',function(){dragging=false;});
-    cv.addEventListener('pointercancel',function(){dragging=false;});
+    // Full orbit/pinch-zoom/pan — same THREE.OrbitControls this app already uses
+    // for the Ash Maze studio and World Studio 3D views, instead of the
+    // rotate-only drag handling this had before. Auto-rotate covers the gentle
+    // idle spin so it still feels alive when the user isn't touching it.
+    var controls=new THREE.OrbitControls(camera,cv);
+    controls.enableDamping=true;
+    controls.dampingFactor=0.12;
+    controls.enableZoom=true;
+    controls.zoomSpeed=0.9;
+    controls.minDistance=0.5;
+    controls.maxDistance=4;
+    controls.autoRotate=true;
+    controls.autoRotateSpeed=0.8;
+    controls.enablePan=true;
+    controls.panSpeed=0.6;
+    cv.style.touchAction='none';
+    _cube.controls=controls;
 
     function loop(){
       if(!MIST.open || MIST.viewMode!=='cube'){ _cube.rafId=null; return; } // pause when hidden — don't burn cycles off-screen
       _cube.rafId=requestAnimationFrame(loop);
-      if(!dragging){ _cube.rotY+=0.0025; } // gentle idle spin, matches BRPN scene feel
-      group.rotation.x=_cube.rotX;group.rotation.y=_cube.rotY;
+      controls.update(); // required each frame for damping/autoRotate
       renderer.render(scene,camera);
     }
     _cube.loop=loop;
