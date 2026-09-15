@@ -13095,32 +13095,76 @@ function buildOrbMazeGeometry(){
 
   const u=0.065; // cell size — fits inside core sphere (~0.18 radius)
   const ox=(w*u)/2,oy=(h*u)/2,oz=(d*u)/2;
-
-  // Draw walls as thin lines — use LineSegments for performance
-  const wallVerts=[];
   const hs=u*0.5;
+
+  // Outer bounding box — matches iOS: the cube silhouette always reads clean
+  // regardless of how the maze carves through it, independent of any single
+  // cell's walls.
+  const shellVerts=[];
+  const x0=-ox, x1=w*u-ox, y0=-oy, y1=h*u-oy, z0=-oz, z1=d*u-oz;
+  const corners=[
+    [x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],
+    [x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]
+  ];
+  const boxEdges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  for(const [i,j] of boxEdges){
+    shellVerts.push(corners[i][0],corners[i][1],corners[i][2], corners[j][0],corners[j][1],corners[j][2]);
+  }
+
+  // Perimeter face quads — draw ALL SIX directions, but only where that cell
+  // sits on that boundary (x===0/w-1, y===0/h-1, z===0/d-1). The previous
+  // version only checked left/bottom/back, which is correct for interior
+  // walls (shared with a neighbor, drawn from the other side) but silently
+  // never drew the right/top/front faces of the outer cube — exactly the
+  // "missing faces on the edges" bug. Internal carved connectivity is drawn
+  // separately below as "passages", matching iOS.
+  const passageVerts=[];
   for(let z=0;z<d;z++) for(let y=0;y<h;y++) for(let x=0;x<w;x++){
     const c=grid[z][y][x];
     const cx=x*u-ox+hs, cy=y*u-oy+hs, cz=z*u-oz+hs;
-    // Each face: draw a small quad outline if wall exists
-    if(c.left){
-      const px=cx-hs,py0=cy-hs,py1=cy+hs,pz0=cz-hs,pz1=cz+hs;
-      wallVerts.push(px,py0,pz0,px,py1,pz0, px,py1,pz0,px,py1,pz1, px,py1,pz1,px,py0,pz1, px,py0,pz1,px,py0,pz0);
+    if(x===0 && c.left){
+      const px=cx-hs;
+      shellVerts.push(px,cy-hs,cz-hs,px,cy+hs,cz-hs, px,cy+hs,cz-hs,px,cy+hs,cz+hs, px,cy+hs,cz+hs,px,cy-hs,cz+hs, px,cy-hs,cz+hs,px,cy-hs,cz-hs);
     }
-    if(c.bottom){
-      const py=cy-hs,px0=cx-hs,px1=cx+hs,pz0=cz-hs,pz1=cz+hs;
-      wallVerts.push(px0,py,pz0,px1,py,pz0, px1,py,pz0,px1,py,pz1, px1,py,pz1,px0,py,pz1, px0,py,pz1,px0,py,pz0);
+    if(x===w-1 && c.right){
+      const px=cx+hs;
+      shellVerts.push(px,cy-hs,cz-hs,px,cy+hs,cz-hs, px,cy+hs,cz-hs,px,cy+hs,cz+hs, px,cy+hs,cz+hs,px,cy-hs,cz+hs, px,cy-hs,cz+hs,px,cy-hs,cz-hs);
     }
-    if(c.back){
-      const pz=cz-hs,px0=cx-hs,px1=cx+hs,py0=cy-hs,py1=cy+hs;
-      wallVerts.push(px0,py0,pz,px1,py0,pz, px1,py0,pz,px1,py1,pz, px1,py1,pz,px0,py1,pz, px0,py1,pz,px0,py0,pz);
+    if(y===0 && c.bottom){
+      const py=cy-hs;
+      shellVerts.push(cx-hs,py,cz-hs,cx+hs,py,cz-hs, cx+hs,py,cz-hs,cx+hs,py,cz+hs, cx+hs,py,cz+hs,cx-hs,py,cz+hs, cx-hs,py,cz+hs,cx-hs,py,cz-hs);
     }
+    if(y===h-1 && c.top){
+      const py=cy+hs;
+      shellVerts.push(cx-hs,py,cz-hs,cx+hs,py,cz-hs, cx+hs,py,cz-hs,cx+hs,py,cz+hs, cx+hs,py,cz+hs,cx-hs,py,cz+hs, cx-hs,py,cz+hs,cx-hs,py,cz-hs);
+    }
+    if(z===0 && c.back){
+      const pz=cz-hs;
+      shellVerts.push(cx-hs,cy-hs,pz,cx+hs,cy-hs,pz, cx+hs,cy-hs,pz,cx+hs,cy+hs,pz, cx+hs,cy+hs,pz,cx-hs,cy+hs,pz, cx-hs,cy+hs,pz,cx-hs,cy-hs,pz);
+    }
+    if(z===d-1 && c.front){
+      const pz=cz+hs;
+      shellVerts.push(cx-hs,cy-hs,pz,cx+hs,cy-hs,pz, cx+hs,cy-hs,pz,cx+hs,cy+hs,pz, cx+hs,cy+hs,pz,cx-hs,cy+hs,pz, cx-hs,cy+hs,pz,cx-hs,cy-hs,pz);
+    }
+    // Internal passages (carved openings) — +axis only so edges aren't doubled
+    if(!c.right && x<w-1) passageVerts.push(cx,cy,cz, cx+u,cy,cz);
+    if(!c.top && y<h-1)   passageVerts.push(cx,cy,cz, cx,cy+u,cz);
+    if(!c.front && z<d-1) passageVerts.push(cx,cy,cz, cx,cy,cz+u);
   }
+
   const wGeo=new THREE.BufferGeometry();
-  wGeo.setAttribute('position',new THREE.Float32BufferAttribute(wallVerts,3));
-  const wMat=new THREE.LineBasicMaterial({color:0x00ffcc,transparent:true,opacity:0.55});
+  wGeo.setAttribute('position',new THREE.Float32BufferAttribute(shellVerts,3));
+  const wMat=new THREE.LineBasicMaterial({color:0x00ffcc,transparent:true,opacity:0.9});
   const wallLines=new THREE.LineSegments(wGeo,wMat);
+  wallLines.name='mazeShell';
   mazeOrbGroup.add(wallLines);
+
+  const pGeo=new THREE.BufferGeometry();
+  pGeo.setAttribute('position',new THREE.Float32BufferAttribute(passageVerts,3));
+  const pMat=new THREE.LineBasicMaterial({color:0x00d9ff,transparent:true,opacity:0.4});
+  const passageLines=new THREE.LineSegments(pGeo,pMat);
+  passageLines.name='mazePassages';
+  mazeOrbGroup.add(passageLines);
 
   // Pre-build path segment meshes (hidden, revealed during solve anim)
   const pathGeo=new THREE.SphereGeometry(u*0.22,4,4);
