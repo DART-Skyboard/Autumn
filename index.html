@@ -1480,6 +1480,41 @@ body.theme-ariel .glass,body.theme-ariel .msg-autumn{
 }
 body.theme-ariel ::-webkit-scrollbar-thumb{background:rgba(196,163,106,.28)}
 
+/* ── Skyboard theme — desert hologram HUD, icy cyan accent ── */
+body.theme-skyboard{
+  --cyan:#5fd4ff;--blue:#2a5a78;--red:#5fd4ff;
+  --bg:#040c16;--bg2:#0a1a2c;
+  --border:rgba(95,212,255,0.18);
+  --text:#e8f4fb;--dim:#7a97a8;--bright:#f2fbff;
+  --tt-color:#5fd4ff;
+}
+body.theme-skyboard header{
+  background:linear-gradient(180deg,rgba(20,70,95,.14) 0%,transparent 100%);
+  border-bottom-color:rgba(95,212,255,0.2);
+}
+body.theme-skyboard #backdrop-video{
+  object-position:center 30%;
+}
+body.theme-skyboard .logo{
+  background:linear-gradient(135deg,#f2fbff 0%,#5fd4ff 55%,#2a5a78 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 8px rgba(95,212,255,0.55));
+}
+body.theme-skyboard .chat-bubble,.theme-skyboard .msg-wrap{
+  background:rgba(4,12,22,0.72)!important;
+  border-color:rgba(95,212,255,0.2)!important;
+}
+body.theme-skyboard .ov-grid{
+  background-image:linear-gradient(rgba(95,212,255,.18) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(95,212,255,.14) 1px,transparent 1px);
+}
+body.theme-skyboard #brpn-region{border-bottom-color:rgba(95,212,255,0.16)}
+body.theme-skyboard #multi-user-bar{border-top-color:rgba(95,212,255,0.16)}
+body.theme-skyboard .glass,body.theme-skyboard .msg-autumn{
+  background:rgba(4,12,22,0.72);border-color:rgba(95,212,255,0.18);
+}
+body.theme-skyboard ::-webkit-scrollbar-thumb{background:rgba(95,212,255,.3)}
+
 /* ── Void theme — Grok-style dark business, solid black + identity watermark ── */
 html[data-aut-theme="void"],html[data-aut-theme="void"] body{background:#000;}
 html[data-aut-theme="void"] #backdrop-video{opacity:0!important;visibility:hidden;}
@@ -18818,11 +18853,12 @@ ashLoadDefs();
   let idx = 0;
 
   var WASH_RGB = {
-    ariel:[8,20,36], night:[4,2,12], stealth:[3,5,12],
+    ariel:[8,20,36], skyboard:[4,12,22], night:[4,2,12], stealth:[3,5,12],
     departure:[12,5,0], ashtree:[1,10,4], void:[0,0,0], day:[2,10,20]
   };
   var VOID_GRAD = {
     ariel:'linear-gradient(165deg,#050c14 0%,#0a1624 55%,#0c1210 100%)',
+    skyboard:'linear-gradient(165deg,#040c16 0%,#0a1a2c 55%,#081422 100%)',
     night:'linear-gradient(165deg,#05030c 0%,#0a0618 100%)',
     stealth:'linear-gradient(165deg,#03050a 0%,#070b12 100%)',
     departure:'linear-gradient(165deg,#080400 0%,#120800 100%)',
@@ -18831,7 +18867,7 @@ ashLoadDefs();
     void:'linear-gradient(165deg,#000000 0%,#0c0c0e 100%)'
   };
   var VOID_COLOR = {
-    ariel:'#c4a36a', night:'#b48bff', stealth:'#4a88cc',
+    ariel:'#c4a36a', skyboard:'#5fd4ff', night:'#b48bff', stealth:'#4a88cc',
     departure:'#ff9d4a', ashtree:'#7ddc8e', day:'#7ecfff', void:'#aeaeb2'
   };
   var LEVEL_ALPHA = { FROST:0.20, STEAM:0.55, HAZE:0.50, DUSK:0.70, DEEP:0.85 };
@@ -19039,6 +19075,14 @@ ashLoadDefs();
       color: '#c4a36a',      // desert sand gold
       video: 'assets/ariel.mp4',
       bodyClass: 'theme-ariel'
+    },
+    {
+      key:   'skyboard',
+      label: 'SKYBOARD',
+      dot:   '🛹',
+      color: '#5fd4ff',      // holographic HUD cyan
+      video: 'assets/skyboard.mp4',
+      bodyClass: 'theme-skyboard'
     },
     {
       key:   'system',
