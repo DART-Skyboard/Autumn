@@ -1618,12 +1618,12 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 /* ── Theme toggle pill ─────────────────────────────── */
 #theme-toggle{
   display:inline-flex;align-items:center;gap:6px;
-  background:rgba(2,10,20,.55);
-  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.16);
   border-radius:20px;padding:3px 10px 3px 4px;
   cursor:pointer;flex-shrink:0;
   font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   transition:border-color .3s,box-shadow .3s;white-space:nowrap;
 }
 #theme-toggle:hover{box-shadow:0 0 12px var(--tt-color,#00ffcc)44}
@@ -1713,15 +1713,42 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 /* ── Backdrop opacity toggle pill ── */
 #scrim-toggle{
   display:flex;align-items:center;gap:6px;
-  background:rgba(2,10,20,.55);
-  border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.14);
   border-radius:20px;padding:3px 8px 3px 4px;
   cursor:pointer;flex-shrink:0;
   font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   transition:border-color .25s,box-shadow .25s;
   white-space:nowrap}
 #scrim-toggle:hover{box-shadow:0 0 10px var(--st-color,#00d4ff)}
+
+/* LIVE FEED toggle (TF106) — same frosted-pill shape as scrim/theme, neon
+   green when on (matches iOS), dims to a neutral grey when off rather than
+   disappearing so it's still obvious where to tap it back on. */
+#live-feed-toggle{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,136,0,0);
+  border-radius:20px;padding:3px 10px 3px 8px;
+  cursor:pointer;flex-shrink:0;
+  font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  transition:border-color .25s,box-shadow .25s,color .25s;
+  white-space:nowrap;
+  color:rgba(255,255,255,.4);
+  border-color:rgba(255,255,255,.14);
+}
+#live-feed-toggle #lf-dot{font-size:.5rem;color:rgba(255,255,255,.35)}
+#live-feed-toggle.lf-on{
+  color:#00ff88;
+  border-color:rgba(0,255,136,.4);
+}
+#live-feed-toggle.lf-on #lf-dot{
+  color:#00ff88;
+  text-shadow:0 0 6px #00ff88,0 0 14px #00ff88;
+}
+#live-feed-toggle.lf-on:hover{box-shadow:0 0 10px rgba(0,255,136,.5)}
 #st-dot{
   width:22px;height:22px;border-radius:50%;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
@@ -2984,8 +3011,8 @@ header {
   font-size: .48rem !important;
 }
 
-/* Scrim + theme pill buttons */
-#scrim-toggle, #theme-toggle {
+/* Scrim + theme + live-feed pill buttons */
+#scrim-toggle, #theme-toggle, #live-feed-toggle {
   flex-shrink: 0 !important;
   height: 30px !important;
   padding: 0 10px 0 6px !important;
@@ -3136,6 +3163,23 @@ header {
       <div id="tt-dot">☀</div>
       <span id="tt-label">DAY</span>
     </button>
+    <!-- LIVE FEED: show/hide remote buoyancy-node presence (TF106, ported from iOS) -->
+    <button id="live-feed-toggle" class="lf-on" onclick="toggleLiveFeed()" title="Show/hide other connected users">
+      <div id="lf-dot">●</div>
+      <span id="lf-label">LIVE FEED ON</span>
+    </button>
+    <script>
+      // Sync the button's initial visual state to the persisted value without
+      // triggering _setLiveFeedEnabled's render/poll side effects on load.
+      (function(){
+        var on = window._liveFeedEnabled !== false;
+        var btn = document.getElementById('live-feed-toggle');
+        var dot = document.getElementById('lf-dot'), label = document.getElementById('lf-label');
+        if(btn) btn.classList.toggle('lf-on', on);
+        if(dot) dot.textContent = on ? '●' : '○';
+        if(label) label.textContent = on ? 'LIVE FEED ON' : 'LIVE FEED OFF';
+      })();
+    </script>
     <!-- Priority buttons: LIVE → TOOLS → KEYS -->
     <button class="hdr-btn" onclick="openLiveMode()" title="Live conversation">LIVE</button>
     <button class="hdr-btn" onclick="openTools()" title="LEATR Tools &amp; Info" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">TOOLS</button>
@@ -14044,6 +14088,29 @@ var _ashNodes = {
 // Expose active session count globally so Autumn can answer "how many users?"
 window._getActiveSessionCount = function() { return _ashNodes._uids ? _ashNodes._uids.length : 1; };
 
+// TF106: LIVE FEED toggle — hide/show remote buoyancy-node presence (keeps the
+// local orb + all visual effects either way). Persisted like the iOS app's
+// version, which is where this was ported from.
+window._liveFeedEnabled = (function(){
+  var v = localStorage.getItem('autumn_live_feed_enabled');
+  return v === null ? true : v === '1';
+})();
+window._setLiveFeedEnabled = function(on) {
+  window._liveFeedEnabled = !!on;
+  localStorage.setItem('autumn_live_feed_enabled', on ? '1' : '0');
+  if(!on) {
+    // Immediate feedback — don't wait up to POLL_INTERVAL to clear remotes.
+    _renderAshNodes([{ uid: _ashNodes._localUid, ts: Date.now(), isLocal: true }]);
+  } else if(typeof _pollAshNodes === 'function') {
+    _pollAshNodes();
+  }
+  var dot = document.getElementById('lf-dot'), label = document.getElementById('lf-label'), btn = document.getElementById('live-feed-toggle');
+  if(dot) dot.textContent = on ? '●' : '○';
+  if(label) label.textContent = on ? 'LIVE FEED ON' : 'LIVE FEED OFF';
+  if(btn) btn.classList.toggle('lf-on', on);
+};
+window.toggleLiveFeed = function(){ window._setLiveFeedEnabled(!window._liveFeedEnabled); };
+
 function _uidHash(uid) {
   var h = 0;
   for(var i=0;i<uid.length;i++) h = (h*31 + uid.charCodeAt(i)) & 0x7fffffff;
@@ -14432,6 +14499,14 @@ async function _pollAshNodes() {
 
 function _renderAshNodes(nodes) {
   if(typeof THREE==='undefined' || !scene) return;
+  // TF106: LIVE FEED toggle — mirrors the iOS app's sceneVM.liveFeedEnabled,
+  // which the web app never had a UI for. When off, treat the node list as
+  // local-only; the existing "remove groups for sessions that have left"
+  // cleanup below then naturally tears down any remote groups/splines already
+  // on screen, and no new ones get created while it stays off.
+  if(window._liveFeedEnabled === false) {
+    nodes = nodes.filter(function(n){ return n.isLocal; });
+  }
 
   var activeUids = {};
   nodes.forEach(function(n){ activeUids[n.uid] = n; });
