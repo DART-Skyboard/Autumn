@@ -39,6 +39,7 @@
     open:false, difficulty:1, mazes:[null,null,null], solvedCount:0,
     dragging:false, dragPos:null, dragPath:[], activeMaze:0,
     sphereTarget:null, sphereActual:null, sphereAnimId:null,
+    viewMode:'2d', solveMode:'instant',
     seen:{},       // "uid:ts:type" → true
     lastReact:{}   // senderUid → ts (cooldown)
   };
@@ -838,6 +839,23 @@
       '#mist-maze-canvas{display:block;touch-action:none;cursor:crosshair;border:1px solid rgba(0,229,255,.1);border-radius:2px}',
       '#mist-status{font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:2px;color:rgba(0,229,255,.38);text-align:center;min-height:13px}',
       '.mist-solved{animation:mist-win 1.1s ease-in-out 3}',
+      // ── CUBE mode (3D wireframe maze — iOS parity) ──────────────────────
+      '#mist-mode-row{display:flex;align-items:center;gap:3px;flex-wrap:wrap}',
+      '.mst-mode-btn{background:transparent;border:1px solid rgba(0,229,255,.32);color:rgba(255,255,255,.55);',
+        'padding:2px 6px;border-radius:3px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:1.5px;transition:all .15s}',
+      '.mst-mode-btn.mst-mode-active{border-color:rgba(0,229,255,.9);color:#00e5ff;background:rgba(0,229,255,.08);text-shadow:0 0 5px rgba(0,229,255,.4)}',
+      '.mst-mode-sep{width:1px;align-self:stretch;background:rgba(0,229,255,.15);margin:0 2px}',
+      '#mist-cube-wrap{display:none;background:rgba(255,255,255,.05);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
+        'border:1px solid rgba(0,229,255,.18);border-radius:0 0 7px 7px;padding:7px;flex-direction:column;align-items:center;gap:6px}',
+      '#mist-cube-wrap.mist-cube-shown{display:flex}',
+      '#mist-cube-canvas{display:block;touch-action:none;cursor:grab;border-radius:2px;width:100%;aspect-ratio:1;max-width:220px}',
+      '#mist-cube-canvas:active{cursor:grabbing}',
+      '#mist-cube-actions{display:flex;gap:6px}',
+      '.mcb{background:transparent;border:1px solid rgba(0,229,255,.5);color:#00e5ff;text-shadow:0 0 5px rgba(0,229,255,.4);',
+        'padding:3px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-d,monospace);font-size:.25rem;letter-spacing:1.5px;transition:all .15s}',
+      '.mcb:hover{background:rgba(0,229,255,.1)}',
+      '.mcb.mcb-ghost{color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.25);text-shadow:none}',
+      '#mist-cube-presence{font-family:var(--font-d,monospace);font-size:.24rem;letter-spacing:2px;color:rgba(0,255,136,.55)}',
       '@media (orientation:landscape) and (max-height:500px){#mist-trigger{top:56px}#mist-overlay{top:48px}}',
     ].join('');
     document.head.appendChild(s);
@@ -853,13 +871,26 @@
       '<div id="mist-tabs"><div class="mst-tab mst-active" id="mst-tab0" onclick="mistSetSlot(0)"><span class="ti">★</span>STAR</div>',
       '<div class="mst-tab mst-locked" id="mst-tab1" onclick="mistSetSlot(1)"><span class="ti">♥</span>HEART</div>',
       '<div class="mst-tab mst-locked" id="mst-tab2" onclick="mistSetSlot(2)"><span class="ti">◈</span>MIST</div></div>',
+      '<div id="mist-mode-row">',
+      '<button class="mst-mode-btn mst-mode-active" id="mst-view-2d" onclick="mistSetViewMode(\'2d\')">2D</button>',
+      '<button class="mst-mode-btn" id="mst-view-cube" onclick="mistSetViewMode(\'cube\')">CUBE</button>',
+      '<span class="mst-mode-sep"></span>',
+      '<button class="mst-mode-btn mst-mode-active" id="mst-solve-instant" onclick="mistSetSolveMode(\'instant\')">INSTANT</button>',
+      '<button class="mst-mode-btn" id="mst-solve-animate" onclick="mistSetSolveMode(\'animate\')">ANIMATE</button>',
+      '</div>',
       '<div id="mist-diff"><span class="diff-lbl">DIFF:</span>',
       '<button class="db db-active" id="mst-d1" onclick="mistSetDiff(1)">I</button>',
       '<button class="db" id="mst-d2" onclick="mistSetDiff(2)">II</button>',
       '<button class="db" id="mst-d3" onclick="mistSetDiff(3)">III</button>',
       '<button id="mist-new" onclick="mistNewMaze()">NEW</button></div></div>',
       '<div id="mist-canvas-wrap"><canvas id="mist-maze-canvas"></canvas>',
-      '<div id="mist-status">DRAG ● FROM ENTRY TO EXIT</div></div>'].join('');
+      '<div id="mist-status">DRAG ● FROM ENTRY TO EXIT</div></div>',
+      '<div id="mist-cube-wrap"><canvas id="mist-cube-canvas"></canvas>',
+      '<div id="mist-cube-actions">',
+      '<button class="mcb" id="mist-sigma-solve" onclick="mistCubeSigmaSolve()">⬡ SIGMA SOLVE</button>',
+      '<button class="mcb mcb-ghost" onclick="mistCubeNewMaze()">↻ NEW MAZE</button>',
+      '</div>',
+      '<div id="mist-cube-presence">● PRESENCE · 1 LIVE</div></div>'].join('');
     ov.addEventListener('click',function(e){e.stopPropagation();});document.body.appendChild(ov);
     if(typeof window._autumnBindOverlayDrag==='function') window._autumnBindOverlayDrag('mist-overlay','_aut_ovpos_mist-overlay');
     if(typeof window._autumnSideTabLayout==='function') window._autumnSideTabLayout();
@@ -874,7 +905,7 @@
     MIST.open=!MIST.open;var ov=document.getElementById('mist-overlay');
     if(ov)ov.classList.toggle('mist-open',MIST.open);
     if(MIST.open && ov && typeof ov._autApplySavedPos==='function') ov._autApplySavedPos();
-    if(MIST.open){setTimeout(function(){_bindCanvas();if(!MIST.mazes[MIST.activeMaze])mistNewMaze();else _renderMaze(MIST.mazes[MIST.activeMaze],MIST.dragPath);document.addEventListener('click',_out,true);},60);}
+    if(MIST.open){setTimeout(function(){_bindCanvas();if(!MIST.mazes[MIST.activeMaze])mistNewMaze();else _renderMaze(MIST.mazes[MIST.activeMaze],MIST.dragPath);document.addEventListener('click',_out,true);if(MIST.viewMode==='cube')_cubeResumeLoopIfNeeded();},60);}
     else document.removeEventListener('click',_out,true);
   };
   function _out(e){var ov=document.getElementById('mist-overlay'),tr=document.getElementById('mist-trigger');
@@ -884,6 +915,7 @@
   window.mistSetDiff=function(d){
     MIST.difficulty=d;[1,2,3].forEach(function(n){var b=document.getElementById('mst-d'+n);if(b)b.classList.toggle('db-active',n===d);});
     MIST.mazes=[null,null,null];mistNewMaze();
+    if(MIST.viewMode==='cube' && _cube.inited)_cubeBuildMaze();
   };
   window.mistSetSlot=function(slot){
     if(slot>0&&MIST.solvedCount<slot)return;
@@ -898,6 +930,167 @@
     MIST.sphereTarget=null;MIST.sphereActual=null;_stopAnim();
     _renderMaze(maze,[]);_ss('DRAG ● FROM ENTRY TO EXIT');
   };
+
+  // ── CUBE mode — 3D wireframe maze, ported from the iOS app's BRPN scene
+  // renderer (same generation + shell/passage draw logic as the main orb
+  // maze; see BRPNSceneViewModel.buildOrbMazeGeometry / MazeEngine.
+  // cubicShellAndPassageVerts on iOS, and this page's own buildOrbMazeGeometry
+  // for the fixed all-six-faces version this reuses).
+  var CUBE_DIFF={1:5,2:7,3:9};
+  var _cube={inited:false,scene:null,camera:null,renderer:null,group:null,
+    grid:null,w:7,h:7,d:7,solution:[],pathMeshes:[],solving:false,solveStep:0,
+    rotX:0.4,rotY:0.6,dragging:false,lastX:0,lastY:0,rafId:null};
+
+  function _cubeEnsureThree(){ return typeof THREE!=='undefined' && typeof orbGenMaze==='function' && typeof orbSolveMaze==='function'; }
+
+  function _cubeInit(){
+    if(_cube.inited || !_cubeEnsureThree())return;
+    var cv=document.getElementById('mist-cube-canvas');if(!cv)return;
+    var size=Math.min(cv.clientWidth||220,220)||220;
+    var renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+    renderer.setSize(size,size,false);
+    renderer.setClearColor(0x000000,0);
+    var scene=new THREE.Scene();
+    var camera=new THREE.PerspectiveCamera(50,1,0.01,10);
+    camera.position.set(0,0,1.6);
+    var amb=new THREE.AmbientLight(0xffffff,0.9);scene.add(amb);
+    var group=new THREE.Group();scene.add(group);
+    _cube.scene=scene;_cube.camera=camera;_cube.renderer=renderer;_cube.group=group;_cube.inited=true;
+
+    // Drag to rotate — pointer events cover touch + mouse
+    var dragging=false,lastX=0,lastY=0;
+    cv.addEventListener('pointerdown',function(e){dragging=true;lastX=e.clientX;lastY=e.clientY;cv.setPointerCapture(e.pointerId);});
+    cv.addEventListener('pointermove',function(e){
+      if(!dragging)return;
+      var dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
+      _cube.rotY+=dx*0.008;_cube.rotX+=dy*0.008;
+      _cube.rotX=Math.max(-1.3,Math.min(1.3,_cube.rotX));
+    });
+    cv.addEventListener('pointerup',function(){dragging=false;});
+    cv.addEventListener('pointercancel',function(){dragging=false;});
+
+    function loop(){
+      if(!MIST.open || MIST.viewMode!=='cube'){ _cube.rafId=null; return; } // pause when hidden — don't burn cycles off-screen
+      _cube.rafId=requestAnimationFrame(loop);
+      if(!dragging){ _cube.rotY+=0.0025; } // gentle idle spin, matches BRPN scene feel
+      group.rotation.x=_cube.rotX;group.rotation.y=_cube.rotY;
+      renderer.render(scene,camera);
+    }
+    _cube.loop=loop;
+    loop();
+  }
+
+  function _cubeResumeLoopIfNeeded(){
+    if(_cube.inited && _cube.rafId===null && typeof _cube.loop==='function') _cube.loop();
+  }
+
+  function _cubeBuildMaze(){
+    if(!_cubeEnsureThree())return;
+    var n=CUBE_DIFF[MIST.difficulty]||7;
+    _cube.w=n;_cube.h=n;_cube.d=n;
+    var grid=orbGenMaze(n,n,n);
+    _cube.grid=grid;
+    _cube.solution=orbSolveMaze(grid,n,n,n);
+    _cube.solving=false;_cube.solveStep=0;
+    _cube.pathMeshes.forEach(function(m){ if(m.geometry)m.geometry.dispose(); if(m.material)m.material.dispose(); });
+    _cube.pathMeshes=[];
+
+    if(_cube.group){ while(_cube.group.children.length>0){var c=_cube.group.children[0];if(c.geometry)c.geometry.dispose();if(c.material)c.material.dispose();_cube.group.remove(c);} }
+
+    var u=0.34/n; // scale so the whole cube fills a consistent view regardless of size
+    var ox=(n*u)/2,oy=(n*u)/2,oz=(n*u)/2,hs=u*0.5;
+    var shellVerts=[],passageVerts=[];
+    var x0=-ox,x1=n*u-ox,y0=-oy,y1=n*u-oy,z0=-oz,z1=n*u-oz;
+    var corners=[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
+    var boxEdges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    boxEdges.forEach(function(e){var a=corners[e[0]],b=corners[e[1]];shellVerts.push(a[0],a[1],a[2],b[0],b[1],b[2]);});
+
+    for(var z=0;z<n;z++)for(var y=0;y<n;y++)for(var x=0;x<n;x++){
+      var c=grid[z][y][x];
+      var cx=x*u-ox+hs,cy=y*u-oy+hs,cz=z*u-oz+hs;
+      if(x===0&&c.left){var px=cx-hs;shellVerts.push(px,cy-hs,cz-hs,px,cy+hs,cz-hs, px,cy+hs,cz-hs,px,cy+hs,cz+hs, px,cy+hs,cz+hs,px,cy-hs,cz+hs, px,cy-hs,cz+hs,px,cy-hs,cz-hs);}
+      if(x===n-1&&c.right){var px2=cx+hs;shellVerts.push(px2,cy-hs,cz-hs,px2,cy+hs,cz-hs, px2,cy+hs,cz-hs,px2,cy+hs,cz+hs, px2,cy+hs,cz+hs,px2,cy-hs,cz+hs, px2,cy-hs,cz+hs,px2,cy-hs,cz-hs);}
+      if(y===0&&c.bottom){var py=cy-hs;shellVerts.push(cx-hs,py,cz-hs,cx+hs,py,cz-hs, cx+hs,py,cz-hs,cx+hs,py,cz+hs, cx+hs,py,cz+hs,cx-hs,py,cz+hs, cx-hs,py,cz+hs,cx-hs,py,cz-hs);}
+      if(y===n-1&&c.top){var py2=cy+hs;shellVerts.push(cx-hs,py2,cz-hs,cx+hs,py2,cz-hs, cx+hs,py2,cz-hs,cx+hs,py2,cz+hs, cx+hs,py2,cz+hs,cx-hs,py2,cz+hs, cx-hs,py2,cz+hs,cx-hs,py2,cz-hs);}
+      if(z===0&&c.back){var pz=cz-hs;shellVerts.push(cx-hs,cy-hs,pz,cx+hs,cy-hs,pz, cx+hs,cy-hs,pz,cx+hs,cy+hs,pz, cx+hs,cy+hs,pz,cx-hs,cy+hs,pz, cx-hs,cy+hs,pz,cx-hs,cy-hs,pz);}
+      if(z===n-1&&c.front){var pz2=cz+hs;shellVerts.push(cx-hs,cy-hs,pz2,cx+hs,cy-hs,pz2, cx+hs,cy-hs,pz2,cx+hs,cy+hs,pz2, cx+hs,cy+hs,pz2,cx-hs,cy+hs,pz2, cx-hs,cy+hs,pz2,cx-hs,cy-hs,pz2);}
+      if(!c.right&&x<n-1) passageVerts.push(cx,cy,cz, cx+u,cy,cz);
+      if(!c.top&&y<n-1)   passageVerts.push(cx,cy,cz, cx,cy+u,cz);
+      if(!c.front&&z<n-1) passageVerts.push(cx,cy,cz, cx,cy,cz+u);
+    }
+
+    var shellGeo=new THREE.BufferGeometry();shellGeo.setAttribute('position',new THREE.Float32BufferAttribute(shellVerts,3));
+    var shellMat=new THREE.LineBasicMaterial({color:0x00ffcc,transparent:true,opacity:0.9});
+    var shellLines=new THREE.LineSegments(shellGeo,shellMat);shellLines.name='cubeShell';_cube.group.add(shellLines);
+
+    var passGeo=new THREE.BufferGeometry();passGeo.setAttribute('position',new THREE.Float32BufferAttribute(passageVerts,3));
+    var passMat=new THREE.LineBasicMaterial({color:0x00d9ff,transparent:true,opacity:0.35});
+    var passLines=new THREE.LineSegments(passGeo,passMat);passLines.name='cubePassages';_cube.group.add(passLines);
+
+    var pathGeo=new THREE.SphereGeometry(u*0.24,6,6);
+    _cube.solution.forEach(function(pt){
+      var m=new THREE.Mesh(pathGeo,new THREE.MeshBasicMaterial({color:0x00ffff,transparent:true,opacity:0}));
+      m.position.set(pt.x*u-ox+hs,pt.y*u-oy+hs,pt.z*u-oz+hs);
+      _cube.group.add(m);_cube.pathMeshes.push(m);
+    });
+
+    if(_cube.solution.length>0){
+      var mk=new THREE.SphereGeometry(u*0.38,8,8);
+      var sm=new THREE.Mesh(mk,new THREE.MeshBasicMaterial({color:0x00ffcc}));
+      sm.position.set(0-ox+hs,0-oy+hs,0-oz+hs);_cube.group.add(sm);
+      var last=_cube.solution[_cube.solution.length-1];
+      var em=new THREE.Mesh(mk.clone(),new THREE.MeshBasicMaterial({color:0xff4466}));
+      em.position.set(last.x*u-ox+hs,last.y*u-oy+hs,last.z*u-oz+hs);_cube.group.add(em);
+    }
+  }
+
+  window.mistSetViewMode=function(mode){
+    MIST.viewMode=mode;
+    var b2d=document.getElementById('mst-view-2d'),bc=document.getElementById('mst-view-cube');
+    var w2d=document.getElementById('mist-canvas-wrap'),wc=document.getElementById('mist-cube-wrap');
+    if(b2d)b2d.classList.toggle('mst-mode-active',mode==='2d');
+    if(bc)bc.classList.toggle('mst-mode-active',mode==='cube');
+    if(w2d)w2d.style.display=(mode==='2d')?'flex':'none';
+    if(wc)wc.classList.toggle('mist-cube-shown',mode==='cube');
+    if(mode==='cube'){
+      _cubeInit();
+      if(!_cube.grid)_cubeBuildMaze();
+      _cubeResumeLoopIfNeeded();
+    }
+  };
+
+  window.mistSetSolveMode=function(mode){
+    MIST.solveMode=mode;
+    var bi=document.getElementById('mst-solve-instant'),ba=document.getElementById('mst-solve-animate');
+    if(bi)bi.classList.toggle('mst-mode-active',mode==='instant');
+    if(ba)ba.classList.toggle('mst-mode-active',mode==='animate');
+  };
+
+  window.mistCubeNewMaze=function(){
+    _cubeBuildMaze();
+    _cube.pathMeshes.forEach(function(m){ m.material.opacity=0; });
+  };
+
+  window.mistCubeSigmaSolve=function(){
+    if(!_cube.pathMeshes.length || _cube.solving)return;
+    _cube.solving=true;_cube.solveStep=0;
+    if(MIST.solveMode==='instant'){
+      _cube.pathMeshes.forEach(function(m){m.material.opacity=0.9;});
+      _cube.solving=false;
+      return;
+    }
+    // ANIMATE — reveal one node at a time, same pacing feel as the BRPN scene
+    function step(){
+      if(_cube.solveStep>=_cube.pathMeshes.length){_cube.solving=false;return;}
+      _cube.pathMeshes[_cube.solveStep].material.opacity=0.9;
+      _cube.solveStep++;
+      setTimeout(function(){requestAnimationFrame(step);},60);
+    }
+    step();
+  };
+
+
   function _stopAnim(){if(MIST.sphereAnimId){cancelAnimationFrame(MIST.sphereAnimId);MIST.sphereAnimId=null;}}
   function _startAnim(){
     if(MIST.sphereAnimId)return;
