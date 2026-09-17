@@ -26764,6 +26764,37 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         });
       };
       gsSec.appendChild(gsBtn); gsSec.appendChild(gsSt); left.appendChild(gsSec);
+
+      // TF-web-124: STUDY QUEUE — same mechanism as the iOS Admin panel.
+      // Read-only here by design: filling a gap means adding real content to
+      // the grammar engine's known-facts/topics directly, not through this
+      // panel. Shares ashtree/sentient/study-queue.json with iOS, so gaps
+      // logged on either platform show up here.
+      var sqSec=document.createElement('div'); sqSec.style.cssText='display:flex;flex-direction:column;gap:4px;margin-top:6px';
+      var sqH=document.createElement('div'); sqH.textContent='STUDY QUEUE \u2014 unanswered gaps';
+      sqH.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;letter-spacing:2px;color:rgba(255,179,71,.75);margin-bottom:2px;text-transform:uppercase';
+      var sqList=document.createElement('div'); sqList.id='adm-study-queue-list';
+      sqList.style.cssText='font-family:sans-serif;font-size:10px;line-height:1.5;color:color-mix(in srgb, var(--text,#e0f4ff) 55%, transparent);max-height:140px;overflow-y:auto';
+      sqList.textContent='Loading\u2026';
+      sqSec.appendChild(sqH); sqSec.appendChild(sqList); left.appendChild(sqSec);
+      if(tok){
+        fetch('https://api.github.com/repos/DART-Skyboard/leatr-ash/contents/ashtree/sentient/study-queue.json',{
+          headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}
+        }).then(function(r){return r.ok?r.json():null;}).then(function(d){
+          if(!d || !d.content){ sqList.textContent='No gaps recorded yet.'; return; }
+          var arr; try{ arr=JSON.parse(atob(d.content.replace(/\n/g,''))); }catch(e){ arr=null; }
+          if(!Array.isArray(arr) || !arr.length){ sqList.textContent='No gaps recorded yet.'; return; }
+          sqList.textContent='';
+          arr.slice(-15).reverse().forEach(function(e){
+            var row=document.createElement('div'); row.style.cssText='padding:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+            var w=document.createElement('span'); w.textContent=(e.word||'?').toUpperCase()+' \u2014 ';
+            w.style.cssText='color:rgba(255,179,71,.9);font-weight:bold';
+            var c=document.createElement('span'); c.textContent=e.context||'';
+            row.appendChild(w); row.appendChild(c); sqList.appendChild(row);
+          });
+        }).catch(function(){ sqList.textContent='No gaps recorded yet.'; });
+      } else { sqList.textContent='Sign in to load.'; }
+
       panel.appendChild(left);
 
       var right=document.createElement('div'); right.id='adm-ash-right';

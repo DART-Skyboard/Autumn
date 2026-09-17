@@ -1764,6 +1764,24 @@ class ResponseBuilder {
     if(WN) nouns.slice(0,3).forEach(n=>{if(!WN.defineSync(n))WN.lookup(n).catch(()=>{});});
     const wnEntry=(WN&&WN._data)?['a','i','s'].reduce((f,k)=>f||(WN._data[k]&&WN._data[k][topic]?WN._data[k][topic]:null),null):null;
     const wnSyns=wnEntry?wnEntry.flatMap(e=>e.syn||[]).slice(0,4):[];
+    // TF-web-124: the study queue — port of the same mechanism just added to
+    // the iOS app. When neither WordNet nor any curated fact answers a real
+    // topic, log the specific word so there's an actual, reviewable record of
+    // what reference content is missing — same shared
+    // ashtree/sentient/study-queue.json file both apps write to, so gaps
+    // found on either platform end up in one place.
+    if(!wnDef && !knownFacts[topic] && topic!=='this' && topic.length>2
+       && typeof window!=='undefined' && typeof window.writeLeatrAshMemory==='function'){
+      try{
+        window.writeLeatrAshMemory('ashtree/sentient/study-queue.json', {
+          id: (Date.now().toString(16))+'-'+Math.floor(Math.random()*0xffff).toString(16),
+          ts: new Date().toISOString(),
+          word: topic,
+          context: (flowResult&&flowResult.rawText||topic).slice(0,200),
+          platform: 'web'
+        });
+      }catch(e){}
+    }
     const detail=wnDef||knownFacts[topic]||[...mods,...nouns.slice(1)].join(' ')||'its essential nature';
     const verb=verbs[0]||(tense==='past'?'demonstrated':'involves');
     const altWord=wnSyns[0]||nouns[1]||topic;
