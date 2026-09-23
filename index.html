@@ -13912,8 +13912,13 @@ function initBRPN() {
       var phi   = (90 - c.lat)  * (Math.PI / 180);
       var theta = (c.lon + 180) * (Math.PI / 180);
       // Aircraft cluster near inner shells (r~0.9-1.4), satellites near outer (r~1.6-2.2)
+      // Vessels sit essentially at the surface (r~1.02) — real ships don't
+      // orbit or fly, this is the physically accurate placement, matching
+      // the same distinction made in the iOS BRPN scene wiring.
       var r = c.type === 'satellite'
         ? 1.6 + (c.alt || 0) / 50000 * 0.6   // scale altitude to shell radius
+        : c.type === 'vessel'
+        ? 1.02
         : 0.9 + Math.random() * 0.5;
       r = Math.min(r, 2.4);
       var x = r * Math.sin(phi) * Math.cos(theta);
@@ -13922,10 +13927,15 @@ function initBRPN() {
 
       // Aircraft: small tetrahedron wireframe (cyan)
       // Satellite: octahedron wireframe (magenta)
+      // Vessel: icosahedron wireframe (amber) — matches the boat marker
+      // color already used on Mantis Radar's own maritime globe.
       var geo, color;
       if(c.type === 'satellite'){
         geo   = new THREE.OctahedronGeometry(0.045, 0);
         color = 0xff2d78;
+      } else if(c.type === 'vessel'){
+        geo   = new THREE.IcosahedronGeometry(0.038, 0);
+        color = 0xffb833;
       } else {
         geo   = new THREE.TetrahedronGeometry(0.032, 0);
         color = 0x00e5ff;
@@ -13937,7 +13947,7 @@ function initBRPN() {
       mesh.userData._mantisSpawn  = orbFrame;
       mesh.userData._mantisType   = c.type;
       mesh.userData._mantisOrbitR = r;
-      mesh.userData._mantisOrbitSpd = (c.type === 'satellite' ? 0.0008 : 0.0022) + Math.random() * 0.001;
+      mesh.userData._mantisOrbitSpd = (c.type === 'satellite' ? 0.0008 : (c.type === 'vessel' ? 0.0002 : 0.0022)) + Math.random() * 0.001;
       mesh.userData._mantisOrbitOff = Math.random() * Math.PI * 2;
       mesh.userData._mantisAlt    = y;
       scene.add(mesh);

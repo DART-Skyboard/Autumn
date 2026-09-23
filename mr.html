@@ -962,6 +962,15 @@ async function pollVessels(){
       document.getElementById('f-contacts').textContent=vesselData.length;
       const gc=document.getElementById('glob-count'); if(gc) gc.textContent=vesselData.length;
     }
+    // Pipe vessel contacts to parent orb world scene — same bridge and
+    // contact shape aircraft/satellites already use (see the postMessage
+    // calls after the ADS-B and TLE fetches in this same file), so vessels
+    // join the BRPN scene's existing live-activity representation rather
+    // than needing a second mechanism.
+    try{
+      const _vesselContacts=vesselData.slice(0,40).map(v=>({type:'vessel',lat:v.lat,lon:v.lon,alt:0,id:v.id}));
+      if(_vesselContacts.length&&window.parent&&window.parent!==window) window.parent.postMessage({source:'mantis-radar',type:'contacts',contacts:_vesselContacts},'*');
+    }catch(e){}
   }catch(e){
     const badge=document.getElementById('mr-orb-badge');
     if(badge && currentTab==='maritime') badge.textContent='AIS relay unreachable';
