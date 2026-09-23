@@ -49,7 +49,7 @@ header{height:56px;flex-shrink:0;padding:0 20px;border-bottom:1px solid var(--bo
 /* view tabs */
 #view-tabs{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:600;display:flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;}
 .vtab{padding:5px 16px;background:rgba(3,10,14,.88);color:rgba(0,245,255,.5);font-family:'Orbitron',sans-serif;font-size:.55rem;font-weight:700;letter-spacing:.2em;cursor:pointer;transition:all .18s;border:none;backdrop-filter:blur(6px);}
-.vtab:first-child{border-right:1px solid var(--border);}
+.vtab:not(:last-child){border-right:1px solid var(--border);}
 .vtab.active{background:rgba(0,245,255,.12);color:var(--cyan);text-shadow:0 0 8px var(--cyan);}
 .vtab:hover:not(.active){background:rgba(0,245,255,.07);color:rgba(0,245,255,.75);}
 
@@ -344,6 +344,7 @@ body.iframe-mode #globe-sat-count { font-size: .52rem; padding: 6px 8px; }
     <div id="view-tabs">
       <button class="vtab active" id="tab-aerial" onclick="switchTab('aerial')">✈ AERIAL</button>
       <button class="vtab" id="tab-orbital" onclick="switchTab('orbital')">⊕ ORBITAL</button>
+      <button class="vtab" id="tab-maritime" onclick="switchTab('maritime')">⚓ MARITIME</button>
     </div>
 
     <!-- AERIAL -->
@@ -458,6 +459,13 @@ let satPoints=null,satPositions=null,satColors=null;
 let orbitTraceObj=null;
 let selectedGlobeSat=null;
 let isDragging=false,dragMoved=false;
+// TF-web-134/137: Maritime — same globe framework as orbital, same THREE.Points
+// pattern as satellites, real data via the shared relay (leatr-ash/services/
+// ais-relay) already built for iOS — no new backend needed, this is the
+// same public, keyless endpoint iOS polls.
+let vesselGroup=null,vesselData=[],vesselPoints=null,vesselPositions=null,vesselColors=null;
+let selectedVessel=null,vesselPollTimer=null;
+const MARITIME_RELAY='https://leatr-ash.onrender.com';
 let lastMX=0,lastMY=0;
 let rotTargetY=0.4,rotTargetX=0.25;
 let rotCurrY=0.4,rotCurrX=0.25;
@@ -514,23 +522,37 @@ setTimeout(sizeViews,120);
 function switchTab(tab){
   currentTab=tab;
   const aerial=(tab==='aerial');
+  const maritime=(tab==='maritime');
+  const globeTab=!aerial; // orbital or maritime share the same 3D globe
   document.getElementById('map-wrap').style.display=aerial?'block':'none';
-  document.getElementById('globe-wrap').style.display=aerial?'none':'block';
+  document.getElementById('globe-wrap').style.display=globeTab?'block':'none';
   document.getElementById('tab-aerial').classList.toggle('active',aerial);
-  document.getElementById('tab-orbital').classList.toggle('active',!aerial);
+  document.getElementById('tab-orbital').classList.toggle('active',tab==='orbital');
+  document.getElementById('tab-maritime').classList.toggle('active',maritime);
   document.getElementById('refresh-btn').style.display=aerial?'':'none';
   document.getElementById('sat-refresh-btn').style.display=aerial?'none':'';
   document.getElementById('fc1-aerial').style.display=aerial?'':'none';
   document.getElementById('fc1-orbital').style.display=aerial?'none':'';
   document.getElementById('fc1-label').textContent=aerial?'Scan Radius':'Globe Controls';
-  document.getElementById('f-count-label').textContent=aerial?'AIRCRAFT':'SATELLITES';
-  document.getElementById('f-contacts').textContent=aerial?aircraftData.length:satData.length;
+  document.getElementById('f-count-label').textContent=aerial?'AIRCRAFT':(maritime?'VESSELS':'SATELLITES');
+  document.getElementById('f-contacts').textContent=aerial?aircraftData.length:(maritime?vesselData.length:satData.length);
+  // TF-web: satellites and vessels share one globe scene — only one layer
+  // visible at a time, matching iOS's showVessels flag on the same
+  // RadarGlobeView rather than building a second scene.
+  if(satGroup) satGroup.visible=(tab==='orbital');
+  if(vesselGroup) vesselGroup.visible=maritime;
+  const hint=document.getElementById('glob-hint');
+  if(hint) hint.textContent=maritime
+    ? 'DRAG TO ROTATE · SCROLL TO ZOOM · CLICK VESSEL'
+    : 'DRAG TO ROTATE · SCROLL TO ZOOM · CLICK SATELLITE';
   if(aerial){
     if(glbFrame){cancelAnimationFrame(glbFrame);glbFrame=null;}
     if(leafMap)setTimeout(()=>leafMap.invalidateSize(),80);
+    stopMaritimePoll();
   } else {
     if(!globeInited){initGlobe();}
     else{sizeViews();if(!glbFrame)glbFrame=requestAnimationFrame(renderGlobe);}
+    if(maritime) startMaritimePoll(); else stopMaritimePoll();
   }
 }
 
@@ -918,6 +940,131 @@ function latLonToV3(lat,lon,r){
 }
 
 // ══════════════════════════════════════════════════════════
+//  MARITIME — real-time vessel tracking, same globe/Points
+//  pattern as satellites, real data via the shared relay
+//  (leatr-ash/services/ais-relay) already built for iOS.
+//  No AISStream key here or anywhere client-side — the relay
+//  is the only thing this ever talks to, same as iOS.
+// ══════════════════════════════════════════════════════════
+async function pollVessels(){
+  try{
+    const r=await fetch(MARITIME_RELAY+'/vessels',{cache:'no-store'});
+    if(!r.ok) throw new Error('relay HTTP '+r.status);
+    const d=await r.json();
+    vesselData=(d.vessels||[]).slice(0,250).map(v=>({
+      id:v.id, name:v.name||('MMSI '+v.id), lat:v.lat, lon:v.lon,
+      speedKn:v.speedKn, courseDeg:v.courseDeg, lastUpdate:v.lastUpdate
+    }));
+    const badge=document.getElementById('mr-orb-badge');
+    if(badge && currentTab==='maritime') badge.textContent='AIS '+(d.status||'LIVE').toUpperCase()+' ('+vesselData.length+')';
+    buildVesselPoints();
+    if(currentTab==='maritime'){
+      document.getElementById('f-contacts').textContent=vesselData.length;
+      const gc=document.getElementById('glob-count'); if(gc) gc.textContent=vesselData.length;
+    }
+  }catch(e){
+    const badge=document.getElementById('mr-orb-badge');
+    if(badge && currentTab==='maritime') badge.textContent='AIS relay unreachable';
+  }
+}
+function startMaritimePoll(){
+  if(vesselPollTimer) return;
+  pollVessels();
+  vesselPollTimer=setInterval(pollVessels,5000);
+}
+function stopMaritimePoll(){
+  if(vesselPollTimer){clearInterval(vesselPollTimer);vesselPollTimer=null;}
+}
+
+function buildVesselPoints(){
+  if(vesselPoints){vesselGroup.remove(vesselPoints);vesselPoints=null;}
+  const n=vesselData.length;
+  if(!n)return;
+
+  vesselPositions=new Float32Array(n*3);
+  vesselColors=new Float32Array(n*3);
+
+  // Diamond-ish marker, amber — visually distinct from satellites' round
+  // cyan glow, matching the boat marker color already used on iOS.
+  const tc=document.createElement('canvas');tc.width=64;tc.height=64;
+  const tx=tc.getContext('2d');
+  const gr=tx.createRadialGradient(32,32,0,32,32,32);
+  gr.addColorStop(0,'rgba(255,255,255,1)');
+  gr.addColorStop(.3,'rgba(255,216,140,.95)');
+  gr.addColorStop(.65,'rgba(255,184,51,.6)');
+  gr.addColorStop(1,'rgba(0,0,0,0)');
+  tx.fillStyle=gr;tx.fillRect(0,0,64,64);
+
+  for(let i=0;i<n;i++){
+    const v=vesselData[i];
+    const p=latLonToV3(v.lat,v.lon,1.02); // surface-bound, not orbiting
+    vesselPositions[i*3]=p.x;vesselPositions[i*3+1]=p.y;vesselPositions[i*3+2]=p.z;
+    vesselColors[i*3]=1;vesselColors[i*3+1]=.72;vesselColors[i*3+2]=.2;
+  }
+
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(vesselPositions,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(vesselColors,3));
+  const mat=new THREE.PointsMaterial({
+    size:.028,vertexColors:true,transparent:true,opacity:.95,
+    sizeAttenuation:true,map:new THREE.CanvasTexture(tc),
+    alphaTest:.04,depthWrite:false
+  });
+  vesselPoints=new THREE.Points(geo,mat);
+  vesselGroup.add(vesselPoints);
+}
+
+function getVesselAt(e){
+  if(!vesselPoints||!vesselData.length)return -1;
+  const canvas=document.getElementById('globe-canvas');
+  const rect=canvas.getBoundingClientRect();
+  _m2d.set(
+    ((e.clientX-rect.left)/canvas.offsetWidth)*2-1,
+    -((e.clientY-rect.top)/canvas.offsetHeight)*2+1
+  );
+  _ray.setFromCamera(_m2d,glbCamera);
+  const hits=_ray.intersectObject(vesselPoints);
+  return hits.length?hits[0].index:-1;
+}
+
+function handleVesselHover(e){
+  const idx=getVesselAt(e);
+  const tip=document.getElementById('sat-tooltip');
+  if(idx>=0&&idx<vesselData.length){
+    const v=vesselData[idx];
+    tip.innerHTML=`<b>${v.name}</b><br>${v.speedKn!=null?v.speedKn.toFixed(1)+' kn':''}${v.courseDeg!=null?' · '+Math.round(v.courseDeg)+'° hdg':''}<br>Lat: ${v.lat.toFixed(2)}°&nbsp;&nbsp;Lon: ${v.lon.toFixed(2)}°`;
+    tip.style.display='block';
+    tip.style.left=(e.clientX+16)+'px';
+    tip.style.top=(e.clientY-10)+'px';
+    document.getElementById('globe-canvas').style.cursor='crosshair';
+  } else {
+    tip.style.display='none';
+    document.getElementById('globe-canvas').style.cursor='grab';
+  }
+}
+
+function handleVesselClick(e){
+  const idx=getVesselAt(e);
+  if(idx<0||idx>=vesselData.length)return;
+  selectedVessel=vesselData[idx];
+  document.getElementById('sat-tooltip').style.display='none';
+  showVesselDetail(selectedVessel);
+}
+
+function showVesselDetail(v){
+  document.getElementById('detail-panel').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;">
+      <div style="grid-column:1/3;color:var(--yellow);font-weight:700;">${v.name}</div>
+      <div>MMSI</div><div>${v.id}</div>
+      <div>Speed</div><div>${v.speedKn!=null?v.speedKn.toFixed(1)+' kn':'--'}</div>
+      <div>Heading</div><div>${v.courseDeg!=null?Math.round(v.courseDeg)+'°':'--'}</div>
+      <div>Lat</div><div>${v.lat.toFixed(4)}°</div>
+      <div>Lon</div><div>${v.lon.toFixed(4)}°</div>
+      <div>Updated</div><div>${v.lastUpdate?new Date(v.lastUpdate).toLocaleTimeString():'--'}</div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
 //  REFRESH / RADIUS
 // ══════════════════════════════════════════════════════════
 function startRefreshTimer(){
@@ -989,6 +1136,8 @@ function initGlobe(){
   sunDirVec=new THREE.Vector3(1,0,0);
   earthGroup=new THREE.Group();
   satGroup=new THREE.Group();
+  vesselGroup=new THREE.Group();
+  vesselGroup.visible=false;
 
   glbScene.add(new THREE.AmbientLight(0x08101e,2));
   const sl=new THREE.DirectionalLight(0x5577ff,4);sl.name='sunLight';glbScene.add(sl);
@@ -1033,6 +1182,7 @@ function initGlobe(){
   buildStars();
   glbScene.add(earthGroup);
   glbScene.add(satGroup);
+  glbScene.add(vesselGroup);
   setupGlobeInteraction();
 
   if(myLat!==null)updateUserGlobeMarker();
@@ -1458,7 +1608,7 @@ function setupGlobeInteraction(){
   });
 
   document.addEventListener('mousemove',e=>{
-    if(!isDragging){handleSatHover(e);return;}
+    if(!isDragging){ currentTab==='maritime'?handleVesselHover(e):handleSatHover(e); return;}
     const dx=e.clientX-lastMX,dy=e.clientY-lastMY;
     if(Math.abs(dx)+Math.abs(dy)>2)dragMoved=true;
     // ── INVERTED: subtract dx so swiping left = globe moves left ──
@@ -1470,7 +1620,7 @@ function setupGlobeInteraction(){
 
   document.addEventListener('mouseup',e=>{
     if(isDragging){
-      if(!dragMoved)handleSatClick(e);
+      if(!dragMoved){ currentTab==='maritime'?handleVesselClick(e):handleSatClick(e); }
       isDragging=false;
       canvas.style.cursor='grab';
     }
