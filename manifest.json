@@ -8,12 +8,12 @@
   "theme_color": "#020a14",
   "icons": [
     {
-      "src": "assets/favicon-192.png",
+      "src": "assets/favicon-192.png?v=iosicon",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "assets/autumn512.png",
+      "src": "assets/autumn512.png?v=iosicon",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
