@@ -25575,6 +25575,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     tabs.appendChild(_mkTab('adm-t1','DATA',function(){window._admTab('data');}));
     tabs.appendChild(_mkTab('adm-t2','ASH',function(){window._admTab('ash');}));
     tabs.appendChild(_mkTab('adm-t3','MESSAGES',function(){window._admTab('feedback');}));
+    tabs.appendChild(_mkTab('adm-t4','LIVE FEED',function(){window._admTab('livefeed');}));
     scrollRow.appendChild(tabs);
     hdr.appendChild(scrollRow);
     var closeBtn=document.createElement('button'); closeBtn.textContent='\u2715';
@@ -26533,6 +26534,152 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     });
   };
 
+  /* TF-web-125: LIVE FEED admin tab — mirrors the iOS Admin panel's
+     analytics-export section (enable/disable, generate, export), talking
+     to the exact same shared config.json the LiveFeedController on iOS
+     reads and writes. This web console cannot run the actual maze-
+     generation algorithm (that only exists in Swift/LEMACEngineASH), so
+     Generate here just writes a request; a running iOS instance picks it
+     up within ~30s and does the real work, exactly like any other device
+     already does when someone else generates a new maze. */
+  window._admRenderLiveFeed = function(host){
+    host.innerHTML='';
+    var panel=document.createElement('div'); panel.id='adm-live-panel';
+    panel.style.cssText='padding:8px 10px;display:flex;flex-direction:column;gap:10px;font-family:var(--font-d,Orbitron,monospace);color:var(--text,#c8e6f0)';
+
+    var GAS_URL=(typeof AUTUMN_GAS_URL!=='undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')) ? AUTUMN_GAS_URL : null;
+    var CONFIG_PATH='ashtree/analytics-live/config.json';
+
+    function ashread(path){
+      return fetch(GAS_URL+'?action=ashread&path='+encodeURIComponent(path), { signal: AbortSignal.timeout(40000) })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .catch(function(){ return null; });
+    }
+    function ashwriteReplace(path, payload){
+      return fetch(GAS_URL, {
+        method:'POST', headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({ action:'ashwrite', path:path, uid:'admin-web', append:false, payload:payload }),
+        signal: AbortSignal.timeout(40000)
+      }).then(function(r){ return r.ok; }).catch(function(){ return false; });
+    }
+
+    var h=document.createElement('div'); h.textContent='LIVE FEED \u2014 MASTER ANALYTICS SESSION';
+    h.style.cssText='font-size:9px;letter-spacing:2.5px;color:color-mix(in srgb, var(--cyan,#4fd980) 45%, transparent);text-transform:uppercase';
+    panel.appendChild(h);
+
+    var status=document.createElement('div'); status.id='adm-live-status';
+    status.style.cssText='font-size:11px;line-height:1.7;font-family:sans-serif;color:color-mix(in srgb, var(--text,#e0f4ff) 70%, transparent);padding:8px 10px;border-radius:6px;background:color-mix(in srgb, var(--cyan,#4fd980) 6%, transparent);border:1px solid color-mix(in srgb, var(--cyan,#4fd980) 18%, transparent)';
+    status.textContent='Loading\u2026';
+    panel.appendChild(status);
+
+    var ctrlRow=document.createElement('div'); ctrlRow.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+    var toggleBtn=document.createElement('button'); toggleBtn.id='adm-live-toggle'; toggleBtn.textContent='\u2026';
+    toggleBtn.style.cssText='font-family:var(--font-d);font-size:10px;padding:7px 14px;border-radius:5px;border:1px solid color-mix(in srgb, var(--cyan,#4fd980) 40%, transparent);background:transparent;color:var(--cyan,#4fd980);cursor:pointer';
+    ctrlRow.appendChild(toggleBtn);
+    panel.appendChild(ctrlRow);
+
+    var genSec=document.createElement('div'); genSec.style.cssText='display:flex;flex-direction:column;gap:6px;padding-top:4px;border-top:1px solid color-mix(in srgb, var(--cyan,#4fd980) 12%, transparent)';
+    var genH=document.createElement('div'); genH.textContent='GENERATE NEW MASTER MAZE';
+    genH.style.cssText='font-size:9px;letter-spacing:2px;color:color-mix(in srgb, var(--cyan,#4fd980) 40%, transparent);text-transform:uppercase';
+    genSec.appendChild(genH);
+    var dimRow=document.createElement('div'); dimRow.style.cssText='display:flex;gap:6px;align-items:center';
+    function mkDimInput(id,val){
+      var inp=document.createElement('input'); inp.id=id; inp.type='number'; inp.min='4'; inp.max='16'; inp.value=val;
+      inp.style.cssText='width:44px;padding:5px 6px;border-radius:4px;border:1px solid color-mix(in srgb, var(--cyan,#4fd980) 25%, transparent);background:rgba(0,0,0,.25);color:var(--text,#e0f4ff);font-family:var(--font-d);font-size:11px;text-align:center';
+      return inp;
+    }
+    var wInp=mkDimInput('adm-live-w','10'), hInp=mkDimInput('adm-live-h','10'), dInp=mkDimInput('adm-live-d','10');
+    [wInp,hInp,dInp].forEach(function(el,i){ if(i>0){ var x=document.createElement('span'); x.textContent='\u00d7'; x.style.cssText='color:color-mix(in srgb, var(--text,#e0f4ff) 40%, transparent);font-size:11px'; dimRow.appendChild(x); } dimRow.appendChild(el); });
+    genSec.appendChild(dimRow);
+    var genBtn=document.createElement('button'); genBtn.id='adm-live-gen'; genBtn.textContent='GENERATE';
+    genBtn.style.cssText='align-self:flex-start;font-family:var(--font-d);font-size:10px;padding:7px 14px;border-radius:5px;border:1px solid color-mix(in srgb, var(--red,#ffb347) 45%, transparent);background:transparent;color:var(--red,#ffb347);cursor:pointer';
+    genSec.appendChild(genBtn);
+    var genNote=document.createElement('div'); genNote.id='adm-live-gen-note'; genNote.style.cssText='font-size:10px;font-family:sans-serif;color:color-mix(in srgb, var(--text,#e0f4ff) 45%, transparent)';
+    genNote.textContent='Takes effect within ~30s once a running iOS session picks up the request \u2014 this web console can\u2019t run the maze algorithm itself.';
+    genSec.appendChild(genNote);
+    panel.appendChild(genSec);
+
+    var expSec=document.createElement('div'); expSec.style.cssText='display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid color-mix(in srgb, var(--cyan,#4fd980) 12%, transparent)';
+    var expH=document.createElement('div'); expH.textContent='EXPORT';
+    expH.style.cssText='font-size:9px;letter-spacing:2px;color:color-mix(in srgb, var(--cyan,#4fd980) 40%, transparent);text-transform:uppercase';
+    expSec.appendChild(expH);
+    var expBtn=document.createElement('button'); expBtn.id='adm-live-export'; expBtn.textContent='EXPORT CURRENT SESSION (.zip)';
+    expBtn.style.cssText='align-self:flex-start;font-family:var(--font-d);font-size:10px;padding:7px 14px;border-radius:5px;border:1px solid color-mix(in srgb, var(--cyan,#4fd980) 35%, transparent);background:transparent;color:var(--cyan,#4fd980);cursor:pointer';
+    expSec.appendChild(expBtn);
+    var expNote=document.createElement('div'); expNote.id='adm-live-exp-note'; expNote.style.cssText='font-size:10px;font-family:sans-serif;color:color-mix(in srgb, var(--text,#e0f4ff) 45%, transparent)';
+    expSec.appendChild(expNote);
+    panel.appendChild(expSec);
+
+    host.appendChild(panel);
+
+    if(!GAS_URL){ status.textContent='GAS endpoint not configured.'; toggleBtn.disabled=true; genBtn.disabled=true; expBtn.disabled=true; return; }
+
+    function refreshStatus(){
+      status.textContent='Loading\u2026';
+      ashread(CONFIG_PATH).then(function(cfg){
+        if(!cfg || typeof cfg!=='object'){ status.textContent='No live session config found yet.'; toggleBtn.textContent='ENABLE'; return; }
+        status.innerHTML =
+          '<b style="color:'+(cfg.enabled?'var(--cyan,#4fd980)':'color-mix(in srgb, var(--red,#ff4466) 70%, transparent)')+'">'+(cfg.enabled?'\u25cf ACTIVE':'\u25cb STOPPED')+'</b><br>'+
+          'Maze: '+(cfg.mazeId||'\u2014')+' \u00b7 '+(cfg.width||'?')+'\u00d7'+(cfg.height||'?')+'\u00d7'+(cfg.depth||'?')+'<br>'+
+          'Chunk index: '+(cfg.currentChunkIndex||0);
+        toggleBtn.textContent = cfg.enabled ? 'STOP' : 'ENABLE';
+        if(cfg.width) wInp.value=cfg.width; if(cfg.height) hInp.value=cfg.height; if(cfg.depth) dInp.value=cfg.depth;
+      });
+    }
+    refreshStatus();
+
+    toggleBtn.onclick=function(){
+      toggleBtn.disabled=true; toggleBtn.textContent='\u2026';
+      ashread(CONFIG_PATH).then(function(cfg){
+        if(!cfg){ toggleBtn.disabled=false; refreshStatus(); return null; }
+        cfg.enabled=!cfg.enabled;
+        return ashwriteReplace(CONFIG_PATH, cfg);
+      }).then(function(){ toggleBtn.disabled=false; refreshStatus(); });
+    };
+
+    genBtn.onclick=function(){
+      genBtn.disabled=true; genBtn.textContent='REQUESTING\u2026';
+      ashread(CONFIG_PATH).then(function(cfg){
+        cfg=cfg||{};
+        cfg.enabled=true;
+        cfg.regenerateRequestedAt=Date.now();
+        cfg.regenerateRequestedWidth=Math.max(4,Math.min(16,parseInt(wInp.value,10)||10));
+        cfg.regenerateRequestedHeight=Math.max(4,Math.min(16,parseInt(hInp.value,10)||10));
+        cfg.regenerateRequestedDepth=Math.max(4,Math.min(16,parseInt(dInp.value,10)||10));
+        return ashwriteReplace(CONFIG_PATH, cfg);
+      }).then(function(ok){
+        genBtn.disabled=false; genBtn.textContent='GENERATE';
+        genNote.textContent = ok ? 'Requested \u2014 will take effect within ~30s once a live app instance processes it.' : 'Request failed \u2014 try again.';
+        setTimeout(refreshStatus, 3000);
+      });
+    };
+
+    expBtn.onclick=function(){
+      expBtn.disabled=true; expBtn.textContent='EXPORTING\u2026'; expNote.textContent='';
+      ashread(CONFIG_PATH).then(function(cfg){
+        if(!cfg || !cfg.mazeId) throw new Error('no active session');
+        var mazeId=cfg.mazeId;
+        var chunkCount=(cfg.currentChunkIndex||0)+1;
+        var reads=[ashread('ashtree/analytics-live/'+mazeId+'/latest-export.json')];
+        for(var i=0;i<chunkCount;i++) reads.push(ashread('ashtree/analytics-live/'+mazeId+'/chunk-'+i+'.json'));
+        return Promise.all(reads).then(function(results){ return { mazeId:mazeId, latestExport:results[0], chunks:results.slice(1) }; });
+      }).then(function(data){
+        if(typeof JSZip==='undefined') throw new Error('JSZip not loaded on this page');
+        var zip=new JSZip();
+        if(data.latestExport) zip.file('latest-export.json', JSON.stringify(data.latestExport, null, 2));
+        data.chunks.forEach(function(c,i){ if(c) zip.file('chunk-'+i+'.json', JSON.stringify(c, null, 2)); });
+        return zip.generateAsync({type:'blob'}).then(function(blob){
+          var a=document.createElement('a');
+          a.href=URL.createObjectURL(blob);
+          a.download=data.mazeId+'-export.zip';
+          document.body.appendChild(a); a.click(); a.remove();
+        });
+      }).then(function(){ expNote.textContent='Downloaded.'; })
+      .catch(function(e){ expNote.textContent='Export failed: '+(e && e.message ? e.message : 'unknown error'); })
+      .then(function(){ expBtn.disabled=false; expBtn.textContent='EXPORT CURRENT SESSION (.zip)'; });
+    };
+  };
+
   window._admRenderFeedback = function(host){
     window._admMountFeedbackUI(host, {});
   };
@@ -26673,8 +26820,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
   };
 
   function _styleAdmTabs(tab){
-    var map={data:['adm-t1','color-mix(in srgb, var(--cyan,#ffb347) 12%, transparent)','var(--cyan,#ffb347)'],ash:['adm-t2','color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent)','var(--cyan)'],feedback:['adm-t3','color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent)','var(--cyan)']};
-    ['adm-t1','adm-t2','adm-t3'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.background='transparent';el.style.color='color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent)';}});
+    var map={data:['adm-t1','color-mix(in srgb, var(--cyan,#ffb347) 12%, transparent)','var(--cyan,#ffb347)'],ash:['adm-t2','color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent)','var(--cyan)'],feedback:['adm-t3','color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent)','var(--cyan)'],livefeed:['adm-t4','color-mix(in srgb, var(--cyan,#4fd980) 12%, transparent)','var(--cyan,#4fd980)']};
+    ['adm-t1','adm-t2','adm-t3','adm-t4'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.background='transparent';el.style.color='color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent)';}});
     var active=map[tab];if(active){var el=document.getElementById(active[0]);if(el){el.style.background=active[1];el.style.color=active[2];}}
   }
 
@@ -26682,11 +26829,12 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if(!window._autAdminEnabled()) return;
     window._autInjectAdminChrome();
     _styleAdmTabs(tab);
-    ['adm-ash-panel','adm-data-panel','adm-fb-panel','adm-frame','adm-msg-fb'].forEach(function(id){ var el=document.getElementById(id); if(el && id!=='adm-msg-fb') el.remove(); });
+    ['adm-ash-panel','adm-data-panel','adm-fb-panel','adm-frame','adm-msg-fb','adm-live-panel'].forEach(function(id){ var el=document.getElementById(id); if(el && id!=='adm-msg-fb') el.remove(); });
     var tok=(window._ghAuth||{}).token||'';
     var host=document.getElementById('adm-body');
     if(tab==='data'){ if(host) window._admRenderData(host); return; }
     if(tab==='feedback'){ if(host) window._admRenderFeedback(host); return; }
+    if(tab==='livefeed'){ if(host) window._admRenderLiveFeed(host); return; }
 
     if(tab==='ash'){
       if(!host) return;
