@@ -371,7 +371,7 @@
         body:JSON.stringify({action:'mistwrite',uid:uid,payload:data}),
         signal:AbortSignal.timeout(12000)
       })
-      .then(function(r){ _writeInFlight=false; _setStatus(r&&r.ok?'●':'✗'); })
+      .then(function(r){ _writeInFlight=false; _ss(r&&r.ok?'●':'✗'); })
       .catch(function(e){ _writeInFlight=false; console.warn('MIST write error:',e); });
     } else if(pat){
       // Fallback: direct GitHub API for IDE/admin with PAT
@@ -389,7 +389,7 @@
           if(sha) body.sha=sha;
           return fetch(apiUrl,{method:'PUT',headers:hdrs,body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
         })
-        .then(function(r){ _writeInFlight=false; _setStatus(r&&r.ok?'●':'✗'); })
+        .then(function(r){ _writeInFlight=false; _ss(r&&r.ok?'●':'✗'); })
         .catch(function(e){ _writeInFlight=false; console.warn('MIST write error:',e); });
     } else {
       _writeInFlight=false;
@@ -446,7 +446,7 @@
     if(typeof _pollAshNodes==='function' && !_nodePos(ev.uid)) _pollAshNodes();
     _brpn(SLOT[ev.slot]);
     _spawnIncoming(ev.slot, new THREE.Vector3(0,0,0), ev.uid);
-    _setStatus('←');
+    _ss('←');
     // Write reaction so others (especially sender) see it
     _write({type:'reaction',uid:myUid,slot:ev.slot,ts:now,replyTo:ev.uid,score:sc,instanceId:_iid});
     _bcPost({type:'reaction',uid:myUid,slot:ev.slot,ts:now,replyTo:ev.uid,score:sc});
