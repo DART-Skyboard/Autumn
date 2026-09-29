@@ -3073,6 +3073,9 @@ header {
   }
 }
 </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
 </head>
 <script>
 (function(){
@@ -12787,6 +12790,7 @@ function renderMessages() {
   wireMediaCards(el);
   initPendingMazeWidgets();
   if(typeof init3DViewersInMessages==='function') init3DViewersInMessages();
+  window._autumnRenderMath(el);
   // Re-trigger any map renders needed
   document.querySelectorAll('.map-container[id]').forEach(container=>{
     if (container.children.length === 0 && LocationManager.coords) {
@@ -12797,6 +12801,25 @@ function renderMessages() {
     }
   });
 }
+
+// TF-web-127: real LaTeX/math typesetting via KaTeX, additive only -- does
+// not touch the existing intent-detection/response pipeline at all. Renders
+// $$...$$ / \[...\] as display math and $...$ / \(...\) as inline math
+// wherever they appear in a message, from either the user or Autumn.
+window._autumnRenderMath = function(el) {
+  if (!el || typeof renderMathInElement !== 'function') return;
+  try {
+    renderMathInElement(el, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '\\[', right: '\\]', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false }
+      ],
+      throwOnError: false
+    });
+  } catch (e) { /* a malformed expression should never break the chat */ }
+};
 
 function appendChatBubble(msg) {
   // Appends one message bubble to #chat-scroll.
@@ -12824,6 +12847,7 @@ function appendChatBubble(msg) {
   el.querySelector('.typing')?.remove();
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
+  window._autumnRenderMath(div);
 }
 
 // ══════════════════════════════════════════════════════════════════
