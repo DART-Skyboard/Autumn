@@ -59,8 +59,9 @@
     group.add(new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color:0xbfbfbf, transparent:true, opacity:0.35 })));
 
     var meshList = [];
+    var meshById = {};
     RM_NODES.forEach(function(n){
-      var id=n[0], depth=n[1], label=n[3], text=n[4];
+      var id=n[0], depth=n[1], parent=n[2], label=n[3], text=n[4];
       var pos = positions[id];
       if (!pos) return;
       var size = depth === 0 ? 0.055 : Math.max(0.014, 0.032 - depth*0.003);
@@ -69,11 +70,13 @@
         new THREE.MeshBasicMaterial({ color: depthColor(depth), wireframe:true })
       );
       mesh.position.set(pos.x, pos.y, pos.z);
-      mesh.userData = { label:label, text:text, depth:depth };
+      mesh.userData = { id:id, parent:parent, label:label, text:text, depth:depth, baseColor:depthColor(depth), baseScale:1 };
       group.add(mesh);
       meshList.push(mesh);
+      meshById[id] = mesh;
     });
     group.userData.meshList = meshList;
+    group.userData.meshById = meshById;
     // Scale + reposition to roughly fill the same visual footprint the
     // buoyancy shells occupy in this scene (shell radii top out ~1.9) --
     // the mind map's own shells go out to depth 6 (~2.4), so normalize.
@@ -88,6 +91,7 @@
     // scene was (re)created (e.g. WebGL context restore) -- rebuild fresh
     mindMapGroup = buildGroup();
     window._brpnScene.add(mindMapGroup);
+    window._brpnMindMapGroup = mindMapGroup;
     attachedToScene = window._brpnScene;
     wireHover();
     return true;
@@ -128,6 +132,88 @@
   // toggle, just swaps visibility. So this doesn't either; adding one here
   // that iOS lacks would make the two sides inconsistent, the opposite of
   // the point.
+  // TF-web-132: port of LeatrMindMapScene.pulsePath/reflexPulse -- real,
+  // prompt-driven feedback, not just idle ambient rotation. Checked what
+  // iOS actually matches against before writing this: ReflexStage text
+  // ("User Input Prompt", "AI Output Prompt", "Sentience Journal", etc.),
+  // which does exist verbatim in this same node data (confirmed before
+  // wiring anything). Finds the best text match (longest wins, same tie-
+  // break iOS uses), walks its ancestor chain to root, and pulses each
+  // node in sequence with a short stagger -- so it reads as a signal
+  // traveling down the tree, same as iOS. No SceneKit emission slot here,
+  // so this pulses via MeshBasicMaterial.color (bright pulse color) and
+  // scale, decaying back to the node's normal depth color -- the visual
+  // equivalent adapted to what Three.js's wireframe material actually has.
+  var activePulses = []; // {mesh, startAt, color, intensity}
+  var recentFires = {};
+
+  function findBestMatch(query){
+    var q = query.toLowerCase();
+    var best = null, bestLen = -1;
+    RM_NODES.forEach(function(n){
+      var text = n[4].toLowerCase();
+      if (text.indexOf(q) !== -1 || q.indexOf(text) !== -1) {
+        if (n[4].length > bestLen) { best = n; bestLen = n[4].length; }
+      }
+    });
+    return best;
+  }
+
+  window._reflexMapPulse = function(query, colorHex){
+    if (!mindMapGroup || !query) return;
+    var best = findBestMatch(query);
+    if (!best) return;
+    var now = performance.now();
+    var isRepeat = recentFires[query] !== undefined && (now - recentFires[query]) < 4000;
+    recentFires[query] = now;
+
+    var chain = [best];
+    var cursor = best;
+    while (cursor[2] !== null && cursor[2] !== undefined) {
+      var parentNode = null;
+      for (var i = 0; i < RM_NODES.length; i++) { if (RM_NODES[i][0] === cursor[2]) { parentNode = RM_NODES[i]; break; } }
+      if (!parentNode) break;
+      chain.push(parentNode);
+      cursor = parentNode;
+    }
+    chain.reverse();
+    var color = colorHex !== undefined ? colorHex : depthColor(best[1]);
+    var intensity = isRepeat ? 1.6 : 1.0;
+    chain.forEach(function(node, i){
+      var mesh = mindMapGroup.userData.meshById[node[0]];
+      if (!mesh) return;
+      activePulses = activePulses.filter(function(p){ return p.mesh !== mesh; }); // cancel any in-flight pulse on this node
+      activePulses.push({ mesh:mesh, startAt: now + i*60, color:color, intensity:intensity, attackMs:120, decayMs:900 });
+    });
+  };
+
+  function updatePulses(){
+    if (!activePulses.length) return;
+    var now = performance.now();
+    var stillActive = [];
+    activePulses.forEach(function(p){
+      var t = now - p.startAt;
+      if (t < 0) { stillActive.push(p); return; } // not started yet
+      var mesh = p.mesh;
+      var s = 4.0 * p.intensity;
+      if (t < p.attackMs) {
+        var a = t / p.attackMs;
+        mesh.scale.setScalar(1 + (s-1)*a);
+        mesh.material.color.set(p.color);
+        stillActive.push(p);
+      } else if (t < p.attackMs + p.decayMs) {
+        var d = (t - p.attackMs) / p.decayMs;
+        mesh.scale.setScalar(s + (1-s)*d);
+        mesh.material.color.copy(new THREE.Color(p.color)).lerp(new THREE.Color(mesh.userData.baseColor), d);
+        stillActive.push(p);
+      } else {
+        mesh.scale.setScalar(1);
+        mesh.material.color.set(mesh.userData.baseColor);
+      }
+    });
+    activePulses = stillActive;
+  }
+
   window.reflexMapToggle = function(){
     if (!ensureAttached()) return;
     active = !active;
@@ -150,6 +236,6 @@
   // loop rather than running its own rAF (one render loop for the shared
   // scene, matching how everything else already animates here).
   window._reflexMapTick = function(){
-    if (active && mindMapGroup) mindMapGroup.rotation.y += 0.0018;
+    updatePulses(); // pulses animate even while the map isn't the active view, so a node that already caught up is ready the instant you switch to it
   };
 })();
