@@ -1517,6 +1517,42 @@ body.theme-skyboard .glass,body.theme-skyboard .msg-autumn{
 }
 body.theme-skyboard ::-webkit-scrollbar-thumb{background:rgba(95,212,255,.3)}
 
+/* ── Lounge theme — warm amber, low-lit lounge ambience ── */
+/* Colors pulled from ThemeSystem.swift (accent #e8a86a, bg #0a0604, bg2 #1a1008 @ .88) */
+body.theme-lounge{
+  --cyan:#e8a86a;--blue:#8a5a30;--red:#e8a86a;
+  --bg:#0a0604;--bg2:#1a1008;
+  --border:rgba(232,168,106,0.18);
+  --text:#f4e8d8;--dim:#a88a68;--bright:#fff4e6;
+  --tt-color:#e8a86a;
+}
+body.theme-lounge header{
+  background:linear-gradient(180deg,rgba(95,60,20,.14) 0%,transparent 100%);
+  border-bottom-color:rgba(232,168,106,0.2);
+}
+body.theme-lounge #backdrop-video{
+  object-position:center 30%;
+}
+body.theme-lounge .logo{
+  background:linear-gradient(135deg,#fff4e6 0%,#e8a86a 55%,#8a5a30 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 8px rgba(232,168,106,0.55));
+}
+body.theme-lounge .chat-bubble,.theme-lounge .msg-wrap{
+  background:rgba(10,6,4,0.72)!important;
+  border-color:rgba(232,168,106,0.2)!important;
+}
+body.theme-lounge .ov-grid{
+  background-image:linear-gradient(rgba(232,168,106,.18) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(232,168,106,.14) 1px,transparent 1px);
+}
+body.theme-lounge #brpn-region{border-bottom-color:rgba(232,168,106,0.16)}
+body.theme-lounge #multi-user-bar{border-top-color:rgba(232,168,106,0.16)}
+body.theme-lounge .glass,body.theme-lounge .msg-autumn{
+  background:rgba(10,6,4,0.72);border-color:rgba(232,168,106,0.18);
+}
+body.theme-lounge ::-webkit-scrollbar-thumb{background:rgba(232,168,106,.3)}
+
 /* ── Void theme — Grok-style dark business, solid black + identity watermark ── */
 html[data-aut-theme="void"],html[data-aut-theme="void"] body{background:#000;}
 html[data-aut-theme="void"] #backdrop-video{opacity:0!important;visibility:hidden;}
@@ -19312,6 +19348,14 @@ ashLoadDefs();
       color: '#5fd4ff',      // holographic HUD cyan
       video: 'assets/skyboard.mp4',
       bodyClass: 'theme-skyboard'
+    },
+    {
+      key:   'lounge',
+      label: 'LOUNGE',
+      dot:   '🛋',
+      color: '#e8a86a',      // warm amber -- values pulled from ThemeSystem.swift, not guessed
+      video: 'assets/lounge.mp4',
+      bodyClass: 'theme-lounge'
     },
     {
       key:   'system',
