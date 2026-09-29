@@ -7495,6 +7495,41 @@ function buildAttentiveContinuationPrompt(action) {
 // Every message feeds into orbEvo state; pushOrbEvoUpdate() propagates
 // changes to the live Three.js scene (colors, particle counts, intensity).
 
+// TF-web-128: the web scene's own orbEvo state was entirely local-only --
+// activity here never reached the shared live-feed analytics iOS writes to
+// (ashtree/analytics-live/), so the live master maze only ever reflected
+// iOS activity. This appends real events into the SAME shared chunk file,
+// same schema iOS's handleEvent() writes ({ts, category, label[, detail]}),
+// so Session Cube and the admin console see web activity too.
+//
+// Deliberately simple: reads the current chunk index from config.json and
+// appends there. Does not replicate iOS's 5MB rollover-detection (a rare
+// boundary race here means a chunk is occasionally a few hundred bytes over
+// the cap, not a real problem) and does not attempt to regenerate
+// latest-export.json itself -- that stays iOS's job, computed from ITS OWN
+// in-memory event log, so web-originated events land correctly in the
+// archival chunk files but won't appear in the live preview until an iOS
+// device is also flushing. Fire-and-forget: must never block or break chat.
+window._autumnPushLiveFeedEvent = function(category, label, detail) {
+  try {
+    var GAS_URL = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')) ? AUTUMN_GAS_URL : null;
+    if (!GAS_URL || !category || !label) return;
+    fetch(GAS_URL + '?action=ashread&path=' + encodeURIComponent('ashtree/analytics-live/config.json'), { signal: AbortSignal.timeout(20000) })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(cfg){
+        if (!cfg || !cfg.enabled || !cfg.mazeId) return;
+        var path = 'ashtree/analytics-live/' + cfg.mazeId + '/chunk-' + (cfg.currentChunkIndex||0) + '.json';
+        var entry = { ts: new Date().toISOString(), category: String(category), label: String(label) };
+        if (detail !== undefined && detail !== null) entry.detail = String(detail);
+        return fetch(GAS_URL, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'ashwrite', path: path, uid: 'web-feed', append: true, payload: [entry] }),
+          signal: AbortSignal.timeout(20000)
+        });
+      }).catch(function(){});
+  } catch(e) {}
+};
+
 function evolveOrb(analysis, reflexData) {
   const evo = S.orbEvo;
   evo.totalMessages++;
@@ -7513,6 +7548,8 @@ function evolveOrb(analysis, reflexData) {
   }
 
   if (typeof pushOrbEvoUpdate === 'function') pushOrbEvoUpdate(evo, emotion, analysis);
+  window._autumnPushLiveFeedEvent('stage', String(evo.stage));
+  window._autumnPushLiveFeedEvent('emotion', emotion);
 
   // Persist alongside journal
   try {
