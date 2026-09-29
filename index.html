@@ -26637,20 +26637,39 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       }).then(function(){ toggleBtn.disabled=false; refreshStatus(); });
     };
 
+    // TF-web-126: generates the maze directly, in the browser, using the
+    // exact same LEMAC_ENGINE_ASH.generateCubic() the MIST module's own
+    // buoyancy-node maze already runs -- confirmed field-for-field
+    // identical to iOS's Codable OrbMazeCell/Perimeter3D/CubicResult
+    // (top/bottom/left/right/front/back/visited; x/y/z/face; grid/start/
+    // end/w/h/d) before wiring this in, not assumed. No delegation, no
+    // ~30s wait for an iOS instance to notice a request -- this writes a
+    // complete, immediately-live master maze in one call, the same as
+    // regenerateMasterMaze() does on iOS, so both sides stay on the exact
+    // same maze the moment either one generates.
     genBtn.onclick=function(){
-      genBtn.disabled=true; genBtn.textContent='REQUESTING\u2026';
-      ashread(CONFIG_PATH).then(function(cfg){
-        cfg=cfg||{};
-        cfg.enabled=true;
-        cfg.regenerateRequestedAt=Date.now();
-        cfg.regenerateRequestedWidth=Math.max(4,Math.min(16,parseInt(wInp.value,10)||10));
-        cfg.regenerateRequestedHeight=Math.max(4,Math.min(16,parseInt(hInp.value,10)||10));
-        cfg.regenerateRequestedDepth=Math.max(4,Math.min(16,parseInt(dInp.value,10)||10));
-        return ashwriteReplace(CONFIG_PATH, cfg);
-      }).then(function(ok){
+      if(typeof LEMAC_ENGINE_ASH==='undefined' || typeof LEMAC_ENGINE_ASH.generateCubic!=='function'){
+        genNote.textContent='LEMAC_ENGINE_ASH not loaded on this page \u2014 cannot generate here.';
+        return;
+      }
+      genBtn.disabled=true; genBtn.textContent='GENERATING\u2026';
+      var w=Math.max(4,Math.min(16,parseInt(wInp.value,10)||10));
+      var h=Math.max(4,Math.min(16,parseInt(hInp.value,10)||10));
+      var d=Math.max(4,Math.min(16,parseInt(dInp.value,10)||10));
+      var result;
+      try{ result=LEMAC_ENGINE_ASH.generateCubic(w,h,d); }
+      catch(e){ genBtn.disabled=false; genBtn.textContent='GENERATE'; genNote.textContent='Generation failed: '+e.message; return; }
+      var newCfg={
+        enabled:true,
+        mazeId:'live-'+Math.floor(Date.now()/1000),
+        currentChunkIndex:0,
+        width:w, height:h, depth:d,
+        grid:result
+      };
+      ashwriteReplace(CONFIG_PATH, newCfg).then(function(ok){
         genBtn.disabled=false; genBtn.textContent='GENERATE';
-        genNote.textContent = ok ? 'Requested \u2014 will take effect within ~30s once a live app instance processes it.' : 'Request failed \u2014 try again.';
-        setTimeout(refreshStatus, 3000);
+        genNote.textContent = ok ? 'Generated '+newCfg.mazeId+' \u2014 live now.' : 'Write failed \u2014 try again.';
+        refreshStatus();
       });
     };
 
