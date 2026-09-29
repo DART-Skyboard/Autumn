@@ -94,6 +94,7 @@
     window._brpnMindMapGroup = mindMapGroup;
     attachedToScene = window._brpnScene;
     wireHover();
+    ensurePolling();
     return true;
   }
 
@@ -185,6 +186,9 @@
       activePulses = activePulses.filter(function(p){ return p.mesh !== mesh; }); // cancel any in-flight pulse on this node
       activePulses.push({ mesh:mesh, startAt: now + i*60, color:color, intensity:intensity, attackMs:120, decayMs:900 });
     });
+    appendToSequence(best[0], color);
+    var q = query.toLowerCase();
+    if (q === 'ai output prompt' || q === 'connected resources') scheduleSequenceReset();
   };
 
   function updatePulses(){
@@ -212,6 +216,126 @@
       }
     });
     activePulses = stillActive;
+  }
+
+  // TF-web-133: the "circuit schematic" sequence-flow layer -- the piece
+  // explicitly flagged as skipped earlier and asked for properly now.
+  // Port of appendToSequence/scheduleSequenceReset/resetSequence: while a
+  // prompt is actively processing, each node it actually touches (in the
+  // real order it touched them) gets a bright temporary direct line to the
+  // one before it -- even when they aren't tree-adjacent, since the real
+  // order of operations for a prompt jumps between branches. The static
+  // tree never moves; this is a fully additive overlay that fades out and
+  // clears ~2.5s after the prompt finishes (AI Output Prompt / Connected
+  // Resources, the same two stages iOS resets on), cancelable/reschedulable
+  // if another event arrives first so a still-processing prompt is never
+  // cut off mid-sequence.
+  var sequenceNodeIDs = [];
+  var flowGroup = null;
+  var sequenceResetTimer = null;
+
+  function appendToSequence(id, color){
+    var last = sequenceNodeIDs.length ? sequenceNodeIDs[sequenceNodeIDs.length-1] : null;
+    sequenceNodeIDs.push(id);
+    if (last === null || last === id || !mindMapGroup) return;
+    var meshA = mindMapGroup.userData.meshById[last];
+    var meshB = mindMapGroup.userData.meshById[id];
+    if (!meshA || !meshB) return;
+    if (!flowGroup) {
+      flowGroup = new THREE.Group();
+      flowGroup.name = 'mindmap_flow';
+      mindMapGroup.add(flowGroup);
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([
+      meshA.position.x, meshA.position.y, meshA.position.z,
+      meshB.position.x, meshB.position.y, meshB.position.z
+    ], 3));
+    // Noticeably thicker/brighter than the tree's own resting edges
+    // (opacity .35) -- this is meant to be the most visually prominent
+    // thing while a prompt is processing.
+    var mat = new THREE.LineBasicMaterial({ color:color, transparent:true, opacity:0, linewidth:2 });
+    var line = new THREE.Line(geo, mat);
+    flowGroup.add(line);
+    // fade the new segment in
+    var start = performance.now();
+    (function fadeIn(){
+      var t = Math.min(1, (performance.now()-start)/180);
+      mat.opacity = 0.95*t;
+      if (t < 1) requestAnimationFrame(fadeIn);
+    })();
+  }
+
+  function resetSequence(){
+    sequenceNodeIDs = [];
+    if (!flowGroup) return;
+    var group = flowGroup;
+    flowGroup = null;
+    var start = performance.now();
+    var mats = group.children.map(function(l){ return l.material; });
+    var startOpacities = mats.map(function(m){ return m.opacity; });
+    (function fadeOut(){
+      var t = Math.min(1, (performance.now()-start)/600);
+      mats.forEach(function(m,i){ m.opacity = startOpacities[i]*(1-t); });
+      if (t < 1) { requestAnimationFrame(fadeOut); return; }
+      if (mindMapGroup) mindMapGroup.remove(group);
+      group.children.forEach(function(l){ l.geometry.dispose(); l.material.dispose(); });
+    })();
+  }
+
+  function scheduleSequenceReset(){
+    if (sequenceResetTimer) clearTimeout(sequenceResetTimer);
+    sequenceResetTimer = setTimeout(resetSequence, 2500);
+  }
+
+  // TF-web-134: direct correction -- this was only ever reacting to THIS
+  // browser tab's own evolveOrb calls, so another user's activity never
+  // showed up here even though it's the same shared real-time scene. The
+  // data already exists (same ashtree/analytics-live/ chunk every device
+  // writes to, already fixed earlier this session to be a complete,
+  // independent read on both iOS and web) -- this was just never actually
+  // watching it for pulse purposes. Polls the current chunk, diffs against
+  // the last-seen length for the current (mazeId, chunkIndex) pair, and
+  // pulses every genuinely new entry -- from ANY contributor, this tab's
+  // own included, so a local prompt and a remote one animate identically.
+  var pollTimer = null;
+  var pollState = { mazeId:null, chunkIndex:null, seenCount:0 };
+  var POLL_MS = 5000;
+
+  function pollSharedActivity(){
+    var GAS_URL = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')) ? AUTUMN_GAS_URL : null;
+    if (!GAS_URL) return;
+    function ashread(path){
+      return fetch(GAS_URL+'?action=ashread&path='+encodeURIComponent(path), { signal: AbortSignal.timeout(20000) })
+        .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+    }
+    ashread('ashtree/analytics-live/config.json').then(function(cfg){
+      if (!cfg || !cfg.enabled || !cfg.mazeId) return;
+      var chunkIdx = cfg.currentChunkIndex || 0;
+      if (pollState.mazeId !== cfg.mazeId || pollState.chunkIndex !== chunkIdx) {
+        // new session or chunk rollover -- resync to "everything from here
+        // is new" rather than replaying a whole session's history at once
+        pollState.mazeId = cfg.mazeId; pollState.chunkIndex = chunkIdx; pollState.seenCount = -1;
+      }
+      var path = 'ashtree/analytics-live/'+cfg.mazeId+'/chunk-'+chunkIdx+'.json';
+      return ashread(path).then(function(chunk){
+        var events = Array.isArray(chunk) ? chunk : [];
+        if (pollState.seenCount === -1) { pollState.seenCount = events.length; return; } // first sight of this chunk: baseline only, don't replay history
+        if (events.length <= pollState.seenCount) return;
+        var fresh = events.slice(pollState.seenCount);
+        pollState.seenCount = events.length;
+        fresh.forEach(function(ev, i){
+          if (!ev || !ev.label) return;
+          setTimeout(function(){ window._reflexMapPulse(ev.label); }, i*150);
+        });
+      });
+    }).catch(function(){});
+  }
+
+  function ensurePolling(){
+    if (pollTimer) return;
+    pollTimer = setInterval(pollSharedActivity, POLL_MS);
+    pollSharedActivity();
   }
 
   window.reflexMapToggle = function(){
