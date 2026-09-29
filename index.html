@@ -7510,24 +7510,99 @@ function buildAttentiveContinuationPrompt(action) {
 // in-memory event log, so web-originated events land correctly in the
 // archival chunk files but won't appear in the live preview until an iOS
 // device is also flushing. Fire-and-forget: must never block or break chat.
-window._autumnPushLiveFeedEvent = function(category, label, detail) {
+// TF-web-130: pushes one or more events in a single append, then
+// independently recomputes and republishes the live preview -- matching
+// direct correction: "whichever system is running gets pushed to the live
+// feed, it shouldn't be dependent on one another." Previously this only
+// appended to the shared chunk and left the live preview (latest-export.json)
+// to whichever iOS device happened to notice; now the web side produces it
+// itself too, the same way LiveFeedController.writeLiveExport() does on
+// iOS (as of commit 1139f1a there, which made the same correction: read
+// the shared chunk fresh, not local-only memory, so BOTH sides read the
+// real shared source of truth rather than trusting their own state).
+window._autumnPushLiveFeedEvent = function(entries) {
   try {
     var GAS_URL = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')) ? AUTUMN_GAS_URL : null;
-    if (!GAS_URL || !category || !label) return;
-    fetch(GAS_URL + '?action=ashread&path=' + encodeURIComponent('ashtree/analytics-live/config.json'), { signal: AbortSignal.timeout(20000) })
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(cfg){
-        if (!cfg || !cfg.enabled || !cfg.mazeId) return;
-        var path = 'ashtree/analytics-live/' + cfg.mazeId + '/chunk-' + (cfg.currentChunkIndex||0) + '.json';
-        var entry = { ts: new Date().toISOString(), category: String(category), label: String(label) };
-        if (detail !== undefined && detail !== null) entry.detail = String(detail);
+    if (!GAS_URL || !entries || !entries.length) return;
+    var CONFIG_PATH = 'ashtree/analytics-live/config.json';
+    function ashreadCfg(){
+      return fetch(GAS_URL + '?action=ashread&path=' + encodeURIComponent(CONFIG_PATH), { signal: AbortSignal.timeout(20000) })
+        .then(function(r){ return r.ok ? r.json() : null; });
+    }
+    ashreadCfg().then(function(cfg){
+      if (!cfg || !cfg.enabled || !cfg.mazeId) return;
+      var payload = entries.map(function(e){
+        var entry = { ts: new Date().toISOString(), category: String(e.category), label: String(e.label) };
+        if (e.detail !== undefined && e.detail !== null) entry.detail = String(e.detail);
+        return entry;
+      });
+      var chunkPath = 'ashtree/analytics-live/' + cfg.mazeId + '/chunk-' + (cfg.currentChunkIndex||0) + '.json';
+      return fetch(GAS_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'ashwrite', path: chunkPath, uid: 'web-feed', append: true, payload: payload }),
+        signal: AbortSignal.timeout(20000)
+      }).then(function(r){ return r.ok ? cfg : null; });
+    }).then(function(cfg){
+      if (cfg) return window._autumnWriteLiveExport(cfg);
+    }).catch(function(){});
+  } catch(e) {}
+};
+
+// Independent port of LiveFeedController.writeLiveExport() (iOS): reads the
+// current shared chunk fresh (every contributor's events, not just this
+// tab's), solves the maze with LEMAC_ENGINE_ASH.solveCubic (the exact same
+// function verified field-compatible with Swift's LEMACEngineASH earlier
+// this session), buckets events along the solved path with the same
+// truncating-integer-division distribution, and republishes
+// latest-export.json in the exact RawExport shape Session Cube already
+// parses. Callable with an already-fetched cfg (avoids a redundant read
+// right after a push) or with none (fetches its own).
+window._autumnWriteLiveExport = function(cfg){
+  try {
+    var GAS_URL = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')) ? AUTUMN_GAS_URL : null;
+    if (!GAS_URL || typeof LEMAC_ENGINE_ASH === 'undefined' || typeof LEMAC_ENGINE_ASH.solveCubic !== 'function') return Promise.resolve();
+    var CONFIG_PATH = 'ashtree/analytics-live/config.json';
+    function ashread(path){
+      return fetch(GAS_URL + '?action=ashread&path=' + encodeURIComponent(path), { signal: AbortSignal.timeout(20000) })
+        .then(function(r){ return r.ok ? r.json() : null; });
+    }
+    var cfgPromise = cfg ? Promise.resolve(cfg) : ashread(CONFIG_PATH);
+    return cfgPromise.then(function(c){
+      if (!c || !c.enabled || !c.mazeId || !c.grid) return;
+      var solution = LEMAC_ENGINE_ASH.solveCubic(c.grid);
+      if (!solution || !solution.length) return;
+      var chunkPath = 'ashtree/analytics-live/' + c.mazeId + '/chunk-' + (c.currentChunkIndex||0) + '.json';
+      return ashread(chunkPath).then(function(chunk){
+        var events = Array.isArray(chunk) ? chunk : [];
+        if (events.length > 4000) events = events.slice(events.length - 4000);
+        if (!events.length) return;
+        var buckets = solution.map(function(){ return []; });
+        events.forEach(function(ev, i){
+          var idx = Math.min(Math.floor(i * solution.length / Math.max(events.length, 1)), solution.length - 1);
+          buckets[idx].push(ev);
+        });
+        var pathJSON = solution.map(function(pt, i){ return { order:i, x:pt.x, y:pt.y, z:pt.z, events: buckets[i] }; });
+        var cells = [];
+        var g = c.grid.grid;
+        for (var z = 0; z < c.depth; z++) for (var y = 0; y < c.height; y++) for (var x = 0; x < c.width; x++) {
+          var cell = g[z][y][x];
+          cells.push({ x:x, y:y, z:z, walls:{ top:cell.top, bottom:cell.bottom, left:cell.left, right:cell.right, front:cell.front, back:cell.back } });
+        }
+        var root = {
+          exportedAt: new Date().toISOString(),
+          mode: 'LIVE FEED',
+          cube: { width:c.width, height:c.height, depth:c.depth, entrance:c.grid.start, exit:c.grid.end, cells:cells },
+          pathIndex: [ { layer:0, path:pathJSON } ],
+          totalEvents: events.length
+        };
         return fetch(GAS_URL, {
           method: 'POST', headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({ action: 'ashwrite', path: path, uid: 'web-feed', append: true, payload: [entry] }),
+          body: JSON.stringify({ action:'ashwrite', path:'ashtree/analytics-live/'+c.mazeId+'/latest-export.json', uid:'web-feed', append:false, payload:root }),
           signal: AbortSignal.timeout(20000)
         });
-      }).catch(function(){});
-  } catch(e) {}
+      });
+    }).catch(function(){});
+  } catch(e) { return Promise.resolve(); }
 };
 
 function evolveOrb(analysis, reflexData) {
@@ -7548,8 +7623,10 @@ function evolveOrb(analysis, reflexData) {
   }
 
   if (typeof pushOrbEvoUpdate === 'function') pushOrbEvoUpdate(evo, emotion, analysis);
-  window._autumnPushLiveFeedEvent('stage', String(evo.stage));
-  window._autumnPushLiveFeedEvent('emotion', emotion);
+  window._autumnPushLiveFeedEvent([
+    { category:'stage', label:String(evo.stage) },
+    { category:'emotion', label:emotion }
+  ]);
 
   // Persist alongside journal
   try {
