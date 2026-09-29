@@ -114,6 +114,51 @@
       var hit = raycaster.intersectObjects(mindMapGroup.userData.meshList || [])[0];
       if (labelEl) labelEl.textContent = hit ? (hit.object.userData.label + ' \u2014 ' + hit.object.userData.text) : '';
     });
+    wireZoom(canvas);
+  }
+
+  // TF-web-135: direct ask -- pinch-to-zoom on the mind map, which had none.
+  // The existing drag-rotate here is per-object rotation driven by shared
+  // rotX/rotY state (not a true camera orbit), so "zoom" is implemented the
+  // same way: scaling this group specifically, only while it's the active
+  // view, leaving the shared camera and the buoyancy-shell view's own
+  // interactions completely alone. Two-finger pinch on touch, wheel on
+  // desktop. Base scale is 0.8 (set in buildGroup); bounds keep it from
+  // collapsing to a point or blowing past the scene bounds.
+  var zoomScale = 0.8;
+  var ZOOM_MIN = 0.25, ZOOM_MAX = 2.4;
+  function applyZoom(factor){
+    if (!mindMapGroup) return;
+    zoomScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomScale * factor));
+    mindMapGroup.scale.setScalar(zoomScale);
+  }
+  function wireZoom(canvas){
+    if (canvas._rmZoomWired) return;
+    canvas._rmZoomWired = true;
+    var pinchStartDist = null;
+    function touchDist(touches){
+      var dx = touches[0].clientX - touches[1].clientX;
+      var dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx*dx + dy*dy);
+    }
+    canvas.addEventListener('touchstart', function(ev){
+      if (!active) return;
+      if (ev.touches.length === 2) pinchStartDist = touchDist(ev.touches);
+    }, { passive:true });
+    canvas.addEventListener('touchmove', function(ev){
+      if (!active || ev.touches.length !== 2 || pinchStartDist === null) return;
+      var d = touchDist(ev.touches);
+      applyZoom(d / pinchStartDist);
+      pinchStartDist = d;
+    }, { passive:true });
+    canvas.addEventListener('touchend', function(ev){
+      if (ev.touches.length < 2) pinchStartDist = null;
+    }, { passive:true });
+    canvas.addEventListener('wheel', function(ev){
+      if (!active) return;
+      ev.preventDefault();
+      applyZoom(ev.deltaY < 0 ? 1.08 : 0.93);
+    }, { passive:false });
   }
 
   function ensureLabel(){
