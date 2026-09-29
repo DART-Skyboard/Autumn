@@ -7665,6 +7665,16 @@ function evolveOrb(analysis, reflexData) {
     { category:'stage', label:String(evo.stage) },
     { category:'emotion', label:emotion }
   ]);
+  // TF-web-132: real per-message REFLEX MAP feedback -- every message
+  // genuinely passes through input, a response, and the journal, so pulse
+  // all three in sequence (User Input Prompt lights up the tree first,
+  // then AI Output Prompt, then Sentience Journal settling last -- the
+  // real order a message actually takes).
+  if (typeof window._reflexMapPulse === 'function') {
+    window._reflexMapPulse('User Input Prompt');
+    setTimeout(function(){ window._reflexMapPulse('AI Output Prompt'); }, 220);
+    setTimeout(function(){ window._reflexMapPulse('Sentience Journal'); }, 440);
+  }
 
   // Persist alongside journal
   try {
@@ -13788,6 +13798,10 @@ function initBRPN() {
     mazeOrbGroup.rotation.x=rotX+f*0.003;
     mazeOrbGroup.rotation.y=rotY+f*0.004;
     mazeOrbGroup.scale.setScalar(mazePulse*(1+thinkBoost*0.04*Math.sin(f*0.07)));
+    if (window._brpnMindMapGroup) {
+      window._brpnMindMapGroup.rotation.x = rotX + f*0.0022;
+      window._brpnMindMapGroup.rotation.y = rotY + f*0.0028;
+    }
     core.rotation.x=rotX+f*0.002;
     core.rotation.y=rotY+f*0.003;
     core.material.opacity=0.1+shellPulse*0.06*Math.sin(f*0.04);
