@@ -14172,6 +14172,7 @@ function _makePlasmaSpline(posA, posB, colorHex, resonance, isLocalSpline) {
 }
 
 async function _pollAshNodes() {
+  if(document.hidden) return; // background tabs don't need live presence
   // Heartbeat: write/refresh this tab's own session file via GAS proxy
   var _hbPayload = { uid: _aut_uid, sid: _ashNodes._localUid, ts: Date.now(), type: 'presence', audioActive: !!window._audioPlaybackActive };
   if(_ashNodes._lastMistSolve && (Date.now() - _ashNodes._lastMistSolve.ts) < 30000) {
@@ -14180,7 +14181,15 @@ async function _pollAshNodes() {
   if(_ashNodes._lastAshStar && (Date.now() - _ashNodes._lastAshStar.ts) < 30000) {
     _hbPayload.ashStar = _ashNodes._lastAshStar;
   }
-  writeLeatrAshMemory('ashtree/sessions/' + _ashNodes._localUid + '.json', _hbPayload);
+  // Session file on GitHub costs Apps Script UrlFetch quota (≈2 calls per write).
+  // Live presence rides the cache-only writenode below; the file is refreshed
+  // at most once a minute, or right away when there's a fresh MIST solve/ash-star.
+  var _hbNow = Date.now(), _hbHasEvt = !!(_hbPayload.mistSolve || _hbPayload.ashStar);
+  if(!_ashNodes._lastFileHb || (_hbNow - _ashNodes._lastFileHb) > 60000 ||
+     (_hbHasEvt && (_hbNow - _ashNodes._lastFileHb) > 8000)) {
+    _ashNodes._lastFileHb = _hbNow;
+    writeLeatrAshMemory('ashtree/sessions/' + _ashNodes._localUid + '.json', _hbPayload);
+  }
 
   var nodes = [{uid: _ashNodes._localUid, ts: Date.now(), isLocal: true}];
 
@@ -14226,7 +14235,10 @@ async function _pollAshNodes() {
       }
 
       // ── SECONDARY: sessions (GitHub-backed) for full data + mist heartbeat ──
-      if(remoteSessions.length === 0) {
+      // Each uncached `sessions` read walks every session file on GitHub (~20 UrlFetch
+      // calls), so ask at most every 2 minutes instead of on every 5 s poll.
+      if(remoteSessions.length === 0 && (Date.now() - (_ashNodes._lastSessionsAt || 0)) > 120000) {
+        _ashNodes._lastSessionsAt = Date.now();
         var gasR = await fetch(GAS_URL + '?action=sessions', {
           signal: AbortSignal.timeout(10000)
         });
