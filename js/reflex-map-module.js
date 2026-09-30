@@ -399,6 +399,16 @@
       btn.classList.toggle('rm-active', active);
       if (btn.tagName === 'BUTTON') btn.classList.toggle('bmh-active', active);
     });
+    // TF-web-138: direct correction -- the "N ACTIVE SESSIONS · LEATR NEURAL
+    // NETWORK" bar sits right above SIGMA SOLVE/NEW MAZE/REFLEX MAP and was
+    // overlaying them while the mind map is showing (confirmed from a real
+    // screenshot). It's a DOM element (not a scene child), so it needs its
+    // own toggle here rather than the scene.children loop above.
+    var muBar = document.getElementById('multi-user-bar');
+    if (muBar) {
+      if (active) { if (muBar.dataset.rmPrevDisplay === undefined) muBar.dataset.rmPrevDisplay = muBar.style.display || ''; muBar.style.display = 'none'; }
+      else if (muBar.dataset.rmPrevDisplay !== undefined) { muBar.style.display = muBar.dataset.rmPrevDisplay; delete muBar.dataset.rmPrevDisplay; }
+    }
   };
 
   // Per-frame slow rotation while active, hooked from the main animate()
