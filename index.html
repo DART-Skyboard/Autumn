@@ -4977,10 +4977,22 @@ function processLEATR(input) {
     const ta=(i+1)*input.length;
     return{tool,encode:Math.pow(ta,2)*Math.sqrt(Math.abs(ta))-1,active:input.length%(i+2)===0};
   });
-  const geo = brpnShell(words.length,grammar.sentenceCount,toolReflexes.length);
-  const mar = brpnShell(geo.value,grammar.wordCount,input.length%50);
-  // AERO p-param: use a normalized sub-second tick (0-99) to keep value legible
-  const aero = brpnShell(mar.value,geo.value,(Date.now()%100)+1);
+  // TF-web-136: brpnShell(f,r,p) = frp*sqrt(|frp|), roughly a 1.5-power
+  // function of the PRODUCT of its three inputs -- confirmed explosive even
+  // for small, everyday inputs (brpnShell(10,10,10) alone is already
+  // 31,622), before any cascading. Capping one upstream input (tried first,
+  // e.g. limiting mar.value to 500 before it feeds aero) is NOT sufficient:
+  // verified numerically that brpnShell(253,500,50) alone is already 15.9
+  // BILLION. The only robust fix is clamping each shell's own output
+  // directly, which holds regardless of how extreme the upstream product
+  // gets -- not dependent on correctly guessing a safe input range for a
+  // fast-growing formula. Real, everyday values (GEO ~18, MAR ~2000) are
+  // far below this clamp and are completely unaffected; only the runaway
+  // cases (observed: AERO reaching into the billions) are bounded.
+  const clampShellValue=(s)=>{ s.value = Math.sign(s.value) * Math.min(Math.abs(s.value), 99999); return s; };
+  const geo = clampShellValue(brpnShell(words.length,grammar.sentenceCount,toolReflexes.length));
+  const mar = clampShellValue(brpnShell(geo.value,grammar.wordCount,input.length%50));
+  const aero = clampShellValue(brpnShell(mar.value,geo.value,(Date.now()%100)+1));
   const encoded = cogEncode(input.length,words.length);
   const decoded = cogDecode(input.length,words.length);
   const qs = qSocket(words.length,input.length,1,decoded||1);
