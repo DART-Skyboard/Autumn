@@ -399,15 +399,13 @@
       btn.classList.toggle('rm-active', active);
       if (btn.tagName === 'BUTTON') btn.classList.toggle('bmh-active', active);
     });
-    // TF-web-138: direct correction -- the "N ACTIVE SESSIONS · LEATR NEURAL
-    // NETWORK" bar sits right above SIGMA SOLVE/NEW MAZE/REFLEX MAP and was
-    // overlaying them while the mind map is showing (confirmed from a real
-    // screenshot). It's a DOM element (not a scene child), so it needs its
-    // own toggle here rather than the scene.children loop above.
-    var muBar = document.getElementById('multi-user-bar');
-    if (muBar) {
-      if (active) { if (muBar.dataset.rmPrevDisplay === undefined) muBar.dataset.rmPrevDisplay = muBar.style.display || ''; muBar.style.display = 'none'; }
-      else if (muBar.dataset.rmPrevDisplay !== undefined) { muBar.style.display = muBar.dataset.rmPrevDisplay; delete muBar.dataset.rmPrevDisplay; }
+    // Restore the multi-user bar's own class the instant we leave; while
+    // active, the per-frame enforcement below (in _reflexMapTick) is what
+    // actually keeps it hidden -- see that comment for why a one-time
+    // action here isn't enough on its own.
+    if (!active) {
+      var muBar = document.getElementById('multi-user-bar');
+      if (muBar && muBar.dataset.rmWasShown === '1') { muBar.classList.add('show'); delete muBar.dataset.rmWasShown; }
     }
   };
 
@@ -416,5 +414,21 @@
   // scene, matching how everything else already animates here).
   window._reflexMapTick = function(){
     updatePulses(); // pulses animate even while the map isn't the active view, so a node that already caught up is ready the instant you switch to it
+    // TF-web-139: direct correction -- a one-time hide at toggle time was
+    // losing to _pollAshNodes, which unconditionally does
+    // bar.classList.add('show') on its own ~30s timer regardless of
+    // reflex-map state ("Update multi-user bar -- always visible" is its
+    // own comment). Enforcing every frame, via the same classList
+    // mechanism the bar's own code uses (not a competing inline style),
+    // always wins instead of racing that timer. Remembers whether it was
+    // actually showing so reflexMapToggle above can restore it correctly
+    // on exit rather than assuming it always was.
+    if (active) {
+      var muBar = document.getElementById('multi-user-bar');
+      if (muBar && muBar.classList.contains('show')) {
+        muBar.dataset.rmWasShown = '1';
+        muBar.classList.remove('show');
+      }
+    }
   };
 })();
