@@ -24231,6 +24231,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if (knownUsername) {
       try { sessionStorage.setItem('_gh_reauth_user', knownUsername); } catch(e) {}
     }
+    if (_isStandalonePWA()) { _showLoginModal(); _showDeviceFlow(); return; }
     _doWebFlowRedirect();
   }
 
@@ -24278,7 +24279,31 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   var _devicePollTimer = null;
 
+  // TF-web-140: direct report -- signing in from the installed PWA sometimes
+  // hangs on "connecting to GitHub" and times out, needs a second attempt to
+  // actually reach the authorize screen, then a THIRD load after coming back
+  // before it's actually logged in. This matches a well-documented WebKit
+  // limitation: a full-page redirect away to an external origin from
+  // standalone display mode can lose the standalone window context, and
+  // GitHub's redirect back doesn't reliably land in the same one -- it can
+  // surface in regular Safari instead, which is exactly "have to do it
+  // twice... reloads a third time" from the outside.
+  //
+  // The device-code flow below (_showDeviceFlow) already exists, is
+  // complete, and its own comments show it was already built with iOS PWA
+  // quirks specifically in mind ("iOS-safe GitHub opener", "iOS blocks
+  // window.open from setTimeout") -- it just was never wired up as what the
+  // primary button actually uses. It never navigates the app window away at
+  // all (shows a code, the user authorizes in a separate tab, this window
+  // polls for completion), which sidesteps the redirect-context problem
+  // entirely rather than working around it.
+  function _isStandalonePWA() {
+    return (window.navigator.standalone === true)
+      || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  }
+
   function _startOAuth() {
+    if (_isStandalonePWA()) { _showLoginModal(); _showDeviceFlow(); return; }
     _doWebFlowRedirect(); // Web flow: redirect to GitHub, bounce back with ?code=, GAS exchanges
   }
 
