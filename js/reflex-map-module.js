@@ -395,7 +395,7 @@
       else if (child.userData.__rmPrevVisible !== undefined) { child.visible = child.userData.__rmPrevVisible; delete child.userData.__rmPrevVisible; }
     });
     if (labelEl) labelEl.style.display = active ? '' : 'none';
-    document.querySelectorAll('#hud-reflexmap-btn, #bmh-reflexmap-btn').forEach(function(btn){
+    document.querySelectorAll('#bmh-reflexmap-btn').forEach(function(btn){
       btn.classList.toggle('rm-active', active);
       if (btn.tagName === 'BUTTON') btn.classList.toggle('bmh-active', active);
     });
