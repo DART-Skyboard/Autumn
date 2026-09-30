@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Signing in to DART Meadow</title>
+<style>
+  :root{--bg:#02060f;--text:#dfe8ff;--dim:#8a97b8}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:16px system-ui,sans-serif}
+  body{display:grid;place-items:center;text-align:center;padding:0 16px}
+  small{color:var(--dim)}
+</style>
+</head>
+<body>
+<div>Signing you in to DART Meadow…<br><small>Taking you back to the game.</small></div>
+<script>
+// GitHub sign-in for DART Meadow: Journey of the Skyboard (dartmeadow.space).
+// The LEATR OAuth app's callback is leatr.xyz, so GitHub sends the player
+// here after they authorize. This page only forwards GitHub's one-time
+// code and state to the game's own landing page, which finishes the
+// sign-in. Always the same fixed destination; nothing is stored here.
+(function () {
+  var p = new URLSearchParams(location.search), out = new URLSearchParams();
+  ['code', 'state', 'error', 'error_description'].forEach(function (k) { if (p.get(k)) out.set(k, p.get(k)); });
+  location.replace('https://dartmeadow.space/auth.html?' + out.toString());
+})();
+</script>
+</body>
+</html>
