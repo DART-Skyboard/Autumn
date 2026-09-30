@@ -14210,6 +14210,18 @@ function initBRPN() {
 
   // Per-frame tick for injected nodes — called inside animate()
   window._brpnTickMantisNodes = function(frame){
+    // TF-web-138: direct correction -- Mantis radar contacts must not carry
+    // over into the REFLEX MAP mind-map view (it will have its own,
+    // different overlay data later; for now it's just the animated mind
+    // map). Injection can happen at any time (async radar data arriving
+    // while the mind map is already showing), so a one-time hide at toggle
+    // time isn't enough -- this per-frame tick is the one place every
+    // Mantis node already passes through regardless of when it spawned,
+    // so it's the correct, centralized place to enforce this rather than
+    // patching the injection function too.
+    var mindMapActive = window._brpnMindMapGroup && window._brpnMindMapGroup.visible;
+    _mantisNodes.forEach(function(m){ m.visible = !mindMapActive; });
+    if (mindMapActive) return;
     var toRemove = [];
     _mantisNodes.forEach(function(m){
       var age = frame - (m.userData._mantisSpawn || frame);
