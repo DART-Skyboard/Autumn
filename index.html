@@ -1553,6 +1553,38 @@ body.theme-lounge .glass,body.theme-lounge .msg-autumn{
 }
 body.theme-lounge ::-webkit-scrollbar-thumb{background:rgba(232,168,106,.3)}
 
+/* ── Summit theme — icy cyan alpine tech ── */
+body.theme-summit{
+  --cyan:#5fd4ff;--blue:#3a8fc4;--red:#5fd4ff;
+  --bg:#050a10;--bg2:#0f1620;
+  --border:rgba(95,212,255,0.18);
+  --text:#dff3ff;--dim:#6a94a8;--bright:#eefbff;
+  --tt-color:#5fd4ff;
+}
+body.theme-summit header{
+  background:linear-gradient(180deg,rgba(20,60,80,.14) 0%,transparent 100%);
+  border-bottom-color:rgba(95,212,255,0.2);
+}
+body.theme-summit .logo{
+  background:linear-gradient(135deg,#eefbff 0%,#5fd4ff 55%,#3a8fc4 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 8px rgba(95,212,255,0.55));
+}
+body.theme-summit .chat-bubble,.theme-summit .msg-wrap{
+  background:rgba(5,10,16,0.72)!important;
+  border-color:rgba(95,212,255,0.2)!important;
+}
+body.theme-summit .ov-grid{
+  background-image:linear-gradient(rgba(95,212,255,.18) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(95,212,255,.14) 1px,transparent 1px);
+}
+body.theme-summit #brpn-region{border-bottom-color:rgba(95,212,255,0.16)}
+body.theme-summit #multi-user-bar{border-top-color:rgba(95,212,255,0.16)}
+body.theme-summit .glass,body.theme-summit .msg-autumn{
+  background:rgba(5,10,16,0.72);border-color:rgba(95,212,255,0.18);
+}
+body.theme-summit ::-webkit-scrollbar-thumb{background:rgba(95,212,255,.3)}
+
 /* ── Void theme — Grok-style dark business, solid black + identity watermark ── */
 html[data-aut-theme="void"],html[data-aut-theme="void"] body{background:#000;}
 html[data-aut-theme="void"] #backdrop-video{opacity:0!important;visibility:hidden;}
@@ -19384,6 +19416,14 @@ ashLoadDefs();
       bodyClass: 'theme-lounge'
     },
     {
+      key:   'summit',
+      label: 'SUMMIT',
+      dot:   '🏔',
+      color: '#5fd4ff',      // icy cyan -- matches the neon circuit-glow accent in the footage
+      video: 'assets/summit.mp4',
+      bodyClass: 'theme-summit'
+    },
+    {
       key:   'system',
       label: 'AUTO',
       dot:   '◈',
@@ -19411,7 +19451,7 @@ ashLoadDefs();
     const btn   = document.getElementById('theme-toggle');
 
     // Swap body class
-    body.classList.remove('theme-night','theme-stealth','theme-departure','theme-ashtree','theme-ariel','theme-void','theme-skyboard','theme-lounge');
+    body.classList.remove('theme-night','theme-stealth','theme-departure','theme-ashtree','theme-ariel','theme-void','theme-skyboard','theme-lounge','theme-summit');
     if (effective.bodyClass) body.classList.add(effective.bodyClass);
 
     // Swap video with crossfade. Void theme is solid black — hide the video.
