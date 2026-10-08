@@ -6,10 +6,8 @@
   'use strict';
   if (typeof document === 'undefined' || global.ASH_AGENTS_CHAT === false) return;
   var KEY = 'autumn_agents_chat_v1', TEAM_KEY = 'autumn_agents_team_v1';
-  // Public users reach Autumn's private knowledge base only through the read-only Shell 64 relay (leatr-ash services/shell64-relay).
-  // Fill in after deploying it. Empty = chat stays admin-only. User prompts/data never flow back into Shell 64.
-  var RELAY_URL = '';
-
+  // Everyone reaches Autumn's private knowledge base through the existing Apps Script (`shell64team` action): read-only,
+  // one-way, nothing a user says is stored or learned. The team state stays in this browser and is sent back each message.
   function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
   function save(m) { try { localStorage.setItem(KEY, JSON.stringify(m.slice(-60))); } catch (e) {} }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -25,9 +23,13 @@
 
   function viaRelay(text, add) {
     var team = null; try { team = JSON.parse(localStorage.getItem(TEAM_KEY) || 'null'); } catch (e) {}
-    fetch(RELAY_URL.replace(/\/$/, '') + '/team', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: text, team: team }) })
-      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status === 429 ? 'slow down a moment' : 'unavailable'); })
-      .then(function (r) { try { localStorage.setItem(TEAM_KEY, JSON.stringify(r.team)); } catch (e) {} add({ role: 'agent', text: r.text, program: r.program }); })
+    fetch(global.AUTUMN_GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'shell64team', text: text, team: team }) })
+      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r || !r.ok) return Promise.reject(r && r.error || 'unavailable');
+        try { localStorage.setItem(TEAM_KEY, JSON.stringify(r.team)); } catch (e) {}
+        add({ role: 'agent', text: r.text, program: r.program });
+      })
       .catch(function (e) { add({ role: 'agent', text: 'Autumn\'s knowledge base is not reachable right now (' + e + ').' }); });
   }
 
@@ -66,7 +68,7 @@
       var inp = q('#aac-in'), text = inp.value.trim(); if (!text) return;
       inp.value = ''; add({ role: 'user', text: text });
       var api = global.AutumnAgents;
-      if (!(api && api.team && global._ghAuth && global._ghAuth.token) && RELAY_URL) { viaRelay(text, add); return; }
+      if (!(api && api.team && global._ghAuth && global._ghAuth.token) && global.AUTUMN_GAS_URL) { viaRelay(text, add); return; }
       if (!api || !api.run) { add({ role: 'agent', text: 'Agents are not loaded yet.' }); return; }
       if (api.team) { api.team(text).then(function (r) {
         if (!r) add({ role: 'agent', text: 'Shell 64 is not available yet (needs an admin token and a first journal write).' });
@@ -79,9 +81,9 @@
     };
   }
 
-  // Mount for the admin (journal API present) or, once RELAY_URL is set, for everyone. Wait up to ~60s for the journal script.
+  // Mount for everyone once the page's Apps Script URL exists (admin additionally gets the direct private-repo path).
   var tries = 0, iv = setInterval(function () {
-    if ((global.AutumnAgents && global.AutumnAgents.run && global._ghAuth && global._ghAuth.token) || RELAY_URL) { clearInterval(iv); try { mount(); } catch (e) {} }
+    if ((global.AutumnAgents && global.AutumnAgents.run && global._ghAuth && global._ghAuth.token) || global.AUTUMN_GAS_URL) { clearInterval(iv); try { mount(); } catch (e) {} }
     else if (++tries > 400) clearInterval(iv);
   }, 3000);
 })(window);
