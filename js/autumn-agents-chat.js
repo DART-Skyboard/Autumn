@@ -82,6 +82,6 @@
   // Mount for the admin (journal API present) or, once RELAY_URL is set, for everyone. Wait up to ~60s for the journal script.
   var tries = 0, iv = setInterval(function () {
     if ((global.AutumnAgents && global.AutumnAgents.run && global._ghAuth && global._ghAuth.token) || RELAY_URL) { clearInterval(iv); try { mount(); } catch (e) {} }
-    else if (++tries > 60) clearInterval(iv);
-  }, 1000);
+    else if (++tries > 400) clearInterval(iv);
+  }, 3000);
 })(window);
