@@ -27,7 +27,7 @@
     host.innerHTML =
       '<button id="aac-tab" aria-label="Agents chat" style="background:rgba(10,20,30,.88);color:#00ffcc;border:1px solid #00ffcc55;border-right:none;border-radius:7px 0 0 7px;padding:8px 6px;cursor:pointer;writing-mode:vertical-rl">◈ AGENTS CHAT</button>' +
       '<div id="aac-panel" hidden style="position:absolute;right:34px;bottom:0;width:min(380px,88vw);height:min(460px,70vh);display:flex;flex-direction:column;background:rgba(8,14,22,.97);border:1px solid #00ffcc55;border-radius:10px">' +
-      '<div style="padding:8px 10px;color:#00ffcc;border-bottom:1px solid #00ffcc22">LEATR Chief · give a goal, agents plan and run it</div>' +
+      '<div style="padding:8px 10px;color:#00ffcc;border-bottom:1px solid #00ffcc22">Autumn · team lead — give a goal, the team runs it</div>' +
       '<div id="aac-log" style="flex:1;overflow:auto;padding:8px 10px"></div>' +
       '<form id="aac-form" style="display:flex;gap:6px;padding:8px;border-top:1px solid #00ffcc22">' +
       '<input id="aac-in" autocomplete="off" placeholder="e.g. analyze python grammar for the english parser" style="flex:1;min-width:0;background:#0d1117;color:#fff;border:1px solid #30363d;border-radius:6px;padding:6px;font:inherit">' +
@@ -47,7 +47,7 @@
     function add(m) { msgs.push(m); save(msgs); bubble(m); }
 
     msgs.forEach(bubble);
-    if (!msgs.length) bubble({ role: 'agent', text: 'Chief ready. Tell me a goal; I split it across assistant chiefs and managers over Shell 64 and save the project to the private repo.' });
+    if (!msgs.length) bubble({ role: 'agent', text: 'Autumn here, team lead. Give me a goal and my assistant lead and team will split it over Shell 64. Try: "create another team member to triangulate" or "add a team member to study python".' });
 
     q('#aac-tab').onclick = function () { var p = q('#aac-panel'); p.hidden = !p.hidden; if (!p.hidden) q('#aac-in').focus(); };
     q('#aac-form').onsubmit = function (e) {
@@ -56,6 +56,10 @@
       inp.value = ''; add({ role: 'user', text: text });
       var api = global.AutumnAgents;
       if (!api || !api.run) { add({ role: 'agent', text: 'Agents are not loaded yet.' }); return; }
+      if (api.team) { api.team(text).then(function (r) {
+        if (!r) add({ role: 'agent', text: 'Shell 64 is not available yet (needs an admin token and a first journal write).' });
+        else add({ role: 'agent', text: r.text, program: r.program });
+      }).catch(function (err) { add({ role: 'agent', text: 'Error: ' + err }); }); return; }
       api.run(text).then(function (r) {
         if (!r) add({ role: 'agent', text: 'Shell 64 is not available yet (needs an admin token and a first journal write).' });
         else add({ role: 'agent', text: summarize(r), program: r.program });
