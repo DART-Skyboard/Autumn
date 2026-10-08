@@ -91,6 +91,8 @@
     return out;
   }
 
+  // Ash-declared event shape check (leatr-ash AshEvents); returns the record unchanged, never throws.
+  function _ae(k,o){ try{ return (window.AshEvents&&window.AshEvents.check)?window.AshEvents.check(k,o):o; }catch(e){ return o; } }
   function _write(data){
     if(typeof writeLeatrAshMemory==='function'){
       writeLeatrAshMemory(SHARD_PATH, data);
@@ -535,7 +537,7 @@
     }
 
     // Write to shared events file
-    _write(ev);
+    _write(_ae('shard',ev));
 
     // Offline: write pending notifications to each offline user's path
     offlineLogins.forEach(function(login){

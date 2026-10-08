@@ -356,6 +356,8 @@
   // Mist write — routes through GAS proxy so all users can write without a PAT.
   // PAT path kept as fallback for IDE/admin sessions.
   var _writeInFlight = false;
+  // Ash-declared event shape check (leatr-ash AshEvents); returns the record unchanged, never throws.
+  function _ae(k,o){ try{ return (window.AshEvents&&window.AshEvents.check)?window.AshEvents.check(k,o):o; }catch(e){ return o; } }
   function _write(data){
     if(_writeInFlight) return;
     var uid=_sid();
@@ -411,7 +413,7 @@
     var uid=_sid(), ts=Date.now();
     _mySolves.push({uid:uid,ts:ts});
     if(_mySolves.length>20)_mySolves.shift();
-    _write({type:'solve',uid:uid,slot:slot,ts:ts,instanceId:_iid,label:prof.label,emotion:prof.emotion,toUids:toUids||undefined});
+    _write(_ae('solve',{type:'solve',uid:uid,slot:slot,ts:ts,instanceId:_iid,label:prof.label,emotion:prof.emotion,toUids:toUids||undefined}));
     _bcPost({type:'solve',uid:uid,slot:slot,ts:ts,toUids:toUids||undefined});
     // ── Global cross-browser propagation ─────────────────────────────────────
     // Store solve in _ashNodes._lastMistSolve — the heartbeat in _pollAshNodes
@@ -448,7 +450,7 @@
     _spawnIncoming(ev.slot, new THREE.Vector3(0,0,0), ev.uid);
     _ss('←');
     // Write reaction so others (especially sender) see it
-    _write({type:'reaction',uid:myUid,slot:ev.slot,ts:now,replyTo:ev.uid,score:sc,instanceId:_iid});
+    _write(_ae('reaction',{type:'reaction',uid:myUid,slot:ev.slot,ts:now,replyTo:ev.uid,score:sc,instanceId:_iid}));
     _bcPost({type:'reaction',uid:myUid,slot:ev.slot,ts:now,replyTo:ev.uid,score:sc});
     _log('MIST RECEIVE — incoming from '+ev.uid.slice(0,14)+'. Mist arriving at node.');
   }
@@ -1391,7 +1393,7 @@
       }
     }catch(e){}
     var payload={type:'ashstar',uid:uid,from:'autumn',toUids:toUids,color:hex,thought:(thought||'').substring(0,120),ts:ts,instanceId:_iid,emotionVertical:ev};
-    _write(payload);
+    _write(_ae('ashstar',payload));
     _bcPost(payload);
     if(typeof _ashNodes!=='undefined'){
       _ashNodes._lastAshStar={ts:ts,color:hex,toUids:toUids,thought:payload.thought,from:'autumn',uid:uid};
