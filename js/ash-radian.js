@@ -1,13 +1,17 @@
 // Tool Radian host: encode data points into reflexive variable state (tool + kind + angle), condense them into the training file,
 // and decode them for analysis / generation. Integers only (angles are tenths of a degree). No outside AI, no network, no eval.
 //   state  <tool>[f]<kind><angle>   md-0.1  mdb0.1  md0.0  mfdb0.0       limit: |angle| <= 45.0 degrees (1/8 of a diameter)
+//   ONE angle per data point carries its whole context (reflex states, emotion, tools, shells). Two data points may share a state: that is allowed.
+//   When they must be told apart the angle gains decimal places (up to 6), proportional to their context / sequence position. No extra types.
 (function (global) {
   'use strict';
   var TOOLS = { m: 'Maze', p: 'Puzzle', e: 'Envelope', h: 'Hammer', s: 'Stick', k: 'Knife', r: 'Scissors' };
-  var LIMIT = 450;                                        // tenths of a degree = 45.0
+  var LIMIT = 450;                                        // 45.0 degrees in tenths; at precision p the limit is 45 * 10^p units
+  var MAXPREC = 6;                                        // decimal places of the angle (1 = tenths of a degree, the default)
+  function pow10(n) { return Math.pow(10, n); }
   var PUNCT = '+-*/^%()<>,.:;!?';                         // operators / relations / punctuation share Maze, kind "both" (magnitude = position, + = 0.1)
   var WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
-  var STATE = /^([mpehskr])(f?)(d-|d\+|db-?|d)(\d{1,3}\.\d)$/;
+  var STATE = /^([mpehskr])(f?)(d-|d\+|db-?|d)(\d{1,3}\.\d{1,6})$/;
   var LINE = /^(\s*irin \("Radian: )v=(\S+) d=(\S*) n=(\d+)( src=[^"]*)?("\)\s*)$/;
 
   function contract(text) {                               // optional: read seeds from tool-radian.ash (data, not hardcoded)
@@ -24,27 +28,28 @@
     return c;
   }
 
-  // ── state ──
-  function clamp(mag) { return Math.max(0, Math.min(LIMIT, Math.round(mag))); }
-  function tenths(mag) { return Math.floor(mag / 10) + '.' + (mag % 10); }
+  // ── state ──  mag is the angle magnitude in units of 10^-prec degrees (prec 1 = tenths, up to 6)
+  function clamp(mag, prec) { return Math.max(0, Math.min(45 * pow10(prec), Math.round(mag))); }
+  function fixed(mag, prec) { var u = pow10(prec), f = String(mag % u); while (f.length < prec) f = '0' + f; return Math.floor(mag / u) + '.' + f; }
   // kind: '-' data, '+' data that can build, 'b' both, '0' neutral. neg only matters for kind 'b'.
-  function make(tool, field, kind, mag, neg) {
-    var m = clamp(mag), clamped = m !== Math.round(mag) || Math.round(mag) > LIMIT;
+  function make(tool, field, kind, mag, neg, prec) {
+    prec = prec || 1; var m = clamp(mag, prec), clamped = Math.round(mag) > 45 * pow10(prec);
     if (kind === '0') m = 0;
-    return { tool: tool, field: !!field, kind: kind, mag: m, neg: kind === '-' ? true : (kind === 'b' ? !!neg : false), clamped: clamped };
+    return { tool: tool, field: !!field, kind: kind, mag: m, prec: prec, neg: kind === '-' ? true : (kind === 'b' ? !!neg : false), clamped: clamped };
   }
-  function deg10(s) { return (s.neg ? -1 : 1) * s.mag; }   // signed tenths
+  function deg10(s) { return (s.neg ? -1 : 1) * s.mag; }                                            // signed, in units of 10^-prec
+  function scaled(s, P) { return deg10(s) * pow10(P - s.prec); }                                    // signed, at working precision P
   function format(s) {
     var k = s.kind === '-' ? 'd-' : s.kind === '+' ? 'd+' : s.kind === 'b' ? 'db' + (s.neg && s.mag ? '-' : '') : 'd';
-    return s.tool + (s.field ? 'f' : '') + k + tenths(s.mag);
+    return s.tool + (s.field ? 'f' : '') + k + fixed(s.mag, s.prec);
   }
   function parseState(str) {
     var m = STATE.exec(String(str || '')); if (!m) return null;
-    var kd = m[3], mag = Math.round(parseFloat(m[4]) * 10);
-    if (mag > LIMIT) return null;                          // beyond 1/8 of a diameter is not a legal assignment
+    var kd = m[3], parts = m[4].split('.'), prec = parts[1].length, mag = parseInt(parts[0] + parts[1], 10);
+    if (mag > 45 * pow10(prec)) return null;               // beyond 1/8 of a diameter is not a legal assignment
     var kind = kd === 'd-' ? '-' : kd === 'd+' ? '+' : kd === 'd' ? '0' : 'b';
     if (kind === '0' && mag !== 0) return null;
-    return { tool: m[1], field: m[2] === 'f', kind: kind, mag: mag, neg: kind === '-' || kd === 'db-' };
+    return { tool: m[1], field: m[2] === 'f', kind: kind, mag: mag, prec: prec, neg: kind === '-' || kd === 'db-' };
   }
 
   // ── data-point assignment: seed table, optionally refined by the mean of the context angles (reflex states / emotion) ──
@@ -56,37 +61,42 @@
     if (/[A-Z]/.test(ch)) return make('e', false, '+', 30 + ch.charCodeAt(0) - 64);
     var cp = ch.charCodeAt(0); return make('e', false, 'b', cp % 451, false);              // anything else: Envelope both
   }
-  function mean10(a) { var t = 0; a.forEach(function (x) { t += x; }); return a.length ? Math.trunc(t / a.length) : 0; }
-  // contexts: signed tenths from the remaining reflex states / emotional contexts. The assigned angle is the mean of them with the seed.
-  function assign(ch, contexts) {
-    var s = seed(ch); if (!contexts || !contexts.length || s.kind === '0') return s;
-    var m = mean10([deg10(s)].concat(contexts)), a = Math.abs(m);
-    return make(s.tool, false, s.kind, a, m < 0);
+  function mean(a, den) { var t = 0; a.forEach(function (x) { t += x; }); return a.length ? Math.trunc(t / (a.length * den)) : 0; }
+  // contexts: signed tenths from the remaining reflex states / emotional contexts. The assigned angle is the mean of them with the seed,
+  // worked out at the requested precision (prec 1 = tenths; more places separate data points that would otherwise share a state).
+  function assign(ch, contexts, prec) {
+    prec = prec || 1; var s = seed(ch);
+    if (s.kind === '0') return s;
+    var arr = [deg10(s)].concat(contexts || []), m = mean(arr.map(function (x) { return x * pow10(prec - 1); }), 1);
+    if (!contexts || !contexts.length) m = deg10(s) * pow10(prec - 1);
+    return make(s.tool, false, s.kind, Math.abs(m), m < 0, prec);
   }
-  function encodeChar(ch, contexts) { return format(assign(ch, contexts)); }
+  function encodeChar(ch, contexts, prec) { return format(assign(ch, contexts, prec)); }
 
   // ── sequences (fields) ──
   function stripOuter(t) { t = String(t).trim(); return (t.charAt(0) === '(' && t.charAt(t.length - 1) === ')') ? t.slice(1, -1) : t; }
   function tokens(text) { return stripOuter(text).replace(/\s+/g, '').split(''); }
-  function fieldState(members) {                           // members = parsed states; field = mean angle, kind both if mixed
+  function fieldState(members, prec) {                     // members = parsed states; field = mean angle, kind both if mixed
+    prec = prec || 1;
+    var P = Math.max(prec, members.reduce(function (x, m) { return Math.max(x, m.prec); }, 1));
     var hasMath = members.some(function (s) { return s.tool === 'm'; });
     var kinds = {}; members.forEach(function (s) { kinds[s.kind] = 1; });
     var both = kinds.b || (kinds['-'] && kinds['+']);
     var kind = both ? 'b' : (kinds['-'] ? '-' : kinds['+'] ? '+' : '0');
-    var m = mean10(members.map(deg10));
-    return make(hasMath ? 'm' : 'e', true, kind, Math.abs(m), m < 0);
+    var m = mean(members.map(function (x) { return scaled(x, P); }), 1);
+    return make(hasMath ? 'm' : 'e', true, kind, Math.abs(m), m < 0, prec >= P ? prec : P);
   }
-  // text -> { text, tokens:[{ch,state}], field:state } (outer "( )" is the sequence wrapper, not a member)
-  function encode(text, contexts) {
-    var body = stripOuter(text).replace(/\s+/g, ''), toks = body.split('').map(function (ch) { return { ch: ch, state: assign(ch, contexts) }; });
+  // text -> { text, tokens:[{ch,state}], field } (outer "( )" is the sequence wrapper, not a member)
+  function encode(text, contexts, prec) {
+    var body = stripOuter(text).replace(/\s+/g, ''), toks = body.split('').map(function (ch) { return { ch: ch, state: assign(ch, contexts, prec) }; });
     return { text: '(' + body + ')', tokens: toks.map(function (t) { return { ch: t.ch, state: format(t.state) }; }),
-             field: toks.length ? format(fieldState(toks.map(function (t) { return t.state; }))) : null };
+             field: toks.length ? format(fieldState(toks.map(function (t) { return t.state; }), prec)) : null };
   }
 
   // ── decode: state -> what it means (seed inverse; training records can add the most-seen text for the same state) ──
   function inverse(s) {                                    // seed characters sharing tool/kind/magnitude
     var out = [], all = '0123456789=' + PUNCT + 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    all.split('').forEach(function (ch) { var q = seed(ch); if (q.tool === s.tool && q.kind === s.kind && q.mag === s.mag && q.neg === s.neg) out.push(ch); });
+    all.split('').forEach(function (ch) { var q = seed(ch); if (q.tool === s.tool && q.kind === s.kind && q.mag * pow10(s.prec - 1) === s.mag && q.neg === s.neg) out.push(ch); });
     return out;
   }
   function describeChar(ch) {
@@ -100,8 +110,8 @@
     var s = parseState(str); if (!s) return null;
     var cands = inverse(s), seen = (table && table.byState && table.byState[str]) || null;
     var best = seen && seen.length ? seen[0].d : (cands[0] || null);
-    var deg = (s.neg ? -1 : 1) * s.mag / 10;
-    return { state: str, tool: TOOLS[s.tool], field: s.field, kind: s.kind, deg: (s.neg && s.mag ? '-' : '') + tenths(s.mag), degrees: deg,
+    var deg = (s.neg ? -1 : 1) * s.mag / pow10(s.prec);
+    return { state: str, tool: TOOLS[s.tool], field: s.field, kind: s.kind, deg: (s.neg && s.mag ? '-' : '') + fixed(s.mag, s.prec), degrees: deg,
              candidates: cands, common: !!(seen && seen[0] && seen[0].n >= 2), meaning: best };
   }
 
@@ -126,15 +136,25 @@
   }
   function empty() { return parse(HEAD + TAIL); }
   // add data: every character becomes a data-point state, every sequence a field. Repeats only raise the count (condensity).
+  // Sharing a state is allowed. With opt.separate, a data point whose state is already held by DIFFERENT text gains decimal places
+  // (up to 6) until its state is its own: the same single angle, finer, never a new type.
   function add(tb, text, opt) {
-    opt = opt || {}; var max = opt.maxBytes || 200000, enc = encode(text, opt.contexts), src = opt.src || '';
+    opt = opt || {}; var max = opt.maxBytes || 200000, src = opt.src || '';
+    var body = stripOuter(text).replace(/\s+/g, ''), enc = encode(body, opt.contexts, 1);
     function bump(v, d, source) {
       var k = tb.recs.filter(function (r) { return r.v === v && r.d === d; })[0];
       if (k) { k.n++; return; }
       var rec = { v: v, d: d, n: 1, src: source || '' }; tb.recs.push(rec); (tb.byState[v] = tb.byState[v] || []).push(rec); tb.byText[d] = rec;
     }
-    enc.tokens.forEach(function (t) { bump(t.state, t.ch, ''); });
-    if (enc.field && enc.tokens.length > 1 && serialize(tb).length < max) bump(enc.field, enc.text, src);   // sequences stop growing the file at its cap
+    function taken(v, d) { return tb.recs.some(function (r) { return r.v === v && r.d !== d; }); }
+    function place(d, build, source) {
+      var v = build(1);
+      for (var p = 2; opt.separate && p <= MAXPREC && taken(v, d); p++) v = build(p);
+      bump(v, d, source);
+    }
+    body.split('').forEach(function (ch) { place(ch, function (p) { return encodeChar(ch, opt.contexts, p); }, ''); });
+    if (enc.field && body.length > 1 && serialize(tb).length < max)   // sequences stop growing the file at its cap
+      place(enc.text, function (p) { return encode(body, opt.contexts, p).field; }, src);
     return enc;
   }
 
@@ -168,6 +188,7 @@
       var d = decode(t.state, table); if (!d) return;
       lines.push('Data of ' + d.tool + ' at ' + d.deg + ' degrees - ' + (d.common ? 'Common Context' : 'New Context') + ', Presumably ' + describeChar(d.meaning || t.ch) + ' = ' + t.ch);
     });
+    if (enc.field) lines.push('Sequence ' + enc.field + ' over ' + enc.tokens.length + ' variable states: ' + enc.text);   // second stair step: the sequence assignment
     // completion: the prompt is a piece of a trained sequence -> that sequence is the statement
     var statement = null;
     table.recs.forEach(function (r) { if (!statement && r.v.charAt(1) === 'f' && r.d.length > 2 && r.d.slice(1, -1).indexOf(body) >= 0 && body.length) statement = r.d.slice(1, -1); });
@@ -189,6 +210,6 @@
   }
 
   global.AshRadian = { TOOLS: TOOLS, LIMIT: LIMIT, contract: contract, seed: seed, assign: assign, encodeChar: encodeChar, encode: encode, decode: decode,
-    parseState: parseState, format: format, parse: parse, serialize: serialize, empty: empty, add: add, evaluate: evaluate, analyze: analyze, fromRecord: fromRecord };
+    MAXPREC: MAXPREC, parseState: parseState, format: format, parse: parse, serialize: serialize, empty: empty, add: add, evaluate: evaluate, analyze: analyze, fromRecord: fromRecord };
   if (typeof module !== 'undefined') module.exports = global.AshRadian;
 })(typeof window !== 'undefined' ? window : globalThis);
