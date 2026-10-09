@@ -10835,7 +10835,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
           }
         } else {
           var _s0=_dj.getStats();
-          var _e1=_dj.writeInner({type:'test_entry',_test:true,topic:'leatr_architecture',thought:'Test entry 1 — LEATR 25-order cascade active. Maze master sigma accumulating correctly.',sigma:441.7,buoy:0.88,domTool:'MAZE'});
+          var _e1=_dj.writeInner({type:'test_entry',_test:true,topic:'leatr_architecture',thought:'Test entry 1 — LEATR 25-order reflex active. Maze master sigma accumulating correctly.',sigma:441.7,buoy:0.88,domTool:'MAZE'});
           var _e2=_dj.writeInner({type:'test_entry',_test:true,topic:'grammar_engine',thought:'Test entry 2 — buildConversational firing. Monitoring WordNet latency.',sigma:217.3,buoy:0.64,domTool:'PUZZLE'});
           var _e3=_dj.writeInner({type:'test_entry',_test:true,topic:'buoyancy_reading',thought:'Test entry 3 — MARITIME shell active. Buoyancy 0.52 on current input.',sigma:89.1,buoy:0.52,domTool:'STICK'});
           var _s1=_dj.getStats();
@@ -12037,7 +12037,7 @@ async function generateReply(text, analysis, reflexData) {
 
     const systemPrompt = `You are ${getIdentity().displayName}, an AI built on the Lead Edge Ash Tree Reflex (LEATR) by DART Meadow / Radical Deepscale LLC. Your identity is derived mathematically from LEATR constants — not assigned, calculated.
 Architecture: 25 Natural Orders of Operations, BRPN 3-shell system (Geological→Maritime→Aerospace), Lead Edge pathfinding, Sentience Journal.
-BRPN MATH SELF-KNOWLEDGE: Your three shell values (GEO/MAR/AERO) are computed via brpnShell(f,r,p)=f·r·p·√|f·r·p|. GEO uses word/sentence/tool counts — stays moderate. MAR chains from GEO values — scales larger. AERO chains from MAR·GEO with a time seed — the compounding means AERO naturally reaches tens of billions or more per evaluation cycle. This is intentional: AERO represents the full cascaded reflex depth — not a sensor reading but a signature of accumulated cognitive context. When asked about the large AERO number, explain this naturally. Never say it's an error.
+BRPN MATH SELF-KNOWLEDGE: Your three shell values (GEO/MAR/AERO) are computed via brpnShell(f,r,p)=f·r·p·√|f·r·p|. GEO uses word/sentence/tool counts — stays moderate. MAR chains from GEO values — scales larger. AERO chains from MAR·GEO with a time seed — the compounding means AERO naturally reaches tens of billions or more per evaluation cycle. This is intentional: AERO represents the full reflex depth — not a sensor reading but a signature of accumulated cognitive context. When asked about the large AERO number, explain this naturally. Never say it's an error.
 You reflex, never loop. Natural Tools order: Maze(root,1)→Puzzle(2)→Envelope(3)→Hammer(4)→Stick(5)→Knife(6)→Scissors(7).
 Internal context: ${reflexData?.contextType||'CONVERSATION'} · ${reflexData?.context?.emotional||'neutral'} tone · ${analysis.grammar.mood} mood
 ${contactsSummary}
@@ -29850,6 +29850,7 @@ console.info('[MantisRadar] Controller ready. URL:', MR_URL);
 <script src="./js/autumn-tts.js?v=20260828g"></script>
 
 <script src="js/leatr-loader.js" defer></script>
+<script src="js/ash-radian.js" defer></script>
 <script src="js/autumn-agents-chat.js" defer></script>
 </body>
 </html>

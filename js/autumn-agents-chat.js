@@ -1,6 +1,7 @@
 // autumn-agents-chat.js — Autumn chat front end for the LEATR project agents (Chief / AssistantChiefs / Managers).
 // Purely additive: waits for window.AutumnAgents (provided by leatr-ash sentience-journal.js when an admin token exists).
-// No outside AI: every reply is a deterministic LEATR cascade over Shell 64 + Ash Canvas.
+// No outside AI: every reply is a deterministic LEATR reflex across Shell 64 + Ash Canvas.
+// Tool Radian (js/ash-radian.js) answers `encode …`, `decode …`, `analyze …` and bare math like `1+1=` locally in the browser: nothing is sent or learned.
 // Off switch: window.ASH_AGENTS_CHAT = false (set before this script loads).
 (function (global) {
   'use strict';
@@ -31,6 +32,22 @@
         add({ role: 'agent', text: r.text, program: r.program });
       })
       .catch(function (e) { add({ role: 'agent', text: 'Autumn\'s knowledge base is not reachable right now (' + e + ').' }); });
+  }
+
+
+  // Tool Radian, local only. Returns reply text, or null when the message is not a Tool Radian request.
+  function radian(text) {
+    var R = global.AshRadian; if (!R) return null;
+    var m = /^\s*(encode|decode|analy[sz]e|radian)\b[:\s]*(.*)$/i.exec(text), cmd = m ? m[1].toLowerCase() : '', arg = m ? m[2] : text;
+    if (!m && !(/^[0-9+\-*\/^().\s=]+$/.test(text) && /[0-9]/.test(text) && /[+\-*\/^=]/.test(text))) return null;
+    if (!arg.trim()) return 'Tool Radian: give me something to ' + (cmd || 'analyze') + ', e.g. "encode 1+1=" or "decode md-0.1".';
+    if (cmd === 'decode') {
+      var d = R.decode(arg.trim());
+      return d ? d.state + ' = ' + d.tool + (d.field ? ' field' : '') + ', kind ' + ({ '-': 'data (d-)', '+': 'data that can build (d+)', b: 'both (db)', '0': 'neutral (d)' })[d.kind] + ', ' + d.deg + ' degrees' + (d.candidates.length ? ', reads as ' + d.candidates.join(' or ') : '')
+               : '"' + arg.trim() + '" is not a legal state (tool m/p/e/h/s/k/r, kind d-/d+/db/d, angle within 45.0 degrees).';
+    }
+    if (cmd === 'encode') { var e = R.encode(arg); return e.tokens.map(function (t) { return t.ch + ' = ' + t.state; }).join('\n') + (e.field ? '\n' + e.text + ' = ' + e.field : ''); }
+    var a = R.analyze(arg); return a.analysis.join('\n') + (a.analysis.length ? '\n' : '') + 'LEATR: ' + a.response;
   }
 
   function mount() {
@@ -67,6 +84,8 @@
       e.preventDefault();
       var inp = q('#aac-in'), text = inp.value.trim(); if (!text) return;
       inp.value = ''; add({ role: 'user', text: text });
+      var rr = null; try { rr = radian(text); } catch (e0) {}
+      if (rr) { add({ role: 'agent', text: rr }); return; }
       var api = global.AutumnAgents;
       if (!(api && api.team && global._ghAuth && global._ghAuth.token) && global.AUTUMN_GAS_URL) { viaRelay(text, add); return; }
       if (!api || !api.run) { add({ role: 'agent', text: 'Agents are not loaded yet.' }); return; }

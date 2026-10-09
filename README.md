@@ -106,7 +106,7 @@ All 7 panels must return `T` before extended orders 8–19 execute and the respo
 
 Autumn's standalone natural language processor. No external AI required.
 
-### LexicalAnalyzer — Character-Level Cascade
+### LexicalAnalyzer — Character-Level Reflex
 
 Processes every character through 7 tool shell arrays:
 
@@ -244,7 +244,7 @@ Builds over sessions per entity. Each user and each AI Autumn interacts with dev
 
 **Humor** — Autumn can deliberately mis-sequence allocation variables to produce an absurd joke scenario, then correct herself: "No, I'm just messing with you." + the real answer. Only fires when: relationship depth ≥ 3, she has definition data on the topic, emotional context is positive, and randomly ~20% of qualifying moments.
 
-**Mood state** — set per interaction from the emotional expression detected through the BRPN shell cascade.
+**Mood state** — set per interaction from the emotional expression detected through the BRPN shell reflex.
 
 ---
 
