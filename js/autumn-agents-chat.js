@@ -38,13 +38,47 @@
   // Tool Radian, local only (shared AshRadian.respond). Returns reply text, or null when the message is not a Tool Radian request.
   function radian(text) { return global.AshRadian ? global.AshRadian.respond(text) : null; }
 
+  // ── One brain, two windows ─────────────────────────────────────────────────
+  // The main chat and the AGENTS CHAT panel call the same handler, share the same team state (TEAM_KEY) and the same
+  // saved log (KEY), so it only matters which window the user prefers. The panel is the more formal, separate context.
+  var AGENT_RE = /\b(create|add|spawn|assign|remove|study|have)\b[^.?!]*\b(team ?members?|agents?|managers?|assistant ?chiefs?|chief)\b|^\s*\/?(agents?|team|goal)\b[:\s]|\bteam lead\b|\bshell ?64 team\b/i;
+  function isCommand(text) {
+    text = String(text || '');
+    var rr = null; try { rr = radian(text); } catch (e) {}
+    return rr !== null || AGENT_RE.test(text);
+  }
+  function handle(text) {
+    return new Promise(function (resolve) {
+      var rr = null; try { rr = radian(text); } catch (e) {}
+      if (rr) return resolve({ text: rr });
+      var api = global.AutumnAgents;
+      if (!(api && api.team && global._ghAuth && global._ghAuth.token) && global.AUTUMN_GAS_URL) {
+        return viaRelay(text, function (m) { resolve({ text: m.text, program: m.program }); });
+      }
+      if (api && api.team) return api.team(text).then(function (r) {
+        resolve(r ? { text: r.text, program: r.program } : { text: 'Shell 64 is not available yet (needs an admin token and a first journal write).' });
+      }).catch(function (err) { resolve({ text: 'Error: ' + err }); });
+      if (api && api.run) return api.run(text).then(function (r) {
+        resolve(r ? { text: summarize(r), program: r.program } : { text: 'Shell 64 is not available yet (needs an admin token and a first journal write).' });
+      }).catch(function (err) { resolve({ text: 'Error: ' + err }); });
+      resolve({ text: 'Agents are not loaded yet.' });
+    });
+  }
+  // Main-chat exchanges are mirrored into the panel log so both windows show one history.
+  function mirror(text, reply) {
+    var m = load(); m.push({ role: 'user', text: text }); m.push({ role: 'agent', text: reply.text, program: reply.program }); save(m);
+    var log = document.getElementById('aac-log');
+    if (log) { var d = document.createElement('div'); d.style.cssText = 'margin:0 0 8px;padding:6px 8px;border-radius:8px;white-space:pre-wrap;background:#101826;color:#9cdcfe'; d.textContent = text + '\n→ ' + reply.text; log.appendChild(d); log.scrollTop = log.scrollHeight; }
+  }
+  global.AutumnAgentsChat = { isCommand: isCommand, handle: handle, mirror: mirror };
+
   function mount() {
     if (document.getElementById('autumn-agents-chat')) return;
     var host = document.createElement('div'); host.id = 'autumn-agents-chat';
     host.style.cssText = 'position:fixed;right:0;bottom:150px;z-index:9390;font:12px/1.45 ui-monospace,Menlo,monospace;color:#cfe;';
     host.innerHTML =
       '<button id="aac-tab" aria-label="Agents chat" style="background:rgba(10,20,30,.88);color:#00ffcc;border:1px solid #00ffcc55;border-right:none;border-radius:7px 0 0 7px;padding:8px 6px;cursor:pointer;writing-mode:vertical-rl">◈ AGENTS CHAT</button>' +
-      '<div id="aac-panel" hidden style="position:absolute;right:34px;bottom:0;width:min(380px,88vw);height:min(460px,70vh);display:flex;flex-direction:column;background:rgba(8,14,22,.97);border:1px solid #00ffcc55;border-radius:10px">' +
+      '<div id="aac-panel" hidden style="position:absolute;right:34px;bottom:0;width:min(380px,88vw);height:min(460px,70vh);display:none;flex-direction:column;background:rgba(8,14,22,.97);border:1px solid #00ffcc55;border-radius:10px">' +
       '<div style="padding:8px 10px;color:#00ffcc;border-bottom:1px solid #00ffcc22">Autumn · team lead — give a goal, the team runs it</div>' +
       '<div id="aac-log" style="flex:1;overflow:auto;padding:8px 10px"></div>' +
       '<form id="aac-form" style="display:flex;gap:6px;padding:8px;border-top:1px solid #00ffcc22">' +
@@ -67,24 +101,12 @@
     msgs.forEach(bubble);
     if (!msgs.length) bubble({ role: 'agent', text: 'Autumn here, team lead. Give me a goal and my assistant lead and team will split it over Shell 64. Try: "create another team member to triangulate" or "add a team member to study python".' });
 
-    q('#aac-tab').onclick = function () { var p = q('#aac-panel'); p.hidden = !p.hidden; if (!p.hidden) q('#aac-in').focus(); };
+    q('#aac-tab').onclick = function () { var p = q('#aac-panel'); var show = p.style.display==='none'; p.style.display = show?'flex':'none'; p.hidden = !show; if (show) q('#aac-in').focus(); };
     q('#aac-form').onsubmit = function (e) {
       e.preventDefault();
       var inp = q('#aac-in'), text = inp.value.trim(); if (!text) return;
       inp.value = ''; add({ role: 'user', text: text });
-      var rr = null; try { rr = radian(text); } catch (e0) {}
-      if (rr) { add({ role: 'agent', text: rr }); return; }
-      var api = global.AutumnAgents;
-      if (!(api && api.team && global._ghAuth && global._ghAuth.token) && global.AUTUMN_GAS_URL) { viaRelay(text, add); return; }
-      if (!api || !api.run) { add({ role: 'agent', text: 'Agents are not loaded yet.' }); return; }
-      if (api.team) { api.team(text).then(function (r) {
-        if (!r) add({ role: 'agent', text: 'Shell 64 is not available yet (needs an admin token and a first journal write).' });
-        else add({ role: 'agent', text: r.text, program: r.program });
-      }).catch(function (err) { add({ role: 'agent', text: 'Error: ' + err }); }); return; }
-      api.run(text).then(function (r) {
-        if (!r) add({ role: 'agent', text: 'Shell 64 is not available yet (needs an admin token and a first journal write).' });
-        else add({ role: 'agent', text: summarize(r), program: r.program });
-      }).catch(function (err) { add({ role: 'agent', text: 'Error: ' + err }); });
+      handle(text).then(function (r) { add({ role: 'agent', text: r.text, program: r.program }); });
     };
   }
 

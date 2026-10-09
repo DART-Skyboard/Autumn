@@ -10479,6 +10479,16 @@ async function handleSend() {
     audioPlayers: _earlyPendingImgs.filter(function(i){ return i.isAudio; }).map(function(i){ return {fileName:i.fileName, blobUrl:i.blobUrl}; }),
     _savedAttachments: _earlyPendingImgs.length ? _earlyPendingImgs : undefined });
   renderMessages();
+  // Agent / team / Tool Radian commands are answered right here in the main chat (same handler as the AGENTS CHAT panel).
+  try {
+    if (window.AutumnAgentsChat && window.AutumnAgentsChat.isCommand(text)) {
+      const _ar = await window.AutumnAgentsChat.handle(text);
+      msgs().push({ role:'autumn', id:'ag-'+Date.now(), text:(_ar.text||'') + (_ar.program ? '\n\n[Ash program]\n' + _ar.program : ''), ts:new Date().toISOString(), contextType:'AGENTS' });
+      try { window.AutumnAgentsChat.mirror(text, _ar); } catch(_m) {}
+      _releaseLock();
+      return;
+    }
+  } catch (_ae) { console.warn('[Autumn agents]', _ae); }
   const _earlyTyping = document.createElement('div');
   _earlyTyping.className = 'typing'; _earlyTyping.id = 'early-typing';
   _earlyTyping.innerHTML = '<div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">thinking…</span>';
