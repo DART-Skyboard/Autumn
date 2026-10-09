@@ -66,11 +66,50 @@
   // worked out at the requested precision (prec 1 = tenths; more places separate data points that would otherwise share a state).
   function assign(ch, contexts, prec) {
     prec = prec || 1; var s = seed(ch);
+    if (typeof contexts === 'function') contexts = contexts(ch);
     if (s.kind === '0') return s;
     var arr = [deg10(s)].concat(contexts || []), m = mean(arr.map(function (x) { return x * pow10(prec - 1); }), 1);
     if (!contexts || !contexts.length) m = deg10(s) * pow10(prec - 1);
     return make(s.tool, false, s.kind, Math.abs(m), m < 0, prec);
   }
+
+  // ── context: the 63 checks per data point ──────────────────────────────────────────────────────────────────────────
+  // 7 natural tools x 3 BRPN shells x 3 FRP stages (Foundation, Reflex, Performance) = 63 checks. Each check also looks at the connected naturals:
+  //   the data point's own tool (math / grammar seed), the order of operations (operand -> operator -> grouping/result sets its FRP stage),
+  //   the emotion (from the emotion hierarchy: its tool, its shell, its buoyancy, positive / negative), and where the reflex currently stands.
+  // Checks are weighted by the hierarchy (Maze highest buoyancy, Aerospace at the route then Maritime then Geological) and the weighted hits become
+  // ONE signed angle (tenths of a degree, within 45.0) that is averaged with the data point's seed. A neutral baseline (neutral emotion, no reflex) adds nothing.
+  var TOOL_ORDER = 'mpehskr', SHELL_ORDER = ['AERO', 'MAR', 'GEO'];
+  var EMOTIONS = {   // name: [tool, shell, buoyancy %, sign]   (the emotion hierarchy / EMOTION_MAP in the grammar engine)
+    happy: ['s', 'MAR', 52, 1], love: ['e', 'MAR', 76, 1], inspiring: ['h', 'AERO', 64, 1], inspired: ['h', 'AERO', 64, 1], determined: ['h', 'AERO', 64, 1],
+    spiritual: ['m', 'GEO', 100, 1], guiding: ['s', 'MAR', 52, 1], forgiving: ['e', 'GEO', 76, 1], excited: ['h', 'AERO', 58, 1], curious: ['p', 'MAR', 60, 1],
+    amused: ['s', 'MAR', 52, 1], thoughtful: ['p', 'MAR', 60, 1], empathetic: ['e', 'GEO', 76, 1],
+    angry: ['h', 'AERO', 36, -1], hateful: ['k', 'AERO', 28, -1], condescending: ['k', 'AERO', 32, -1], disrespectful: ['r', 'GEO', 28, -1], apathetic: ['r', 'GEO', 28, -1],
+    neutral: ['m', 'GEO', 88, 0], sad: ['r', 'GEO', 32, -1], worried: ['p', 'MAR', 60, -1], jealous: ['p', 'MAR', 48, -1], lucrative: ['k', 'AERO', 44, 1],
+    concerned: ['e', 'GEO', 68, -1], judgemental: ['k', 'AERO', 40, -1], confused: ['p', 'MAR', 52, -1]
+  };
+  function stageOf(ch) {                                    // FRP stage from the order of operations: operand = Foundation, + - * / % = Reflex, ^ ( ) = Performance
+    if (/[0-9a-z]/.test(ch)) return 0;
+    if ('+-*/%<>'.indexOf(ch) >= 0 || /[A-Z]/.test(ch)) return 1;
+    return 2;
+  }
+  // ctx = { emotion:'worried', shell:'MAR'|'GEO'|'AERO', reflex:{ tool:'p', shell:'MAR' } }   returns signed tenths, or null for the neutral baseline
+  function context(ch, ctx) {
+    ctx = ctx || {}; var emo = ctx.emotion ? EMOTIONS[String(ctx.emotion).toLowerCase()] : null, rf = ctx.reflex || null;
+    if ((!emo || emo[3] === 0) && !rf && !ctx.shell) return null;
+    var sd = seed(ch), st = stageOf(ch), hit = 0, max = 0, ti, si, fi;
+    for (ti = 0; ti < 7; ti++) for (si = 0; si < 3; si++) for (fi = 0; fi < 3; fi++) {          // the 63 checks
+      var w = (7 - ti) * (3 - si), t = TOOL_ORDER.charAt(ti), sh = SHELL_ORDER[si], n = 2, h = (t === sd.tool ? 1 : 0) + (fi === st ? 1 : 0);
+      if (emo) { n += 2; h += (t === emo[0] ? 1 : 0) + (sh === emo[1] ? 1 : 0); }
+      if (rf) { n += 1; h += (t === rf.tool && sh === (rf.shell || sh) ? 1 : 0); }
+      if (ctx.shell) { n += 1; h += (sh === ctx.shell ? 1 : 0); }
+      hit += w * h; max += w * n;
+    }
+    var ratio = Math.trunc(hit * 450 / max), buoy = emo ? emo[2] : 100, sign = emo && emo[3] < 0 ? -1 : 1;
+    return sign * Math.trunc(ratio * buoy / 100);
+  }
+  function ctxList(ctx) { return function (ch) { var c = context(ch, ctx); return c === null ? null : [c]; }; }
+
   function encodeChar(ch, contexts, prec) { return format(assign(ch, contexts, prec)); }
 
   // ── sequences (fields) ──
@@ -181,9 +220,9 @@
     try { if (s.slice(-1) === '=') s = s.slice(0, -1); var r = add(); if (i !== s.length) return null; return r.d === 1 ? String(r.n) : r.n + '/' + r.d; } catch (e) { return null; }
   }
   // Analyse a prompt: encode it, decode each data point (with the training file as context), then complete / solve it.
-  function analyze(text, table) {
+  function analyze(text, table, ctx) {
     table = table || empty();
-    var enc = encode(text), body = enc.text.slice(1, -1), lines = [];
+    var enc = encode(text, ctx ? ctxList(ctx) : undefined), body = enc.text.slice(1, -1), lines = [];
     enc.tokens.forEach(function (t) {
       var d = decode(t.state, table); if (!d) return;
       lines.push('Data of ' + d.tool + ' at ' + d.deg + ' degrees - ' + (d.common ? 'Common Context' : 'New Context') + ', Presumably ' + describeChar(d.meaning || t.ch) + ' = ' + t.ch);
@@ -203,7 +242,7 @@
   }
 
   // Chat / terminal entry point: reply text when the message is a Tool Radian request (encode / decode / analyze / bare math), else null.
-  function respond(text) {
+  function respond(text, ctx) {
     var t = String(text || '').trim(), m = /^(encode|decode|analy[sz]e|radian)\b[:\s]*(.*)$/i.exec(t), cmd = m ? m[1].toLowerCase() : '', arg = m ? m[2] : t;
     if (!m && !(/^[0-9+\-*\/^().\s=]+$/.test(t) && /[0-9]/.test(t) && /[+\-*\/^=]/.test(t))) return null;
     if (!arg.trim()) return 'Tool Radian: give me something to ' + (cmd || 'analyze') + ', e.g. "encode 1+1=" or "decode md-0.1".';
@@ -212,8 +251,8 @@
       return d ? d.state + ' = ' + d.tool + (d.field ? ' field' : '') + ', kind ' + ({ '-': 'data (d-)', '+': 'data that can build (d+)', b: 'both (db)', '0': 'neutral (d)' })[d.kind] + ', ' + d.deg + ' degrees' + (d.candidates.length ? ', reads as ' + d.candidates.join(' or ') : '')
                : '"' + arg.trim() + '" is not a legal state (tool m/p/e/h/s/k/r, kind d-/d+/db/d, angle within 45.0 degrees).';
     }
-    if (cmd === 'encode') { var e = encode(arg); return e.tokens.map(function (x) { return x.ch + ' = ' + x.state; }).join('\n') + (e.field ? '\n' + e.text + ' = ' + e.field : ''); }
-    var a = analyze(arg); return a.analysis.join('\n') + (a.analysis.length ? '\n' : '') + 'LEATR: ' + a.response;
+    if (cmd === 'encode') { var e = encode(arg, ctx ? ctxList(ctx) : undefined); return e.tokens.map(function (x) { return x.ch + ' = ' + x.state; }).join('\n') + (e.field ? '\n' + e.text + ' = ' + e.field : ''); }
+    var a = analyze(arg, undefined, ctx); return a.analysis.join('\n') + (a.analysis.length ? '\n' : '') + 'LEATR: ' + a.response;
   }
 
   // Shell 64 / Ash Canvas bridge: a Shell 64 record reads as a Tool Radian state. Kind from its own variable state, angle = 45 degrees / 7 depth levels.
@@ -224,6 +263,6 @@
   }
 
   global.AshRadian = { TOOLS: TOOLS, LIMIT: LIMIT, contract: contract, seed: seed, assign: assign, encodeChar: encodeChar, encode: encode, decode: decode,
-    MAXPREC: MAXPREC, parseState: parseState, format: format, parse: parse, serialize: serialize, empty: empty, add: add, evaluate: evaluate, analyze: analyze, respond: respond, fromRecord: fromRecord };
+    MAXPREC: MAXPREC, parseState: parseState, format: format, parse: parse, serialize: serialize, empty: empty, add: add, evaluate: evaluate, analyze: analyze, respond: respond, fromRecord: fromRecord, context: context, contextList: ctxList, EMOTIONS: EMOTIONS };
   if (typeof module !== 'undefined') module.exports = global.AshRadian;
 })(typeof window !== 'undefined' ? window : globalThis);

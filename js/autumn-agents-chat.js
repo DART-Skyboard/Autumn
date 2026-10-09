@@ -36,7 +36,13 @@
 
 
   // Tool Radian, local only (shared AshRadian.respond). Returns reply text, or null when the message is not a Tool Radian request.
-  function radian(text) { return global.AshRadian ? global.AshRadian.respond(text) : null; }
+  // The emotion the main chat currently holds (S.emotion) and the active shell flow into every data point's angle, identically from either window.
+  function liveCtx() {
+    var S = global.S || {}, emo = S.emotion || null, sh = S.activeShell || S.shell || null;
+    sh = sh ? ({ AEROSPACE: 'AERO', MARITIME: 'MAR', GEOLOGICAL: 'GEO' })[String(sh).toUpperCase()] || (/^(AERO|MAR|GEO)$/i.test(sh) ? String(sh).toUpperCase() : null) : null;
+    return { emotion: emo, shell: sh };
+  }
+  function radian(text) { return global.AshRadian ? global.AshRadian.respond(text, liveCtx()) : null; }
 
   // ── One brain, two windows ─────────────────────────────────────────────────
   // The main chat and the AGENTS CHAT panel call the same handler, share the same team state (TEAM_KEY) and the same
