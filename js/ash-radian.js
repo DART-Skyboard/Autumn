@@ -202,6 +202,20 @@
     return { prompt: text, encoded: enc, analysis: lines, response: response, answer: answer, statement: statement };
   }
 
+  // Chat / terminal entry point: reply text when the message is a Tool Radian request (encode / decode / analyze / bare math), else null.
+  function respond(text) {
+    var t = String(text || '').trim(), m = /^(encode|decode|analy[sz]e|radian)\b[:\s]*(.*)$/i.exec(t), cmd = m ? m[1].toLowerCase() : '', arg = m ? m[2] : t;
+    if (!m && !(/^[0-9+\-*\/^().\s=]+$/.test(t) && /[0-9]/.test(t) && /[+\-*\/^=]/.test(t))) return null;
+    if (!arg.trim()) return 'Tool Radian: give me something to ' + (cmd || 'analyze') + ', e.g. "encode 1+1=" or "decode md-0.1".';
+    if (cmd === 'decode') {
+      var d = decode(arg.trim());
+      return d ? d.state + ' = ' + d.tool + (d.field ? ' field' : '') + ', kind ' + ({ '-': 'data (d-)', '+': 'data that can build (d+)', b: 'both (db)', '0': 'neutral (d)' })[d.kind] + ', ' + d.deg + ' degrees' + (d.candidates.length ? ', reads as ' + d.candidates.join(' or ') : '')
+               : '"' + arg.trim() + '" is not a legal state (tool m/p/e/h/s/k/r, kind d-/d+/db/d, angle within 45.0 degrees).';
+    }
+    if (cmd === 'encode') { var e = encode(arg); return e.tokens.map(function (x) { return x.ch + ' = ' + x.state; }).join('\n') + (e.field ? '\n' + e.text + ' = ' + e.field : ''); }
+    var a = analyze(arg); return a.analysis.join('\n') + (a.analysis.length ? '\n' : '') + 'LEATR: ' + a.response;
+  }
+
   // Shell 64 / Ash Canvas bridge: a Shell 64 record reads as a Tool Radian state. Kind from its own variable state, angle = 45 degrees / 7 depth levels.
   function fromRecord(r) {
     var tool = ({ Maze: 'm', Puzzle: 'p', Envelope: 'e', Hammer: 'h', Stick: 's', Knife: 'k', Scissors: 'r' })[r.t] || 'e';
@@ -210,6 +224,6 @@
   }
 
   global.AshRadian = { TOOLS: TOOLS, LIMIT: LIMIT, contract: contract, seed: seed, assign: assign, encodeChar: encodeChar, encode: encode, decode: decode,
-    MAXPREC: MAXPREC, parseState: parseState, format: format, parse: parse, serialize: serialize, empty: empty, add: add, evaluate: evaluate, analyze: analyze, fromRecord: fromRecord };
+    MAXPREC: MAXPREC, parseState: parseState, format: format, parse: parse, serialize: serialize, empty: empty, add: add, evaluate: evaluate, analyze: analyze, respond: respond, fromRecord: fromRecord };
   if (typeof module !== 'undefined') module.exports = global.AshRadian;
 })(typeof window !== 'undefined' ? window : globalThis);
