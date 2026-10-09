@@ -47,7 +47,20 @@
     var rr = null; try { rr = radian(text); } catch (e) {}
     return rr !== null || AGENT_RE.test(text);
   }
+  // Same reflex + emotional-state analysis the main chat runs on every message (grammar, contacts, emotion, shells),
+  // so what Autumn senses is identical whichever window the user types in.
+  function sync(text) {
+    try {
+      if (typeof processLEATR === 'function' && typeof S !== 'undefined') {
+        var a = processLEATR(text); S.lastAnalysis = a;
+        S.contextHistory = (S.contextHistory || []).concat([text]).slice(-5);
+      }
+    } catch (e) {}
+    try { if (typeof autumnReflex === 'function') return Promise.resolve(autumnReflex(text, 'default')).catch(function () {}); } catch (e) {}
+    return Promise.resolve();
+  }
   function handle(text) {
+    sync(text);
     return new Promise(function (resolve) {
       var rr = null; try { rr = radian(text); } catch (e) {}
       if (rr) return resolve({ text: rr });
