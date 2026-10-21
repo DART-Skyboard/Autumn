@@ -25900,6 +25900,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     tabs.appendChild(_mkTab('adm-t2','ASH',function(){window._admTab('ash');}));
     tabs.appendChild(_mkTab('adm-t3','MESSAGES',function(){window._admTab('feedback');}));
     tabs.appendChild(_mkTab('adm-t4','LIVE FEED',function(){window._admTab('livefeed');}));
+    tabs.appendChild(_mkTab('adm-t5','AGENTS',function(){window._admTab('agents');}));
     scrollRow.appendChild(tabs);
     hdr.appendChild(scrollRow);
     var closeBtn=document.createElement('button'); closeBtn.textContent='\u2715';
@@ -27164,7 +27165,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
   function _styleAdmTabs(tab){
     var map={data:['adm-t1','color-mix(in srgb, var(--cyan,#ffb347) 12%, transparent)','var(--cyan,#ffb347)'],ash:['adm-t2','color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent)','var(--cyan)'],feedback:['adm-t3','color-mix(in srgb, var(--cyan,#00e5ff) 10%, transparent)','var(--cyan)'],livefeed:['adm-t4','color-mix(in srgb, var(--cyan,#4fd980) 12%, transparent)','var(--cyan,#4fd980)']};
-    ['adm-t1','adm-t2','adm-t3','adm-t4'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.background='transparent';el.style.color='color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent)';}});
+    ['adm-t1','adm-t2','adm-t3','adm-t4','adm-t5'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.background='transparent';el.style.color='color-mix(in srgb, var(--cyan,#00e5ff) 55%, transparent)';}});
+    map.agents=['adm-t5','color-mix(in srgb, var(--cyan,#00e5ff) 12%, transparent)','var(--cyan)'];
     var active=map[tab];if(active){var el=document.getElementById(active[0]);if(el){el.style.background=active[1];el.style.color=active[2];}}
   }
 
@@ -27172,12 +27174,13 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     if(!window._autAdminEnabled()) return;
     window._autInjectAdminChrome();
     _styleAdmTabs(tab);
-    ['adm-ash-panel','adm-data-panel','adm-fb-panel','adm-frame','adm-msg-fb','adm-live-panel'].forEach(function(id){ var el=document.getElementById(id); if(el && id!=='adm-msg-fb') el.remove(); });
+    ['adm-ash-panel','adm-data-panel','adm-fb-panel','adm-frame','adm-msg-fb','adm-live-panel','adm-agents-panel'].forEach(function(id){ var el=document.getElementById(id); if(el && id!=='adm-msg-fb') el.remove(); });
     var tok=(window._ghAuth||{}).token||'';
     var host=document.getElementById('adm-body');
     if(tab==='data'){ if(host) window._admRenderData(host); return; }
     if(tab==='feedback'){ if(host) window._admRenderFeedback(host); return; }
     if(tab==='livefeed'){ if(host) window._admRenderLiveFeed(host); return; }
+    if(tab==='agents'){ if(host && typeof window._admRenderAgents==='function') window._admRenderAgents(host); return; }
 
     if(tab==='ash'){
       if(!host) return;
@@ -27549,7 +27552,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 <script src="js/mist-module.js?v=20260901c"></script>
 <script src="js/ash-star-archive.js?v=20260901-mailbox-move"></script>
 <script src="js/ash-shard-module.js?v=20260828q"></script>
-<script src="js/reflex-map-module.js?v=20260929a"></script>
+<script src="js/reflex-map-module.js?v=20261020a"></script>
 <script src="js/hud-tools-module.js?v=20260828c"></script>
 
 <script>(function(){var s=document.createElement("script");s.src="https://raw.githubusercontent.com/DART-Skyboard/leatr-ash/main/scripts/sentience-journal.js";s.async=true;s.onerror=function(){console.warn("[Autumn] sentience-journal.js unavailable");};document.head.appendChild(s);})();</script>
@@ -29862,5 +29865,7 @@ console.info('[MantisRadar] Controller ready. URL:', MR_URL);
 <script src="js/leatr-loader.js" defer></script>
 <script src="js/ash-radian.js" defer></script>
 <script src="js/autumn-agents-chat.js" defer></script>
+<script src="js/autumn-admin-agents.js" defer></script>
+<script src="js/autumn-theme-art.js" defer></script>
 </body>
 </html>

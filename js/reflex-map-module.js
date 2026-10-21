@@ -30,7 +30,6 @@
 
   var mindMapGroup = null;
   var attachedToScene = null;
-  var labelEl = null;
   var active = false;
 
   function buildGroup(){
@@ -103,17 +102,7 @@
     var canvas = window._brpnRenderer.domElement;
     if (canvas._rmHoverWired) return;
     canvas._rmHoverWired = true;
-    var raycaster = new THREE.Raycaster();
-    var mouse = new THREE.Vector2();
-    canvas.addEventListener('mousemove', function(ev){
-      if (!active || !mindMapGroup || !window._brpnCamera) return;
-      var rect = canvas.getBoundingClientRect();
-      mouse.x = ((ev.clientX-rect.left)/rect.width)*2 - 1;
-      mouse.y = -((ev.clientY-rect.top)/rect.height)*2 + 1;
-      raycaster.setFromCamera(mouse, window._brpnCamera);
-      var hit = raycaster.intersectObjects(mindMapGroup.userData.meshList || [])[0];
-      if (labelEl) labelEl.textContent = hit ? (hit.object.userData.label + ' \u2014 ' + hit.object.userData.text) : '';
-    });
+    // Old hover-label strip (#rm-inline-label) removed: it rendered as an empty dark bar across the scene.
     wireZoom(canvas);
   }
 
@@ -159,18 +148,6 @@
       ev.preventDefault();
       applyZoom(ev.deltaY < 0 ? 1.08 : 0.93);
     }, { passive:false });
-  }
-
-  function ensureLabel(){
-    if (labelEl) return;
-    labelEl = document.createElement('div');
-    labelEl.id = 'rm-inline-label';
-    labelEl.style.cssText = 'position:absolute;left:8px;right:8px;bottom:52px;z-index:16;pointer-events:none;'
-      + 'font-family:sans-serif;font-size:10px;line-height:1.4;color:rgba(224,244,255,.85);'
-      + 'background:rgba(4,9,16,.6);border:1px solid rgba(115,217,255,.2);border-radius:5px;'
-      + 'padding:4px 8px;min-height:13px;text-align:center';
-    var region = document.getElementById('brpn-region');
-    if (region) region.appendChild(labelEl);
   }
 
   // TF-web-131: checked BRPNSceneViewModel.applyMindMapVisibility() on iOS
@@ -386,7 +363,6 @@
   window.reflexMapToggle = function(){
     if (!ensureAttached()) return;
     active = !active;
-    ensureLabel();
     mindMapGroup.visible = active;
     // Hide every other top-level scene child while active, restore on exit.
     window._brpnScene.children.forEach(function(child){
@@ -394,7 +370,6 @@
       if (active) { if (child.userData.__rmPrevVisible === undefined) child.userData.__rmPrevVisible = child.visible; child.visible = false; }
       else if (child.userData.__rmPrevVisible !== undefined) { child.visible = child.userData.__rmPrevVisible; delete child.userData.__rmPrevVisible; }
     });
-    if (labelEl) labelEl.style.display = active ? '' : 'none';
     document.querySelectorAll('#bmh-reflexmap-btn').forEach(function(btn){
       btn.classList.toggle('rm-active', active);
       if (btn.tagName === 'BUTTON') btn.classList.toggle('bmh-active', active);
