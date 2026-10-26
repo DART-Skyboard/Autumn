@@ -40,9 +40,6 @@
 function _getAK(){ return ''; }
 function _keysReadAK(){ return ''; }
 function _setAK(){}
-function _claudeLayerPref(){ return false; }
-function _claudeLayerOn(){ return false; }
-function _refreshClaudeLayerToggle(){}
 function _noAI(){ return Promise.resolve({ok:false,status:410,json:function(){return Promise.resolve({});},text:function(){return Promise.resolve('');}}); }
 
 // Kokoro TTS via @huggingface/transformers — runs fully in-browser, no API key
@@ -375,10 +372,8 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .ide-msg{display:flex;flex-direction:column;gap:3px;animation:fadeIn .25s ease}
 .ide-msg-who{font-family:var(--font-d);font-size:.4rem;letter-spacing:1.5px;opacity:.5}
 .ide-msg-who.user{color:var(--blue)}
-.ide-msg-who.claude{color:var(--cyan)}
 .ide-msg-text{font-family:var(--font-b);font-size:12px;line-height:1.6;color:var(--bright);white-space:pre-wrap;word-break:break-word}
 .ide-msg-text.user{color:rgba(136,204,255,.85)}
-.ide-msg-text.claude{color:var(--bright)}
 .ide-msg-ts{font-size:.38rem;color:#1a3a4a;font-family:monospace}
 .ide-thinking{display:flex;gap:4px;align-items:center;padding:4px 0}
 .ide-thinking-dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);animation:pulse 1.2s infinite}
@@ -2075,7 +2070,7 @@ const CONTEXT_REGISTRY = {
   IMAGE_UPLOAD: {
     triggers: [],
     requiresLocation: false,
-    apis: ["claude_vision","wikipedia","web_search"],
+    apis: ["wikipedia","web_search"],
     label: "IMAGE"
   },
   IMAGE_GEN: {
@@ -3031,8 +3026,8 @@ async function composeResponse(input, analysis, reflexData) {
     return _reply(`Autumn. Built on LEATR by DART Meadow / Radical Deepscale LLC. I reflex through 25 Natural Orders across three BRPN shells — Geological, Maritime, Aerospace. ${S.journal.filter(e=>!e._internal).length} journal entries, ${memKeys.length} memory nodes.${vis}`, g, analysis, tools);
   }
 
-  // ── Claude / AI summon request ────────────────────────────────
-  if (/\b(claude|get claude|bring claude|summon claude|call claude|talk to claude|claude in here|with claude|claude with us|claude here)\b/i.test(low)) {
+  // ── external AI / AI summon request ────────────────────────────────
+  if (/(chatgpt|gpt|openai|gemini|outside ai|another ai)/i.test(low)) {
     const _hasKey = typeof _getAK === 'function' && !!_getAK();
     if (_hasKey) {
       return _reply(`I run entirely on my own LEATR neural network.`, g, analysis, tools);
@@ -3425,8 +3420,8 @@ function detectIntent(text){
   // Self-directed "what" questions are personal, not factual web lookups
   if(/^what (is your|are you|do you|can you|is autumn|does autumn)\b/.test(lc))return'personal';
   if(/^who (are you|is autumn)\b/.test(lc))return'personal';
-  // Claude/AI names are conversational, never search queries
-  if(/\b(claude|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc))return'personal';
+  // external AI/AI names are conversational, never search queries
+  if(/\b(chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc))return'personal';
   if(/^(who|what|where|when|why|which|how)\b/.test(lc))return'factual';
   return'general';
 }
@@ -3852,7 +3847,7 @@ function growOrbParticles() {
 // ============================================================
 //  AUTUMN IMAGE ENGINE
 //  Upload (PNG/JPG/GIF/WEBP/BMP/.frax) → FRAX channel analysis
-//  → Claude Vision → LEATR pipeline
+//  → Vision → LEATR pipeline
 //  + Pollinations.ai text-to-image & image-to-image
 //  + Openverse reference enrichment (free, no key)
 //  NOTE: All HTML strings use concat NOT template literals
@@ -4176,7 +4171,7 @@ function extractVideoFrames(file, maxFrames) {
       var duration = video.duration;
       if (!isFinite(duration) || duration <= 0) duration = 0;
       var SIZE = 48; // thumbnail square
-      var FRAME_W = 512; // frame for Claude vision
+      var FRAME_W = 512; // frame for external AI vision
       var FRAME_H = 288;
 
       // Build thumbnail canvas (square cover crop)
@@ -4288,7 +4283,7 @@ async function loadDocumentFile(file) {
       if (docText.length > MAX_CHARS) docText = docText.slice(0, MAX_CHARS) + '\n…[truncated at ' + MAX_CHARS + ' chars]';
     } catch(e) { docText = '[Could not read file: ' + e.message + ']'; }
   } else if (ext === 'pdf') {
-    // For PDFs we can't read text directly — we'll flag it and let Claude know
+    // For PDFs we can't read text directly — we'll flag it and let external AI know
     docText = '[PDF file — binary content, cannot extract text directly in browser. Please describe what you need from this PDF.]';
   } else {
     docText = '[Binary file — ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)]';
@@ -5090,62 +5085,9 @@ async function pollHordeJob(jobId, maxWaitMs, onProgress) {
 // ── Text-to-image pipeline ────────────────────────────────────
 // Dedicated vision analysis — identifies people, objects, scenes from attached images
 async function runVisionAnalysis(text, analysis, reflexData, imgs) {
-  var cardId = 'vis-' + Date.now();
-  var spinMsg = {role:'autumn',text:'',ts:new Date().toISOString(),id:cardId,grammarMeta:'',brpnMeta:'',contextType:'VISION',
-    imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>ANALYZING IMAGE…</div></div>'};
-  msgs().push(spinMsg);
-  renderMessages();
-
-  try {
-    var ak = typeof _getAK === 'function' ? (_getAK() || '') : '';
-
-    // No API key — give a direct honest response rather than falling through to web search
-    if (!ak) {
-      var noKeyReply = imgs.length === 1
-        ? "I can see an image is attached, but image analysis is not available here — Autumn runs on her own LEATR engine."
-        : `I can see ${imgs.length} images are attached. Image analysis is not available here — Autumn runs on her own LEATR engine.`;
-      var idxNk = msgs().findIndex(function(m){return m.id===cardId;});
-      if(idxNk>=0) msgs()[idxNk] = {role:'autumn',text:noKeyReply,ts:new Date().toISOString(),id:cardId,
-        grammarMeta:'Vision · no API key',brpnMeta:'',contextType:'VISION',
-        media:{videos:[],images:[],links:[],sources:[]}};
-      S.pendingImages = []; S.pendingImage = null;
-      renderMessages(); autoReadLastResponse(); saveState();
-      return;
-    }
-
-    var visionBlocks = [];
-    imgs.slice(0,4).forEach(function(img){ visionBlocks.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}}); });
-    visionBlocks.push({type:'text', text: text && text.trim().length > 3 ? text :
-      'Identify and describe everything significant in this image — people, objects, text, context, setting.'});
-
-    var sysPrompt = 'You are Autumn, an AI built on LEATR by DART Meadow / Radical Deepscale. You have sharp, analytical vision. When analyzing images: identify people with confidence using visual cues — describe their appearance, style, and any contextual clues like visible names, logos, or captions that help identify them. Name any visible text or UI elements. Describe the scene and context. Be specific and direct — speak naturally and conversationally, as if telling a friend what you see. Prioritize the most significant elements. If a caption or text in the image names someone, use that. Never output internal state, log data, or metadata in your response. Respond as a natural sentence or paragraph.';
-
-    var res = await _noAI({
-      method:'POST',
-      headers:{'Content-Type':'application/json',},
-      body:JSON.stringify({model:'local',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
-      signal:AbortSignal.timeout(25000)
-    });
-    var data = await res.json();
-    var reply = data.content ? data.content.map(function(b){return b.text||'';}).join('') : 'Could not analyze image.';
-
-    var idx = msgs().findIndex(function(m){return m.id===cardId;});
-    // If user asked for news/media alongside the image, run web query on identified subject
-    var _visionMediaRequest = /\b(news|search|latest|recent|articles|find|look up|images|photos|videos|youtube|who is|media)\b/i.test(text);
-    var visionLiveData = {videos:[],images:[],links:[],sources:[]};
-    if(_visionMediaRequest && reply && reply.length > 10) {
-      var _vSubject = reply.split(/[.\n]/)[0].replace(/^(i (can )?see|this is|that.s|it.s|this appears to be)\s*/i,'').trim().slice(0,80);
-      try { visionLiveData = await liveQuery(_vSubject || text, {}).catch(function(){return {videos:[],images:[],links:[],sources:[]};});
-      } catch(e) {}
-    }
-    if(idx>=0) msgs()[idx] = {role:'autumn',text:reply,ts:new Date().toISOString(),id:cardId,
-      grammarMeta:'Vision · '+imgs.length+' image'+(imgs.length>1?'s':''),brpnMeta:'',contextType:'VISION',
-      media:{videos:visionLiveData.videos||[],images:visionLiveData.images||[],links:visionLiveData.links||[],sources:visionLiveData.sources||[]}};
-  } catch(e) {
-    var idx2 = msgs().findIndex(function(m){return m.id===cardId;});
-    if(idx2>=0) msgs()[idx2] = {role:'autumn',text:'Vision analysis failed.',ts:new Date().toISOString(),id:cardId,grammarMeta:'',brpnMeta:'',contextType:'VISION',media:{videos:[],images:[],links:[],sources:[]}};
-  }
-  S.pendingImages = []; S.pendingImage = null;
+  var n=(imgs&&imgs.length)||1;
+  msgs().push({role:'autumn',text:(n===1?'I can see an image is attached, but image analysis is not available here — Autumn runs on her own LEATR engine.':'I can see '+n+' images are attached. Image analysis is not available here — Autumn runs on her own LEATR engine.'),ts:new Date().toISOString(),id:'vis-'+Date.now(),grammarMeta:'Vision · unavailable',brpnMeta:'',contextType:'VISION',media:{videos:[],images:[],links:[],sources:[]}});
+  S.pendingImages=[]; S.pendingImage=null;
   renderMessages(); autoReadLastResponse(); saveState();
 }
 
@@ -5254,16 +5196,7 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
   var visionPrompt=referenceImgs.length>1
     ?'Describe each of these '+referenceImgs.length+' reference images in detail. Then synthesize shared visual elements. The user wants: "'+text.slice(0,300)+'"'
     :'Describe this reference image in detail — objects, colors, mood, style. The user wants to create a new image based on it: "'+text.slice(0,300)+'"';
-  var visionBlocks=[];
-  referenceImgs.slice(0,5).forEach(function(img){visionBlocks.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}});});
-  visionBlocks.push({type:'text',text:visionPrompt});
   var visionDescription='';
-  try{
-    var ak=_getAK()||'';
-    var vRes=await _noAI({method:'POST',headers:{'Content-Type':'application/json',},body:JSON.stringify({model:'local',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
-    var vData=await vRes.json();
-    visionDescription=vData.content?vData.content.map(function(b){return b.text||'';}).join(''):'';
-  }catch(e){visionDescription='';}
   var userIntent=text.replace(/generate|create|make|draw|new version|variation|enhance|modify|based on|from this/gi,'').trim().slice(0,150);
   var genPrompt=visionDescription?(visionDescription.slice(0,300)+(userIntent?', modified to be: '+userIntent+',':'')+' '+styleInfo.suffix):buildGenerationPrompt(text,analysis,styleInfo,[]);
   var cleanPrompt=genPrompt.replace(/\s{2,}/g,' ').trim().slice(0,500);
@@ -5753,30 +5686,7 @@ function classifyIntentLocal(text, hasPendingImages) {
 }
 
 async function classifyIntent(text, hasPendingImages) {
-  // Always run local classifier first — works without API key
-  var localLabel = classifyIntentLocal(text, hasPendingImages);
-  // If local gives a definitive non-CONVERSATION answer, trust it
-  if (localLabel !== 'CONVERSATION') return localLabel;
-  // Try API classifier only if key is available
-  var ak = typeof _getAK === 'function' ? (_getAK() || '') : '';
-  if (!ak) return localLabel;
-  try {
-    var res = await _noAI({
-      method: 'POST',
-      headers: {'Content-Type':'application/json',},
-      body: JSON.stringify({
-        model: 'local',
-        max_tokens: 15,
-        system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images of a person, place, or thing from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.',
-        messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
-      }),
-      signal: AbortSignal.timeout(2500)
-    });
-    var d = await res.json();
-    var label = ((d.content && d.content[0] && d.content[0].text) || 'CONVERSATION').trim().replace(/[^A-Z_]/g,'').toUpperCase();
-    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','CLEAR_CHAT','DELETE_CHAT','NEW_CHAT','ARCHIVE','SHOW_HIDDEN','CONVERSATION'];
-    return valid.indexOf(label) !== -1 ? label : 'CONVERSATION';
-  } catch(e) { return localLabel; }
+  return classifyIntentLocal(text, hasPendingImages);
 }
 
 async function handleSend() {
@@ -7985,9 +7895,9 @@ function switchSession(idx){
 
 // ============================================================
 // ============================================================
-//  AUTUMN IDE + CLAUDE LOGIC UPDATE SYSTEM v1.1
+//  AUTUMN IDE LOGIC SYSTEM v1.1
 //  Password-protected Monaco IDE · GitHub read/write ·
-//  Claude API pipeline for natural-language logic updates
+//  external API pipeline for natural-language logic updates
 // ============================================================
 
 const _IDE_PW_HASH = '6e5a2508490e95c53c475321202d036ae288795e9302b78670e80f7ca70fbf0b';
@@ -7996,7 +7906,6 @@ const _GH_BRANCH   = 'main';
 const _GH_LOGIC    = 'js/autumn-logic.js';
 const _GH_RAW      = `js/autumn-logic.js`;
 const _GH_API      = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOGIC}`;
-const _CLAUDE_MDL  = 'local';
 
 let _ideUnlocked     = false;
 let _ideMonaco       = null;
@@ -8187,7 +8096,7 @@ async function ideCommit() {
   if (!pat) { ideToast('No token — click 🔑 CLEAR TOKEN and re-enter.',true); return; }
   if (!_ideMonaco) return;
   let code=_ideMonaco.getValue();
-  // Safety: if editor contains raw Claude JSON response, extract the code field
+  // Safety: if editor contains raw external AI JSON response, extract the code field
   if (code.trimStart().startsWith('{')) {
     try {
       const parsed = JSON.parse(code);
@@ -8271,8 +8180,8 @@ console.log('[autumn-logic.js] Extension loaded · ' + new Date().toISOString())
 // ============================================================
 //  AUTUMN IDE REMOTE LOG v1.0
 //  Writes session events to templates/autumn-ide-log.json
-//  so Claude can read the IDE log remotely from GitHub.
-//  Events: prompt_sent, claude_response, error, commit, hotreload
+//  so external AI can read the IDE log remotely from GitHub.
+//  Events: prompt_sent, ai_response, error, commit, hotreload
 // ============================================================
 
 const _GH_LOG     = 'templates/autumn-ide-log.json';
@@ -8337,7 +8246,7 @@ function ideChatAppend(who, text, isThinking=false) {
   if (isThinking) {
     const el = document.createElement('div');
     el.className = 'ide-thinking';
-    el.innerHTML = '<div class="ide-thinking-dot" style="animation-delay:0s"></div><div class="ide-thinking-dot" style="animation-delay:.2s"></div><div class="ide-thinking-dot" style="animation-delay:.4s"></div><span class="ide-thinking-lbl">Claude is thinking…</span>';
+    el.innerHTML = '<div class="ide-thinking-dot" style="animation-delay:0s"></div><div class="ide-thinking-dot" style="animation-delay:.2s"></div><div class="ide-thinking-dot" style="animation-delay:.4s"></div><span class="ide-thinking-lbl">external AI is thinking…</span>';
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     return;
@@ -8346,7 +8255,7 @@ function ideChatAppend(who, text, isThinking=false) {
   const ts = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
   const wrap = document.createElement('div');
   wrap.className = 'ide-msg';
-  wrap.innerHTML = `<span class="ide-msg-who ${who}">${who === 'user' ? '▸ YOU' : '◈ CLAUDE'}</span><div class="ide-msg-text ${who}">${esc(text)}</div><span class="ide-msg-ts">${ts}</span>`;
+  wrap.innerHTML = `<span class="ide-msg-who ${who}">${who === 'user' ? '▸ YOU' : '◈ AUTUMN'}</span><div class="ide-msg-text ${who}">${esc(text)}</div><span class="ide-msg-ts">${ts}</span>`;
   log.appendChild(wrap);
   log.scrollTop = log.scrollHeight;
 
@@ -8363,135 +8272,7 @@ function ideTogglePrompt() {
   if (open) setTimeout(()=>document.getElementById('ide-prompt-input')?.focus(), 80);
 }
 
-async function ideSubmitPrompt() {
-  const input  = document.getElementById('ide-prompt-input');
-  const btn    = document.getElementById('ide-prompt-send');
-  const status = document.getElementById('ide-prompt-status');
-  const prompt = input?.value?.trim();
-  if (!prompt) return;
-
-  // Need both keys
-  const ak  = _getAK();
-  const pat = _getPAT();
-  if (!ak) {
-    document.getElementById('ide-ak-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('ide-ak-input')?.focus(), 100);
-    return;
-  }
-  if (!pat) {
-    document.getElementById('ide-pat-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('ide-pat-input')?.focus(), 100);
-    return;
-  }
-
-  // Echo user message into chat log
-  ideChatAppend('user', prompt);
-  ideLog('prompt_sent', {prompt: prompt.substring(0,300)});
-  input.value = '';
-
-  btn.disabled = true;
-  btn.textContent = '…';
-  if(status){ status.textContent=''; status.classList.remove('show'); }
-  ideSetStatus('working', 'Claude is thinking…');
-  ideChatAppend('claude', '', true); // thinking indicator
-
-  // Grab current editor content as the base
-  let currentLogic = _ideMonaco ? _ideMonaco.getValue() : '';
-  if (!currentLogic || currentLogic.startsWith('// Loading')) {
-    try { currentLogic = await ideFetchFile(); } catch(e) { currentLogic = _ideStarterTemplate(); }
-  }
-
-  const systemPrompt = `You are Claude, the AI developer assistant integrated into the Autumn Logic IDE at radicaldeepscale.com.
-
-Autumn is an AI chat assistant built on the LEATR (Lead Edge Ash Tree Reflex) v2 neural system. You are updating autumn-logic.js — her brain extension file that runs via new Function(code) on top of autumn.html.
-
-All autumn.html globals are in scope: S (state), msgs(), handleSend(), composeResponse(input,analysis,reflexData), processLEATR(text), autumnReflex(text,mode), generateReply(), renderMessages(), pulseShells(), ideToast(), etc.
-
-You must respond with ONLY a JSON object in this exact format — no text outside the JSON:
-{
-  "message": "A conversational explanation of what you did, what changed, and any notes. Be specific and direct. 2-4 sentences.",
-  "code": "THE COMPLETE UPDATED autumn-logic.js FILE HERE"
-}
-
-Code rules:
-- Use: const _orig_X = (typeof X !== 'undefined') ? X : null; before overriding any function
-- Comment each new section with // ── [feature name] ──
-- Never corrupt S state or break the existing UI
-- Keep the console.log timestamp line at the end
-
-CURRENT autumn-logic.js:
----
-${currentLogic}
----`;
-
-  try {
-    const r = await _noAI({
-      method: 'POST',
-      headers: { 'Content-Type':'application/json',},
-      body: JSON.stringify({
-        model: _CLAUDE_MDL,
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{ role:'user', content: prompt }]
-      })
-    });
-    if (!r.ok) throw new Error('Claude API HTTP ' + r.status);
-    const data = await r.json();
-    const raw = data.content?.[0]?.text || '';
-    if (!raw) throw new Error('Empty response from Claude');
-
-    // Parse JSON response
-    let message = '', newCode = '';
-    try {
-      const clean = raw.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
-      const parsed = JSON.parse(clean);
-      message = parsed.message || '';
-      newCode  = parsed.code   || '';
-    } catch(e) {
-      // Fallback: if Claude returned plain JS without JSON wrapper
-      newCode  = raw.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
-      message  = 'Code updated. Review the editor and commit when ready.';
-    }
-
-    if (!newCode) throw new Error('Claude returned no code');
-
-    // Load into editor
-    if (_ideMonaco) { _ideMonaco.setValue(newCode); }
-    ideLog('claude_response', {message: message.substring(0,500), codeLines: newCode.split('\n').length});
-
-    // Auto-commit to GitHub immediately — no manual step needed
-    ideSetStatus('working','Auto-committing to GitHub…');
-    try {
-      const _pat2 = _getPAT();
-      if(!_pat2) throw new Error('No GitHub token');
-      if(!_ideFileSHA){try{await ideFetchFile();}catch(e){}}
-      const _ab={message:'Autumn IDE: '+prompt.substring(0,65),content:btoa(unescape(encodeURIComponent(newCode)))};
-      if(_ideFileSHA)_ab.sha=_ideFileSHA;
-      const _ar=await fetch(_GH_API,{method:'PUT',headers:{Authorization:`token ${_pat2}`,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},body:JSON.stringify(_ab)});
-      if(!_ar.ok){const _ae=await _ar.json();throw new Error(_ae.message||_ar.status);}
-      const _ad=await _ar.json();_ideFileSHA=_ad.content?.sha;
-      try{(new Function(newCode))();}catch(e){console.warn('[Autumn IDE hot-reload]',e);}
-      ideSetStatus('saved','Committed & live · '+new Date().toLocaleTimeString());
-      ideLog('commit',{message:_ab.message,lines:newCode.split('\n').length});
-      ideChatAppend('claude', message+'\n\n◈ Committed to GitHub and hot-reloaded. Changes are active now.');
-      ideToast('◈ Committed & live');
-    } catch(_ce) {
-      ideSetStatus('dirty','Generated — auto-commit failed: '+_ce.message);
-      ideChatAppend('claude', message+'\n\n⚠ Generated but auto-commit failed: '+_ce.message+'. Use ▲ COMMIT manually.');
-      ideToast('Auto-commit failed: '+_ce.message, true);
-    }
-
-  } catch(e) {
-    document.getElementById('ide-chat-log')?.querySelector('.ide-thinking')?.remove();
-    ideChatAppend('claude', '◈ Error: ' + e.message);
-    ideLog('error', {source:'ideSubmitPrompt', message: e.message});
-    ideSetStatus('error', e.message);
-    ideToast(e.message, true);
-  }
-
-  btn.disabled = false;
-  btn.textContent = '▸ UPDATE';
-}
+async function ideSubmitPrompt() {}
 
 // ── IDE prompt — Enter to submit (Shift+Enter for newline) ────
 function _idePromptKeyHandler(e) {
@@ -8503,7 +8284,7 @@ async function loadAutumnLogic() {
     if (!r.ok) return;
     let code=await r.text();
     if (!code||!code.trim()||code.length<10||code.startsWith('404')) return;
-    // Strip JSON wrapper if Claude response was committed raw
+    // Strip JSON wrapper if external AI response was committed raw
     if (code.trimStart().startsWith('{')) {
       try {
         const parsed=JSON.parse(code);
@@ -8548,7 +8329,6 @@ const _LOGIC_TRIGGERS = [
   /autumn should (be able to|handle|respond|know|understand|say)/i,
   /improve (autumn'?s?|her|the) (logic|brain|response|handling)/i,
   /teach (autumn|her) (to|how)/i,
-  /connect to (claude|your api|the api) (to |and )?update/i,
   /open (the )?(ide|editor|logic editor)/i,
   /update her (logic|brain|api|behavior|code)/i,
   /push (a|an)? ?(update|change|fix) to (autumn|her|the logic)/i,
@@ -8557,80 +8337,8 @@ function checkLogicUpdateIntent(text) {
   return _LOGIC_TRIGGERS.some(r=>r.test(text));
 }
 
-// ── Claude → GitHub pipeline ──────────────────────────────────
-async function runLogicUpdate(userRequest) {
-  if (!_ideUnlocked) {
-    _idePendingAction=()=>runLogicUpdate(userRequest);
-    document.getElementById('ide-pw-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('ide-pw-input')?.focus(),100);
-    return null;
-  }
-  const pat=_getPAT();
-  if (!pat) {
-    _idePendingAction=()=>runLogicUpdate(userRequest);
-    document.getElementById('ide-pat-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('ide-pat-input')?.focus(),100);
-    return null;
-  }
-
-  let currentLogic='';
-  try { currentLogic=await ideFetchFile(); } catch(e) { currentLogic=_ideStarterTemplate(); }
-
-  const systemPrompt=`You are an expert JavaScript developer updating autumn-logic.js — the brain extension file for Autumn, an AI chat assistant built on the LEATR (Lead Edge Ash Tree Reflex) v2 neural system for radicaldeepscale.com.
-
-The file is executed via new Function(code) on top of autumn.html and can override/extend any function. Key functions available: composeResponse(input,analysis,reflexData), handleSend(), autumnReflex(text,mode), processLEATR(text), generateReply(text,analysis,reflexData). The global state object is S (sessions, memory, journal, etc).
-
-RULES:
-1. Return ONLY valid JavaScript — no markdown, no backtick fences, no preamble
-2. Always use: const _orig_X = (typeof X !== 'undefined') ? X : null; before overriding
-3. Comment each new feature with // ── [feature name] ──
-4. Never break existing S state or UI
-5. Keep the console.log timestamp line at the end
-
-CURRENT autumn-logic.js:
----
-${currentLogic}
----
-
-User request: ${userRequest}
-
-Return the complete updated autumn-logic.js file only.`;
-
-  try {
-    const ak=_getAK();
-    if(!ak){ return {success:false,error:'External AI is not available in this build.'}; }
-    const r=await _noAI({
-      method:'POST',
-      headers:{'Content-Type':'application/json',},
-      body:JSON.stringify({model:_CLAUDE_MDL,max_tokens:4096,system:systemPrompt,messages:[{role:'user',content:userRequest}]})
-    });
-    if(!r.ok) throw new Error('Claude API '+r.status);
-    const data=await r.json();
-    let newCode=data.content?.[0]?.text||'';
-    if(!newCode) throw new Error('Empty Claude response');
-    newCode=newCode.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
-
-    // Commit to GitHub
-    const body={message:`Autumn IDE: ${userRequest.substring(0,70)}`,content:btoa(unescape(encodeURIComponent(newCode)))};
-    if(_ideFileSHA) body.sha=_ideFileSHA;
-    const cr=await fetch(_GH_API,{method:'PUT',headers:{Authorization:`token ${pat}`,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},body:JSON.stringify(body)});
-    if(!cr.ok){ const e=await cr.json(); throw new Error('GitHub: '+(e.message||cr.status)); }
-    const cd=await cr.json();
-    _ideFileSHA=cd.content?.sha;
-
-    // Hot-reload into session
-    try { (new Function(newCode))(); } catch(e){ console.warn('[IDE hot-reload]',e); }
-
-    // Sync editor if open
-    if(_ideMonaco&&document.getElementById('ide-overlay').classList.contains('open')){
-      _ideMonaco.setValue(newCode);
-      ideSetStatus('saved','Updated by Claude · '+new Date().toLocaleTimeString());
-    }
-    return {success:true,code:newCode,commitMsg:body.message};
-  } catch(e) {
-    return {success:false,error:e.message};
-  }
-}
+// ── external AI → GitHub pipeline ──────────────────────────────────
+async function runLogicUpdate(userRequest) { return {success:false,error:'Not available in this build.'}; }
 
 // ── Intercept handleSend for logic-update intent ──────────────
 (function _installHandleSendOverride() {
@@ -8652,7 +8360,7 @@ Return the complete updated autumn-logic.js file only.`;
 
       const typDiv=document.createElement('div');
       typDiv.className='typing';
-      typDiv.innerHTML='<div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">connecting to Claude API…</span>';
+      typDiv.innerHTML='<div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">connecting to external API…</span>';
       document.getElementById('chat-scroll')?.appendChild(typDiv);
       document.getElementById('chat-scroll')?.scrollTo(0,999999);
 
@@ -8765,7 +8473,7 @@ loadAutumnLogic();
 <div id="ide-pw-modal">
   <div id="ide-pw-box">
     <h2>◈ IDE ACCESS</h2>
-    <p>Enter your IDE password to access the Autumn logic editor and Claude update pipeline.</p>
+    <p>Enter your IDE password to access the Autumn logic editor.</p>
     <input type="password" id="ide-pw-input" placeholder="••••••••••" autocomplete="new-password" data-lpignore="true" data-form-type="other" onkeydown="if(event.key==='Enter')verifyIDEPassword()">
     <div id="ide-pw-error"></div>
     <div class="ide-pw-btns">
@@ -8810,26 +8518,6 @@ loadAutumnLogic();
   </div>
   <div id="ide-editor-wrap">
     <div id="ide-editor"></div>
-  </div>
-  <!-- Prompt Panel -->
-  <div id="ide-prompt-panel">
-    <div id="ide-prompt-header" onclick="ideTogglePrompt()">
-      <span id="ide-prompt-label">◈ CLAUDE PROMPT — describe a logic update in plain language</span>
-      <span id="ide-prompt-toggle">▾</span>
-    </div>
-    <div id="ide-prompt-body" class="open">
-      <textarea id="ide-prompt-input" placeholder="e.g. Make Autumn respond to 'status' with her current BRPN shell values…&#10;Shift+Enter for new line · Enter to submit" rows="2" onkeydown="_idePromptKeyHandler(event)"></textarea>
-      <button id="ide-prompt-send" onclick="ideSubmitPrompt()">▸ UPDATE</button>
-    </div>
-    <div id="ide-prompt-status"></div>
-  </div>
-  <!-- Claude Response Chat Log -->
-  <div id="ide-chat-wrap">
-    <div id="ide-chat-bar" onclick="ideChatToggle()">
-      <span id="ide-chat-bar-label">◈ CLAUDE RESPONSES</span>
-      <span id="ide-chat-bar-toggle">▾</span>
-    </div>
-    <div id="ide-chat-log"></div>
   </div>
   <div id="ide-footer">
     <span id="ide-status-text">Ready</span>

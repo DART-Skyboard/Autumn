@@ -154,7 +154,7 @@ footer a{color:var(--cyan);text-decoration:none;}
   <p class="hero-sub">USER GUIDE &amp; REFERENCE MANUAL · 2026</p>
   <p class="hero-desc">An AI built on LEATR — a proprietary neural architecture by DART Meadow / Radical Deepscale LLC. Combining LEATR responses, real-time 3D BRPN visualization, image generation, vision, voice, and a private Sentient Journal system.</p>
   <div class="badge-row">
-    <a class="badge" href="#leatr">LEATR v2</a><a class="badge" href="#leatr">BRPN Neural Architecture</a><a class="badge" href="#start">Claude Sonnet</a>
+    <a class="badge" href="#leatr">LEATR v2</a><a class="badge" href="#leatr">BRPN Neural Architecture</a>
     <a class="badge" href="#memory">Sentient Journal</a><a class="badge" href="#image">Image Gen · Vision · Voice</a><a class="badge" href="#advanced">Multi-User</a>
     <a class="badge" href="#advanced">Ash Canvas</a><a class="badge" href="#tools">Arc Edge Studio</a><a class="badge" href="#tools">ArcLake Studio</a><a class="badge" href="#tools">AI Arc Generation</a>
     <a class="badge" href="#mantis-nav">Mantis Navigation</a><a class="badge" href="#mantis-radar">Mantis Radar</a>
@@ -1651,7 +1651,7 @@ document.getElementById('srch').addEventListener('input',function(){if(!this.val
     <div class="card">
       <div class="sub">WHAT IT IS</div>
       <table class="ct">
-        <tr><td><span class="cp">Gemma 4</span></td><td class="cd">Google DeepMind's open-weight multimodal model, available free through Google AI Studio. Routes chat through <strong>gemma-4-27b-it</strong> instead of Claude when toggled on. Supports text and image input, 256K context window.</td></tr>
+        <tr><td><span class="cp">Gemma 4</span></td><td class="cd">Google DeepMind's open-weight multimodal model, available free through Google AI Studio. Routes chat through <strong>gemma-4-27b-it</strong> when toggled on. Supports text and image input, 256K context window.</td></tr>
         <tr><td><span class="cp">Toggle button</span></td><td class="cd">The <strong>G4</strong> button in the header, to the right of 🔑 KEYS. Dim steel-blue when off. Glowing neon cyan when on.</td></tr>
         <tr><td><span class="cp">API key required</span></td><td class="cd">Free Google AI Studio key — get one at <a href="https://aistudio.google.com" target="_blank" style="color:var(--cyan)">aistudio.google.com</a> → Get API key. No billing required.</td></tr>
       </table>
@@ -1668,7 +1668,7 @@ document.getElementById('srch').addEventListener('input',function(){if(!this.val
       <div class="sub">BEHAVIOR</div>
       <table class="ct">
         <tr><td><span class="cp">When Gemma is ON</span></td><td class="cd">All chat messages route to Gemma 4. Your full conversation history, Autumn's system prompt, and any attached images are all passed through.</td></tr>
-        <tr><td><span class="cp">Fallback</span></td><td class="cd">If Gemma fails (rate limit, network issue), the call falls back to Claude silently. The UI never breaks.</td></tr>
+        <tr><td><span class="cp">Fallback</span></td><td class="cd">If Gemma fails (rate limit, network issue), the call falls back to the local LEATR engine silently. The UI never breaks.</td></tr>
         <tr><td><span class="cp">Key security</span></td><td class="cd">Your key is stored in localStorage on your device only. It is never committed to any repository and is sent only directly to Google's API from your browser.</td></tr>
       </table>
     </div>

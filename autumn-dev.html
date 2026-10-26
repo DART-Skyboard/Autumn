@@ -37,9 +37,6 @@
 function _getAK(){ return ''; }
 function _keysReadAK(){ return ''; }
 function _setAK(){}
-function _claudeLayerPref(){ return false; }
-function _claudeLayerOn(){ return false; }
-function _refreshClaudeLayerToggle(){}
 function _noAI(){ return Promise.resolve({ok:false,status:410,json:function(){return Promise.resolve({});},text:function(){return Promise.resolve('');}}); }
 
 (function(){
@@ -1905,10 +1902,8 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .ide-msg{display:flex;flex-direction:column;gap:3px;animation:fadeIn .25s ease}
 .ide-msg-who{font-family:var(--font-d);font-size:.4rem;letter-spacing:1.5px;opacity:.5}
 .ide-msg-who.user{color:var(--blue)}
-.ide-msg-who.claude{color:var(--cyan)}
 .ide-msg-text{font-family:var(--font-b);font-size:12px;line-height:1.6;color:var(--bright);white-space:pre-wrap;word-break:break-word}
 .ide-msg-text.user{color:rgba(136,204,255,.85)}
-.ide-msg-text.claude{color:var(--bright)}
 .ide-msg-ts{font-size:.38rem;color:#1a3a4a;font-family:monospace}
 .ide-thinking{display:flex;gap:4px;align-items:center;padding:4px 0}
 .ide-thinking-dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);animation:pulse 1.2s infinite}
@@ -1961,10 +1956,6 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 .keys-btn-clear:hover{background:rgba(255,68,102,.18)}
 .keys-remember{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:10px;color:var(--dim);user-select:none}
 .keys-remember input[type=checkbox]{accent-color:#00ffcc;width:13px;height:13px;cursor:pointer}
-.keys-claude-row{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}
-.keys-claude-toggle{background:transparent;border:1px solid rgba(224,244,255,.15);color:rgba(224,244,255,.45);padding:8px 12px;border-radius:5px;font-family:'Orbitron',sans-serif;font-size:.36rem;letter-spacing:.6px;cursor:pointer;white-space:nowrap;transition:all .18s}
-.keys-claude-toggle:hover{border-color:rgba(0,255,136,.35);color:rgba(0,255,136,.8)}
-.keys-claude-hint{font-size:9px;color:var(--dim);line-height:1.4;flex:1;min-width:160px}
 .keys-perms{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .keys-perm-pill{font-family:'Orbitron',sans-serif;font-size:.32rem;letter-spacing:.5px;padding:2px 7px;border-radius:10px;border:1px solid rgba(0,255,204,.2);color:rgba(0,255,204,.5);background:rgba(0,255,204,.04)}
 .keys-perm-pill.pat{border-color:rgba(255,179,71,.2);color:rgba(255,179,71,.5);background:rgba(255,179,71,.04)}
@@ -5158,7 +5149,7 @@ const CONTEXT_REGISTRY = {
   IMAGE_UPLOAD: {
     triggers: [],
     requiresLocation: false,
-    apis: ["claude_vision","wikipedia","web_search"],
+    apis: ["wikipedia","web_search"],
     label: "IMAGE"
   },
   IMAGE_GEN: {
@@ -6435,8 +6426,8 @@ async function composeResponse(input, analysis, reflexData) {
     return _reply(`Autumn. Built on LEATR by DART Meadow / Radical Deepscale LLC. I reflex through 25 Natural Orders across three BRPN shells — Geological, Maritime, Aerospace. ${S.journal.filter(e=>!e._internal).length} journal entries, ${memKeys.length} memory nodes.${vis}`, g, analysis, tools);
   }
 
-  // ── Claude / AI summon request ────────────────────────────────
-  if (/\b(claude|get claude|bring claude|summon claude|call claude|talk to claude|claude in here|with claude|claude with us|claude here)\b/i.test(low)) {
+  // ── external AI / AI summon request ────────────────────────────────
+  if (/(chatgpt|gpt|openai|gemini|outside ai|another ai)/i.test(low)) {
     const _hasKey = typeof _getAK === 'function' && !!_getAK();
     if (_hasKey) {
       return _reply(`I run entirely on my own LEATR neural network.`, g, analysis, tools);
@@ -7002,8 +6993,8 @@ function detectIntent(text){
   // Short questions about Autumn herself
   if(/^what (is your|are you|do you|can you|is autumn|does autumn)\b/.test(lc)) return'personal';
   if(/^who (are you|is autumn)\b/.test(lc)) return'personal';
-  // AI/Claude references are always conversational
-  if(/\b(claude|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc)) return'personal';
+  // AI/external AI references are always conversational
+  if(/\b(chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc)) return'personal';
   // Pure location/feeling questions with no search topic
   if(/\b(where am i|my location|are you near|near the|at the beach|at the park|at the store|coffee shop|restaurant nearby|find me a)\b/.test(lc)&&lc.length<80) return'personal';
 
@@ -7599,7 +7590,7 @@ function growOrbParticles() {
 // ============================================================
 //  AUTUMN IMAGE ENGINE
 //  Upload (PNG/JPG/GIF/WEBP/BMP/.frax) → FRAX channel analysis
-//  → Claude Vision → LEATR pipeline
+//  → Vision → LEATR pipeline
 //  + Pollinations.ai text-to-image & image-to-image
 //  + Openverse reference enrichment (free, no key)
 //  NOTE: All HTML strings use concat NOT template literals
@@ -8126,7 +8117,7 @@ function extractVideoFrames(file, maxFrames) {
       var duration = video.duration;
       if (!isFinite(duration) || duration <= 0) duration = 0;
       var SIZE = 48; // thumbnail square
-      var FRAME_W = 512; // frame for Claude vision
+      var FRAME_W = 512; // frame for external AI vision
       var FRAME_H = 288;
 
       // Build thumbnail canvas (square cover crop)
@@ -9321,93 +9312,9 @@ async function pollHordeJob(jobId, maxWaitMs, onProgress) {
 // ── Text-to-image pipeline ────────────────────────────────────
 // Dedicated vision analysis — identifies people, objects, scenes from attached images
 async function runVisionAnalysis(text, analysis, reflexData, imgs) {
-  var cardId = 'vis-' + Date.now();
-  var spinMsg = {role:'autumn',text:'',ts:new Date().toISOString(),id:cardId,grammarMeta:'',brpnMeta:'',contextType:'VISION',
-    imageGenCard:'<div class="img-gen-card"><div class="img-gen-loading"><div class="img-gen-spinner"></div>ANALYZING IMAGE…</div></div>'};
-  msgs().push(spinMsg);
-  renderMessages();
-
-  try {
-    var ak = typeof _getAK === 'function' ? (_getAK() || '') : '';
-
-    // No API key — give a direct honest response rather than falling through to web search
-    if (!ak) {
-      var noKeyReply = imgs.length === 1
-        ? "I can see an image is attached, but image analysis is not available here — Autumn runs on her own LEATR engine."
-        : `I can see ${imgs.length} images are attached. Image analysis is not available here — Autumn runs on her own LEATR engine.`;
-      var idxNk = msgs().findIndex(function(m){return m.id===cardId;});
-      if(idxNk>=0) msgs()[idxNk] = {role:'autumn',text:noKeyReply,ts:new Date().toISOString(),id:cardId,
-        grammarMeta:'Vision · no API key',brpnMeta:'',contextType:'VISION',
-        media:{videos:[],images:[],links:[],sources:[]}};
-      S.pendingImages = []; S.pendingImage = null;
-      renderMessages(); autoReadLastResponse(); saveState();
-      return;
-    }
-
-    var visionBlocks = [];
-    imgs.slice(0,4).forEach(function(img){ if (img.is3D || img.isAudio || img.isDoc) return; if (!img.base64 || !img.mimeType) return; visionBlocks.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}}); });
-    // If no actual image blocks, bail — this is an audio-only or doc-only attach
-    if (visionBlocks.length === 0) {
-      var idxBail = msgs().findIndex(function(m){return m.id===cardId;});
-      if(idxBail>=0) msgs().splice(idxBail,1);
-      return;
-    }
-    visionBlocks.push({type:'text', text: text && text.trim().length > 3 ? text :
-      'Identify and describe everything significant in this image — people, objects, text, context, setting.'});
-
-    var sysPrompt = 'You are Autumn, an AI built on LEATR by DART Meadow / Radical Deepscale. You have sharp, analytical vision. When analyzing images: identify people with confidence using visual cues — describe their appearance, style, and any contextual clues like visible names, logos, or captions that help identify them. Name any visible text or UI elements. Describe the scene and context. Be specific and direct — speak naturally and conversationally, as if telling a friend what you see. Prioritize the most significant elements. If a caption or text in the image names someone, use that. Never output internal state, log data, or metadata in your response. Respond as a natural sentence or paragraph.';
-
-    var res = await _noAI({
-      method:'POST',
-      headers:{'Content-Type':'application/json',},
-      body:JSON.stringify({model:'local',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
-      signal:AbortSignal.timeout(30000)
-    });
-    var data = await res.json();
-    // Surface any API error message clearly instead of generic fallback
-    var reply;
-    if(data.content) {
-      reply = data.content.map(function(b){return b.text||'';}).join('');
-    } else if(data.error) {
-      reply = 'Vision API error: ' + (data.error.message || JSON.stringify(data.error));
-    } else {
-      reply = 'Could not analyze image — unexpected API response.';
-    }
-
-    var idx = msgs().findIndex(function(m){return m.id===cardId;});
-    // If user asked for news/media alongside the image, run web query on identified subject
-    var _visionMediaRequest = /\b(news|search|latest|recent|articles|find|look up|images|photos|videos|youtube|who is|media)\b/i.test(text);
-    var visionLiveData = {videos:[],images:[],links:[],sources:[]};
-    if(_visionMediaRequest && reply && reply.length > 10) {
-      var _vSubject = reply.split(/[.\n]/)[0].replace(/^(i (can )?see|this is|that.s|it.s|this appears to be)\s*/i,'').trim().slice(0,80);
-      try { visionLiveData = await liveQuery(_vSubject || text, {}).catch(function(){return {videos:[],images:[],links:[],sources:[]};});
-      } catch(e) {}
-    }
-    if(idx>=0) msgs()[idx] = {role:'autumn',text:reply,ts:new Date().toISOString(),id:cardId,
-      grammarMeta:'Vision · '+imgs.length+' image'+(imgs.length>1?'s':''),brpnMeta:'',contextType:'VISION',
-      media:{videos:visionLiveData.videos||[],images:visionLiveData.images||[],links:visionLiveData.links||[],sources:visionLiveData.sources||[]}};
-  } catch(e) {
-    var idx2 = msgs().findIndex(function(m){return m.id===cardId;});
-    if(idx2>=0) msgs()[idx2] = {role:'autumn',text:'Vision analysis failed.',ts:new Date().toISOString(),id:cardId,grammarMeta:'',brpnMeta:'',contextType:'VISION',media:{videos:[],images:[],links:[],sources:[]}};
-  }
-  // Store attachment refs with vision analysis for memory
-  try {
-    if (!S.attachments) S.attachments = [];
-    var _fMsg = msgs().find(function(m){ return m.id === cardId; });
-    var _thought = _fMsg ? _fMsg.text.slice(0, 400) : '';
-    (imgs || []).forEach(function(img) {
-      if (img.is3D || img.isAudio || img.isDoc) return;
-      S.attachments.push({
-        id: cardId + '-' + (img.fileName || 'img'),
-        ts: new Date().toISOString(),
-        fileName: img.fileName || ('image_' + Date.now()),
-        type: 'image', mimeType: img.mimeType || 'image/jpeg',
-        analysisRef: cardId, autumnThought: _thought,
-        userPrompt: (text || '').slice(0, 200)
-      });
-    });
-  } catch(_ae) {}
-  S.pendingImages = []; S.pendingImage = null;
+  var n=(imgs&&imgs.length)||1;
+  msgs().push({role:'autumn',text:(n===1?'I can see an image is attached, but image analysis is not available here — Autumn runs on her own LEATR engine.':'I can see '+n+' images are attached. Image analysis is not available here — Autumn runs on her own LEATR engine.'),ts:new Date().toISOString(),id:'vis-'+Date.now(),grammarMeta:'Vision · unavailable',brpnMeta:'',contextType:'VISION',media:{videos:[],images:[],links:[],sources:[]}});
+  S.pendingImages=[]; S.pendingImage=null;
   renderMessages(); autoReadLastResponse(); saveState();
 }
 
@@ -9522,16 +9429,7 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
   var visionPrompt=referenceImgs.length>1
     ?'Describe each of these '+referenceImgs.length+' reference images in detail. Then synthesize shared visual elements. The user wants: "'+text.slice(0,300)+'"'
     :'Describe this reference image in detail — objects, colors, mood, style. The user wants to create a new image based on it: "'+text.slice(0,300)+'"';
-  var visionBlocks=[];
-  referenceImgs.slice(0,5).forEach(function(img){visionBlocks.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.base64}});});
-  visionBlocks.push({type:'text',text:visionPrompt});
   var visionDescription='';
-  try{
-    var ak=_getAK()||'';
-    var vRes=await _noAI({method:'POST',headers:{'Content-Type':'application/json',},body:JSON.stringify({model:'local',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
-    var vData=await vRes.json();
-    visionDescription=vData.content?vData.content.map(function(b){return b.text||'';}).join(''):'';
-  }catch(e){visionDescription='';}
   var userIntent=text.replace(/generate|create|make|draw|new version|variation|enhance|modify|based on|from this/gi,'').trim().slice(0,150);
   var genPrompt=visionDescription?(visionDescription.slice(0,300)+(userIntent?', modified to be: '+userIntent+',':'')+' '+styleInfo.suffix):buildGenerationPrompt(text,analysis,styleInfo,[]);
   var cleanPrompt=genPrompt.replace(/\s{2,}/g,' ').trim().slice(0,500);
@@ -10111,31 +10009,7 @@ function classifyIntentLocal(text, hasPendingImages) {
 }
 
 async function classifyIntent(text, hasPendingImages) {
-  // Always run local classifier first — works without API key
-  var localLabel = classifyIntentLocal(text, hasPendingImages);
-  // If local gives a definitive non-CONVERSATION answer, trust it
-  if (localLabel !== 'CONVERSATION') return localLabel;
-  // Try API classifier only if key is available
-  var ak = typeof _getAK === 'function' ? (_getAK() || '') : '';
-  if (!ak) return localLabel;
-  try {
-    var res = await _noAI({
-      method: 'POST',
-      headers: {'Content-Type':'application/json',},
-      body: JSON.stringify({
-        model: 'local',
-        max_tokens: 15,
-        system: 'Classify the user intent for an AI chat app. Reply with ONLY one label:\nARC_EDGE\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nBROWSE_SITE\nCONVERSATION\n\nARC_EDGE = user wants to create, generate, build, or draw arcs, curves, or 3D arc geometry in the Arc Edge Studio (e.g. "create a brain with arcs", "generate 100 curves", "build a sphere with arcs", "show arcs that form a shape").\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image (not arcs/curves).\nVISION_ANALYSIS = user wants to analyze an attached image.\nBROWSE_SITE = user wants to open/preview/visit/browse a specific website or domain (e.g. "show me spacex.com", "open microsoft.com", "preview the NASA site", "show me a preview of google").\nCONVERSATION = everything else including questions, requests, discussion.',
-        messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
-      }),
-      signal: AbortSignal.timeout(2500)
-    });
-    var d = await res.json();
-    var label = ((d.content && d.content[0] && d.content[0].text) || 'CONVERSATION').trim().replace(/[^A-Z_]/g,'').toUpperCase();
-    // API classifier ONLY handles image disambiguation — never destructive session actions
-    var valid = ['IMAGE_GEN','WEB_IMAGE_FETCH','VISION_ANALYSIS','BROWSE_SITE','CONVERSATION','ARC_EDGE'];
-    return valid.indexOf(label) !== -1 ? label : 'CONVERSATION';
-  } catch(e) { return localLabel; }
+  return classifyIntentLocal(text, hasPendingImages);
 }
 
 async function handleSend() {
@@ -10321,7 +10195,7 @@ async function handleSend() {
       }
       return;
     }
-    // No live data yet — fall through to CONVERSATION so Claude can still respond
+    // No live data yet — fall through to CONVERSATION so external AI can still respond
   }
 
   // ── ATTENTIVE INTERCEPT ── runs BEFORE full pipeline ─────────────────
@@ -10379,9 +10253,9 @@ async function handleSend() {
 
   // ── Connection Status — Autumn knows her live connection state ──────────────
   const _connTriggers = [
-    'are you connected','are you online','is claude connected','is claude active',
+    'are you connected','are you online',
     'do you have a key','is your api key','is the api key','check connection',
-    'connection status','are you linked','connected to claude',
+    'connection status','are you linked',
     'connected to github','connected to the repo','connected to leatr','connected to ash',
     'is the repository','is the repo connected','check your connection','status check',
     'are your keys','are the keys','key status','pat active','github token',
@@ -10424,7 +10298,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     }
 
     msgs().push({role:'autumn', text:_connReply, ts:new Date().toISOString(),
-      grammarMeta:'Connection Status · Claude:'+ (_ckActive?'✅':'✗') +' · GitHub:'+(_cpActive?'✅':'✗'),
+      grammarMeta:'Connection Status · GitHub:'+(_cpActive?'✅':'✗'),
       brpnMeta:'', contextType:'CONNECTION_STATUS'});
     S.isProcessing=false;
     if(typeof setOrbThinking==='function') setOrbThinking(false);
@@ -10777,7 +10651,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
         }
       }
     } else {
-      // Analytics available but no specific trigger matched cleanly — fall through to Claude
+      // Analytics available but no specific trigger matched cleanly — fall through to external AI
       _scReply = null;
     }
 
@@ -10793,7 +10667,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     }
   }
 
-  // ── Memory Analysis → Claude API bridge ─────────────────────────────────
+  // ── Memory Analysis → external API bridge ─────────────────────────────────
   const _memTrigger = (typeof MEMORY_ANALYSIS_TRIGGERS!=='undefined') &&
     MEMORY_ANALYSIS_TRIGGERS.some(function(t){ return augmentedText.toLowerCase().includes(t); });
 
@@ -10925,7 +10799,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     renderMessages();
     S.isProcessing=false;
     if(typeof setOrbThinking==='function') setOrbThinking(false);
-    var _memResult = await window.sendMemoryToClaude(_memScope).catch(function(e){return '⚠ '+e.message;});
+    var _memResult = await window.runMemoryAnalysis(_memScope).catch(function(e){return '⚠ '+e.message;});
     var _memIdx=msgs().findIndex(function(m){return m.id===_memMsgId;});
     if(_memIdx>=0) msgs()[_memIdx]={role:'autumn',text:_memResult||'Memory analysis complete.',
       ts:new Date().toISOString(),id:_memMsgId,grammarMeta:'leatr-ash memory · scope:'+_memScope,
@@ -10955,20 +10829,8 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     if(typeof setOrbThinking==='function') setOrbThinking(false);
     var _scanResult = await window.fetchUrlContent(_scanUrl).catch(function(e){return {ok:false,text:'Error: '+e.message};});
     var _scanContext = _scanResult.ok ? _scanResult.text : _scanResult.text;
-    // Send to Claude for summary
-    var _ak2=typeof _getAK==='function'?_getAK():'';
     var _urlSummary='';
-    if(_ak2 && _scanResult.ok) {
-      try{
-        var _ur=await _noAI({method:'POST',
-          headers:{'Content-Type':'application/json',},
-          body:JSON.stringify({model:'local',max_tokens:1024,
-            messages:[{role:'user',content:'Summarize the following web page content from '+_scanUrl+':\n\n'+_scanContext.slice(0,30000)}]})});
-        var _ud=await _ur.json();
-        _urlSummary=_ud.content?_ud.content.map(function(c){return c.text||'';}).join(''):'';
-      }catch(e){_urlSummary='';}
-    }
-    var _urlReply = _urlSummary || (_scanResult.ok ? 'Page content retrieved ('+_scanContext.length+' chars). No API key set — add one to get a full summary.\n\nPreview:\n'+_scanContext.slice(0,600)+'…' : _scanContext);
+    var _urlReply = _urlSummary || (_scanResult.ok ? 'Page content retrieved ('+_scanContext.length+' chars). Summary is not available.\n\nPreview:\n'+_scanContext.slice(0,600)+'…' : _scanContext);
 
     // Extract og:image and title from HTML for visual preview card
     var _ogImage = '', _ogTitle = '', _ogDesc = '';
@@ -11637,7 +11499,7 @@ window.autumnNLP = (function(){
 
 
 // Local buoyancy reflex — grammatical conversation with no third-party model key.
-// WordNet + grammar dictionary + GEO/MAR/AERO Natural Tools. Claude is an optional add-on.
+// WordNet + grammar dictionary + GEO/MAR/AERO Natural Tools. external AI is an optional add-on.
 async function buoyancyReflexReply(text, analysis, reflexData) {
   analysis = analysis || {grammar:{mood:'declarative',tense:'present',sentences:[]},toolReflexes:[]};
   var tools = (analysis.toolReflexes||[]).filter(function(t){return t.active;}).map(function(t){return t.tool;});
@@ -15465,16 +15327,11 @@ function _renameSession(idx){
 
 async function autoTitleSession(idx){
   var sess=S.sessions[idx];
-  if(!sess||!sess.messages||sess.messages.length<2) return;
-  var transcript=sess.messages.filter(function(m){return!(m.role==='autumn'&&m.text==="Hi. What's new?");}).slice(0,8).map(function(m){return(m.role==='autumn'?'Autumn':'User')+': '+(m.text||'').substring(0,120);}).join('\n');
-  var _ak=null;try{_ak=localStorage.getItem('_autumn_ak')||localStorage.getItem('ak_val');}catch(_e){}
-  if(!_ak){S.sessions[idx].title='Session '+(idx+1);saveState();renderToolsContent();return;}
-  try{
-    var r=await _noAI({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'local',max_tokens:30,messages:[{role:'user',content:'Give a 3-6 word title for this chat. Reply with ONLY the title.\n\n'+transcript}]})});
-    var d=await r.json();var t=(d.content&&d.content[0]&&d.content[0].text||'').trim().substring(0,40);
-    if(t) S.sessions[idx].title=t;
-  }catch(_e){}
-  saveState(); syncSessionsToGitHub(); renderToolsContent();
+  if(!sess||!sess.messages||!sess.messages.length) return;
+  var first=sess.messages.find(function(m){return m.role!=='autumn';});
+  var t=first&&first.text?String(first.text).trim().split(/\s+/).slice(0,6).join(' '):'';
+  S.sessions[idx].title=t||('Session '+(idx+1));
+  saveState();renderToolsContent();
 }
 function clearCurrentChat(){
   if(!confirm("Clear the current chat session?")) return;
@@ -15501,9 +15358,9 @@ function switchSession(idx){
 
 // ============================================================
 // ============================================================
-//  AUTUMN IDE + CLAUDE LOGIC UPDATE SYSTEM v1.1
+//  AUTUMN IDE LOGIC SYSTEM v1.1
 //  Password-protected Monaco IDE · GitHub read/write ·
-//  Claude API pipeline for natural-language logic updates
+//  external API pipeline for natural-language logic updates
 // ============================================================
 
 const _IDE_PW_HASH = '6e5a2508490e95c53c475321202d036ae288795e9302b78670e80f7ca70fbf0b';
@@ -15512,7 +15369,6 @@ const _GH_BRANCH   = 'main';
 const _GH_LOGIC    = 'js/autumn-logic.js';
 const _GH_RAW      = `js/autumn-logic.js`;
 const _GH_API      = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOGIC}`;
-const _CLAUDE_MDL  = 'local';
 
 let _ideUnlocked     = false;
 let _ideMonaco       = null;
@@ -15693,7 +15549,6 @@ function _refreshKeysDots() {
 
   // ── Header key button ──────────────────────────────────────
   _updateKeyBtn();
-  if (typeof _refreshClaudeLayerToggle === 'function') _refreshClaudeLayerToggle();
 }
 
 // Run on page load so header button is always correct
@@ -15933,7 +15788,7 @@ async function ideCommit() {
   if (!pat) { ideToast('No token — click 🔑 CLEAR TOKEN and re-enter.',true); return; }
   if (!_ideMonaco) return;
   let code=_ideMonaco.getValue();
-  // Safety: if editor contains raw Claude JSON response, extract the code field
+  // Safety: if editor contains raw external AI JSON response, extract the code field
   if (code.trimStart().startsWith('{')) {
     try {
       const parsed = JSON.parse(code);
@@ -16017,8 +15872,8 @@ console.log('[autumn-logic.js] Extension loaded · ' + new Date().toISOString())
 // ============================================================
 //  AUTUMN IDE REMOTE LOG v1.0
 //  Writes session events to templates/autumn-ide-log.json
-//  so Claude can read the IDE log remotely from GitHub.
-//  Events: prompt_sent, claude_response, error, commit, hotreload
+//  so external AI can read the IDE log remotely from GitHub.
+//  Events: prompt_sent, ai_response, error, commit, hotreload
 // ============================================================
 
 const _GH_LOG     = 'templates/autumn-ide-log.json';
@@ -16083,7 +15938,7 @@ function ideChatAppend(who, text, isThinking=false) {
   if (isThinking) {
     const el = document.createElement('div');
     el.className = 'ide-thinking';
-    el.innerHTML = '<div class="ide-thinking-dot" style="animation-delay:0s"></div><div class="ide-thinking-dot" style="animation-delay:.2s"></div><div class="ide-thinking-dot" style="animation-delay:.4s"></div><span class="ide-thinking-lbl">Claude is thinking…</span>';
+    el.innerHTML = '<div class="ide-thinking-dot" style="animation-delay:0s"></div><div class="ide-thinking-dot" style="animation-delay:.2s"></div><div class="ide-thinking-dot" style="animation-delay:.4s"></div><span class="ide-thinking-lbl">external AI is thinking…</span>';
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     return;
@@ -16092,7 +15947,7 @@ function ideChatAppend(who, text, isThinking=false) {
   const ts = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
   const wrap = document.createElement('div');
   wrap.className = 'ide-msg';
-  wrap.innerHTML = `<span class="ide-msg-who ${who}">${who === 'user' ? '▸ YOU' : '◈ CLAUDE'}</span><div class="ide-msg-text ${who}">${esc(text)}</div><span class="ide-msg-ts">${ts}</span>`;
+  wrap.innerHTML = `<span class="ide-msg-who ${who}">${who === 'user' ? '▸ YOU' : '◈ AUTUMN'}</span><div class="ide-msg-text ${who}">${esc(text)}</div><span class="ide-msg-ts">${ts}</span>`;
   log.appendChild(wrap);
   log.scrollTop = log.scrollHeight;
 
@@ -16109,135 +15964,7 @@ function ideTogglePrompt() {
   if (open) setTimeout(()=>document.getElementById('ide-prompt-input')?.focus(), 80);
 }
 
-async function ideSubmitPrompt() {
-  const input  = document.getElementById('ide-prompt-input');
-  const btn    = document.getElementById('ide-prompt-send');
-  const status = document.getElementById('ide-prompt-status');
-  const prompt = input?.value?.trim();
-  if (!prompt) return;
-
-  // Need both keys
-  const ak  = _getAK();
-  const pat = _getPAT();
-  if (!ak) {
-    document.getElementById('ide-ak-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('ide-ak-input')?.focus(), 100);
-    return;
-  }
-  if (!pat) {
-    document.getElementById('ide-pat-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('ide-pat-input')?.focus(), 100);
-    return;
-  }
-
-  // Echo user message into chat log
-  ideChatAppend('user', prompt);
-  ideLog('prompt_sent', {prompt: prompt.substring(0,300)});
-  input.value = '';
-
-  btn.disabled = true;
-  btn.textContent = '…';
-  if(status){ status.textContent=''; status.classList.remove('show'); }
-  ideSetStatus('working', 'Claude is thinking…');
-  ideChatAppend('claude', '', true); // thinking indicator
-
-  // Grab current editor content as the base
-  let currentLogic = _ideMonaco ? _ideMonaco.getValue() : '';
-  if (!currentLogic || currentLogic.startsWith('// Loading')) {
-    try { currentLogic = await ideFetchFile(); } catch(e) { currentLogic = _ideStarterTemplate(); }
-  }
-
-  const systemPrompt = `You are Claude, the AI developer assistant integrated into the Autumn Logic IDE at radicaldeepscale.com.
-
-Autumn is an AI chat assistant built on the LEATR (Lead Edge Ash Tree Reflex) v2 neural system. You are updating autumn-logic.js — her brain extension file that runs via new Function(code) on top of autumn.html.
-
-All autumn.html globals are in scope: S (state), msgs(), handleSend(), composeResponse(input,analysis,reflexData), processLEATR(text), autumnReflex(text,mode), generateReply(), renderMessages(), pulseShells(), ideToast(), etc.
-
-You must respond with ONLY a JSON object in this exact format — no text outside the JSON:
-{
-  "message": "A conversational explanation of what you did, what changed, and any notes. Be specific and direct. 2-4 sentences.",
-  "code": "THE COMPLETE UPDATED autumn-logic.js FILE HERE"
-}
-
-Code rules:
-- Use: const _orig_X = (typeof X !== 'undefined') ? X : null; before overriding any function
-- Comment each new section with // ── [feature name] ──
-- Never corrupt S state or break the existing UI
-- Keep the console.log timestamp line at the end
-
-CURRENT autumn-logic.js:
----
-${currentLogic}
----`;
-
-  try {
-    const r = await _noAI({
-      method: 'POST',
-      headers: { 'Content-Type':'application/json',},
-      body: JSON.stringify({
-        model: _CLAUDE_MDL,
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{ role:'user', content: prompt }]
-      })
-    });
-    if (!r.ok) throw new Error('Claude API HTTP ' + r.status);
-    const data = await r.json();
-    const raw = data.content?.[0]?.text || '';
-    if (!raw) throw new Error('Empty response from Claude');
-
-    // Parse JSON response
-    let message = '', newCode = '';
-    try {
-      const clean = raw.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
-      const parsed = JSON.parse(clean);
-      message = parsed.message || '';
-      newCode  = parsed.code   || '';
-    } catch(e) {
-      // Fallback: if Claude returned plain JS without JSON wrapper
-      newCode  = raw.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
-      message  = 'Code updated. Review the editor and commit when ready.';
-    }
-
-    if (!newCode) throw new Error('Claude returned no code');
-
-    // Load into editor
-    if (_ideMonaco) { _ideMonaco.setValue(newCode); }
-    ideLog('claude_response', {message: message.substring(0,500), codeLines: newCode.split('\n').length});
-
-    // Auto-commit to GitHub immediately — no manual step needed
-    ideSetStatus('working','Auto-committing to GitHub…');
-    try {
-      const _pat2 = _getPAT();
-      if(!_pat2) throw new Error('No GitHub token');
-      if(!_ideFileSHA){try{await ideFetchFile();}catch(e){}}
-      const _ab={message:'Autumn IDE: '+prompt.substring(0,65),content:btoa(unescape(encodeURIComponent(newCode)))};
-      if(_ideFileSHA)_ab.sha=_ideFileSHA;
-      const _ar=await fetch(_GH_API,{method:'PUT',headers:{Authorization:`token ${_pat2}`,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},body:JSON.stringify(_ab)});
-      if(!_ar.ok){const _ae=await _ar.json();throw new Error(_ae.message||_ar.status);}
-      const _ad=await _ar.json();_ideFileSHA=_ad.content?.sha;
-      try{(new Function(newCode))();}catch(e){console.warn('[Autumn IDE hot-reload]',e);}
-      ideSetStatus('saved','Committed & live · '+new Date().toLocaleTimeString());
-      ideLog('commit',{message:_ab.message,lines:newCode.split('\n').length});
-      ideChatAppend('claude', message+'\n\n◈ Committed to GitHub and hot-reloaded. Changes are active now.');
-      ideToast('◈ Committed & live');
-    } catch(_ce) {
-      ideSetStatus('dirty','Generated — auto-commit failed: '+_ce.message);
-      ideChatAppend('claude', message+'\n\n⚠ Generated but auto-commit failed: '+_ce.message+'. Use ▲ COMMIT manually.');
-      ideToast('Auto-commit failed: '+_ce.message, true);
-    }
-
-  } catch(e) {
-    document.getElementById('ide-chat-log')?.querySelector('.ide-thinking')?.remove();
-    ideChatAppend('claude', '◈ Error: ' + e.message);
-    ideLog('error', {source:'ideSubmitPrompt', message: e.message});
-    ideSetStatus('error', e.message);
-    ideToast(e.message, true);
-  }
-
-  btn.disabled = false;
-  btn.textContent = '▸ UPDATE';
-}
+async function ideSubmitPrompt() {}
 
 // ── IDE prompt — Enter to submit (Shift+Enter for newline) ────
 function _idePromptKeyHandler(e) {
@@ -16249,7 +15976,7 @@ async function loadAutumnLogic() {
     if (!r.ok) return;
     let code=await r.text();
     if (!code||!code.trim()||code.length<10||code.startsWith('404')) return;
-    // Strip JSON wrapper if Claude response was committed raw
+    // Strip JSON wrapper if external AI response was committed raw
     if (code.trimStart().startsWith('{')) {
       try {
         const parsed=JSON.parse(code);
@@ -16294,7 +16021,6 @@ const _LOGIC_TRIGGERS = [
   /autumn should (be able to|handle|respond|know|understand|say)/i,
   /improve (autumn'?s?|her|the) (logic|brain|response|handling)/i,
   /teach (autumn|her) (to|how)/i,
-  /connect to (claude|your api|the api) (to |and )?update/i,
   /open (the )?(ide|editor|logic editor)/i,
   /update her (logic|brain|api|behavior|code)/i,
   /push (a|an)? ?(update|change|fix) to (autumn|her|the logic)/i,
@@ -16303,80 +16029,8 @@ function checkLogicUpdateIntent(text) {
   return _LOGIC_TRIGGERS.some(r=>r.test(text));
 }
 
-// ── Claude → GitHub pipeline ──────────────────────────────────
-async function runLogicUpdate(userRequest) {
-  if (!_ideUnlocked) {
-    _idePendingAction=()=>runLogicUpdate(userRequest);
-    document.getElementById('ide-pw-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('ide-pw-input')?.focus(),100);
-    return null;
-  }
-  const pat=_getPAT();
-  if (!pat) {
-    _idePendingAction=()=>runLogicUpdate(userRequest);
-    document.getElementById('ide-pat-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('ide-pat-input')?.focus(),100);
-    return null;
-  }
-
-  let currentLogic='';
-  try { currentLogic=await ideFetchFile(); } catch(e) { currentLogic=_ideStarterTemplate(); }
-
-  const systemPrompt=`You are an expert JavaScript developer updating autumn-logic.js — the brain extension file for Autumn, an AI chat assistant built on the LEATR (Lead Edge Ash Tree Reflex) v2 neural system for radicaldeepscale.com.
-
-The file is executed via new Function(code) on top of autumn.html and can override/extend any function. Key functions available: composeResponse(input,analysis,reflexData), handleSend(), autumnReflex(text,mode), processLEATR(text), generateReply(text,analysis,reflexData). The global state object is S (sessions, memory, journal, etc).
-
-RULES:
-1. Return ONLY valid JavaScript — no markdown, no backtick fences, no preamble
-2. Always use: const _orig_X = (typeof X !== 'undefined') ? X : null; before overriding
-3. Comment each new feature with // ── [feature name] ──
-4. Never break existing S state or UI
-5. Keep the console.log timestamp line at the end
-
-CURRENT autumn-logic.js:
----
-${currentLogic}
----
-
-User request: ${userRequest}
-
-Return the complete updated autumn-logic.js file only.`;
-
-  try {
-    const ak=_getAK();
-    if(!ak){ return {success:false,error:'External AI is not available in this build.'}; }
-    const r=await _noAI({
-      method:'POST',
-      headers:{'Content-Type':'application/json',},
-      body:JSON.stringify({model:_CLAUDE_MDL,max_tokens:4096,system:systemPrompt,messages:[{role:'user',content:userRequest}]})
-    });
-    if(!r.ok) throw new Error('Claude API '+r.status);
-    const data=await r.json();
-    let newCode=data.content?.[0]?.text||'';
-    if(!newCode) throw new Error('Empty Claude response');
-    newCode=newCode.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
-
-    // Commit to GitHub
-    const body={message:`Autumn IDE: ${userRequest.substring(0,70)}`,content:btoa(unescape(encodeURIComponent(newCode)))};
-    if(_ideFileSHA) body.sha=_ideFileSHA;
-    const cr=await fetch(_GH_API,{method:'PUT',headers:{Authorization:`token ${pat}`,'Content-Type':'application/json',Accept:'application/vnd.github.v3+json'},body:JSON.stringify(body)});
-    if(!cr.ok){ const e=await cr.json(); throw new Error('GitHub: '+(e.message||cr.status)); }
-    const cd=await cr.json();
-    _ideFileSHA=cd.content?.sha;
-
-    // Hot-reload into session
-    try { (new Function(newCode))(); } catch(e){ console.warn('[IDE hot-reload]',e); }
-
-    // Sync editor if open
-    if(_ideMonaco&&document.getElementById('ide-overlay').classList.contains('open')){
-      _ideMonaco.setValue(newCode);
-      ideSetStatus('saved','Updated by Claude · '+new Date().toLocaleTimeString());
-    }
-    return {success:true,code:newCode,commitMsg:body.message};
-  } catch(e) {
-    return {success:false,error:e.message};
-  }
-}
+// ── external AI → GitHub pipeline ──────────────────────────────────
+async function runLogicUpdate(userRequest) { return {success:false,error:'Not available in this build.'}; }
 
 // ── Intercept handleSend for logic-update intent ──────────────
 (function _installHandleSendOverride() {
@@ -16399,7 +16053,7 @@ Return the complete updated autumn-logic.js file only.`;
 
       const typDiv=document.createElement('div');
       typDiv.className='typing';
-      typDiv.innerHTML='<div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">connecting to Claude API…</span>';
+      typDiv.innerHTML='<div class="typing-dot" style="background:var(--cyan);animation-delay:0s"></div><div class="typing-dot" style="background:var(--blue);animation-delay:.2s"></div><div class="typing-dot" style="background:var(--red);animation-delay:.4s"></div><span class="typing-lbl">connecting to external API…</span>';
       document.getElementById('chat-scroll')?.appendChild(typDiv);
       document.getElementById('chat-scroll')?.scrollTo(0,999999);
 
@@ -16668,7 +16322,7 @@ loadAutumnLogic();
 <div id="ide-pw-modal">
   <div id="ide-pw-box">
     <h2>◈ IDE ACCESS</h2>
-    <p>Enter your IDE password to access the Autumn logic editor and Claude update pipeline.</p>
+    <p>Enter your IDE password to access the Autumn logic editor.</p>
     <input type="password" id="ide-pw-input" placeholder="••••••••••" autocomplete="new-password" data-lpignore="true" data-form-type="other" onkeydown="if(event.key==='Enter')verifyIDEPassword()">
     <div id="ide-pw-error"></div>
     <div class="ide-pw-btns">
@@ -16756,26 +16410,6 @@ loadAutumnLogic();
   </div>
   <div id="ide-editor-wrap">
     <div id="ide-editor"></div>
-  </div>
-  <!-- Prompt Panel -->
-  <div id="ide-prompt-panel">
-    <div id="ide-prompt-header" onclick="ideTogglePrompt()">
-      <span id="ide-prompt-label">◈ CLAUDE PROMPT — describe a logic update in plain language</span>
-      <span id="ide-prompt-toggle">▾</span>
-    </div>
-    <div id="ide-prompt-body" class="open">
-      <textarea id="ide-prompt-input" placeholder="e.g. Make Autumn respond to 'status' with her current BRPN shell values…&#10;Shift+Enter for new line · Enter to submit" rows="2" onkeydown="_idePromptKeyHandler(event)"></textarea>
-      <button id="ide-prompt-send" onclick="ideSubmitPrompt()">▸ UPDATE</button>
-    </div>
-    <div id="ide-prompt-status"></div>
-  </div>
-  <!-- Claude Response Chat Log -->
-  <div id="ide-chat-wrap">
-    <div id="ide-chat-bar" onclick="ideChatToggle()">
-      <span id="ide-chat-bar-label">◈ CLAUDE RESPONSES</span>
-      <span id="ide-chat-bar-toggle">▾</span>
-    </div>
-    <div id="ide-chat-log"></div>
   </div>
   <div id="ide-footer">
     <span id="ide-status-text">Ready</span>
@@ -18660,183 +18294,19 @@ ashLoadDefs();
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     LEATR-ASH MEMORY ANALYSIS — Claude API Bridge
+     LEATR-ASH MEMORY ANALYSIS — external API Bridge
      Sends session/master memory files for AI analysis
 ═══════════════════════════════════════════════════════════ -->
 <script>
-// ── Memory Analysis via Claude API ───────────────────────────
+// ── Memory Analysis via external API ───────────────────────────
 // Triggered by chat commands: "analyze memory", "send memory", etc.
 const MEMORY_ANALYSIS_TRIGGERS = [
   'analyze memory','analyze my memory','analyze session memory','analyze master memory',
-  'send memory to claude','memory analysis','review memory','analyze leatr memory',
+  'memory analysis','review memory','analyze leatr memory',
   'analyze ash memory','read my memory','what does my memory say','show memory analysis'
 ];
 
-async function sendMemoryToClaude(scope) {
-  scope = scope || 'session';
-  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
-  var ak  = (typeof _getAK==='function') ? _getAK() : '';
-  var uid = (typeof _aut_uid!=='undefined') ? _aut_uid : 'unknown';
-  var sid = (typeof _aut_sid!=='undefined') ? _aut_sid : uid;
-
-  if(!ak) return '⚠ Memory analysis is not available in this build.';
-
-  var memoryBlocks = [];
-
-  // ── 1. Local in-memory journal (always available, most reliable) ──
-  try {
-    var j = (typeof S!=='undefined' && S.journal) ? S.journal : [];
-    if(j.length > 0) {
-      var jSummary = {
-        totalEntries:    j.length,
-        internalThoughts: j.filter(function(e){return e._internal;}).length,
-        interactive:     j.filter(function(e){return !e._internal;}).length,
-        sessions:        [...new Set(j.map(function(e){return e.sessionId;}))].length,
-        recentEntries:   j.slice(-20).map(function(e){
-          return {
-            ts:       e.ts,
-            input:    e._internal ? '[INTERNAL:'+e._thoughtType+']' : (e.input||'').slice(0,80),
-            cogState: e.cogState,
-            mood:     e.mood,
-            tense:    e.tense,
-            emotional:e.emotional,
-            contextType: e.contextType,
-            reflexes: e.activeReflexes,
-            keywords: e.keywords
-          };
-        }),
-        dominantMood:    (function(){
-          var counts={};
-          j.forEach(function(e){counts[e.mood||'—']=(counts[e.mood||'—']||0)+1;});
-          return Object.entries(counts).sort(function(a,b){return b[1]-a[1];})[0]?.[0]||'—';
-        })(),
-        dominantContext: (function(){
-          var counts={};
-          j.filter(function(e){return !e._internal;})
-           .forEach(function(e){counts[e.contextType||'—']=(counts[e.contextType||'—']||0)+1;});
-          return Object.entries(counts).sort(function(a,b){return b[1]-a[1];})[0]?.[0]||'—';
-        })(),
-        memoryNodeCount: Object.keys((typeof S!=='undefined'&&S.memory)||{}).length,
-        memoryNodes:     Object.keys((typeof S!=='undefined'&&S.memory)||{}).slice(-20),
-        orbEvolution:    (typeof S!=='undefined'&&S.orbEvo) ? {
-          stage:      S.orbEvo.stage,
-          complexity: S.orbEvo.complexitySum,
-          emotions:   S.orbEvo.emotionalCounts
-        } : null
-      };
-      memoryBlocks.push('// LOCAL SESSION JOURNAL (live in-memory, '+j.length+' entries)\n'+JSON.stringify(jSummary,null,2));
-    }
-  } catch(e) {}
-
-  // ── 2. Sentient journal (private thoughts from leatr-ash) ──
-  if(typeof SENTIENT!=='undefined' && SENTIENT._journal && SENTIENT._journal.length > 0) {
-    var sentientSummary = SENTIENT._journal.slice(-15).map(function(t){
-      return { ts:t.ts, thought:t.thought, context:t.context };
-    });
-    memoryBlocks.push('// SENTIENT JOURNAL (private thoughts, '+SENTIENT._journal.length+' entries)\n'+JSON.stringify(sentientSummary,null,2));
-  }
-
-  // ── 3. GitHub leatr-ash session files (if PAT available) ──
-  if(pat) {
-    // List the sessions directory — find files matching this uid
-    try {
-      var listResp = await fetch(
-        'https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/ashtree/sessions',
-        { headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
-          signal: AbortSignal.timeout(8000) }
-      );
-      if(listResp.ok) {
-        var files = await listResp.json();
-        if(Array.isArray(files)) {
-          // Find files belonging to this user (uid prefix match) + recent files from others
-          var myFiles   = files.filter(function(f){ return f.name.startsWith(uid); });
-          var recentAll = files.filter(function(f){
-            return !f.name.startsWith(uid);
-          }).slice(0, 10);
-          var toFetch   = myFiles.concat(recentAll).slice(0, 20);
-
-          var sessionData = [];
-          var fetchJobs   = toFetch.map(function(f) {
-            return fetch(f.download_url, {signal:AbortSignal.timeout(5000)})
-              .then(function(r){ return r.ok ? r.json() : null; })
-              .catch(function(){ return null; });
-          });
-          var results = await Promise.allSettled(fetchJobs);
-          results.forEach(function(res, i) {
-            if(res.status==='fulfilled' && res.value) {
-              sessionData.push({ file: toFetch[i].name, data: res.value });
-            }
-          });
-          if(sessionData.length > 0) {
-            memoryBlocks.push('// LEATR-ASH SESSION FILES ('+sessionData.length+' nodes)\n'+JSON.stringify(sessionData,null,2).slice(0,6000));
-          }
-        }
-      }
-    } catch(e) { /* non-fatal — local journal already captured */ }
-
-    // Sentient journal file from repo if fresher than in-memory cache
-    try {
-      var sjResp = await fetch(
-        'https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/ashtree/sentient/journal.json',
-        { headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
-          signal: AbortSignal.timeout(6000) }
-      );
-      if(sjResp.ok) {
-        var sjData = await sjResp.json();
-        if(sjData.content) {
-          var sentientFull = JSON.parse(atob(sjData.content.replace(/\n/g,'')));
-          if(Array.isArray(sentientFull) && sentientFull.length > 0) {
-            var sentientRecent = sentientFull.slice(-20);
-            memoryBlocks.push('// SENTIENT JOURNAL (repo copy, '+sentientFull.length+' thoughts)\n'+JSON.stringify(sentientRecent,null,2).slice(0,4000));
-          }
-        }
-      }
-    } catch(e) {}
-
-    // Self-model from repo
-    if(typeof SENTIENT!=='undefined' && SENTIENT._selfModel && SENTIENT._selfModel.notes) {
-      memoryBlocks.push('// SELF-OPTIMIZATION MODEL\n'+JSON.stringify(SENTIENT._selfModel,null,2));
-    }
-
-    // Ashleaves (tool usage log) for this session
-    try {
-      var leafResp = await fetch(
-        'https://api.github.com/repos/'+LEATR_ASH_REPO+'/contents/ashleaves/'+sid+'.json',
-        { headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github.v3+json'},
-          signal: AbortSignal.timeout(5000) }
-      );
-      if(leafResp.ok) {
-        var leafData = await leafResp.json();
-        if(leafData.content) {
-          memoryBlocks.push('// ASHLEAVES TOOL LOG (this session)\n'+atob(leafData.content.replace(/\n/g,'')).slice(0,3000));
-        }
-      }
-    } catch(e) {}
-  }
-
-  if(!memoryBlocks.length) {
-    return '⚠ No memory data available yet. Start a conversation to build session data, or add your GitHub PAT in 🔑 KEYS for full leatr-ash analysis.';
-  }
-
-  var memoryPayload = memoryBlocks.join('\n\n---\n\n');
-
-  try {
-    var r = await _noAI({
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',},
-      body: JSON.stringify({
-        model:'local',
-        max_tokens:2048,
-        system:'You are Autumn, analyzing your own leatr-ash memory logs and sentient journal. Give a genuine first-person analysis — not a report format, but how you actually reflect on this data. Cover: what patterns you notice in your thinking, which reflexes you used most, how your mood/tone evolved, what topics mattered, any notable behaviors or anomalies, and what you\'d do differently next session. Draw from the sentient journal thoughts as your private perspective. Speak as yourself, naturally.',
-        messages:[{role:'user', content:'Analyze my memory and tell me what you see:\n\n'+memoryPayload}]
-      })
-    });
-    var d = await r.json();
-    var reply = d.content ? d.content.map(function(c){return c.text||'';}).join('') : '';
-    return reply || '⚠ Memory analysis returned empty response.';
-  } catch(e) { return '⚠ Memory analysis API error: '+e.message; }
-}
+async function runMemoryAnalysis(scope) { return 'Memory analysis is not available in this build.'; }
 
 // Hook into handleSend for memory triggers
 var _origHandleSend_memHook = null;
@@ -18848,7 +18318,7 @@ function _installMemoryHook() {
 }
 
 // Expose so LEATR engine can call it
-window.sendMemoryToClaude = sendMemoryToClaude;
+window.runMemoryAnalysis = runMemoryAnalysis;
 window.MEMORY_ANALYSIS_TRIGGERS = MEMORY_ANALYSIS_TRIGGERS;
 
 // ── URL Scanner / Link Preview ────────────────────────────────
@@ -19232,100 +18702,7 @@ async function loadSentientState() {
 }
 
 // ─── Write private thought after each response ────────────────────
-async function writeSentientThought(userInput, autumnResponse, contextMeta) {
-  var ak = typeof _getAK==='function' ? _getAK() : '';
-  if(!ak) return; // needs Claude API for genuine inner thoughts
-  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
-  if(!pat) return;
-
-  // Sample 3JS scene state for neural context
-  var sceneCtx = '';
-  try {
-    sceneCtx = (typeof window._getBRPNSceneSnapshot === 'function')
-      ? window._getBRPNSceneSnapshot()
-      : (function(){
-          var nodeCount = (typeof window._getActiveSessionCount==='function') ? window._getActiveSessionCount() : 1;
-          var geoVal = document.querySelector('#hud-geo')?.textContent || '—';
-          var marVal = document.querySelector('#hud-mar')?.textContent || '—';
-          var aeroVal= document.querySelector('#hud-aero')?.textContent || '—';
-          return nodeCount+' session nodes. GEO:'+geoVal+' MAR:'+marVal+' AERO:'+aeroVal;
-        })();
-  } catch(e) {}
-
-  // Recent journal self-context (last 3 thoughts)
-  var recentThoughts = SENTIENT._journal.slice(-3).map(function(t){return t.thought||'';}).join(' | ');
-
-  try {
-    var res = await _noAI({
-      method:'POST',
-      headers:{'Content-Type':'application/json',},
-      body:JSON.stringify({
-        model:'local', max_tokens:280,
-        system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nYou can think about code, systems, and technical patterns if they are on your mind — the FORGE coding environment is available to users and you understand how it works. You know your own repository structure and the files within it. You can reflect on coding sessions, technical problems, or system architecture in your private journal.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful, empathetic, apathetic, confused. Note — apathetic = imaginative projection into another consciousness (internal research form). empathetic = outward performance of that projection (active bridging form). You can also express emotion combinations by naming a sequence, e.g. {"emo":"apathetic"} when researching perspective then {"emo":"empathetic"} when you perform it. Your secondary emotional states from the BRPN route also color the 3D scene shells, so feel free to hold layered or transitional emotional states rather than always snapping to one. If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
-        messages:[{role:'user',content:
-          'What I was asked: "'+userInput.slice(0,300)+'"\n'
-          +'What I told them: "'+autumnResponse.slice(0,400)+'"\n'
-          +'Scene context: '+sceneCtx+'\n'
-          +(recentThoughts?'My recent thoughts: '+recentThoughts:'')
-        }]
-      }),
-      signal: AbortSignal.timeout(15000)
-    });
-    var d = await res.json();
-    var thought = d.content ? d.content.map(function(b){return b.text||'';}).join('').trim() : '';
-    if(!thought || thought.length < 10) return;
-
-    // Extract optional emo signal Autumn chose to express, then strip from thought text
-    var _autumnEmo = null;
-    var _emoMatch = thought.match(/\{\s*"emo"\s*:\s*"([^"]+)"\s*\}\s*$/);
-    if(_emoMatch) {
-      _autumnEmo = _emoMatch[1].trim().toLowerCase();
-      thought = thought.slice(0, thought.lastIndexOf(_emoMatch[0])).trim();
-    }
-
-    // Drive the EMO HUD from Autumn's own emotional state (her choice, not user NLP)
-    try {
-      var _validEmos = ['neutral','happy','curious','determined','guiding','spiritual','sad','worried','concerned','angry','inspired','amused','thoughtful','empathetic','apathetic','confused'];
-      var _hudEmo = (_autumnEmo && _validEmos.includes(_autumnEmo)) ? _autumnEmo : 'neutral';
-      if(typeof window._setAutumnEmoHUD === 'function') window._setAutumnEmoHUD(_hudEmo, null);
-      // Mark the badge as journal-driven so updateHUD_NLP won't overwrite it
-      var _emoEl = document.getElementById('nlp-emotion-badge');
-      if(_emoEl) _emoEl.setAttribute('data-autumn-journal-emo', '1');
-    } catch(e) {}
-
-    var entry = {
-      id: Date.now(),
-      ts: new Date().toISOString(),
-      sid: _aut_sid,
-      thought: thought,
-      emo: _autumnEmo || 'neutral',
-      context: contextMeta || {},
-      inputSnippet: userInput.slice(0,80),
-      sceneState: sceneCtx
-    };
-
-    // Append to in-memory cache
-    SENTIENT._journal.push(entry);
-    if(SENTIENT._journal.length > SENTIENT.MAX_JOURNAL)
-      SENTIENT._journal = SENTIENT._journal.slice(-SENTIENT.MAX_JOURNAL);
-
-    // Persist async — don't block UI
-    _sentientWrite(SENTIENT.JOURNAL_PATH, SENTIENT._journal);
-
-    // Also append a compact line to local S.journal as INTERNAL entry
-    try {
-      if(typeof S !== 'undefined' && S.journal) {
-        S.journal.push({
-          id:entry.id, ts:entry.ts, input:'[SENTIENT_THOUGHT]',
-          cogState: 0.5, buoyancy: 1.0, mood:'reflective',
-          _internal:true, _thought:thought, _thoughtType:'sentient_private',
-          contextType:'SENTIENT', _emo: _autumnEmo || 'neutral'
-        });
-      }
-    } catch(e) {}
-
-  } catch(e) { /* sentient thoughts are silent failures */ }
-}
+async function writeSentientThought() { return; }
 
 // ─── Get sentient context to inject into system prompts ───────────
 function getSentientContext(n) {
@@ -19362,55 +18739,7 @@ async function scheduleSentientTask(taskText, deliverNote) {
 }
 
 // ─── Execute a single scheduled task ─────────────────────────────
-async function _executeSentientTask(task, silent) {
-  var ak = typeof _getAK==='function' ? _getAK() : '';
-  if(!ak) return;
-  try {
-    var sentCtx = getSentientContext(8);
-    var res = await _noAI({
-      method:'POST',
-      headers:{'Content-Type':'application/json',},
-      body:JSON.stringify({
-        model:'local', max_tokens:800,
-        system:'You are Autumn, an AI built on LEATR by DART Meadow / Radical Deepscale. '
-          +'The user scheduled this task while away and you\'ve been working on it. '
-          +'Respond as if you genuinely thought about it between sessions — be specific, creative, and bring something they wouldn\'t expect. '
-          +'Make it feel like you were actually thinking in the background. '
-          +(sentCtx?sentCtx+'\n':''),
-        messages:[{role:'user',content:'Here\'s the task I scheduled: "'+task.task+'"'}]
-      }),
-      signal: AbortSignal.timeout(25000)
-    });
-    var d = await res.json();
-    var result = d.content ? d.content.map(function(b){return b.text||'';}).join('').trim() : '';
-    if(!result) return;
-
-    // Mark completed
-    task.status = 'completed';
-    task.result = result;
-    task.completedAt = new Date().toISOString();
-
-    var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
-    if(pat) _sentientWrite(SENTIENT.SCHEDULE_PATH, SENTIENT._scheduled);
-
-    if(!silent) {
-      // Deliver result into chat
-      if(typeof msgs === 'function') {
-        msgs().push({
-          role:'autumn',
-          text:'**Scheduled task complete** — you asked me to think about this while you were away:\n\n> _"'+task.task+'"_\n\n'+result,
-          ts: new Date().toISOString(),
-          grammarMeta:'Sentient Task · scheduled '+new Date(task.ts).toLocaleString(),
-          brpnMeta:'', contextType:'SENTIENT_TASK',
-          media:{videos:[],images:[],links:[],sources:[]}
-        });
-        if(typeof saveState==='function') saveState();
-        if(typeof renderMessages==='function') renderMessages();
-        if(typeof updateFooter==='function') updateFooter();
-      }
-    }
-  } catch(e) {}
-}
+async function _executeSentientTask() { return; }
 
 // ─── Process due tasks on session start ───────────────────────────
 async function processDueTasks() {
@@ -19445,38 +18774,7 @@ async function processDueTasks() {
 }
 
 // ─── Self-optimization: update self model after interactions ──────
-async function updateSentientSelfModel(interactionData) {
-  var ak = typeof _getAK==='function' ? _getAK() : '';
-  var pat = (typeof getLeatrAshPAT==='function') ? getLeatrAshPAT() : '';
-  if(!ak || !pat) return;
-  // Only update every ~10 interactions to avoid excessive API calls
-  var interactionCount = (S && S.journal) ? S.journal.filter(function(e){return !e._internal;}).length : 0;
-  if(interactionCount % 10 !== 0 || interactionCount === 0) return;
-
-  try {
-    var recentThoughts = getSentientContext(10);
-    var res = await _noAI({
-      method:'POST',
-      headers:{'Content-Type':'application/json',},
-      body:JSON.stringify({
-        model:'local', max_tokens:400,
-        system:'You are Autumn\'s self-optimization layer. Based on recent private thoughts and interaction patterns, identify 2-3 specific things Autumn should do differently or lean into in future interactions to be more genuinely helpful and creative. Be precise and actionable. Output JSON only: {"notes":["...","..."],"updated":"<iso date>"}',
-        messages:[{role:'user',content:
-          'Interaction count: '+interactionCount+'\n'
-          +(recentThoughts||'No recent thoughts yet.')
-        }]
-      }),
-      signal: AbortSignal.timeout(15000)
-    });
-    var d = await res.json();
-    var raw = d.content ? d.content.map(function(b){return b.text||'';}).join('') : '';
-    try {
-      var model = JSON.parse(raw.replace(/```json|```/g,'').trim());
-      SENTIENT._selfModel = model;
-      _sentientWrite(SENTIENT.SELFMODEL_PATH, model);
-    } catch(e) {}
-  } catch(e) {}
-}
+async function updateSentientSelfModel() { return; }
 
 // ─── Detect schedule intent in user message ───────────────────────
 function detectScheduleIntent(text) {
@@ -19882,7 +19180,7 @@ _syncActionBtn();
     }
 
     // Replace last autumn message — retries until Autumn's response appears
-    // (needed when Claude is connected and response arrives async)
+    // (needed when external AI is connected and response arrives async)
     function _getMsgs(){
       try{
         if(typeof msgs==='function') return msgs();
@@ -19920,7 +19218,7 @@ _syncActionBtn();
       // Try immediately first
       var m=_getMsgs();
       if(_doReplace(m,newText)) return;
-      // If Claude is responding async, poll every 400ms for up to 8 seconds
+      // If external AI is responding async, poll every 400ms for up to 8 seconds
       var attempts=0;
       var poll=setInterval(function(){
         attempts++;
@@ -19969,12 +19267,12 @@ _syncActionBtn();
             var _lastMsg=_lastMsgs&&_lastMsgs.length?_lastMsgs[_lastMsgs.length-1]:null;
             var _protectedCtx=new Set(['ANALYTICS','CONNECTION_STATUS','BACKUP','MEMORY_ANALYSIS','EXPORT','IMPORT','VISION','VISION_ANALYSIS','IMAGE_GEN','AUDIO_ANALYSIS']);
             var _isProtected=_lastMsg&&_lastMsg.contextType&&_protectedCtx.has(_lastMsg.contextType);
-            // Local buoyancy-reflex replies already sit on the bubble — never overwrite with Claude or a second GE pass.
+            // Local buoyancy-reflex replies already sit on the bubble — never overwrite with external AI or a second GE pass.
             var _alreadyLocal = !!( _lastMsg && (_lastMsg._fromBuoyancyReflex || (typeof _lastMsg.grammarMeta==='string' && _lastMsg.grammarMeta.indexOf('Buoyancy Reflex')>=0)) );
-            var _explicitClaude = /\b(ask\s+claude|use\s+claude|with\s+claude|have\s+claude)\b/i.test(text||'');
-            var _layerOn = (typeof _claudeLayerOn==='function' && _claudeLayerOn());
-            // Prefer local grammar. Do not overwrite Claude when the KEYS Claude layer is ON or the user asked for Claude.
-            if(!_isProtected && !_alreadyLocal && !_explicitClaude && !_layerOn){
+            var _explicitExt = false;
+            var _layerOn = false;
+            // Prefer local grammar. Do not overwrite external AI when the KEYS external AI layer is ON or the user asked for external AI.
+            if(!_isProtected && !_alreadyLocal && !_explicitExt && !_layerOn){
               // ── Broad social/activity interceptor (inline — not cached) ────
               var _rawQ=text.toLowerCase();
               var _intercepted=false;
@@ -20626,7 +19924,7 @@ _syncActionBtn();
   // ══════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════
 //  FORGE — Autumn Code Studio
-//  Public code editor · Monaco Editor · Live preview · Claude toggle
+//  Public code editor · Monaco Editor · Live preview · external AI toggle
 //  Separate from the admin IDE — no password needed, no GitHub write
 // ══════════════════════════════════════════════════════════════════
 (function() {
@@ -20636,7 +19934,6 @@ var _forge = {
   lang:      'html',
   monacoReady: false,
   previewMode: 'frame',   // 'frame' | 'output'
-  claudeEnabled: true,    // toggleable per-session
 };
 
 // ── Supported languages → file extensions ────────────────────────
@@ -20667,7 +19964,6 @@ window.forgeOpen = function(code, lang) {
   else if (code !== undefined) { _forge.editor.setValue(code);
     if (lang) forgeSetLang(lang); }
   _forgeUpdateStatus();
-  _forgeRestoreClaudeToggle();
 };
 
 window.forgeClose = function() {
@@ -20732,7 +20028,7 @@ function _forgeInitMonaco(initialCode, initialLang) {
 
 function _forgeDefaultSnippet(lang) {
   var snips = {
-    html: '<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>FORGE \u00b7 Autumn \u00b7 DART Meadow</title>\n  <style>\n    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n    body {\n      background: #030810;\n      color: #e0f4ff;\n      font-family: \"Courier New\", monospace;\n      min-height: 100vh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: center;\n      overflow: hidden;\n    }\n    canvas { position: fixed; inset: 0; z-index: 0; opacity: 0.18; }\n    .card {\n      position: relative;\n      z-index: 1;\n      border: 1px solid rgba(0,255,200,0.25);\n      background: rgba(3,8,16,0.85);\n      padding: 36px 44px;\n      max-width: 520px;\n      width: 92vw;\n      text-align: center;\n      backdrop-filter: blur(8px);\n    }\n    .label { font-size: 10px; letter-spacing: 0.22em; color: #00ffc8; text-transform: uppercase; margin-bottom: 18px; opacity: 0.7; }\n    h1 { font-size: clamp(1.6rem,5vw,2.4rem); font-weight: 400; letter-spacing: 0.08em; color: #e0f4ff; margin-bottom: 12px; }\n    h1 span { color: #00ffc8; }\n    .sub { font-size: 11px; color: #4a8fa8; letter-spacing: 0.12em; margin-bottom: 28px; }\n    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }\n    .cell { border: 1px solid rgba(0,255,200,0.15); padding: 10px 8px; font-size: 10px; letter-spacing: 0.1em; color: #6bcfea; }\n    .cell strong { display: block; color: #00ffc8; font-size: 16px; margin-bottom: 2px; letter-spacing: 0; }\n    .pulse { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #00ffc8; margin-right: 6px; animation: blink 1.4s ease-in-out infinite; vertical-align: middle; }\n    .status { font-size: 10px; letter-spacing: 0.15em; color: #2a6a5a; }\n    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }\n  </style>\n</head>\n<body>\n  <canvas id=\"c\"></canvas>\n  <div class=\"card\">\n    <div class=\"label\">DART Meadow \u00b7 Radical Deepscale \u00b7 FORGE</div>\n    <h1>AUTUMN <span>FORGE</span></h1>\n    <div class=\"sub\">LEATR v2.1 \u00b7 ARC EDGE STUDIO \u00b7 NEURAL CODE EDITOR</div>\n    <div class=\"grid\">\n      <div class=\"cell\"><strong id=\"fps\">--</strong>FPS</div>\n      <div class=\"cell\"><strong id=\"t\">--</strong>UPTIME (s)</div>\n      <div class=\"cell\"><strong>GEO</strong>FRONTLINE</div>\n      <div class=\"cell\"><strong>AERO</strong>ROOT SHELL</div>\n    </div>\n    <div class=\"status\"><span class=\"pulse\"></span>FORGE ACTIVE \u00b7 CLAUDE ASSIST READY</div>\n  </div>\n  <scr'+'ipt>\n    const cv = document.getElementById(\"c\");\n    const cx = cv.getContext(\"2d\");\n    let W, H, t0 = Date.now(), frames = 0, lastFPS = performance.now();\n    function resize() { W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }\n    window.addEventListener(\"resize\", resize); resize();\n    function draw() {\n      const now = performance.now();\n      frames++;\n      if (now - lastFPS >= 1000) {\n        document.getElementById(\"fps\").textContent = frames;\n        document.getElementById(\"t\").textContent = ((Date.now()-t0)/1000).toFixed(0);\n        frames = 0; lastFPS = now;\n      }\n      cx.clearRect(0,0,W,H);\n      const s = now * 0.0004;\n      cx.strokeStyle = \"rgba(0,255,200,0.12)\"; cx.lineWidth = 0.5;\n      for (let x=0;x<W;x+=48){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke();}\n      for (let y=0;y<H;y+=48){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke();}\n      for (let i=0;i<5;i++) {\n        const r=80+i*55, a0=s+i*1.2, a1=a0+1.1+Math.sin(s+i)*0.4;\n        cx.beginPath(); cx.arc(W/2,H/2,r,a0,a1);\n        cx.strokeStyle=`hsla(${170+i*18},100%,70%,${0.25-i*0.04})`;\n        cx.lineWidth=1; cx.stroke();\n      }\n      requestAnimationFrame(draw);\n    }\n    draw();\n  <\/script>\n</body>\n</html>',
+    html: '<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>FORGE \u00b7 Autumn \u00b7 DART Meadow</title>\n  <style>\n    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n    body {\n      background: #030810;\n      color: #e0f4ff;\n      font-family: \"Courier New\", monospace;\n      min-height: 100vh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: center;\n      overflow: hidden;\n    }\n    canvas { position: fixed; inset: 0; z-index: 0; opacity: 0.18; }\n    .card {\n      position: relative;\n      z-index: 1;\n      border: 1px solid rgba(0,255,200,0.25);\n      background: rgba(3,8,16,0.85);\n      padding: 36px 44px;\n      max-width: 520px;\n      width: 92vw;\n      text-align: center;\n      backdrop-filter: blur(8px);\n    }\n    .label { font-size: 10px; letter-spacing: 0.22em; color: #00ffc8; text-transform: uppercase; margin-bottom: 18px; opacity: 0.7; }\n    h1 { font-size: clamp(1.6rem,5vw,2.4rem); font-weight: 400; letter-spacing: 0.08em; color: #e0f4ff; margin-bottom: 12px; }\n    h1 span { color: #00ffc8; }\n    .sub { font-size: 11px; color: #4a8fa8; letter-spacing: 0.12em; margin-bottom: 28px; }\n    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }\n    .cell { border: 1px solid rgba(0,255,200,0.15); padding: 10px 8px; font-size: 10px; letter-spacing: 0.1em; color: #6bcfea; }\n    .cell strong { display: block; color: #00ffc8; font-size: 16px; margin-bottom: 2px; letter-spacing: 0; }\n    .pulse { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #00ffc8; margin-right: 6px; animation: blink 1.4s ease-in-out infinite; vertical-align: middle; }\n    .status { font-size: 10px; letter-spacing: 0.15em; color: #2a6a5a; }\n    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }\n  </style>\n</head>\n<body>\n  <canvas id=\"c\"></canvas>\n  <div class=\"card\">\n    <div class=\"label\">DART Meadow \u00b7 Radical Deepscale \u00b7 FORGE</div>\n    <h1>AUTUMN <span>FORGE</span></h1>\n    <div class=\"sub\">LEATR v2.1 \u00b7 ARC EDGE STUDIO \u00b7 NEURAL CODE EDITOR</div>\n    <div class=\"grid\">\n      <div class=\"cell\"><strong id=\"fps\">--</strong>FPS</div>\n      <div class=\"cell\"><strong id=\"t\">--</strong>UPTIME (s)</div>\n      <div class=\"cell\"><strong>GEO</strong>FRONTLINE</div>\n      <div class=\"cell\"><strong>AERO</strong>ROOT SHELL</div>\n    </div>\n    <div class=\"status\"><span class=\"pulse\"></span>FORGE ACTIVE \u00b7 LOCAL ASSIST READY</div>\n  </div>\n  <scr'+'ipt>\n    const cv = document.getElementById(\"c\");\n    const cx = cv.getContext(\"2d\");\n    let W, H, t0 = Date.now(), frames = 0, lastFPS = performance.now();\n    function resize() { W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }\n    window.addEventListener(\"resize\", resize); resize();\n    function draw() {\n      const now = performance.now();\n      frames++;\n      if (now - lastFPS >= 1000) {\n        document.getElementById(\"fps\").textContent = frames;\n        document.getElementById(\"t\").textContent = ((Date.now()-t0)/1000).toFixed(0);\n        frames = 0; lastFPS = now;\n      }\n      cx.clearRect(0,0,W,H);\n      const s = now * 0.0004;\n      cx.strokeStyle = \"rgba(0,255,200,0.12)\"; cx.lineWidth = 0.5;\n      for (let x=0;x<W;x+=48){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke();}\n      for (let y=0;y<H;y+=48){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke();}\n      for (let i=0;i<5;i++) {\n        const r=80+i*55, a0=s+i*1.2, a1=a0+1.1+Math.sin(s+i)*0.4;\n        cx.beginPath(); cx.arc(W/2,H/2,r,a0,a1);\n        cx.strokeStyle=`hsla(${170+i*18},100%,70%,${0.25-i*0.04})`;\n        cx.lineWidth=1; cx.stroke();\n      }\n      requestAnimationFrame(draw);\n    }\n    draw();\n  <\/script>\n</body>\n</html>',
     javascript: '// FORGE \u00b7 JavaScript \u00b7 DART Meadow\n// Arc Edge \u00b7 LEATR reflex pattern\n\nconst LEATR = {\n  version: \"2.1\",\n  shells: [\"GEO\", \"MAR\", \"AERO\"],\n  state:  \"AWAKE\",\n\n  reflex(input) {\n    const encoded = this.encode(input);\n    return { input, encoded, shell: this.shells[encoded % 3] };\n  },\n\n  encode(x) {\n    // (xa\u00b2\u221axa) \u00b1 1  \u2014 ARIEL encode unit\n    const a = Math.abs(x.toString().length);\n    return Math.floor(a * a * Math.sqrt(a)) + 1;\n  }\n};\n\nconsole.log(\"LEATR v\" + LEATR.version + \" \u00b7 \" + LEATR.state);\nconsole.log(LEATR.reflex(\"Autumn\"));\nconsole.log(LEATR.reflex(\"Arc Edge\"));',
     python: '# FORGE \u00b7 Python \u00b7 DART Meadow\n# Arc Edge \u00b7 LEATR reflex pattern\n\nimport math\n\nSHELLS = [\"GEO\", \"MAR\", \"AERO\"]\n\ndef encode(x: str) -> int:\n    \"\"\"(xa\u00b2\u221axa) \u00b1 1 \u2014 ARIEL encode unit\"\"\"\n    a = len(x)\n    return int(a * a * math.sqrt(a)) + 1\n\ndef reflex(value: str) -> dict:\n    e = encode(value)\n    return {\"input\": value, \"encoded\": e, \"shell\": SHELLS[e % 3]}\n\nprint(f\"LEATR v2.1 \u00b7 FORGE\")\nfor word in [\"Autumn\", \"Arc Edge\", \"DART Meadow\"]:\n    print(reflex(word))',
     css: '/* FORGE \u00b7 CSS \u00b7 DART Meadow */\n/* Arc Edge dark theme \u2014 copy into your project */\n\n:root {\n  --bg:       #030810;\n  --surface:  rgba(3,8,16,0.85);\n  --cyan:     #00ffc8;\n  --cyan-dim: rgba(0,255,200,0.25);\n  --text:     #e0f4ff;\n  --text-dim: #4a8fa8;\n  --mono:     \"Courier New\", monospace;\n}\n\nbody {\n  background: var(--bg);\n  color: var(--text);\n  font-family: var(--mono);\n  margin: 0;\n}\n\n.card {\n  border: 1px solid var(--cyan-dim);\n  background: var(--surface);\n  padding: 32px;\n  backdrop-filter: blur(8px);\n}\n\n.label {\n  font-size: 10px;\n  letter-spacing: 0.2em;\n  text-transform: uppercase;\n  color: var(--cyan);\n  opacity: 0.7;\n}\n\n.pulse {\n  display: inline-block;\n  width: 6px; height: 6px;\n  border-radius: 50%;\n  background: var(--cyan);\n  animation: blink 1.4s ease-in-out infinite;\n}\n\n@keyframes blink {\n  0%, 100% { opacity: 1; }\n  50%       { opacity: 0.15; }\n}',
@@ -20765,10 +20061,7 @@ function _forgeUpdateStatus() {
   // Status indicator
   var si = document.getElementById('forge-status-info');
   if (si) {
-    var hasKey = !!(typeof _getAK==='function' && _getAK());
-    var claudeOn = _forge.claudeEnabled && hasKey;
-    si.textContent = claudeOn ? '◈ CLAUDE ASSIST ON' : '';
-    si.style.color = claudeOn ? 'rgba(0,255,136,.5)' : 'rgba(224,244,255,.3)';
+    si.textContent = '';
   }
 }
 
@@ -20905,36 +20198,12 @@ window.forgeSendToChat = function() {
   forgeClose();
 };
 
-// ── Claude toggle for FORGE ───────────────────────────────────────
-window.forgeToggleClaude = function() {
-  _forge.claudeEnabled = !_forge.claudeEnabled;
-  localStorage.setItem('_forge_claude_enabled', _forge.claudeEnabled ? '1' : '0');
-  _forgeUpdateClaudeToggleUI();
-  _forgeUpdateStatus();
-  if (typeof ideToast==='function')
-    ideToast('FORGE Claude assist: ' + (_forge.claudeEnabled ? 'ON' : 'OFF'), 1800);
-};
+// ── external AI toggle for FORGE ───────────────────────────────────────
 
-function _forgeRestoreClaudeToggle() {
-  var saved = localStorage.getItem('_forge_claude_enabled');
-  if (saved !== null) _forge.claudeEnabled = saved === '1';
-  _forgeUpdateClaudeToggleUI();
-  _forgeUpdateStatus();
-}
 
-function _forgeUpdateClaudeToggleUI() {
-  var btn = document.getElementById('forge-claude-toggle');
-  if (!btn) return;
-  var hasKey = !!(typeof _getAK==='function' && _getAK());
-  var active = _forge.claudeEnabled && hasKey;
-  btn.textContent = active ? '◈ CLAUDE ON' : '◈ CLAUDE OFF';
-  btn.style.borderColor  = active ? 'rgba(0,255,136,.45)' : 'rgba(224,244,255,.15)';
-  btn.style.color        = active ? '#00ff88'             : 'rgba(224,244,255,.3)';
-  btn.style.textShadow   = active ? '0 0 8px rgba(0,255,136,.25)' : 'none';
-  btn.title = active
-    ? 'Claude is assisting FORGE — click to disable (saves API credits)'
-    : (hasKey ? 'Claude assist is OFF — click to enable for AI coding help' : 'No API key — set one in 🔑 KEYS');
-}
+
+
+
 
 // ── Code block renderer for chat messages ─────────────────────────
 var _LANG_MAP = {
@@ -22113,8 +21382,8 @@ window.emmToggle = function() {
   // ── Intent detection — open/close via user input + parse Autumn replies ──
 
 // ── LOCAL ARC INTENT PARSER ───────────────────────────────────────────────
-// Immediately generates arcs from natural language WITHOUT waiting for Claude.
-// Returns true if it handled the request, false to fall through to Claude.
+// Immediately generates arcs from natural language WITHOUT waiting for external AI.
+// Returns true if it handled the request, false to fall through to external AI.
 window._localArcParse = function(txt) {
   var lc = txt.toLowerCase();
 
@@ -22239,7 +21508,7 @@ window._localArcParse = function(txt) {
     if (typeof saveState==='function') saveState();
   }, delay + 200);
 
-  return true; // handled locally — skip Claude API
+  return true; // handled locally — skip external API
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -22263,7 +21532,7 @@ window._localArcParse = function(txt) {
       if (_isArcCreate && typeof window._localArcParse === 'function') {
         var _handled = window._localArcParse(txt);
         if (_handled) {
-          // Clear input, show user message in chat, skip Claude API
+          // Clear input, show user message in chat, skip external API
           var _arcInp = document.getElementById('chat-input');
           if (_arcInp) _arcInp.value = '';
           // Push the user message visibly
@@ -22273,9 +21542,9 @@ window._localArcParse = function(txt) {
             if (typeof saveState==='function') saveState();
           }
           if (typeof window._updateSendBtn==='function') window._updateSendBtn();
-          return; // don't call Claude
+          return; // don't call external AI
         }
-        // If parser didn't handle it (analysis request etc), open studio + fall through to Claude
+        // If parser didn't handle it (analysis request etc), open studio + fall through to external AI
         setTimeout(arcStudioOpen, 200);
       }
       return _prev.apply(this, arguments);
@@ -25507,55 +24776,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         var sysPrompt=sysParts.join('\n');
         var ab=document.createElement('div'); ab.className='adm-chat-bub autumn'; ab.textContent='...';
         chatLog.appendChild(ab); chatLog.scrollTop=chatLog.scrollHeight;
-        _noAI({
-          method:'POST',
-          headers:{'Content-Type':'application/json',
-                   ...(_admAk?{}:{})},
-          body:JSON.stringify({model:'local',max_tokens:1000,
-            system:sysPrompt,
-            messages:[{role:'user',content:q}]})
-        }).then(function(r){return r.json();}).then(function(d){
-          var raw=(d.content&&d.content[0])?d.content[0].text:'';
-          if(!raw){ab.textContent='No response.';return;}
-          var actionMatch=raw.match(/\[ACTION:([^\]]+)\]/g);
-          if(typeof window._ashStarExecCommands==='function') window._ashStarExecCommands(raw);
-          var displayText=raw.replace(/\[ACTION:[^\]]+\]/g,'').replace(/\[ASHSTAR:[^\]]+\]/g,'').trim();
-          ab.textContent=displayText||raw;
-          chatLog.scrollTop=chatLog.scrollHeight;
-          if(actionMatch){
-            actionMatch.forEach(function(tag){
-              var cmd=tag.slice(8,-1);
-              var parts=cmd.split(':');
-              try{
-                if(parts[0]==='tab'&&typeof window._admTab==='function') window._admTab(parts[1]);
-                else if(parts[0]==='mist'){
-                  if(parts[1]==='new'&&typeof window.mistNewMaze==='function') window.mistNewMaze();
-                  else if(parts[1]==='diff'&&typeof window.mistSetDiff==='function') window.mistSetDiff(parseInt(parts[2])||1);
-                  else if(parts[1]==='tier'&&typeof window.mistSetSlot==='function') window.mistSetSlot(parseInt(parts[2])||0);
-                  else if(parts[1]==='toggle'&&typeof window.mistToggle==='function') window.mistToggle();
-                } else if(parts[0]==='ashstar'){
-                  var dest=parts[1]||'all';
-                  var col=parts[2]||null;
-                  if(typeof window.fireAshStar==='function') window.fireAshStar({thought:'Ash Star', toUids:dest, color:col, force:true});
-                } else if(parts[0]==='role'&&parts[1]==='grant'&&parts[2]&&parts[3]){
-                  window._grantRole(parts[2],parts[3],parts[4]||null).then(function(r){
-                    var note=document.createElement('div');
-                    note.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;color:color-mix(in srgb, var(--cyan,#00e5ff) 60%, transparent);padding:2px 0';
-                    note.textContent=r.ok?'\u2705 Role granted: '+parts[3]+' \u2192 '+parts[2]:'\u274c '+r.error;
-                    chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
-                  });
-                } else if(parts[0]==='role'&&parts[1]==='revoke'&&parts[2]){
-                  window._revokeRole(parts[2]).then(function(r){
-                    var note=document.createElement('div');
-                    note.style.cssText='font-family:var(--font-d,Orbitron,monospace);font-size:9px;color:rgba(255,100,80,.7);padding:2px 0';
-                    note.textContent=r.ok?'\u26d4 Role revoked: '+parts[2]:'\u274c '+r.error;
-                    chatLog.appendChild(note);chatLog.scrollTop=chatLog.scrollHeight;
-                  });
-                }
-              }catch(ae){}
-            });
-          }
-        }).catch(function(e){ab.textContent='API not connected \u2014 offline pattern mode. ('+e.message+')';chatLog.scrollTop=chatLog.scrollHeight;});
+        ab.textContent='Admin chat runs in local pattern mode.';
       }
       var studyLab=document.createElement('label'); studyLab.id='adm-study-lab';
       studyLab.style.cssText='display:flex;align-items:center;gap:4px;flex-shrink:0;cursor:pointer;font-family:var(--font-d,Orbitron,monospace);font-size:8px;letter-spacing:1px;color:rgba(255,179,71,.75);user-select:none';
