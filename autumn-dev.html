@@ -23601,6 +23601,8 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     }
 
     // ── No stored token ───────────────────────────────────────────────────
+    // Returning from GitHub mid-approval (installed app was reloaded): keep the SAME code and keep polling
+    if (_isStandalonePWA() && _loadPendingDevice()) { _showLoginModal(); _showDeviceFlow(); return; }
     if (isRegistered) {
       // User logged in before but session was cleared (e.g. different browser,
       // cleared storage). Show re-auth prompt — not the first-timer welcome.
@@ -23681,6 +23683,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var inner = modal ? (modal.querySelector('.gh-login-inner') || modal.querySelector('.gh-login-box')) : null;
     if (!inner) { _showAuthLoading(); }
 
+    // Resume an authorization that is still pending (app was backgrounded / reloaded
+    // while the user approved on GitHub) instead of requesting a brand-new code.
+    var _pend = _loadPendingDevice();
+    if (_pend) { _showDeviceCode(_pend.userCode, _pend.verifyUrl, _pend.deviceCode, _pend.interval, _pend.exp); return; }
+
     // Show requesting state
     _setDeviceUI('<div style="color:var(--cyan);font-family:var(--font-d);letter-spacing:2px;font-size:.7rem;">REQUESTING CODE...</div>');
 
@@ -23722,7 +23729,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _ghDeviceCode()
       .then(function(d){
         if (d.error) { _setDeviceUI(_quotaFallbackHtml()); return; }
-        _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5);
+        _showDeviceCode(d.user_code, d.verification_uri, d.device_code, d.interval || 5, Date.now() + (d.expires_in || 900) * 1000);
       })
       .catch(function(e){ _setDeviceUI(_quotaFallbackHtml()); console.error(e); })
   }
@@ -23760,7 +23767,24 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     });
   };
 
-  function _showDeviceCode(userCode, verifyUrl, deviceCode, interval) {
+  // ── Pending device authorization survives a backgrounded / reloaded PWA ──
+  function _loadPendingDevice() {
+    try {
+      var p = JSON.parse(localStorage.getItem('_gh_device_pending') || 'null');
+      if (p && p.deviceCode && p.exp && p.exp > Date.now() + 5000) return p;
+      localStorage.removeItem('_gh_device_pending');
+    } catch(e) {}
+    return null;
+  }
+  function _clearPendingDevice() {
+    clearInterval(_devicePollTimer); _devicePollTimer = null;
+    try { localStorage.removeItem('_gh_device_pending'); } catch(e) {}
+  }
+
+  function _showDeviceCode(userCode, verifyUrl, deviceCode, interval, expAt) {
+    clearInterval(_devicePollTimer);
+    expAt = expAt || (Date.now() + 15 * 60 * 1000);
+    try { localStorage.setItem('_gh_device_pending', JSON.stringify({userCode:userCode, verifyUrl:verifyUrl, deviceCode:deviceCode, interval:interval, exp:expAt})); } catch(e) {}
     var html = '<div style="text-align:center;padding:8px 0">'
       + '<div style="font-family:var(--font-d);font-size:.55rem;letter-spacing:2px;color:var(--cyan);margin-bottom:10px;">ENTER THIS CODE ON GITHUB</div>'
       + '<div style="font-family:var(--font-d);font-size:1.6rem;letter-spacing:6px;color:#fff;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);border-radius:6px;padding:12px 20px;margin-bottom:10px;cursor:pointer;user-select:all;" id="gh-device-code-display">' + userCode + '</div>'
@@ -23813,8 +23837,17 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       }
     }, 150);
 
-    // Poll for token
-    _devicePollTimer = setInterval(function() {
+    // Poll for token (named so it can also fire the instant the app returns to the foreground)
+    var _lastPoll = 0, _pollFails = 0;
+    var _pollOnce = function() {
+      var _now = Date.now();
+      if (_now - _lastPoll < 2500) return;
+      _lastPoll = _now;
+      if (_now > expAt) {
+        _clearPendingDevice();
+        _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Code expired. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Get new code</span></div>');
+        return;
+      }
       var _gasUrl = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL) ? AUTUMN_GAS_URL : window.AUTUMN_GAS_URL;
       // form-encoded = simple CORS request, no preflight — GitHub allows it cross-origin
       var _pollBody = 'client_id=Ov23li2K0njEqO1WTSdD' +
@@ -23837,7 +23870,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       .catch(function(){ return {}; })
       .then(function(d){
           if (d.access_token) {
-            clearInterval(_devicePollTimer);
+            _clearPendingDevice();
 
             // ── Fetch User Info via GitHub API ──
             fetch('https://api.github.com/user', {
@@ -23867,17 +23900,34 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
             });
 
           } else if (d.error === 'access_denied') {
-            clearInterval(_devicePollTimer);
+            _clearPendingDevice();
             _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Access denied. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Try again</span></div>');
           } else if (d.error === 'expired_token') {
-            clearInterval(_devicePollTimer);
+            _clearPendingDevice();
             _setDeviceUI('<div style="color:#f66;font-family:var(--font-d);font-size:.6rem;">Code expired. <span style="cursor:pointer;color:var(--cyan);text-decoration:underline;" onclick="window._ghStartOAuth()">Get new code</span></div>');
-          }
-          // authorization_pending or slow_down — just keep polling
+          } else if (d.error === 'slow_down') {
+            interval = d.interval || (interval + 5);
+            clearInterval(_devicePollTimer); _devicePollTimer = setInterval(_pollOnce, interval * 1000);
+          } else if (!d.error) {
+            // neither GitHub nor the proxy answered — after 8 silent polls offer token sign-in
+            if (++_pollFails >= 8) { _clearPendingDevice(); _setDeviceUI(_quotaFallbackHtml()); }
+          } else { _pollFails = 0; }
+          // authorization_pending — just keep polling
         })
         .catch(function(){});
-    }, interval * 1000);
+    };
+    window._ghPollNow = _pollOnce;
+    _devicePollTimer = setInterval(_pollOnce, interval * 1000);
+    setTimeout(_pollOnce, 1200);
   }
+
+  // The moment the installed app comes back to the front (after approving on GitHub), poll at once
+  ['visibilitychange','pageshow','focus'].forEach(function(ev){
+    (ev === 'focus' || ev === 'pageshow' ? window : document).addEventListener(ev, function(){
+      if (document.hidden) return;
+      if (_devicePollTimer && window._ghPollNow) { try { window._ghPollNow(); } catch(e){} }
+    });
+  });
 
   function _setDeviceUI(html) {
     var modal = document.getElementById('gh-login-modal');
