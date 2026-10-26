@@ -549,11 +549,14 @@ const slots = Array.from({length:STOCK_COUNT}, (_,i) => ({
   const now = new Date().getFullYear();
   const s = document.getElementById('yr-start');
   const e = document.getElementById('yr-end');
-  for(let y=now; y<=2080; y++){
+  // every year to 2100, then every 10 years out to the year 3000
+  const yrs=[]; for(let y=now; y<=2100; y++) yrs.push(y);
+  for(let y=2110; y<=3000; y+=10) yrs.push(y);
+  yrs.forEach(y=>{
     const os=document.createElement('option'); os.value=y; os.textContent=y;
     const oe=document.createElement('option'); oe.value=y; oe.textContent=y;
     s.appendChild(os); e.appendChild(oe);
-  }
+  });
   e.value = 2050;
 })();
 
