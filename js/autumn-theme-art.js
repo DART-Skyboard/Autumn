@@ -15,6 +15,8 @@
   var IMG_EXT = /\.(jpe?g|png|webp|gif|avif|bmp|svg|heic|heif|tga)$/i, VID_EXT = /\.(mp4|m4v|mov|webm|ogv)$/i;
   var MAX_BYTES = 250 * 1024 * 1024;
   var artURL = null, artMeta = null, lastUser = null;
+  // In-game guest edition (js/jots-embed.js): no IndexedDB, no profile sync — palettes live only in that frame's in-memory storage.
+  var EMBED = !!global.AUT_EMBED;
 
   function user() { var a = global._ghAuth || {}; return (a.loggedIn !== false && a.username) ? String(a.username).toLowerCase() : 'guest'; }
   function lsKey(k) { return 'autumn_' + k + '_v1:' + user(); }
@@ -27,12 +29,22 @@
   // ── IndexedDB (art blobs are too large for localStorage) ───────────────────
   function db() {
     return new Promise(function (res, rej) {
+      if (EMBED) { rej(new Error('art storage disabled in embed')); return; }
       var r = indexedDB.open('autumn_theme_art', 1);
       r.onupgradeneeded = function () { r.result.createObjectStore('art'); };
       r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); };
     });
   }
-  function idb(mode, fn) { return db().then(function (d) { return new Promise(function (res, rej) { var tx = d.transaction('art', mode), st = tx.objectStore('art'); var q = fn(st); tx.oncomplete = function () { res(q && q.result); }; tx.onerror = function () { rej(tx.error); }; }); }); }
+  function idb(mode, fn) {
+    return db().then(function (d) {
+      return new Promise(function (res, rej) {
+        var tx = d.transaction('art', mode), st = tx.objectStore('art'), q = fn(st), settled = false;
+        var fail = function () { if (settled) return; settled = true; rej(tx.error || new Error('IndexedDB transaction aborted')); };
+        tx.oncomplete = function () { if (settled) return; settled = true; res(q && q.result); };
+        tx.onerror = fail; tx.onabort = fail;
+      });
+    });
+  }
 
   // ── ART ────────────────────────────────────────────────────────────────────
   function scrimLabel() { var l = document.getElementById('st-label'); return l ? l.textContent.trim().toUpperCase() : ''; }
@@ -78,33 +90,40 @@
     if (artMeta.kind === 'video') { try { show ? cur.play().catch(function () {}) : cur.pause(); } catch (e) {} }
   }
   function loadArt() {
-    return idb('readonly', function (st) { return st.get(user()); }).then(function (rec) {
+    var key = user();
+    return idb('readonly', function (st) { return st.get(key); }).then(function (rec) {
+      if (user() !== key) return;   // identity changed while reading: the user-change watcher reloads for the new user
       if (artURL) { try { URL.revokeObjectURL(artURL); } catch (e) {} }
       artURL = null; artMeta = null;
       if (rec && rec.blob) { artURL = URL.createObjectURL(rec.blob); artMeta = { kind: rec.kind, name: rec.name }; }
       if (!artMeta) lsSet('art', null); renderArt();
-    }).catch(function () { renderArt(); });
+    }).catch(function () { if (user() === key) renderArt(); });
   }
   function importArt(file) {
     if (!file) return Promise.resolve('No file chosen.');
     var kind = kindOf(file);
     if (!kind) return Promise.resolve('Unsupported file type — choose an image (JPG/PNG/WebP/GIF/HEIC) or a video (MP4/MOV/WebM).');
     if (file.size > MAX_BYTES) return Promise.resolve('File is too large (max 250 MB).');
+    if (EMBED) return Promise.resolve('ART is not available in the in-game edition.');
+    var owner = user();
     var probe = URL.createObjectURL(file);
     return testDecode(kind, probe).then(function (ok) {
       URL.revokeObjectURL(probe);
       if (!ok) return 'This browser cannot play/decode that file' + (/\.(heic|heif|mov)$/i.test(file.name) ? ' (HEIC/MOV support varies — try JPG/PNG or MP4/WebM).' : '.') + ' Current art kept.';
-      return idb('readwrite', function (st) { return st.put({ kind: kind, name: file.name, type: file.type, blob: file, ts: Date.now() }, user()); })
+      if (user() !== owner) return 'User changed before art was saved. Current art kept.';
+      return idb('readwrite', function (st) { return st.put({ kind: kind, name: file.name, type: file.type, blob: file, ts: Date.now() }, owner); })
         .then(loadArt).then(function () {
-          if (gh()) uploadArt(file, kind).then(tagBlobSha);
-          else lsSet('art', { kind: kind, name: file.name, type: file.type, size: file.size, synced: false });
+          if (user() !== owner) return 'User changed while art was saving.';
+          // fresh metadata first (never reuse the previous art's blobSha); marked local until the profile commit succeeds
+          lsSet('art', { kind: kind, name: file.name, type: file.type, size: file.size, synced: false, local: true });
+          if (gh()) uploadArt(file, kind, owner);
           return 'ART set: ' + file.name + (gh() ? '' : ' (saved on this device — sign in to back it up)');
         });
     }).catch(function (e) { return 'Could not save art: ' + (e && e.message || e); });
   }
   function clearArt() { return clearArtLocal().then(function () { lsSet('art', null); markChanged(); setSync(gh() ? 'Art cleared (profile updated).' : ''); }); }
   // Store the uploaded blob sha with the local copy so a later pull does not re-download the same art.
-  function tagBlobSha() { var m = lsGet('art', null); if (!m || !m.blobSha) return; return idb('readwrite', function (st) { var q = st.get(user()); q.onsuccess = function () { if (q.result) { q.result.blobSha = m.blobSha; st.put(q.result, user()); } }; return q; }); }
+  function tagBlobSha(owner) { if (owner && user() !== owner) return Promise.resolve(); var key = user(), m = lsGet('art', null); if (!m || !m.blobSha) return Promise.resolve(); return idb('readwrite', function (st) { var q = st.get(key); q.onsuccess = function () { if (q.result) { q.result.blobSha = m.blobSha; st.put(q.result, key); } }; return q; }); }
 
   // ── PROFILE SYNC (signed-in users) ─────────────────────────────────────────
   // Backs up ART (≤ 20 MB) + the art preference + custom palettes to the user's existing private profile repo
@@ -114,10 +133,10 @@
   //                           large payloads the contents API rejects, and read back with /git/blobs/<sha> (raw).
   var SYNC_LIMIT = 20 * 1024 * 1024, PREFS_PATH = 'theme/theme-prefs.json';
   var syncState = { status: '', busy: false, retry: null };
-  function gh() { var a = global._ghAuth || {}; if (!a.loggedIn || !a.token || !a.username) return null; return { token: a.token, owner: a.username, repo: a.repoName || ('Autumn-Ash-' + a.username) }; }
+  function gh() { if (EMBED) return null; var a = global._ghAuth || {}; if (!a.loggedIn || !a.token || !a.username) return null; return { token: a.token, owner: a.username, repo: a.repoName || ('Autumn-Ash-' + a.username) }; }
   function api(g, method, path, body, raw) {
     return fetch('https://api.github.com/repos/' + g.owner + '/' + g.repo + path, {
-      method: method, headers: { Authorization: 'token ' + g.token, Accept: raw ? 'application/vnd.github.raw' : 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      method: method, cache: 'no-store', headers: { Authorization: 'token ' + g.token, Accept: raw ? 'application/vnd.github.raw' : 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined
     }).then(function (r) { if (r.status === 404) return null; if (!r.ok) return r.text().then(function (t) { throw new Error('GitHub ' + r.status + ' ' + t.slice(0, 120)); }); return raw ? r.blob() : r.json(); });
   }
@@ -155,17 +174,23 @@
   function textBlob(g, s) { return api(g, 'POST', '/git/blobs', { content: s, encoding: 'utf-8' }); }
   function localPrefs() { return { v: 1, updated: lsGet('sync_ts', 0) || Date.now(), palette: lsGet('palette', null), palettes: palettes(), art: lsGet('art', null) }; }
   var pushTimer = null;
-  function markChanged() { if (user() === 'guest') return; lsSet('sync_ts', Date.now()); clearTimeout(pushTimer); pushTimer = setTimeout(function () { pushPrefs(); }, 1500); }
-  function pushPrefs(extraFiles) {
+  function markChanged() { if (EMBED || user() === 'guest') return; lsSet('sync_ts', Date.now()); clearTimeout(pushTimer); pushTimer = setTimeout(function () { pushPrefs(); }, 1500); }
+  // owner (lower-case username) pins the push to the account that made the change: if the signed-in account switched
+  // meanwhile, nothing is written, so one account's palettes/art never land in another account's profile repo.
+  function pushPrefs(extraFiles, owner) {
     var g = gh(); if (!g) return Promise.resolve();
-    return textBlob(g, JSON.stringify(localPrefs(), null, 2)).then(function (b) {
+    var who = owner || user();
+    if (user() !== who || String(g.owner).toLowerCase() !== who) return Promise.resolve();
+    var prefs = localPrefs();
+    return textBlob(g, JSON.stringify(prefs, null, 2)).then(function (b) {
       return commitFiles(g, [{ path: PREFS_PATH, sha: b.sha }].concat(extraFiles || []), 'theme: sync art + palettes');
-    }).catch(function (e) { setSync('Profile sync failed (' + e.message + ').', function () { pushPrefs(extraFiles); }); throw e; });
+    }).catch(function (e) { setSync('Profile sync failed (' + e.message + ').', function () { pushPrefs(extraFiles, who); }); throw e; });
   }
-  function uploadArt(file, kind) {
+  function uploadArt(file, kind, owner) {
     var g = gh(); if (!g) return Promise.resolve();
+    var who = owner || user(); if (user() !== who) return Promise.resolve();
     if (file.size > SYNC_LIMIT) {
-      var meta = lsGet('art', {}) || {}; meta.synced = false; meta.local = true; lsSet('art', meta);
+      lsSet('art', { kind: kind, name: file.name, type: file.type, size: file.size, synced: false, local: true, overLimit: true });
       setSync('This file exceeds the app\u2019s 20 MB backup limit, so it will only load from this device.');
       notice('This file exceeds the app\u2019s 20 MB backup limit, so it will only load from this device.');
       markChanged(); return Promise.resolve();
@@ -175,10 +200,17 @@
     return blobToB64(file, function (p) { setSync('Backing up to your profile… reading ' + Math.round(p * 100) + '%'); })
       .then(function (b64) { return xhrJSON(g, '/git/blobs', { content: b64, encoding: 'base64' }, function (p) { setSync('Backing up to your profile… uploading ' + Math.round(p * 100) + '%'); }); })
       .then(function (blob) {
+        if (user() !== who) throw new Error('account changed during backup');
         var meta = { kind: kind, name: file.name, type: file.type, size: file.size, path: path, blobSha: blob.sha, ts: Date.now(), synced: true };
         lsSet('art', meta); lsSet('sync_ts', Date.now()); artMeta = { kind: kind, name: file.name, blobSha: blob.sha, synced: true };
-        return pushPrefs([{ path: path, sha: blob.sha }]).then(function () { setSync('\u2713 Backed up to your private profile (' + (file.size / 1048576).toFixed(1) + ' MB). It will load on your other devices.'); });
-      }).catch(function (e) { setSync('Backup failed (' + e.message + '). The art is still saved on this device.', function () { uploadArt(file, kind); }); });
+        return pushPrefs([{ path: path, sha: blob.sha }], who).then(function () { return tagBlobSha(who); }).then(function () { setSync('\u2713 Backed up to your private profile (' + (file.size / 1048576).toFixed(1) + ' MB). It will load on your other devices.'); });
+      }).catch(function (e) {
+        if (user() === who) {
+          var failed = lsGet('art', null);
+          if (failed && failed.name === file.name) { failed.path = null; failed.blobSha = null; failed.synced = false; failed.local = true; lsSet('art', failed); }
+        }
+        setSync('Backup failed (' + e.message + '). The art is still saved on this device.', function () { uploadArt(file, kind, who); });
+      });
   }
   function pullPrefs() {
     var g = gh(); if (!g) return Promise.resolve();
@@ -187,20 +219,29 @@
       if (!t || user() !== who) return;
       var r = JSON.parse(t), localTs = lsGet('sync_ts', 0);
       if (!(r.updated > localTs)) { if (!localTs) markChanged(); return; }   // local is newer (or first sign-in here): push instead
-      lsSet('palettes', r.palettes || []); lsSet('palette', r.palette || null); lsSet('sync_ts', r.updated);
+      lsSet('palettes', r.palettes || []); lsSet('palette', r.palette || null);
+      // sync_ts only advances once the art step succeeded, so RETRY / a reload re-runs a failed art download
+      var done = function () { if (user() === who) lsSet('sync_ts', r.updated); };
       var p = activePalette(); applyPaletteVars(p);
       var ra = r.art;
-      if (!ra) return clearArtLocal();
+      if (!ra) {
+        // keep art that only exists on this device (not yet / never backed up); clear only art that came from the profile
+        return idb('readonly', function (st) { return st.get(who); }).then(function (rec) {
+          if (rec && !rec.blobSha) return;
+          return clearArtLocal();
+        }).then(done);
+      }
       lsSet('art', ra);
-      if (!ra.synced || !ra.blobSha) return;   // over-limit art lives only on the device that picked it
+      if (!ra.synced || !ra.blobSha) { done(); return; }   // over-limit art lives only on the device that picked it
       return idb('readonly', function (st) { return st.get(who); }).then(function (rec) {
-        if (rec && rec.blobSha === ra.blobSha) return;
+        if (rec && rec.blobSha === ra.blobSha) { done(); return; }
         setSync('Loading your art from your profile…');
         return api(g, 'GET', '/git/blobs/' + ra.blobSha, null, true).then(function (blob) {
           if (!blob) throw new Error('art file missing');
           var typed = new Blob([blob], { type: ra.type || (ra.kind === 'video' ? 'video/mp4' : 'image/png') });
+          if (user() !== who) throw new Error('account changed');
           return idb('readwrite', function (st) { return st.put({ kind: ra.kind, name: ra.name, type: ra.type, blob: typed, ts: ra.ts, blobSha: ra.blobSha }, who); });
-        }).then(loadArt).then(function () { setSync('\u2713 Art synced from your profile.'); });
+        }).then(loadArt).then(function () { done(); setSync('\u2713 Art synced from your profile.'); });
       });
     }).catch(function (e) { setSync('Could not load profile theme (' + e.message + ').', pullPrefs); });
   }
@@ -216,7 +257,7 @@
   var VARS = ['--cyan', '--bg', '--bg2', '--border', '--tt-color'];
   function applyPaletteVars(p) {
     var r = document.documentElement.style, b = document.body.style;
-    if (!p) { VARS.forEach(function (v) { r.removeProperty(v); b.removeProperty(v); }); document.body.classList.remove('aut-palette-custom'); b.removeProperty('background'); restyleScrim(); return; }
+    if (!p) { VARS.forEach(function (v) { r.removeProperty(v); b.removeProperty(v); }); document.body.classList.remove('aut-palette-custom'); b.removeProperty('background'); restyleScrim(null); return; }
     var a = hexRGB(p.accent);
     // body.theme-* classes redefine the vars on <body>, so set them there too (inline beats class).
     [r, b].forEach(function (s) { s.setProperty('--cyan', p.accent); s.setProperty('--bg', p.bg1); s.setProperty('--bg2', p.bg2); s.setProperty('--border', 'rgba(' + a.join(',') + ',0.14)'); s.setProperty('--tt-color', p.accent); });
@@ -224,11 +265,14 @@
     document.body.classList.add('aut-palette-custom');
     var lbl = document.getElementById('tt-label'), dot = document.getElementById('tt-dot');
     if (lbl) { lbl.textContent = 'CUSTOM'; lbl.style.color = p.accent; } if (dot) dot.textContent = '◐';
-    restyleScrim();
+    restyleScrim(p);
   }
   // Scrim wash follows the palette's bg1 × 0.6 (iOS AutumnPaletteRuntime.washRGB); VOID uses the palette gradient.
-  function restyleScrim() {
-    var p = activePalette(), scrim = document.getElementById('vid-scrim'); if (!scrim || !p) return;
+  // p = palette to tint with (the previewed one while editing); null restores the page's default scrim; no argument = saved palette.
+  function restyleScrim(p) {
+    if (arguments.length === 0) p = activePalette();
+    var scrim = document.getElementById('vid-scrim'); if (!scrim) return;
+    if (!p) { if (typeof global._reapplyScrim === 'function') { try { global._reapplyScrim(); } catch (e) {} } else scrim.style.removeProperty('background'); return; }
     var L = scrimLabel(), c = hexRGB(p.bg1).map(function (x) { return Math.round(x * 0.6); });
     if (L === 'VOID') scrim.style.background = 'linear-gradient(165deg,' + p.bg1 + ' 0%,' + p.bg2 + ' 100%)';
     else if (LEVEL_ALPHA[L] != null) scrim.style.background = 'rgba(' + c.join(',') + ',' + LEVEL_ALPHA[L] + ')';
@@ -318,7 +362,7 @@
       '<div class="sec">CHOOSE</div><input type="file" id="aut-ta-file" accept="image/*,video/*,.heic,.heif,.mov,.m4v,.webm,.mp4" style="display:none">' +
       '<button id="aut-ta-pick">⇪ CHOOSE IMAGE / VIDEO</button>' + (artMeta ? '<button class="danger" id="aut-ta-clear">✕ CLEAR ART</button>' : '') +
       '<div style="opacity:.45;margin-top:6px">* where this browser can decode it</div><div id="aut-ta-msg"></div>' +
-      '<div class="sec">PROFILE BACKUP</div><div id="aut-ta-sync">' + (gh() ? (artMeta && lsGet('art', {}) && lsGet('art', {}).synced ? '✓ Backed up to your private profile.' : (lsGet('art', {}) || {}).local ? 'This file exceeds the app’s 20 MB backup limit, so it will only load from this device.' : 'Files up to 20 MB back up to your private Autumn profile and load on your other devices.') : 'Guest: art and palettes stay on this device. Sign in with GitHub to back them up.') + '</div>';
+      '<div class="sec">PROFILE BACKUP</div><div id="aut-ta-sync">' + (gh() ? (artMeta && lsGet('art', {}) && lsGet('art', {}).synced ? '✓ Backed up to your private profile.' : (lsGet('art', {}) || {}).overLimit ? 'This file exceeds the app’s 20 MB backup limit, so it will only load from this device.' : 'Files up to 20 MB back up to your private Autumn profile and load on your other devices.') : 'Guest: art and palettes stay on this device. Sign in with GitHub to back them up.') + '</div>';
     setTimeout(function () { if (syncState.status) setSync(syncState.status, syncState.retry); }, 0);
     box.querySelector('[data-x]').onclick = close;
     var f = box.querySelector('#aut-ta-file'), msg = box.querySelector('#aut-ta-msg');
