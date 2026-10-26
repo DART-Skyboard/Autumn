@@ -16,16 +16,20 @@ async function fetchHistory(ticker){
   const y = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1d&range=5y`;
   const urls = [y, y.replace('query1','query2'),
     'https://corsproxy.io/?'+encodeURIComponent(y),
-    'https://api.allorigins.win/raw?url='+encodeURIComponent(y)];
+    'https://api.allorigins.win/raw?url='+encodeURIComponent(y),
+    'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(y),
+    'https://corsproxy.io/?'+encodeURIComponent(y.replace('query1','query2').replace('range=5y','range=2y'))];
+  const ck='mc_hist_'+t;
   for(const u of urls){
     try{
       const r = await fetch(u,{signal:AbortSignal.timeout(12000)}); if(!r.ok) continue;
       const d = await r.json(); const res = d && d.chart && d.chart.result && d.chart.result[0]; if(!res) continue;
       const ts = res.timestamp||[], cl = (res.indicators.quote[0]||{}).close||[];
       const rows = []; ts.forEach((s,i)=>{ if(cl[i]>0) rows.push({d:new Date(s*1000).toISOString().slice(0,10), c:cl[i]}); });
-      if(rows.length>=20) return rows;
+      if(rows.length>=20){ try{ localStorage.setItem(ck,JSON.stringify({at:Date.now(),rows})); }catch(e){} return rows; }
     }catch(e){}
   }
+  try{ const c=JSON.parse(localStorage.getItem(ck)||'null'); if(c&&c.rows&&c.rows.length>=20) return c.rows; }catch(e){}
   throw new Error('history unavailable');
 }
 MCS.fetchHistory = fetchHistory;
@@ -63,7 +67,7 @@ window.resetAll = function(){ _resetAll(); const c=$('cond-body'); if(c) c.inner
 
 async function afterRun(){
   const active = slots.filter(s=>s.result); if(!active.length) return;
-  MCS.busy = true; paintCard(active, true);
+  MCS.busy = true; paintCard(active, true); try{ MC3D.refresh(); }catch(e){}
   await Promise.all(active.map(async sl=>{
     if(!sl.ticker || MCS.hist[sl.ticker]) return;
     try{ MCS.hist[sl.ticker] = await fetchHistory(sl.ticker); delete MCS.histErr[sl.ticker]; }
@@ -82,6 +86,12 @@ function redraw(active){
   if(window.MCS_laneSel) MCS_laneSel(active);
 }
 MCS.recompute = recompute;
+MCS.redrawAll = function(){
+  const a = slots.filter(s=>s.result); if(!a.length) return;
+  const yrS=parseInt($('yr-start').value), yrE=parseInt($('yr-end').value);
+  try{ drawTrajectory(a,yrS,yrE); drawGeo(a); window._phaseRenderAll(); }catch(e){ console.warn(e); }
+};
+MCS.retry = function(){ Object.keys(MCS.histErr).forEach(k=>delete MCS.histErr[k]); afterRun(); };
 
 /* ── conditions card ── */
 const CHIP = (ok,txt)=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 7px;border-radius:9px;font-family:var(--fc);font-size:.46rem;border:1px solid ${ok?'rgba(57,255,130,.5)':'rgba(255,64,96,.45)'};color:${ok?'#39ff82':'#ff6b86'};background:${ok?'rgba(57,255,130,.08)':'rgba(255,64,96,.07)'}">${txt}</span>`;
@@ -113,7 +123,11 @@ function injectCard(){
   </div>`);
   MC3D.mount('lanes', $('cond-lanes-ph'), $('cond-lanes-title'), ()=>{
     const sl = slots.find(s=>s.ticker===$('cond-lanes-stock').value && s.result); const c = sl && MCS.cond[sl.ticker];
-    return c && c.ok ? [c, sl.color] : null;
+    if(c && c.ok) return [c, sl.color];
+    const r = sl && sl.result._ref;                       // no market history: show the projected years instead
+    if(!r || !r.flags.length) return null;
+    const years = r.flags.slice(1).map(f=>({diverge:f.q, bulgeOK:f.ok}));
+    return [{ok:true,days:[],weeks:[],months:[],years}, sl.color, 'projected years only'];
   });
   $('cond-lanes-stock').onchange = ()=>{ const m=MC3D.mounts.lanes; if(m) m.rebuild(); };
 }
@@ -135,7 +149,7 @@ function paintCard(active, loading){
   const rows = active.map(sl=>{
     const c = MCS.cond[sl.ticker], r=sl.result._ref;
     if(!sl.ticker) return `<tr><td style="color:${sl.color}">—</td><td colspan="9" style="color:var(--dim)">no ticker: projection conditions only (history gate = 100%)</td><td>${r?r.qualified+'/'+r.total:'—'}</td></tr>`;
-    if(!c || !c.ok) return `<tr><td style="color:${sl.color};font-weight:700">${sl.ticker}</td><td colspan="9" style="color:#ff9fb0">${MCS.histErr[sl.ticker]?'history unavailable — gate neutral (100%)':(loading?'…':(c&&c.reason)||'—')}</td><td>${r?r.qualified+'/'+r.total:'—'}</td></tr>`;
+    if(!c || !c.ok) return `<tr><td style="color:${sl.color};font-weight:700">${sl.ticker}</td><td colspan="9" style="color:#ff9fb0">${MCS.histErr[sl.ticker]?'history unavailable — gate neutral (100%) · <a href="#" style="color:var(--cyan)" onclick="MCS.retry();return false">retry</a>':(loading?'…':(c&&c.reason)||'—')}</td><td>${r?r.qualified+'/'+r.total:'—'}</td></tr>`;
     const k=c.rates, cur=c.current;
     return `<tr><td style="color:${sl.color};font-weight:700">${sl.ticker}</td>
       <td>${c.nDays}</td>

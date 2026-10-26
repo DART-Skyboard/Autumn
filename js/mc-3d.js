@@ -167,7 +167,7 @@ function buildPhase(v, stocks, yrS, yrE){
 }
 // Conditions terrain for one stock: z = day / week / month / year, y = cumulative path of divergences,
 // green = bulge qualified period, red = not, (days: gold=even)
-function buildLanes(v, cond, color){
+function buildLanes(v, cond, color, note){
   const THREE=T(); v.clear(); if(!cond||!cond.ok) return;
   const W=26,H=6,LANE=5,D=LANE*4; floor(v.group,W,D,0);
   const levels=[
@@ -187,6 +187,7 @@ function buildLanes(v, cond, color){
     inst.instanceMatrix.needsUpdate=true; if(inst.instanceColor) inst.instanceColor.needsUpdate=true; v.group.add(inst);
     const t=label(lv.n+' ('+n+')','#8fdfee',1.1); t.position.set(-3,H*.5,z); v.group.add(t);
   });
+  if(note){ const t=label(note,'#ffb86b',1.5); t.position.set(W/2,H+1.6,D/2); v.group.add(t); }
   v.frame(W,H,D);
 }
 
@@ -211,7 +212,8 @@ function mount(kind, wrapEl, titleEl, getArgs){
   const hint=document.createElement('span'); hint.style.cssText='font-family:var(--fc);font-size:.42rem;color:var(--dim);align-self:center'; hint.textContent='drag = orbit · right-drag/2 fingers = pan · wheel/pinch = dolly'; bar.appendChild(hint);
   m.set3D=on=>{
     m.on=on; wrapEl.style.display=on?'none':''; host.style.display=on?'':'none'; bar.style.display=on?'flex':'none';
-    if(on){ if(!m.viewer) m.viewer=new Viewer(host); rebuild(); m.viewer.resize(); }
+    if(on){ if(!m.viewer){ m.viewer=new Viewer(host); if(window.ResizeObserver) new ResizeObserver(()=>m.viewer&&m.viewer.resize()).observe(host); } rebuild(); m.viewer.resize(); }
+    else if(window.MCS&&MCS.redrawAll) setTimeout(MCS.redrawAll,30);
     b2d.style.background=on?'rgba(0,229,255,.07)':'rgba(0,229,255,.25)'; b3d.style.background=on?'rgba(0,229,255,.25)':'rgba(0,229,255,.07)';
   };
   const sw=document.createElement('span'); sw.style.cssText='display:inline-flex;gap:4px;margin-left:auto;flex:none';
@@ -219,6 +221,7 @@ function mount(kind, wrapEl, titleEl, getArgs){
   [[b2d,'2D',false],[b3d,'3D',true]].forEach(([b,t,on])=>{ b.style.cssText=BTN; b.textContent=t; b.onclick=()=>m.set3D(on); sw.appendChild(b); });
   titleEl.appendChild(sw); b2d.style.background='rgba(0,229,255,.25)';
   if(kind==='lanes'){ wrapEl.style.display='none'; m.set3D(true); sw.remove(); }
+  else m.set3D(true);                                    // 3D is the default view; 2D stays one tap away
 }
 function refresh(){ Object.values(mounts).forEach(m=>{ if(m.on&&m.viewer) m.rebuild(); }); }
 window.addEventListener('resize',()=>Object.values(mounts).forEach(m=>m.viewer&&m.viewer.resize()));

@@ -263,7 +263,7 @@ _gateCheck();
   <div class="hero-tag">DART MEADOW LLC · 2020</div>
   <h1>Movement <em>Conjecture</em></h1>
   <div class="hero-sub">EARTH ORBITAL DISC</div>
-  <p class="hero-desc">Multi-stock trajectory projection engine based on the MSP Sigma-EOD algorithm. Enter up to 5 tickers for live pricing and long-range conjecture propagation through 2080.</p>
+  <p class="hero-desc">Multi-stock trajectory projection engine based on the MSP Sigma-EOD algorithm. Enter up to 5 tickers for live pricing and long-range conjecture propagation out to the year 3000.</p>
   <div class="badges">
     <span class="badge">STOCK PHONIC · MSP</span>
     <span class="badge">EOD PROPAGATION</span>
@@ -327,6 +327,31 @@ _gateCheck();
           <div><span style="color:var(--green)">Curves</span> — how familiarity plays out over time</div>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+
+<section id="sec-conditions-doc" style="padding-top:12px">
+  <div class="card" style="border-color:rgba(57,255,130,.25)">
+    <div style="font-family:var(--fh);font-size:.55rem;letter-spacing:3px;color:#39ff82;margin-bottom:10px">RIDE · BULGE · DIVERGE — THE CONDITION LAYER</div>
+    <p style="color:var(--dim);font-size:.85rem;line-height:1.85;margin-bottom:12px">
+      The Sigma-EOD math above is unchanged. On top of it, each ticker's real market history (5 years of daily closes) is read at four scales — <b style="color:var(--cyan)">day, week, month, year</b> — and the projection only keeps the years that satisfy the rules below.
+    </p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;font-family:var(--fc);font-size:.52rem;line-height:1.85;color:var(--dim)">
+      <div style="border-left:2px solid rgba(0,229,255,.3);padding:4px 10px"><b style="color:var(--cyan)">RIDE</b> — the slope of a period: positive (rides high), even (flat, within tolerance) or negative (rides low). Every open-market day is measured; all three are allowed at day level.</div>
+      <div style="border-left:2px solid rgba(0,229,255,.3);padding:4px 10px"><b style="color:var(--cyan)">DIVERGE</b> — how far a period pulls away: the sum of its children's log-returns (days make a week, weeks a month, months a year, years the multi-year run). A parent diverges when it is positive and greater than every one of its children.</div>
+      <div style="border-left:2px solid rgba(0,229,255,.3);padding:4px 10px"><b style="color:var(--cyan)">BULGE</b> — the mean height of a period's cumulative path above where it started. A period bulges when that mean is positive. With HILL STRICT on, the path must also arch up (above the straight chord), not sag like a bowl.</div>
+    </div>
+    <div style="margin-top:14px;font-family:var(--fc);font-size:.52rem;line-height:2;color:var(--dim)">
+      <div><b style="color:var(--gold)">DAY</b> — rides high / even / low; all allowed.</div>
+      <div><b style="color:var(--gold)">WEEK</b> — bulge positive across its open-market days; diverge greater than each day.</div>
+      <div><b style="color:var(--gold)">MONTH</b> — bulge positive in its days <i>and</i> its weeks; diverge greater than each week.</div>
+      <div><b style="color:var(--gold)">YEAR</b> — bulge positive in its months; diverge greater than each month.</div>
+      <div><b style="color:var(--gold)">MULTI-YEAR</b> — the accumulation of the yearly divergences must bulge positive.</div>
+    </div>
+    <div style="margin-top:12px;font-family:var(--fc);font-size:.5rem;line-height:1.9;color:var(--dim)">
+      <b style="color:#39ff82">How it shapes the projection:</b> each projected year is checked against a trailing 5-year accumulation. A year that bulges positive and diverges more than its own monthly share (1/12) is <b>kept</b>, and its step is scaled by the stock's <b>history gate</b> (the average pass rate of the last 26 weeks, 12 months and all full years). A year that fails is <b>held flat</b>. Results show the QUALIFIED YEARS count, a per-ticker conditions table, and a 3D terrain of days · weeks · months · years (green = bulge qualified, red = not). If market history cannot be loaded, the gate stays neutral (100%) and only the projected years are checked.
     </div>
   </div>
 </section>
@@ -1823,7 +1848,7 @@ function _drawAnalyticsRunsChart(runs){
   ctx.fillStyle='rgba(0,229,255,.4)'; ctx.font=`9px 'Share Tech Mono'`;
   for(let g=0;g<=4;g++){
     const y=pad.t+(g/4)*cH;
-    ctx.fillText(Math.round(maxC*(1-g/4)),2,y+4);
+    const tv=maxC*(1-g/4); if(Number.isInteger(tv)||maxC>4) ctx.fillText(Math.round(tv),2,y+4);
   }
 
   // Bars
@@ -1848,7 +1873,12 @@ function _drawAnalyticsDlssChart(runs){
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,W,H);
-  if(runs.length<2) return;
+  if(runs.length<2){
+    ctx.fillStyle='rgba(143,223,238,.55)'; ctx.font="11px 'Share Tech Mono'"; ctx.textAlign='center';
+    const r0=runs[0]; ctx.fillText('Trend appears after 2 or more runs.',W/2,H/2-8);
+    if(r0) ctx.fillText('Latest: '+r0.stocks.map(s=>(s.ticker||'—')+' '+(s.dlss||0).toFixed(3)).join('   '),W/2,H/2+12);
+    return;
+  }
 
   // Get all unique tickers across runs
   const tickerSet=[...new Set(runs.flatMap(r=>r.stocks.map(s=>s.ticker)).filter(Boolean))].slice(0,5);
