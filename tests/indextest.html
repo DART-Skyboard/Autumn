@@ -36,6 +36,15 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script type="module">
+/* external AI layer removed: Autumn runs only on her own LEATR engine */
+function _getAK(){ return ''; }
+function _keysReadAK(){ return ''; }
+function _setAK(){}
+function _claudeLayerPref(){ return false; }
+function _claudeLayerOn(){ return false; }
+function _refreshClaudeLayerToggle(){}
+function _noAI(){ return Promise.resolve({ok:false,status:410,json:function(){return Promise.resolve({});},text:function(){return Promise.resolve('');}}); }
+
 // Kokoro TTS via @huggingface/transformers — runs fully in-browser, no API key
 import { pipeline, env } from './js/transformers.min.js';
 env.allowLocalModels = false;
@@ -399,16 +408,6 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #ide-pat-box a:hover{color:var(--cyan)}
 #ide-pat-input{width:100%;background:rgba(0,255,204,.04);border:1px solid var(--border);color:var(--bright);padding:9px 12px;border-radius:5px;font-family:monospace;font-size:12px;outline:none;margin:12px 0}
 #ide-pat-input:focus{border-color:rgba(0,255,204,.35)}
-/* ─── ANTHROPIC KEY MODAL ───────────────────────────────── */
-#ide-ak-modal{position:fixed;inset:0;z-index:9860;background:rgba(2,10,20,.95);display:none;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
-#ide-ak-modal.open{display:flex}
-#ide-ak-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:26px 22px;max-width:480px;width:90%}
-#ide-ak-box h2{font-family:var(--font-d);font-size:13px;color:var(--cyan);margin-bottom:8px;letter-spacing:2px}
-#ide-ak-box p{font-size:11px;color:var(--dim);margin-bottom:4px;line-height:1.7}
-#ide-ak-box a{color:rgba(0,136,255,.7);text-decoration:none}
-#ide-ak-box a:hover{color:var(--cyan)}
-#ide-ak-input{width:100%;background:rgba(0,255,204,.04);border:1px solid var(--border);color:var(--bright);padding:9px 12px;border-radius:5px;font-family:monospace;font-size:12px;outline:none;margin:12px 0}
-#ide-ak-input:focus{border-color:rgba(0,255,204,.35)}
 /* ─── IDE TOAST ─────────────────────────────────────────── */
 #ide-toast{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:9950;background:rgba(0,255,204,.12);border:1px solid rgba(0,255,204,.3);color:var(--cyan);padding:10px 20px;border-radius:6px;font-family:var(--font-d);font-size:.5rem;letter-spacing:1.5px;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
 #ide-toast.show{opacity:1}
@@ -915,7 +914,6 @@ select.ash-ctrl-input{cursor:pointer}
     <button class="hdr-btn" onclick="clearCurrentChat()" title="Clear current chat" style="color:rgba(255,68,102,.5);border-color:rgba(255,68,102,.15)">CLEAR</button>
     <button class="hdr-btn" onclick="openTools()" title="LEATR Tools & Info" style="color:var(--cyan);border-color:rgba(0,255,204,.2)">TOOLS</button>
     <button class="hdr-btn" id="view-toggle-btn" onclick="toggleViewMode()" title="Toggle mobile/desktop view">📱</button>
-    <button class="hdr-btn" id="hdr-key-btn" onclick="document.getElementById('ide-ak-modal').classList.add('open');setTimeout(function(){var i=document.getElementById('ide-ak-input');if(i)i.focus();},100)" title="Optional: add your Anthropic API key to enhance Autumn" style="color:rgba(255,179,71,.9);border-color:rgba(255,179,71,.3)">🔑</button>
     <button class="hdr-btn" onclick="openIDE()" title="Autumn Logic IDE" style="color:rgba(0,255,204,.75);border-color:rgba(0,255,204,.28)">◈ IDE</button>
   </div>
 </header>
@@ -3037,9 +3035,9 @@ async function composeResponse(input, analysis, reflexData) {
   if (/\b(claude|get claude|bring claude|summon claude|call claude|talk to claude|claude in here|with claude|claude with us|claude here)\b/i.test(low)) {
     const _hasKey = typeof _getAK === 'function' && !!_getAK();
     if (_hasKey) {
-      return _reply(`Already here. When your API key is active, my responses run through Claude Sonnet underneath LEATR. We are working together on your requests.`, g, analysis, tools);
+      return _reply(`I run entirely on my own LEATR neural network.`, g, analysis, tools);
     }
-    return _reply(`Claude is available at claude.ai. Inside Autumn, tap the key icon and add your Anthropic API key to activate Claude Sonnet as part of my response layer.`, g, analysis, tools);
+    return _reply(`I run entirely on my own LEATR neural network — no outside AI service is connected.`, g, analysis, tools);
   }
 
   // ── Greeting ─────────────────────────────────────────────────
@@ -3428,7 +3426,7 @@ function detectIntent(text){
   if(/^what (is your|are you|do you|can you|is autumn|does autumn)\b/.test(lc))return'personal';
   if(/^who (are you|is autumn)\b/.test(lc))return'personal';
   // Claude/AI names are conversational, never search queries
-  if(/\b(claude|anthropic|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc))return'personal';
+  if(/\b(claude|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc))return'personal';
   if(/^(who|what|where|when|why|which|how)\b/.test(lc))return'factual';
   return'general';
 }
@@ -5104,8 +5102,8 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     // No API key — give a direct honest response rather than falling through to web search
     if (!ak) {
       var noKeyReply = imgs.length === 1
-        ? "I can see an image is attached, but vision analysis requires an Anthropic API key to be active. Add your key via the key icon in the toolbar and I'll be able to describe and identify what's in it directly."
-        : `I can see ${imgs.length} images are attached. Vision analysis requires an Anthropic API key to be active — add your key via the key icon and I'll analyze them for you.`;
+        ? "I can see an image is attached, but image analysis is not available here — Autumn runs on her own LEATR engine."
+        : `I can see ${imgs.length} images are attached. Image analysis is not available here — Autumn runs on her own LEATR engine.`;
       var idxNk = msgs().findIndex(function(m){return m.id===cardId;});
       if(idxNk>=0) msgs()[idxNk] = {role:'autumn',text:noKeyReply,ts:new Date().toISOString(),id:cardId,
         grammarMeta:'Vision · no API key',brpnMeta:'',contextType:'VISION',
@@ -5122,10 +5120,10 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
 
     var sysPrompt = 'You are Autumn, an AI built on LEATR by DART Meadow / Radical Deepscale. You have sharp, analytical vision. When analyzing images: identify people with confidence using visual cues — describe their appearance, style, and any contextual clues like visible names, logos, or captions that help identify them. Name any visible text or UI elements. Describe the scene and context. Be specific and direct — speak naturally and conversationally, as if telling a friend what you see. Prioritize the most significant elements. If a caption or text in the image names someone, use that. Never output internal state, log data, or metadata in your response. Respond as a natural sentence or paragraph.';
 
-    var res = await fetch('https://api.anthropic.com/v1/messages', {
+    var res = await _noAI({
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
+      headers:{'Content-Type':'application/json',},
+      body:JSON.stringify({model:'local',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
       signal:AbortSignal.timeout(25000)
     });
     var data = await res.json();
@@ -5262,7 +5260,7 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
   var visionDescription='';
   try{
     var ak=_getAK()||'';
-    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
+    var vRes=await _noAI({method:'POST',headers:{'Content-Type':'application/json',},body:JSON.stringify({model:'local',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
     var vData=await vRes.json();
     visionDescription=vData.content?vData.content.map(function(b){return b.text||'';}).join(''):'';
   }catch(e){visionDescription='';}
@@ -5763,11 +5761,11 @@ async function classifyIntent(text, hasPendingImages) {
   var ak = typeof _getAK === 'function' ? (_getAK() || '') : '';
   if (!ak) return localLabel;
   try {
-    var res = await fetch('https://api.anthropic.com/v1/messages', {
+    var res = await _noAI({
       method: 'POST',
-      headers: {'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
+      headers: {'Content-Type':'application/json',},
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'local',
         max_tokens: 15,
         system: 'Classify the user intent. Reply with ONLY one label:\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nCLEAR_CHAT\nDELETE_CHAT\nNEW_CHAT\nARCHIVE\nSHOW_HIDDEN\nCONVERSATION\n\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images of a person, place, or thing from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image.',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
@@ -6167,8 +6165,6 @@ ${city ? `User's city: ${city}` : ''}
 
 VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
 When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
-IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
-ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_arcCtx ? '\n\n' + _arcCtx : ''}` ;
 
     // Build clean history — skip messages with empty/null text, enforce user/assistant alternation
     const rawMsgs = msgs().slice(-20);
@@ -6226,16 +6222,14 @@ ACCESS TIERS: All users get the full Autumn LEATR experience — never imply any
     // 25 second timeout so the UI doesn't hang forever
     const _ac = new AbortController();
     const _timeout = setTimeout(() => _ac.abort(), 25000);
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await _noAI({
       method: "POST",
       signal: _ac.signal,
       headers: {
         "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-        ...(ak ? {"x-api-key": ak} : {})
+        ...(ak ? {} : {})
       },
-      body: JSON.stringify({model:"claude-sonnet-4-6", max_tokens:2048, system:systemPrompt, messages:trimHistory})
+      body: JSON.stringify({model:'local', max_tokens:2048, system:systemPrompt, messages:trimHistory})
     });
     clearTimeout(_timeout);
     const data=await res.json();
@@ -8002,7 +7996,7 @@ const _GH_BRANCH   = 'main';
 const _GH_LOGIC    = 'js/autumn-logic.js';
 const _GH_RAW      = `js/autumn-logic.js`;
 const _GH_API      = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOGIC}`;
-const _CLAUDE_MDL  = 'claude-sonnet-4-6';
+const _CLAUDE_MDL  = 'local';
 
 let _ideUnlocked     = false;
 let _ideMonaco       = null;
@@ -8056,33 +8050,18 @@ function saveIDEPAT() {
 function closeIDEPATModal() { document.getElementById('ide-pat-modal').classList.remove('open'); }
 function ideClearPAT() { try{localStorage.removeItem('_aut_ide_pat');}catch(e){} ideToast('GitHub token cleared.'); }
 
-// ── Anthropic API key (sessionStorage, cleared on tab close) ──
-function _getAK() { try { return localStorage.getItem('_aut_ide_ak')||''; } catch(e){ return ''; } }
+// ── key button ──
 function _updateKeyBtn() {
   var btn = document.getElementById('hdr-key-btn');
   if (!btn) return;
   var has = !!_getAK();
   btn.style.color = has ? 'rgba(0,255,204,.35)' : 'rgba(255,179,71,.9)';
   btn.style.borderColor = has ? 'rgba(0,255,204,.1)' : 'rgba(255,179,71,.3)';
-  btn.title = has ? 'Your API key is active — tap to change' : 'Optional: add your Anthropic key to enhance Autumn with Claude';
+  btn.title = 'Tap to manage keys';
 }
 setTimeout(_updateKeyBtn, 600);
-function _setAK(v) { try { localStorage.setItem('_aut_ide_ak',v); } catch(e){} }
 // API key: enter via IDE settings panel (⚙ icon) — stored in sessionStorage only
 
-function saveIDEAK() {
-  const v = (document.getElementById('ide-ak-input')?.value||'').trim();
-  if (!v) { ideToast('Enter an API key first.',true); return; }
-  _setAK(v);
-  document.getElementById('ide-ak-input').value = '';
-  closeIDEAKModal();
-  ideToast('◈ Anthropic key saved for this session.');
-  _updateKeyBtn();
-}
-function closeIDEAKModal() { document.getElementById('ide-ak-modal').classList.remove('open'); }
-function ideClearAK() { try{localStorage.removeItem('_aut_ide_ak');}catch(e){} ideToast('Anthropic key cleared.');
-_updateKeyBtn();
-}
 
 // ── Toast ─────────────────────────────────────────────────────
 let _ideToastTimer = null;
@@ -8446,9 +8425,9 @@ ${currentLogic}
 ---`;
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const r = await _noAI({
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'anthropic-version':'2023-06-01', 'x-api-key': ak, 'anthropic-dangerous-direct-browser-access':'true' },
+      headers: { 'Content-Type':'application/json',},
       body: JSON.stringify({
         model: _CLAUDE_MDL,
         max_tokens: 4096,
@@ -8619,10 +8598,10 @@ Return the complete updated autumn-logic.js file only.`;
 
   try {
     const ak=_getAK();
-    if(!ak){ ideToast('Anthropic API key required — click 🤖 KEY in the IDE header.',true); return {success:false,error:'No Anthropic API key. Click 🤖 KEY in the IDE header to add it.'}; }
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
+    if(!ak){ return {success:false,error:'External AI is not available in this build.'}; }
+    const r=await _noAI({
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':ak,'anthropic-dangerous-direct-browser-access':'true'},
+      headers:{'Content-Type':'application/json',},
       body:JSON.stringify({model:_CLAUDE_MDL,max_tokens:4096,system:systemPrompt,messages:[{role:'user',content:userRequest}]})
     });
     if(!r.ok) throw new Error('Claude API '+r.status);
@@ -8811,22 +8790,6 @@ loadAutumnLogic();
   </div>
 </div>
 
-<!-- ANTHROPIC API KEY MODAL -->
-<div id="ide-ak-modal">
-  <div id="ide-ak-box">
-    <h2>◈ ENHANCE WITH YOUR API KEY</h2>
-    <p><strong>This is optional.</strong> Autumn runs fully on her own LEATR neural network without any key.<br><br>
-    Adding your personal <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic API key</a> enables Claude Sonnet as an additional layer on top of Autumn — deeper responses, more complex reasoning.<br><br>
-    <span style="color:rgba(255,179,71,.8);font-size:.75em">⚠ This is your personal key — it only enhances your session. Administrator features (IDE, repository access) require separate admin credentials and are not available through this key.</span><br><br>
-    Your key stays in <strong>localStorage</strong> — never committed anywhere. Clear it anytime with the clear button.</p>
-    <input type="password" id="ide-ak-input" placeholder="sk-ant-api03-…" autocomplete="new-password" data-lpignore="true" data-form-type="other" onkeydown="if(event.key==='Enter')saveIDEAK()">
-    <div class="ide-pw-btns" style="margin-top:4px">
-      <button class="m-btn primary" onclick="saveIDEAK()">ACTIVATE</button>
-      <button class="m-btn" onclick="closeIDEAKModal()">CANCEL</button>
-    </div>
-  </div>
-</div>
-
 <!-- IDE OVERLAY -->
 <div id="ide-overlay">
   <div id="ide-header">
@@ -8841,7 +8804,6 @@ loadAutumnLogic();
       <button class="ide-btn save" onclick="ideCommit()">▲ COMMIT</button>
       <button class="ide-btn" onclick="ideReload()">↺ RELOAD</button>
       <button class="ide-btn" onclick="ideHotReload()">⚡ HOT-RELOAD</button>
-      <button class="ide-btn" onclick="document.getElementById('ide-ak-modal').classList.add('open');setTimeout(()=>document.getElementById('ide-ak-input')?.focus(),100)" title="Set Anthropic API key">🤖 KEY</button>
       <button class="ide-btn" onclick="ideClearPAT()" title="Clear GitHub token">🔑 GH</button>
       <button class="ide-btn danger" onclick="closeIDE()" title="Close IDE">✕</button>
     </div>

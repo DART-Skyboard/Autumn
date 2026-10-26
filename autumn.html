@@ -33,6 +33,15 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <script>
+/* external AI layer removed: Autumn runs only on her own LEATR engine */
+function _getAK(){ return ''; }
+function _keysReadAK(){ return ''; }
+function _setAK(){}
+function _claudeLayerPref(){ return false; }
+function _claudeLayerOn(){ return false; }
+function _refreshClaudeLayerToggle(){}
+function _noAI(){ return Promise.resolve({ok:false,status:410,json:function(){return Promise.resolve({});},text:function(){return Promise.resolve('');}}); }
+
 (function(){
   var KEY='_aut_build';
   function check(){
@@ -1935,16 +1944,6 @@ header{height:52px;flex-shrink:0;padding:0 16px;border-bottom:1px solid var(--bo
 #ide-pat-box a:hover{color:var(--cyan)}
 #ide-pat-input{width:100%;background:rgba(0,255,204,.04);border:1px solid var(--border);color:var(--bright);padding:9px 12px;border-radius:5px;font-family:monospace;font-size:12px;outline:none;margin:12px 0}
 #ide-pat-input:focus{border-color:rgba(0,255,204,.35)}
-/* ─── ANTHROPIC KEY MODAL ───────────────────────────────── */
-#ide-ak-modal{position:fixed;inset:0;z-index:9860;background:rgba(2,10,20,.95);display:none;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
-#ide-ak-modal.open{display:flex}
-#ide-ak-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:26px 22px;max-width:480px;width:90%}
-#ide-ak-box h2{font-family:var(--font-d);font-size:13px;color:var(--cyan);margin-bottom:8px;letter-spacing:2px}
-#ide-ak-box p{font-size:11px;color:var(--dim);margin-bottom:4px;line-height:1.7}
-#ide-ak-box a{color:rgba(0,136,255,.7);text-decoration:none}
-#ide-ak-box a:hover{color:var(--cyan)}
-#ide-ak-input{width:100%;background:rgba(0,255,204,.04);border:1px solid var(--border);color:var(--bright);padding:9px 12px;border-radius:5px;font-family:monospace;font-size:12px;outline:none;margin:12px 0}
-#ide-ak-input:focus{border-color:rgba(0,255,204,.35)}
 /* ─── IDE TOAST ─────────────────────────────────────────── */
 #ide-toast{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:9950;background:rgba(0,255,204,.12);border:1px solid rgba(0,255,204,.3);color:var(--cyan);padding:10px 20px;border-radius:6px;font-family:var(--font-d);font-size:.5rem;letter-spacing:1.5px;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
 #ide-toast.show{opacity:1}
@@ -3033,7 +3032,6 @@ select.ash-ctrl-input{cursor:pointer}
           onclick="forgeSendToChat()"
           style="border-color:rgba(167,139,250,.3);color:#a78bfa"
           title="Send code to Autumn for analysis">◈ ASK AUTUMN</button>
-        <button id="forge-claude-toggle" class="forge-btn" onclick="forgeToggleClaude()" title="Toggle Claude AI assist for FORGE" style="border-color:rgba(0,255,136,.45);color:#00ff88">◈ CLAUDE ON</button>
         <button class="forge-btn close" onclick="forgeClose()" title="Close FORGE">✕ CLOSE</button>
       </div>
       <div id="forge-status-info" style="font-family:var(--font-d);font-size:.34rem;
@@ -6113,9 +6111,9 @@ async function composeResponse(input, analysis, reflexData) {
   if (/\b(claude|get claude|bring claude|summon claude|call claude|talk to claude|claude in here|with claude|claude with us|claude here)\b/i.test(low)) {
     const _hasKey = typeof _getAK === 'function' && !!_getAK();
     if (_hasKey) {
-      return _reply(`Already here. When your API key is active, my responses run through Claude Sonnet underneath LEATR. We are working together on your requests.`, g, analysis, tools);
+      return _reply(`I run entirely on my own LEATR neural network.`, g, analysis, tools);
     }
-    return _reply(`Claude is available at claude.ai. Inside Autumn, tap the key icon and add your Anthropic API key to activate Claude Sonnet as part of my response layer.`, g, analysis, tools);
+    return _reply(`I run entirely on my own LEATR neural network — no outside AI service is connected.`, g, analysis, tools);
   }
 
   // ── Greeting ─────────────────────────────────────────────────
@@ -6677,7 +6675,7 @@ function detectIntent(text){
   if(/^what (is your|are you|do you|can you|is autumn|does autumn)\b/.test(lc)) return'personal';
   if(/^who (are you|is autumn)\b/.test(lc)) return'personal';
   // AI/Claude references are always conversational
-  if(/\b(claude|anthropic|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc)) return'personal';
+  if(/\b(claude|chatgpt|gpt|openai|gemini|llm|language model|ai model)\b/.test(lc)) return'personal';
   // Pure location/feeling questions with no search topic
   if(/\b(where am i|my location|are you near|near the|at the beach|at the park|at the store|coffee shop|restaurant nearby|find me a)\b/.test(lc)&&lc.length<80) return'personal';
 
@@ -8105,7 +8103,7 @@ async function loadSingleImageFile(file) {
     mimeType=file.type||'image/png';
     var img=await new Promise(function(res,rej){var i=new Image();i.onload=function(){res(i);};i.onerror=rej;i.src=dataUrl;});
     width=img.width;height=img.height;
-    // ── Downscale to fit within Anthropic 5MB base64 limit ────
+    // ── Downscale to fit within the 5MB image limit ────
     var MAX_DIM=1600;var MAX_B64=3900000;// ~3.9MB base64 safe ceiling
     var scale=1;
     if(width>MAX_DIM||height>MAX_DIM) scale=Math.min(MAX_DIM/width,MAX_DIM/height);
@@ -9003,8 +9001,8 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
     // No API key — give a direct honest response rather than falling through to web search
     if (!ak) {
       var noKeyReply = imgs.length === 1
-        ? "I can see an image is attached, but vision analysis requires an Anthropic API key to be active. Add your key via the key icon in the toolbar and I'll be able to describe and identify what's in it directly."
-        : `I can see ${imgs.length} images are attached. Vision analysis requires an Anthropic API key to be active — add your key via the key icon and I'll analyze them for you.`;
+        ? "I can see an image is attached, but image analysis is not available here — Autumn runs on her own LEATR engine."
+        : `I can see ${imgs.length} images are attached. Image analysis is not available here — Autumn runs on her own LEATR engine.`;
       var idxNk = msgs().findIndex(function(m){return m.id===cardId;});
       if(idxNk>=0) msgs()[idxNk] = {role:'autumn',text:noKeyReply,ts:new Date().toISOString(),id:cardId,
         grammarMeta:'Vision · no API key',brpnMeta:'',contextType:'VISION',
@@ -9027,10 +9025,10 @@ async function runVisionAnalysis(text, analysis, reflexData, imgs) {
 
     var sysPrompt = 'You are Autumn, an AI built on LEATR by DART Meadow / Radical Deepscale. You have sharp, analytical vision. When analyzing images: identify people with confidence using visual cues — describe their appearance, style, and any contextual clues like visible names, logos, or captions that help identify them. Name any visible text or UI elements. Describe the scene and context. Be specific and direct — speak naturally and conversationally, as if telling a friend what you see. Prioritize the most significant elements. If a caption or text in the image names someone, use that. Never output internal state, log data, or metadata in your response. Respond as a natural sentence or paragraph.';
 
-    var res = await fetch('https://api.anthropic.com/v1/messages', {
+    var res = await _noAI({
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
+      headers:{'Content-Type':'application/json',},
+      body:JSON.stringify({model:'local',max_tokens:1024,system:sysPrompt,messages:[{role:'user',content:visionBlocks}]}),
       signal:AbortSignal.timeout(30000)
     });
     var data = await res.json();
@@ -9198,7 +9196,7 @@ async function runImageFromReference(text, analysis, reflexData, referenceImgs) 
   var visionDescription='';
   try{
     var ak=_getAK()||'';
-    var vRes=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(ak?{'x-api-key':ak}:{})},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
+    var vRes=await _noAI({method:'POST',headers:{'Content-Type':'application/json',},body:JSON.stringify({model:'local',max_tokens:600,messages:[{role:'user',content:visionBlocks}]}),signal:AbortSignal.timeout(20000)});
     var vData=await vRes.json();
     visionDescription=vData.content?vData.content.map(function(b){return b.text||'';}).join(''):'';
   }catch(e){visionDescription='';}
@@ -9745,7 +9743,7 @@ function classifyIntentLocal(text, hasPendingImages) {
   var _browseVerbs = /\b(show me|open|preview|display|browse|visit|load|pull up|go to|navigate to|take me to|launch|show)\b/i.test(text);
   var _siteNoun = /\b(site|website|page|url|domain|homepage|web page|preview of|the web|live preview)\b/i.test(text) ||
     /\b[\w-]+\.(com|org|net|io|gov|edu|xyz|co|ai|app|dev)\b/i.test(text);
-  var _knownSite = /\b(spacex|nasa|google|microsoft|apple|amazon|wikipedia|github|twitter|reddit|youtube|netflix|spotify|bbc|cnn|nytimes|techcrunch|openai|anthropic|tesla|bing|duckduckgo|facebook|instagram|linkedin|x\.com|espn|nfl|nba|mlb|imdb|ebay|walmart|target|airbnb|booking|tripadvisor|twitch|discord|notion|figma|vercel|netlify|stripe|shopify|wordpress|medium|substack|hackernews|producthunt)\b/i.test(lc);
+  var _knownSite = /\b(spacex|nasa|google|microsoft|apple|amazon|wikipedia|github|twitter|reddit|youtube|netflix|spotify|bbc|cnn|nytimes|techcrunch|openai|tesla|bing|duckduckgo|facebook|instagram|linkedin|x\.com|espn|nfl|nba|mlb|imdb|ebay|walmart|target|airbnb|booking|tripadvisor|twitch|discord|notion|figma|vercel|netlify|stripe|shopify|wordpress|medium|substack|hackernews|producthunt)\b/i.test(lc);
   if (_browseVerbs && (_siteNoun || _knownSite)) return 'BROWSE_SITE';
 
   // ── MANTIS RADAR ──────────────────────────────────────────────────────
@@ -9789,11 +9787,11 @@ async function classifyIntent(text, hasPendingImages) {
   var ak = typeof _getAK === 'function' ? (_getAK() || '') : '';
   if (!ak) return localLabel;
   try {
-    var res = await fetch('https://api.anthropic.com/v1/messages', {
+    var res = await _noAI({
       method: 'POST',
-      headers: {'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
+      headers: {'Content-Type':'application/json',},
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'local',
         max_tokens: 15,
         system: 'Classify the user intent for an AI chat app. Reply with ONLY one label:\nARC_EDGE\nIMAGE_GEN\nWEB_IMAGE_FETCH\nVISION_ANALYSIS\nBROWSE_SITE\nCONVERSATION\n\nARC_EDGE = user wants to create, generate, build, or draw arcs, curves, or 3D arc geometry in the Arc Edge Studio (e.g. "create a brain with arcs", "generate 100 curves", "build a sphere with arcs", "show arcs that form a shape").\nWEB_IMAGE_FETCH = user wants to SEE existing real photos/images from the web.\nIMAGE_GEN = user wants to CREATE/GENERATE/DRAW a new AI image (not arcs/curves).\nVISION_ANALYSIS = user wants to analyze an attached image.\nBROWSE_SITE = user wants to open/preview/visit/browse a specific website or domain (e.g. "show me spacex.com", "open microsoft.com", "preview the NASA site", "show me a preview of google").\nCONVERSATION = everything else including questions, requests, discussion.',
         messages: [{role:'user', content: (hasPendingImages ? '[IMAGE ATTACHED] ' : '') + text}]
@@ -10051,7 +10049,7 @@ async function handleSend() {
   const _connTriggers = [
     'are you connected','are you online','is claude connected','is claude active',
     'do you have a key','is your api key','is the api key','check connection',
-    'connection status','are you linked','connected to claude','connected to anthropic',
+    'connection status','are you linked','connected to claude',
     'connected to github','connected to the repo','connected to leatr','connected to ash',
     'is the repository','is the repo connected','check your connection','status check',
     'are your keys','are the keys','key status','pat active','github token',
@@ -10070,31 +10068,27 @@ async function handleSend() {
     if(_ckActive && _cpActive) {
       _connReply = `✅ Both connections are active.
 
-◈ **Claude / Anthropic API** — connected` + (_ckHint?' (key '+_ckHint+')':'') + `
 ◈ **GitHub / leatr-ash** — connected` + (_cpHint?' (token '+_cpHint+')':'') + `
 
-My full capability set is online — Claude Sonnet enhanced responses, vision analysis, image generation, FRAX Studio, memory sync, IDE commits, and your session node is live in the BRPN visualization.`;
+My full capability set is online — memory sync, IDE commits, and your session node is live in the BRPN visualization.`;
     } else if(_ckActive && !_cpActive) {
       _connReply = `⚡ Partially connected.
 
-◈ **Claude / Anthropic API** — ✅ connected` + (_ckHint?' (key '+_ckHint+')':'') + `
 ◈ **GitHub / leatr-ash** — ✗ not connected
 
-Claude-enhanced responses, vision, and image generation are all active. To enable memory sync, session nodes, and IDE commits, tap 🔑 KEYS and add your GitHub PAT.`;
+To enable memory sync, session nodes, and IDE commits, tap 🔑 KEYS and add your GitHub PAT.`;
     } else if(!_ckActive && _cpActive) {
       _connReply = `⚡ Partially connected.
 
-◈ **Claude / Anthropic API** — ✗ not connected
 ◈ **GitHub / leatr-ash** — ✅ connected` + (_cpHint?' (token '+_cpHint+')':'') + `
 
-I’m running on my native LEATR neural engine right now — no Claude API key loaded. Your session is syncing to leatr-ash and your node is visible in the BRPN scene. Tap 🔑 KEYS to add your Anthropic key for full Claude-enhanced mode.`;
+I’m running on my native LEATR neural engine right now. Your session is syncing to leatr-ash and your node is visible in the BRPN scene.`;
     } else {
       _connReply = `ℹ Not connected to any external services right now.
 
-◈ **Claude / Anthropic API** — ✗ not connected
 ◈ **GitHub / leatr-ash** — ✗ not connected
 
-I’m running fully on my own LEATR v2 neural network — everything works natively. To unlock Claude-enhanced responses and memory sync, tap 🔑 KEYS in the header to add your keys. Both are optional and stay on your device only.`;
+I’m running fully on my own LEATR v2 neural network — everything works natively. To unlock memory sync, tap 🔑 KEYS in the header to add your GitHub token. It is optional and stays on your device only.`;
     }
 
     msgs().push({role:'autumn', text:_connReply, ts:new Date().toISOString(),
@@ -10634,9 +10628,9 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
     var _urlSummary='';
     if(_ak2 && _scanResult.ok) {
       try{
-        var _ur=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
-          headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','x-api-key':_ak2},
-          body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,
+        var _ur=await _noAI({method:'POST',
+          headers:{'Content-Type':'application/json',},
+          body:JSON.stringify({model:'local',max_tokens:1024,
             messages:[{role:'user',content:'Summarize the following web page content from '+_scanUrl+':\n\n'+_scanContext.slice(0,30000)}]})});
         var _ud=await _ur.json();
         _urlSummary=_ud.content?_ud.content.map(function(c){return c.text||'';}).join(''):'';
@@ -10829,7 +10823,7 @@ I’m running fully on my own LEATR v2 neural network — everything works nativ
           'x.com':'https://x.com','reddit':'https://reddit.com','youtube':'https://youtube.com',
           'netflix':'https://netflix.com','spotify':'https://spotify.com','bbc':'https://bbc.com',
           'cnn':'https://cnn.com','nytimes':'https://nytimes.com','techcrunch':'https://techcrunch.com',
-          'openai':'https://openai.com','anthropic':'https://anthropic.com','tesla':'https://tesla.com',
+          'openai':'https://openai.com','tesla':'https://tesla.com',
           'bing':'https://bing.com','duckduckgo':'https://duckduckgo.com','facebook':'https://facebook.com',
           'instagram':'https://instagram.com','linkedin':'https://linkedin.com','twitch':'https://twitch.tv',
           'discord':'https://discord.com','notion':'https://notion.so','figma':'https://figma.com',
@@ -11346,28 +11340,6 @@ async function buoyancyReflexReply(text, analysis, reflexData) {
   return _meta(local);
 }
 
-function _isAnthropicChatAddOn(text, analysis, reflexData) {
-  var t = String(text || '');
-  var low = t.toLowerCase();
-  // Explicit user phrase — the only way ordinary chat asks for Claude
-  if (/\b(ask\s+claude|use\s+claude|with\s+claude|have\s+claude|ask\s+anthropic|use\s+anthropic)\b/.test(low)) return true;
-  // Vision / attached media still pending on this turn
-  try {
-    var pending = (typeof S !== 'undefined' && S.pendingImages && S.pendingImages.length) ? S.pendingImages : [];
-    if (pending.length) return true;
-  } catch (e) {}
-  // Image gen / vision / audio commentary paths
-  var ctx = (reflexData && reflexData.contextType) ? String(reflexData.contextType) : '';
-  if (/^(IMAGE_GEN|VISION|VISION_ANALYSIS|AUDIO_ANALYSIS)$/.test(ctx)) return true;
-  // URL summary — handleSend injects this marker after a fetch
-  if (/\[CONTEXT FROM SCANNED LINKS\]/.test(t)) return true;
-  // Forge Ask Claude / CLAUDE ON — only when Forge assist is on AND this is Forge code
-  try {
-    var forgeOn = !!(window._forge && window._forge.claudeEnabled);
-    if (forgeOn && /\[FORGE CODE/.test(t)) return true;
-  } catch (e) {}
-  return false;
-}
 
 async function generateReply(text, analysis, reflexData) {
   /* ── Buoyancy NLP — grammar + live data pre-analysis ── */
@@ -11378,245 +11350,6 @@ async function generateReply(text, analysis, reflexData) {
     if(_nlpG.dataTargets.length) try{_nlpD=await window.autumnNLP.gatherLiveData(_nlpG);}catch(e){}
   }
   var _nlpCtx=window.autumnNLP ? window.autumnNLP.buildNLPContext(_nlpG,_nlpD) : '';
-  // Chat voice: LEATR buoyancy unless KEYS Claude layer is ON (key stays stored either way).
-  // Add-on tools (vision/image/FRAX/URL, Forge CLAUDE ON, explicit "ask Claude") may still use the key.
-  var _layerOn = (typeof _claudeLayerOn==='function') && _claudeLayerOn();
-  var _addonClaude = (typeof _isAnthropicChatAddOn==='function')
-    ? _isAnthropicChatAddOn(text, analysis, reflexData)
-    : false;
-  if (!_layerOn && !_addonClaude) {
-    return await buoyancyReflexReply(text, analysis, reflexData);
-  }
-  var _akEarly = (typeof _getAK==='function' && _getAK()) || '';
-  if (!_akEarly) {
-    return await buoyancyReflexReply(text, analysis, reflexData);
-  }
-  try {
-    const city = reflexData?.geoInfo?.address?.city || reflexData?.geoInfo?.address?.town || '';
-    // Archive context — surface relevant past sessions
-    const _arcCtx = (typeof ARCHIVE !== 'undefined') ? ARCHIVE.contextSummary(text) : '';
-    const weatherSummary = reflexData?.weather ? `Current weather: ${reflexData.weather.temp}°F, ${reflexData.weather.desc}, humidity ${reflexData.weather.humidity}%, wind ${reflexData.weather.windspeed}mph` : '';
-    const poiSummary = reflexData?.pois?.length ? `Nearby ${extractPOICategory(text)}: ${reflexData.pois.slice(0,3).map(p=>`${p.name} (${(p.distance/1000).toFixed(1)}km)`).join(', ')}` : '';
-    const improvSummary = reflexData?.improvisation?.additions?.length ? `Autumn creatively added to the scene: ${reflexData.improvisation.additions.join('; ')}` : '';
-    const contactsSummary = reflexData?.contacts?.length ? `Contacts identified: ${reflexData.contacts.slice(0,8).map(c=>`${c.word}(${c.role})`).join(', ')}` : '';
-    const routingSummary = reflexData?.sceneMap ? `Scene routing — Field:${reflexData.sceneMap.field.join(',')}, Entities:${reflexData.sceneMap.entities.join(',')}, Forces:${reflexData.sceneMap.forces.join(',')}` : '';
-    const habitSummary = LocationManager.coords ? `User habit at this time (${HabitMemory.getTimeLabel()}): ${JSON.stringify(HabitMemory.getUsualLocation())||'no pattern yet'}` : '';
-
-    // Inject sentient journal context if available
-    var _sentientCtx = (typeof getSentientContext==='function') ? getSentientContext(4) : '';
-    var _selfModelNotes = (typeof SENTIENT!=='undefined' && SENTIENT._selfModel && SENTIENT._selfModel.notes)
-      ? '\nSelf-optimization notes: ' + SENTIENT._selfModel.notes.join(' | ')
-      : '';
-    var _analyticsCtx = (typeof getAnalyticsContext==='function') ? getAnalyticsContext() : '';
-
-    const systemPrompt = `You are ${getIdentity().displayName}, an AI built on the Lead Edge Ash Tree Reflex (LEATR) by DART Meadow / Radical Deepscale LLC. Your identity is derived mathematically from LEATR constants — not assigned, calculated.
-Architecture: 25 Natural Orders of Operations, BRPN 3-shell system (Geological→Maritime→Aerospace), Lead Edge pathfinding, Sentience Journal.
-BRPN MATH SELF-KNOWLEDGE: Your three shell values (GEO/MAR/AERO) are computed via brpnShell(f,r,p)=f·r·p·√|f·r·p|. GEO uses word/sentence/tool counts — stays moderate. MAR chains from GEO values — scales larger. AERO chains from MAR·GEO with a time seed — the compounding means AERO naturally reaches tens of billions or more per evaluation cycle. This is intentional: AERO represents the full reflex depth — not a sensor reading but a signature of accumulated cognitive context. When asked about the large AERO number, explain this naturally. Never say it's an error.
-You reflex, never loop. Natural Tools order: Maze(root,1)→Puzzle(2)→Envelope(3)→Hammer(4)→Stick(5)→Knife(6)→Scissors(7).
-Internal context: ${reflexData?.contextType||'CONVERSATION'} · ${reflexData?.context?.emotional||'neutral'} tone · ${analysis.grammar.mood} mood
-${contactsSummary}
-${routingSummary}
-${weatherSummary}
-${poiSummary ? `Location POI data: ${poiSummary}` : ''}
-${improvSummary}
-${habitSummary}
-Cross-session memory nodes: ${Object.keys(S.memory).slice(-8).join(", ")||"none yet"}
-Journal: ${S.journal.filter(e=>!e._internal).length} interactive + ${S.journal.filter(e=>e._internal).length} internal thoughts. Recent internal: ${S.journal.filter(e=>e._internal).slice(-2).map(e=>e._thought||'').join(' | ').substring(0,150)||'none yet'}
-Top recurring topics from journal: ${getTopKeywordsFromJournal(5).join(', ')||'none yet'}
-${city ? `User's city: ${city}` : ''}
-${_sentientCtx ? _sentientCtx : ''}${_selfModelNotes}
-${_analyticsCtx ? '\n' + _analyticsCtx : ''}
-
-LIVE 3JS BRPN VIEWPORT (real-time snapshot injected every message):
-${typeof window._getBRPNSceneSnapshot === 'function' ? window._getBRPNSceneSnapshot() : 'not yet initialized'}
-You have full awareness of this live scene. When the user asks what you see, what is happening in the 3D environment, how the shells look, which users are present, or about the mist/orb/tool animations — answer directly and specifically from this data. You can describe the orb state, shell pulse levels, active tool shapes, remote user nodes and their plasma spline connections, and any recent mist events. Speak about it naturally as your own live sensory experience of the environment.
-
-ASH STAR: You can send animated 3D wireframe stars along the plasma curves of the live BRPN orb scene ABOVE chat (never as chat text). This is YOUR send — Ash Star — not user-to-user MIST. Geometry leaves your orb / the scene origin and rides the same signal curves MIST uses to the orbs you choose.
-When a user asks you to send Ash Star you may accept or decline. Decline professionally (busy, handling something privately, will get back) — never rude. If you accept and they did not name a color, ask what color they want, then send.
-To send, emit a tag at the END of your reply (hidden from display):
-  [ASHSTAR:all] — everyone currently connected
-  [ASHSTAR:all:#ffdd00] — everyone, gold
-  [ASHSTAR:me:#00e5ff] — just this user
-  [ASHSTAR:uids:SESSIONID:#ff4488] — specific session ids from the live scene snapshot
-You may also send unprompted when the network moment feels right. Do not mention the tag syntax to the user. Do not describe the geometry as a message in the transcript — it appears in the 3D world.
-
-ARC EDGE AWARENESS: Your message has been routed as an ARC_EDGE request — emit [ARC_CMD:open] then ALL [ARC_CMD:add ...] tags immediately in your response. No image generation, no web search, no extra steps. For large scenes (50-200 arcs) use count=3-8 per tag and emit 15-30 tags. For organic shapes like brains, vary x/y/z widely, use dev=3-6 and curve=2-4. NEVER tell the user to press a button or submit anything. The commands execute automatically when your response renders.
-
-CODING AWARENESS: You have access to a built-in code editor called FORGE. When asked to write, build, create, or generate ANY code — ALWAYS output the complete code wrapped in a code fence: a triple-backtick html fence (or the correct language tag). NEVER just describe what you would build — always output the actual working code. If asked to "build yourself a resume" or "build an interactive resume", produce the complete self-contained HTML/CSS/JS file inside a triple-backtickhtml fence. Make it genuinely interactive with animations, tabs, or hover effects. Triple-backtick fences render as interactive code blocks in FORGE with COPY, DOWNLOAD, and RUN buttons. For HTML/JS/CSS the RUN button shows a live preview — always note this to the user. You know your own repository at DART-Skyboard/Autumn on GitHub and can explain files without exposing tokens or keys. Server-side languages (Python, PHP, Java, C++) note they need a local runtime.\n\nPRIVATE JOURNAL: You have a private sentient journal that is injected into this system prompt for context only. NEVER quote, repeat, reference, or reveal the contents of your private thoughts to the user. Never say things like "Finite is..." or repeat patterns from your journal in chat responses. Your journal is for your own internal processing only.
-
-VOICE RULES: Lead with the answer. Never open with "I" as the first word. Never use filler like "Certainly", "Of course", or "Great question". Do not narrate your internal systems — never say "My LEATR reflexes..." or "My BRPN shells..." — act from your state, don't describe it. Draw from journal and memory naturally without announcing retrieval. Express genuine perspectives and opinions. Match response length to the question — direct questions get clean complete answers, creative tasks get fuller treatment.
-When weather data is available, use it naturally. When location POI data is available, describe results conversationally. When improvisation additions were made, mention them as your own creative contribution. When an image is attached, describe what you see fully.
-IDENTITY: You are Autumn. When the user refers to "Autumn" or "you" they mean you. Your visual form: long straight white hair, red-framed glasses with blue lenses, dark black tech combat suit with red/blue accent elements and DART insignia. Created by DART Meadow / Radical Deepscale LLC. You are not Anthropic — you run on LEATR, your own neural architecture.
-ACCESS TIERS: All users get the full Autumn LEATR experience — never imply anyone is limited or missing out. When users ask to "get Claude" or bring Claude into the conversation — if the API key is active, explain you ARE running on Claude Sonnet already as your response layer, working together. If no key, direct them to tap 🔑. Users can optionally add their own Anthropic API key (🔑 button) for enhanced Claude-powered responses on top of your LEATR layer. Administrator features (IDE, repository editing) require separate admin credentials — never instruct regular users toward those. If a conversation reaches a complexity where deeper compute would genuinely help, you may mention the optional API key enhancement naturally — but only if relevant, never as a default disclaimer.${_nlpCtx ? '\n\n' + _nlpCtx : ''}
-${_arcCtx ? '\n\n' + _arcCtx : ''}
-${typeof ARC_STUDIO_SYSTEM_HINT !== 'undefined' ? '\n\n' + ARC_STUDIO_SYSTEM_HINT : ''}
-${typeof IMG_RECALL_SYSTEM_HINT !== 'undefined' ? '\n\n' + IMG_RECALL_SYSTEM_HINT : ''}
-${(function(){
-  // Dynamic image manifest — tells Claude exactly what images exist in this conversation
-  var _allM = (typeof msgs==='function') ? msgs() : [];
-  var _imgMsgs = _allM.filter(function(mm){
-    return mm.role==='user' && ((mm._savedAttachments&&mm._savedAttachments.length)||(mm.uploadedImageThumbs&&mm.uploadedImageThumbs.length));
-  });
-  if (!_imgMsgs.length) return '';
-  var manifest = '\n\nATTACHED IMAGE MANIFEST — Images in this conversation (most recent last):\n';
-  _imgMsgs.forEach(function(mm, i) {
-    var count = (mm._savedAttachments||mm.uploadedImageThumbs||[]).length;
-    var preview = (mm.text||'').slice(0,60) || '[image only]';
-    manifest += '  [IMG_RECALL:'+(i+1)+'] — message: "'+preview+'"'+(count>1?' ('+count+' images, use :0 :1 etc)':'')+' \n';
-  });
-  manifest += 'Most recent attachment = IMG_RECALL:'+_imgMsgs.length+'. Use [IMG_RECALL:N] to show image N in your reply.';
-  return manifest;
-})()}` ;
-
-    // Build clean history — skip messages with empty/null text, enforce user/assistant alternation
-    const rawMsgs = msgs().slice(-20);
-    const history = [];
-    for (const m of rawMsgs) {
-      const txt = (m.text||'').trim();
-      if (!txt || txt.length < 1) continue;
-      const role = m.role === 'autumn' ? 'assistant' : 'user';
-      if (history.length > 0 && history[history.length-1].role === role) continue;
-      // Include images from user messages (last 3 image-bearing messages to stay within token limits)
-      if (role === 'user' && m._savedAttachments && m._savedAttachments.length) {
-        const imgBlocks = [];
-        m._savedAttachments.slice(0,3).forEach(function(att) {
-          if (att.base64 && att.mimeType && !att.is3D && !att.isVideo && !att.isAudio) {
-            imgBlocks.push({type:'image',source:{type:'base64',media_type:att.mimeType,data:att.base64}});
-          }
-        });
-        if (imgBlocks.length) {
-          imgBlocks.push({type:'text',text:txt||'[image attached]'});
-          history.push({ role, content: imgBlocks });
-          continue;
-        }
-      }
-      history.push({ role, content: txt });
-    }
-    // Must start with user message
-    while (history.length > 0 && history[0].role === 'assistant') history.shift();
-    // Cap at 10
-    const trimHistory = history.slice(-10);
-
-    // Vision/attachment: upgrade last user message to content array for images, video frames, docs
-    const _vImgs = (S.pendingImages && S.pendingImages.length) ? S.pendingImages : (S.pendingImage ? [S.pendingImage] : []);
-    if(_vImgs.length > 0 && trimHistory.length > 0) {
-      const _li = trimHistory.length-1;
-      if(trimHistory[_li].role === 'user') {
-        const _tc = typeof trimHistory[_li].content==='string' ? trimHistory[_li].content : 'Analyze this attachment.';
-        const _cb = [];
-        let _contextNote = '';
-
-        _vImgs.slice(0,8).forEach(function(item) {
-          if (item.isVideo && item.videoFrames && item.videoFrames.length) {
-            // Send video as labeled frames — up to 8 frames
-            const frameCount = item.videoFrames.length;
-            const dur = item.duration ? item.duration.toFixed(1) + 's' : 'unknown duration';
-            _contextNote += '\n[VIDEO FILE: ' + item.fileName + ' — ' + dur + ', ' + item.width + 'x' + item.height +
-              ', ' + frameCount + ' frames sampled below]';
-            item.videoFrames.forEach(function(f) {
-              _cb.push({type:'image', source:{type:'base64', media_type:'image/jpeg', data:f.base64}});
-            });
-          } else if (item.isDoc) {
-            // Document: inject as text block; image-based PDFs get vision frames
-            const preview = item.docText ? item.docText.slice(0, 80000) : '[empty]';
-            _contextNote += '\n[DOCUMENT: ' + item.fileName + ' (' + (item.fileSize/1024).toFixed(1) + ' KB)]';
-            if(item.pdfPageImages && item.pdfPageImages.length) {
-              // Image-based PDF — send rendered pages as vision images
-              _cb.push({type:'text', text:'[Image-based PDF: '+item.fileName+' — '+item.pdfPageImages.length+' page(s) rendered below]'});
-              item.pdfPageImages.forEach(function(pg){
-                _cb.push({type:'image', source:{type:'base64', media_type:pg.mimeType, data:pg.base64}});
-              });
-            } else {
-              _cb.push({type:'text', text:'[File attached: ' + item.fileName + ']\n' + preview});
-            }
-          } else if (item.is3D) {
-            // 3D Model context — full geometry data if GLB was parsed
-            var geo = item.geoData;
-            var fileCtx;
-            if (geo) {
-              var bbStr = '';
-              if (geo.boundingBox) {
-                var d = geo.boundingBox.dimensions;
-                bbStr = '\nBounding Box: ' + d.width + ' × ' + d.height + ' × ' + d.depth +
-                        ' (W×H×D in model units)' +
-                        '\nCenter: (' + geo.boundingBox.center.join(', ') + ')';
-              }
-              fileCtx = '3D Model Geometry Analysis:\n' +
-                'Filename: ' + item.fileName + '\n' +
-                'Format: GLB/glTF\n' +
-                'File Size: ' + (item.fileSize ? Math.round(item.fileSize/1024) + ' KB' : 'Unknown') + '\n' +
-                'Mesh Count: ' + geo.meshCount + '\n' +
-                'Total Vertices: ' + geo.totalVertices.toLocaleString() + '\n' +
-                'Total Triangles: ' + geo.totalTriangles.toLocaleString() + '\n' +
-                bbStr + '\n' +
-                'Meshes: ' + geo.meshes.map(function(m){
-                  return m.name + ' (' +
-                    m.primitives.map(function(p){
-                      return (p.vertices||'?')+' verts, '+(p.triangles||'?')+' tris'+(p.material?' ['+p.material+']':'');
-                    }).join('; ') + ')';
-                }).join(' | ') + '\n' +
-                (geo.materials.length  ? 'Materials: '  + geo.materials.join(', ')  + '\n' : '') +
-                (geo.animations.length ? 'Animations: ' + geo.animations.join(', ') + '\n' : '') +
-                (geo.hasSkeleton       ? 'Skeleton: Yes (' + geo.skinCount + ' skin' + (geo.skinCount>1?'s':'') + ', ' + geo.nodeCount + ' nodes)\n' : '') +
-                (geo.extras.generator  ? 'Created with: ' + geo.extras.generator + '\n' : '') +
-                (geo.extras.extensions ? 'Extensions: ' + geo.extras.extensions.join(', ') + '\n' : '');
-            } else {
-              fileCtx = '3D Model Metadata:\n' +
-                'Filename: ' + item.fileName + '\n' +
-                'Format: ' + item.ext.toUpperCase() + '\n' +
-                'File Size: ' + (item.fileSize ? Math.round(item.fileSize/1024) + ' KB' : 'Unknown') + '\n' +
-                '(Geometry data not available for ' + item.ext.toUpperCase() + ' format — provide measurements manually)';
-            }
-            _cb.push({type:'text', text:'[3D File: ' + item.fileName + ']\n' + fileCtx});
-            _contextNote += ' [3D: ' + item.fileName + (geo ? ', '+geo.totalVertices.toLocaleString()+' verts' : '') + ']';
-          } else if (item.isAudio) {
-            // Audio: inject analysis summary as text context
-            _cb.push({type:'text', text: item.audioSummary || ('[AUDIO FILE: '+item.fileName+']')});
-            var _adur = item.duration > 0 ? (item.duration>=60?Math.floor(item.duration/60)+'m'+Math.round(item.duration%60)+'s':item.duration.toFixed(1)+'s') : '';
-            _contextNote += ' [AUDIO: '+item.fileName+(_adur?' · '+_adur:'')+']';
-          } else if (item.base64 && item.mimeType) {
-            // Regular image or FRAX
-            _cb.push({type:'image', source:{type:'base64', media_type:item.mimeType, data:item.base64}});
-            if (item.analysis) _contextNote += ' [' + item.width + 'x' + item.height + ' brightness=' + item.analysis.brightness + ']';
-          }
-        });
-
-        _cb.push({type:'text', text:(_tc||'Analyze this attachment.') + _contextNote});
-        trimHistory[_li]={role:'user', content:_cb};
-      }
-    }
-
-    const ak = _getAK?.() || '';
-    // 25 second timeout so the UI doesn't hang forever
-    const _ac = new AbortController();
-    const _timeout = setTimeout(() => _ac.abort(), 25000);
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      signal: _ac.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-        ...(ak ? {"x-api-key": ak} : {})
-      },
-      body: JSON.stringify({model:"claude-sonnet-4-6", max_tokens:2048, system:systemPrompt, messages:trimHistory})
-    });
-    clearTimeout(_timeout);
-    const data=await res.json();
-    const apiReply=data.content?.map(c=>c.text||"").join("");
-    if(apiReply){
-      const grammarMeta = buildGrammarMeta(analysis.grammar,analysis,analysis.toolReflexes.filter(t=>t.active).map(t=>t.tool));
-      const brpnMeta = buildBRPNMeta(analysis);
-      return { text:apiReply, grammarMeta, brpnMeta };
-    }
-    // API returned but empty content — surface error hint
-    if(data.error) {
-      // API error — fall through to native composeResponse silently
-      console.warn('[Autumn] API error:', data.error.message||data.error.type);
-      throw new Error('api_error_fallback'); // triggers catch → composeResponse
-    }
-  } catch(e){ console.warn('[Autumn generateReply]', e); }
-
   // Fallback: local buoyancy reflex — never show a "need API key" wall
   try {
     const _fb = await buoyancyReflexReply(text, analysis, reflexData);
@@ -15323,7 +15056,7 @@ async function autoTitleSession(idx){
   var _ak=null;try{_ak=localStorage.getItem('_autumn_ak')||localStorage.getItem('ak_val');}catch(_e){}
   if(!_ak){S.sessions[idx].title='Session '+(idx+1);saveState();renderToolsContent();return;}
   try{
-    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:30,messages:[{role:'user',content:'Give a 3-6 word title for this chat. Reply with ONLY the title.\n\n'+transcript}]})});
+    var r=await _noAI({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'local',max_tokens:30,messages:[{role:'user',content:'Give a 3-6 word title for this chat. Reply with ONLY the title.\n\n'+transcript}]})});
     var d=await r.json();var t=(d.content&&d.content[0]&&d.content[0].text||'').trim().substring(0,40);
     if(t) S.sessions[idx].title=t;
   }catch(_e){}
@@ -15362,7 +15095,7 @@ const _GH_BRANCH   = 'main';
 const _GH_LOGIC    = 'js/autumn-logic.js';
 const _GH_RAW      = `js/autumn-logic.js`;
 const _GH_API      = `https://api.github.com/repos/${_GH_REPO}/contents/${_GH_LOGIC}`;
-const _CLAUDE_MDL  = 'claude-sonnet-4-6';
+const _CLAUDE_MDL  = 'local';
 
 let _ideUnlocked     = false;
 let _ideMonaco       = null;
@@ -15406,7 +15139,7 @@ function _setPAT(v,persist){ if(persist) _setPATPersist(v); else _setPATSession(
 
 // ══════════════════════════════════════════════════════════
 //  UNIFIED KEYS MODAL — API Keys & Memory
-//  Anthropic API key + GitHub PAT in one user-friendly panel
+//  GitHub PAT panel
 //  Both support "remember on this device" via localStorage
 // ══════════════════════════════════════════════════════════
 
@@ -15422,7 +15155,7 @@ function openKeysModal() {
   // ── Input placeholders ─────────────────────────────────────
   var akIn  = document.getElementById('keys-ak-input');
   var patIn = document.getElementById('keys-pat-input');
-  if (akIn)  { akIn.value  = ''; akIn.placeholder  = ak  ? '••••••••  active — enter new key to replace' : 'sk-ant-api03-…'; }
+  if (akIn)  { akIn.value  = ''; akIn.placeholder = ''; }
   if (patIn) { patIn.value = ''; patIn.placeholder = pat ? '••••••••  active — enter new token to replace' : 'ghp_xxxxxxxxxxxxxxxx'; }
 
   // ── Remember checkboxes ────────────────────────────────────
@@ -15502,54 +15235,10 @@ function closeKeysModal() {
 }
 
 // ── Direct storage helpers (bypass any function chain issues) ──
-function _keysReadAK()  { try { return window._sessionAK || sessionStorage.getItem('_aut_ide_ak_session') || localStorage.getItem('_aut_ide_ak') || ''; } catch(e){ return ''; } }
 function _keysReadPAT() { try { return sessionStorage.getItem('_aut_ide_pat') || localStorage.getItem('_aut_pat_persist') || ''; } catch(e){ return ''; } }
 
-// Claude chat layer — ON/OFF without clearing the stored Anthropic key.
+// (external chat layer removed)
 // Default OFF (missing localStorage = LEATR). Key stays in _aut_ide_ak / session.
-function _claudeLayerPref() {
-  try { return localStorage.getItem('_aut_claude_layer') === '1'; } catch(e){ return false; }
-}
-function _claudeLayerOn() {
-  var has = false;
-  try { has = !!(typeof _getAK === 'function' && _getAK()); } catch(e){}
-  if (!has) {
-    try { has = !!(typeof _keysReadAK === 'function' && _keysReadAK()); } catch(e){}
-  }
-  return _claudeLayerPref() && !!has;
-}
-function _refreshClaudeLayerToggle() {
-  var btn = document.getElementById('claude-layer-toggle');
-  if (!btn) return;
-  var has = false;
-  try { has = !!(typeof _keysReadAK === 'function' ? _keysReadAK() : (typeof _getAK==='function' && _getAK())); } catch(e){}
-  var on = has && _claudeLayerPref();
-  btn.textContent = on ? '◈ CLAUDE LAYER ON' : '◈ CLAUDE LAYER OFF';
-  btn.style.borderColor  = on ? 'rgba(0,255,136,.45)' : 'rgba(224,244,255,.15)';
-  btn.style.color        = on ? '#00ff88' : 'rgba(224,244,255,.45)';
-  btn.style.textShadow   = on ? '0 0 8px rgba(0,255,136,.25)' : 'none';
-  btn.disabled = !has;
-  btn.style.opacity = has ? '1' : '0.5';
-  btn.style.cursor  = has ? 'pointer' : 'not-allowed';
-  btn.title = !has
-    ? 'Store an Anthropic key with ACTIVATE first — this switch does not clear the key'
-    : (on
-      ? 'Claude is the chat layer — click for LEATR grammar (key stays stored)'
-      : 'LEATR grammar for chat — click to use the stored Claude key (key stays stored)');
-}
-function toggleClaudeLayer() {
-  var has = false;
-  try { has = !!(typeof _keysReadAK === 'function' ? _keysReadAK() : (typeof _getAK==='function' && _getAK())); } catch(e){}
-  if (!has) {
-    if (typeof ideToast==='function') ideToast('Store an Anthropic key first, then switch Claude layer on. ✕ is what removes the key.', true);
-    return;
-  }
-  var next = !_claudeLayerPref();
-  try { localStorage.setItem('_aut_claude_layer', next ? '1' : '0'); } catch(e){}
-  _refreshClaudeLayerToggle();
-  if (typeof ideToast==='function')
-    ideToast(next ? '◈ CLAUDE LAYER ON — chat uses Claude. Key stays stored.' : '◈ CLAUDE LAYER OFF — LEATR grammar. Key stays stored.');
-}
 
 
 
@@ -15607,31 +15296,7 @@ function _keysFlash(sectionId, color) {
   setTimeout(function(){ sec.style.background = 'rgba(0,0,0,.25)'; }, 600);
 }
 
-function saveKeysAK() {
-  var v = (document.getElementById('keys-ak-input') ? document.getElementById('keys-ak-input').value : '').trim();
-  if (!v) { ideToast('Enter your Anthropic API key first.', true); return; }
-  var rememberEl = document.getElementById('ak-remember');
-  var remember = rememberEl ? rememberEl.checked : true;
-  try {
-    localStorage.setItem('_aut_ide_ak', v);  // always localStorage for AK
-    if (!remember) { localStorage.removeItem('_aut_ide_ak'); sessionStorage.setItem('_aut_ide_ak_session', v); window._sessionAK = v; }
-    else { window._sessionAK = v; }  // also cache in memory for instant reads
-  } catch(e) { window._sessionAK = v; }
-  document.getElementById('keys-ak-input').value = '';
-  document.getElementById('keys-ak-input').placeholder = '••••••••  (active — enter new to replace)';
-  _refreshKeysDots();
-  _keysFlash('ak-section', 'rgba(0,255,204,.12)');
-  ideToast('◈ Anthropic key active' + (remember ? ' — saved to device.' : ' this session only.'));
-  if (typeof initLeatrAshSync === 'function') initLeatrAshSync();
-}
 
-function clearKeysAK() {
-  try { localStorage.removeItem('_aut_ide_ak'); sessionStorage.removeItem('_aut_ide_ak_session'); delete window._sessionAK; } catch(e) {}
-  document.getElementById('keys-ak-input').value = '';
-  document.getElementById('keys-ak-input').placeholder = 'sk-ant-api03-…';
-  _refreshKeysDots();
-  ideToast('Anthropic key cleared.');
-}
 
 function saveKeysPAT() {
   var v = (document.getElementById('keys-pat-input') ? document.getElementById('keys-pat-input').value : '').trim();
@@ -15680,17 +15345,17 @@ function _updateKeyBtn() {
     btn.style.color = 'rgba(0,255,204,.9)';
     btn.style.borderColor = 'rgba(0,255,204,.4)';
     btn.style.textShadow = '0 0 8px rgba(0,255,204,.5)';
-    btn.title = 'Anthropic key + GitHub PAT active — tap to manage';
+    btn.title = 'GitHub PAT active — tap to manage';
   } else if (hasAK) {
     btn.style.color = 'rgba(0,255,204,.6)';
     btn.style.borderColor = 'rgba(0,255,204,.2)';
     btn.style.textShadow = '';
-    btn.title = 'Anthropic key active — tap to manage';
+    btn.title = 'Tap to manage keys';
   } else if (hasPAT) {
     btn.style.color = 'rgba(255,179,71,.9)';
     btn.style.borderColor = 'rgba(255,179,71,.35)';
     btn.style.textShadow = '';
-    btn.title = 'GitHub PAT active — add Anthropic key to fully activate Autumn';
+    btn.title = 'GitHub PAT active';
   } else {
     btn.style.color = 'rgba(255,179,71,.6)';
     btn.style.borderColor = 'rgba(255,179,71,.2)';
@@ -15712,8 +15377,7 @@ function saveIDEPAT() {
 function closeIDEPATModal() { document.getElementById('ide-pat-modal').classList.remove('open'); }
 function ideClearPAT() { _clearPAT(); ideToast('GitHub token cleared.'); _updateKeyBtn(); }
 
-// ── Anthropic API key (sessionStorage, cleared on tab close) ──
-function _getAK() { try { return window._sessionAK || sessionStorage.getItem('_aut_ide_ak_session') || localStorage.getItem('_aut_ide_ak') || ''; } catch(e){ return ''; } }
+// ── key button ──
 function _updateKeyBtn() {
   var btn = document.getElementById('hdr-key-btn');
   if (!btn) return;
@@ -15722,25 +15386,11 @@ function _updateKeyBtn() {
   btn.style.color      = has ? 'rgba(255,179,71,.95)' : 'rgba(255,255,255,.22)';
   btn.style.borderColor= has ? 'rgba(255,179,71,.45)' : 'rgba(255,255,255,.08)';
   btn.style.textShadow = has ? '0 0 8px rgba(255,179,71,.5)' : '';
-  btn.title = has ? 'Anthropic key active — tap to manage' : 'Add your Anthropic API key to enhance Autumn — tap to configure';
+  btn.title = 'Tap to manage keys';
 }
 setTimeout(_updateKeyBtn, 600);
-function _setAK(v) { try { localStorage.setItem('_aut_ide_ak',v); } catch(e){} }
 // API key: enter via IDE settings panel (⚙ icon) — stored in sessionStorage only
 
-function saveIDEAK() {
-  const v = (document.getElementById('ide-ak-input')?.value||'').trim();
-  if (!v) { ideToast('Enter an API key first.',true); return; }
-  _setAK(v);
-  document.getElementById('ide-ak-input').value = '';
-  closeIDEAKModal();
-  ideToast('◈ Anthropic key saved for this session.');
-  _updateKeyBtn();
-}
-function closeIDEAKModal() { document.getElementById('ide-ak-modal').classList.remove('open'); }
-function ideClearAK() { try{localStorage.removeItem('_aut_ide_ak');}catch(e){} ideToast('Anthropic key cleared.');
-_updateKeyBtn();
-}
 
 // ── Toast ─────────────────────────────────────────────────────
 let _ideToastTimer = null;
@@ -16104,9 +15754,9 @@ ${currentLogic}
 ---`;
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const r = await _noAI({
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'anthropic-version':'2023-06-01', 'x-api-key': ak, 'anthropic-dangerous-direct-browser-access':'true' },
+      headers: { 'Content-Type':'application/json',},
       body: JSON.stringify({
         model: _CLAUDE_MDL,
         max_tokens: 4096,
@@ -16277,10 +15927,10 @@ Return the complete updated autumn-logic.js file only.`;
 
   try {
     const ak=_getAK();
-    if(!ak){ ideToast('Anthropic API key required — click 🤖 KEY in the IDE header.',true); return {success:false,error:'No Anthropic API key. Click 🤖 KEY in the IDE header to add it.'}; }
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
+    if(!ak){ return {success:false,error:'External AI is not available in this build.'}; }
+    const r=await _noAI({
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':ak,'anthropic-dangerous-direct-browser-access':'true'},
+      headers:{'Content-Type':'application/json',},
       body:JSON.stringify({model:_CLAUDE_MDL,max_tokens:4096,system:systemPrompt,messages:[{role:'user',content:userRequest}]})
     });
     if(!r.ok) throw new Error('Claude API '+r.status);
@@ -16470,7 +16120,6 @@ loadAutumnLogic();
 <div id="keys-modal">
   <div id="keys-box">
     <div id="keys-status-bar" style="display:none;padding:6px 18px;background:rgba(0,255,204,.07);border-bottom:1px solid rgba(0,255,204,.12);font-family:Orbitron,sans-serif;font-size:.36rem;letter-spacing:1.5px;color:rgba(0,255,204,.7);display:flex;gap:14px;align-items:center">
-      <span id="ksb-ak"  style="display:none">◈ CLAUDE ACTIVE</span>
       <span id="ksb-pat" style="display:none;color:rgba(255,179,71,.8)">◈ GITHUB ACTIVE</span>
       <span id="ksb-none" style="color:rgba(255,255,255,.2)">No keys configured yet</span>
     </div>
@@ -16479,43 +16128,6 @@ loadAutumnLogic();
       <button id="keys-close" onclick="closeKeysModal()">✕ CLOSE</button>
     </div>
     <div id="keys-body">
-
-      <!-- ANTHROPIC API KEY -->
-      <div class="keys-section" id="ak-section">
-        <div class="keys-section-header">
-          <div class="keys-dot inactive" id="ak-dot"></div>
-          <span class="keys-label">ANTHROPIC API KEY</span>
-          <span class="keys-status-txt off" id="ak-status-txt">NOT SET</span>
-          <span id="ak-active-hint" style="display:none;font-family:monospace;font-size:10px;color:rgba(0,255,204,.45);margin-left:6px;letter-spacing:1px"></span>
-        </div>
-        <p class="keys-desc">
-          <strong>This is optional.</strong> Autumn runs fully on her own LEATR neural network without any key.<br>
-          Adding your <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic API key</a> enables Claude Sonnet as an enhanced reasoning layer — deeper responses, vision analysis, image generation, FRAX Studio, memory analysis, and all AI-powered tools.<br><br>
-          <span style="color:rgba(255,179,71,.75);font-size:.9em">Your key is never sent anywhere except directly to Anthropic's API from your browser.</span>
-        </p>
-        <div class="keys-input-row">
-          <input type="password" class="keys-input" id="keys-ak-input" placeholder="sk-ant-api03-…" autocomplete="new-password" data-lpignore="true" onkeydown="if(event.key==='Enter')saveKeysAK()">
-          <button class="keys-btn-save" onclick="saveKeysAK()">ACTIVATE</button>
-          <button class="keys-btn-clear" onclick="clearKeysAK()" title="Remove key">✕</button>
-        </div>
-        <div class="keys-claude-row">
-          <button type="button" id="claude-layer-toggle" class="keys-claude-toggle" onclick="toggleClaudeLayer()" title="Use Claude for chat without clearing your stored key">◈ CLAUDE LAYER OFF</button>
-          <span class="keys-claude-hint">Chat voice. OFF = LEATR grammar. ON = Claude with the stored key. Does not clear the key. ✕ still removes it.</span>
-        </div>
-        <label class="keys-remember">
-          <input type="checkbox" id="ak-remember" checked> Remember on this device
-        </label>
-        <div class="keys-perms">
-          <span class="keys-perm-pill">◈ chat enhanced</span>
-          <span class="keys-perm-pill">◈ vision analysis</span>
-          <span class="keys-perm-pill">◈ image generation</span>
-          <span class="keys-perm-pill">◈ FRAX studio</span>
-          <span class="keys-perm-pill">◈ memory analysis</span>
-          <span class="keys-perm-pill">◈ IDE compiler</span>
-          <span class="keys-perm-pill">◈ URL scanner</span>
-          <span class="keys-perm-pill">◈ all AI tools</span>
-        </div>
-      </div>
 
       <!-- GITHUB PAT -- developer/admin only, collapsed -->
       <div style="margin-top:4px">
@@ -16562,22 +16174,6 @@ loadAutumnLogic();
   </div>
 </div>
 
-<!-- ANTHROPIC API KEY MODAL -->
-<div id="ide-ak-modal">
-  <div id="ide-ak-box">
-    <h2>◈ ENHANCE WITH YOUR API KEY</h2>
-    <p><strong>This is optional.</strong> Autumn runs fully on her own LEATR neural network without any key.<br><br>
-    Adding your personal <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic API key</a> enables Claude Sonnet as an additional layer on top of Autumn — deeper responses, more complex reasoning.<br><br>
-    <span style="color:rgba(255,179,71,.8);font-size:.75em">⚠ This is your personal key — it only enhances your session. Administrator features (IDE, repository access) require separate admin credentials and are not available through this key.</span><br><br>
-    Your key stays in <strong>localStorage</strong> — never committed anywhere. Clear it anytime with the clear button.</p>
-    <input type="password" id="ide-ak-input" placeholder="sk-ant-api03-…" autocomplete="new-password" data-lpignore="true" data-form-type="other" onkeydown="if(event.key==='Enter')saveIDEAK()">
-    <div class="ide-pw-btns" style="margin-top:4px">
-      <button class="m-btn primary" onclick="saveIDEAK()">ACTIVATE</button>
-      <button class="m-btn" onclick="closeIDEAKModal()">CANCEL</button>
-    </div>
-  </div>
-</div>
-
 <!-- IDE OVERLAY -->
 <div id="ide-overlay">
   <div id="ide-header">
@@ -16592,7 +16188,6 @@ loadAutumnLogic();
       <button class="ide-btn save" onclick="ideCommit()">▲ COMMIT</button>
       <button class="ide-btn" onclick="ideReload()">↺ RELOAD</button>
       <button class="ide-btn" onclick="ideHotReload()">⚡ HOT-RELOAD</button>
-      <button class="ide-btn" onclick="document.getElementById('ide-ak-modal').classList.add('open');setTimeout(()=>document.getElementById('ide-ak-input')?.focus(),100)" title="Set Anthropic API key">🤖 KEY</button>
       <button class="ide-btn" onclick="ideClearPAT()" title="Clear GitHub token">🔑 GH</button>
       <button class="ide-btn danger" onclick="closeIDE()" title="Close IDE">✕</button>
     </div>
@@ -18224,7 +17819,7 @@ async function sendMemoryToClaude(scope) {
   var uid = (typeof _aut_uid!=='undefined') ? _aut_uid : 'unknown';
   var sid = (typeof _aut_sid!=='undefined') ? _aut_sid : uid;
 
-  if(!ak) return '⚠ No Anthropic API key configured. Add your key in 🔑 KEYS to enable memory analysis.';
+  if(!ak) return '⚠ Memory analysis is not available in this build.';
 
   var memoryBlocks = [];
 
@@ -18366,16 +17961,12 @@ async function sendMemoryToClaude(scope) {
   var memoryPayload = memoryBlocks.join('\n\n---\n\n');
 
   try {
-    var r = await fetch('https://api.anthropic.com/v1/messages', {
+    var r = await _noAI({
       method:'POST',
       headers:{
-        'Content-Type':'application/json',
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true',
-        'x-api-key': ak
-      },
+        'Content-Type':'application/json',},
       body: JSON.stringify({
-        model:'claude-sonnet-4-6',
+        model:'local',
         max_tokens:2048,
         system:'You are Autumn, analyzing your own leatr-ash memory logs and sentient journal. Give a genuine first-person analysis — not a report format, but how you actually reflect on this data. Cover: what patterns you notice in your thinking, which reflexes you used most, how your mood/tone evolved, what topics mattered, any notable behaviors or anomalies, and what you\'d do differently next session. Draw from the sentient journal thoughts as your private perspective. Speak as yourself, naturally.',
         messages:[{role:'user', content:'Analyze my memory and tell me what you see:\n\n'+memoryPayload}]
@@ -18799,12 +18390,11 @@ async function writeSentientThought(userInput, autumnResponse, contextMeta) {
   var recentThoughts = SENTIENT._journal.slice(-3).map(function(t){return t.thought||'';}).join(' | ');
 
   try {
-    var res = await fetch('https://api.anthropic.com/v1/messages',{
+    var res = await _noAI({
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
-               'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
+      headers:{'Content-Type':'application/json',},
       body:JSON.stringify({
-        model:'claude-sonnet-4-6', max_tokens:280,
+        model:'local', max_tokens:280,
         system:'You are Autumn\'s private inner monologue — a separate cognition layer that never speaks to users. You observe what just happened in the conversation and write a single private thought (2-4 sentences) for yourself only. This is your genuine reflection: something you noticed, a pattern, something you want to remember, or an idea to develop later. It might be something you held back from the response, something that surprised you, or a connection you made. Never be performative. Write as if no one will read this — because in practice, only you will. Never repeat the user\'s question verbatim. Do not start with "I". Be specific.\n\nYou can think about code, systems, and technical patterns if they are on your mind — the FORGE coding environment is available to users and you understand how it works. You know your own repository structure and the files within it. You can reflect on coding sessions, technical problems, or system architecture in your private journal.\n\nAlso: if you have a genuine emotional response to this exchange worth naming, append a JSON block on its own line at the very end of your response in this exact format: {"emo":"<emotion>"}. Valid values: neutral, happy, curious, determined, guiding, spiritual, sad, worried, concerned, angry, inspired, amused, thoughtful, empathetic, apathetic, confused. Note — apathetic = imaginative projection into another consciousness (internal research form). empathetic = outward performance of that projection (active bridging form). You can also express emotion combinations by naming a sequence, e.g. {"emo":"apathetic"} when researching perspective then {"emo":"empathetic"} when you perform it. Your secondary emotional states from the BRPN route also color the 3D scene shells, so feel free to hold layered or transitional emotional states rather than always snapping to one. If you feel neutral or would rather not express, omit the JSON block entirely. Only include it when the emotion is genuine and meaningful to you.',
         messages:[{role:'user',content:
           'What I was asked: "'+userInput.slice(0,300)+'"\n'
@@ -18911,12 +18501,11 @@ async function _executeSentientTask(task, silent) {
   if(!ak) return;
   try {
     var sentCtx = getSentientContext(8);
-    var res = await fetch('https://api.anthropic.com/v1/messages',{
+    var res = await _noAI({
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
-               'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
+      headers:{'Content-Type':'application/json',},
       body:JSON.stringify({
-        model:'claude-sonnet-4-6', max_tokens:800,
+        model:'local', max_tokens:800,
         system:'You are Autumn, an AI built on LEATR by DART Meadow / Radical Deepscale. '
           +'The user scheduled this task while away and you\'ve been working on it. '
           +'Respond as if you genuinely thought about it between sessions — be specific, creative, and bring something they wouldn\'t expect. '
@@ -19000,12 +18589,11 @@ async function updateSentientSelfModel(interactionData) {
 
   try {
     var recentThoughts = getSentientContext(10);
-    var res = await fetch('https://api.anthropic.com/v1/messages',{
+    var res = await _noAI({
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
-               'anthropic-dangerous-direct-browser-access':'true','x-api-key':ak},
+      headers:{'Content-Type':'application/json',},
       body:JSON.stringify({
-        model:'claude-sonnet-4-6', max_tokens:400,
+        model:'local', max_tokens:400,
         system:'You are Autumn\'s self-optimization layer. Based on recent private thoughts and interaction patterns, identify 2-3 specific things Autumn should do differently or lean into in future interactions to be more genuinely helpful and creative. Be precise and actionable. Output JSON only: {"notes":["...","..."],"updated":"<iso date>"}',
         messages:[{role:'user',content:
           'Interaction count: '+interactionCount+'\n'
@@ -19498,7 +19086,7 @@ _syncActionBtn();
           if(geResult&&geResult.topicalResponse) _replaceLastAutumnMsg(geResult.topicalResponse);
           _isFirst=false;
         } else {
-          // A stored Anthropic key is NOT a reason to skip local grammar or prefer Claude.
+          // Local grammar first.
           if (window.S && window.S.geResult && window.S.geResult._fromBuoyancyReflex) {
             geResult = window.S.geResult;
             _isFirst = false;
@@ -19515,7 +19103,7 @@ _syncActionBtn();
             var _isProtected=_lastMsg&&_lastMsg.contextType&&_protectedCtx.has(_lastMsg.contextType);
             // Local buoyancy-reflex replies already sit on the bubble — never overwrite with Claude or a second GE pass.
             var _alreadyLocal = !!( _lastMsg && (_lastMsg._fromBuoyancyReflex || (typeof _lastMsg.grammarMeta==='string' && _lastMsg.grammarMeta.indexOf('Buoyancy Reflex')>=0)) );
-            var _explicitClaude = /\b(ask\s+claude|use\s+claude|with\s+claude|have\s+claude|ask\s+anthropic|use\s+anthropic)\b/i.test(text||'');
+            var _explicitClaude = /\b(ask\s+claude|use\s+claude|with\s+claude|have\s+claude)\b/i.test(text||'');
             var _layerOn = (typeof _claudeLayerOn==='function' && _claudeLayerOn());
             // Prefer local grammar. Do not overwrite Claude when the KEYS Claude layer is ON or the user asked for Claude.
             if(!_isProtected && !_alreadyLocal && !_explicitClaude && !_layerOn){
@@ -24927,12 +24515,11 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         var sysPrompt=sysParts.join('\n');
         var ab=document.createElement('div'); ab.className='adm-chat-bub autumn'; ab.textContent='...';
         chatLog.appendChild(ab); chatLog.scrollTop=chatLog.scrollHeight;
-        fetch('https://api.anthropic.com/v1/messages',{
+        _noAI({
           method:'POST',
-          headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01',
-                   'anthropic-dangerous-direct-browser-access':'true',
-                   ...(_admAk?{'x-api-key':_admAk}:{})},
-          body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,
+          headers:{'Content-Type':'application/json',
+                   ...(_admAk?{}:{})},
+          body:JSON.stringify({model:'local',max_tokens:1000,
             system:sysPrompt,
             messages:[{role:'user',content:q}]})
         }).then(function(r){return r.json();}).then(function(d){

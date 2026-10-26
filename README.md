@@ -24,7 +24,7 @@
 
 Autumn is a fully autonomous AI assistant built on the **LEATR** (Lead Edge Ash Tree Reflex) neural architecture — a deterministic, rule-based computation framework with 25 natural orders of operation developed by DART Meadow / Radical Deepscale LLC. She runs entirely in the browser with no backend server required.
 
-When connected to the Anthropic API, Claude Sonnet acts as an enhanced reasoning layer. When disconnected, Autumn operates on her own LEATR neural network — using natural grammar rules, a 147,442-word WordNet 3.1 dictionary, character-level lexical analysis, and a live Sentience Journal to generate responses, tell stories, reason about technical topics, and build personality over time.
+Autumn operates on her own LEATR neural network — using natural grammar rules, a 147,442-word WordNet 3.1 dictionary, character-level lexical analysis, and a live Sentience Journal to generate responses, tell stories, reason about technical topics, and build personality over time.
 
 LEATR is not a statistical model. It does not loop through weighted probability distributions. Computation reflexes through natural parameter orders — the same deterministic logic every time, shaped by what she has learned.
 
@@ -304,17 +304,6 @@ Builds over sessions per entity. Each user and each AI Autumn interacts with dev
 
 ## API Key Setup
 
-**Anthropic API Key (optional — enables enhanced reasoning)**
-
-When connected, Claude Sonnet handles language generation. When disconnected, Autumn runs on LEATR independently.
-
-1. Go to [platform.claude.com/settings/keys](https://platform.claude.com/settings/keys)
-2. Create a key, copy it
-3. In Autumn: **KEYS** → paste key → **ACTIVATE**
-4. Check "Remember on this device" to store in browser secure cookies
-
-Enables: enhanced chat · vision analysis · image generation · FRAX Studio · memory analysis · URL scanner · IDE compiler
-
 **GitHub PAT (developer / admin — optional)**
 
 For repo owners connecting the IDE or enabling journal auto-push.
@@ -421,7 +410,6 @@ WordNet is used free of charge for research and commercial applications provided
 ## Privacy
 
 Autumn processes all data locally in your browser. No data is sent to external servers except:
-- Anthropic API (if key provided — your data goes directly to Anthropic, never through DART Meadow servers)
 - GitHub (if PAT provided — for IDE commits and journal sync to your own repo)
 
 Sigma Analytics records execution metadata only — buoyancy states, shell routes, sigma values, emotional expression patterns. User content is never stored in analytics.
