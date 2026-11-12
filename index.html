@@ -23207,6 +23207,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
       // Try window.open first (works on Android + desktop)
       var w = null;
       try { w = window.open(url, '_blank'); } catch(e) {}
+      window._ghDeviceTab = w; // keep a reference so a successful poll can auto-close it
       // iOS blocks window.open from setTimeout — use location.href as fallback
       // but store leatr.xyz URL so we can return after auth
       if (!w || w.closed || typeof w.closed === 'undefined') {
@@ -23249,6 +23250,21 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     var _lastPoll = 0, _pollFails = 0;
     var _pollOnce = function() {
       var _now = Date.now();
+      // ── Short-circuit: if a session already landed via another path ──
+      // (e.g. the user finished the sign-in in a regular Safari tab/window
+      // using the web-redirect flow while this device-code poll was stuck —
+      // same-origin localStorage is shared with the standalone PWA, so a
+      // session written there is visible here the instant we re-check it,
+      // with no need to wait for this window's own poll to succeed).
+      var _already = _loadStoredSession();
+      if (_already && _already.access_token) {
+        _clearPendingDevice();
+        var _pm0 = document.getElementById('gh-login-modal');
+        if (_pm0) _pm0.classList.remove('show');
+        try { if (window._ghDeviceTab && !window._ghDeviceTab.closed) { window._ghDeviceTab.close(); window._ghDeviceTab = null; } } catch(e){}
+        _applySession(_already);
+        return;
+      }
       if (_now - _lastPoll < 2500) return;
       _lastPoll = _now;
       if (_now > expAt) {
@@ -23319,11 +23335,19 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
           } else if (d.error === 'slow_down') {
             interval = d.interval || (interval + 5);
             clearInterval(_devicePollTimer); _devicePollTimer = setInterval(_pollOnce, interval * 1000);
-          } else if (!d.error) {
-            // neither GitHub nor the proxy answered — after 8 silent polls offer token sign-in
+          } else if (!d.error || d.error === 'authorization_pending') {
+            // genuinely still pending (or neither GitHub nor the proxy answered) —
+            // after 8 silent/pending polls offer token sign-in rather than waiting forever
             if (++_pollFails >= 8) { _clearPendingDevice(); _setDeviceUI(_quotaFallbackHtml()); }
-          } else { _pollFails = 0; }
-          // authorization_pending — just keep polling
+          } else {
+            // Any OTHER error (GAS quota exhaustion, a backend hiccup, an
+            // unrecognized response, etc.) used to silently reset the fail
+            // counter to 0 forever, which is exactly how this got stuck on
+            // "Waiting for authorization…" indefinitely even though nothing
+            // was ever going to succeed. Count it toward the same escape
+            // hatch instead of resetting it.
+            if (++_pollFails >= 8) { _clearPendingDevice(); _setDeviceUI(_quotaFallbackHtml()); }
+          }
         })
         .catch(function(){});
     };
@@ -23331,6 +23355,15 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     _devicePollTimer = setInterval(_pollOnce, interval * 1000);
     setTimeout(_pollOnce, 1200);
   }
+
+  // Belt-and-suspenders: if another same-origin context (e.g. a Safari tab
+  // that completed the web-redirect flow) writes the session while this
+  // page is still open, pick it up the moment the browser tells us, instead
+  // of only noticing on the next poll tick.
+  window.addEventListener('storage', function(ev) {
+    if (ev.key !== '_gh_session' || !ev.newValue) return;
+    if (_devicePollTimer && window._ghPollNow) { try { window._ghPollNow(); } catch(e){} }
+  });
 
   // The moment the installed app comes back to the front (after approving on GitHub), poll at once
   ['visibilitychange','pageshow','focus'].forEach(function(ev){
