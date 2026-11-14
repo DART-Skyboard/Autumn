@@ -649,7 +649,7 @@ async function tryFetchPrice(ticker){
   const t = encodeURIComponent(ticker.trim().toUpperCase());
   // 1. GAS server-side proxy (most reliable — no CORS, no rate limits)
   try {
-    const gasUrl = 'https://script.google.com/macros/s/AKfycbwTBiGJ3YTibAGAsrC5sZMuQO-PqY0yK8gmmc7zvp1zXnaWQJvaZoRFCi2xLiI7QgSwfA/exec?action=stockprice&ticker='+t+'&cb=_'+Date.now();
+    const gasUrl = 'https://script.google.com/macros/s/AKfycbyzkQxLR5miUXP6oDw-1AR1GIjgpzlw9iLw0gO_ZTeLfL849LWbNX7WVz_kf7yLWBKA_w/exec?action=stockprice&ticker='+t+'&cb=_'+Date.now();
     const r = await fetch(gasUrl, {signal: AbortSignal.timeout(10000)});
     if(r.ok){
       const d = await r.json();
