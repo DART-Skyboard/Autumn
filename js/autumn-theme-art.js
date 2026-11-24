@@ -14,6 +14,12 @@
   if (typeof document === 'undefined' || global.AUTUMN_THEME_ART === false) return;
 
   var PRESETS = ['VOID', 'DAY', 'NIGHT', 'STEALTH', 'DEPARTURE', 'ASH TREE', 'ARIEL', 'SKYBOARD', 'LOUNGE', 'SUMMIT', 'AUTO'];
+  // Built-in palettes: full palette records (incl. UI shading) offered next to the theme presets. Same values as
+  // Autumn iOS AutumnPalette.builtIns. Selecting one stores its id like a saved palette; it can't be deleted, and EDIT starts a copy.
+  var BUILTINS = [
+    { id: 'builtin-neon-dusk', name: 'NEON DUSK', builtin: true, bg1: '#05070d', bg2: '#14203a', accent: '#00e5ff',
+      ui: { on: true, surface: '#0a1a3a', surface2: '#3a0f4a', button: '#0074ff', button2: '#7a1fd0', glow: '#00e5ff', border: '#7ecfff', opacity: 58, blur: 20, style: 'gradient', angle: 135 } }
+  ];
   var LEVEL_ALPHA = { FROST: 0.20, STEAM: 0.55, HAZE: 0.50, DUSK: 0.70, DEEP: 0.85 };
   var IMG_EXT = /\.(jpe?g|png|webp|gif|avif|bmp|svg|heic|heif|tga)$/i, VID_EXT = /\.(mp4|m4v|mov|webm|ogv)$/i;
   var MAX_BYTES = 250 * 1024 * 1024;
@@ -279,7 +285,8 @@
 
   // ── PALETTE ────────────────────────────────────────────────────────────────
   function palettes() { return lsGet('palettes', []); }
-  function activePalette() { var id = lsGet('palette', null); return id ? palettes().filter(function (p) { return p.id === id; })[0] || null : null; }
+  function activePalette() { var id = lsGet('palette', null); return id ? palettes().concat(BUILTINS).filter(function (p) { return p.id === id; })[0] || null : null; }
+  function builtin(label) { return BUILTINS.filter(function (b) { return b.name === label; })[0] || null; }
   var VARS = ['--cyan', '--bg', '--bg2', '--border', '--tt-color'];
   var UI_VARS = ['--aut-ui-surface-fill', '--aut-ui-bubble-fill', '--aut-ui-input', '--aut-ui-btn-fill', '--aut-ui-btn-fill-hi', '--aut-ui-btn-border', '--aut-ui-border-soft',
     '--aut-ui-glow', '--aut-ui-glow-a', '--aut-ui-glow-b', '--aut-ui-blur', '--aut-ui-ink', '--aut-ui-ink-dim', '--aut-ui-btn-ink', '--panel'];
@@ -331,6 +338,7 @@
   }
   function applyCustom(p) { lsSet('palette', p ? p.id : null); applyPaletteVars(p); markChanged(); }
   function applyPreset(label) {
+    var bi = builtin(label); if (bi) { applyCustom(bi); return; }
     lsSet('palette', null); applyPaletteVars(null); markChanged();
     if (typeof global.cycleTheme !== 'function') return;
     for (var i = 0; i < PRESETS.length + 1; i++) {
@@ -458,8 +466,10 @@
     var ov = overlay(), box = ov.querySelector('#aut-ta-box'), act = activePalette();
     var curLbl = (document.getElementById('tt-label') || {}).textContent || '';
     var d = edit || act || { name: 'CUSTOM', bg1: '#05070d', bg2: '#14203a', accent: '#7ecfff' };
+    if (d.builtin) d = { name: d.name, bg1: d.bg1, bg2: d.bg2, accent: d.accent, ui: d.ui };   // editing a built-in starts a copy
     var h = '<h4><span>◐ PALETTE</span><button data-x>✕</button></h4><div class="sec">PRESETS</div><div>';
     PRESETS.forEach(function (p) { h += '<button data-preset="' + p + '" class="' + (!act && curLbl.trim().toUpperCase() === p ? 'on' : '') + '">' + p + '</button>'; });
+    BUILTINS.forEach(function (b) { h += '<button data-preset="' + esc(b.name) + '" title="Built-in palette with UI shading" class="' + (act && act.id === b.id ? 'on' : '') + '">' + esc(b.name) + '</button>'; });
     h += '</div><div class="sec">SAVED</div>';
     var list = palettes();
     if (!list.length) h += '<div style="opacity:.5">No saved palettes yet.</div>';

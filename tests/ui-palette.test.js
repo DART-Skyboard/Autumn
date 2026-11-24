@@ -16,5 +16,10 @@ new vm.Script(art); ok(true, 'autumn-theme-art.js parses');
 ok(/opacity: clampN\(u\.opacity, 15, 100/.test(art), 'opacity clamped 15–100');
 ok(/if \(!d\.ui && d\.id\) ui\.on = false/.test(art), 'legacy palettes start at THEME DEFAULT');
 ok(/function saveCustom\(name, bg1, bg2, accent, id, ui\)/.test(art), 'saveCustom persists ui');
+// Built-in NEON DUSK palette (same values as Autumn iOS AutumnPalette.neonDusk)
+ok(/id: 'builtin-neon-dusk', name: 'NEON DUSK'/.test(art), 'NEON DUSK built-in present');
+ok(/bg1: '#05070d', bg2: '#14203a', accent: '#00e5ff'/.test(art), 'NEON DUSK colours');
+ok(/surface: '#0a1a3a', surface2: '#3a0f4a', button: '#0074ff', button2: '#7a1fd0', glow: '#00e5ff', border: '#7ecfff', opacity: 58, blur: 20, style: 'gradient', angle: 135/.test(art), 'NEON DUSK UI shading');
+ok(/palettes\(\)\.concat\(BUILTINS\)/.test(art), 'built-ins resolve as the active palette');
 if (failed) { console.error(failed + ' failed'); process.exit(1); }
 console.log('all passed');
