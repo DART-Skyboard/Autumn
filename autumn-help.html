@@ -488,9 +488,9 @@ footer a{color:var(--cyan);text-decoration:none;}
 
   <div class="card">
     <div class="sub">OVERVIEW</div>
-    <p class="cd" style="margin-bottom:10px;">Autumn has six visual themes that change the background video, color palette, logo, and glass panel tinting across the entire interface. Themes are selected via the <span class="hl">theme pill</span> in the top navigation bar — the pill shows the current theme name and a colored indicator dot.</p>
+    <p class="cd" style="margin-bottom:10px;">Autumn has a set of visual themes that change the color palette, logo, glass panel tinting, and a matching CSS atmosphere behind the interface. Themes are selected via the <span class="hl">theme pill</span> in the top navigation bar — the pill shows the current theme name and a colored indicator dot. Use the <span class="hl">ART</span> button to attach your own background image or video; clearing ART restores the theme's default atmosphere.</p>
     <table class="ct">
-      <tr><td><span class="cp">Tap the theme pill</span></td><td class="cd">Cycles forward through all available themes in order. The background video crossfades, the UI palette shifts instantly, and the logo updates.</td></tr>
+      <tr><td><span class="cp">Tap the theme pill</span></td><td class="cd">Cycles forward through all available themes in order. The theme atmosphere updates, the UI palette shifts instantly, and the logo updates.</td></tr>
       <tr><td><span class="cp">Theme persists</span></td><td class="cd">Your selected theme is saved to <span style="font-family:var(--fc);color:var(--gold)">localStorage</span>. It restores automatically on next visit.</td></tr>
     </table>
   </div>
@@ -500,23 +500,43 @@ footer a{color:var(--cyan);text-decoration:none;}
     <table class="ct">
       <tr>
         <td><span class="cp">☀ DAY</span></td>
-        <td class="cd">Default mode. Cyan/violet palette on dark navy background. Background video: <em>autumn.mp4</em>. Standard Autumn logo with violet glow.</td>
+        <td class="cd">Cyan/violet palette on a deep navy atmosphere with frosted cyan and violet light. Standard Autumn logo with violet glow.</td>
       </tr>
       <tr>
         <td><span class="cp">🌙 NIGHT</span></td>
-        <td class="cd">Deep blue-black palette with cooler cyan accents. Background video: <em>autumnnight.mp4</em>. Shifts glass panels to a near-black tint.</td>
+        <td class="cd">Deep blue-black palette with neon violet bloom and cooler accents. Shifts glass panels to a near-black tint.</td>
       </tr>
       <tr>
         <td><span class="cp">🖤 STEALTH</span></td>
-        <td class="cd">Dark alley aesthetic — indigo/electric-blue palette. Background video: <em>dartalley.mp4</em>. Logo swaps to the <em>dartalleyautumn.png</em> variant with a blue glow.</td>
+        <td class="cd">Dark alley aesthetic — indigo/electric-blue palette with cold steel-blue shafts of light. Logo swaps to the <em>dartalleyautumn.png</em> variant with a blue glow.</td>
       </tr>
       <tr>
         <td><span class="cp">🌅 DEPARTURE</span></td>
-        <td class="cd">Warm amber/dusk palette — cyan shifts to amber tones. Background video: <em>autumndeparture.mp4</em>. Logo swaps to the <em>autumnsensor.png</em> variant with an orange glow.</td>
+        <td class="cd">Warm amber/dusk palette — cyan shifts to amber tones over a glowing horizon. Logo swaps to the <em>autumnsensor.png</em> variant with an orange glow.</td>
       </tr>
       <tr>
         <td><span class="cp">🌿 ASH TREE</span></td>
-        <td class="cd">Forest green bioluminescent palette — all cyan/violet accents become deep greens. Background video: <em>ashtree.mp4</em> (glowing root network). Logo swaps to the custom <em>autumnashtree.png</em> variant with a green glow. Grid lines, glass panels, and scrollbars all shift to the green family.</td>
+        <td class="cd">Forest green bioluminescent palette — all cyan/violet accents become deep greens over a glowing undergrowth atmosphere. Logo swaps to the custom <em>autumnashtree.png</em> variant with a green glow. Grid lines, glass panels, and scrollbars all shift to the green family.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">◇ ARIEL</span></td>
+        <td class="cd">Desert sand-gold palette under a cool night sky — gold horizon wash with icy blue light. Logo uses the <em>autumnsensor.png</em> variant with a gold/cyan glow.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">🛹 SKYBOARD</span></td>
+        <td class="cd">Holographic HUD cyan over deep navy — icy circuit glow and holographic depth. Accents, glass, and grid lines shift to the cyan family.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">🛋 LOUNGE</span></td>
+        <td class="cd">Low-lit warm amber palette — intimate lamp-glow pools over deep brown-black. Accents and glass shift to amber/ivory.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">🏔 SUMMIT</span></td>
+        <td class="cd">Icy alpine cyan — misted peak light over cold high-altitude shadow. Accents stay cyan-white with a crisp alpine atmosphere.</td>
+      </tr>
+      <tr>
+        <td><span class="cp">● VOID</span></td>
+        <td class="cd">Solid black business look — no atmosphere layer, identity watermark only. Use this when you want a completely clean, video-free field.</td>
       </tr>
       <tr>
         <td><span class="cp">◈ AUTO</span></td>
@@ -529,7 +549,7 @@ footer a{color:var(--cyan);text-decoration:none;}
     <div class="sub">THEME PILL APPEARANCE</div>
     <table class="ct">
       <tr><td><span class="cp">Dot color</span></td><td class="cd">The colored dot on the left of the pill glows in the theme's accent color with a matching box-shadow halo.</td></tr>
-      <tr><td><span class="cp">Label</span></td><td class="cd">Shows the theme name (DAY, NIGHT, STEALTH, DEPARTURE, ASH TREE, AUTO) in the theme's accent color.</td></tr>
+      <tr><td><span class="cp">Label</span></td><td class="cd">Shows the theme name (VOID, DAY, NIGHT, STEALTH, DEPARTURE, ASH TREE, ARIEL, SKYBOARD, LOUNGE, SUMMIT, AUTO) in the theme's accent color.</td></tr>
       <tr><td><span class="cp">Pill border</span></td><td class="cd">The pill's border color shifts to match the active theme on hover.</td></tr>
     </table>
   </div>

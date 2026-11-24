@@ -329,8 +329,7 @@ Autumn/
 ├── CNAME                       # GitHub Pages domain (leatr.xyz)
 │
 ├── assets/                     # Static resources
-│   ├── autumn.mp4              # Day theme video
-│   ├── autumnnight.mp4         # Night theme video
+│   ├── autumn.mp4 / autumnnight.mp4  # Legacy clips (not used as theme defaults)
 │   ├── autumn.png / autumn512.png
 │   ├── rdbanner.png
 │   ├── Lead_Edge_Ash_Tree_Reflex.txt   # LEATR architecture reference

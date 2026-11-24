@@ -1,6 +1,6 @@
 // autumn-theme-art.js — ART + PALETTE theming, ported from Autumn iOS (ThemeSystem.swift / PaletteEditorOverlay.swift, build 163).
 // ART: one user-supplied background (image: jpg/png/webp/gif/avif/bmp/svg/heic* — video: mp4/mov/webm/m4v*) shown behind the UI in
-//      place of the bundled theme video. Remembered per user (IndexedDB, keyed by GitHub username or "guest").
+//      place of the theme default background. Remembered per user (IndexedDB, keyed by GitHub username or "guest").
 //      The existing overlay engine (FROST/STEAM/CLEAR/HAZE/DUSK/DEEP/VOID) still sits on top; VOID hides the art (iOS showsArt).
 //      (* heic / mov only where the browser can decode them — the file is test-loaded before it replaces the current art.)
 // PALETTE: built-in presets (cycles the existing theme engine) + saved custom palettes {name,bg1,bg2,accent} with a frosted editor.
@@ -301,8 +301,8 @@
     if (document.getElementById('aut-ta-css')) return;
     var s = document.createElement('style'); s.id = 'aut-ta-css';
     s.textContent = [
-      'body.aut-has-art #backdrop-video{opacity:0!important;visibility:hidden!important}',
-      // Art replaces the theme video, so page/theme backgrounds must not paint over it (VOID overlay brings the solid look back).
+      'body.aut-has-art #backdrop-video,body.aut-has-art #theme-backdrop{opacity:0!important;visibility:hidden!important}',
+      // Art replaces the theme default background, so page/theme atmospheres must not paint over it (VOID overlay brings the solid look back).
       'html.aut-art-visible,html.aut-art-visible body{background:transparent!important;background-color:transparent!important}',
       '.aut-ta-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:20px;height:30px;padding:0 10px 0 6px;cursor:pointer;flex-shrink:0;font-family:var(--font-d);font-size:.42rem;letter-spacing:1px;color:var(--cyan,#00ffcc);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);white-space:nowrap}',
       '.aut-ta-pill .d{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);font-size:10px}',
@@ -358,7 +358,7 @@
     var ov = overlay(), box = ov.querySelector('#aut-ta-box');
     box.innerHTML = '<h4><span>▣ ART</span><button data-x>✕</button></h4>' +
       '<div>One background behind the whole app — an image (JPG, PNG, WebP, GIF, HEIC*) or a video (MP4, MOV*, WebM). Remembered for <b>' + esc(user()) + '</b>. The overlay button (FROST…DEEP) still tints it; VOID hides it.</div>' +
-      '<div class="sec">CURRENT</div><div id="aut-ta-cur">' + (artMeta ? esc(artMeta.kind.toUpperCase() + ' · ' + artMeta.name) : 'None — theme video') + '</div>' +
+      '<div class="sec">CURRENT</div><div id="aut-ta-cur">' + (artMeta ? esc(artMeta.kind.toUpperCase() + ' · ' + artMeta.name) : 'None — theme default') + '</div>' +
       '<div class="sec">CHOOSE</div><input type="file" id="aut-ta-file" accept="image/*,video/*,.heic,.heif,.mov,.m4v,.webm,.mp4" style="display:none">' +
       '<button id="aut-ta-pick">⇪ CHOOSE IMAGE / VIDEO</button>' + (artMeta ? '<button class="danger" id="aut-ta-clear">✕ CLEAR ART</button>' : '') +
       '<div style="opacity:.45;margin-top:6px">* where this browser can decode it</div><div id="aut-ta-msg"></div>' +
