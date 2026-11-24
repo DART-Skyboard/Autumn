@@ -14242,6 +14242,8 @@ async function _pollAshNodes() {
       });
       if(nodesR.ok) {
         var nodesData = await nodesR.json();
+        // Shell 64 activity rides on readnodes (js/shell64-node-module.js; docs/SHELL64_FEED_CONTRACT.md)
+        if(nodesData && nodesData.shell64 && window.Shell64Node) { try { window.Shell64Node.feed(nodesData.shell64); } catch(_s64e) {} }
         if(nodesData && Array.isArray(nodesData.nodes) && nodesData.nodes.length > 0) {
           nodesData.nodes.forEach(function(n) {
             if(n && (n.sid || n.uid) && (n.sid || n.uid) !== _ashNodes._localUid) {
@@ -26599,6 +26601,10 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 <script src="js/mist-module.js?v=20260901c"></script>
 <script src="js/ash-star-archive.js?v=20260901-mailbox-move"></script>
 <script src="js/ash-shard-module.js?v=20260828q"></script>
+<!-- Shell 64 x-ray activity node in the real-time scene (t1622u) -->
+<script src="js/vendor/three-r128-GLTFLoader.js?v=20261123a"></script>
+<script src="js/vendor/three-r128-meshopt_decoder.js?v=20261123a"></script>
+<script src="js/shell64-node-module.js?v=20261123a"></script>
 <script src="js/reflex-map-module.js?v=20261020a"></script>
 <script src="js/hud-tools-module.js?v=20260828c"></script>
 
