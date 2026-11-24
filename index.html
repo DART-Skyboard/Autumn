@@ -3145,6 +3145,7 @@ header {
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="css/theme-backdrops.css">
 </head>
 <script>
 (function(){
@@ -3153,15 +3154,21 @@ header {
   if(!k){try{k=localStorage.getItem('aut_theme');}catch(e){}}
   if(!k) k='void';
   document.documentElement.setAttribute('data-aut-theme', k);
+  var atm=k;
+  if(atm==='system'){
+    atm=(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)?'night':'day';
+  }
+  document.documentElement.setAttribute('data-aut-atmosphere', atm);
 })();
 </script>
 <body>
 
 <!-- ░░ BACKDROP VIDEO ░░ -->
+<!-- Theme atmosphere is #theme-backdrop (CSS). #backdrop-video is kept as an anchor for the ART layer and stays hidden unless a future theme sets a video. -->
+<div id="theme-backdrop" aria-hidden="true"></div>
 <video id="backdrop-video"
-  src="assets/autumnanimation.mp4"
-  autoplay loop muted playsinline
-  style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;pointer-events:none"></video>
+  muted playsinline
+  style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;pointer-events:none;opacity:0;visibility:hidden"></video>
 <!-- Frosted glass scrim — opacity/blur controlled by JS -->
 <div id="vid-scrim" style="position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:rgba(2,10,20,0.38);
@@ -18352,7 +18359,8 @@ ashLoadDefs();
 
   var WASH_RGB = {
     ariel:[8,20,36], skyboard:[4,12,22], night:[4,2,12], stealth:[3,5,12],
-    departure:[12,5,0], ashtree:[1,10,4], void:[0,0,0], day:[2,10,20]
+    departure:[12,5,0], ashtree:[1,10,4], lounge:[12,6,4], summit:[5,10,16],
+    void:[0,0,0], day:[2,10,20]
   };
   var VOID_GRAD = {
     ariel:'linear-gradient(165deg,#050c14 0%,#0a1624 55%,#0c1210 100%)',
@@ -18361,12 +18369,15 @@ ashLoadDefs();
     stealth:'linear-gradient(165deg,#03050a 0%,#070b12 100%)',
     departure:'linear-gradient(165deg,#080400 0%,#120800 100%)',
     ashtree:'linear-gradient(165deg,#010604 0%,#041208 100%)',
+    lounge:'linear-gradient(165deg,#0a0604 0%,#1a1008 100%)',
+    summit:'linear-gradient(165deg,#050a10 0%,#0f1620 100%)',
     day:'linear-gradient(165deg,#020814 0%,#061018 100%)',
     void:'linear-gradient(165deg,#000000 0%,#0c0c0e 100%)'
   };
   var VOID_COLOR = {
     ariel:'#c4a36a', skyboard:'#5fd4ff', night:'#b48bff', stealth:'#4a88cc',
-    departure:'#ff9d4a', ashtree:'#7ddc8e', day:'#7ecfff', void:'#aeaeb2'
+    departure:'#ff9d4a', ashtree:'#7ddc8e', lounge:'#e8a86a', summit:'#5fd4ff',
+    day:'#7ecfff', void:'#aeaeb2'
   };
   var LEVEL_ALPHA = { FROST:0.20, STEAM:0.55, HAZE:0.50, DUSK:0.70, DEEP:0.85 };
 
@@ -18380,16 +18391,24 @@ ashLoadDefs();
     if (k) return k;
     var cls = (document.body && document.body.className) || '';
     if (cls.indexOf('theme-ariel')>=0) return 'ariel';
+    if (cls.indexOf('theme-skyboard')>=0) return 'skyboard';
+    if (cls.indexOf('theme-lounge')>=0) return 'lounge';
+    if (cls.indexOf('theme-summit')>=0) return 'summit';
     if (cls.indexOf('theme-night')>=0) return 'night';
     if (cls.indexOf('theme-stealth')>=0) return 'stealth';
     if (cls.indexOf('theme-departure')>=0) return 'departure';
     if (cls.indexOf('theme-ashtree')>=0) return 'ashtree';
     if (cls.indexOf('theme-void')>=0) return 'void';
+    if (cls.indexOf('theme-day')>=0) return 'day';
     return 'day';
   }
 
   function themeHasVideo(){
-    return currentThemeKey() !== 'void';
+    if (currentThemeKey() === 'void') return false;
+    var vid = document.getElementById('backdrop-video');
+    if (!vid) return false;
+    var src = vid.getAttribute('src') || '';
+    return !!(src && src.length);
   }
 
   function setBackdropVideoOn(on){
@@ -18531,15 +18550,15 @@ ashLoadDefs();
       label: 'DAY',
       dot:   '☀',
       color: '#7ecfff',      // frosted white-blue
-      video: 'assets/autumnanimation.mp4',
-      bodyClass: ''
+      video: null,
+      bodyClass: 'theme-day'
     },
     {
       key:   'night',
       label: 'NIGHT',
       dot:   '🌙',
       color: '#b48bff',      // obsidian neon violet
-      video: 'assets/autumnnight.mp4',
+      video: null,
       bodyClass: 'theme-night'
     },
     {
@@ -18547,7 +18566,7 @@ ashLoadDefs();
       label: 'STEALTH',
       dot:   '◆',
       color: '#7aa8cc',      // cold steel blue
-      video: 'https://raw.githubusercontent.com/DART-Edge-AI/dartalley/main/dartalley.mp4',
+      video: null,
       bodyClass: 'theme-stealth'
     },
     {
@@ -18555,7 +18574,7 @@ ashLoadDefs();
       label: 'DEPARTURE',
       dot:   '🌅',
       color: '#ff9d4a',      // amber dusk glow
-      video: 'assets/autumndeparture.mp4',
+      video: null,
       bodyClass: 'theme-departure'
     },
     {
@@ -18563,7 +18582,7 @@ ashLoadDefs();
       label: 'ASH TREE',
       dot:   '🌿',
       color: '#7ddc8e',      // forest green glow
-      video: 'assets/ashtree.mp4',
+      video: null,
       bodyClass: 'theme-ashtree'
     },
     {
@@ -18571,7 +18590,7 @@ ashLoadDefs();
       label: 'ARIEL',
       dot:   '◇',
       color: '#c4a36a',      // desert sand gold
-      video: 'assets/ariel.mp4',
+      video: null,
       bodyClass: 'theme-ariel'
     },
     {
@@ -18579,7 +18598,7 @@ ashLoadDefs();
       label: 'SKYBOARD',
       dot:   '🛹',
       color: '#5fd4ff',      // holographic HUD cyan
-      video: 'assets/skyboard.mp4',
+      video: null,
       bodyClass: 'theme-skyboard'
     },
     {
@@ -18587,7 +18606,7 @@ ashLoadDefs();
       label: 'LOUNGE',
       dot:   '🛋',
       color: '#e8a86a',      // warm amber -- values pulled from ThemeSystem.swift, not guessed
-      video: 'assets/lounge.mp4',
+      video: null,
       bodyClass: 'theme-lounge'
     },
     {
@@ -18595,7 +18614,7 @@ ashLoadDefs();
       label: 'SUMMIT',
       dot:   '🏔',
       color: '#5fd4ff',      // icy cyan -- matches the neon circuit-glow accent in the footage
-      video: 'assets/summit.mp4',
+      video: null,
       bodyClass: 'theme-summit'
     },
     {
@@ -18626,10 +18645,11 @@ ashLoadDefs();
     const btn   = document.getElementById('theme-toggle');
 
     // Swap body class
-    body.classList.remove('theme-night','theme-stealth','theme-departure','theme-ashtree','theme-ariel','theme-void','theme-skyboard','theme-lounge','theme-summit');
+    body.classList.remove('theme-day','theme-night','theme-stealth','theme-departure','theme-ashtree','theme-ariel','theme-void','theme-skyboard','theme-lounge','theme-summit');
     if (effective.bodyClass) body.classList.add(effective.bodyClass);
 
-    // Swap video with crossfade. Void theme is solid black — hide the video.
+    // Theme atmospheres are CSS (#theme-backdrop). Bundled theme videos are no longer loaded.
+    // If a theme sets .video, keep the previous crossfade behaviour; otherwise keep the element hidden.
     // Overlay VOID also hides video; skip play to avoid a flash, then _reapplyScrim.
     if (vid) {
       vid.style.transition = 'opacity .45s ease';
@@ -18712,6 +18732,7 @@ ashLoadDefs();
     try { document.cookie = 'aut_theme=' + t.key + ';path=/;max-age=31536000'; } catch(e){}
     try { localStorage.setItem('aut_theme', t.key); } catch(e){}
     try { document.documentElement.setAttribute('data-aut-theme', t.key); } catch(e){}
+    try { document.documentElement.setAttribute('data-aut-atmosphere', effective.key); } catch(e){}
     if (typeof window._reapplyScrim === 'function') {
       try { window._reapplyScrim(); } catch(e){}
     }

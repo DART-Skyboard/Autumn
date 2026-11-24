@@ -151,7 +151,7 @@
   css.textContent =
     'html.aut-embed-jots,html.aut-embed-jots body{background:transparent!important;background-image:none!important;color-scheme:normal!important}' +
     H + '{--cyan:' + PAL.accent + ';--bg:transparent;--bg2:transparent}' +
-    H + '#backdrop-video{display:none!important}' +
+    H + '#backdrop-video,#theme-backdrop{display:none!important}' +
     H + '#vid-scrim{background:linear-gradient(165deg,rgba(111,0,255,.10),rgba(0,255,115,.06))!important;backdrop-filter:none!important}' +
     H + '#jots-bg-video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-3;pointer-events:none;opacity:' + VIDEO_OPACITY + '}' +
     HIDE.map(function (s) { return H + s; }).join(',') + '{display:none!important}' +
