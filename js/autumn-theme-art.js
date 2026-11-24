@@ -5,6 +5,9 @@
 //      (* heic / mov only where the browser can decode them — the file is test-loaded before it replaces the current art.)
 // PALETTE: built-in presets (cycles the existing theme engine) + saved custom palettes {name,bg1,bg2,accent} with a frosted editor.
 //      A custom palette drives --cyan (accent), --bg/--bg2 and the scrim wash tint (bg1 × 0.6, same as iOS AutumnPaletteRuntime.washRGB).
+// UI SHADING (optional p.ui, mirrors iOS CustomPalette.ui*): panel/surface colour + 2nd stop, button fill + 2nd stop, hover/active
+//      glow, border tint, UI opacity (15–100 %), backdrop blur, SOLID/GRADIENT fill and gradient angle. Drives --aut-ui-* vars and
+//      body.aut-ui-custom; palettes saved before this (no p.ui) and the built-in presets keep the theme's own UI look.
 // Additive only. Off switch: window.AUTUMN_THEME_ART = false before this script loads.
 (function (global) {
   'use strict';
@@ -25,6 +28,29 @@
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function hexRGB(h) { h = String(h || '').replace('#', ''); if (h.length === 3) h = h.replace(/./g, '$&$&'); var n = parseInt(h, 16); return isNaN(n) ? [0, 0, 0] : [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
   function uid() { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  // ── UI shading model (p.ui) ────────────────────────────────────────────────
+  function hex6(h, d) { h = String(h || '').trim().replace(/^#/, ''); if (/^[0-9a-f]{3}$/i.test(h)) h = h.replace(/./g, '$&$&'); return /^[0-9a-f]{6}$/i.test(h) ? '#' + h.toLowerCase() : d; }
+  function mixHex(a, b, t) { var x = hexRGB(a), y = hexRGB(b); return '#' + x.map(function (v, i) { return ('0' + Math.round(v + (y[i] - v) * t).toString(16)).slice(-2); }).join(''); }
+  function clampN(v, lo, hi, d) { v = +v; return isNaN(v) ? d : Math.max(lo, Math.min(hi, Math.round(v))); }
+  function rgba(h, a) { return 'rgba(' + hexRGB(h).join(',') + ',' + (Math.round(a * 1000) / 1000) + ')'; }
+  function lum(h) { var c = hexRGB(h).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+  // Defaults derived from the palette's own colours, so a fresh palette's UI already matches its background + accent.
+  function uiDefaults(p) {
+    p = p || {}; var bg1 = hex6(p.bg1, '#05070d'), bg2 = hex6(p.bg2, '#14203a'), acc = hex6(p.accent, '#7ecfff');
+    return { on: true, surface: mixHex(bg1, '#000000', 0.15), surface2: bg2, button: mixHex(bg2, acc, 0.22), button2: mixHex(bg1, acc, 0.08), glow: acc, border: acc, opacity: 72, blur: 16, style: 'gradient', angle: 135 };
+  }
+  function normUI(u, p) {
+    var d = uiDefaults(p); if (!u || typeof u !== 'object') return null;
+    return {
+      on: u.on !== false,
+      surface: hex6(u.surface, d.surface), surface2: hex6(u.surface2, d.surface2),
+      button: hex6(u.button, d.button), button2: hex6(u.button2, d.button2),
+      glow: hex6(u.glow, d.glow), border: hex6(u.border, d.border),
+      opacity: clampN(u.opacity, 15, 100, d.opacity), blur: clampN(u.blur, 0, 40, d.blur),
+      style: u.style === 'solid' ? 'solid' : 'gradient', angle: clampN(u.angle, 0, 359, d.angle) % 360
+    };
+  }
 
   // ── IndexedDB (art blobs are too large for localStorage) ───────────────────
   function db() {
@@ -255,8 +281,34 @@
   function palettes() { return lsGet('palettes', []); }
   function activePalette() { var id = lsGet('palette', null); return id ? palettes().filter(function (p) { return p.id === id; })[0] || null : null; }
   var VARS = ['--cyan', '--bg', '--bg2', '--border', '--tt-color'];
+  var UI_VARS = ['--aut-ui-surface-fill', '--aut-ui-bubble-fill', '--aut-ui-input', '--aut-ui-btn-fill', '--aut-ui-btn-fill-hi', '--aut-ui-btn-border', '--aut-ui-border-soft',
+    '--aut-ui-glow', '--aut-ui-glow-a', '--aut-ui-glow-b', '--aut-ui-blur', '--aut-ui-ink', '--aut-ui-ink-dim', '--aut-ui-btn-ink', '--panel'];
+  // p.ui → CSS vars + body.aut-ui-custom (rules in css()). No p / no p.ui / ui.on === false → the theme's own UI look.
+  function applyUIVars(p) {
+    var r = document.documentElement.style, b = document.body.style, u = p && p.ui ? normUI(p.ui, p) : null;
+    if (!u || !u.on) { UI_VARS.forEach(function (v) { r.removeProperty(v); b.removeProperty(v); }); document.body.classList.remove('aut-ui-custom', 'aut-ui-light'); return; }
+    var a = u.opacity / 100, ba = Math.min(1, a + 0.08), g = u.style === 'gradient';
+    var fill = function (c1, c2, al) { return g ? 'linear-gradient(' + u.angle + 'deg,' + rgba(c1, al) + ' 0%,' + rgba(c2, al) + ' 100%)' : rgba(c1, al); };
+    var light = (lum(u.surface) + lum(u.surface2)) / 2 > 0.45 && a >= 0.5;
+    var vals = {
+      '--aut-ui-surface-fill': fill(u.surface, u.surface2, a),
+      '--aut-ui-bubble-fill': fill(u.surface2, u.button, Math.min(1, a + 0.04)),
+      '--aut-ui-input': rgba(mixHex(u.surface, light ? '#ffffff' : '#000000', 0.25), Math.max(0.12, a * 0.7)),
+      '--aut-ui-btn-fill': fill(u.button, u.button2, ba),
+      '--aut-ui-btn-fill-hi': fill(mixHex(u.button, u.glow, 0.25), mixHex(u.button2, u.glow, 0.15), Math.min(1, ba + 0.1)),
+      '--aut-ui-btn-border': rgba(u.border, 0.55), '--aut-ui-border-soft': rgba(u.border, 0.22),
+      '--aut-ui-glow': u.glow, '--aut-ui-glow-a': rgba(u.glow, 0.55), '--aut-ui-glow-b': rgba(u.glow, 0.22),
+      '--aut-ui-blur': u.blur + 'px', '--panel': rgba(u.surface, a),
+      '--aut-ui-ink': light ? '#0d1218' : '', '--aut-ui-ink-dim': light ? '#3a4656' : '',
+      // Button labels: dark ink on light fills, near-white on dark/vivid fills (theme --dim greys vanish on a strong fill).
+      '--aut-ui-btn-ink': (lum(u.button) + lum(u.button2)) / 2 > 0.4 && ba >= 0.5 ? '#0b1018' : '#eef8ff'
+    };
+    [r, b].forEach(function (s) { Object.keys(vals).forEach(function (k) { if (vals[k]) s.setProperty(k, vals[k]); else s.removeProperty(k); }); });
+    document.body.classList.add('aut-ui-custom'); document.body.classList.toggle('aut-ui-light', light);
+  }
   function applyPaletteVars(p) {
     var r = document.documentElement.style, b = document.body.style;
+    applyUIVars(p);
     if (!p) { VARS.forEach(function (v) { r.removeProperty(v); b.removeProperty(v); }); document.body.classList.remove('aut-palette-custom'); b.removeProperty('background'); restyleScrim(null); return; }
     var a = hexRGB(p.accent);
     // body.theme-* classes redefine the vars on <body>, so set them there too (inline beats class).
@@ -286,8 +338,11 @@
       global.cycleTheme();
     }
   }
-  function saveCustom(name, bg1, bg2, accent, id) {
+  function saveCustom(name, bg1, bg2, accent, id, ui) {
     var list = palettes(), rec = { id: id || uid(), name: (name || 'CUSTOM').slice(0, 24), bg1: bg1, bg2: bg2, accent: accent };
+    var prev = id ? list.filter(function (p) { return p.id === id; })[0] : null;
+    var u = ui !== undefined ? normUI(ui, rec) : (prev && prev.ui ? normUI(prev.ui, rec) : null);   // ui omitted → keep what was saved
+    if (u) rec.ui = u;
     var i = list.findIndex(function (p) { return p.id === rec.id; }); if (i >= 0) list[i] = rec; else list.push(rec);
     lsSet('palettes', list); markChanged(); return rec;
   }
@@ -308,7 +363,7 @@
       '.aut-ta-pill .d{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);font-size:10px}',
       '#aut-ta-ov{position:fixed;inset:0;z-index:99990;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35)}',
       '#aut-ta-ov.open{display:flex}',
-      '#aut-ta-box{width:min(380px,92vw);max-height:80vh;overflow:auto;background:rgba(10,18,30,.72);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid color-mix(in srgb,var(--cyan,#00e5ff) 30%,transparent);border-radius:12px;padding:12px;color:var(--text,#c8e6f0);font-family:var(--font-d,monospace);font-size:10px;letter-spacing:1px}',
+      '#aut-ta-box{width:min(420px,94vw);max-height:86vh;overflow:auto;background:rgba(10,18,30,.72);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid color-mix(in srgb,var(--cyan,#00e5ff) 30%,transparent);border-radius:12px;padding:12px;color:var(--text,#c8e6f0);font-family:var(--font-d,monospace);font-size:10px;letter-spacing:1px}',
       '#aut-ta-box h4{margin:0 0 8px;font-size:11px;letter-spacing:2px;color:var(--cyan,#00e5ff);display:flex;justify-content:space-between}',
       '#aut-ta-box .sec{font-size:8px;letter-spacing:2px;opacity:.55;margin:10px 0 4px}',
       '#aut-ta-box button{font-family:inherit;font-size:9px;letter-spacing:1px;padding:5px 8px;border-radius:4px;border:1px solid color-mix(in srgb,var(--cyan,#00e5ff) 35%,transparent);background:color-mix(in srgb,var(--cyan,#00e5ff) 8%,transparent);color:var(--cyan,#00e5ff);cursor:pointer;margin:2px}',
@@ -339,6 +394,34 @@
       '@media (orientation:landscape) and (max-height:520px){#aut-cp{width:min(620px,96vw);display:grid;grid-template-columns:1.2fr 1fr;column-gap:12px}#aut-cp h4,#aut-cp .cp-tabs{grid-column:1/-1}#aut-cp #cp-body{grid-row:span 4}#aut-cp .cp-sv{aspect-ratio:16/9}}',
       '.aut-ta-notice{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:99999;max-width:min(460px,92vw);padding:10px 14px;border-radius:10px;background:rgba(40,20,4,.9);border:1px solid #ffb347;color:#ffd9a0;font-family:var(--font-d,monospace);font-size:11px;letter-spacing:.5px;line-height:1.5;backdrop-filter:blur(14px);transition:opacity .6s;box-shadow:0 0 18px rgba(255,179,71,.25)}',
       '#aut-ta-sync button{padding:3px 7px}',
+      // ── UI SHADING editor
+      '#aut-ta-box .sub{font-size:7.5px;letter-spacing:1.5px;opacity:.5;margin:8px 0 2px}',
+      '#aut-ta-box .ui-sl{gap:8px}#aut-ta-box .ui-sl span{width:58px;font-size:8px;opacity:.75}#aut-ta-box .ui-sl output{width:40px;text-align:right;font-size:9px}',
+      '#aut-ta-box .ui-sl input[type=range]{flex:1;accent-color:var(--cyan,#00e5ff);height:16px}',
+      '#aut-ta-box #aut-pe-ui.dim{opacity:.45}#aut-ta-box #aut-pe-ui .dirs button{padding:3px 6px;min-width:24px}#aut-ta-box #aut-pe-ui.solid .grad-only{opacity:.35;pointer-events:none}',
+      '#aut-ta-box .ui-demo{margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:8px;font-size:8px}',
+      // ── UI SHADING applied (body.aut-ui-custom): panels, sidebar, cards, modals, chat, inputs, buttons. !important beats theme-* rules.
+      'body.aut-ui-custom header,body.aut-ui-custom #input-area,body.aut-ui-custom #footer-bar,body.aut-ui-custom .glass,body.aut-ui-custom .modal-box,body.aut-ui-custom #consent-box,body.aut-ui-custom .gh-login-box,' +
+        'body.aut-ui-custom #mist-menu,body.aut-ui-custom #mist-canvas-wrap,body.aut-ui-custom #astar-header,body.aut-ui-custom #astar-list,body.aut-ui-custom #as-header,body.aut-ui-custom #as-canvas-wrap,' +
+        'body.aut-ui-custom #hud-tm-panel,body.aut-ui-custom #sysbrd-panel,body.aut-ui-custom #multi-user-bar,body.aut-ui-custom .msg.autumn .bubble,body.aut-ui-custom #aut-ta-box,body.aut-ui-custom #aut-cp' +
+        '{background:var(--aut-ui-surface-fill)!important;backdrop-filter:blur(var(--aut-ui-blur)) saturate(1.3)!important;-webkit-backdrop-filter:blur(var(--aut-ui-blur)) saturate(1.3)!important;border-color:var(--aut-ui-border-soft)!important}',
+      'body.aut-ui-custom .msg.user .bubble{background:var(--aut-ui-bubble-fill)!important;border-color:var(--aut-ui-btn-border)!important;backdrop-filter:blur(var(--aut-ui-blur))!important;-webkit-backdrop-filter:blur(var(--aut-ui-blur))!important}',
+      'body.aut-ui-custom #input-pill,body.aut-ui-custom #as-search,body.aut-ui-custom #aut-ta-box input[type=text],body.aut-ui-custom .modal-box textarea,body.aut-ui-custom #aut-cp #cp-hex,body.aut-ui-custom #aut-cp input[type=number]' +
+        '{background:var(--aut-ui-input)!important;border-color:var(--aut-ui-border-soft)!important}',
+      'body.aut-ui-custom #chat-input{background:transparent!important}',
+      'body.aut-ui-custom .hdr-btn,body.aut-ui-custom .aut-ta-pill,body.aut-ui-custom #scrim-toggle,body.aut-ui-custom #theme-toggle,body.aut-ui-custom #live-feed-toggle,body.aut-ui-custom .bmh-btn,' +
+        'body.aut-ui-custom .ac-tool-btn,body.aut-ui-custom .ac-btn,body.aut-ui-custom .cb-accept,body.aut-ui-custom .htm-btn,body.aut-ui-custom #as-btn-send,body.aut-ui-custom #scroll-to-top,body.aut-ui-custom #scroll-to-bottom,' +
+        'body.aut-ui-custom #aut-ta-box button:not(.danger),body.aut-ui-custom #aut-cp .cp-tabs button,body.aut-ui-custom #aut-cp #cp-ok,body.aut-ui-custom #aut-cp [data-x],body.aut-ui-custom .ui-demo .demo-btn' +
+        '{color:var(--aut-ui-btn-ink);background:var(--aut-ui-btn-fill)!important;border-color:var(--aut-ui-btn-border)!important;backdrop-filter:blur(var(--aut-ui-blur))!important;-webkit-backdrop-filter:blur(var(--aut-ui-blur))!important;transition:box-shadow .18s,border-color .18s,background .18s}',
+      'body.aut-ui-custom .hdr-btn:hover,body.aut-ui-custom .aut-ta-pill:hover,body.aut-ui-custom #scrim-toggle:hover,body.aut-ui-custom #theme-toggle:hover,body.aut-ui-custom #live-feed-toggle:hover,body.aut-ui-custom .bmh-btn:hover,' +
+        'body.aut-ui-custom .ac-tool-btn:hover,body.aut-ui-custom .ac-btn:hover,body.aut-ui-custom .cb-accept:hover,body.aut-ui-custom .htm-btn:hover,body.aut-ui-custom #aut-ta-box button:not(.danger):hover,body.aut-ui-custom #aut-cp .cp-tabs button:hover,body.aut-ui-custom #aut-cp #cp-ok:hover,body.aut-ui-custom .ui-demo .demo-btn:hover' +
+        '{border-color:var(--aut-ui-glow)!important;box-shadow:0 0 12px var(--aut-ui-glow-a),inset 0 0 8px var(--aut-ui-glow-b)!important}',
+      'body.aut-ui-custom .hdr-btn:active,body.aut-ui-custom .hdr-btn.active,body.aut-ui-custom .hdr-btn.on,body.aut-ui-custom #live-feed-toggle.lf-on,body.aut-ui-custom .ac-tool-btn.active,body.aut-ui-custom .ac-tool-btn.on,' +
+        'body.aut-ui-custom #aut-ta-box button.on,body.aut-ui-custom #aut-cp .cp-tabs button.on,body.aut-ui-custom .bmh-btn:active,body.aut-ui-custom .ui-demo .demo-btn.on' +
+        '{background:var(--aut-ui-btn-fill-hi)!important;border-color:var(--aut-ui-glow)!important;box-shadow:0 0 16px var(--aut-ui-glow-a),inset 0 0 10px var(--aut-ui-glow-b)!important}',
+      // Light surfaces: keep text readable.
+      'body.aut-ui-custom.aut-ui-light{--text:var(--aut-ui-ink);--bright:var(--aut-ui-ink);--dim:var(--aut-ui-ink-dim)}',
+      'body.aut-ui-custom.aut-ui-light .bubble,body.aut-ui-custom.aut-ui-light #chat-input,body.aut-ui-custom.aut-ui-light #aut-ta-box,body.aut-ui-custom.aut-ui-light #aut-ta-box input[type=text]{color:var(--aut-ui-ink)!important}',
       '#aut-ta-msg{margin-top:8px;opacity:.75;min-height:12px;white-space:pre-wrap}'
     ].join('\n');
     document.head.appendChild(s);
@@ -384,12 +467,34 @@
       h += '<div class="row"><span class="sw" style="background:linear-gradient(135deg,' + esc(p.bg1) + ',' + esc(p.bg2) + ')"></span><span class="sw" style="background:' + esc(p.accent) + '"></span>' +
         '<span style="flex:1">' + esc(p.name) + '</span><button data-apply="' + p.id + '" class="' + (act && act.id === p.id ? 'on' : '') + '">USE</button><button data-edit="' + p.id + '">EDIT</button><button class="danger" data-del="' + p.id + '">✕</button></div>';
     });
+    // UI shading working copy: saved p.ui, else defaults from the palette colours. Old palettes (no ui) start at THEME DEFAULT.
+    var ui = d.ui ? normUI(d.ui, d) : uiDefaults(d); if (!d.ui && d.id) ui.on = false;
+    var field = function (attr, key, label, v) {
+      return '<button type="button" class="cp-field" ' + attr + '="' + key + '" aria-label="Pick ' + label + ' colour"><span class="sw" style="background:' + esc(v) + '"></span>' + label + ' <small>' + esc(String(v).toUpperCase()) + '</small></button>';
+    };
+    var DIRS = [['↑', 0], ['↗', 45], ['→', 90], ['↘', 135], ['↓', 180], ['↙', 225], ['←', 270], ['↖', 315]];
     h += '<div class="sec">' + (d.id ? 'EDIT' : 'NEW') + '</div><input type="text" id="aut-pe-name" value="' + esc(d.name) + '" placeholder="name">' +
+      '<div class="sub">BACKGROUND + ACCENT</div>' +
       '<div class="row cp-fields">' + [['bg1', 'BG 1', d.bg1], ['bg2', 'BG 2', d.bg2], ['acc', 'ACCENT', d.accent]].map(function (f) {
-        return '<button type="button" class="cp-field" data-pick="' + f[0] + '" aria-label="Pick ' + f[1] + ' colour"><span class="sw" style="background:' + esc(f[2]) + '"></span>' + f[1] + ' <small>' + esc(String(f[2]).toUpperCase()) + '</small></button>' +
-          '<input type="hidden" id="aut-pe-' + f[0] + '" value="' + esc(f[2]) + '">';
+        return field('data-pick', f[0], f[1], f[2]) + '<input type="hidden" id="aut-pe-' + f[0] + '" value="' + esc(f[2]) + '">';
       }).join('') + '</div>' +
-      '<button id="aut-pe-prev">PREVIEW</button><button id="aut-pe-save">SAVE + USE</button>' + (d.id ? '<button id="aut-pe-new">NEW</button>' : '') + '<div id="aut-ta-msg"></div>';
+      '<div class="sec">UI SHADING</div><div class="row"><button data-uion="0">THEME DEFAULT</button><button data-uion="1">CUSTOM</button></div>' +
+      '<div id="aut-pe-ui">' +
+      '<div class="sub">UI SURFACE · PANELS, SIDEBAR, CARDS, MODALS, CHAT</div><div class="row cp-fields">' +
+        field('data-uipick', 'surface', 'SURFACE', ui.surface) + '<span class="grad-only">' + field('data-uipick', 'surface2', 'SURFACE 2', ui.surface2) + '</span></div>' +
+      '<div class="sub">BUTTON FILL &amp; SHADING</div><div class="row cp-fields">' +
+        field('data-uipick', 'button', 'BUTTON', ui.button) + '<span class="grad-only">' + field('data-uipick', 'button2', 'BUTTON 2', ui.button2) + '</span>' +
+        field('data-uipick', 'glow', 'GLOW', ui.glow) + field('data-uipick', 'border', 'BORDER', ui.border) + '</div>' +
+      '<div class="sub">UI GRADIENT STYLE</div><div class="row"><button data-uistyle="solid">SOLID</button><button data-uistyle="gradient">GRADIENT</button></div>' +
+      '<div class="row ui-sl grad-only"><span>ANGLE</span><input type="range" id="aut-pe-angle" min="0" max="359" step="1" aria-label="Gradient angle"><output id="aut-pe-angle-o"></output></div>' +
+      '<div class="row dirs grad-only">' + DIRS.map(function (x) { return '<button data-uidir="' + x[1] + '" title="' + x[1] + '°">' + x[0] + '</button>'; }).join('') + '</div>' +
+      '<div class="sub">UI TRANSPARENCY</div>' +
+      '<div class="row ui-sl"><span>OPACITY</span><input type="range" id="aut-pe-opacity" min="15" max="100" step="1" aria-label="UI opacity"><output id="aut-pe-opacity-o"></output></div>' +
+      '<div class="row ui-sl"><span>BLUR</span><input type="range" id="aut-pe-blur" min="0" max="40" step="1" aria-label="Backdrop blur"><output id="aut-pe-blur-o"></output></div>' +
+      '<div class="ui-demo" id="aut-pe-demo"><span style="flex:1">PANEL PREVIEW</span><span class="demo-btn" style="padding:5px 9px;border-radius:5px;border:1px solid">BUTTON</span><span class="demo-btn on" style="padding:5px 9px;border-radius:5px;border:1px solid">ACTIVE</span></div>' +
+      '<button id="aut-pe-uireset" style="margin-top:6px">↺ RESET UI TO PALETTE</button>' +
+      '</div>' +
+      '<div style="margin-top:10px"><button id="aut-pe-prev">PREVIEW</button><button id="aut-pe-save">SAVE + USE</button>' + (d.id ? '<button id="aut-pe-new">NEW</button>' : '') + '</div><div id="aut-ta-msg"></div>';
     box.innerHTML = h;
     box.querySelector('[data-x]').onclick = close;
     box.querySelectorAll('[data-preset]').forEach(function (b) { b.onclick = function () { applyPreset(b.getAttribute('data-preset')); openPalette(); }; });
@@ -397,18 +502,49 @@
     box.querySelectorAll('[data-edit]').forEach(function (b) { b.onclick = function () { openPalette(palettes().filter(function (p) { return p.id === b.getAttribute('data-edit'); })[0]); }; });
     box.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { deleteCustom(b.getAttribute('data-del')); openPalette(); }; });
     var val = function (id) { return box.querySelector(id).value; };
-    box.querySelector('#aut-pe-prev').onclick = function () { applyPaletteVars({ bg1: val('#aut-pe-bg1'), bg2: val('#aut-pe-bg2'), accent: val('#aut-pe-acc') }); box.querySelector('#aut-ta-msg').textContent = 'Previewing — SAVE to keep it.'; };
-    box.querySelector('#aut-pe-save').onclick = function () { var p = saveCustom(val('#aut-pe-name'), val('#aut-pe-bg1'), val('#aut-pe-bg2'), val('#aut-pe-acc'), d.id); applyCustom(p); openPalette(p); };
+    var msg = function (t) { box.querySelector('#aut-ta-msg').textContent = t; };
+    var form = function () { return { bg1: val('#aut-pe-bg1'), bg2: val('#aut-pe-bg2'), accent: val('#aut-pe-acc'), ui: JSON.parse(JSON.stringify(ui)) }; };
+    var live = function () { applyPaletteVars(form()); msg('Previewing — SAVE to keep it.'); };
+    var demo = box.querySelector('#aut-pe-demo');
+    function paintUI() {
+      var wrap = box.querySelector('#aut-pe-ui');
+      wrap.classList.toggle('dim', !ui.on); wrap.classList.toggle('solid', ui.style === 'solid');
+      box.querySelectorAll('[data-uion]').forEach(function (b) { b.classList.toggle('on', (b.getAttribute('data-uion') === '1') === ui.on); });
+      box.querySelectorAll('[data-uistyle]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-uistyle') === ui.style); });
+      box.querySelectorAll('[data-uidir]').forEach(function (b) { b.classList.toggle('on', +b.getAttribute('data-uidir') === ui.angle); });
+      box.querySelectorAll('[data-uipick]').forEach(function (b) { var v = ui[b.getAttribute('data-uipick')]; b.querySelector('.sw').style.background = v; b.querySelector('small').textContent = v.toUpperCase(); });
+      [['angle', '°'], ['opacity', '%'], ['blur', 'px']].forEach(function (x) { box.querySelector('#aut-pe-' + x[0]).value = ui[x[0]]; box.querySelector('#aut-pe-' + x[0] + '-o').textContent = ui[x[0]] + x[1]; });
+      // The little demo panel always shows the custom look, even while THEME DEFAULT is selected.
+      var a = ui.opacity / 100, g = ui.style === 'gradient', f = function (c1, c2, al) { return g ? 'linear-gradient(' + ui.angle + 'deg,' + rgba(c1, al) + ',' + rgba(c2, al) + ')' : rgba(c1, al); };
+      demo.style.background = f(ui.surface, ui.surface2, a); demo.style.backdropFilter = demo.style.webkitBackdropFilter = 'blur(' + ui.blur + 'px)';
+      demo.querySelectorAll('.demo-btn').forEach(function (s, i) { s.style.setProperty('background', f(i ? mixHex(ui.button, ui.glow, 0.25) : ui.button, ui.button2, Math.min(1, a + 0.08)), 'important'); s.style.setProperty('border-color', rgba(ui.border, 0.55), 'important'); s.style.boxShadow = i ? '0 0 14px ' + rgba(ui.glow, 0.55) : 'none'; });
+    }
+    var touch = function () { ui.on = true; paintUI(); live(); };   // any UI edit switches to CUSTOM
+    box.querySelectorAll('[data-uion]').forEach(function (b) { b.onclick = function () { ui.on = b.getAttribute('data-uion') === '1'; paintUI(); live(); }; });
+    box.querySelectorAll('[data-uistyle]').forEach(function (b) { b.onclick = function () { ui.style = b.getAttribute('data-uistyle'); touch(); }; });
+    box.querySelectorAll('[data-uidir]').forEach(function (b) { b.onclick = function () { ui.angle = +b.getAttribute('data-uidir'); touch(); }; });
+    ['angle', 'opacity', 'blur'].forEach(function (k) { box.querySelector('#aut-pe-' + k).oninput = function () { ui[k] = +this.value; touch(); }; });
+    box.querySelector('#aut-pe-uireset').onclick = function () { ui = uiDefaults({ bg1: val('#aut-pe-bg1'), bg2: val('#aut-pe-bg2'), accent: val('#aut-pe-acc') }); paintUI(); live(); };
+    box.querySelector('#aut-pe-prev').onclick = live;
+    box.querySelector('#aut-pe-save').onclick = function () { var p = saveCustom(val('#aut-pe-name'), val('#aut-pe-bg1'), val('#aut-pe-bg2'), val('#aut-pe-acc'), d.id, ui); applyCustom(p); openPalette(p); };
     // Swatch buttons open the in-app picker; dragging previews the whole palette live, CANCEL restores what was showing.
     box.querySelectorAll('[data-pick]').forEach(function (b) {
       b.onclick = function () {
         var f = b.getAttribute('data-pick'), inp = box.querySelector('#aut-pe-' + f), before = activePalette();
         var paint = function (h) { inp.value = h; b.querySelector('.sw').style.background = h; b.querySelector('small').textContent = h.toUpperCase(); };
-        openColorPicker(b.textContent.replace(/#.*/, '').trim() + ' COLOUR', inp.value, function (h) { paint(h); applyPaletteVars({ bg1: val('#aut-pe-bg1'), bg2: val('#aut-pe-bg2'), accent: val('#aut-pe-acc') }); },
-          function (h) { if (h) { paint(h); box.querySelector('#aut-ta-msg').textContent = 'Previewing — SAVE to keep it.'; } else { applyPaletteVars(before); } });
+        openColorPicker(b.textContent.replace(/#.*/, '').trim() + ' COLOUR', inp.value, function (h) { paint(h); applyPaletteVars(form()); },
+          function (h) { if (h) { paint(h); msg('Previewing — SAVE to keep it.'); } else { applyPaletteVars(before); } });
       };
     });
-    var n = box.querySelector('#aut-pe-new'); if (n) n.onclick = function () { openPalette({ name: 'CUSTOM', bg1: d.bg1, bg2: d.bg2, accent: d.accent }); };
+    box.querySelectorAll('[data-uipick]').forEach(function (b) {
+      b.onclick = function () {
+        var k = b.getAttribute('data-uipick'), before = activePalette(), was = ui[k], wasOn = ui.on;
+        openColorPicker(b.textContent.replace(/#.*/, '').trim() + ' COLOUR', ui[k], function (h) { ui[k] = h; ui.on = true; paintUI(); applyPaletteVars(form()); },
+          function (h) { if (h) { ui[k] = h; ui.on = true; paintUI(); live(); } else { ui[k] = was; ui.on = wasOn; paintUI(); applyPaletteVars(before); } });
+      };
+    });
+    paintUI();
+    var n = box.querySelector('#aut-pe-new'); if (n) n.onclick = function () { openPalette({ name: 'CUSTOM', bg1: d.bg1, bg2: d.bg2, accent: d.accent, ui: ui }); };
     ov.classList.add('open');
   }
   // ── In-app colour picker (replaces <input type=color>; Android's native dialog is a bare swatch grid) ──
