@@ -7641,7 +7641,12 @@ window._autumnPushLiveFeedEvent = function(entries) {
 // latest-export.json in the exact RawExport shape Session Cube already
 // parses. Callable with an already-fetched cfg (avoids a redundant read
 // right after a push) or with none (fetches its own).
-window._autumnWriteLiveExport = function(cfg){
+// opts.seed publishes the cube with zero events right after a new master
+// maze is generated, so cube.leatr.xyz and the iOS Admin Console's 3D
+// Master Maze Cube draw it immediately instead of "waiting for the first
+// events" (iOS LiveFeedController.writeLiveExport(seedIfEmpty:) does the same).
+window._autumnWriteLiveExport = function(cfg, opts){
+  var seed = !!(opts && opts.seed);
   try {
     var GAS_URL = (typeof AUTUMN_GAS_URL !== 'undefined' && AUTUMN_GAS_URL && !AUTUMN_GAS_URL.includes('YOUR_DEPLOYED')) ? AUTUMN_GAS_URL : null;
     if (!GAS_URL || typeof LEMAC_ENGINE_ASH === 'undefined' || typeof LEMAC_ENGINE_ASH.solveCubic !== 'function') return Promise.resolve();
@@ -7656,10 +7661,10 @@ window._autumnWriteLiveExport = function(cfg){
       var solution = LEMAC_ENGINE_ASH.solveCubic(c.grid);
       if (!solution || !solution.length) return;
       var chunkPath = 'ashtree/analytics-live/' + c.mazeId + '/chunk-' + (c.currentChunkIndex||0) + '.json';
-      return ashread(chunkPath).then(function(chunk){
+      return (seed ? Promise.resolve([]) : ashread(chunkPath)).then(function(chunk){
         var events = Array.isArray(chunk) ? chunk : [];
         if (events.length > 4000) events = events.slice(events.length - 4000);
-        if (!events.length) return;
+        if (!events.length && !seed) return;
         var buckets = solution.map(function(){ return []; });
         events.forEach(function(ev, i){
           var idx = Math.min(Math.floor(i * solution.length / Math.max(events.length, 1)), solution.length - 1);
@@ -25744,6 +25749,168 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     });
   };
 
+  /* Master Maze Cube 3D display for the Admin LIVE FEED tab — the same
+     Session-Cube-style view the iOS Admin Console now has
+     (MasterMazeCubeSceneView.swift): frosted red wall panes (corridor /
+     shell / quiet), cyan wireframe lattice, the blue solved path with event
+     nodes sized by latest-export.json buckets, entrance/exit markers and a
+     traveler walking the path. Drawn straight from config.json's grid, so a
+     maze generated on iOS shows up here on the next poll without waiting
+     for any events. Tears itself down when the panel leaves the DOM. */
+  window._admMountMasterCube = function(host){
+    if(typeof THREE==='undefined') { host.textContent='3D view unavailable (THREE not loaded).'; return { update:function(){}, destroy:function(){} }; }
+    var COLORS={ corridor:0xff5446, shell:0xd23c32, quiet:0xb3302a, path:0x3aa8ff, event:0x9fdcff, head:0xe6f6ff, lattice:0x00e5ff };
+    var FACE_STEP={ left:[-1,0,0], right:[1,0,0], bottom:[0,-1,0], top:[0,1,0], back:[0,0,-1], front:[0,0,1] };
+    var FACES=['right','front','top','left','back','bottom'];
+    var renderer=new THREE.WebGLRenderer({ antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+    renderer.setClearColor(0x000000, 0);
+    renderer.domElement.style.cssText='display:block;width:100%;height:100%;touch-action:none;cursor:grab';
+    host.appendChild(renderer.domElement);
+    var scene=new THREE.Scene();
+    var camera=new THREE.PerspectiveCamera(36, 1, 0.1, 500);
+    var tilt=new THREE.Group(); tilt.rotation.x=0.18; scene.add(tilt);
+    var turntable=new THREE.Group(); tilt.add(turntable);
+    var mazeGroup=null, pathGroup=null, traveler=null, walk={ pts:[], t:0 }, appear=1;
+    var lastStructKey='', lastCountsKey='', zoom=1, span=10, idleAt=0, alive=true;
+    function placeCamera(){ camera.position.set(0, span*1.05*zoom, span*2.95*zoom); camera.lookAt(0,0,0); }
+    function disposeGroup(g){ if(!g) return; turntable.remove(g); g.traverse(function(o){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); }
+    function key(x,y,z){ return x+','+y+','+z; }
+    function center(x,y,z,c){ return new THREE.Vector3(x-(c.w-1)/2, y-(c.h-1)/2, z-(c.d-1)/2); }
+    function paneMat(color, opacity){ return new THREE.MeshBasicMaterial({ color:color, transparent:true, opacity:opacity, side:THREE.DoubleSide, depthWrite:false }); }
+    function glowMat(color){ return new THREE.MeshBasicMaterial({ color:color }); }
+    function lineMat(color, opacity){ return new THREE.LineBasicMaterial({ color:color, transparent:true, opacity:opacity, depthWrite:false, blending:THREE.AdditiveBlending }); }
+
+    function buildMaze(c, solution){
+      var onPath={}; solution.forEach(function(p){ onPath[key(p.x,p.y,p.z)]=1; });
+      var quads={ corridor:[], shell:[], quiet:[] }, edges=[], H=0.46;
+      for(var z=0; z<c.d; z++) for(var y=0; y<c.h; y++) for(var x=0; x<c.w; x++){
+        var cell=c.grid[z]&&c.grid[z][y]&&c.grid[z][y][x]; if(!cell) continue;
+        FACES.forEach(function(face){
+          if(!cell[face]) return;
+          if(face==='left'&&x!==0) return; if(face==='back'&&z!==0) return; if(face==='bottom'&&y!==0) return;
+          var s=FACE_STEP[face];
+          var touches=onPath[key(x,y,z)]||onPath[key(x+s[0],y+s[1],z+s[2])];
+          var shell=(face==='left'&&x===0)||(face==='right'&&x===c.w-1)||(face==='bottom'&&y===0)||(face==='top'&&y===c.h-1)||(face==='back'&&z===0)||(face==='front'&&z===c.d-1);
+          var kind=touches?'corridor':(shell?'shell':'quiet');
+          var m=center(x,y,z,c).add(new THREE.Vector3(s[0]*0.5,s[1]*0.5,s[2]*0.5)), q;
+          if(s[0]) q=[[m.x,m.y-H,m.z-H],[m.x,m.y+H,m.z-H],[m.x,m.y+H,m.z+H],[m.x,m.y-H,m.z+H]];
+          else if(s[1]) q=[[m.x-H,m.y,m.z-H],[m.x+H,m.y,m.z-H],[m.x+H,m.y,m.z+H],[m.x-H,m.y,m.z+H]];
+          else q=[[m.x-H,m.y-H,m.z],[m.x+H,m.y-H,m.z],[m.x+H,m.y+H,m.z],[m.x-H,m.y+H,m.z]];
+          [0,1,2,0,2,3].forEach(function(i){ quads[kind].push(q[i][0],q[i][1],q[i][2]); });
+          if(kind==='corridor') for(var i=0;i<4;i++){ var a=q[i], b=q[(i+1)%4]; edges.push(a[0],a[1],a[2],b[0],b[1],b[2]); }
+        });
+      }
+      var g=new THREE.Group();
+      [['quiet',0.16],['shell',0.26],['corridor',0.5]].forEach(function(k){
+        if(!quads[k[0]].length) return;
+        var geo=new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(quads[k[0]],3));
+        var mesh=new THREE.Mesh(geo, paneMat(COLORS[k[0]], k[1])); mesh.renderOrder=1; g.add(mesh);
+      });
+      if(edges.length){ var eg=new THREE.BufferGeometry(); eg.setAttribute('position', new THREE.Float32BufferAttribute(edges,3)); var el=new THREE.LineSegments(eg, lineMat(COLORS.lattice,0.35)); el.renderOrder=2; g.add(el); }
+      var box=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(c.w,c.h,c.d)), lineMat(COLORS.lattice,0.55)); g.add(box);
+      function opening(p, color){
+        var s=FACE_STEP[p.face]||[0,0,0];
+        var mesh=new THREE.Mesh(new THREE.SphereGeometry(0.32,16,12), glowMat(color));
+        mesh.position.copy(center(p.x,p.y,p.z,c).add(new THREE.Vector3(s[0]*0.75,s[1]*0.75,s[2]*0.75)));
+        mesh.userData.pulse=true; return mesh;
+      }
+      if(c.start) g.add(opening(c.start, 0x00ff88));
+      if(c.end) g.add(opening(c.end, 0xff4466));
+      return g;
+    }
+
+    function buildPath(c, solution, counts){
+      var g=new THREE.Group();
+      var pts=solution.map(function(p){ return center(p.x,p.y,p.z,c); });
+      if(pts.length>1){
+        var arr=[]; for(var i=1;i<pts.length;i++){ arr.push(pts[i-1].x,pts[i-1].y,pts[i-1].z,pts[i].x,pts[i].y,pts[i].z); }
+        var lg=new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(arr,3));
+        var line=new THREE.LineSegments(lg, lineMat(COLORS.path,0.7)); line.renderOrder=3; g.add(line);
+      }
+      var maxC=Math.max.apply(null, [1].concat(counts||[]));
+      pts.forEach(function(p,i){
+        var n=(counts&&counts[i])||0;
+        var mesh=new THREE.Mesh(new THREE.BoxGeometry(n?0.44:0.26, n?0.44:0.26, n?0.44:0.26), glowMat(n?COLORS.event:COLORS.path));
+        mesh.position.copy(p); mesh.renderOrder=4;
+        if(n){ mesh.userData.base=1+0.6*n/maxC; mesh.userData.phase=(i%12)*0.08; }
+        g.add(mesh);
+      });
+      walk.pts=pts; walk.t=0;
+      if(pts.length>1){
+        traveler=new THREE.Mesh(new THREE.SphereGeometry(0.3,16,12), new THREE.MeshBasicMaterial({ color:COLORS.head, depthTest:false }));
+        var halo=new THREE.Mesh(new THREE.SphereGeometry(0.62,16,12), new THREE.MeshBasicMaterial({ color:COLORS.path, transparent:true, opacity:0.45, blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false }));
+        halo.userData.halo=true; traveler.add(halo); traveler.renderOrder=10; traveler.position.copy(pts[0]); g.add(traveler);
+      } else traveler=null;
+      return g;
+    }
+
+    function update(cfg, exportRaw){
+      var c=cfg && cfg.grid; if(!c || !c.grid) return;
+      c={ grid:c.grid, start:c.start, end:c.end, w:c.w||cfg.width, h:c.h||cfg.height, d:c.d||cfg.depth };
+      var structKey=cfg.mazeId+'|'+c.w+'x'+c.h+'x'+c.d;
+      var solution=[];
+      try{ solution=(typeof LEMAC_ENGINE_ASH!=='undefined' && LEMAC_ENGINE_ASH.solveCubic) ? (LEMAC_ENGINE_ASH.solveCubic(c)||[]) : []; }catch(e){ solution=[]; }
+      // per-node counts from latest-export.json, matched by cell coords
+      var byCell={};
+      var layer=exportRaw && exportRaw.pathIndex && exportRaw.pathIndex[0] && exportRaw.pathIndex[0].path || [];
+      layer.forEach(function(n){ byCell[key(n.x,n.y,n.z)]=(byCell[key(n.x,n.y,n.z)]||0)+((n.events&&n.events.length)||0); });
+      var counts=solution.map(function(p){ return byCell[key(p.x,p.y,p.z)]||0; });
+      var countsKey=structKey+'|'+counts.join(',');
+      if(structKey!==lastStructKey){
+        lastStructKey=structKey;
+        disposeGroup(mazeGroup); mazeGroup=buildMaze(c, solution); turntable.add(mazeGroup);
+        appear=0; span=Math.max(c.w,c.h,c.d); placeCamera();
+      }
+      if(countsKey!==lastCountsKey){
+        lastCountsKey=countsKey;
+        disposeGroup(pathGroup); pathGroup=buildPath(c, solution, counts); turntable.add(pathGroup);
+      }
+    }
+
+    // drag to orbit, wheel / pinch to zoom; turntable resumes after release
+    var pointers={}, pinch=0, canvas=renderer.domElement;
+    function pinchDist(){ var ids=Object.keys(pointers); if(ids.length<2) return 0; var a=pointers[ids[0]], b=pointers[ids[1]]; return Math.hypot(a.x-b.x,a.y-b.y); }
+    canvas.addEventListener('pointerdown', function(e){ pointers[e.pointerId]={x:e.clientX,y:e.clientY}; pinch=pinchDist(); idleAt=Infinity; canvas.style.cursor='grabbing'; try{ canvas.setPointerCapture(e.pointerId); }catch(_){} });
+    canvas.addEventListener('pointermove', function(e){
+      var p=pointers[e.pointerId]; if(!p) return;
+      var dx=e.clientX-p.x, dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY;
+      if(Object.keys(pointers).length>=2){ var d=pinchDist(); if(pinch&&d) zoom=Math.max(0.45,Math.min(2.2,zoom*(pinch/d))); pinch=d; placeCamera(); return; }
+      turntable.rotation.y+=dx*0.008; tilt.rotation.x=Math.max(-1.3,Math.min(1.3,tilt.rotation.x+dy*0.008));
+    });
+    function release(e){ delete pointers[e.pointerId]; pinch=pinchDist(); if(!Object.keys(pointers).length){ idleAt=performance.now()+2500; canvas.style.cursor='grab'; } }
+    canvas.addEventListener('pointerup', release); canvas.addEventListener('pointercancel', release);
+    canvas.addEventListener('wheel', function(e){ e.preventDefault(); zoom=Math.max(0.45,Math.min(2.2,zoom*Math.exp(e.deltaY*0.001))); placeCamera(); idleAt=performance.now()+2500; }, { passive:false });
+
+    function resize(){ var r=host.getBoundingClientRect(); var w=Math.max(1,r.width), h=Math.max(1,r.height||r.width); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+    resize(); var ro=window.ResizeObserver ? new ResizeObserver(resize) : null; if(ro) ro.observe(host);
+    placeCamera();
+    var prev=performance.now();
+    function tick(now){
+      if(!alive) return;
+      if(!document.body.contains(host)){ destroy(); return; }
+      var dt=Math.max(0,Math.min(0.1,(now-prev)/1000)); prev=now;
+      if(!document.hidden){
+        if(now>=idleAt) turntable.rotation.y+=0.12*dt;
+        if(appear<1 && mazeGroup){ appear=Math.min(1,appear+dt/0.7); var s=0.82+0.18*appear; mazeGroup.scale.set(s,s,s); mazeGroup.traverse(function(o){ if(o.material && o.material.transparent){ if(o.userData.op===undefined) o.userData.op=o.material.opacity; o.material.opacity=o.userData.op*appear; } }); }
+        var t=now/1000;
+        if(mazeGroup) mazeGroup.children.forEach(function(o){ if(o.userData.pulse){ var k=1.12+Math.sin(t*3.9)*0.12; o.scale.set(k,k,k); } });
+        if(pathGroup) pathGroup.children.forEach(function(o){ if(o.userData.base){ var k=o.userData.base*(1.09+Math.sin((t-o.userData.phase)*5.2)*0.09); o.scale.set(k,k,k); } });
+        if(traveler && walk.pts.length>1){
+          walk.t+=dt*14; var n=walk.pts.length; if(walk.t>=n-1+11) walk.t=0;
+          var i=Math.min(n-2, Math.floor(walk.t)), f=Math.min(1, walk.t-i);
+          traveler.position.copy(walk.pts[i]).lerp(walk.pts[i+1], f);
+          traveler.children.forEach(function(h){ if(h.userData.halo){ var k=1.07+Math.sin(t*10)*0.13; h.scale.set(k,k,k); } });
+        }
+        renderer.render(scene,camera);
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+    function destroy(){ if(!alive) return; alive=false; if(ro) ro.disconnect(); disposeGroup(mazeGroup); disposeGroup(pathGroup); renderer.dispose(); if(renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement); }
+    return { update:update, destroy:destroy, isAlive:function(){ return alive; } };
+  };
+
   /* TF-web-125: LIVE FEED admin tab — mirrors the iOS Admin panel's
      analytics-export section (enable/disable, generate, export), talking
      to the exact same shared config.json the LiveFeedController on iOS
@@ -25782,6 +25949,18 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     status.textContent='Loading\u2026';
     panel.appendChild(status);
 
+    // Master Maze Cube 3D display (two-way synced with the iOS Admin Console)
+    var cubeBox=document.createElement('div'); cubeBox.id='adm-live-cube';
+    cubeBox.style.cssText='position:relative;width:100%;height:320px;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,rgba(7,16,20,.85),rgba(0,0,0,.55));border:1px solid rgba(58,168,255,.35)';
+    var cubeHud=document.createElement('div'); cubeHud.id='adm-live-cube-hud';
+    cubeHud.style.cssText='position:absolute;left:10px;top:8px;right:10px;font:600 10px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#bfe6ff;text-shadow:0 1px 3px #000;pointer-events:none;z-index:2';
+    cubeHud.textContent='MASTER MAZE CUBE \u00b7 loading\u2026';
+    cubeBox.appendChild(cubeHud);
+    panel.appendChild(cubeBox);
+    var syncNote=document.createElement('div'); syncNote.id='adm-live-sync-note';
+    syncNote.style.cssText='font-size:10px;font-family:sans-serif;color:color-mix(in srgb, var(--cyan,#3aa8ff) 70%, transparent);min-height:12px';
+    panel.appendChild(syncNote);
+
     var ctrlRow=document.createElement('div'); ctrlRow.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap';
     var toggleBtn=document.createElement('button'); toggleBtn.id='adm-live-toggle'; toggleBtn.textContent='\u2026';
     toggleBtn.style.cssText='font-family:var(--font-d);font-size:10px;padding:7px 14px;border-radius:5px;border:1px solid color-mix(in srgb, var(--cyan,#4fd980) 40%, transparent);background:transparent;color:var(--cyan,#4fd980);cursor:pointer';
@@ -25805,7 +25984,7 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
     genBtn.style.cssText='align-self:flex-start;font-family:var(--font-d);font-size:10px;padding:7px 14px;border-radius:5px;border:1px solid color-mix(in srgb, var(--red,#ffb347) 45%, transparent);background:transparent;color:var(--red,#ffb347);cursor:pointer';
     genSec.appendChild(genBtn);
     var genNote=document.createElement('div'); genNote.id='adm-live-gen-note'; genNote.style.cssText='font-size:10px;font-family:sans-serif;color:color-mix(in srgb, var(--text,#e0f4ff) 45%, transparent)';
-    genNote.textContent='Takes effect within ~30s once a running iOS session picks up the request \u2014 this web console can\u2019t run the maze algorithm itself.';
+    genNote.textContent='Generates here and publishes to the shared config \u2014 the iOS Admin Console and cube.leatr.xyz switch to this exact cube on their next sync.';
     genSec.appendChild(genNote);
     panel.appendChild(genSec);
 
@@ -25824,19 +26003,47 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
 
     if(!GAS_URL){ status.textContent='GAS endpoint not configured.'; toggleBtn.disabled=true; genBtn.disabled=true; expBtn.disabled=true; return; }
 
-    function refreshStatus(){
-      status.textContent='Loading\u2026';
+    var cubeView=window._admMountMasterCube(cubeBox);
+    var seenMazeId=null, localGenId=null, pollTimer=null, polling=false;
+    function refreshStatus(silent){
+      if(polling) return;
+      if(!silent) status.textContent='Loading\u2026';
+      polling=true;
       ashread(CONFIG_PATH).then(function(cfg){
+        polling=false;
         if(!cfg || typeof cfg!=='object'){ status.textContent='No live session config found yet.'; toggleBtn.textContent='ENABLE'; return; }
+        // Two-way sync: a maze id we didn't generate in this tab means iOS
+        // (or another session) published a new master maze -- pick it up.
+        var mazeChanged=!!(seenMazeId && cfg.mazeId && cfg.mazeId!==seenMazeId);
+        if(mazeChanged && cfg.mazeId!==localGenId){
+          syncNote.textContent='Updated to '+cfg.mazeId+' \u2014 generated on iOS / another session at '+new Date().toLocaleTimeString();
+        }
+        seenMazeId=cfg.mazeId||seenMazeId;
+        var mazeIdNow=cfg.mazeId;
+        var counts=null;
+        (mazeIdNow ? ashread('ashtree/analytics-live/'+mazeIdNow+'/latest-export.json') : Promise.resolve(null)).then(function(raw){
+          if(!cubeView.isAlive()) return;
+          cubeView.update(cfg, raw && typeof raw==='object' ? raw : null);
+          var total=(raw && raw.totalEvents)||0;
+          cubeHud.innerHTML='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+(cfg.enabled?'#6dff9e':'#8ea39a')+';margin-right:6px"></span>MASTER MAZE CUBE<br>'+
+            (cfg.width||'?')+'\u00d7'+(cfg.height||'?')+'\u00d7'+(cfg.depth||'?')+' \u00b7 '+(cfg.mazeId||'\u2014')+'<br>'+
+            total+' events \u00b7 synced '+new Date().toLocaleTimeString();
+        });
         status.innerHTML =
           '<b style="color:'+(cfg.enabled?'var(--cyan,#4fd980)':'color-mix(in srgb, var(--red,#ff4466) 70%, transparent)')+'">'+(cfg.enabled?'\u25cf ACTIVE':'\u25cb STOPPED')+'</b><br>'+
           'Maze: '+(cfg.mazeId||'\u2014')+' \u00b7 '+(cfg.width||'?')+'\u00d7'+(cfg.height||'?')+'\u00d7'+(cfg.depth||'?')+'<br>'+
           'Chunk index: '+(cfg.currentChunkIndex||0);
         toggleBtn.textContent = cfg.enabled ? 'STOP' : 'ENABLE';
-        if(cfg.width) wInp.value=cfg.width; if(cfg.height) hInp.value=cfg.height; if(cfg.depth) dInp.value=cfg.depth;
-      });
+        if(!silent || mazeChanged){ if(cfg.width) wInp.value=cfg.width; if(cfg.height) hInp.value=cfg.height; if(cfg.depth) dInp.value=cfg.depth; }
+      }, function(){ polling=false; });
     }
     refreshStatus();
+    // Poll while this tab is on screen so an iOS-generated master maze
+    // appears here within ~10s; stops itself once the panel is removed.
+    pollTimer=setInterval(function(){
+      if(!document.body.contains(panel)){ clearInterval(pollTimer); cubeView.destroy(); return; }
+      if(!document.hidden) refreshStatus(true);
+    }, 10000);
 
     toggleBtn.onclick=function(){
       toggleBtn.disabled=true; toggleBtn.textContent='\u2026';
@@ -25876,9 +26083,16 @@ var _origRenderMessages = typeof renderMessages === 'function' ? renderMessages 
         width:w, height:h, depth:d,
         grid:result
       };
+      localGenId=newCfg.mazeId;
       ashwriteReplace(CONFIG_PATH, newCfg).then(function(ok){
         genBtn.disabled=false; genBtn.textContent='GENERATE';
-        genNote.textContent = ok ? 'Generated '+newCfg.mazeId+' \u2014 live now.' : 'Write failed \u2014 try again.';
+        genNote.textContent = ok ? 'Generated '+newCfg.mazeId+' \u2014 live now, published to iOS + Session Cube.' : 'Write failed \u2014 try again.';
+        if(ok){
+          seenMazeId=newCfg.mazeId;
+          cubeView.update(newCfg, null);
+          syncNote.textContent='Published '+newCfg.mazeId+' from web at '+new Date().toLocaleTimeString();
+          if(typeof window._autumnWriteLiveExport==='function') window._autumnWriteLiveExport(newCfg, { seed:true });
+        }
         refreshStatus();
       });
     };
